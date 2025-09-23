@@ -1,0 +1,124 @@
+{
+  "nodes": [
+    {
+      "node_name": "montreux",
+      "publishers": [
+        { "topic_name": "geneva_lake", "msg_type": "stamped_float", "period_ms": 10, "msg_pass_by": "shared_ptr" }
+      ]
+    },
+    {
+      "node_name": "chamonix",
+      "publishers": [
+        { "topic_name": "matterhorn", "msg_type": "stamped_int", "period_ms": 20, "msg_pass_by": "shared_ptr" }
+      ]
+    },
+    {
+      "node_name": "bern",
+      "publishers": [
+        { "topic_name": "lucerne", "msg_type": "stamped_float", "period_ms": 10, "msg_pass_by": "shared_ptr" }
+      ],
+      "subscribers": [
+        { "topic_name": "geneva_lake", "msg_type": "stamped_float" }
+      ]
+    },
+    {
+      "node_name": "lausanne",
+      "subscribers": [
+        { "topic_name": "matterhorn", "msg_type": "stamped_int" },
+        { "topic_name": "geneva_lake", "msg_type": "stamped_float" }
+      ],
+      "publishers": [
+        { "topic_name": "pilatus", "msg_type": "stamped_vector", "period_ms": 50, "msg_pass_by": "shared_ptr" }
+      ]
+    },
+    {
+      "node_name": "interlaken",
+      "subscribers": [
+        { "topic_name": "lucerne", "msg_type": "stamped_float" },
+        { "topic_name": "pilatus", "msg_type": "stamped_vector" }
+      ]
+    },
+    {
+      "node_name": "zermatt",
+      "publishers": [
+        { "topic_name": "toblerone", "msg_type": "stamped_vector", "period_ms": 100, "msg_pass_by": "shared_ptr" }
+      ],
+      "subscribers": [
+        { "topic_name": "lucerne", "msg_type": "stamped_float" }
+      ]
+    },
+    {
+      "node_name": "lucerne",
+      "publishers": [
+        { "topic_name": "junfrau", "msg_type": "stamped_int", "period_ms": 100, "msg_pass_by": "shared_ptr" }
+      ],
+      "subscribers": [
+        { "topic_name": "geneva_lake", "msg_type": "stamped_float" }
+      ]
+    },
+    {
+      "node_name": "stmoritz",
+      "subscribers": [
+        { "topic_name": "junfrau", "msg_type": "stamped_int" },
+        { "topic_name": "toblerone", "msg_type": "stamped_vector" }
+      ]
+    },
+    {
+      "node_name": "davos",
+      "publishers": [
+        { "topic_name": "stelvio", "msg_type": "stamped_float", "period_ms": 50, "msg_pass_by": "shared_ptr" }
+      ]
+    },
+    {
+      "node_name": "andermatt",
+      "publishers": [
+        { "topic_name": "susten", "msg_type": "stamped_float", "period_ms": 100, "msg_pass_by": "shared_ptr" }
+      ],
+      "subscribers": [
+        { "topic_name": "stelvio", "msg_type": "stamped_float" }
+      ]
+    },
+    {
+      "node_name": "lucarno",
+      "publishers": [
+        { "topic_name": "luganersee", "msg_type": "stamped_float", "period_ms": 200, "msg_pass_by": "shared_ptr" }
+      ],
+      "subscribers": [
+        { "topic_name": "susten", "msg_type": "stamped_float" }
+      ]
+    },
+    {
+      "node_name": "lugano",
+      "publishers": [
+        { "topic_name": "bellinzona", "msg_type": "stamped_vector", "period_ms": 50, "msg_pass_by": "shared_ptr" }
+      ],
+      "subscribers": [
+        { "topic_name": "luganersee", "msg_type": "stamped_float" }
+      ]
+    },
+    {
+      "node_name": "basel",
+      "publishers": [
+        { "topic_name": "alpstein", "msg_type": "stamped_vector", "period_ms": 100, "msg_pass_by": "shared_ptr" }
+      ],
+      "subscribers": [
+        { "topic_name": "bellinzona", "msg_type": "stamped_vector" }
+      ]
+    },
+    {
+      "node_name": "winterthur",
+      "publishers": [
+        { "topic_name": "rhine", "msg_type": "stamped_float", "period_ms": 25, "msg_pass_by": "shared_ptr" }
+      ],
+      "subscribers": [
+        { "topic_name": "alpstein", "msg_type": "stamped_vector" }
+      ]
+    },
+    {
+      "node_name": "geneva",
+      "subscribers": [
+        { "topic_name": "rhine", "msg_type": "stamped_float" }
+      ]
+    }
+  ]
+}
