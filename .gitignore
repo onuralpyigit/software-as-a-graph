@@ -130,3 +130,6 @@ dmypy.json
 
 # Other
 .DS_Store
+
+# Ignore virtual environment directories
+software_system_env/
