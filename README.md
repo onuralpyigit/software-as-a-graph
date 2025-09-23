@@ -1,2 +1,2 @@
-# SoftwareAsAGraph
-Represent a software as a graph in order to detect design defects
+# Software As A Graph
+Represent a software-intensive system as a graph to detect design defects
