@@ -1,0 +1,7 @@
+services:
+  neo4j:
+    image: neo4j:latest
+    container_name: neo4j
+    network_mode: "host"
+    environment:
+      - NEO4J_AUTH=${NEO4J_USERNAME}/${NEO4J_PASSWORD}
