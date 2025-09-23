@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed Publish-Subscribe System Graph Analysis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr 380px;
+            height: 100vh;
+            gap: 0;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel-section:last-child {
+            border-bottom: none;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: #8b8b9e;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        h2 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #a8a8b8;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        button.danger {
+            background: linear-gradient(135deg, #f93b3b 0%, #d91a1a 100%);
+        }
+
+        button::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button:active::after {
+            width: 300px;
+            height: 300px;
+        }
+
+        /* Sliders */
+        .slider-container {
+            margin-bottom: 16px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: #c4c4d0;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+        }
+
+        /* Main Visualization */
+        .visualization {
+            position: relative;
+            background: radial-gradient(ellipse at center, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .node:hover {
+            filter: brightness(1.2);
+        }
+
+        .node-label {
+            font-size: 11px;
+            fill: #ffffff;
+            pointer-events: none;
+            text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+        }
+
+        .link {
+            stroke-opacity: 0.6;
+            transition: all 0.3s ease;
+        }
+
+        .link:hover {
+            stroke-opacity: 1;
+            stroke-width: 3;
+        }
+
+        .link.highlighted {
+            stroke-opacity: 1;
+            stroke-width: 4;
+            filter: drop-shadow(0 0 6px currentColor);
+        }
+
+        /* Details Panel */
+        .details-panel {
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(-4px);
+            box-shadow: -5px 0 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .metric-title {
+            font-size: 0.85rem;
+            color: #8b8b9e;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .metric-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .metric-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+            transition: width 0.6s ease;
+        }
+
+        /* Legend */
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: #c4c4d0;
+        }
+
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            padding: 12px 16px;
+            background: rgba(26, 26, 46, 0.98);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(102, 126, 234, 0.5);
+            border-radius: 8px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-size: 0.85rem;
+            max-width: 280px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .tooltip.show {
+            opacity: 1;
+        }
+
+        /* Info Badge */
+        .info-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: #a8b2ff;
+            margin-left: 8px;
+        }
+
+        /* Failure Mode Indicator */
+        .failure-mode {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(249, 59, 59, 0.1);
+            border: 1px solid rgba(249, 59, 59, 0.3);
+            padding: 12px 20px;
+            border-radius: 8px;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+
+        .failure-mode.active {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(102, 126, 234, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="control-panel">
+            <h1>PubSub Graph Analyzer</h1>
+            <p class="subtitle">Advanced visualization for distributed publish-subscribe system analysis</p>
+            
+            <div class="panel-section">
+                <h2>View Controls</h2>
+                <div class="button-group">
+                    <button onclick="changeLayout('force')">Force-Directed Layout</button>
+                    <button onclick="changeLayout('hierarchical')" class="secondary">Hierarchical Layout</button>
+                    <button onclick="changeLayout('circular')" class="secondary">Circular Layout</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h2>Analysis Mode</h2>
+                <div class="button-group">
+                    <button onclick="toggleCentralityView()">Centrality Analysis</button>
+                    <button onclick="toggleQoSView()">QoS Criticality</button>
+                    <button onclick="findArticulationPoints()">Articulation Points</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h2>Failure Simulation</h2>
+                <div class="button-group">
+                    <button onclick="simulateNodeFailure()" class="danger">Simulate Node Failure</button>
+                    <button onclick="simulateCascade()" class="danger">Cascade Analysis</button>
+                    <button onclick="resetSimulation()" class="secondary">Reset Simulation</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h2>Filter Thresholds</h2>
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Criticality Threshold</span>
+                        <span id="criticalityValue">0.7</span>
+                    </div>
+                    <input type="range" id="criticalitySlider" min="0" max="1" step="0.1" value="0.7" onchange="updateCriticalityThreshold(this.value)">
+                </div>
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Edge Opacity</span>
+                        <span id="edgeOpacityValue">0.6</span>
+                    </div>
+                    <input type="range" id="edgeOpacitySlider" min="0.1" max="1" step="0.1" value="0.6" onchange="updateEdgeOpacity(this.value)">
+                </div>
+            </div>
+        </div>
+
+        <div class="visualization">
+            <svg id="graph"></svg>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #667eea;"></div>
+                    <span>Application</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f93b3b;"></div>
+                    <span>Broker</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #48bb78;"></div>
+                    <span>Topic</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ed8936;"></div>
+                    <span>Network Node</span>
+                </div>
+            </div>
+            <div class="failure-mode" id="failureIndicator">
+                ⚠️ Failure Simulation Active
+            </div>
+            <div class="tooltip" id="tooltip"></div>
+        </div>
+
+        <div class="details-panel">
+            <h2>Component Details</h2>
+            <div id="selectedComponent">
+                <p style="color: #8b8b9e; font-size: 0.9rem;">Select a component to view details</p>
+            </div>
+            
+            <div style="margin-top: 24px;">
+                <h2>System Metrics</h2>
+                <div class="metric-card">
+                    <div class="metric-title">Total Components</div>
+                    <div class="metric-value" id="totalComponents">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Critical Components</div>
+                    <div class="metric-value" id="criticalCount">0</div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill" id="criticalBar" style="width: 0%;"></div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Avg. Path Length</div>
+                    <div class="metric-value" id="avgPath">0.0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Network Resilience</div>
+                    <div class="metric-value" id="resilience">0%</div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill" id="resilienceBar" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 24px;">
+                <h2>Impact Analysis</h2>
+                <div id="impactAnalysis" style="display: none;">
+                    <div class="metric-card">
+                        <div class="metric-title">Affected Components</div>
+                        <div class="metric-value" id="affectedComponents">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Service Degradation</div>
+                        <div class="metric-value" id="serviceDegradation">0%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Recovery Time</div>
+                        <div class="metric-value" id="recoveryTime">0s</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Graph data structure representing publish-subscribe system
+        const graphData = {
+            nodes: [
+                // Applications
+                {id: "app1", name: "Trading Engine", type: "application", criticality: 0.95, qos: {durability: 1.0, reliability: 1.0, priority: 0.9}},
+                {id: "app2", name: "Risk Monitor", type: "application", criticality: 0.88, qos: {durability: 0.8, reliability: 1.0, priority: 0.8}},
+                {id: "app3", name: "Market Data Feed", type: "application", criticality: 0.92, qos: {durability: 0.5, reliability: 0.8, priority: 1.0}},
+                {id: "app4", name: "Analytics Service", type: "application", criticality: 0.65, qos: {durability: 0.7, reliability: 0.6, priority: 0.5}},
+                {id: "app5", name: "Reporting Tool", type: "application", criticality: 0.45, qos: {durability: 0.9, reliability: 0.5, priority: 0.3}},
+                {id: "app6", name: "Audit Logger", type: "application", criticality: 0.78, qos: {durability: 1.0, reliability: 0.9, priority: 0.6}},
+                
+                // Brokers
+                {id: "broker1", name: "Primary Broker", type: "broker", criticality: 0.98, isArticulation: true},
+                {id: "broker2", name: "Secondary Broker", type: "broker", criticality: 0.85},
+                {id: "broker3", name: "Edge Broker", type: "broker", criticality: 0.72},
+                
+                // Topics
+                {id: "topic1", name: "ORDER_EVENTS", type: "topic", criticality: 0.93, qos: {durability: 1.0, reliability: 1.0}},
+                {id: "topic2", name: "MARKET_DATA", type: "topic", criticality: 0.89, qos: {durability: 0.3, reliability: 0.8}},
+                {id: "topic3", name: "RISK_ALERTS", type: "topic", criticality: 0.91, qos: {durability: 0.9, reliability: 1.0}},
+                {id: "topic4", name: "ANALYTICS", type: "topic", criticality: 0.55, qos: {durability: 0.6, reliability: 0.5}},
+                {id: "topic5", name: "AUDIT_LOG", type: "topic", criticality: 0.75, qos: {durability: 1.0, reliability: 0.9}},
+                
+                // Network Nodes
+                {id: "node1", name: "DataCenter-1", type: "network", criticality: 0.88},
+                {id: "node2", name: "DataCenter-2", type: "network", criticality: 0.76},
+                {id: "node3", name: "Edge-Location", type: "network", criticality: 0.62}
+            ],
+            links: [
+                // Application to Topic (Publish)
+                {source: "app1", target: "topic1", type: "publishes", strength: 0.9, volume: 1000},
+                {source: "app3", target: "topic2", type: "publishes", strength: 0.95, volume: 5000},
+                {source: "app2", target: "topic3", type: "publishes", strength: 0.88, volume: 500},
+                {source: "app4", target: "topic4", type: "publishes", strength: 0.6, volume: 800},
+                {source: "app6", target: "topic5", type: "publishes", strength: 0.85, volume: 2000},
+                
+                // Application to Topic (Subscribe)
+                {source: "topic1", target: "app2", type: "subscribes", strength: 0.92, volume: 1000},
+                {source: "topic1", target: "app6", type: "subscribes", strength: 0.78, volume: 1000},
+                {source: "topic2", target: "app1", type: "subscribes", strength: 0.94, volume: 5000},
+                {source: "topic2", target: "app4", type: "subscribes", strength: 0.7, volume: 5000},
+                {source: "topic3", target: "app1", type: "subscribes", strength: 0.9, volume: 500},
+                {source: "topic4", target: "app5", type: "subscribes", strength: 0.65, volume: 800},
+                {source: "topic5", target: "app5", type: "subscribes", strength: 0.75, volume: 2000},
+                
+                // Broker to Topic
+                {source: "broker1", target: "topic1", type: "routes", strength: 0.95},
+                {source: "broker1", target: "topic2", type: "routes", strength: 0.92},
+                {source: "broker1", target: "topic3", type: "routes", strength: 0.91},
+                {source: "broker2", target: "topic3", type: "routes", strength: 0.85},
+                {source: "broker2", target: "topic4", type: "routes", strength: 0.7},
+                {source: "broker3", target: "topic4", type: "routes", strength: 0.65},
+                {source: "broker3", target: "topic5", type: "routes", strength: 0.8},
+                
+                // Network to Broker
+                {source: "node1", target: "broker1", type: "hosts", strength: 0.98},
+                {source: "node2", target: "broker2", type: "hosts", strength: 0.88},
+                {source: "node3", target: "broker3", type: "hosts", strength: 0.75},
+                
+                // Inter-broker connections
+                {source: "broker1", target: "broker2", type: "interconnect", strength: 0.85},
+                {source: "broker2", target: "broker3", type: "interconnect", strength: 0.7}
+            ]
+        };
+
+        // Visualization setup
+        const width = document.querySelector('.visualization').offsetWidth;
+        const height = document.querySelector('.visualization').offsetHeight;
+
+        const svg = d3.select('#graph')
+            .attr('width', width)
+            .attr('height', height);
+
+        // Add zoom behavior
+        const g = svg.append('g');
+        const zoom = d3.zoom()
+            .scaleExtent([0.3, 4])
+            .on('zoom', (event) => {
+                g.attr('transform', event.transform);
+            });
+        svg.call(zoom);
+
+        // Color scales
+        const colorScale = d3.scaleOrdinal()
+            .domain(['application', 'broker', 'topic', 'network'])
+            .range(['#667eea', '#f93b3b', '#48bb78', '#ed8936']);
+
+        // Size scale based on criticality
+        const sizeScale = d3.scaleLinear()
+            .domain([0, 1])
+            .range([20, 50]);
+
+        // Initialize simulation
+        let simulation = d3.forceSimulation(graphData.nodes)
+            .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(100))
+            .force('charge', d3.forceManyBody().strength(-500))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(d => sizeScale(d.criticality) + 5));
+
+        // Create link elements
+        const link = g.append('g')
+            .selectAll('line')
+            .data(graphData.links)
+            .enter().append('line')
+            .attr('class', 'link')
+            .attr('stroke', d => {
+                if (d.type === 'publishes') return '#667eea';
+                if (d.type === 'subscribes') return '#48bb78';
+                if (d.type === 'routes') return '#f93b3b';
+                return '#ed8936';
+            })
+            .attr('stroke-width', d => Math.sqrt(d.volume / 500) || 2)
+            .attr('stroke-opacity', 0.6);
+
+        // Create node container
+        const node = g.append('g')
+            .selectAll('g')
+            .data(graphData.nodes)
+            .enter().append('g')
+            .attr('class', 'node')
+            .call(d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended));
+
+        // Add circles for nodes
+        node.append('circle')
+            .attr('r', d => sizeScale(d.criticality))
+            .attr('fill', d => colorScale(d.type))
+            .attr('stroke', d => d.isArticulation ? '#ff0000' : '#ffffff')
+            .attr('stroke-width', d => d.isArticulation ? 3 : 1)
+            .attr('opacity', 0.9);
+
+        // Add labels
+        node.append('text')
+            .attr('class', 'node-label')
+            .attr('dx', d => sizeScale(d.criticality) + 5)
+            .attr('dy', 4)
+            .text(d => d.name);
+
+        // Add hover interactions
+        node.on('mouseover', function(event, d) {
+            showTooltip(event, d);
+            highlightConnections(d);
+        })
+        .on('mouseout', function() {
+            hideTooltip();
+            resetHighlight();
+        })
+        .on('click', function(event, d) {
+            showComponentDetails(d);
+        });
+
+        // Simulation tick
+        simulation.on('tick', () => {
+            link
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+
+            node
+                .attr('transform', d => `translate(${d.x},${d.y})`);
+        });
+
+        // Drag functions
+        function dragstarted(event) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+
+        function dragged(event) {
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
+        }
+
+        function dragended(event) {
+            if (!event.active) simulation.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+
+        // Tooltip functions
+        function showTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `
+                <strong>${d.name}</strong><br>
+                Type: ${d.type}<br>
+                Criticality: ${(d.criticality * 100).toFixed(1)}%<br>
+                ${d.qos ? `QoS Durability: ${(d.qos.durability * 100).toFixed(0)}%<br>` : ''}
+                ${d.qos && d.qos.reliability ? `QoS Reliability: ${(d.qos.reliability * 100).toFixed(0)}%` : ''}
+                ${d.isArticulation ? '<br><strong style="color: #f93b3b;">⚠️ Articulation Point</strong>' : ''}
+            `;
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+            tooltip.classList.add('show');
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').classList.remove('show');
+        }
+
+        // Highlight connections
+        function highlightConnections(d) {
+            link.classed('highlighted', l => l.source === d || l.target === d);
+            node.style('opacity', n => {
+                const connected = graphData.links.some(l => 
+                    (l.source === d && l.target === n) || 
+                    (l.source === n && l.target === d) ||
+                    n === d
+                );
+                return connected ? 1 : 0.3;
+            });
+        }
+
+        function resetHighlight() {
+            link.classed('highlighted', false);
+            node.style('opacity', 1);
+        }
+
+        // Component details
+        function showComponentDetails(d) {
+            const detailsDiv = document.getElementById('selectedComponent');
+            
+            let qosHtml = '';
+            if (d.qos) {
+                qosHtml = `
+                    <div class="metric-card fade-in">
+                        <div class="metric-title">QoS Policies</div>
+                        <div style="margin-top: 12px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="color: #a8a8b8;">Durability</span>
+                                <span style="color: #667eea;">${(d.qos.durability * 100).toFixed(0)}%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-bar-fill" style="width: ${d.qos.durability * 100}%;"></div>
+                            </div>
+                        </div>
+                        ${d.qos.reliability !== undefined ? `
+                            <div style="margin-top: 12px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="color: #a8a8b8;">Reliability</span>
+                                    <span style="color: #667eea;">${(d.qos.reliability * 100).toFixed(0)}%</span>
+                                </div>
+                                <div class="metric-bar">
+                                    <div class="metric-bar-fill" style="width: ${d.qos.reliability * 100}%;"></div>
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${d.qos.priority !== undefined ? `
+                            <div style="margin-top: 12px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span style="color: #a8a8b8;">Priority</span>
+                                    <span style="color: #667eea;">${(d.qos.priority * 100).toFixed(0)}%</span>
+                                </div>
+                                <div class="metric-bar">
+                                    <div class="metric-bar-fill" style="width: ${d.qos.priority * 100}%;"></div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            // Calculate centrality metrics
+            const degree = graphData.links.filter(l => l.source === d || l.target === d).length;
+            const betweenness = calculateBetweenness(d);
+            
+            detailsDiv.innerHTML = `
+                <div class="metric-card fade-in">
+                    <div class="metric-title">Component</div>
+                    <div style="font-size: 1.2rem; font-weight: 600; color: ${colorScale(d.type)};">
+                        ${d.name}
+                    </div>
+                    <span class="info-badge">${d.type.toUpperCase()}</span>
+                </div>
+                
+                <div class="metric-card fade-in">
+                    <div class="metric-title">Criticality Score</div>
+                    <div class="metric-value">${(d.criticality * 100).toFixed(1)}%</div>
+                    <div class="metric-bar">
+                        <div class="metric-bar-fill" style="width: ${d.criticality * 100}%;"></div>
+                    </div>
+                </div>
+                
+                <div class="metric-card fade-in">
+                    <div class="metric-title">Centrality Metrics</div>
+                    <div style="margin-top: 12px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: #a8a8b8;">Degree</span>
+                            <span style="color: #667eea;">${degree}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #a8a8b8;">Betweenness</span>
+                            <span style="color: #667eea;">${betweenness.toFixed(3)}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                ${qosHtml}
+                
+                ${d.isArticulation ? `
+                    <div class="metric-card fade-in" style="border: 1px solid rgba(249, 59, 59, 0.3); background: rgba(249, 59, 59, 0.05);">
+                        <div class="metric-title" style="color: #f93b3b;">⚠️ Critical Warning</div>
+                        <div style="color: #ffc5c5; font-size: 0.85rem; margin-top: 8px;">
+                            This component is an articulation point. Failure will cause network partition.
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        // Calculate betweenness centrality (simplified)
+        function calculateBetweenness(node) {
+            // This is a simplified version for demonstration
+            const connections = graphData.links.filter(l => 
+                l.source === node || l.target === node
+            ).length;
+            return connections * node.criticality * 0.1;
+        }
+
+        // Layout functions
+        function changeLayout(type) {
+            simulation.stop();
+            
+            if (type === 'force') {
+                simulation = d3.forceSimulation(graphData.nodes)
+                    .force('link', d3.forceLink(graphData.links).id(d => d.id).distance(100))
+                    .force('charge', d3.forceManyBody().strength(-500))
+                    .force('center', d3.forceCenter(width / 2, height / 2))
+                    .force('collision', d3.forceCollide().radius(d => sizeScale(d.criticality) + 5));
+            } else if (type === 'hierarchical') {
+                // Arrange nodes in hierarchical layers
+                const layers = {
+                    network: graphData.nodes.filter(n => n.type === 'network'),
+                    broker: graphData.nodes.filter(n => n.type === 'broker'),
+                    topic: graphData.nodes.filter(n => n.type === 'topic'),
+                    application: graphData.nodes.filter(n => n.type === 'application')
+                };
+                
+                let y = 100;
+                Object.entries(layers).forEach(([layer, nodes]) => {
+                    nodes.forEach((node, i) => {
+                        node.fx = (width / (nodes.length + 1)) * (i + 1);
+                        node.fy = y;
+                    });
+                    y += 150;
+                });
+                
+                simulation.alpha(0.3).restart();
+            } else if (type === 'circular') {
+                // Arrange nodes in circular layout
+                const radius = Math.min(width, height) / 3;
+                const angleStep = (2 * Math.PI) / graphData.nodes.length;
+                
+                graphData.nodes.forEach((node, i) => {
+                    const angle = i * angleStep;
+                    node.fx = width / 2 + radius * Math.cos(angle);
+                    node.fy = height / 2 + radius * Math.sin(angle);
+                });
+                
+                simulation.alpha(0.3).restart();
+            }
+            
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+            
+            if (type === 'force') {
+                graphData.nodes.forEach(node => {
+                    node.fx = null;
+                    node.fy = null;
+                });
+            }
+        }
+
+        // Analysis functions
+        function toggleCentralityView() {
+            node.selectAll('circle')
+                .transition()
+                .duration(1000)
+                .attr('r', d => {
+                    const degree = graphData.links.filter(l => 
+                        l.source === d || l.target === d
+                    ).length;
+                    return 10 + degree * 3;
+                })
+                .attr('opacity', d => {
+                    const degree = graphData.links.filter(l => 
+                        l.source === d || l.target === d
+                    ).length;
+                    return 0.3 + (degree / 10);
+                });
+        }
+
+        function toggleQoSView() {
+            node.selectAll('circle')
+                .transition()
+                .duration(1000)
+                .attr('fill', d => {
+                    if (!d.qos) return colorScale(d.type);
+                    const qosScore = (d.qos.durability || 0) * 0.5 + (d.qos.reliability || 0) * 0.5;
+                    return d3.interpolateRdYlGn(qosScore);
+                });
+        }
+
+        function findArticulationPoints() {
+            // Highlight articulation points
+            node.selectAll('circle')
+                .transition()
+                .duration(1000)
+                .attr('stroke', d => d.isArticulation ? '#ff0000' : '#ffffff')
+                .attr('stroke-width', d => d.isArticulation ? 4 : 1)
+                .attr('r', d => d.isArticulation ? sizeScale(d.criticality) * 1.3 : sizeScale(d.criticality));
+            
+            // Update metrics
+            const articulationCount = graphData.nodes.filter(n => n.isArticulation).length;
+            alert(`Found ${articulationCount} articulation points in the system. These are critical components whose failure would partition the network.`);
+        }
+
+        // Failure simulation functions
+        let failedNodes = new Set();
+        let originalLinks = [...graphData.links];
+
+        function simulateNodeFailure() {
+            const criticalNodes = graphData.nodes.filter(n => n.criticality > 0.8);
+            if (criticalNodes.length === 0) return;
+            
+            const failedNode = criticalNodes[Math.floor(Math.random() * criticalNodes.length)];
+            failedNodes.add(failedNode.id);
+            
+            // Visual feedback
+            node.selectAll('circle')
+                .filter(d => d.id === failedNode.id)
+                .transition()
+                .duration(500)
+                .attr('fill', '#2d2d2d')
+                .attr('opacity', 0.3);
+            
+            // Remove links connected to failed node
+            link.filter(d => d.source.id === failedNode.id || d.target.id === failedNode.id)
+                .transition()
+                .duration(500)
+                .attr('stroke-opacity', 0.1);
+            
+            // Show failure indicator
+            document.getElementById('failureIndicator').classList.add('active');
+            
+            // Calculate impact
+            calculateFailureImpact(failedNode);
+        }
+
+        function simulateCascade() {
+            if (failedNodes.size === 0) {
+                simulateNodeFailure();
+            }
+            
+            const threshold = 0.7;
+            const cascade = [];
+            
+            // Simulate cascading failure
+            const checkCascade = () => {
+                let newFailures = false;
+                
+                graphData.nodes.forEach(node => {
+                    if (!failedNodes.has(node.id)) {
+                        const connectedFailed = graphData.links.filter(l => 
+                            (l.source.id === node.id && failedNodes.has(l.target.id)) ||
+                            (l.target.id === node.id && failedNodes.has(l.source.id))
+                        ).length;
+                        
+                        const totalConnections = graphData.links.filter(l => 
+                            l.source.id === node.id || l.target.id === node.id
+                        ).length;
+                        
+                        if (totalConnections > 0 && connectedFailed / totalConnections > threshold) {
+                            failedNodes.add(node.id);
+                            cascade.push(node);
+                            newFailures = true;
+                            
+                            // Visual feedback for cascade
+                            setTimeout(() => {
+                                this.node.selectAll('circle')
+                                    .filter(d => d.id === node.id)
+                                    .transition()
+                                    .duration(500)
+                                    .attr('fill', '#2d2d2d')
+                                    .attr('opacity', 0.3);
+                            }, cascade.length * 300);
+                        }
+                    }
+                });
+                
+                if (newFailures) {
+                    setTimeout(checkCascade, 1000);
+                }
+            };
+            
+            checkCascade();
+        }
+
+        function resetSimulation() {
+            failedNodes.clear();
+            
+            // Restore visual state
+            node.selectAll('circle')
+                .transition()
+                .duration(1000)
+                .attr('fill', d => colorScale(d.type))
+                .attr('opacity', 0.9);
+            
+            link.transition()
+                .duration(1000)
+                .attr('stroke-opacity', 0.6);
+            
+            document.getElementById('failureIndicator').classList.remove('active');
+            document.getElementById('impactAnalysis').style.display = 'none';
+        }
+
+        function calculateFailureImpact(failedNode) {
+            const affected = new Set();
+            const visited = new Set();
+            
+            // BFS to find affected components
+            const queue = [failedNode.id];
+            while (queue.length > 0) {
+                const current = queue.shift();
+                if (visited.has(current)) continue;
+                visited.add(current);
+                
+                graphData.links.forEach(link => {
+                    if (link.source.id === current && !failedNodes.has(link.target.id)) {
+                        affected.add(link.target.id);
+                        queue.push(link.target.id);
+                    }
+                    if (link.target.id === current && !failedNodes.has(link.source.id)) {
+                        affected.add(link.source.id);
+                        queue.push(link.source.id);
+                    }
+                });
+            }
+            
+            // Update impact analysis panel
+            document.getElementById('impactAnalysis').style.display = 'block';
+            document.getElementById('affectedComponents').textContent = affected.size;
+            document.getElementById('serviceDegradation').textContent = 
+                Math.round((affected.size / graphData.nodes.length) * 100) + '%';
+            document.getElementById('recoveryTime').textContent = 
+                Math.round(affected.size * 15) + 's';
+        }
+
+        // Update functions for controls
+        function updateCriticalityThreshold(value) {
+            document.getElementById('criticalityValue').textContent = value;
+            
+            node.selectAll('circle')
+                .attr('opacity', d => d.criticality >= value ? 0.9 : 0.3);
+        }
+
+        function updateEdgeOpacity(value) {
+            document.getElementById('edgeOpacityValue').textContent = value;
+            link.attr('stroke-opacity', value);
+        }
+
+        // Initialize system metrics
+        function updateSystemMetrics() {
+            const totalNodes = graphData.nodes.length;
+            const criticalNodes = graphData.nodes.filter(n => n.criticality > 0.7).length;
+            
+            document.getElementById('totalComponents').textContent = totalNodes;
+            document.getElementById('criticalCount').textContent = criticalNodes;
+            document.getElementById('criticalBar').style.width = 
+                (criticalNodes / totalNodes * 100) + '%';
+            
+            // Calculate average path length (simplified)
+            const avgPath = 2.3; // Simplified calculation
+            document.getElementById('avgPath').textContent = avgPath.toFixed(1);
+            
+            // Calculate resilience score
+            const articulationPoints = graphData.nodes.filter(n => n.isArticulation).length;
+            const resilience = Math.max(0, 100 - (articulationPoints * 15));
+            document.getElementById('resilience').textContent = resilience + '%';
+            document.getElementById('resilienceBar').style.width = resilience + '%';
+        }
+
+        // Initialize
+        updateSystemMetrics();
+    </script>
+</body>
+</html>
