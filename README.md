@@ -1,25 +1,24 @@
-# Software As A Graph
-Represent a software-intensive system as a graph to detect design defects
+# Software As A Graph - Graph Modeling and Analysis Methodology for Complex Software Systems
+Represent a software-intensive system as a graph to detect critical components and relationships
 
-# Graph Analysis Methodology for Distributed Publish-Subscribe Systems
-## Step 2: Comprehensive Graph Analysis Framework
+## Graph Analysis Framework
 
-### 2.1 Metric-Based Analysis
+### Metric-Based Analysis
 
-#### 2.1.1 Centrality Metrics Framework
+#### Centrality Metrics Framework
 
-**Degree Centrality**
+***Degree Centrality**
 - **Definition**: Number of direct connections to/from a node
 - **Application in Pub-Sub**:
   - For Topics: `DC(t) = |Publishers(t)| + |Subscribers(t)|`
   - For Brokers: `DC(b) = |Topics(b)| + |ConnectedNodes(b)|`
   - For Applications: `DC(a) = |PublishedTopics(a)| + |SubscribedTopics(a)|`
 - **Interpretation**: High degree indicates potential bottlenecks or critical routing points
-- **Threshold**: Components with DC > Î¼ + 2Ïƒ flagged as critical
+- **Threshold**: Components with DC > μ + 2σ flagged as critical
 
 **Betweenness Centrality**
 - **Definition**: Frequency of node appearing in shortest paths
-- **Formula**: `BC(v) = Î£(Ïƒst(v)/Ïƒst)` where Ïƒst is shortest paths from s to t
+- **Formula**: `BC(v) = Σ(σst(v)/σst)` where σst is shortest paths from s to t
 - **Application**: Identifies critical message routing paths
 - **Use Cases**:
   - Broker criticality in message routing
@@ -28,12 +27,12 @@ Represent a software-intensive system as a graph to detect design defects
 
 **Closeness Centrality**
 - **Definition**: Average distance to all other nodes
-- **Formula**: `CC(v) = (n-1) / Î£d(v,u)`
+- **Formula**: `CC(v) = (n-1) / Σd(v,u)`
 - **Application**: Identifies components with fastest access to entire system
 - **Relevance**: Critical for latency-sensitive topics
 
 **PageRank Adaptation**
-- **Modified Formula**: `PR(n) = (1-d) + d Ã— Î£(PR(m)/Out(m) Ã— W(m,n))`
+- **Modified Formula**: `PR(n) = (1-d) + d × Σ(PR(m)/Out(m) × W(m,n))`
 - **Weights (W)**:
   - Topic importance based on QoS
   - Message volume/frequency
@@ -46,9 +45,9 @@ Represent a software-intensive system as a graph to detect design defects
   - Type 1: Single point of failure for topic delivery
   - Type 2: Causes network partition if removed
   - Type 3: Increases path length significantly (>50%)
-- **Risk Score**: `RS(ap) = ImpactedComponents Ã— AverageQoS`
+- **Risk Score**: `RS(ap) = ImpactedComponents × AverageQoS`
 
-#### 2.1.2 Implementation Specifications
+#### Implementation Specifications
 
 ```cypher
 // Neo4j Query Examples for Centrality Calculations
@@ -74,13 +73,13 @@ WITH collect(nodes(path)) as allPaths
 // Custom algorithm to find articulation points
 ```
 
-### 2.2 QoS-Aware Analysis
+### QoS-Aware Analysis
 
-#### 2.2.1 QoS Criticality Score Calculation
+#### QoS Criticality Score Calculation
 
 **Composite QoS Score Formula**:
 ```
-QoS_Score(c) = Î£(wi Ã— normalize(qi))
+QoS_Score(c) = Σ(wi × normalize(qi))
 ```
 
 Where:
@@ -100,20 +99,20 @@ Where:
 
 **Topic Criticality Score**:
 ```
-TC(t) = QoS_Score(t) Ã— DC(t) Ã— (1 + BC(t)/max(BC))
+TC(t) = QoS_Score(t) × DC(t) × (1 + BC(t)/max(BC))
 ```
 
 **Broker Criticality Score**:
 ```
-BrC(b) = Î£(TC(ti) Ã— RouteWeight(b,ti)) / |Topics(b)|
+BrC(b) = Σ(TC(ti) × RouteWeight(b,ti)) / |Topics(b)|
 ```
 
 **Application Criticality Score**:
 ```
-AC(a) = max(TC(published)) + avg(TC(subscribed)) Ã— DependencyFactor(a)
+AC(a) = max(TC(published)) + avg(TC(subscribed)) × DependencyFactor(a)
 ```
 
-#### 2.2.2 QoS Policy Implementation Details
+#### QoS Policy Implementation Details
 
 **Durability Policy Analysis**:
 - VOLATILE: Score = 0.2
@@ -139,9 +138,9 @@ def lifespan_score(lifespan_ms):
     return math.log(lifespan_ms + 1) / math.log(86400000)  # Normalized to 24h
 ```
 
-### 2.3 Visualization Framework
+### Visualization Framework
 
-#### 2.3.1 Interactive Visualization Components
+#### Interactive Visualization Components
 
 **Graph Layout Algorithms**:
 1. **Force-Directed Layout** (Primary)
@@ -150,7 +149,7 @@ def lifespan_score(lifespan_ms):
    - Gravity: Toward high-centrality nodes
 
 2. **Hierarchical Layout** (Alternative)
-   - Layers: Physical â†’ Broker â†’ Topic â†’ Application
+   - Layers: Physical → Broker → Topic → Application
    - Minimizes edge crossings
 
 3. **Circular Layout** (For specific views)
@@ -173,7 +172,7 @@ def lifespan_score(lifespan_ms):
 - **Heatmaps**: Overlay for latency, load, failure probability
 - **Path Highlighting**: Show message routes between components
 
-#### 2.3.2 Implementation Technologies
+#### Implementation Technologies
 
 ```javascript
 // D3.js/React Implementation Snippet
@@ -197,18 +196,18 @@ const GraphVisualization = {
 };
 ```
 
-### 2.4 Failure Simulation Framework
+### Failure Simulation Framework
 
-#### 2.4.1 Simulation Scenarios
+#### Simulation Scenarios
 
 **Single Point Failure Scenarios**:
 1. **Node Failure**:
    ```
-   Impact(n) = Î£(Unreachable(c) Ã— Criticality(c))
+   Impact(n) = Σ(Unreachable(c) × Criticality(c))
    ```
 2. **Edge Failure**:
    ```
-   Impact(e) = PathIncrease Ã— MessageVolume Ã— QoS_Impact
+   Impact(e) = PathIncrease × MessageVolume × QoS_Impact
    ```
 
 **Cascading Failure Simulation**:
@@ -232,7 +231,7 @@ def simulate_cascade(initial_failure, threshold=0.8):
     return cascade, calculate_total_impact(failed)
 ```
 
-#### 2.4.2 Impact Metrics
+#### Impact Metrics
 
 **Reachability Impact**:
 ```
@@ -241,7 +240,7 @@ RI = |Unreachable_Components| / |Total_Components|
 
 **Service Degradation Score**:
 ```
-SDS = Î£(QoS_Degradation(s) Ã— Service_Priority(s)) / |Services|
+SDS = Σ(QoS_Degradation(s) × Service_Priority(s)) / |Services|
 ```
 
 **Message Delivery Success Rate**:
@@ -254,9 +253,9 @@ MDSR = Successfully_Delivered / Total_Messages_Attempted
 LI = (New_Avg_Latency - Baseline_Latency) / Baseline_Latency
 ```
 
-### 2.5 Validation Methodology
+### Validation Methodology
 
-#### 2.5.1 Synthetic Dataset Generation
+#### Synthetic Dataset Generation
 
 **Graph Generation Parameters**:
 - Nodes: 100-10,000 (scalability testing)
@@ -270,7 +269,7 @@ LI = (New_Avg_Latency - Baseline_Latency) / Baseline_Latency
 3. **Smart City**: High scalability, mixed QoS
 4. **Industrial IoT**: High availability, moderate latency
 
-#### 2.5.2 Validation Metrics
+#### Validation Metrics
 
 **Accuracy Metrics**:
 - **Precision**: Correctly identified critical components / Total identified
@@ -288,7 +287,7 @@ LI = (New_Avg_Latency - Baseline_Latency) / Baseline_Latency
 3. Domain expert annotations
 4. Historical failure data correlation
 
-#### 2.5.3 Real-World Validation
+#### Real-World Validation
 
 **Data Collection Requirements**:
 ```yaml
@@ -313,9 +312,9 @@ collection_frequency:
 3. **A/B Testing**: Run parallel with existing monitoring
 4. **Expert Review**: System architects validate findings
 
-### 2.6 Integration Points
+### Integration Points
 
-#### 2.6.1 API Specifications
+#### API Specifications
 
 ```python
 class GraphAnalyzer:
@@ -336,7 +335,7 @@ class GraphAnalyzer:
         pass
 ```
 
-#### 2.6.2 Output Format
+#### Output Format
 
 ```json
 {
@@ -376,7 +375,7 @@ class GraphAnalyzer:
 }
 ```
 
-### 2.7 Performance Optimization
+### Performance Optimization
 
 **Graph Database Optimizations**:
 - Index creation on frequently queried properties
@@ -390,7 +389,7 @@ class GraphAnalyzer:
 - Parallel processing for independent metrics
 - GPU acceleration for matrix operations
 
-### 2.8 Limitations and Future Work
+### Limitations and Future Work
 
 **Current Limitations**:
 1. Static QoS weights (requires domain expertise)
