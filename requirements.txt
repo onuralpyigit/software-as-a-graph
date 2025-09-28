@@ -36,3 +36,4 @@ kneed===0.8.5
 tqdm==4.67.1  
 plotly==6.2.0
 scikit-learn==1.7.1
+PyYAML==6.0.2
