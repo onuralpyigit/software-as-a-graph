@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced Graph Validator for comprehensive validation of the pub-sub graph
+Graph Validator for comprehensive validation of the pub-sub graph
 Provides detailed structural, semantic, performance, and scalability validation
 """
 
@@ -8,7 +8,7 @@ import time
 from typing import Dict, Optional
 import json
 
-class EnhancedGraphValidator:
+class GraphValidator:
     def __init__(self, graph_builder):
         """Initialize validator with graph builder instance"""
         self.gb = graph_builder
