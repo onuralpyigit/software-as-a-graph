@@ -5,8 +5,7 @@ Provides detailed structural, semantic, performance, and scalability validation
 """
 
 import time
-from typing import Dict, List, Tuple, Optional
-from neo4j import GraphDatabase
+from typing import Dict, Optional
 import json
 
 class EnhancedGraphValidator:
