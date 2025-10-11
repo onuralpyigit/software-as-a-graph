@@ -1,0 +1,70 @@
+{
+  "dataset_file": "../output/dataset_circular_dependencies.json",
+  "import_time": 0.40292835235595703,
+  "timestamp": "2025-10-11T20:00:35.687666",
+  "statistics": {
+    "total_nodes": 40,
+    "total_edges": 112,
+    "apps": 17,
+    "topics": 17,
+    "brokers": 2,
+    "nodes": 4
+  },
+  "import_stats": {
+    "nodes": 4,
+    "applications": 17,
+    "topics": 17,
+    "brokers": 2,
+    "relationships": {
+      "runs_on": 19,
+      "publishes_to": 17,
+      "subscribes_to": 25,
+      "routes": 17
+    }
+  },
+  "detected_problems": [
+    {
+      "pattern": "SINGLE_POINT_OF_FAILURE",
+      "severity": "CRITICAL",
+      "count": 8,
+      "details": "8 critical applications running on single nodes",
+      "affected": [
+        "analytics-service",
+        "reporting-service",
+        "billing-service",
+        "api-gateway",
+        "cache-service"
+      ]
+    },
+    {
+      "pattern": "CIRCULAR_DEPENDENCIES",
+      "severity": "HIGH",
+      "count": 16,
+      "details": "16 applications in circular dependency chains",
+      "affected": [
+        "order-service (cycle length: 3)",
+        "payment-service (cycle length: 3)",
+        "inventory-service (cycle length: 3)",
+        "user-service (cycle length: 3)",
+        "session-service (cycle length: 3)"
+      ]
+    },
+    {
+      "pattern": "RESOURCE_OVERLOAD",
+      "severity": "HIGH",
+      "count": 4,
+      "details": "4 nodes with resource overload",
+      "affected": [
+        "Node1 (CPU: 139%, Mem: 157%)",
+        "Node2 (CPU: 111%, Mem: 137%)",
+        "Node3 (CPU: 161%, Mem: 223%)",
+        "Node4 (CPU: 146%, Mem: 101%)"
+      ]
+    }
+  ],
+  "problem_summary": {
+    "CRITICAL": 1,
+    "HIGH": 2
+  },
+  "health_score": 0
+}

@@ -1,0 +1,63 @@
+{
+  "dataset_file": "../output/dataset_chatty_communication.json",
+  "import_time": 2.057407855987549,
+  "timestamp": "2025-10-11T20:00:38.083813",
+  "statistics": {
+    "total_nodes": 218,
+    "total_edges": 589,
+    "apps": 55,
+    "topics": 153,
+    "brokers": 4,
+    "nodes": 6
+  },
+  "import_stats": {
+    "nodes": 6,
+    "applications": 55,
+    "topics": 153,
+    "brokers": 4,
+    "relationships": {
+      "runs_on": 59,
+      "publishes_to": 153,
+      "subscribes_to": 140,
+      "routes": 153
+    }
+  },
+  "detected_problems": [
+    {
+      "pattern": "CHATTY_COMMUNICATION",
+      "severity": "MEDIUM",
+      "count": 51,
+      "details": "51 applications with chatty communication patterns",
+      "affected": [
+        "health-checker-1 (avg msg: 48B, period: 250ms)",
+        "health-checker-2 (avg msg: 48B, period: 250ms)",
+        "health-checker-3 (avg msg: 48B, period: 250ms)"
+      ]
+    },
+    {
+      "pattern": "TOPIC_SPRAWL",
+      "severity": "LOW",
+      "count": 153,
+      "details": "153 total topics, 104 orphaned, 0 potential duplicates",
+      "affected": []
+    },
+    {
+      "pattern": "RESOURCE_OVERLOAD",
+      "severity": "HIGH",
+      "count": 4,
+      "details": "4 nodes with resource overload",
+      "affected": [
+        "Node1 (CPU: 62%, Mem: 90%)",
+        "Node4 (CPU: 113%, Mem: 82%)",
+        "Node5 (CPU: 72%, Mem: 151%)",
+        "Node6 (CPU: 124%, Mem: 53%)"
+      ]
+    }
+  ],
+  "problem_summary": {
+    "MEDIUM": 1,
+    "LOW": 1,
+    "HIGH": 1
+  },
+  "health_score": 0
+}

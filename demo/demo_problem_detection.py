@@ -349,10 +349,8 @@ class DirectNeo4jImporter:
                 CREATE (b:Broker {
                     id: $id,
                     name: $name,
-                    protocol: $protocol,
                     max_connections: $max_connections,
                     max_throughput_mbps: $max_throughput_mbps,
-                    partition_count: $partition_count,
                     avg_latency_ms: $avg_latency_ms,
                     current_load_percent: $current_load_percent,
                     uptime_percent: $uptime_percent,
@@ -643,7 +641,7 @@ class DirectNeo4jImporter:
         
         # 3. Circular Dependencies
         circular_deps = self.execute_cypher("""
-            MATCH path = (a:Application)-[:DEPENDS_ON*2..5]->(a)
+            MATCH path = (a:Application)-[:DEPENDS_ON*1..3]->(a)
             RETURN DISTINCT a.name as app, length(path) as cycle_length
         """)
         
