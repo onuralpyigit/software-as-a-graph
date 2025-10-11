@@ -1,0 +1,2019 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "timestamp": "2025-10-11T18:50:00.037562",
+    "purpose": "testing_antipatterns",
+    "scenario": "God Topic Anti-Pattern",
+    "description": "System where few topics handle all communication - no separation of concerns",
+    "antipattern": "god_topic",
+    "problems": [
+      "Massive fan-out on single topic",
+      "Mixed message types in same topic",
+      "No domain separation",
+      "Performance bottleneck"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "N1",
+      "name": "Node1",
+      "cpu_capacity": 5.0,
+      "memory_gb": 26.0,
+      "network_bandwidth_mbps": 3618.0,
+      "zone": "zone-1",
+      "region": "region-1"
+    },
+    {
+      "id": "N2",
+      "name": "Node2",
+      "cpu_capacity": 9.0,
+      "memory_gb": 18.0,
+      "network_bandwidth_mbps": 4434.0,
+      "zone": "zone-1",
+      "region": "region-1"
+    },
+    {
+      "id": "N3",
+      "name": "Node3",
+      "cpu_capacity": 5.0,
+      "memory_gb": 24.0,
+      "network_bandwidth_mbps": 1805.0,
+      "zone": "zone-1",
+      "region": "region-1"
+    },
+    {
+      "id": "N4",
+      "name": "Node4",
+      "cpu_capacity": 5.0,
+      "memory_gb": 20.0,
+      "network_bandwidth_mbps": 4902.0,
+      "zone": "zone-1",
+      "region": "region-1"
+    },
+    {
+      "id": "N5",
+      "name": "Node5",
+      "cpu_capacity": 12.0,
+      "memory_gb": 26.0,
+      "network_bandwidth_mbps": 3869.0,
+      "zone": "zone-1",
+      "region": "region-1"
+    }
+  ],
+  "brokers": [
+    {
+      "id": "B1",
+      "name": "Broker1",
+      "protocol": "Kafka",
+      "max_throughput_mbps": 40372.0,
+      "max_connections": 5619,
+      "partition_count": 21
+    },
+    {
+      "id": "B2",
+      "name": "Broker2",
+      "protocol": "Kafka",
+      "max_throughput_mbps": 42788.0,
+      "max_connections": 5053,
+      "partition_count": 55
+    },
+    {
+      "id": "B3",
+      "name": "Broker3",
+      "protocol": "Kafka",
+      "max_throughput_mbps": 21685.0,
+      "max_connections": 2642,
+      "partition_count": 93
+    }
+  ],
+  "applications": [
+    {
+      "id": "A1",
+      "name": "user-service-1",
+      "criticality_score": 0.5438596521402637,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "user-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A2",
+      "name": "user-service-2",
+      "criticality_score": 0.5254110824607828,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "user-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A3",
+      "name": "user-service-3",
+      "criticality_score": 0.8884313510454473,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "user-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A4",
+      "name": "user-service-4",
+      "criticality_score": 0.7147881321635181,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "user-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A5",
+      "name": "user-service-5",
+      "criticality_score": 0.673906100267642,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "user-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A6",
+      "name": "order-service-1",
+      "criticality_score": 0.6053556203004363,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "order-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A7",
+      "name": "order-service-2",
+      "criticality_score": 0.7030651527910536,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "order-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A8",
+      "name": "order-service-3",
+      "criticality_score": 0.8689736322473098,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "order-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A9",
+      "name": "order-service-4",
+      "criticality_score": 0.8514887511292737,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "order-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A10",
+      "name": "order-service-5",
+      "criticality_score": 0.8787797781191977,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "order-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A11",
+      "name": "payment-service-1",
+      "criticality_score": 0.5513565857999051,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "payment-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A12",
+      "name": "payment-service-2",
+      "criticality_score": 0.6692551760803548,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "payment-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A13",
+      "name": "payment-service-3",
+      "criticality_score": 0.6595969199989716,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "payment-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A14",
+      "name": "payment-service-4",
+      "criticality_score": 0.589878934812623,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "payment-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A15",
+      "name": "payment-service-5",
+      "criticality_score": 0.528397234403613,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "payment-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A16",
+      "name": "inventory-service-1",
+      "criticality_score": 0.6113909055858188,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "inventory-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A17",
+      "name": "inventory-service-2",
+      "criticality_score": 0.5971988969582898,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "inventory-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A18",
+      "name": "inventory-service-3",
+      "criticality_score": 0.6417190266358215,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "inventory-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A19",
+      "name": "inventory-service-4",
+      "criticality_score": 0.5242450696308054,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "inventory-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A20",
+      "name": "inventory-service-5",
+      "criticality_score": 0.5766360288566617,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "inventory-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A21",
+      "name": "shipping-service-1",
+      "criticality_score": 0.8497943816282321,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "shipping-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A22",
+      "name": "shipping-service-2",
+      "criticality_score": 0.5391634912806401,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "shipping-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A23",
+      "name": "shipping-service-3",
+      "criticality_score": 0.8705467932032511,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "shipping-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A24",
+      "name": "shipping-service-4",
+      "criticality_score": 0.6604161170197811,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "shipping-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A25",
+      "name": "shipping-service-5",
+      "criticality_score": 0.8140517427176486,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "shipping-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A26",
+      "name": "notification-service-1",
+      "criticality_score": 0.8133446113937148,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "notification-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A27",
+      "name": "notification-service-2",
+      "criticality_score": 0.5233933168029198,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "notification-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A28",
+      "name": "notification-service-3",
+      "criticality_score": 0.7011401531678054,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "notification-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A29",
+      "name": "notification-service-4",
+      "criticality_score": 0.5274085330815169,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "notification-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A30",
+      "name": "notification-service-5",
+      "criticality_score": 0.8766384508916358,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "notification-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A31",
+      "name": "analytics-service-1",
+      "criticality_score": 0.7334689157164899,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "analytics-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A32",
+      "name": "analytics-service-2",
+      "criticality_score": 0.7864767203157659,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "analytics-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A33",
+      "name": "analytics-service-3",
+      "criticality_score": 0.8716073326822057,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "analytics-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A34",
+      "name": "analytics-service-4",
+      "criticality_score": 0.7023538776195062,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "analytics-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A35",
+      "name": "analytics-service-5",
+      "criticality_score": 0.5630987329428928,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "analytics-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A36",
+      "name": "reporting-service-1",
+      "criticality_score": 0.8948932254526017,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "reporting-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A37",
+      "name": "reporting-service-2",
+      "criticality_score": 0.5414346007672846,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "reporting-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A38",
+      "name": "reporting-service-3",
+      "criticality_score": 0.6127025085831577,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "reporting-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A39",
+      "name": "reporting-service-4",
+      "criticality_score": 0.6004485008279576,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "reporting-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A40",
+      "name": "reporting-service-5",
+      "criticality_score": 0.8084476892078509,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "reporting-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A41",
+      "name": "billing-service-1",
+      "criticality_score": 0.7243627459098986,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "billing-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A42",
+      "name": "billing-service-2",
+      "criticality_score": 0.5596217141914078,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "billing-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A43",
+      "name": "billing-service-3",
+      "criticality_score": 0.5167315432675431,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "billing-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A44",
+      "name": "billing-service-4",
+      "criticality_score": 0.5159579512444873,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "billing-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A45",
+      "name": "billing-service-5",
+      "criticality_score": 0.6414714538458474,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "billing-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A46",
+      "name": "customer-service-1",
+      "criticality_score": 0.7997910444574157,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "customer-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A47",
+      "name": "customer-service-2",
+      "criticality_score": 0.8129545984590527,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "customer-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A48",
+      "name": "customer-service-3",
+      "criticality_score": 0.5992668964469603,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "customer-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A49",
+      "name": "customer-service-4",
+      "criticality_score": 0.5154898430663146,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "customer-team",
+      "version": "1.0.0"
+    },
+    {
+      "id": "A50",
+      "name": "customer-service-5",
+      "criticality_score": 0.8181381996611448,
+      "replicas": 2,
+      "type": "PROSUMER",
+      "owner": "customer-team",
+      "version": "1.0.0"
+    }
+  ],
+  "topics": [
+    {
+      "id": "T1",
+      "name": "GLOBAL_EVENT_BUS",
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH",
+        "deadline_ms": 100,
+        "lifespan_ms": 86400000,
+        "history_depth": 10000
+      },
+      "criticality_score": 0.99,
+      "partition_count": 50,
+      "message_pattern": "MIXED",
+      "god_topic": true
+    },
+    {
+      "id": "T2",
+      "name": "SYSTEM_COMMANDS",
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "URGENT",
+        "deadline_ms": 50,
+        "lifespan_ms": 86400000,
+        "history_depth": 5000
+      },
+      "criticality_score": 0.95,
+      "partition_count": 30,
+      "message_pattern": "MIXED",
+      "god_topic": true
+    },
+    {
+      "id": "T3",
+      "name": "specific/topic/3",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T4",
+      "name": "specific/topic/4",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T5",
+      "name": "specific/topic/5",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T6",
+      "name": "specific/topic/6",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T7",
+      "name": "specific/topic/7",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T8",
+      "name": "specific/topic/8",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T9",
+      "name": "specific/topic/9",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T10",
+      "name": "specific/topic/10",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T11",
+      "name": "specific/topic/11",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T12",
+      "name": "specific/topic/12",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T13",
+      "name": "specific/topic/13",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T14",
+      "name": "specific/topic/14",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T15",
+      "name": "specific/topic/15",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T16",
+      "name": "specific/topic/16",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T17",
+      "name": "specific/topic/17",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T18",
+      "name": "specific/topic/18",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T19",
+      "name": "specific/topic/19",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    },
+    {
+      "id": "T20",
+      "name": "specific/topic/20",
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW",
+        "deadline_ms": 5000,
+        "lifespan_ms": 10000,
+        "history_depth": 10
+      },
+      "criticality_score": 0.2,
+      "partition_count": 1,
+      "message_pattern": "EVENT_DRIVEN"
+    }
+  ],
+  "relationships": {
+    "runs_on": [
+      {
+        "from": "A1",
+        "to": "N2"
+      },
+      {
+        "from": "A2",
+        "to": "N3"
+      },
+      {
+        "from": "A3",
+        "to": "N4"
+      },
+      {
+        "from": "A4",
+        "to": "N5"
+      },
+      {
+        "from": "A5",
+        "to": "N1"
+      },
+      {
+        "from": "A6",
+        "to": "N2"
+      },
+      {
+        "from": "A7",
+        "to": "N3"
+      },
+      {
+        "from": "A8",
+        "to": "N4"
+      },
+      {
+        "from": "A9",
+        "to": "N5"
+      },
+      {
+        "from": "A10",
+        "to": "N1"
+      },
+      {
+        "from": "A11",
+        "to": "N2"
+      },
+      {
+        "from": "A12",
+        "to": "N3"
+      },
+      {
+        "from": "A13",
+        "to": "N4"
+      },
+      {
+        "from": "A14",
+        "to": "N5"
+      },
+      {
+        "from": "A15",
+        "to": "N1"
+      },
+      {
+        "from": "A16",
+        "to": "N2"
+      },
+      {
+        "from": "A17",
+        "to": "N3"
+      },
+      {
+        "from": "A18",
+        "to": "N4"
+      },
+      {
+        "from": "A19",
+        "to": "N5"
+      },
+      {
+        "from": "A20",
+        "to": "N1"
+      },
+      {
+        "from": "A21",
+        "to": "N2"
+      },
+      {
+        "from": "A22",
+        "to": "N3"
+      },
+      {
+        "from": "A23",
+        "to": "N4"
+      },
+      {
+        "from": "A24",
+        "to": "N5"
+      },
+      {
+        "from": "A25",
+        "to": "N1"
+      },
+      {
+        "from": "A26",
+        "to": "N2"
+      },
+      {
+        "from": "A27",
+        "to": "N3"
+      },
+      {
+        "from": "A28",
+        "to": "N4"
+      },
+      {
+        "from": "A29",
+        "to": "N5"
+      },
+      {
+        "from": "A30",
+        "to": "N1"
+      },
+      {
+        "from": "A31",
+        "to": "N2"
+      },
+      {
+        "from": "A32",
+        "to": "N3"
+      },
+      {
+        "from": "A33",
+        "to": "N4"
+      },
+      {
+        "from": "A34",
+        "to": "N5"
+      },
+      {
+        "from": "A35",
+        "to": "N1"
+      },
+      {
+        "from": "A36",
+        "to": "N2"
+      },
+      {
+        "from": "A37",
+        "to": "N3"
+      },
+      {
+        "from": "A38",
+        "to": "N4"
+      },
+      {
+        "from": "A39",
+        "to": "N5"
+      },
+      {
+        "from": "A40",
+        "to": "N1"
+      },
+      {
+        "from": "A41",
+        "to": "N2"
+      },
+      {
+        "from": "A42",
+        "to": "N3"
+      },
+      {
+        "from": "A43",
+        "to": "N4"
+      },
+      {
+        "from": "A44",
+        "to": "N5"
+      },
+      {
+        "from": "A45",
+        "to": "N1"
+      },
+      {
+        "from": "A46",
+        "to": "N2"
+      },
+      {
+        "from": "A47",
+        "to": "N3"
+      },
+      {
+        "from": "A48",
+        "to": "N4"
+      },
+      {
+        "from": "A49",
+        "to": "N5"
+      },
+      {
+        "from": "A50",
+        "to": "N1"
+      },
+      {
+        "from": "B1",
+        "to": "N1"
+      },
+      {
+        "from": "B2",
+        "to": "N2"
+      },
+      {
+        "from": "B3",
+        "to": "N3"
+      }
+    ],
+    "publishes_to": [
+      {
+        "from": "A1",
+        "to": "T1",
+        "msg_size": 3082,
+        "period_ms": 173
+      },
+      {
+        "from": "A2",
+        "to": "T1",
+        "msg_size": 2075,
+        "period_ms": 620
+      },
+      {
+        "from": "A3",
+        "to": "T1",
+        "msg_size": 4037,
+        "period_ms": 975
+      },
+      {
+        "from": "A3",
+        "to": "T2",
+        "msg_size": 994,
+        "period_ms": 1038
+      },
+      {
+        "from": "A4",
+        "to": "T1",
+        "msg_size": 1604,
+        "period_ms": 797
+      },
+      {
+        "from": "A5",
+        "to": "T1",
+        "msg_size": 2370,
+        "period_ms": 13
+      },
+      {
+        "from": "A6",
+        "to": "T1",
+        "msg_size": 2562,
+        "period_ms": 790
+      },
+      {
+        "from": "A6",
+        "to": "T2",
+        "msg_size": 364,
+        "period_ms": 2544
+      },
+      {
+        "from": "A7",
+        "to": "T1",
+        "msg_size": 1326,
+        "period_ms": 166
+      },
+      {
+        "from": "A7",
+        "to": "T2",
+        "msg_size": 421,
+        "period_ms": 4518
+      },
+      {
+        "from": "A8",
+        "to": "T1",
+        "msg_size": 514,
+        "period_ms": 623
+      },
+      {
+        "from": "A8",
+        "to": "T2",
+        "msg_size": 275,
+        "period_ms": 1016
+      },
+      {
+        "from": "A9",
+        "to": "T1",
+        "msg_size": 3918,
+        "period_ms": 836
+      },
+      {
+        "from": "A9",
+        "to": "T2",
+        "msg_size": 315,
+        "period_ms": 2073
+      },
+      {
+        "from": "A10",
+        "to": "T1",
+        "msg_size": 862,
+        "period_ms": 759
+      },
+      {
+        "from": "A10",
+        "to": "T2",
+        "msg_size": 326,
+        "period_ms": 4463
+      },
+      {
+        "from": "A11",
+        "to": "T1",
+        "msg_size": 2458,
+        "period_ms": 979
+      },
+      {
+        "from": "A11",
+        "to": "T2",
+        "msg_size": 527,
+        "period_ms": 4422
+      },
+      {
+        "from": "A12",
+        "to": "T1",
+        "msg_size": 1379,
+        "period_ms": 961
+      },
+      {
+        "from": "A12",
+        "to": "T2",
+        "msg_size": 1003,
+        "period_ms": 1747
+      },
+      {
+        "from": "A13",
+        "to": "T1",
+        "msg_size": 3263,
+        "period_ms": 675
+      },
+      {
+        "from": "A13",
+        "to": "T2",
+        "msg_size": 785,
+        "period_ms": 3798
+      },
+      {
+        "from": "A14",
+        "to": "T1",
+        "msg_size": 1896,
+        "period_ms": 31
+      },
+      {
+        "from": "A14",
+        "to": "T2",
+        "msg_size": 491,
+        "period_ms": 4920
+      },
+      {
+        "from": "A15",
+        "to": "T1",
+        "msg_size": 3096,
+        "period_ms": 70
+      },
+      {
+        "from": "A15",
+        "to": "T2",
+        "msg_size": 288,
+        "period_ms": 2806
+      },
+      {
+        "from": "A15",
+        "to": "T10",
+        "msg_size": 256,
+        "period_ms": 10000
+      },
+      {
+        "from": "A16",
+        "to": "T1",
+        "msg_size": 2500,
+        "period_ms": 229
+      },
+      {
+        "from": "A16",
+        "to": "T2",
+        "msg_size": 996,
+        "period_ms": 4777
+      },
+      {
+        "from": "A17",
+        "to": "T1",
+        "msg_size": 2449,
+        "period_ms": 836
+      },
+      {
+        "from": "A17",
+        "to": "T2",
+        "msg_size": 352,
+        "period_ms": 894
+      },
+      {
+        "from": "A18",
+        "to": "T1",
+        "msg_size": 2195,
+        "period_ms": 488
+      },
+      {
+        "from": "A18",
+        "to": "T6",
+        "msg_size": 256,
+        "period_ms": 10000
+      },
+      {
+        "from": "A19",
+        "to": "T1",
+        "msg_size": 3494,
+        "period_ms": 357
+      },
+      {
+        "from": "A20",
+        "to": "T1",
+        "msg_size": 2708,
+        "period_ms": 469
+      },
+      {
+        "from": "A20",
+        "to": "T2",
+        "msg_size": 443,
+        "period_ms": 2381
+      },
+      {
+        "from": "A21",
+        "to": "T1",
+        "msg_size": 820,
+        "period_ms": 463
+      },
+      {
+        "from": "A22",
+        "to": "T1",
+        "msg_size": 3183,
+        "period_ms": 563
+      },
+      {
+        "from": "A23",
+        "to": "T1",
+        "msg_size": 3988,
+        "period_ms": 252
+      },
+      {
+        "from": "A23",
+        "to": "T2",
+        "msg_size": 753,
+        "period_ms": 4043
+      },
+      {
+        "from": "A24",
+        "to": "T1",
+        "msg_size": 752,
+        "period_ms": 178
+      },
+      {
+        "from": "A24",
+        "to": "T2",
+        "msg_size": 655,
+        "period_ms": 2272
+      },
+      {
+        "from": "A25",
+        "to": "T1",
+        "msg_size": 1680,
+        "period_ms": 443
+      },
+      {
+        "from": "A26",
+        "to": "T1",
+        "msg_size": 3223,
+        "period_ms": 745
+      },
+      {
+        "from": "A26",
+        "to": "T2",
+        "msg_size": 450,
+        "period_ms": 2530
+      },
+      {
+        "from": "A27",
+        "to": "T1",
+        "msg_size": 3525,
+        "period_ms": 565
+      },
+      {
+        "from": "A27",
+        "to": "T2",
+        "msg_size": 577,
+        "period_ms": 568
+      },
+      {
+        "from": "A27",
+        "to": "T18",
+        "msg_size": 256,
+        "period_ms": 10000
+      },
+      {
+        "from": "A28",
+        "to": "T1",
+        "msg_size": 4004,
+        "period_ms": 553
+      },
+      {
+        "from": "A28",
+        "to": "T2",
+        "msg_size": 776,
+        "period_ms": 756
+      },
+      {
+        "from": "A29",
+        "to": "T1",
+        "msg_size": 790,
+        "period_ms": 701
+      },
+      {
+        "from": "A30",
+        "to": "T1",
+        "msg_size": 2845,
+        "period_ms": 262
+      },
+      {
+        "from": "A30",
+        "to": "T2",
+        "msg_size": 296,
+        "period_ms": 771
+      },
+      {
+        "from": "A31",
+        "to": "T1",
+        "msg_size": 2653,
+        "period_ms": 333
+      },
+      {
+        "from": "A32",
+        "to": "T1",
+        "msg_size": 1489,
+        "period_ms": 281
+      },
+      {
+        "from": "A32",
+        "to": "T2",
+        "msg_size": 943,
+        "period_ms": 2557
+      },
+      {
+        "from": "A33",
+        "to": "T1",
+        "msg_size": 809,
+        "period_ms": 19
+      },
+      {
+        "from": "A33",
+        "to": "T2",
+        "msg_size": 832,
+        "period_ms": 919
+      },
+      {
+        "from": "A33",
+        "to": "T9",
+        "msg_size": 256,
+        "period_ms": 10000
+      },
+      {
+        "from": "A34",
+        "to": "T1",
+        "msg_size": 1054,
+        "period_ms": 965
+      },
+      {
+        "from": "A34",
+        "to": "T2",
+        "msg_size": 326,
+        "period_ms": 2101
+      },
+      {
+        "from": "A35",
+        "to": "T1",
+        "msg_size": 3927,
+        "period_ms": 566
+      },
+      {
+        "from": "A36",
+        "to": "T1",
+        "msg_size": 3190,
+        "period_ms": 551
+      },
+      {
+        "from": "A36",
+        "to": "T2",
+        "msg_size": 823,
+        "period_ms": 2552
+      },
+      {
+        "from": "A37",
+        "to": "T1",
+        "msg_size": 1062,
+        "period_ms": 280
+      },
+      {
+        "from": "A37",
+        "to": "T2",
+        "msg_size": 365,
+        "period_ms": 4632
+      },
+      {
+        "from": "A38",
+        "to": "T1",
+        "msg_size": 1374,
+        "period_ms": 744
+      },
+      {
+        "from": "A38",
+        "to": "T2",
+        "msg_size": 959,
+        "period_ms": 2262
+      },
+      {
+        "from": "A39",
+        "to": "T1",
+        "msg_size": 3977,
+        "period_ms": 62
+      },
+      {
+        "from": "A39",
+        "to": "T2",
+        "msg_size": 689,
+        "period_ms": 2366
+      },
+      {
+        "from": "A39",
+        "to": "T13",
+        "msg_size": 256,
+        "period_ms": 10000
+      },
+      {
+        "from": "A40",
+        "to": "T1",
+        "msg_size": 3121,
+        "period_ms": 278
+      },
+      {
+        "from": "A40",
+        "to": "T2",
+        "msg_size": 708,
+        "period_ms": 4619
+      },
+      {
+        "from": "A41",
+        "to": "T1",
+        "msg_size": 970,
+        "period_ms": 87
+      },
+      {
+        "from": "A42",
+        "to": "T1",
+        "msg_size": 659,
+        "period_ms": 864
+      },
+      {
+        "from": "A42",
+        "to": "T2",
+        "msg_size": 821,
+        "period_ms": 1313
+      },
+      {
+        "from": "A43",
+        "to": "T1",
+        "msg_size": 2005,
+        "period_ms": 930
+      },
+      {
+        "from": "A44",
+        "to": "T1",
+        "msg_size": 1977,
+        "period_ms": 225
+      },
+      {
+        "from": "A45",
+        "to": "T1",
+        "msg_size": 2805,
+        "period_ms": 915
+      },
+      {
+        "from": "A46",
+        "to": "T1",
+        "msg_size": 1481,
+        "period_ms": 895
+      },
+      {
+        "from": "A46",
+        "to": "T2",
+        "msg_size": 437,
+        "period_ms": 3477
+      },
+      {
+        "from": "A46",
+        "to": "T13",
+        "msg_size": 256,
+        "period_ms": 10000
+      },
+      {
+        "from": "A47",
+        "to": "T1",
+        "msg_size": 2198,
+        "period_ms": 831
+      },
+      {
+        "from": "A48",
+        "to": "T1",
+        "msg_size": 1164,
+        "period_ms": 816
+      },
+      {
+        "from": "A49",
+        "to": "T1",
+        "msg_size": 2439,
+        "period_ms": 237
+      },
+      {
+        "from": "A49",
+        "to": "T2",
+        "msg_size": 727,
+        "period_ms": 2964
+      },
+      {
+        "from": "A50",
+        "to": "T1",
+        "msg_size": 1444,
+        "period_ms": 238
+      },
+      {
+        "from": "A50",
+        "to": "T2",
+        "msg_size": 453,
+        "period_ms": 3364
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "A1",
+        "to": "T1"
+      },
+      {
+        "from": "A2",
+        "to": "T1"
+      },
+      {
+        "from": "A3",
+        "to": "T1"
+      },
+      {
+        "from": "A3",
+        "to": "T2"
+      },
+      {
+        "from": "A4",
+        "to": "T1"
+      },
+      {
+        "from": "A5",
+        "to": "T1"
+      },
+      {
+        "from": "A6",
+        "to": "T1"
+      },
+      {
+        "from": "A6",
+        "to": "T2"
+      },
+      {
+        "from": "A7",
+        "to": "T1"
+      },
+      {
+        "from": "A7",
+        "to": "T2"
+      },
+      {
+        "from": "A8",
+        "to": "T1"
+      },
+      {
+        "from": "A8",
+        "to": "T2"
+      },
+      {
+        "from": "A9",
+        "to": "T1"
+      },
+      {
+        "from": "A9",
+        "to": "T2"
+      },
+      {
+        "from": "A10",
+        "to": "T1"
+      },
+      {
+        "from": "A10",
+        "to": "T2"
+      },
+      {
+        "from": "A11",
+        "to": "T1"
+      },
+      {
+        "from": "A11",
+        "to": "T2"
+      },
+      {
+        "from": "A12",
+        "to": "T1"
+      },
+      {
+        "from": "A12",
+        "to": "T2"
+      },
+      {
+        "from": "A13",
+        "to": "T1"
+      },
+      {
+        "from": "A13",
+        "to": "T2"
+      },
+      {
+        "from": "A14",
+        "to": "T1"
+      },
+      {
+        "from": "A14",
+        "to": "T2"
+      },
+      {
+        "from": "A15",
+        "to": "T1"
+      },
+      {
+        "from": "A15",
+        "to": "T2"
+      },
+      {
+        "from": "A16",
+        "to": "T1"
+      },
+      {
+        "from": "A16",
+        "to": "T2"
+      },
+      {
+        "from": "A17",
+        "to": "T1"
+      },
+      {
+        "from": "A17",
+        "to": "T2"
+      },
+      {
+        "from": "A18",
+        "to": "T1"
+      },
+      {
+        "from": "A19",
+        "to": "T1"
+      },
+      {
+        "from": "A20",
+        "to": "T1"
+      },
+      {
+        "from": "A20",
+        "to": "T2"
+      },
+      {
+        "from": "A21",
+        "to": "T1"
+      },
+      {
+        "from": "A22",
+        "to": "T1"
+      },
+      {
+        "from": "A23",
+        "to": "T1"
+      },
+      {
+        "from": "A23",
+        "to": "T2"
+      },
+      {
+        "from": "A24",
+        "to": "T1"
+      },
+      {
+        "from": "A24",
+        "to": "T2"
+      },
+      {
+        "from": "A25",
+        "to": "T1"
+      },
+      {
+        "from": "A26",
+        "to": "T1"
+      },
+      {
+        "from": "A26",
+        "to": "T2"
+      },
+      {
+        "from": "A27",
+        "to": "T1"
+      },
+      {
+        "from": "A27",
+        "to": "T2"
+      },
+      {
+        "from": "A28",
+        "to": "T1"
+      },
+      {
+        "from": "A28",
+        "to": "T2"
+      },
+      {
+        "from": "A29",
+        "to": "T1"
+      },
+      {
+        "from": "A30",
+        "to": "T1"
+      },
+      {
+        "from": "A30",
+        "to": "T2"
+      },
+      {
+        "from": "A31",
+        "to": "T1"
+      },
+      {
+        "from": "A32",
+        "to": "T1"
+      },
+      {
+        "from": "A32",
+        "to": "T2"
+      },
+      {
+        "from": "A33",
+        "to": "T1"
+      },
+      {
+        "from": "A33",
+        "to": "T2"
+      },
+      {
+        "from": "A34",
+        "to": "T1"
+      },
+      {
+        "from": "A34",
+        "to": "T2"
+      },
+      {
+        "from": "A35",
+        "to": "T1"
+      },
+      {
+        "from": "A36",
+        "to": "T1"
+      },
+      {
+        "from": "A36",
+        "to": "T2"
+      },
+      {
+        "from": "A37",
+        "to": "T1"
+      },
+      {
+        "from": "A37",
+        "to": "T2"
+      },
+      {
+        "from": "A38",
+        "to": "T1"
+      },
+      {
+        "from": "A38",
+        "to": "T2"
+      },
+      {
+        "from": "A39",
+        "to": "T1"
+      },
+      {
+        "from": "A39",
+        "to": "T2"
+      },
+      {
+        "from": "A40",
+        "to": "T1"
+      },
+      {
+        "from": "A40",
+        "to": "T2"
+      },
+      {
+        "from": "A41",
+        "to": "T1"
+      },
+      {
+        "from": "A42",
+        "to": "T1"
+      },
+      {
+        "from": "A42",
+        "to": "T2"
+      },
+      {
+        "from": "A43",
+        "to": "T1"
+      },
+      {
+        "from": "A44",
+        "to": "T1"
+      },
+      {
+        "from": "A45",
+        "to": "T1"
+      },
+      {
+        "from": "A46",
+        "to": "T1"
+      },
+      {
+        "from": "A46",
+        "to": "T2"
+      },
+      {
+        "from": "A47",
+        "to": "T1"
+      },
+      {
+        "from": "A48",
+        "to": "T1"
+      },
+      {
+        "from": "A49",
+        "to": "T1"
+      },
+      {
+        "from": "A49",
+        "to": "T2"
+      },
+      {
+        "from": "A50",
+        "to": "T1"
+      },
+      {
+        "from": "A50",
+        "to": "T2"
+      }
+    ],
+    "routes": [
+      {
+        "from": "B1",
+        "to": "T1"
+      },
+      {
+        "from": "B2",
+        "to": "T1"
+      },
+      {
+        "from": "B3",
+        "to": "T1"
+      },
+      {
+        "from": "B1",
+        "to": "T2"
+      },
+      {
+        "from": "B2",
+        "to": "T2"
+      },
+      {
+        "from": "B3",
+        "to": "T2"
+      },
+      {
+        "from": "B1",
+        "to": "T3"
+      },
+      {
+        "from": "B2",
+        "to": "T4"
+      },
+      {
+        "from": "B2",
+        "to": "T5"
+      },
+      {
+        "from": "B3",
+        "to": "T6"
+      },
+      {
+        "from": "B3",
+        "to": "T7"
+      },
+      {
+        "from": "B2",
+        "to": "T8"
+      },
+      {
+        "from": "B3",
+        "to": "T9"
+      },
+      {
+        "from": "B3",
+        "to": "T10"
+      },
+      {
+        "from": "B2",
+        "to": "T11"
+      },
+      {
+        "from": "B1",
+        "to": "T12"
+      },
+      {
+        "from": "B1",
+        "to": "T13"
+      },
+      {
+        "from": "B2",
+        "to": "T14"
+      },
+      {
+        "from": "B1",
+        "to": "T15"
+      },
+      {
+        "from": "B3",
+        "to": "T16"
+      },
+      {
+        "from": "B2",
+        "to": "T17"
+      },
+      {
+        "from": "B1",
+        "to": "T18"
+      },
+      {
+        "from": "B1",
+        "to": "T19"
+      },
+      {
+        "from": "B3",
+        "to": "T20"
+      }
+    ]
+  }
+}

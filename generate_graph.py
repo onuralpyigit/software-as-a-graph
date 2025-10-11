@@ -10,7 +10,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 # Import your existing modules and the ones
 from src.GraphBuilder import GraphBuilder
@@ -26,6 +26,7 @@ class SystemConfig:
         self.num_brokers = kwargs.get('num_brokers', 2)
         self.dataset_file = kwargs.get('dataset_file', '')
         self.generate_dataset = kwargs.get('generate_dataset', False)
+        self.generate_problematic_dataset = kwargs.get('generate_problematic_dataset', False)
         self.ros2_data_file = kwargs.get('ros2_data_file', '')
         self.print_graph = kwargs.get('verbose', False)
         self.import_graph_from_file = kwargs.get('input', False)
@@ -68,6 +69,8 @@ Examples:
                        help='Path to dataset JSON file to import')
     parser.add_argument('--generate_dataset', action='store_true', 
                        help='Generate synthetic datasets for all scales')
+    parser.add_argument('--generate_problematic_dataset', action='store_true', 
+                       help='Generate a dataset with known issues for testing')
     parser.add_argument('--import_from_ros2', type=str, default='', 
                        help='Path to ROS2 JSON data file')
     
@@ -100,6 +103,7 @@ Examples:
         num_brokers=args.brokers,
         dataset_file=args.import_dataset,
         generate_dataset=args.generate_dataset,
+        generate_problematic_dataset=args.generate_problematic_dataset,
         ros2_data_file=args.import_from_ros2,
         verbose=args.verbose,
         input=args.input,
@@ -333,6 +337,41 @@ def main():
             with open(filename, 'w') as f:
                 json.dump(dataset, f, indent=2)
             print(f"✅ Generated {filename}")
+
+    elif config.generate_problematic_dataset:
+        # Generate a dataset with known issues for testing
+        generator = DatasetGenerator()
+        
+        print("Generating problematic dataset...")
+        dataset = generator.generate_single_point_of_failure()
+        filename = 'output/dataset_single_point_of_failure.json'
+        with open(filename, 'w') as f:
+            json.dump(dataset, f, indent=2)
+        print(f"✅ Generated {filename} with known issues for testing")
+
+        dataset = generator.generate_god_topic_pattern()
+        filename = 'output/dataset_god_topic_pattern.json'
+        with open(filename, 'w') as f:
+            json.dump(dataset, f, indent=2)
+        print(f"✅ Generated {filename} with known issues for testing")
+
+        dataset = generator.generate_circular_dependencies()
+        filename = 'output/dataset_circular_dependencies.json'
+        with open(filename, 'w') as f:
+            json.dump(dataset, f, indent=2)
+        print(f"✅ Generated {filename} with known issues for testing")
+
+        dataset = generator.generate_chatty_communication()
+        filename = 'output/dataset_chatty_communication.json'
+        with open(filename, 'w') as f:
+            json.dump(dataset, f, indent=2)
+        print(f"✅ Generated {filename} with known issues for testing")
+
+        dataset = generator.generate_hidden_coupling()
+        filename = 'output/dataset_hidden_coupling.json'
+        with open(filename, 'w') as f:
+            json.dump(dataset, f, indent=2)
+        print(f"✅ Generated {filename} with known issues for testing")
     
     elif config.dataset_file:
         # Import specific dataset
