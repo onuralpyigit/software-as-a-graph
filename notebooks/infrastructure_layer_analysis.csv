@@ -1,6 +1,0 @@
-node,name,type,degree,betweenness,closeness,pagerank,is_articulation_point,impact_score,composite_criticality,layer
-Node1,Node1,Node,1.0,0.16666666666666666,0.6666666666666666,0.2,False,0.4,0.18666666666666665,Infrastructure Layer
-Node2,Node2,Node,1.0,0.16666666666666666,0.6666666666666666,0.2,False,0.4,0.18666666666666665,Infrastructure Layer
-Node3,Node3,Node,1.0,0.16666666666666666,0.6666666666666666,0.2,False,0.4,0.18666666666666665,Infrastructure Layer
-Node4,Node4,Node,1.0,0.16666666666666666,0.6666666666666666,0.2,False,0.4,0.18666666666666665,Infrastructure Layer
-Node5,Node5,Node,1.0,0.16666666666666666,0.6666666666666666,0.2,False,0.4,0.18666666666666665,Infrastructure Layer
