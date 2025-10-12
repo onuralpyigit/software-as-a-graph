@@ -1,0 +1,76 @@
+{
+  "system_overview": {
+    "total_components": 51,
+    "total_dependencies": 282,
+    "graph_density": 0.11058823529411765,
+    "is_connected": true
+  },
+  "topological_metrics": {
+    "articulation_points": 0,
+    "max_betweenness": 0.04523872272851864,
+    "avg_impact_score": 0.023629734077121302
+  },
+  "criticality_distribution": {
+    "LOW": 23,
+    "VERY_LOW": 13,
+    "CRITICAL": 9,
+    "HIGH": 4,
+    "MEDIUM": 2
+  },
+  "validation": {
+    "correlation": 0.7981031598269419,
+    "avg_reachability_loss": 0.07500000000000002
+  },
+  "top_10_critical": [
+    {
+      "name": "Service10",
+      "type": "Application",
+      "composite_criticality": 0.049239464472184455
+    },
+    {
+      "name": "Gateway20",
+      "type": "Application",
+      "composite_criticality": 0.03672264585717247
+    },
+    {
+      "name": "Worker12",
+      "type": "Application",
+      "composite_criticality": 0.03215266164637194
+    },
+    {
+      "name": "API14",
+      "type": "Application",
+      "composite_criticality": 0.030635710117175505
+    },
+    {
+      "name": "Worker13",
+      "type": "Application",
+      "composite_criticality": 0.029582295448872913
+    },
+    {
+      "name": "Gateway5",
+      "type": "Application",
+      "composite_criticality": 0.028859613198221445
+    },
+    {
+      "name": "API11",
+      "type": "Application",
+      "composite_criticality": 0.028586918545934953
+    },
+    {
+      "name": "Gateway18",
+      "type": "Application",
+      "composite_criticality": 0.026739555478163726
+    },
+    {
+      "name": "Aggregator9",
+      "type": "Application",
+      "composite_criticality": 0.024234413001592674
+    },
+    {
+      "name": "API19",
+      "type": "Application",
+      "composite_criticality": 0.020470753078749078
+    }
+  ]
+}
