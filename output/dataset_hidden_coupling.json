@@ -1,7 +1,7 @@
 {
   "metadata": {
     "version": "1.0.0",
-    "timestamp": "2025-10-11T20:00:32.344400",
+    "timestamp": "2025-10-13T14:24:56.161773",
     "purpose": "testing_antipatterns",
     "scenario": "Hidden Coupling Anti-Pattern",
     "description": "System with implicit dependencies and hidden coupling between services",

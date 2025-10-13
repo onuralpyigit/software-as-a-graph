@@ -74,6 +74,9 @@ class PubSubGraphAnalyzer:
         
         # Build infrastructure graph
         self._build_infrastructure_graph()
+
+        # Visualize the multi-layer graph
+        self.visualize_multilayer_graph()
     
     def _build_application_graph(self):
         """Creates the application-level dependency graph."""
@@ -107,6 +110,77 @@ class PubSubGraphAnalyzer:
                                 self.GN.add_edge(n1, n2, relation='CONNECTS_TO')
                                 self.G.add_edge(n1, n2, relation='CONNECTS_TO', color='red')
                                 break
+
+
+    def visualize_multilayer_graph(self):
+        """Visualizes the multi-layer dependency graph."""
+        fig, ax = plt.subplots(1, 1, figsize=(16, 9))
+        
+        # Node colors based on type
+        node_colors = []
+        for node in self.G.nodes():
+            node_type = self.G.nodes[node].get('type', '')
+            if node_type == 'app':
+                node_colors.append('skyblue')
+            elif node_type == 'topic':
+                node_colors.append('lightgreen')
+            elif node_type == 'broker':
+                node_colors.append('orange')
+            else:  # node
+                node_colors.append('violet')
+        
+        # Draw the graph
+        pos = nx.spring_layout(self.G, seed=42)
+        nx.draw_networkx_nodes(self.G, pos, node_color=node_colors, 
+                              node_size=500, alpha=0.9, ax=ax)
+        
+        # Draw edges by type
+        edge_colors = [self.G[u][v].get('color', 'gray') for u, v in self.G.edges()]
+        nx.draw_networkx_edges(self.G, pos, edge_color=edge_colors, 
+                               alpha=0.5, arrows=True, ax=ax)
+        
+        # Draw labels
+        nx.draw_networkx_labels(self.G, pos, font_size=8, ax=ax)
+        
+        # Add layer labels
+        ax.set_title('Multi-layer Dependency Graph', fontsize=14, fontweight='bold')
+        ax.axis('off')
+        plt.tight_layout()
+        plt.show()
+    
+    @staticmethod
+    def import_graph_to_neo4j(G: nx.DiGraph, uri: str, user: str, password: str):
+        """Imports the graph into a Neo4j database."""
+        from neo4j import GraphDatabase
+        
+        driver = GraphDatabase.driver(uri, auth=(user, password))
+        
+        def create_node(tx, node_id, properties):
+            props = ', '.join(f"{k}: '{v}'" for k, v in properties.items())
+            tx.run(f"MERGE (n {{id: '{node_id}'}}) SET n += {{{props}}}")
+        
+        def create_edge(tx, from_id, to_id, relation):
+            tx.run(f"""
+                MATCH (a {{id: '{from_id}'}}), (b {{id: '{to_id}'}})
+                MERGE (a)-[r:{relation}]->(b)
+            """)
+
+        def clear_database(tx):
+            tx.run("MATCH (n) DETACH DELETE n")    
+        
+        with driver.session() as session:
+            session.write_transaction(clear_database)
+
+            for node in G.nodes(data=True):
+                node_id = node[0]
+                properties = node[1]
+                session.write_transaction(create_node, node_id, properties)
+            
+            for u, v, data in G.edges(data=True):
+                relation = data.get('relation', 'RELATED_TO')
+                session.write_transaction(create_edge, u, v, relation)
+        
+        driver.close()
 
 # ============================================================================
 # SECTION 2: TOPOLOGICAL METRICS CALCULATION
@@ -456,7 +530,7 @@ def create_smart_city_iot_system() -> PubSubSystem:
 # SECTION 6: MAIN ANALYSIS WORKFLOW
 # ============================================================================
 
-def perform_criticality_analysis(system: PubSubSystem, system_name: str = "System") -> pd.DataFrame:
+def perform_criticality_analysis(system: PubSubSystem, system_name: str = "System", import_graph_to_neo4j=False) -> pd.DataFrame:
     """
     Complete criticality analysis workflow as presented in the paper.
     Returns DataFrame with topological scores and validation metrics.
@@ -474,6 +548,11 @@ def perform_criticality_analysis(system: PubSubSystem, system_name: str = "Syste
     print(f"   - Topics: {len(system.topics)}")
     print(f"   - Brokers: {len(system.brokers)}")
     print(f"   - Nodes: {len(system.nodes)}")
+
+
+    # Import to Neo4j (optional)
+    if import_graph_to_neo4j:
+        analyzer.import_graph_to_neo4j(analyzer.G, "bolt://localhost:7687", "neo4j", "password")
     
     # Step 2: Calculate topological metrics
     print("\n2. Calculating topological metrics...")
@@ -560,11 +639,11 @@ def compare_systems():
     
     # Analyze example system
     example_system = create_example_pubsub_system()
-    example_results = perform_criticality_analysis(example_system, "Example Pub-Sub System")
+    example_results = perform_criticality_analysis(example_system, "Example Pub-Sub System", import_graph_to_neo4j=True)
     
     # Analyze Smart City IoT system
-    smart_city_system = create_smart_city_iot_system()
-    smart_city_results = perform_criticality_analysis(smart_city_system, "Smart City IoT System")
+    #smart_city_system = create_smart_city_iot_system()
+    #smart_city_results = perform_criticality_analysis(smart_city_system, "Smart City IoT System")
     
     # Summary comparison
     print("\n" + "=" * 60)

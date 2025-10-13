@@ -1,7 +1,7 @@
 {
   "dataset_file": "../output/dataset_god_topic_pattern.json",
-  "import_time": 0.9501051902770996,
-  "timestamp": "2025-10-11T20:00:34.965183",
+  "import_time": 3.078852891921997,
+  "timestamp": "2025-10-13T14:25:08.959961",
   "statistics": {
     "total_nodes": 78,
     "total_edges": 2767,
@@ -29,11 +29,11 @@
       "count": 14,
       "details": "14 critical applications running on single nodes",
       "affected": [
-        "shipping-service-1",
-        "shipping-service-3",
-        "shipping-service-5",
-        "notification-service-1",
-        "notification-service-5"
+        "user-service-3",
+        "order-service-3",
+        "order-service-4",
+        "order-service-5",
+        "shipping-service-1"
       ]
     },
     {
@@ -52,11 +52,11 @@
       "count": 150,
       "details": "150 applications in circular dependency chains",
       "affected": [
-        "payment-service-5 (cycle length: 1)",
-        "payment-service-5 (cycle length: 3)",
-        "payment-service-5 (cycle length: 2)",
-        "inventory-service-1 (cycle length: 1)",
-        "inventory-service-1 (cycle length: 3)"
+        "user-service-1 (cycle length: 1)",
+        "user-service-1 (cycle length: 3)",
+        "user-service-1 (cycle length: 2)",
+        "user-service-2 (cycle length: 1)",
+        "user-service-2 (cycle length: 3)"
       ]
     },
     {

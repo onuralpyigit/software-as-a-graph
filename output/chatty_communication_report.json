@@ -1,7 +1,7 @@
 {
   "dataset_file": "../output/dataset_chatty_communication.json",
-  "import_time": 2.057407855987549,
-  "timestamp": "2025-10-11T20:00:38.083813",
+  "import_time": 4.712120532989502,
+  "timestamp": "2025-10-13T14:25:16.451499",
   "statistics": {
     "total_nodes": 218,
     "total_edges": 589,
@@ -29,9 +29,9 @@
       "count": 51,
       "details": "51 applications with chatty communication patterns",
       "affected": [
-        "health-checker-1 (avg msg: 48B, period: 250ms)",
-        "health-checker-2 (avg msg: 48B, period: 250ms)",
-        "health-checker-3 (avg msg: 48B, period: 250ms)"
+        "heartbeat-1 (avg msg: 32B, period: 100ms)",
+        "heartbeat-2 (avg msg: 32B, period: 100ms)",
+        "heartbeat-3 (avg msg: 32B, period: 100ms)"
       ]
     },
     {

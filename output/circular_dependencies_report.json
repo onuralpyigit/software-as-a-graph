@@ -1,7 +1,7 @@
 {
   "dataset_file": "../output/dataset_circular_dependencies.json",
-  "import_time": 0.40292835235595703,
-  "timestamp": "2025-10-11T20:00:35.687666",
+  "import_time": 1.187870979309082,
+  "timestamp": "2025-10-13T14:25:10.774127",
   "statistics": {
     "total_nodes": 40,
     "total_edges": 112,

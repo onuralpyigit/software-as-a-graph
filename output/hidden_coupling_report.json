@@ -1,7 +1,7 @@
 {
   "dataset_file": "../output/dataset_hidden_coupling.json",
-  "import_time": 0.15347504615783691,
-  "timestamp": "2025-10-11T20:00:38.565685",
+  "import_time": 0.29998278617858887,
+  "timestamp": "2025-10-13T14:25:17.369009",
   "statistics": {
     "total_nodes": 15,
     "total_edges": 11,

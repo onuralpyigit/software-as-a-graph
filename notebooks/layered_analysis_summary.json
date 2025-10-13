@@ -1,0 +1,167 @@
+{
+  "layers": {
+    "application": {
+      "nodes": 8,
+      "edges": 18,
+      "avg_criticality": 0.14485407066052225,
+      "articulation_points": 1
+    },
+    "infrastructure": {
+      "nodes": 5,
+      "edges": 10,
+      "avg_criticality": 0.18666666666666665,
+      "articulation_points": 0
+    },
+    "complete": {
+      "nodes": 20,
+      "edges": 66,
+      "avg_criticality": 0.038724569640062594,
+      "articulation_points": 0
+    }
+  },
+  "top_critical_by_layer": {
+    "application": [
+      {
+        "name": "MetricsCollector",
+        "composite_criticality": 0.4683563748079877
+      },
+      {
+        "name": "UserService",
+        "composite_criticality": 0.19754224270353304
+      },
+      {
+        "name": "PaymentService",
+        "composite_criticality": 0.13993855606758832
+      },
+      {
+        "name": "InventoryService",
+        "composite_criticality": 0.10629800307219664
+      },
+      {
+        "name": "NotificationService",
+        "composite_criticality": 0.10153609831029187
+      }
+    ],
+    "infrastructure": [
+      {
+        "name": "Node1",
+        "composite_criticality": 0.18666666666666665
+      },
+      {
+        "name": "Node2",
+        "composite_criticality": 0.18666666666666665
+      },
+      {
+        "name": "Node3",
+        "composite_criticality": 0.18666666666666665
+      },
+      {
+        "name": "Node4",
+        "composite_criticality": 0.18666666666666665
+      },
+      {
+        "name": "Node5",
+        "composite_criticality": 0.18666666666666665
+      }
+    ],
+    "complete": [
+      {
+        "name": "UserService",
+        "type": "Application",
+        "composite_criticality": 0.07881146528292561
+      },
+      {
+        "name": "MetricsCollector",
+        "type": "Application",
+        "composite_criticality": 0.07250501057024407
+      },
+      {
+        "name": "Node1",
+        "type": "Node",
+        "composite_criticality": 0.06119622216731187
+      },
+      {
+        "name": "PaymentService",
+        "type": "Application",
+        "composite_criticality": 0.05999505806770447
+      },
+      {
+        "name": "Node2",
+        "type": "Node",
+        "composite_criticality": 0.057882382011366446
+      },
+      {
+        "name": "InventoryService",
+        "type": "Application",
+        "composite_criticality": 0.048717843121104804
+      },
+      {
+        "name": "Node3",
+        "type": "Node",
+        "composite_criticality": 0.04689756472558549
+      },
+      {
+        "name": "Node5",
+        "type": "Node",
+        "composite_criticality": 0.04641023529088764
+      },
+      {
+        "name": "Node4",
+        "type": "Node",
+        "composite_criticality": 0.045338110534552355
+      },
+      {
+        "name": "NotificationService",
+        "type": "Application",
+        "composite_criticality": 0.04335721933942839
+      }
+    ]
+  },
+  "cross_layer_risks": [
+    {
+      "infrastructure_node": "Node1",
+      "infrastructure_criticality": 0.06119622216731187,
+      "directly_affected_apps": 2,
+      "affected_brokers": 1,
+      "cascading_apps": 4,
+      "total_app_impact": 6,
+      "cross_layer_risk_score": 0.48956977733849494
+    },
+    {
+      "infrastructure_node": "Node2",
+      "infrastructure_criticality": 0.057882382011366446,
+      "directly_affected_apps": 1,
+      "affected_brokers": 1,
+      "cascading_apps": 4,
+      "total_app_impact": 5,
+      "cross_layer_risk_score": 0.40517667407956515
+    },
+    {
+      "infrastructure_node": "Node3",
+      "infrastructure_criticality": 0.04689756472558549,
+      "directly_affected_apps": 2,
+      "affected_brokers": 0,
+      "cascading_apps": 4,
+      "total_app_impact": 6,
+      "cross_layer_risk_score": 0.28138538835351296
+    },
+    {
+      "infrastructure_node": "Node4",
+      "infrastructure_criticality": 0.045338110534552355,
+      "directly_affected_apps": 1,
+      "affected_brokers": 0,
+      "cascading_apps": 5,
+      "total_app_impact": 6,
+      "cross_layer_risk_score": 0.2720286632073141
+    },
+    {
+      "infrastructure_node": "Node5",
+      "infrastructure_criticality": 0.04641023529088764,
+      "directly_affected_apps": 2,
+      "affected_brokers": 0,
+      "cascading_apps": 0,
+      "total_app_impact": 2,
+      "cross_layer_risk_score": 0.09282047058177528
+    }
+  ]
+}

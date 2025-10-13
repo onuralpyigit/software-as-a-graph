@@ -1,7 +1,7 @@
 {
   "dataset_file": "../output/dataset_single_point_of_failure.json",
-  "import_time": 0.3500990867614746,
-  "timestamp": "2025-10-11T20:00:33.018140",
+  "import_time": 6.3048412799835205,
+  "timestamp": "2025-10-13T14:25:03.986043",
   "statistics": {
     "total_nodes": 34,
     "total_edges": 109,
