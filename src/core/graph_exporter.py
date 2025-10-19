@@ -269,7 +269,20 @@ class GraphExporter:
         
         # Convert to NetworkX first
         graph = self.export_to_networkx(model)
-        
+
+        # Remove nodes with None attributes to avoid GraphML issues
+        for node in list(graph.nodes()):
+            for key, value in dict(graph.nodes[node]).items():
+                if value is None:
+                    print(f"Removing None attribute '{key}' from node '{node}' for GraphML export")
+                    del graph.nodes[node][key]
+
+        for edge in list(graph.edges()):
+            for key, value in dict(graph.edges[edge]).items():
+                if value is None:
+                    print(f"Removing None attribute '{key}' from edge '{edge}' for GraphML export")
+                    del graph.edges[edge][key]
+    
         # Export to GraphML
         nx.write_graphml(graph, str(output_path))
         
