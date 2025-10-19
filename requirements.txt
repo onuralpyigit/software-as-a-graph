@@ -38,3 +38,4 @@ plotly==6.2.0
 scikit-learn==1.7.2
 PyYAML==6.0.2
 pyvis==0.3.2
+lxml==6.0.2
