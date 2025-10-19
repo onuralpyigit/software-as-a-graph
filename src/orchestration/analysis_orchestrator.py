@@ -21,9 +21,9 @@ import pandas as pd
 
 from ..core.graph_model import GraphModel
 from ..analysis.criticality_scorer import CompositeCriticalityScorer, CompositeCriticalityScore
-from .qos_analyzer import QoSAnalyzer
-from .reachability_analyzer import ReachabilityAnalyzer
-from .structural_analyzer import StructuralAnalyzer
+from ..analysis.qos_analyzer import QoSAnalyzer
+from ..analysis.reachability_analyzer import ReachabilityAnalyzer
+from ..analysis.structural_analyzer import StructuralAnalyzer
 
 
 class AnalysisOrchestrator:
