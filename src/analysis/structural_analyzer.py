@@ -39,7 +39,7 @@ class StructuralAnalyzer:
                 'count': nx.number_strongly_connected_components(graph),
                 'sizes': [len(c) for c in nx.strongly_connected_components(graph)]
             },
-            'cycles': self._find_cycles(graph),
+            #cycles': self._find_cycles(graph),
             'node_connectivity': nx.node_connectivity(undirected) if nx.is_connected(undirected) else 0,
             'edge_connectivity': nx.edge_connectivity(undirected) if nx.is_connected(undirected) else 0
         }
