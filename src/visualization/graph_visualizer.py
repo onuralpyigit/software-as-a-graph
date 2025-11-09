@@ -41,6 +41,7 @@ class ColorScheme(Enum):
     CENTRALITY = "centrality"
     TYPE = "type"
     CUSTOM = "custom"
+    LAYER = "layer"
 
 
 @dataclass
