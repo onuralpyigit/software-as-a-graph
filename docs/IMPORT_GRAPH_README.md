@@ -2,12 +2,12 @@
 
 ## 🎉 Complete Neo4j Integration
 
-Import generated DDS pub-sub system graphs into **Neo4j graph database** for advanced graph analytics, visualization, and querying.
+Import generated pub-sub system graphs into **Neo4j graph database** for advanced graph analytics, visualization, and querying.
 
 ## ✅ What's Been Implemented
 
 ### Neo4j Importer
-- **[neo4j_importer.py](computer:///mnt/user-data/outputs/neo4j_importer.py)** (750+ lines)
+- **[import_graph.py]** (750+ lines)
   - Automatic schema creation
   - Batch import for large graphs
   - Node types: Node, Application, Topic, Broker
@@ -17,7 +17,7 @@ Import generated DDS pub-sub system graphs into **Neo4j graph database** for adv
   - Statistics
 
 ### Docker Compose
-- **[docker-compose-neo4j.yml](computer:///mnt/user-data/outputs/docker-compose-neo4j.yml)**
+- **[docker-compose.yml]**
   - Neo4j 5.15
   - APOC plugins
   - Persistent storage
@@ -69,7 +69,7 @@ docker run -d \
 python generate_graph.py --scale medium --output system.json
 
 # Import to Neo4j
-python neo4j_importer.py \
+python import_graph.py \
     --uri bolt://localhost:7687 \
     --user neo4j \
     --password password \
@@ -177,7 +177,7 @@ Properties: None
 python generate_graph.py --scale small --output small.json
 
 # Import
-python neo4j_importer.py \
+python import_graph.py \
     --uri bolt://localhost:7687 \
     --user neo4j \
     --password password \
@@ -188,7 +188,7 @@ python neo4j_importer.py \
 
 ```bash
 # Import with clear
-python neo4j_importer.py \
+python import_graph.py \
     --uri bolt://localhost:7687 \
     --user neo4j \
     --password password \
@@ -200,7 +200,7 @@ python neo4j_importer.py \
 
 ```bash
 # Import and run queries
-python neo4j_importer.py \
+python import_graph.py \
     --uri bolt://localhost:7687 \
     --user neo4j \
     --password password \
@@ -215,7 +215,7 @@ python neo4j_importer.py \
 python generate_graph.py --scale xlarge --output large.json
 
 # Import with larger batch size
-python neo4j_importer.py \
+python import_graph.py \
     --uri bolt://localhost:7687 \
     --user neo4j \
     --password password \
@@ -515,7 +515,7 @@ python generate_graph.py \
     --output iot_system.json
 
 # Import to Neo4j
-python neo4j_importer.py \
+python import_graph.py \
     --uri bolt://localhost:7687 \
     --user neo4j \
     --password password \
@@ -551,7 +551,7 @@ python generate_graph.py \
     --output antipattern.json
 
 # Import
-python neo4j_importer.py \
+python import_graph.py \
     --uri bolt://localhost:7687 \
     --user neo4j \
     --password password \
@@ -580,10 +580,10 @@ python generate_graph.py --scale medium --seed 42 --output t1.json
 python generate_graph.py --scale medium --seed 43 --output t2.json
 
 # Import to different databases
-python neo4j_importer.py --uri bolt://localhost:7687 \
+python import_graph.py --uri bolt://localhost:7687 \
     --database t1 --input t1.json --user neo4j --password password
 
-python neo4j_importer.py --uri bolt://localhost:7687 \
+python import_graph.py --uri bolt://localhost:7687 \
     --database t2 --input t2.json --user neo4j --password password
 
 # Compare in Neo4j Browser
@@ -596,7 +596,7 @@ python neo4j_importer.py --uri bolt://localhost:7687 \
 **1. Batch Size**
 ```bash
 # Larger batches for large graphs
-python neo4j_importer.py ... --batch-size 1000
+python import_graph.py ... --batch-size 1000
 ```
 
 **2. Indexes**
@@ -671,7 +671,7 @@ docker-compose -f docker-compose-neo4j.yml up -d
 
 # Generate & Import
 python generate_graph.py --scale medium --output system.json
-python neo4j_importer.py --uri bolt://localhost:7687 \
+python import_graph.py --uri bolt://localhost:7687 \
     --user neo4j --password password --input system.json
 
 # Access Browser
