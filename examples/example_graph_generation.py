@@ -1,0 +1,402 @@
+#!/usr/bin/env python3
+"""
+Quick Start Examples for Graph Generator
+
+This script demonstrates the key features and improvements of the
+enhanced graph generation system through practical examples.
+
+Run this to see the improvements in action!
+
+Usage:
+    python quickstart_examples.py
+"""
+
+import sys
+import json
+from pathlib import Path
+
+# Add directory to path
+sys.path.insert(0, str(Path(__file__).parent / '..'))
+
+from src.core.graph_generator import GraphGenerator, GraphConfig
+
+def print_section(title):
+    """Print formatted section header"""
+    print("\n" + "="*70)
+    print(f" {title}")
+    print("="*70 + "\n")
+
+
+def example_1_basic():
+    """Example 1: Basic graph generation"""
+    print_section("Example 1: Basic Small System")
+    
+    config = GraphConfig(
+        scale='small',
+        scenario='generic',
+        num_nodes=5,
+        num_applications=10,
+        num_topics=8,
+        num_brokers=2,
+        edge_density=0.3,
+        high_availability=False,
+        antipatterns=[],
+        seed=42
+    )
+    
+    generator = GraphGenerator(config)
+    graph = generator.generate()
+    
+    print(f"✓ Generated {len(graph['nodes'])} nodes")
+    print(f"✓ Generated {len(graph['applications'])} applications")
+    print(f"✓ Generated {len(graph['topics'])} topics")
+    print(f"✓ Generated {len(graph['brokers'])} brokers")
+    
+    # Show some interesting details
+    print("\nSample Application:")
+    app = graph['applications'][0]
+    print(f"  ID: {app['id']}")
+    print(f"  Name: {app['name']}")
+    print(f"  Type: {app['type']}")
+    print(f"  Criticality: {app['criticality']}")
+    print(f"  Replicas: {app['replicas']}")
+    
+    print("\nSample Topic:")
+    topic = graph['topics'][0]
+    print(f"  ID: {topic['id']}")
+    print(f"  Name: {topic['name']}")
+    print(f"  Criticality: {topic['criticality']}")
+    print(f"  QoS Durability: {topic['qos']['durability']}")
+    print(f"  QoS Reliability: {topic['qos']['reliability']}")
+
+
+def example_2_realistic_iot():
+    """Example 2: Realistic IoT system with semantic matching"""
+    print_section("Example 2: Realistic IoT System")
+    
+    config = GraphConfig(
+        scale='small',
+        scenario='iot',
+        num_nodes=5,
+        num_applications=10,
+        num_topics=12,
+        num_brokers=2,
+        edge_density=0.3,
+        high_availability=False,
+        antipatterns=[],
+        seed=42,
+        realistic_topology=True
+    )
+    
+    generator = GraphGenerator(config)
+    graph = generator.generate()
+    
+    print("✓ Generated realistic IoT system")
+    
+    # Show realistic patterns
+    print("\nIoT Application Types:")
+    app_types = {}
+    for app in graph['applications']:
+        base = app['name'].split('_')[0]
+        app_types[base] = app_types.get(base, 0) + 1
+    for app_type, count in sorted(app_types.items()):
+        print(f"  {app_type}: {count}")
+    
+    print("\nIoT Topic Patterns:")
+    patterns = {}
+    for topic in graph['topics']:
+        pattern = topic['pattern']
+        patterns[pattern] = patterns.get(pattern, 0) + 1
+    for pattern, count in sorted(patterns.items()):
+        print(f"  {pattern}: {count}")
+    
+    # Show semantic matching
+    print("\nSemantic Matching Examples:")
+    for app in graph['applications'][:3]:
+        app_name = app['name']
+        app_topics = [
+            t['name'] for rel in graph['relationships']['publishes_to']
+            if rel['from'] == app['id']
+            for t in graph['topics'] if t['id'] == rel['to']
+        ]
+        if app_topics:
+            print(f"  {app_name} publishes to:")
+            for topic in app_topics[:2]:
+                print(f"    → {topic}")
+
+
+def example_3_financial_ha():
+    """Example 3: Financial system with HA and strict QoS"""
+    print_section("Example 3: Financial Trading System (HA)")
+    
+    config = GraphConfig(
+        scale='medium',
+        scenario='financial',
+        num_nodes=15,
+        num_applications=50,
+        num_topics=25,
+        num_brokers=3,
+        edge_density=0.3,
+        high_availability=True,
+        antipatterns=[],
+        seed=42
+    )
+    
+    generator = GraphGenerator(config)
+    graph = generator.generate()
+    
+    print("✓ Generated financial trading system with HA")
+    
+    # Show HA patterns
+    replicated_apps = [a for a in graph['applications'] if a['replicas'] > 1]
+    print(f"\nHigh Availability:")
+    print(f"  Apps with replicas: {len(replicated_apps)}/{len(graph['applications'])}")
+    print(f"  Total replicas: {sum(a['replicas'] for a in graph['applications'])}")
+    
+    # Show QoS strictness
+    print("\nFinancial QoS Policies:")
+    qos_stats = {'PERSISTENT': 0, 'RELIABLE': 0, 'URGENT': 0}
+    for topic in graph['topics']:
+        if topic['qos']['durability'] == 'PERSISTENT':
+            qos_stats['PERSISTENT'] += 1
+        if topic['qos']['reliability'] == 'RELIABLE':
+            qos_stats['RELIABLE'] += 1
+        if topic['qos']['transport_priority'] == 'URGENT':
+            qos_stats['URGENT'] += 1
+    
+    print(f"  PERSISTENT durability: {qos_stats['PERSISTENT']}/{len(graph['topics'])}")
+    print(f"  RELIABLE: {qos_stats['RELIABLE']}/{len(graph['topics'])}")
+    print(f"  URGENT priority: {qos_stats['URGENT']}/{len(graph['topics'])}")
+    
+    # Show ultra-low latency
+    low_latency = [t for t in graph['topics'] 
+                   if t['qos'].get('deadline_ms') and t['qos']['deadline_ms'] <= 10]
+    print(f"  Ultra-low latency (<10ms): {len(low_latency)} topics")
+
+
+def example_4_antipatterns():
+    """Example 4: System with multiple anti-patterns"""
+    print_section("Example 4: System with Anti-Patterns")
+    
+    config = GraphConfig(
+        scale='small',
+        scenario='generic',
+        num_nodes=5,
+        num_applications=15,
+        num_topics=10,
+        num_brokers=2,
+        edge_density=0.3,
+        high_availability=False,
+        antipatterns=['spof', 'god_object', 'tight_coupling'],
+        seed=42
+    )
+    
+    generator = GraphGenerator(config)
+    graph = generator.generate()
+    
+    print("✓ Generated system with anti-patterns: SPOF, God Object, Tight Coupling")
+    
+    # Find SPOF
+    print("\n1. Single Point of Failure (SPOF):")
+    spof_candidates = [a for a in graph['applications'] 
+                       if a['criticality'] in ['HIGH', 'CRITICAL'] and a['replicas'] == 1]
+    if spof_candidates:
+        spof = spof_candidates[0]
+        print(f"   App {spof['id']} ({spof['name']}):")
+        print(f"     Criticality: {spof['criticality']}")
+        print(f"     Replicas: {spof['replicas']}")
+        
+        # Count dependencies
+        deps = [s for s in graph['relationships']['subscribes_to']
+                if any(p['from'] == spof['id'] for p in graph['relationships']['publishes_to']
+                      if p['to'] == s['to'])]
+        print(f"     Dependents: {len(set(d['from'] for d in deps))} apps")
+    
+    # Find God Object
+    print("\n2. God Object:")
+    sub_counts = {}
+    for sub in graph['relationships']['subscribes_to']:
+        sub_counts[sub['from']] = sub_counts.get(sub['from'], 0) + 1
+    
+    max_subs = max(sub_counts.values()) if sub_counts else 0
+    for app_id, count in sub_counts.items():
+        if count == max_subs and count > len(graph['topics']) * 0.5:
+            app = next(a for a in graph['applications'] if a['id'] == app_id)
+            print(f"   App {app_id} ({app['name']}):")
+            print(f"     Subscribes to: {count}/{len(graph['topics'])} topics ({count/len(graph['topics'])*100:.1f}%)")
+    
+    # Detect cycles (tight coupling)
+    print("\n3. Tight Coupling (Circular Dependencies):")
+    print("   Checking for cycles in pub-sub graph...")
+    # Simple cycle detection
+    pub_graph = {}
+    for pub in graph['relationships']['publishes_to']:
+        if pub['from'] not in pub_graph:
+            pub_graph[pub['from']] = []
+        # Find subscribers to this topic
+        for sub in graph['relationships']['subscribes_to']:
+            if sub['to'] == pub['to']:
+                pub_graph[pub['from']].append(sub['from'])
+    
+    # Count edges suggesting cycles
+    potential_cycles = sum(len(v) for v in pub_graph.values())
+    print(f"   Found {potential_cycles} potential cycle edges")
+
+
+def example_5_multizone():
+    """Example 5: Multi-zone smart city deployment"""
+    print_section("Example 5: Multi-Zone Smart City")
+    
+    config = GraphConfig(
+        scale='medium',
+        scenario='smart_city',
+        num_nodes=15,
+        num_applications=40,
+        num_topics=20,
+        num_brokers=5,
+        edge_density=0.3,
+        high_availability=True,
+        multi_zone=True,
+        num_zones=5,
+        num_regions=1,
+        antipatterns=[],
+        seed=42
+    )
+    
+    generator = GraphGenerator(config)
+    graph = generator.generate()
+    
+    print("✓ Generated multi-zone smart city system")
+    
+    # Show zone distribution
+    zone_counts = {}
+    for node in graph['nodes']:
+        zone = node['zone']
+        zone_counts[zone] = zone_counts.get(zone, 0) + 1
+    
+    print("\nZone Distribution:")
+    for zone, count in sorted(zone_counts.items()):
+        print(f"  {zone}: {count} nodes")
+    
+    # Show HA across zones
+    print("\nHigh Availability Across Zones:")
+    multi_zone_apps = 0
+    for app in graph['applications']:
+        if app['replicas'] > 1:
+            # Check if replicas span zones
+            app_nodes = [r['to'] for r in graph['relationships']['runs_on']
+                        if r['from'] == app['id']]
+            app_zones = {n['zone'] for n in graph['nodes'] if n['id'] in app_nodes}
+            if len(app_zones) > 1:
+                multi_zone_apps += 1
+    
+    print(f"  Apps spanning multiple zones: {multi_zone_apps}")
+
+
+def example_6_comparison():
+    """Example 6: Compare baseline vs anti-pattern"""
+    print_section("Example 6: Baseline vs Anti-Pattern Comparison")
+    
+    # Generate baseline
+    config_baseline = GraphConfig(
+        scale='small',
+        scenario='generic',
+        num_nodes=5,
+        num_applications=15,
+        num_topics=10,
+        num_brokers=2,
+        edge_density=0.3,
+        high_availability=False,
+        antipatterns=[],
+        seed=42
+    )
+    
+    graph_baseline = GraphGenerator(config_baseline).generate()
+    
+    # Generate with SPOF
+    config_spof = GraphConfig(
+        scale='small',
+        scenario='generic',
+        num_nodes=5,
+        num_applications=15,
+        num_topics=10,
+        num_brokers=2,
+        edge_density=0.3,
+        high_availability=False,
+        antipatterns=['spof'],
+        seed=42
+    )
+    
+    graph_spof = GraphGenerator(config_spof).generate()
+    
+    print("Generated two graphs with same seed:")
+    print("  1. Baseline (no anti-patterns)")
+    print("  2. With SPOF anti-pattern")
+    
+    # Compare replica distribution
+    def get_replica_stats(graph):
+        total = sum(a['replicas'] for a in graph['applications'])
+        critical_with_one = sum(1 for a in graph['applications']
+                               if a['criticality'] in ['HIGH', 'CRITICAL'] 
+                               and a['replicas'] == 1)
+        return total, critical_with_one
+    
+    baseline_replicas, baseline_critical_single = get_replica_stats(graph_baseline)
+    spof_replicas, spof_critical_single = get_replica_stats(graph_spof)
+    
+    print("\nReplica Comparison:")
+    print(f"  Baseline:")
+    print(f"    Total replicas: {baseline_replicas}")
+    print(f"    Critical apps with single replica: {baseline_critical_single}")
+    print(f"  With SPOF:")
+    print(f"    Total replicas: {spof_replicas}")
+    print(f"    Critical apps with single replica: {spof_critical_single}")
+    print(f"  → SPOF introduced {spof_critical_single - baseline_critical_single} new vulnerability!")
+
+
+def main():
+    """Run all examples"""
+    print("\n" + "="*70)
+    print(" ENHANCED GRAPH GENERATOR - QUICK START EXAMPLES")
+    print("="*70)
+    print("\nDemonstrating key improvements and new features...\n")
+    
+    try:
+        example_1_basic()
+        input("\n[Press Enter to continue to Example 2...]")
+        
+        example_2_realistic_iot()
+        input("\n[Press Enter to continue to Example 3...]")
+        
+        example_3_financial_ha()
+        input("\n[Press Enter to continue to Example 4...]")
+        
+        example_4_antipatterns()
+        input("\n[Press Enter to continue to Example 5...]")
+        
+        example_5_multizone()
+        input("\n[Press Enter to continue to Example 6...]")
+        
+        example_6_comparison()
+        
+        print_section("Examples Complete!")
+        print("✓ All examples executed successfully")
+        print("\nNext steps:")
+        print("  1. Try: python generate_graph.py --scale medium --scenario iot --output iot.json")
+        print("  2. Try: python test_graph_generation.py --quick")
+        print("  3. Read: GENERATE_GRAPH_README.md")
+        
+    except KeyboardInterrupt:
+        print("\n\n✗ Examples interrupted by user")
+        return 1
+    except Exception as e:
+        print(f"\n\n✗ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+    
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
