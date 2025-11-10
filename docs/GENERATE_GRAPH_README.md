@@ -4,7 +4,7 @@
 
 A powerful **graph generation script** that creates realistic DDS pub-sub system graphs at multiple scales with domain-specific patterns, anti-patterns, and high availability configurations.
 
-**Fully integrated with the refactored architecture!**
+**Fully integrated with the architecture!**
 
 ## ✅ What's Been Implemented
 
@@ -458,9 +458,6 @@ python generate_graph.py --scale small \
 ```bash
 # Generate graph
 python generate_graph.py --scale medium --output system.json
-
-# Analyze with refactored tools
-python example_refactored.py system.json
 ```
 
 ### 2. Generate and Simulate
@@ -656,7 +653,7 @@ python example_refactored.py exp1_b.json
 - Simulation scenarios
 - Research & education
 
-**Fully integrated with refactored architecture!** 🚀
+**Fully integrated with architecture!** 🚀
 
 ---
 

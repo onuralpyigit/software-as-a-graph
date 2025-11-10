@@ -553,7 +553,7 @@ For issues or questions:
 - Check `simulation.log` for detailed execution logs
 - Use `--verbose` flag for debug output
 - Review examples in `examples/` directory
-- Consult refactored architecture documentation
+- Consult architecture documentation
 
 ## Version
 

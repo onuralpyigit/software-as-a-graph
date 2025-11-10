@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Graph Simulation Script - Refactored Architecture
+Graph Simulation Script
 
 Command-line interface for comprehensive pub-sub system simulation including:
 - Message traffic simulation
@@ -723,8 +723,7 @@ async def main_async(args: argparse.Namespace) -> int:
     try:
         # Load graph
         logger.info("=" * 70)
-        logger.info("PUB-SUB SYSTEM SIMULATION")
-        logger.info("Refactored Architecture")
+        logger.info("COMPLEX SYSTEM SIMULATION")
         logger.info("=" * 70)
         
         if args.input:

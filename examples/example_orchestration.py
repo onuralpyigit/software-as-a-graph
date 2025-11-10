@@ -472,7 +472,7 @@ def main():
         
         print("\n📖 Usage in Your Code:")
         print("""
-from refactored.orchestration.report_generator import ReportGenerator, ReportConfig, ReportType, ReportFormat
+from src.orchestration.report_generator import ReportGenerator, ReportConfig, ReportType, ReportFormat
 
 # Run analysis
 results = run_analysis(graph)

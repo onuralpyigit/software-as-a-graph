@@ -455,7 +455,7 @@ def main():
         
         print("\n📖 Usage in Your Code:")
         print("""
-from refactored.analysis.centrality_analyzer import CentralityAnalyzer, CentralityType
+from src.analysis.centrality_analyzer import CentralityAnalyzer, CentralityType
 
 analyzer = CentralityAnalyzer()
 

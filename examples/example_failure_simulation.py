@@ -16,7 +16,7 @@ import json
 import time
 from pathlib import Path
 
-# Add refactored directory to path
+# Add directory to path
 sys.path.insert(0, str(Path(__file__).parent / '..'))
 
 from src.simulation.lightweight_dds_simulator import LightweightDDSSimulator

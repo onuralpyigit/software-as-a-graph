@@ -2,14 +2,12 @@
 """
 Graph Generation Script for Software-as-a-Graph Analysis
 
-Generates realistic DDS pub-sub system graphs at multiple scales with:
+Generates realistic complex pub-sub system graphs at multiple scales with:
 - Configurable topology parameters
 - Realistic QoS policies
 - Anti-pattern scenarios
 - Domain-specific patterns (IoT, Financial, etc.)
 - Output in multiple formats (JSON, NetworkX, GraphML)
-
-Integrates with the refactored architecture:
 - Uses graph_builder for validation
 - Exports to multiple formats via graph_exporter
 - Compatible with all analysis modules

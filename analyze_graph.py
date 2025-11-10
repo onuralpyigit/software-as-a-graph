@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Analyze Graph Script - Refactored Architecture
+Analyze Graph Script
 
 Command-line interface for comprehensive pub-sub system analysis using
-the refactored modular architecture.
+the modular architecture.
 
 Features:
 - Load graphs from JSON files or Neo4j database
@@ -535,7 +535,7 @@ def main() -> int:
     """Main entry point"""
     
     parser = argparse.ArgumentParser(
-        description='Analyze pub-sub system graph using refactored architecture',
+        description='Analyze pub-sub system graph',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -618,8 +618,7 @@ Examples:
     
     try:
         print("\n" + "=" * 70)
-        print("PUB-SUB SYSTEM ANALYSIS")
-        print("Refactored Architecture")
+        print("COMPLEX SYSTEM ANALYSIS")
         print("=" * 70)
         
         # Load graph

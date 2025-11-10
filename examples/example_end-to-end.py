@@ -318,7 +318,7 @@ def main():
     """Run complete analysis example"""
     
     print("=" * 70)
-    print("Software-as-a-Graph: Refactored Implementation Example")
+    print("Software-as-a-Graph: Implementation Example")
     print("=" * 70)
     
     # Step 1: Create sample system

@@ -407,9 +407,9 @@ def main():
         
         print("\n📖 Usage in Your Code:")
         print("""
-from refactored.visualization.graph_visualizer import GraphVisualizer, VisualizationConfig
-from refactored.visualization.layer_renderer import LayerRenderer, Layer
-from refactored.visualization.metrics_dashboard import MetricsDashboard
+from src.visualization.graph_visualizer import GraphVisualizer, VisualizationConfig
+from src.visualization.layer_renderer import LayerRenderer, Layer
+from src.visualization.metrics_dashboard import MetricsDashboard
 
 # Graph visualization
 visualizer = GraphVisualizer()

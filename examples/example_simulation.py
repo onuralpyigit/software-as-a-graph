@@ -475,9 +475,9 @@ def main():
         
         print("\n📖 Usage in Your Code:")
         print("""
-from refactored.simulation.failure_simulator import FailureSimulator
-from refactored.simulation.impact_calculator import ImpactCalculator
-from refactored.simulation.validation_engine import ValidationEngine
+from src.simulation.failure_simulator import FailureSimulator
+from src.simulation.impact_calculator import ImpactCalculator
+from src.simulation.validation_engine import ValidationEngine
 
 # Simulate failure
 simulator = FailureSimulator()

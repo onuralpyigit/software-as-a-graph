@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Visualize Graph Script - Refactored Architecture
+Visualize Graph Script
 
 Command-line interface for comprehensive visualization of distributed pub-sub systems
-using the refactored modular architecture.
+using the modular architecture.
 
 Features:
 - Multi-layer graph visualization (Application, Infrastructure, Topic layers)

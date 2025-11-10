@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `analyze_graph.py` script is the command-line interface for comprehensive pub-sub system analysis using the **refactored modular architecture**.
+The `analyze_graph.py` script is the command-line interface for comprehensive pub-sub system analysis using the **modular architecture**.
 
 ### Architecture Flow
 
@@ -289,8 +289,7 @@ The script prints a formatted summary:
 
 ```
 ======================================================================
-PUB-SUB SYSTEM ANALYSIS
-Refactored Architecture
+COMPLEX SYSTEM ANALYSIS
 ======================================================================
 
 2024-11-05 10:30:00 - INFO - Loading graph from JSON: system.json
@@ -349,11 +348,11 @@ ANALYSIS SUMMARY
 ======================================================================
 ```
 
-## Integration with Refactored Architecture
+## Integration with Architecture
 
 ### Component Usage
 
-The script uses these refactored modules:
+The script uses these modules:
 
 ```python
 from src.core.graph_builder import GraphBuilder
@@ -648,12 +647,12 @@ When modifying the script:
 For issues or questions:
 - Check the examples/ directory for sample usage
 - Review analysis.log for detailed error information
-- Consult the refactored architecture documentation
+- Consult the architecture documentation
 - Open an issue with reproducible steps
 
 ## Version
 
-Current version: 2.0.0 (Refactored Architecture)
+Current version: 2.0.0
 
 **Changes from 1.x**:
 - Complete rewrite using modular architecture
