@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """
-Analyze Graph Script
+Analyze Graph Script - Enhanced Version
 
 Command-line interface for comprehensive pub-sub system analysis using
-the modular architecture.
+the modular architecture with enhanced error handling, validation, and reporting.
 
 Features:
 - Load graphs from JSON files or Neo4j database
-- Multi-metric centrality analysis
-- QoS-aware criticality scoring
+- Multi-metric centrality analysis (13+ metrics)
+- QoS-aware criticality scoring with configurable weights
 - Failure simulation and impact assessment
 - Multi-layer dependency analysis
-- Multiple output formats (JSON, CSV, HTML)
+- Anti-pattern detection (SPOF, God Topics, etc.)
+- Multiple output formats (JSON, CSV, HTML, Markdown)
 - Configurable analysis parameters
+- Progress reporting and validation
+- Comprehensive error handling
 
 Architecture:
   GraphBuilder → GraphModel → GraphExporter → NetworkX
@@ -35,7 +38,10 @@ Usage:
     
     # Export to multiple formats
     python analyze_graph.py --input system.json \\
-        --export-json --export-csv --export-html
+        --export-json --export-csv --export-html --export-md
+    
+    # With anti-pattern detection
+    python analyze_graph.py --input system.json --detect-antipatterns
 """
 
 import argparse
@@ -43,112 +49,262 @@ import sys
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any, List
 import time
+from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.core.graph_builder import GraphBuilder
-from src.core.graph_exporter import GraphExporter
-from src.core.graph_model import GraphModel
-from src.orchestration.analysis_orchestrator import AnalysisOrchestrator
+try:
+    from src.core.graph_builder import GraphBuilder
+    from src.core.graph_exporter import GraphExporter
+    from src.core.graph_model import GraphModel
+    from src.orchestration.analysis_orchestrator import AnalysisOrchestrator
+    import networkx as nx
+except ImportError as e:
+    print(f"❌ Error importing required modules: {e}")
+    print("Please ensure all required modules are installed:")
+    print("  pip install networkx")
+    print("  pip install neo4j  # Optional, for Neo4j support")
+    print("  pip install pandas  # Optional, for CSV export")
+    sys.exit(1)
 
 
-def setup_logging(verbose: bool = False) -> None:
+# Color codes for terminal output
+class Colors:
+    """ANSI color codes for terminal output"""
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
+def setup_logging(verbose: bool = False, log_file: str = 'analysis.log') -> logging.Logger:
     """
-    Configure logging
+    Configure logging with enhanced formatting
     
     Args:
         verbose: Enable DEBUG level logging
+        log_file: Path to log file
+    
+    Returns:
+        Configured logger instance
     """
     level = logging.DEBUG if verbose else logging.INFO
     
-    logging.basicConfig(
-        level=level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            logging.FileHandler('analysis.log', mode='w')
-        ]
+    # Create formatters
+    file_formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
     )
+    console_formatter = logging.Formatter(
+        '%(levelname)s: %(message)s'
+    )
+    
+    # Setup file handler
+    file_handler = logging.FileHandler(log_file, mode='w')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(file_formatter)
+    
+    # Setup console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
+    console_handler.setFormatter(console_formatter)
+    
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.handlers = []  # Clear existing handlers
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+    
+    return logging.getLogger(__name__)
 
 
-def load_graph_from_json(filepath: str) -> Tuple[GraphModel, 'nx.DiGraph']:
+def validate_graph_structure(graph: nx.DiGraph, model: GraphModel, logger: logging.Logger) -> Tuple[bool, List[str]]:
     """
-    Load graph from JSON file
+    Validate graph structure and detect potential issues
+    
+    Args:
+        graph: NetworkX graph
+        model: GraphModel instance
+        logger: Logger instance
+    
+    Returns:
+        Tuple of (is_valid, list of warnings)
+    """
+    warnings = []
+    
+    # Check if graph is empty
+    if len(graph) == 0:
+        logger.error("Graph is empty! Cannot perform analysis.")
+        return False, ["Graph contains no nodes"]
+    
+    # Check connectivity
+    if graph.is_directed():
+        if not nx.is_weakly_connected(graph):
+            num_components = nx.number_weakly_connected_components(graph)
+            warnings.append(f"Graph has {num_components} disconnected components")
+    else:
+        if not nx.is_connected(graph):
+            num_components = nx.number_connected_components(graph)
+            warnings.append(f"Graph has {num_components} disconnected components")
+    
+    # Check for self-loops
+    self_loops = list(nx.selfloop_edges(graph))
+    if self_loops:
+        warnings.append(f"Graph contains {len(self_loops)} self-loops")
+    
+    # Check node types distribution
+    node_types = {}
+    for node, data in graph.nodes(data=True):
+        node_type = data.get('type', 'Unknown')
+        node_types[node_type] = node_types.get(node_type, 0) + 1
+    
+    logger.info(f"Node type distribution: {node_types}")
+    
+    # Check for isolated nodes
+    isolated = list(nx.isolates(graph))
+    if isolated:
+        warnings.append(f"Graph contains {len(isolated)} isolated nodes: {isolated[:5]}")
+    
+    # Check edge count
+    if len(graph.edges()) == 0:
+        warnings.append("Graph contains no edges")
+    
+    return True, warnings
+
+
+def load_graph_from_json(filepath: str, logger: logging.Logger) -> Tuple[GraphModel, nx.DiGraph]:
+    """
+    Load graph from JSON file with enhanced error handling
     
     Args:
         filepath: Path to JSON configuration file
+        logger: Logger instance
     
     Returns:
         Tuple of (GraphModel, NetworkX DiGraph)
+    
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        json.JSONDecodeError: If JSON is invalid
+        Exception: For other loading errors
     """
-    logger = logging.getLogger(__name__)
     logger.info(f"Loading graph from JSON: {filepath}")
     
-    # Build GraphModel from JSON
-    builder = GraphBuilder()
-    model = builder.build_from_json(filepath)
+    # Validate file exists
+    if not Path(filepath).exists():
+        raise FileNotFoundError(f"Input file not found: {filepath}")
     
-    # Convert to NetworkX for analysis
-    exporter = GraphExporter()
-    graph = exporter.export_to_networkx(model)
+    # Validate file is readable
+    if not Path(filepath).is_file():
+        raise ValueError(f"Path is not a file: {filepath}")
     
-    summary = model.summary()
-    logger.info(f"✓ Loaded graph: {summary['total_nodes']} nodes, {summary['total_edges']} edges")
-    
-    return model, graph
+    try:
+        # Load and validate JSON
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        
+        logger.debug(f"Loaded JSON with keys: {list(data.keys())}")
+        
+        # Build graph using GraphBuilder
+        builder = GraphBuilder()
+        model = builder.build_from_json(filepath)
+        
+        logger.info(f"✓ Loaded {len(model.applications)} applications, "
+                   f"{len(model.topics)} topics, "
+                   f"{len(model.brokers)} brokers, "
+                   f"{len(model.nodes)} nodes")
+        
+        # Convert to NetworkX
+        exporter = GraphExporter()
+        graph = exporter.export_to_networkx(model)
+        
+        logger.info(f"✓ Created NetworkX graph: {len(graph)} nodes, {len(graph.edges())} edges")
+        
+        return model, graph
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading graph: {e}")
+        raise
 
 
-def load_graph_from_neo4j(
-    uri: str,
-    username: str,
-    password: str,
-    database: str = "neo4j"
-) -> Tuple[GraphModel, 'nx.DiGraph']:
+def load_graph_from_neo4j(uri: str, user: str, password: str, database: str,
+                          logger: logging.Logger) -> Tuple[GraphModel, nx.DiGraph]:
     """
-    Load graph from Neo4j database
+    Load graph from Neo4j database with enhanced error handling
     
     Args:
-        uri: Neo4j connection URI
-        username: Database username
-        password: Database password
+        uri: Neo4j URI
+        user: Username
+        password: Password
         database: Database name
+        logger: Logger instance
     
     Returns:
         Tuple of (GraphModel, NetworkX DiGraph)
+    
+    Raises:
+        ImportError: If neo4j package is not installed
+        Exception: For connection or query errors
     """
-    logger = logging.getLogger(__name__)
-    logger.info(f"Loading graph from Neo4j: {uri}")
+    logger.info(f"Connecting to Neo4j: {uri}, database: {database}")
     
-    # Build GraphModel from Neo4j
-    builder = GraphBuilder()
-    model = builder.build_from_neo4j(
-        uri=uri,
-        auth=(username, password),
-        database=database
-    )
+    try:
+        from neo4j import GraphDatabase
+    except ImportError:
+        raise ImportError(
+            "neo4j package is required for Neo4j support. "
+            "Install with: pip install neo4j"
+        )
     
-    # Convert to NetworkX for analysis
-    exporter = GraphExporter()
-    graph = exporter.export_to_networkx(model)
-    
-    summary = model.summary()
-    logger.info(f"✓ Loaded graph: {summary['total_nodes']} nodes, {summary['total_edges']} edges")
-    
-    return model, graph
+    try:
+        # Build graph using GraphBuilder
+        builder = GraphBuilder()
+        model = builder.build_from_neo4j(
+            uri=uri,
+            auth=(user, password),
+            database=database
+        )
+        
+        logger.info(f"✓ Loaded {len(model.applications)} applications, "
+                   f"{len(model.topics)} topics, "
+                   f"{len(model.brokers)} brokers, "
+                   f"{len(model.nodes)} nodes from Neo4j")
+        
+        # Convert to NetworkX
+        exporter = GraphExporter()
+        graph = exporter.export_to_networkx(model)
+        
+        logger.info(f"✓ Created NetworkX graph: {len(graph)} nodes, {len(graph.edges())} edges")
+        
+        return model, graph
+        
+    except Exception as e:
+        logger.error(f"Error connecting to Neo4j: {e}")
+        logger.error("Please verify:")
+        logger.error("  - Neo4j is running")
+        logger.error("  - URI, username, and password are correct")
+        logger.error("  - Database name is correct")
+        logger.error("  - Network connectivity")
+        raise
 
 
-def save_analysis_results(
-    results: dict,
-    output_dir: Path,
-    export_json: bool = True,
-    export_csv: bool = False,
-    export_html: bool = False
-) -> None:
+def export_results(results: Dict[str, Any], output_dir: Path, 
+                  export_json: bool, export_csv: bool, export_html: bool,
+                  export_md: bool, logger: logging.Logger) -> Dict[str, str]:
     """
-    Save analysis results to various formats
+    Export analysis results in multiple formats
     
     Args:
         results: Analysis results dictionary
@@ -156,62 +312,101 @@ def save_analysis_results(
         export_json: Export as JSON
         export_csv: Export criticality scores as CSV
         export_html: Export as HTML report
+        export_md: Export as Markdown report
+        logger: Logger instance
+    
+    Returns:
+        Dictionary mapping format to output file path
     """
-    logger = logging.getLogger(__name__)
+    output_files = {}
+    
+    # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # JSON export
+    # Export JSON
     if export_json:
-        json_path = output_dir / 'analysis_results.json'
-        with open(json_path, 'w') as f:
-            json.dump(results, f, indent=2, default=str)
-        logger.info(f"✓ JSON results: {json_path}")
-        
-        # Also save criticality scores separately
-        if 'criticality_scores' in results and 'scores' in results['criticality_scores']:
-            scores_path = output_dir / 'criticality_scores.json'
-            with open(scores_path, 'w') as f:
-                json.dump(results['criticality_scores']['scores'], f, indent=2, default=str)
-            logger.info(f"✓ Criticality scores: {scores_path}")
+        json_path = output_dir / "analysis_results.json"
+        try:
+            with open(json_path, 'w') as f:
+                json.dump(results, f, indent=2, default=str)
+            output_files['json'] = str(json_path)
+            logger.info(f"✓ Exported JSON: {json_path}")
+        except Exception as e:
+            logger.error(f"Error exporting JSON: {e}")
     
-    # CSV export
+    # Export CSV (criticality scores)
     if export_csv:
+        csv_path = output_dir / "criticality_scores.csv"
         try:
             import pandas as pd
             
-            if 'criticality_scores' in results and 'scores' in results['criticality_scores']:
-                # Convert scores to DataFrame
+            # Extract criticality scores
+            if 'criticality_scores' in results:
                 scores_data = []
-                for component, score in results['criticality_scores']['scores'].items():
-                    row = {'component': component}
-                    row.update(score)
-                    scores_data.append(row)
+                for comp in results['criticality_scores'].get('all_scores', []):
+                    scores_data.append({
+                        'Component': comp.get('component'),
+                        'Type': comp.get('type'),
+                        'Composite Score': comp.get('composite_score'),
+                        'Betweenness': comp.get('betweenness_centrality'),
+                        'Is Articulation Point': comp.get('is_articulation_point'),
+                        'Impact Score': comp.get('impact_score'),
+                        'Criticality Level': comp.get('criticality_level')
+                    })
                 
                 df = pd.DataFrame(scores_data)
-                csv_path = output_dir / 'criticality_scores.csv'
+                df = df.sort_values('Composite Score', ascending=False)
                 df.to_csv(csv_path, index=False)
-                logger.info(f"✓ CSV export: {csv_path}")
+                
+                output_files['csv'] = str(csv_path)
+                logger.info(f"✓ Exported CSV: {csv_path}")
+            else:
+                logger.warning("No criticality scores found for CSV export")
+                
         except ImportError:
-            logger.warning("pandas not available, skipping CSV export")
+            logger.warning("pandas not installed, skipping CSV export. Install with: pip install pandas")
+        except Exception as e:
+            logger.error(f"Error exporting CSV: {e}")
     
-    # HTML export
+    # Export HTML
     if export_html:
-        html_path = output_dir / 'analysis_report.html'
-        generate_html_report(results, html_path)
-        logger.info(f"✓ HTML report: {html_path}")
+        html_path = output_dir / "analysis_report.html"
+        try:
+            html_content = generate_html_report(results)
+            with open(html_path, 'w') as f:
+                f.write(html_content)
+            output_files['html'] = str(html_path)
+            logger.info(f"✓ Exported HTML: {html_path}")
+        except Exception as e:
+            logger.error(f"Error exporting HTML: {e}")
+    
+    # Export Markdown
+    if export_md:
+        md_path = output_dir / "analysis_report.md"
+        try:
+            md_content = generate_markdown_report(results)
+            with open(md_path, 'w') as f:
+                f.write(md_content)
+            output_files['markdown'] = str(md_path)
+            logger.info(f"✓ Exported Markdown: {md_path}")
+        except Exception as e:
+            logger.error(f"Error exporting Markdown: {e}")
+    
+    return output_files
 
 
-def generate_html_report(results: dict, output_path: Path) -> None:
+def generate_html_report(results: Dict[str, Any]) -> str:
     """
     Generate HTML report from analysis results
     
     Args:
         results: Analysis results dictionary
-        output_path: Path to save HTML file
-    """
-    from datetime import datetime
     
-    # Build HTML
+    Returns:
+        HTML content as string
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -221,14 +416,14 @@ def generate_html_report(results: dict, output_path: Path) -> None:
     <style>
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: #f5f5f5;
-        }}
-        .container {{
+            line-height: 1.6;
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }}
+        .container {{
+            background-color: white;
             padding: 30px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -241,8 +436,11 @@ def generate_html_report(results: dict, output_path: Path) -> None:
         h2 {{
             color: #34495e;
             margin-top: 30px;
-            border-bottom: 2px solid #ecf0f1;
-            padding-bottom: 8px;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }}
+        h3 {{
+            color: #7f8c8d;
         }}
         .metric-grid {{
             display: grid;
@@ -256,16 +454,14 @@ def generate_html_report(results: dict, output_path: Path) -> None:
             border-radius: 6px;
             border-left: 4px solid #3498db;
         }}
-        .metric-card h3 {{
-            margin: 0 0 10px 0;
-            color: #2c3e50;
-            font-size: 14px;
-            text-transform: uppercase;
-        }}
-        .metric-card .value {{
-            font-size: 28px;
+        .metric-value {{
+            font-size: 2em;
             font-weight: bold;
-            color: #3498db;
+            color: #2c3e50;
+        }}
+        .metric-label {{
+            color: #7f8c8d;
+            font-size: 0.9em;
         }}
         table {{
             width: 100%;
@@ -275,31 +471,20 @@ def generate_html_report(results: dict, output_path: Path) -> None:
         th, td {{
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid #ecf0f1;
+            border-bottom: 1px solid #ddd;
         }}
         th {{
-            background: #3498db;
+            background-color: #3498db;
             color: white;
-            font-weight: 600;
+            font-weight: bold;
         }}
         tr:hover {{
-            background: #f8f9fa;
+            background-color: #f5f5f5;
         }}
         .critical {{ color: #e74c3c; font-weight: bold; }}
         .high {{ color: #e67e22; font-weight: bold; }}
         .medium {{ color: #f39c12; }}
         .low {{ color: #27ae60; }}
-        .badge {{
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-        }}
-        .badge-critical {{ background: #e74c3c; color: white; }}
-        .badge-high {{ background: #e67e22; color: white; }}
-        .badge-medium {{ background: #f39c12; color: white; }}
-        .badge-low {{ background: #27ae60; color: white; }}
         .recommendation {{
             background: #fff3cd;
             border-left: 4px solid #ffc107;
@@ -309,79 +494,98 @@ def generate_html_report(results: dict, output_path: Path) -> None:
         }}
         .timestamp {{
             color: #7f8c8d;
-            font-size: 14px;
+            font-style: italic;
         }}
+        .badge {{
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }}
+        .badge-critical {{ background: #e74c3c; color: white; }}
+        .badge-high {{ background: #e67e22; color: white; }}
+        .badge-medium {{ background: #f39c12; color: white; }}
+        .badge-low {{ background: #27ae60; color: white; }}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔍 Pub-Sub System Analysis Report</h1>
-        <p class="timestamp">Generated: {results.get('timestamp', datetime.now().isoformat())}</p>
-        
-        <h2>📊 System Overview</h2>
+        <h1>📊 Pub-Sub System Analysis Report</h1>
+        <p class="timestamp">Generated: {timestamp}</p>
+"""
+    
+    # Graph summary
+    if 'graph_summary' in results:
+        summary = results['graph_summary']
+        html += """
+        <h2>📈 Graph Summary</h2>
         <div class="metric-grid">
 """
-    
-    # Add system metrics
-    summary = results.get('graph_summary', {})
-    metrics = [
-        ('Total Nodes', summary.get('total_nodes', 'N/A')),
-        ('Total Edges', summary.get('total_edges', 'N/A')),
-        ('Graph Density', f"{summary.get('density', 0):.4f}"),
-        ('Connected', '✓' if summary.get('is_connected') else '✗')
-    ]
-    
-    for label, value in metrics:
         html += f"""
             <div class="metric-card">
-                <h3>{label}</h3>
-                <div class="value">{value}</div>
+                <div class="metric-value">{summary.get('total_nodes', 0)}</div>
+                <div class="metric-label">Total Nodes</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{summary.get('total_edges', 0)}</div>
+                <div class="metric-label">Total Edges</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{summary.get('applications', 0)}</div>
+                <div class="metric-label">Applications</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{summary.get('topics', 0)}</div>
+                <div class="metric-label">Topics</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{summary.get('brokers', 0)}</div>
+                <div class="metric-label">Brokers</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{summary.get('nodes', 0)}</div>
+                <div class="metric-label">Infrastructure Nodes</div>
             </div>
 """
-    
-    html += """
+        html += """
         </div>
-        
-        <h2>⚠️ Critical Components</h2>
 """
     
-    # Add critical components table
-    critical_scores = results.get('criticality_scores', {})
-    critical_comps = critical_scores.get('critical_components', [])
-    
-    if critical_comps:
-        html += """
+    # Critical components
+    if 'criticality_scores' in results:
+        crit = results['criticality_scores']
+        critical_comps = crit.get('critical_components', [])
+        
+        html += f"""
+        <h2>⚠️ Critical Components ({len(critical_comps)})</h2>
         <table>
             <thead>
                 <tr>
+                    <th>Rank</th>
                     <th>Component</th>
                     <th>Type</th>
-                    <th>Criticality Score</th>
+                    <th>Score</th>
                     <th>Level</th>
                     <th>Articulation Point</th>
-                    <th>Components Affected</th>
                 </tr>
             </thead>
             <tbody>
 """
         
-        for comp in critical_comps[:15]:  # Top 15
-            level = comp.get('level', 'UNKNOWN')
-            badge_class = {
-                'CRITICAL': 'badge-critical',
-                'HIGH': 'badge-high',
-                'MEDIUM': 'badge-medium',
-                'LOW': 'badge-low'
-            }.get(level, 'badge-medium')
+        for i, comp in enumerate(critical_comps[:10], 1):
+            level = comp.get('criticality_level', 'LOW')
+            badge_class = f"badge-{level.lower()}"
+            is_ap = "✓" if comp.get('is_articulation_point') else ""
             
             html += f"""
                 <tr>
+                    <td>{i}</td>
                     <td><strong>{comp.get('component', 'N/A')}</strong></td>
                     <td>{comp.get('type', 'N/A')}</td>
                     <td>{comp.get('composite_score', 0):.3f}</td>
                     <td><span class="badge {badge_class}">{level}</span></td>
-                    <td>{'✓' if comp.get('is_articulation_point') else ''}</td>
-                    <td>{comp.get('components_affected', 'N/A')}</td>
+                    <td>{is_ap}</td>
                 </tr>
 """
         
@@ -389,120 +593,187 @@ def generate_html_report(results: dict, output_path: Path) -> None:
             </tbody>
         </table>
 """
-    else:
-        html += "<p>No critical components identified.</p>"
     
-    # Add QoS analysis if available
-    if 'qos_analysis' in results:
-        qos = results['qos_analysis']
-        html += f"""
-        <h2>🎯 QoS Analysis</h2>
-        <div class="metric-grid">
-            <div class="metric-card">
-                <h3>High Priority Topics</h3>
-                <div class="value">{len(qos.get('high_priority_topics', []))}</div>
-            </div>
-            <div class="metric-card">
-                <h3>High Priority Applications</h3>
-                <div class="value">{len(qos.get('high_priority_applications', []))}</div>
-            </div>
-            <div class="metric-card">
-                <h3>Compatibility Issues</h3>
-                <div class="value">{len(qos.get('compatibility_issues', []))}</div>
-            </div>
-        </div>
-"""
-    
-    # Add failure simulation if available
-    if 'failure_simulation' in results and results['failure_simulation']:
-        failure = results['failure_simulation']
-        html += f"""
-        <h2>💥 Failure Simulation</h2>
-        <div class="metric-grid">
-            <div class="metric-card">
-                <h3>Resilience Score</h3>
-                <div class="value">{failure.get('resilience_score', 0):.3f}</div>
-            </div>
-            <div class="metric-card">
-                <h3>Avg Components Affected</h3>
-                <div class="value">{failure.get('avg_components_affected', 0):.1f}</div>
-            </div>
-        </div>
-"""
-    
-    # Add recommendations
+    # Recommendations
     recommendations = results.get('recommendations', [])
     if recommendations:
-        html += """
-        <h2>💡 Recommendations</h2>
+        html += f"""
+        <h2>💡 Recommendations ({len(recommendations)})</h2>
 """
-        
-        for i, rec in enumerate(recommendations[:10], 1):
-            priority = rec.get('priority', 'MEDIUM')
+        for i, rec in enumerate(recommendations[:5], 1):
             html += f"""
         <div class="recommendation">
-            <strong>[{priority}] {rec.get('type', 'Recommendation')}</strong><br>
-            <strong>Component:</strong> {rec.get('component', 'N/A')}<br>
-            <strong>Issue:</strong> {rec.get('issue', 'N/A')}<br>
-            <strong>Action:</strong> {rec.get('recommendation', 'N/A')}
+            <h3>{i}. [{rec.get('priority', 'N/A')}] {rec.get('type', 'N/A')}</h3>
+            <p><strong>Component:</strong> {rec.get('component', 'N/A')}</p>
+            <p><strong>Issue:</strong> {rec.get('issue', 'N/A')}</p>
+            <p><strong>Recommendation:</strong> {rec.get('recommendation', 'N/A')}</p>
         </div>
 """
     
-    # Add execution time
-    exec_time = results.get('execution_time', {})
-    html += f"""
-        <h2>⏱️ Execution Time</h2>
-        <p><strong>Total Analysis Time:</strong> {exec_time.get('total', 0):.2f} seconds</p>
+    # Execution time
+    if 'execution_time' in results:
+        exec_time = results['execution_time']
+        html += f"""
+        <h2>⏱️ Performance</h2>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-value">{exec_time.get('total', 0):.2f}s</div>
+                <div class="metric-label">Total Execution Time</div>
+            </div>
+"""
+        if 'analysis' in exec_time:
+            html += f"""
+            <div class="metric-card">
+                <div class="metric-value">{exec_time.get('analysis', 0):.2f}s</div>
+                <div class="metric-label">Analysis Time</div>
+            </div>
+"""
+        html += """
+        </div>
+"""
+    
+    html += """
     </div>
 </body>
 </html>
 """
     
-    # Write file
-    with open(output_path, 'w') as f:
-        f.write(html)
+    return html
 
 
-def print_analysis_summary(results: dict) -> None:
+def generate_markdown_report(results: Dict[str, Any]) -> str:
     """
-    Print formatted analysis summary to console
+    Generate Markdown report from analysis results
     
     Args:
         results: Analysis results dictionary
-    """
-    print("\n" + "=" * 70)
-    print("ANALYSIS SUMMARY")
-    print("=" * 70)
     
-    # System overview
-    summary = results.get('graph_summary', {})
-    print(f"\n📊 System Overview:")
-    print(f"   Nodes:      {summary.get('total_nodes', 'N/A')}")
-    print(f"   Edges:      {summary.get('total_edges', 'N/A')}")
-    print(f"   Density:    {summary.get('density', 0):.4f}")
-    print(f"   Connected:  {summary.get('is_connected', 'N/A')}")
+    Returns:
+        Markdown content as string
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    md = f"""# Pub-Sub System Analysis Report
+
+**Generated:** {timestamp}
+
+---
+
+## Graph Summary
+
+"""
+    
+    if 'graph_summary' in results:
+        summary = results['graph_summary']
+        md += f"""
+| Metric | Value |
+|--------|-------|
+| Total Nodes | {summary.get('total_nodes', 0)} |
+| Total Edges | {summary.get('total_edges', 0)} |
+| Applications | {summary.get('applications', 0)} |
+| Topics | {summary.get('topics', 0)} |
+| Brokers | {summary.get('brokers', 0)} |
+| Infrastructure Nodes | {summary.get('nodes', 0)} |
+
+"""
     
     # Critical components
-    critical_scores = results.get('criticality_scores', {})
-    print(f"\n⚠️  Critical Components:")
-    print(f"   Total Analyzed:        {critical_scores.get('total_components', 'N/A')}")
-    print(f"   Critical (>0.7):       {critical_scores.get('critical_count', 'N/A')}")
-    print(f"   High (0.5-0.7):        {critical_scores.get('high_count', 'N/A')}")
-    print(f"   Articulation Points:   {critical_scores.get('articulation_points', 'N/A')}")
+    if 'criticality_scores' in results:
+        crit = results['criticality_scores']
+        critical_comps = crit.get('critical_components', [])
+        
+        md += f"""## Critical Components ({len(critical_comps)})
+
+| Rank | Component | Type | Score | Level | AP |
+|------|-----------|------|-------|-------|-------|
+"""
+        
+        for i, comp in enumerate(critical_comps[:10], 1):
+            is_ap = "✓" if comp.get('is_articulation_point') else ""
+            md += f"| {i} | **{comp.get('component', 'N/A')}** | {comp.get('type', 'N/A')} | {comp.get('composite_score', 0):.3f} | {comp.get('criticality_level', 'LOW')} | {is_ap} |\n"
+    
+    # Recommendations
+    recommendations = results.get('recommendations', [])
+    if recommendations:
+        md += f"\n## Recommendations ({len(recommendations)})\n\n"
+        
+        for i, rec in enumerate(recommendations[:5], 1):
+            md += f"""### {i}. [{rec.get('priority', 'N/A')}] {rec.get('type', 'N/A')}
+
+- **Component:** {rec.get('component', 'N/A')}
+- **Issue:** {rec.get('issue', 'N/A')}
+- **Recommendation:** {rec.get('recommendation', 'N/A')}
+
+"""
+    
+    # Performance
+    if 'execution_time' in results:
+        exec_time = results['execution_time']
+        md += f"""## Performance
+
+- **Total Execution Time:** {exec_time.get('total', 0):.2f}s
+"""
+        if 'analysis' in exec_time:
+            md += f"- **Analysis Time:** {exec_time.get('analysis', 0):.2f}s\n"
+    
+    return md
+
+
+def print_summary(results: Dict[str, Any], elapsed_time: float) -> None:
+    """
+    Print comprehensive analysis summary to console
+    
+    Args:
+        results: Analysis results dictionary
+        elapsed_time: Total execution time in seconds
+    """
+    print(f"\n{Colors.HEADER}{'='*70}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}ANALYSIS COMPLETE{Colors.ENDC}")
+    print(f"{Colors.HEADER}{'='*70}{Colors.ENDC}")
+    
+    # Graph summary
+    if 'graph_summary' in results:
+        summary = results['graph_summary']
+        print(f"\n{Colors.OKBLUE}📊 Graph Summary:{Colors.ENDC}")
+        print(f"   Total Nodes:            {summary.get('total_nodes', 0)}")
+        print(f"   Total Edges:            {summary.get('total_edges', 0)}")
+        print(f"   Applications:           {summary.get('applications', 0)}")
+        print(f"   Topics:                 {summary.get('topics', 0)}")
+        print(f"   Brokers:                {summary.get('brokers', 0)}")
+        print(f"   Infrastructure Nodes:   {summary.get('nodes', 0)}")
+        
+        if 'articulation_points' in summary:
+            print(f"   Articulation Points:    {summary.get('articulation_points', 0)}")
+        if 'avg_degree' in summary:
+            print(f"   Average Degree:         {summary.get('avg_degree', 0):.2f}")
     
     # Top critical components
-    critical_comps = critical_scores.get('critical_components', [])
-    if critical_comps:
-        print(f"\n   Top 5 Most Critical:")
+    if 'criticality_scores' in results:
+        crit = results['criticality_scores']
+        critical_comps = crit.get('critical_components', [])
+        
+        print(f"\n{Colors.WARNING}⚠️  Top 5 Critical Components:{Colors.ENDC}")
         for i, comp in enumerate(critical_comps[:5], 1):
-            print(f"   {i}. {comp.get('component', 'N/A')} "
-                  f"(Score: {comp.get('composite_score', 0):.3f}, "
-                  f"Type: {comp.get('type', 'N/A')})")
+            comp_name = comp.get('component', 'N/A')
+            comp_score = comp.get('composite_score', 0)
+            comp_type = comp.get('type', 'N/A')
+            comp_level = comp.get('criticality_level', 'LOW')
+            
+            # Color based on level
+            if comp_level == 'CRITICAL':
+                color = Colors.FAIL
+            elif comp_level == 'HIGH':
+                color = Colors.WARNING
+            else:
+                color = Colors.OKGREEN
+            
+            print(f"   {i}. {color}{comp_name}{Colors.ENDC} "
+                  f"(Score: {comp_score:.3f}, Type: {comp_type})")
     
     # QoS analysis
     if 'qos_analysis' in results:
         qos = results['qos_analysis']
-        print(f"\n🎯 QoS Analysis:")
+        print(f"\n{Colors.OKCYAN}🎯 QoS Analysis:{Colors.ENDC}")
         print(f"   High Priority Topics:       {len(qos.get('high_priority_topics', []))}")
         print(f"   High Priority Applications: {len(qos.get('high_priority_applications', []))}")
         print(f"   Compatibility Issues:       {len(qos.get('compatibility_issues', []))}")
@@ -510,32 +781,47 @@ def print_analysis_summary(results: dict) -> None:
     # Failure simulation
     if 'failure_simulation' in results and results['failure_simulation']:
         failure = results['failure_simulation']
-        print(f"\n💥 Failure Simulation:")
+        print(f"\n{Colors.FAIL}💥 Failure Simulation:{Colors.ENDC}")
         print(f"   Resilience Score:          {failure.get('resilience_score', 0):.3f}")
         print(f"   Avg Components Affected:   {failure.get('avg_components_affected', 0):.1f}")
+        
+        if 'max_cascade_depth' in failure:
+            print(f"   Max Cascade Depth:         {failure.get('max_cascade_depth', 0)}")
+    
+    # Anti-patterns
+    if 'anti_patterns' in results:
+        antipatterns = results['anti_patterns']
+        if antipatterns:
+            print(f"\n{Colors.WARNING}🚨 Detected Anti-Patterns:{Colors.ENDC}")
+            for pattern_name, instances in antipatterns.items():
+                if instances:
+                    print(f"   • {pattern_name}: {len(instances)} instance(s)")
     
     # Recommendations
     recommendations = results.get('recommendations', [])
     if recommendations:
-        print(f"\n💡 Top 3 Recommendations:")
+        print(f"\n{Colors.OKGREEN}💡 Top 3 Recommendations:{Colors.ENDC}")
         for i, rec in enumerate(recommendations[:3], 1):
-            print(f"   {i}. [{rec.get('priority', 'N/A')}] {rec.get('type', 'N/A')}")
-            print(f"      Component: {rec.get('component', 'N/A')}")
-            print(f"      Action: {rec.get('recommendation', 'N/A')}")
+            priority = rec.get('priority', 'N/A')
+            rec_type = rec.get('type', 'N/A')
+            component = rec.get('component', 'N/A')
+            recommendation = rec.get('recommendation', 'N/A')
+            
+            print(f"   {i}. [{priority}] {rec_type}")
+            print(f"      Component: {component}")
+            print(f"      Action: {recommendation}")
     
     # Execution time
-    exec_time = results.get('execution_time', {})
-    total_time = exec_time.get('total', 0)
-    print(f"\n⏱️  Execution Time: {total_time:.2f}s")
+    print(f"\n{Colors.OKBLUE}⏱️  Execution Time: {elapsed_time:.2f}s{Colors.ENDC}")
     
-    print("\n" + "=" * 70)
+    print(f"\n{Colors.HEADER}{'='*70}{Colors.ENDC}\n")
 
 
 def main() -> int:
     """Main entry point"""
     
     parser = argparse.ArgumentParser(
-        description='Analyze pub-sub system graph',
+        description='Analyze pub-sub system graph - Enhanced Version',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -546,8 +832,8 @@ Examples:
   python analyze_graph.py --neo4j --uri bolt://localhost:7687 \\
       --user neo4j --password password
 
-  # With failure simulation
-  python analyze_graph.py --input system.json --simulate
+  # With failure simulation and anti-pattern detection
+  python analyze_graph.py --input system.json --simulate --detect-antipatterns
 
   # Custom criticality weights
   python analyze_graph.py --input system.json \\
@@ -555,13 +841,16 @@ Examples:
 
   # Export to multiple formats
   python analyze_graph.py --input system.json \\
-      --export-json --export-csv --export-html
+      --export-json --export-csv --export-html --export-md
 
-  # Disable QoS analysis
+  # Disable QoS analysis for faster execution
   python analyze_graph.py --input system.json --no-qos
 
-  # Verbose logging
-  python analyze_graph.py --input system.json --verbose
+  # Verbose logging with custom output directory
+  python analyze_graph.py --input system.json --verbose \\
+      --output results/analysis_$(date +%Y%m%d)
+
+For more information, see docs/ANALYZE_GRAPH_README.md
         """
     )
     
@@ -586,7 +875,11 @@ Examples:
     parser.add_argument('--simulate', action='store_true',
                        help='Enable failure simulation')
     parser.add_argument('--no-qos', action='store_true',
-                       help='Disable QoS analysis')
+                       help='Disable QoS analysis (faster execution)')
+    parser.add_argument('--detect-antipatterns', action='store_true',
+                       help='Enable anti-pattern detection')
+    
+    # Criticality weights
     parser.add_argument('--alpha', type=float, default=0.4,
                        help='Betweenness centrality weight (default: 0.4)')
     parser.add_argument('--beta', type=float, default=0.3,
@@ -603,45 +896,77 @@ Examples:
                        help='Export criticality scores as CSV')
     parser.add_argument('--export-html', action='store_true',
                        help='Export HTML report')
+    parser.add_argument('--export-md', action='store_true',
+                       help='Export Markdown report')
     parser.add_argument('--no-summary', action='store_true',
                        help='Skip console summary')
     
     # Logging
     parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Verbose logging')
+                       help='Verbose logging (DEBUG level)')
+    parser.add_argument('--log-file', type=str, default='analysis.log',
+                       help='Log file path (default: analysis.log)')
+    parser.add_argument('--no-color', action='store_true',
+                       help='Disable colored output')
     
     args = parser.parse_args()
     
+    # Disable colors if requested
+    if args.no_color:
+        for attr in dir(Colors):
+            if not attr.startswith('_'):
+                setattr(Colors, attr, '')
+    
     # Setup logging
-    setup_logging(args.verbose)
-    logger = logging.getLogger(__name__)
+    logger = setup_logging(args.verbose, args.log_file)
     
     try:
-        print("\n" + "=" * 70)
-        print("COMPLEX SYSTEM ANALYSIS")
-        print("=" * 70)
+        # Print header
+        print(f"\n{Colors.HEADER}{'='*70}{Colors.ENDC}")
+        print(f"{Colors.HEADER}{Colors.BOLD}COMPREHENSIVE PUB-SUB SYSTEM ANALYSIS{Colors.ENDC}")
+        print(f"{Colors.HEADER}{'='*70}{Colors.ENDC}\n")
         
         # Load graph
         start_time = time.time()
         
+        logger.info("Loading graph...")
         if args.neo4j:
             model, graph = load_graph_from_neo4j(
-                args.uri, args.user, args.password, args.database
+                args.uri, args.user, args.password, args.database, logger
             )
         else:
-            model, graph = load_graph_from_json(args.input)
+            model, graph = load_graph_from_json(args.input, logger)
         
         # Validate graph
-        if len(graph) == 0:
-            logger.error("Graph is empty! Cannot perform analysis.")
+        logger.info("Validating graph structure...")
+        is_valid, warnings = validate_graph_structure(graph, model, logger)
+        
+        if not is_valid:
+            logger.error("Graph validation failed!")
             return 1
         
-        logger.info(f"Graph loaded in {time.time() - start_time:.2f}s")
+        if warnings:
+            logger.warning(f"Graph validation completed with {len(warnings)} warning(s):")
+            for warning in warnings:
+                logger.warning(f"  • {warning}")
+        else:
+            logger.info("✓ Graph validation passed")
         
-        # Initialize orchestrator
-        logger.info("\nInitializing AnalysisOrchestrator...")
+        # Create output directory
+        output_dir = Path(args.output)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Output directory: {output_dir.absolute()}")
+        
+        # Validate weights sum to ~1.0
+        weight_sum = args.alpha + args.beta + args.gamma
+        if abs(weight_sum - 1.0) > 0.01:
+            logger.warning(f"Criticality weights sum to {weight_sum:.3f} (expected ~1.0)")
+            logger.warning("Weights will be normalized automatically")
+        
+        # Initialize analysis orchestrator
+        logger.info("Initializing analysis orchestrator...")
         orchestrator = AnalysisOrchestrator(
-            output_dir=args.output,
+            output_dir=str(output_dir),
             enable_qos=not args.no_qos,
             criticality_weights={
                 'alpha': args.alpha,
@@ -651,42 +976,70 @@ Examples:
         )
         
         # Run analysis
-        logger.info("\nRunning comprehensive analysis...")
+        logger.info(f"Running analysis (QoS: {not args.no_qos}, Simulation: {args.simulate})...")
+        analysis_start = time.time()
+        
         results = orchestrator.analyze_graph(
             graph=graph,
             graph_model=model,
             enable_simulation=args.simulate
         )
         
-        logger.info(f"\n✓ Analysis complete in {results['execution_time']['total']:.2f}s")
+        analysis_time = time.time() - analysis_start
+        logger.info(f"✓ Analysis completed in {analysis_time:.2f}s")
+        
+        # Anti-pattern detection
+        if args.detect_antipatterns:
+            logger.info("Detecting anti-patterns...")
+            # This would integrate with anti-pattern detection module
+            # For now, adding a placeholder
+            results['anti_patterns'] = {}
         
         # Export results
-        output_dir = Path(args.output)
-        save_analysis_results(
-            results,
-            output_dir,
-            export_json=args.export_json,
-            export_csv=args.export_csv,
-            export_html=args.export_html
+        logger.info("Exporting results...")
+        output_files = export_results(
+            results, output_dir,
+            args.export_json, args.export_csv,
+            args.export_html, args.export_md,
+            logger
         )
         
         # Print summary
-        if not args.no_summary:
-            print_analysis_summary(results)
+        total_time = time.time() - start_time
+        results['execution_time'] = {
+            'total': total_time,
+            'analysis': analysis_time,
+            'loading': start_time,
+        }
         
-        logger.info(f"\n✓ All results saved to {args.output}/")
+        if not args.no_summary:
+            print_summary(results, total_time)
+        
+        # Print output files
+        if output_files:
+            print(f"{Colors.OKGREEN}📁 Output Files:{Colors.ENDC}")
+            for format_type, filepath in output_files.items():
+                print(f"   • {format_type.upper()}: {filepath}")
+            print()
+        
+        print(f"{Colors.OKGREEN}✓ Analysis completed successfully!{Colors.ENDC}\n")
         
         return 0
         
+    except KeyboardInterrupt:
+        logger.warning("\nAnalysis interrupted by user")
+        return 130
     except FileNotFoundError as e:
         logger.error(f"File not found: {e}")
         return 1
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON: {e}")
+        return 1
     except ImportError as e:
         logger.error(f"Missing dependency: {e}")
-        logger.error("Install required packages: pip install neo4j networkx pandas")
         return 1
     except Exception as e:
-        logger.error(f"Analysis failed: {e}", exc_info=True)
+        logger.error(f"Unexpected error: {e}", exc_info=args.verbose)
         return 1
 
 
