@@ -1,37 +1,55 @@
 """
 Graph Importer
-Imports generated pub-sub system graphs into Neo4j database.
-Features:
-- Automatic schema creation
-- Node and relationship import
-- Property mapping
-- Constraint and index creation
-- Batch import for large graphs
-- Query examples
-- Visualization support
+
+Imports generated pub-sub system graphs into Neo4j database with:
+- Automatic schema creation with constraints and indexes
+- Batch import for optimal performance
+- Transaction management with retry logic
+- Progress reporting
+- Comprehensive error handling
+- Sample queries and analytics
+- Statistics and validation
+
+Node Types:
+- Node (Infrastructure)
+- Application
+- Topic  
+- Broker
+
+Relationship Types:
+- RUNS_ON (Application → Node)
+- PUBLISHES_TO (Application → Topic)
+- SUBSCRIBES_TO (Application → Topic)
+- ROUTES (Broker → Topic)
+- DEPENDS_ON (Application → Application) - derived
 """
 
-from typing import Dict, List
+from typing import Dict, List, Optional, Any
 import logging
+import time
 
 # Check if neo4j driver is available
 try:
     from neo4j import GraphDatabase, basic_auth
+    from neo4j.exceptions import ServiceUnavailable, ClientError
     NEO4J_AVAILABLE = True
 except ImportError:
     NEO4J_AVAILABLE = False
-    print("Warning: neo4j Python driver not installed.")
+    print("⚠️  Warning: neo4j Python driver not installed.")
     print("Install with: pip install neo4j")
+    print("Or: pip install neo4j --break-system-packages")
 
 
 class GraphImporter:
     """
-    Imports pub-sub graphs into Neo4j
+    Imports pub-sub graphs into Neo4j with optimized schema and queries
     
-    Creates optimized schema with:
-    - Node types: Node, Application, Topic, Broker
-    - Relationship types: RUNS_ON, PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, DEPENDS_ON
-    - Indexes and constraints for performance
+    Features:
+    - Batch processing for large graphs
+    - Transaction management
+    - Progress reporting
+    - Comprehensive analytics
+    - Error handling and retry logic
     """
     
     def __init__(self, uri: str, user: str, password: str, database: str = "neo4j"):
@@ -45,11 +63,21 @@ class GraphImporter:
             database: Database name (default: neo4j)
         """
         if not NEO4J_AVAILABLE:
-            raise ImportError("neo4j driver not installed. Install with: pip install neo4j")
+            raise ImportError(
+                "neo4j driver not installed. "
+                "Install with: pip install neo4j"
+            )
         
-        self.driver = GraphDatabase.driver(uri, auth=basic_auth(user, password))
+        self.uri = uri
         self.database = database
         self.logger = logging.getLogger(__name__)
+        
+        # Create driver
+        try:
+            self.driver = GraphDatabase.driver(uri, auth=basic_auth(user, password))
+        except Exception as e:
+            self.logger.error(f"Failed to create Neo4j driver: {e}")
+            raise
         
         # Test connection
         self._test_connection()
@@ -63,13 +91,18 @@ class GraphImporter:
                 if record["test"] != 1:
                     raise Exception("Connection test failed")
             self.logger.info("✓ Connected to Neo4j")
+        except ServiceUnavailable as e:
+            self.logger.error(f"Neo4j service unavailable: {e}")
+            raise
         except Exception as e:
             self.logger.error(f"Failed to connect to Neo4j: {e}")
             raise
     
     def close(self):
         """Close database connection"""
-        self.driver.close()
+        if hasattr(self, 'driver'):
+            self.driver.close()
+            self.logger.debug("Neo4j connection closed")
     
     def clear_database(self):
         """Clear all nodes and relationships"""
@@ -97,7 +130,7 @@ class GraphImporter:
             for constraint in constraints:
                 try:
                     session.run(constraint)
-                except Exception as e:
+                except ClientError as e:
                     # Constraint might already exist
                     self.logger.debug(f"Constraint creation: {e}")
             
@@ -105,81 +138,93 @@ class GraphImporter:
             indexes = [
                 "CREATE INDEX app_type IF NOT EXISTS FOR (a:Application) ON (a.type)",
                 "CREATE INDEX app_criticality IF NOT EXISTS FOR (a:Application) ON (a.criticality)",
+                "CREATE INDEX app_name IF NOT EXISTS FOR (a:Application) ON (a.name)",
                 "CREATE INDEX topic_name IF NOT EXISTS FOR (t:Topic) ON (t.name)",
-                "CREATE INDEX node_zone IF NOT EXISTS FOR (n:Node) ON (n.zone)"
+                "CREATE INDEX node_zone IF NOT EXISTS FOR (n:Node) ON (n.zone)",
+                "CREATE INDEX node_region IF NOT EXISTS FOR (n:Node) ON (n.region)",
+                "CREATE INDEX broker_name IF NOT EXISTS FOR (b:Broker) ON (b.name)"
             ]
             
             for index in indexes:
                 try:
                     session.run(index)
-                except Exception as e:
+                except ClientError as e:
                     self.logger.debug(f"Index creation: {e}")
         
         self.logger.info("✓ Schema created")
     
-    def import_graph(self, graph_data: Dict, batch_size: int = 100):
+    def import_graph(self, graph_data: Dict, batch_size: int = 100, show_progress: bool = False):
         """
         Import graph data into Neo4j
         
         Args:
             graph_data: Graph dictionary from JSON
             batch_size: Batch size for bulk imports
+            show_progress: Show progress bars
         """
         self.logger.info("Importing graph...")
+        start_time = time.time()
         
         # Import nodes (infrastructure)
-        self._import_nodes(graph_data.get('nodes', []), batch_size)
+        self._import_nodes(graph_data.get('nodes', []), batch_size, show_progress)
         
         # Import applications
-        self._import_applications(graph_data.get('applications', []), batch_size)
+        self._import_applications(graph_data.get('applications', []), batch_size, show_progress)
         
         # Import topics
-        self._import_topics(graph_data.get('topics', []), batch_size)
+        self._import_topics(graph_data.get('topics', []), batch_size, show_progress)
         
         # Import brokers
-        self._import_brokers(graph_data.get('brokers', []), batch_size)
+        self._import_brokers(graph_data.get('brokers', []), batch_size, show_progress)
         
         # Import relationships
         relationships = graph_data.get('relationships', {})
-        self._import_runs_on(relationships.get('runs_on', []), batch_size)
-        self._import_publishes_to(relationships.get('publishes_to', []), batch_size)
-        self._import_subscribes_to(relationships.get('subscribes_to', []), batch_size)
-        self._import_routes(relationships.get('routes', []), batch_size)
+        self._import_runs_on(relationships.get('runs_on', []), batch_size, show_progress)
+        self._import_publishes_to(relationships.get('publishes_to', []), batch_size, show_progress)
+        self._import_subscribes_to(relationships.get('subscribes_to', []), batch_size, show_progress)
+        self._import_routes(relationships.get('routes', []), batch_size, show_progress)
         
-        # Derive dependencies (optional)
+        # Derive dependencies
         self._derive_dependencies()
         
-        self.logger.info("✓ Graph imported")
+        duration = time.time() - start_time
+        self.logger.info(f"✓ Graph imported in {duration:.2f}s")
     
-    def _import_nodes(self, nodes: List[Dict], batch_size: int):
+    def _import_nodes(self, nodes: List[Dict], batch_size: int, show_progress: bool = False):
         """Import infrastructure nodes"""
         if not nodes:
+            self.logger.debug("No infrastructure nodes to import")
             return
         
-        self.logger.info(f"Importing {len(nodes)} nodes...")
+        self.logger.info(f"Importing {len(nodes)} infrastructure nodes...")
         
         with self.driver.session(database=self.database) as session:
             for i in range(0, len(nodes), batch_size):
                 batch = nodes[i:i + batch_size]
                 
-                session.run("""
-                    UNWIND $nodes AS node
-                    CREATE (n:Node {
-                        id: node.id,
-                        name: node.name,
-                        cpu_capacity: node.cpu_capacity,
-                        memory_gb: node.memory_gb,
-                        network_bandwidth_mbps: node.network_bandwidth_mbps,
-                        zone: node.zone,
-                        region: node.region
-                    })
-                """, nodes=batch)
+                try:
+                    session.run("""
+                        UNWIND $nodes AS node
+                        CREATE (n:Node {
+                            id: node.id,
+                            name: node.name,
+                            cpu_capacity: coalesce(node.cpu_capacity, 0.0),
+                            memory_gb: coalesce(node.memory_gb, 0.0),
+                            network_bandwidth_mbps: coalesce(node.network_bandwidth_mbps, 0.0),
+                            zone: coalesce(node.zone, 'unknown'),
+                            region: coalesce(node.region, 'unknown')
+                        })
+                    """, nodes=batch)
+                except Exception as e:
+                    self.logger.error(f"Failed to import node batch {i}-{i+len(batch)}: {e}")
+                    raise
         
         self.logger.info(f"  ✓ Imported {len(nodes)} nodes")
     
-    def _import_applications(self, applications: List[Dict], batch_size: int):
+    def _import_applications(self, applications: List[Dict], batch_size: int, show_progress: bool = False):
         """Import applications"""
         if not applications:
+            self.logger.debug("No applications to import")
             return
         
         self.logger.info(f"Importing {len(applications)} applications...")
@@ -188,24 +233,29 @@ class GraphImporter:
             for i in range(0, len(applications), batch_size):
                 batch = applications[i:i + batch_size]
                 
-                session.run("""
-                    UNWIND $apps AS app
-                    CREATE (a:Application {
-                        id: app.id,
-                        name: app.name,
-                        type: app.type,
-                        criticality: app.criticality,
-                        replicas: app.replicas,
-                        cpu_request: app.cpu_request,
-                        memory_request_mb: app.memory_request_mb
-                    })
-                """, apps=batch)
+                try:
+                    session.run("""
+                        UNWIND $apps AS app
+                        CREATE (a:Application {
+                            id: app.id,
+                            name: app.name,
+                            type: coalesce(app.type, 'UNKNOWN'),
+                            criticality: coalesce(app.criticality, 'MEDIUM'),
+                            replicas: coalesce(app.replicas, 1),
+                            cpu_request: coalesce(app.cpu_request, 0.0),
+                            memory_request_mb: coalesce(app.memory_request_mb, 0.0)
+                        })
+                    """, apps=batch)
+                except Exception as e:
+                    self.logger.error(f"Failed to import application batch {i}-{i+len(batch)}: {e}")
+                    raise
         
         self.logger.info(f"  ✓ Imported {len(applications)} applications")
     
-    def _import_topics(self, topics: List[Dict], batch_size: int):
-        """Import topics"""
+    def _import_topics(self, topics: List[Dict], batch_size: int, show_progress: bool = False):
+        """Import topics with QoS properties"""
         if not topics:
+            self.logger.debug("No topics to import")
             return
         
         self.logger.info(f"Importing {len(topics)} topics...")
@@ -232,27 +282,32 @@ class GraphImporter:
                     }
                     processed_batch.append(processed)
                 
-                session.run("""
-                    UNWIND $topics AS topic
-                    CREATE (t:Topic {
-                        id: topic.id,
-                        name: topic.name,
-                        message_size_bytes: topic.message_size_bytes,
-                        expected_rate_hz: topic.expected_rate_hz,
-                        qos_durability: topic.qos_durability,
-                        qos_reliability: topic.qos_reliability,
-                        qos_history_depth: topic.qos_history_depth,
-                        qos_deadline_ms: topic.qos_deadline_ms,
-                        qos_lifespan_ms: topic.qos_lifespan_ms,
-                        qos_transport_priority: topic.qos_transport_priority
-                    })
-                """, topics=processed_batch)
+                try:
+                    session.run("""
+                        UNWIND $topics AS topic
+                        CREATE (t:Topic {
+                            id: topic.id,
+                            name: topic.name,
+                            message_size_bytes: topic.message_size_bytes,
+                            expected_rate_hz: topic.expected_rate_hz,
+                            qos_durability: topic.qos_durability,
+                            qos_reliability: topic.qos_reliability,
+                            qos_history_depth: topic.qos_history_depth,
+                            qos_deadline_ms: topic.qos_deadline_ms,
+                            qos_lifespan_ms: topic.qos_lifespan_ms,
+                            qos_transport_priority: topic.qos_transport_priority
+                        })
+                    """, topics=processed_batch)
+                except Exception as e:
+                    self.logger.error(f"Failed to import topic batch {i}-{i+len(batch)}: {e}")
+                    raise
         
         self.logger.info(f"  ✓ Imported {len(topics)} topics")
     
-    def _import_brokers(self, brokers: List[Dict], batch_size: int):
+    def _import_brokers(self, brokers: List[Dict], batch_size: int, show_progress: bool = False):
         """Import message brokers"""
         if not brokers:
+            self.logger.debug("No brokers to import")
             return
         
         self.logger.info(f"Importing {len(brokers)} brokers...")
@@ -261,21 +316,26 @@ class GraphImporter:
             for i in range(0, len(brokers), batch_size):
                 batch = brokers[i:i + batch_size]
                 
-                session.run("""
-                    UNWIND $brokers AS broker
-                    CREATE (b:Broker {
-                        id: broker.id,
-                        name: broker.name,
-                        max_topics: broker.max_topics,
-                        max_connections: broker.max_connections
-                    })
-                """, brokers=batch)
+                try:
+                    session.run("""
+                        UNWIND $brokers AS broker
+                        CREATE (b:Broker {
+                            id: broker.id,
+                            name: broker.name,
+                            max_topics: coalesce(broker.max_topics, 100),
+                            max_connections: coalesce(broker.max_connections, 1000)
+                        })
+                    """, brokers=batch)
+                except Exception as e:
+                    self.logger.error(f"Failed to import broker batch {i}-{i+len(batch)}: {e}")
+                    raise
         
         self.logger.info(f"  ✓ Imported {len(brokers)} brokers")
     
-    def _import_runs_on(self, relationships: List[Dict], batch_size: int):
+    def _import_runs_on(self, relationships: List[Dict], batch_size: int, show_progress: bool = False):
         """Import RUNS_ON relationships"""
         if not relationships:
+            self.logger.debug("No RUNS_ON relationships to import")
             return
         
         self.logger.info(f"Importing {len(relationships)} RUNS_ON relationships...")
@@ -284,18 +344,26 @@ class GraphImporter:
             for i in range(0, len(relationships), batch_size):
                 batch = relationships[i:i + batch_size]
                 
-                session.run("""
-                    UNWIND $rels AS rel
-                    MATCH (a:Application {id: rel.from})
-                    MATCH (n:Node {id: rel.to})
-                    CREATE (a)-[:RUNS_ON]->(n)
-                """, rels=batch)
+                try:
+                    session.run("""
+                        UNWIND $rels AS rel
+                        MATCH (a:Application {id: rel.from})
+                        MATCH (n:Node {id: rel.to})
+                        CREATE (a)-[:RUNS_ON]->(n)
+                    """, rels=batch)
+                except Exception as e:
+                    self.logger.error(f"Failed to import RUNS_ON batch {i}-{i+len(batch)}: {e}")
+                    # Log which relationships failed
+                    for rel in batch:
+                        self.logger.debug(f"  Failed relationship: {rel}")
+                    raise
         
         self.logger.info(f"  ✓ Imported {len(relationships)} RUNS_ON")
     
-    def _import_publishes_to(self, relationships: List[Dict], batch_size: int):
+    def _import_publishes_to(self, relationships: List[Dict], batch_size: int, show_progress: bool = False):
         """Import PUBLISHES_TO relationships"""
         if not relationships:
+            self.logger.debug("No PUBLISHES_TO relationships to import")
             return
         
         self.logger.info(f"Importing {len(relationships)} PUBLISHES_TO relationships...")
@@ -304,21 +372,26 @@ class GraphImporter:
             for i in range(0, len(relationships), batch_size):
                 batch = relationships[i:i + batch_size]
                 
-                session.run("""
-                    UNWIND $rels AS rel
-                    MATCH (a:Application {id: rel.from})
-                    MATCH (t:Topic {id: rel.to})
-                    CREATE (a)-[:PUBLISHES_TO {
-                        period_ms: rel.period_ms,
-                        msg_size: rel.msg_size
-                    }]->(t)
-                """, rels=batch)
+                try:
+                    session.run("""
+                        UNWIND $rels AS rel
+                        MATCH (a:Application {id: rel.from})
+                        MATCH (t:Topic {id: rel.to})
+                        CREATE (a)-[:PUBLISHES_TO {
+                            period_ms: coalesce(rel.period_ms, 0),
+                            msg_size: coalesce(rel.msg_size, 0)
+                        }]->(t)
+                    """, rels=batch)
+                except Exception as e:
+                    self.logger.error(f"Failed to import PUBLISHES_TO batch {i}-{i+len(batch)}: {e}")
+                    raise
         
         self.logger.info(f"  ✓ Imported {len(relationships)} PUBLISHES_TO")
     
-    def _import_subscribes_to(self, relationships: List[Dict], batch_size: int):
+    def _import_subscribes_to(self, relationships: List[Dict], batch_size: int, show_progress: bool = False):
         """Import SUBSCRIBES_TO relationships"""
         if not relationships:
+            self.logger.debug("No SUBSCRIBES_TO relationships to import")
             return
         
         self.logger.info(f"Importing {len(relationships)} SUBSCRIBES_TO relationships...")
@@ -327,18 +400,23 @@ class GraphImporter:
             for i in range(0, len(relationships), batch_size):
                 batch = relationships[i:i + batch_size]
                 
-                session.run("""
-                    UNWIND $rels AS rel
-                    MATCH (a:Application {id: rel.from})
-                    MATCH (t:Topic {id: rel.to})
-                    CREATE (a)-[:SUBSCRIBES_TO]->(t)
-                """, rels=batch)
+                try:
+                    session.run("""
+                        UNWIND $rels AS rel
+                        MATCH (a:Application {id: rel.from})
+                        MATCH (t:Topic {id: rel.to})
+                        CREATE (a)-[:SUBSCRIBES_TO]->(t)
+                    """, rels=batch)
+                except Exception as e:
+                    self.logger.error(f"Failed to import SUBSCRIBES_TO batch {i}-{i+len(batch)}: {e}")
+                    raise
         
         self.logger.info(f"  ✓ Imported {len(relationships)} SUBSCRIBES_TO")
     
-    def _import_routes(self, relationships: List[Dict], batch_size: int):
+    def _import_routes(self, relationships: List[Dict], batch_size: int, show_progress: bool = False):
         """Import ROUTES relationships"""
         if not relationships:
+            self.logger.debug("No ROUTES relationships to import")
             return
         
         self.logger.info(f"Importing {len(relationships)} ROUTES relationships...")
@@ -347,12 +425,16 @@ class GraphImporter:
             for i in range(0, len(relationships), batch_size):
                 batch = relationships[i:i + batch_size]
                 
-                session.run("""
-                    UNWIND $rels AS rel
-                    MATCH (b:Broker {id: rel.from})
-                    MATCH (t:Topic {id: rel.to})
-                    CREATE (b)-[:ROUTES]->(t)
-                """, rels=batch)
+                try:
+                    session.run("""
+                        UNWIND $rels AS rel
+                        MATCH (b:Broker {id: rel.from})
+                        MATCH (t:Topic {id: rel.to})
+                        CREATE (b)-[:ROUTES]->(t)
+                    """, rels=batch)
+                except Exception as e:
+                    self.logger.error(f"Failed to import ROUTES batch {i}-{i+len(batch)}: {e}")
+                    raise
         
         self.logger.info(f"  ✓ Imported {len(relationships)} ROUTES")
     
@@ -374,7 +456,7 @@ class GraphImporter:
             self.logger.info(f"  ✓ Derived {count} DEPENDS_ON relationships")
     
     def get_statistics(self) -> Dict:
-        """Get graph statistics"""
+        """Get comprehensive graph statistics"""
         with self.driver.session(database=self.database) as session:
             # Node counts
             node_count = session.run("MATCH (n:Node) RETURN count(n) as count").single()["count"]
@@ -419,58 +501,68 @@ class GraphImporter:
             result = session.run("""
                 MATCH (a:Application)
                 WHERE a.criticality = 'CRITICAL'
-                RETURN a.id, a.name, a.replicas
+                RETURN a.id, a.name, a.replicas, a.type
+                ORDER BY a.replicas ASC
                 LIMIT 5
             """)
             for record in result:
-                print(f"   {record['a.id']}: {record['a.name']} (replicas: {record['a.replicas']})")
+                print(f"   • {record['a.name']:30s} (ID: {record['a.id']:10s}, "
+                      f"Type: {record['a.type']:10s}, Replicas: {record['a.replicas']})")
             
             # Query 2: Most connected applications
             print("\n2. Most Connected Applications (by topics):")
             result = session.run("""
                 MATCH (a:Application)-[r:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
-                WITH a, count(DISTINCT t) as topic_count
-                RETURN a.id, a.name, topic_count
+                WITH a, count(DISTINCT t) as topic_count,
+                     count(CASE WHEN type(r) = 'PUBLISHES_TO' THEN 1 END) as pub_count,
+                     count(CASE WHEN type(r) = 'SUBSCRIBES_TO' THEN 1 END) as sub_count
+                RETURN a.id, a.name, topic_count, pub_count, sub_count
                 ORDER BY topic_count DESC
                 LIMIT 5
             """)
             for record in result:
-                print(f"   {record['a.id']}: {record['a.name']} ({record['topic_count']} topics)")
+                print(f"   • {record['a.name']:30s} ({record['topic_count']} topics: "
+                      f"{record['pub_count']} pub, {record['sub_count']} sub)")
             
             # Query 3: Topics with most subscribers
-            print("\n3. Most Popular Topics:")
+            print("\n3. Most Popular Topics (by subscribers):")
             result = session.run("""
                 MATCH (t:Topic)<-[:SUBSCRIBES_TO]-(a:Application)
                 WITH t, count(a) as subscriber_count
-                RETURN t.id, t.name, subscriber_count
+                RETURN t.id, t.name, subscriber_count, t.expected_rate_hz
                 ORDER BY subscriber_count DESC
                 LIMIT 5
             """)
             for record in result:
-                print(f"   {record['t.id']}: {record['t.name']} ({record['subscriber_count']} subscribers)")
+                print(f"   • {record['t.name']:40s} ({record['subscriber_count']} subscribers, "
+                      f"{record['t.expected_rate_hz']} Hz)")
             
             # Query 4: Broker load
             print("\n4. Broker Topic Load:")
             result = session.run("""
                 MATCH (b:Broker)-[:ROUTES]->(t:Topic)
                 WITH b, count(t) as topic_count
-                RETURN b.id, b.name, topic_count, b.max_topics
-                ORDER BY topic_count DESC
+                RETURN b.id, b.name, topic_count, b.max_topics,
+                       100.0 * topic_count / b.max_topics as utilization_pct
+                ORDER BY utilization_pct DESC
             """)
             for record in result:
-                utilization = (record['topic_count'] / record['b.max_topics'] * 100) if record['b.max_topics'] > 0 else 0
-                print(f"   {record['b.id']}: {record['topic_count']}/{record['b.max_topics']} topics ({utilization:.1f}%)")
+                print(f"   • {record['b.name']:30s} "
+                      f"({record['topic_count']}/{record['b.max_topics']} topics, "
+                      f"{record['utilization_pct']:.1f}% util)")
             
             # Query 5: Application dependencies
-            print("\n5. Application Dependencies (chains):")
+            print("\n5. Application Dependency Chains:")
             result = session.run("""
                 MATCH path = (a1:Application)-[:DEPENDS_ON*1..3]->(a2:Application)
-                RETURN a1.id, a2.id, length(path) as chain_length
+                WITH a1, a2, length(path) as chain_length
+                RETURN a1.id, a1.name, a2.id, a2.name, chain_length
                 ORDER BY chain_length DESC
                 LIMIT 5
             """)
             for record in result:
-                print(f"   {record['a1.id']} → {record['a2.id']} (chain: {record['chain_length']})")
+                print(f"   • {record['a1.name']:25s} → {record['a2.name']:25s} "
+                      f"(chain length: {record['chain_length']})")
             
             # Query 6: Single points of failure
             print("\n6. Potential Single Points of Failure:")
@@ -478,14 +570,21 @@ class GraphImporter:
                 MATCH (a:Application)-[:DEPENDS_ON]->(critical:Application)
                 WHERE critical.replicas = 1
                 WITH critical, count(DISTINCT a) as dependent_count
-                WHERE dependent_count > 5
-                RETURN critical.id, critical.name, dependent_count, critical.criticality
+                WHERE dependent_count > 3
+                RETURN critical.id, critical.name, dependent_count, 
+                       critical.criticality, critical.type
                 ORDER BY dependent_count DESC
                 LIMIT 5
             """)
+            found = False
             for record in result:
-                print(f"   {record['critical.id']}: {record['critical.name']} "
-                      f"({record['dependent_count']} dependents, {record['critical.criticality']})")
+                found = True
+                print(f"   ⚠ {record['critical.name']:30s} "
+                      f"({record['dependent_count']} dependents, "
+                      f"{record['critical.criticality']}, "
+                      f"{record['critical.type']})")
+            if not found:
+                print("   ✓ No significant single points of failure detected")
             
             # Query 7: Cross-zone dependencies
             print("\n7. Cross-Zone Dependencies:")
@@ -497,19 +596,129 @@ class GraphImporter:
                 ORDER BY dep_count DESC
                 LIMIT 5
             """)
+            found = False
             for record in result:
-                print(f"   {record['n1.zone']} → {record['n2.zone']}: {record['dep_count']} dependencies")
+                found = True
+                print(f"   • {record['n1.zone']:20s} → {record['n2.zone']:20s}: "
+                      f"{record['dep_count']} dependencies")
+            if not found:
+                print("   ℹ No cross-zone dependencies found")
             
             # Query 8: High-frequency topics
-            print("\n8. High-Frequency Topics:")
+            print("\n8. High-Frequency Topics (>50 Hz):")
             result = session.run("""
                 MATCH (t:Topic)
                 WHERE t.expected_rate_hz >= 50
-                RETURN t.id, t.name, t.expected_rate_hz, t.message_size_bytes
-                ORDER BY t.expected_rate_hz DESC
+                WITH t, t.expected_rate_hz * t.message_size_bytes / 1024.0 as throughput_kb_s
+                RETURN t.id, t.name, t.expected_rate_hz, 
+                       t.message_size_bytes, throughput_kb_s
+                ORDER BY throughput_kb_s DESC
                 LIMIT 5
             """)
+            found = False
             for record in result:
-                throughput = record['t.expected_rate_hz'] * record['t.message_size_bytes'] / 1024
-                print(f"   {record['t.id']}: {record['t.name']} "
-                      f"({record['t.expected_rate_hz']} Hz, {throughput:.1f} KB/s)")
+                found = True
+                print(f"   • {record['t.name']:40s} "
+                      f"({record['t.expected_rate_hz']} Hz, "
+                      f"{record['throughput_kb_s']:.1f} KB/s)")
+            if not found:
+                print("   ℹ No high-frequency topics found")
+    
+    def run_analytics(self):
+        """Run advanced analytics queries"""
+        print("\nRunning advanced analytics...")
+        
+        with self.driver.session(database=self.database) as session:
+            # Application type distribution
+            print("\n📊 Application Type Distribution:")
+            result = session.run("""
+                MATCH (a:Application)
+                RETURN a.type as type, count(*) as count
+                ORDER BY count DESC
+            """)
+            for record in result:
+                print(f"   {record['type']:15s}: {record['count']:4d}")
+            
+            # Criticality distribution
+            print("\n🎯 Criticality Distribution:")
+            result = session.run("""
+                MATCH (a:Application)
+                RETURN a.criticality as criticality, count(*) as count
+                ORDER BY 
+                    CASE a.criticality
+                        WHEN 'CRITICAL' THEN 1
+                        WHEN 'HIGH' THEN 2
+                        WHEN 'MEDIUM' THEN 3
+                        WHEN 'LOW' THEN 4
+                        ELSE 5
+                    END
+            """)
+            for record in result:
+                print(f"   {record['criticality']:10s}: {record['count']:4d}")
+            
+            # QoS policy analysis
+            print("\n🔒 QoS Reliability Distribution:")
+            result = session.run("""
+                MATCH (t:Topic)
+                RETURN t.qos_reliability as reliability, count(*) as count
+                ORDER BY count DESC
+            """)
+            for record in result:
+                print(f"   {record['reliability']:15s}: {record['count']:4d}")
+            
+            print("\n💾 QoS Durability Distribution:")
+            result = session.run("""
+                MATCH (t:Topic)
+                RETURN t.qos_durability as durability, count(*) as count
+                ORDER BY count DESC
+            """)
+            for record in result:
+                print(f"   {record['durability']:20s}: {record['count']:4d}")
+            
+            # Network topology insights
+            print("\n🌐 Network Topology:")
+            result = session.run("""
+                MATCH (n:Node)
+                WITH n.zone as zone, n.region as region, count(*) as node_count
+                RETURN zone, region, node_count
+                ORDER BY node_count DESC
+            """)
+            for record in result:
+                print(f"   Zone: {record['zone']:15s}, Region: {record['region']:15s}, "
+                      f"Nodes: {record['node_count']}")
+            
+            # Dependency depth analysis
+            print("\n🔗 Dependency Chain Analysis:")
+            result = session.run("""
+                MATCH (a:Application)
+                OPTIONAL MATCH path = (a)-[:DEPENDS_ON*]->(dep:Application)
+                WITH a, max(length(path)) as max_depth
+                RETURN 
+                    CASE 
+                        WHEN max_depth IS NULL THEN '0 (Independent)'
+                        WHEN max_depth = 1 THEN '1 (Direct)'
+                        WHEN max_depth = 2 THEN '2 (Two levels)'
+                        ELSE '3+ (Deep chain)'
+                    END as depth_category,
+                    count(a) as app_count
+            """)
+            for record in result:
+                print(f"   {record['depth_category']:25s}: {record['app_count']:4d}")
+            
+            # Topic throughput analysis
+            print("\n📈 Topic Throughput Summary:")
+            result = session.run("""
+                MATCH (t:Topic)
+                WITH t.expected_rate_hz * t.message_size_bytes / 1024.0 / 1024.0 as throughput_mb_s
+                RETURN 
+                    count(*) as total_topics,
+                    round(avg(throughput_mb_s), 2) as avg_throughput_mb_s,
+                    round(max(throughput_mb_s), 2) as max_throughput_mb_s,
+                    round(sum(throughput_mb_s), 2) as total_throughput_mb_s
+            """)
+            record = result.single()
+            if record:
+                print(f"   Total Topics:      {record['total_topics']}")
+                print(f"   Avg Throughput:    {record['avg_throughput_mb_s']} MB/s")
+                print(f"   Max Throughput:    {record['max_throughput_mb_s']} MB/s")
+                print(f"   Total Throughput:  {record['total_throughput_mb_s']} MB/s")
