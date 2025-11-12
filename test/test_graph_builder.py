@@ -183,7 +183,7 @@ def main():
     )
     parser.add_argument(
         '--input',
-        default='../input/dataset.json',
+        default='input/dataset.json',
         help='Path to input JSON file (default: input/dataset.json)'
     )
     parser.add_argument(

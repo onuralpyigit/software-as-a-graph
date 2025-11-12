@@ -158,25 +158,21 @@ class GraphBuilder:
                     self.errors.append(f"Application {idx}: missing 'name' or 'id' field")
                     continue
                 
-                name = app_data.get('name') or app_data.get('id')
+                id =  app_data.get('id')
+                name = app_data.get('name')
                 
                 # Parse application type
-                app_type_str = app_data.get('type', 'BIDIRECTIONAL')
+                app_type_str = app_data.get('type', 'PROSUMER')
                 try:
-                    app_type = ApplicationType[app_type_str] if app_type_str in ApplicationType.__members__ else ApplicationType.BIDIRECTIONAL
+                    app_type = ApplicationType[app_type_str] if app_type_str in ApplicationType.__members__ else ApplicationType.PROSUMER
                 except (KeyError, ValueError):
-                    app_type = ApplicationType.BIDIRECTIONAL
-                    self.warnings.append(f"App {name}: invalid type '{app_type_str}', using BIDIRECTIONAL")
-                
-                # Parse QoS if present
-                qos_policy = None
-                if 'qos_policy' in app_data:
-                    qos_policy = self._parse_qos_policy(app_data['qos_policy'])
+                    app_type = ApplicationType.PROSUMER
+                    self.warnings.append(f"App {name}: invalid type '{app_type_str}', using PROSUMER")
                 
                 app = ApplicationNode(
+                    id=id,
                     name=name,
-                    app_type=app_type,
-                    qos_policy=qos_policy
+                    app_type=app_type
                 )
                 model.add_application(app)
                 
@@ -191,7 +187,8 @@ class GraphBuilder:
                     self.errors.append(f"Topic {idx}: missing 'name' or 'id' field")
                     continue
                 
-                name = topic_data.get('name') or topic_data.get('id')
+                id = topic_data.get('id')
+                name = topic_data.get('name')
                 message_type = topic_data.get('message_type', 'unknown')
                 
                 # Parse QoS if present
@@ -200,6 +197,7 @@ class GraphBuilder:
                     qos_policy = self._parse_qos_policy(topic_data['qos_policy'])
                 
                 topic = TopicNode(
+                    id=id,
                     name=name,
                     message_type=message_type,
                     qos_policy=qos_policy
@@ -217,14 +215,14 @@ class GraphBuilder:
                     self.errors.append(f"Broker {idx}: missing 'name' or 'id' field")
                     continue
                 
-                name = broker_data.get('name') or broker_data.get('id')
-                broker_type = broker_data.get('type', 'DDS')
-                max_topics = self._parse_int(broker_data.get('max_topics', 1000))
+                id = broker_data.get('id')
+                name = broker_data.get('name')
+                broker_type = broker_data.get('protocol', 'DDS')
                 
                 broker = BrokerNode(
+                    id=id,
                     name=name,
-                    broker_type=broker_type,
-                    max_topics=max_topics
+                    broker_type=broker_type
                 )
                 model.add_broker(broker)
                 
@@ -239,14 +237,12 @@ class GraphBuilder:
                     self.errors.append(f"Node {idx}: missing 'name' or 'id' field")
                     continue
                 
-                name = node_data.get('name') or node_data.get('id')
-                cpu_cores = self._parse_int(node_data.get('cpu_cores', 1))
-                memory_gb = self._parse_float(node_data.get('memory_gb', 4.0)) or 4.0
+                id = node_data.get('id')
+                name = node_data.get('name')
                 
                 node = InfrastructureNode(
-                    name=name,
-                    cpu_cores=cpu_cores,
-                    memory_gb=memory_gb
+                    id=id,
+                    name=name
                 )
                 model.add_node(node)
                 
