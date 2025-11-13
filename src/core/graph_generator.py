@@ -34,9 +34,6 @@ class GraphConfig:
     num_brokers: int
     edge_density: float = 0.3  # 0.0 - 1.0
     high_availability: bool = False
-    multi_zone: bool = False
-    num_zones: int = 3
-    num_regions: int = 1
     antipatterns: List[str] = field(default_factory=list)
     seed: int = 42
     realistic_topology: bool = True  # Use realistic pub-sub patterns
@@ -51,7 +48,6 @@ class GraphGenerator:
     - Domain-specific scenarios
     - Realistic QoS policies
     - Sophisticated anti-patterns
-    - Zone/region-aware deployment
     - Realistic message flow patterns
     """
     
@@ -194,8 +190,6 @@ class GraphGenerator:
         
         # Track components for relationship generation
         self.topic_hierarchy: Dict[str, List[str]] = {}
-        self.critical_topics: Set[str] = set()
-        self.critical_apps: Set[str] = set()
     
     def generate(self) -> Dict:
         """
@@ -258,28 +252,10 @@ class GraphGenerator:
         """Generate physical nodes with zone/region awareness"""
         nodes = []
         
-        zones = [f'zone-{i+1}' for i in range(self.config.num_zones)] if self.config.multi_zone else ['default']
-        regions = [f'region-{i+1}' for i in range(self.config.num_regions)]
-        
-        node_types = ['VM', 'Container', 'Bare Metal', 'Edge Device', 'Cloud Instance']
-        
         for i in range(1, self.config.num_nodes + 1):
-            zone = zones[i % len(zones)]
-            region = regions[i % len(regions)]
-            
             node = {
                 'id': f'N{i}',
-                'name': f'Node{i}',
-                'zone': zone,
-                'region': region,
-                'node_type': random.choice(node_types),
-                'capacity': random.uniform(500, 5000),
-                'cpu_cores': random.choice([4, 8, 16, 32, 64]),
-                'memory_gb': random.choice([16, 32, 64, 128, 256]),
-                'network_bandwidth_mbps': random.choice([1000, 10000, 25000, 100000]),
-                'uptime_seconds': random.uniform(0, 86400 * 365),
-                'os': random.choice(['Linux', 'Ubuntu', 'RHEL', 'Windows Server']),
-                'ip_address': f'192.168.{i//256}.{i%256}'
+                'name': f'Node{i}'
             }
             nodes.append(node)
         
@@ -306,13 +282,7 @@ class GraphGenerator:
                 'name': f'Broker{i}',
                 'node_id': node_id,
                 'max_topics': int(avg_topics_per_broker * capacity_multiplier * 1.5),
-                'max_applications': int(avg_apps_per_broker * capacity_multiplier * 1.5),
-                'port': 7400 + i,
-                'protocol': random.choice(['DDS', 'RTPS', 'DDS-RTPS']),
-                'transport': random.choice(['UDP', 'TCP', 'Shared Memory']),
-                'discovery_service': f'DiscoveryService{i}',
-                'capacity_cpu': random.uniform(0.5, 8.0),
-                'capacity_memory_mb': random.uniform(512, 4096)
+                'max_applications': int(avg_apps_per_broker * capacity_multiplier * 1.5)
             }
             brokers.append(broker)
         
@@ -339,9 +309,6 @@ class GraphGenerator:
             # Generate QoS based on scenario and topic type
             qos = self._generate_qos_for_topic(pattern, topic_name)
             
-            # Determine criticality based on QoS and pattern
-            criticality = self._determine_topic_criticality(pattern, qos)
-            
             # Message characteristics
             msg_size = self._get_message_size_for_scenario(pattern)
             msg_rate = self._get_message_rate_for_scenario(pattern)
@@ -349,19 +316,12 @@ class GraphGenerator:
             topic = {
                 'id': f'T{i}',
                 'name': topic_name,
-                'pattern': pattern,
                 'qos': qos,
-                'criticality': criticality,
                 'message_size_bytes': msg_size,
-                'expected_rate_hz': msg_rate,
-                'max_message_size_bytes': int(msg_size * 1.5),
-                'content_filter': self._generate_content_filter(pattern)
+                'message_rate_hz': msg_rate
             }
             
             topics.append(topic)
-            
-            if criticality in ['HIGH', 'CRITICAL']:
-                self.critical_topics.add(f'T{i}')
         
         return topics
     
@@ -523,49 +483,6 @@ class GraphGenerator:
         
         return qos
     
-    def _determine_topic_criticality(self, pattern: str, qos: Dict) -> str:
-        """Determine topic criticality based on QoS and pattern"""
-        score = 0
-        
-        # QoS-based scoring
-        if qos['durability'] == 'PERSISTENT':
-            score += 3
-        elif qos['durability'] in ['TRANSIENT', 'TRANSIENT_LOCAL']:
-            score += 2
-        
-        if qos['reliability'] == 'RELIABLE':
-            score += 2
-        
-        if qos.get('deadline_ms'):
-            if qos['deadline_ms'] < 100:
-                score += 3
-            elif qos['deadline_ms'] < 500:
-                score += 2
-            else:
-                score += 1
-        
-        if qos['transport_priority'] == 'URGENT':
-            score += 3
-        elif qos['transport_priority'] == 'HIGH':
-            score += 2
-        
-        # Pattern-based scoring
-        critical_keywords = ['alert', 'emergency', 'critical', 'order', 'trade', 'vital', 'command']
-        for keyword in critical_keywords:
-            if keyword in pattern.lower():
-                score += 2
-                break
-        
-        # Convert score to criticality level
-        if score >= 8:
-            return 'CRITICAL'
-        elif score >= 5:
-            return 'HIGH'
-        elif score >= 3:
-            return 'MEDIUM'
-        else:
-            return 'LOW'
-    
     def _get_message_size_for_scenario(self, pattern: str) -> int:
         """Get realistic message sizes based on scenario and pattern"""
         
@@ -628,17 +545,6 @@ class GraphGenerator:
             # Default distribution
             return random.choice([0.1, 1, 5, 10, 20, 50, 100])
     
-    def _generate_content_filter(self, pattern: str) -> Optional[str]:
-        """Generate realistic content filters for topics"""
-        if random.random() < 0.3:  # 30% of topics have filters
-            if self.config.scenario == 'financial':
-                return f"symbol = 'AAPL' OR symbol = 'GOOGL'"
-            elif self.config.scenario == 'iot':
-                return f"device_id IN ('dev001', 'dev002', 'dev003')"
-            else:
-                return f"priority > {random.choice([5, 7, 9])}"
-        return None
-    
     def _generate_applications(self) -> List[Dict]:
         """Generate applications with realistic distributions"""
         applications = []
@@ -658,38 +564,13 @@ class GraphGenerator:
             base_name = random.choice(self.app_types)
             app_type = types[i-1] if i-1 < len(types) else 'PROSUMER'
             
-            # Determine criticality
-            criticality = random.choices(
-                ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
-                weights=[0.3, 0.4, 0.2, 0.1]
-            )[0]
-            
-            # Replicas for HA
-            replicas = 1
-            if self.config.high_availability and criticality in ['HIGH', 'CRITICAL']:
-                replicas = random.choice([2, 3, 5])
-            
-            # Resource requirements scale with criticality
-            cpu_multiplier = {'LOW': 0.5, 'MEDIUM': 1.0, 'HIGH': 2.0, 'CRITICAL': 4.0}[criticality]
-            mem_multiplier = {'LOW': 0.5, 'MEDIUM': 1.0, 'HIGH': 1.5, 'CRITICAL': 2.0}[criticality]
-            
             app = {
                 'id': f'A{i}',
                 'name': f'{base_name}_{i}',
-                'type': app_type,
-                'criticality': criticality,
-                'replicas': replicas,
-                'cpu_request': round(random.uniform(0.5, 4.0) * cpu_multiplier, 2),
-                'memory_request_mb': int(random.uniform(256, 2048) * mem_multiplier),
-                'restart_policy': 'Always' if criticality in ['HIGH', 'CRITICAL'] else 'OnFailure',
-                'health_check_enabled': criticality in ['HIGH', 'CRITICAL'],
-                'monitoring_level': criticality
+                'type': app_type
             }
             
             applications.append(app)
-            
-            if criticality in ['HIGH', 'CRITICAL']:
-                self.critical_apps.add(f'A{i}')
         
         return applications
     
@@ -699,34 +580,11 @@ class GraphGenerator:
         nodes = graph['nodes']
         
         for app in apps:
-            if app['replicas'] > 1:
-                # HA: distribute replicas across zones/nodes
-                selected_nodes = []
-                
-                if self.config.multi_zone:
-                    # Select nodes from different zones
-                    zones_used = set()
-                    for node in random.sample(nodes, min(app['replicas'], len(nodes))):
-                        if node['zone'] not in zones_used:
-                            selected_nodes.append(node['id'])
-                            zones_used.add(node['zone'])
-                else:
-                    # Just distribute across different nodes
-                    selected_nodes = [n['id'] for n in random.sample(nodes, min(app['replicas'], len(nodes)))]
-                
-                # Create runs_on for each replica
-                for node_id in selected_nodes:
-                    graph['relationships']['runs_on'].append({
-                        'from': app['id'],
-                        'to': node_id
-                    })
-            else:
-                # Single replica - random placement
-                node = random.choice(nodes)
-                graph['relationships']['runs_on'].append({
-                    'from': app['id'],
-                    'to': node['id']
-                })
+            node = random.choice(nodes)
+            graph['relationships']['runs_on'].append({
+                'from': app['id'],
+                'to': node['id']
+            })
     
     def _generate_routes(self, graph: Dict):
         """Generate broker-to-topic routing with load balancing"""
@@ -751,16 +609,6 @@ class GraphGenerator:
                     'to': topic['id'],
                     'role': 'primary'
                 })
-                
-                # Secondary broker for critical topics
-                if topic['id'] in self.critical_topics and len(brokers) > 1:
-                    secondary_idx = (i + 1) % len(brokers)
-                    secondary_broker = brokers[secondary_idx]
-                    graph['relationships']['routes'].append({
-                        'from': secondary_broker['id'],
-                        'to': topic['id'],
-                        'role': 'secondary'
-                    })
     
     def _generate_realistic_pub_sub(self, graph: Dict):
         """Generate realistic pub-sub relationships based on domain patterns"""
@@ -770,7 +618,7 @@ class GraphGenerator:
         # Group topics by pattern prefix
         topic_groups = defaultdict(list)
         for topic in topics:
-            prefix = topic['pattern'].split('/')[0] if '/' in topic['pattern'] else topic['pattern']
+            prefix = topic['name'].split('/')[0] if '/' in topic['name'] else topic['name'].split('_')[0]
             topic_groups[prefix].append(topic)
         
         for app in apps:
@@ -791,7 +639,7 @@ class GraphGenerator:
                 
                 for topic in pub_topics:
                     # Calculate realistic message rate
-                    base_rate = topic['expected_rate_hz']
+                    base_rate = topic['message_rate_hz']
                     actual_rate = base_rate * random.uniform(0.8, 1.2)
                     
                     graph['relationships']['publishes_to'].append({
@@ -837,12 +685,11 @@ class GraphGenerator:
         
         # Match topics
         for topic in topics:
-            topic_pattern = topic['pattern'].lower()
             topic_name = topic['name'].lower()
             
             # Check for keyword matches
             for keyword in keywords:
-                if keyword in topic_pattern or keyword in topic_name:
+                if keyword in topic_name:
                     relevant.append(topic)
                     break
         
@@ -869,7 +716,7 @@ class GraphGenerator:
                     graph['relationships']['publishes_to'].append({
                         'from': app['id'],
                         'to': topic['id'],
-                        'period_ms': int(1000 / topic['expected_rate_hz']),
+                        'period_ms': int(1000 / topic['message_rate_hz']),
                         'msg_size': topic['message_size_bytes']
                     })
             
@@ -905,46 +752,31 @@ class GraphGenerator:
                 self.logger.warning(f"Unknown antipattern: {antipattern}")
     
     def _apply_spof_antipattern(self, graph: Dict):
-        """Create single point of failure by making critical app non-redundant"""
+        """Create single point of failure by making app non-redundant"""
         apps = graph['applications']
+        topics = graph['topics']
         
-        # Find a critical app with replicas
-        critical_apps = [a for a in apps if a['criticality'] in ['HIGH', 'CRITICAL'] and a['replicas'] > 1]
+        # Select a critical topic
+        critical_topic = random.choice(topics)
         
-        if critical_apps:
-            # Make one critical app a SPOF
-            spof_app = random.choice(critical_apps)
-            spof_app['replicas'] = 1
-            spof_app['criticality'] = 'CRITICAL'
-            
-            # Remove extra runs_on relationships
-            runs_on = graph['relationships']['runs_on']
-            first_run = next(r for r in runs_on if r['from'] == spof_app['id'])
-            graph['relationships']['runs_on'] = [
-                r for r in runs_on if r['from'] != spof_app['id'] or r == first_run
-            ]
-            
-            # Make many apps depend on it
-            topics_published = [r['to'] for r in graph['relationships']['publishes_to'] 
-                              if r['from'] == spof_app['id']]
-            
-            if topics_published:
-                # Add more subscribers to these topics
-                other_apps = [a for a in apps if a['id'] != spof_app['id']]
-                for _ in range(min(5, len(other_apps))):
-                    app = random.choice(other_apps)
-                    topic = random.choice(topics_published)
-                    
-                    # Add subscription if not exists
-                    existing = any(r['from'] == app['id'] and r['to'] == topic 
-                                 for r in graph['relationships']['subscribes_to'])
-                    if not existing:
-                        graph['relationships']['subscribes_to'].append({
-                            'from': app['id'],
-                            'to': topic
-                        })
-            
-            self.logger.info(f"Applied SPOF antipattern to {spof_app['id']}")
+        # Find all publishers of this topic
+        pubs = [r for r in graph['relationships']['publishes_to'] 
+                if r['to'] == critical_topic['id']]
+        
+        if not pubs:
+            return
+        
+        # Select one publisher to be the SPOF
+        spof_pub = random.choice(pubs)
+        
+        # Remove other publishers for this topic
+        graph['relationships']['publishes_to'] = [
+            r for r in graph['relationships']['publishes_to'] 
+            if not (r['to'] == critical_topic['id'] and r != spof_pub)
+        ]
+        
+        self.logger.info(f"Applied spof antipattern to topic {critical_topic['id']} "
+                         f"with publisher {spof_pub['from']}")
     
     def _apply_broker_overload_antipattern(self, graph: Dict):
         """Overload a single broker with most topics"""

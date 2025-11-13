@@ -25,7 +25,7 @@ Usage Examples:
     python generate_graph.py --scale small --output system.json
     
     # IoT system with high availability
-    python generate_graph.py --scale large --scenario iot --ha --multi-zone --output iot_ha.json
+    python generate_graph.py --scale large --scenario iot --ha --output iot_ha.json
     
     # Financial system with anti-patterns
     python generate_graph.py --scale medium --scenario financial \\
@@ -316,7 +316,6 @@ def print_statistics(graph: Dict, config: GraphConfig, generation_time: float):
     print(f"  Scale: {config.scale}")
     print(f"  Scenario: {config.scenario}")
     print(f"  High Availability: {'Yes' if config.high_availability else 'No'}")
-    print(f"  Multi-Zone: {'Yes' if config.multi_zone else 'No'}")
     if config.antipatterns:
         print(f"  Anti-patterns: {', '.join(config.antipatterns)}")
     print(f"  Generation Time: {generation_time:.2f}s")
@@ -343,54 +342,28 @@ def print_statistics(graph: Dict, config: GraphConfig, generation_time: float):
     
     # Application distribution
     app_types = {}
-    app_criticalities = {}
-    total_replicas = 0
     
     for app in graph['applications']:
         app_type = app['type']
         app_types[app_type] = app_types.get(app_type, 0) + 1
-        
-        criticality = app['criticality']
-        app_criticalities[criticality] = app_criticalities.get(criticality, 0) + 1
-        
-        total_replicas += app.get('replicas', 1)
-    
+
     print(f"{Colors.BOLD}Application Distribution:{Colors.ENDC}")
     for app_type, count in sorted(app_types.items()):
         pct = (count / len(graph['applications'])) * 100
         print(f"  {app_type}: {count} ({pct:.1f}%)")
     print()
     
-    print(f"{Colors.BOLD}Criticality Distribution:{Colors.ENDC}")
-    for criticality in ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']:
-        count = app_criticalities.get(criticality, 0)
-        pct = (count / len(graph['applications'])) * 100 if len(graph['applications']) > 0 else 0
-        print(f"  {criticality}: {count} ({pct:.1f}%)")
-    print(f"  Total Replicas: {total_replicas} (avg: {total_replicas/len(graph['applications']):.1f})")
-    print()
-    
     # Topic distribution
-    topic_criticalities = {}
     qos_durability = {}
     qos_reliability = {}
     
     for topic in graph['topics']:
-        criticality = topic.get('criticality', 'LOW')
-        topic_criticalities[criticality] = topic_criticalities.get(criticality, 0) + 1
-        
         qos = topic.get('qos', {})
         durability = qos.get('durability', 'VOLATILE')
         qos_durability[durability] = qos_durability.get(durability, 0) + 1
         
         reliability = qos.get('reliability', 'BEST_EFFORT')
         qos_reliability[reliability] = qos_reliability.get(reliability, 0) + 1
-    
-    print(f"{Colors.BOLD}Topic Criticality:{Colors.ENDC}")
-    for criticality in ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']:
-        count = topic_criticalities.get(criticality, 0)
-        pct = (count / len(graph['topics'])) * 100 if len(graph['topics']) > 0 else 0
-        print(f"  {criticality}: {count} ({pct:.1f}%)")
-    print()
     
     print(f"{Colors.BOLD}QoS Distribution:{Colors.ENDC}")
     print("  Durability:")
@@ -421,25 +394,6 @@ def print_statistics(graph: Dict, config: GraphConfig, generation_time: float):
         max_fanout = max(topic_subs.values())
         print(f"  Average Topic Fanout: {avg_fanout:.1f}")
         print(f"  Maximum Topic Fanout: {max_fanout}")
-    
-    # Zone/Region distribution if multi-zone
-    if config.multi_zone:
-        zone_counts = {}
-        region_counts = {}
-        for node in graph['nodes']:
-            zone = node.get('zone', 'default')
-            region = node.get('region', 'default')
-            zone_counts[zone] = zone_counts.get(zone, 0) + 1
-            region_counts[region] = region_counts.get(region, 0) + 1
-        
-        print()
-        print(f"{Colors.BOLD}Zone/Region Distribution:{Colors.ENDC}")
-        print(f"  Zones: {len(zone_counts)}")
-        for zone, count in sorted(zone_counts.items()):
-            print(f"    {zone}: {count} nodes")
-        print(f"  Regions: {len(region_counts)}")
-        for region, count in sorted(region_counts.items()):
-            print(f"    {region}: {count} nodes")
 
 
 def preview_generation(config: GraphConfig):
@@ -456,10 +410,6 @@ def preview_generation(config: GraphConfig):
     print(f"  Brokers: {config.num_brokers}")
     print(f"  Edge Density: {config.edge_density}")
     print(f"  High Availability: {'Yes' if config.high_availability else 'No'}")
-    print(f"  Multi-Zone: {'Yes' if config.multi_zone else 'No'}")
-    if config.multi_zone:
-        print(f"  Zones: {config.num_zones}")
-        print(f"  Regions: {config.num_regions}")
     if config.antipatterns:
         print(f"  Anti-patterns: {', '.join(config.antipatterns)}")
     print(f"  Realistic Topology: {'Yes' if config.realistic_topology else 'No'}")
@@ -515,7 +465,7 @@ Examples:
   %(prog)s --scale small --output system.json
   
   # Large IoT system with HA
-  %(prog)s --scale large --scenario iot --ha --multi-zone --output iot_system.json
+  %(prog)s --scale large --scenario iot --ha -output iot_system.json
   
   # Financial system with anti-patterns
   %(prog)s --scale medium --scenario financial --antipatterns spof broker_overload \\
@@ -555,12 +505,6 @@ Examples:
     # High availability
     parser.add_argument('--ha', action='store_true',
                        help='Enable high availability patterns')
-    parser.add_argument('--multi-zone', action='store_true',
-                       help='Enable multi-zone deployment')
-    parser.add_argument('--num-zones', type=int, default=3,
-                       help='Number of zones (default: 3)')
-    parser.add_argument('--num-regions', type=int, default=1,
-                       help='Number of regions (default: 1)')
     
     # Anti-patterns
     parser.add_argument('--antipatterns', '-a', nargs='+',
@@ -662,9 +606,6 @@ def main():
             num_brokers=args.brokers or scale_params['brokers'],
             edge_density=args.density,
             high_availability=args.ha,
-            multi_zone=args.multi_zone,
-            num_zones=args.num_zones,
-            num_regions=args.num_regions,
             antipatterns=args.antipatterns or [],
             seed=args.seed,
             realistic_topology=not args.no_realistic_topology

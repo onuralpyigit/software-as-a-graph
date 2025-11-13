@@ -272,7 +272,7 @@ class GraphImporter:
                         'id': topic['id'],
                         'name': topic['name'],
                         'message_size_bytes': topic.get('message_size_bytes', 0),
-                        'expected_rate_hz': topic.get('expected_rate_hz', 0),
+                        'message_rate_hz': topic.get('message_rate_hz', 0),
                         'qos_durability': qos.get('durability', 'VOLATILE'),
                         'qos_reliability': qos.get('reliability', 'BEST_EFFORT'),
                         'qos_history_depth': qos.get('history_depth', 1),

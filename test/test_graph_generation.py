@@ -7,10 +7,9 @@ Tests all features of the improved graph generation system:
 2. All domain scenarios
 3. Anti-pattern injection
 4. High availability configurations
-5. Multi-zone deployments
-6. Validation
-7. Export formats
-8. Performance benchmarks
+5. Validation
+6. Export formats
+7. Performance benchmarks
 
 Usage:
     # Run all tests
@@ -70,7 +69,6 @@ class GraphGeneratorTester:
         self.test_scenarios(quick=quick)
         self.test_antipatterns(quick=quick)
         self.test_high_availability()
-        self.test_multi_zone()
         self.test_edge_cases()
         
         self.print_summary()
@@ -159,28 +157,6 @@ class GraphGeneratorTester:
             scenario='healthcare',
             high_availability=True,
             filename='ha_healthcare.json'
-        ))
-    
-    def test_multi_zone(self):
-        """Test multi-zone deployments"""
-        print("\n[5/6] Testing Multi-Zone Deployment")
-        print("-" * 70)
-        
-        self._run_test("Multi-zone: 3 zones", lambda: self._generate_graph(
-            scale='medium',
-            scenario='iot',
-            multi_zone=True,
-            num_zones=3,
-            filename='multizone_3.json'
-        ))
-        
-        self._run_test("Multi-zone: 5 zones, 2 regions", lambda: self._generate_graph(
-            scale='medium',
-            scenario='smart_city',
-            multi_zone=True,
-            num_zones=5,
-            num_regions=2,
-            filename='multizone_5_2.json'
         ))
     
     def test_edge_cases(self):
@@ -330,9 +306,6 @@ class GraphGeneratorTester:
             num_brokers=scale_params['brokers'],
             edge_density=kwargs.get('density', 0.3),
             high_availability=kwargs.get('high_availability', False),
-            multi_zone=kwargs.get('multi_zone', False),
-            num_zones=kwargs.get('num_zones', 3),
-            num_regions=kwargs.get('num_regions', 1),
             antipatterns=kwargs.get('antipatterns', []),
             seed=kwargs.get('seed', 42),
             realistic_topology=True
@@ -391,7 +364,7 @@ class GraphGeneratorTester:
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(description='Test suite for enhanced graph generator')
-    parser.add_argument('--suite', choices=['scales', 'scenarios', 'antipatterns', 'ha', 'multizone', 'edges'],
+    parser.add_argument('--suite', choices=['scales', 'scenarios', 'antipatterns', 'ha', 'edges'],
                        help='Run specific test suite')
     parser.add_argument('--quick', action='store_true',
                        help='Run quick tests only (small graphs)')
@@ -423,8 +396,6 @@ def main():
             tester.test_antipatterns(quick=args.quick)
         elif args.suite == 'ha':
             tester.test_high_availability()
-        elif args.suite == 'multizone':
-            tester.test_multi_zone()
         elif args.suite == 'edges':
             tester.test_edge_cases()
         
