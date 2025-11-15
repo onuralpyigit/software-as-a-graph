@@ -68,14 +68,13 @@ class GraphGeneratorTester:
         self.test_scales(quick=quick)
         self.test_scenarios(quick=quick)
         self.test_antipatterns(quick=quick)
-        self.test_high_availability()
         self.test_edge_cases()
         
         self.print_summary()
     
     def test_scales(self, quick: bool = False):
         """Test all scale presets"""
-        print("\n[1/6] Testing Scale Presets")
+        print("\n[1] Testing Scale Presets")
         print("-" * 70)
         
         scales = ['tiny', 'small', 'medium']
@@ -91,7 +90,7 @@ class GraphGeneratorTester:
     
     def test_scenarios(self, quick: bool = False):
         """Test all domain scenarios"""
-        print("\n[2/6] Testing Domain Scenarios")
+        print("\n[2] Testing Domain Scenarios")
         print("-" * 70)
         
         scenarios = [
@@ -110,7 +109,7 @@ class GraphGeneratorTester:
     
     def test_antipatterns(self, quick: bool = False):
         """Test anti-pattern injection"""
-        print("\n[3/6] Testing Anti-Patterns")
+        print("\n[3] Testing Anti-Patterns")
         print("-" * 70)
         
         antipatterns = [
@@ -140,28 +139,9 @@ class GraphGeneratorTester:
                 filename='antipattern_multiple.json'
             ))
     
-    def test_high_availability(self):
-        """Test high availability configurations"""
-        print("\n[4/6] Testing High Availability")
-        print("-" * 70)
-        
-        self._run_test("HA: Financial", lambda: self._generate_graph(
-            scale='medium',
-            scenario='financial',
-            high_availability=True,
-            filename='ha_financial.json'
-        ))
-        
-        self._run_test("HA: Healthcare", lambda: self._generate_graph(
-            scale='small',
-            scenario='healthcare',
-            high_availability=True,
-            filename='ha_healthcare.json'
-        ))
-    
     def test_edge_cases(self):
         """Test edge cases and boundary conditions"""
-        print("\n[6/6] Testing Edge Cases")
+        print("\n[4] Testing Edge Cases")
         print("-" * 70)
         
         # Minimal graph
@@ -190,7 +170,6 @@ class GraphGeneratorTester:
                 num_topics=15,
                 num_brokers=3,
                 edge_density=0.4,
-                high_availability=False,
                 antipatterns=[],
                 seed=12345
             )
@@ -226,7 +205,6 @@ class GraphGeneratorTester:
                     num_topics=GraphGenerator.SCALES[scale]['topics'],
                     num_brokers=GraphGenerator.SCALES[scale]['brokers'],
                     edge_density=0.3,
-                    high_availability=False,
                     antipatterns=[],
                     seed=42 + i
                 )
@@ -305,10 +283,8 @@ class GraphGeneratorTester:
             num_topics=scale_params['topics'],
             num_brokers=scale_params['brokers'],
             edge_density=kwargs.get('density', 0.3),
-            high_availability=kwargs.get('high_availability', False),
             antipatterns=kwargs.get('antipatterns', []),
-            seed=kwargs.get('seed', 42),
-            realistic_topology=True
+            seed=kwargs.get('seed', 42)
         )
         
         generator = GraphGenerator(config)
@@ -394,8 +370,6 @@ def main():
             tester.test_scenarios(quick=args.quick)
         elif args.suite == 'antipatterns':
             tester.test_antipatterns(quick=args.quick)
-        elif args.suite == 'ha':
-            tester.test_high_availability()
         elif args.suite == 'edges':
             tester.test_edge_cases()
         

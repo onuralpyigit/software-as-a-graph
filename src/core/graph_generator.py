@@ -33,11 +33,8 @@ class GraphConfig:
     num_topics: int
     num_brokers: int
     edge_density: float = 0.3  # 0.0 - 1.0
-    high_availability: bool = False
     antipatterns: List[str] = field(default_factory=list)
     seed: int = 42
-    realistic_topology: bool = True  # Use realistic pub-sub patterns
-
 
 class GraphGenerator:
     """
@@ -219,7 +216,7 @@ class GraphGenerator:
         self._generate_runs_on(graph)
         self._generate_routes(graph)
         
-        if self.config.realistic_topology:
+        if self.config.scenario != 'generic':
             self._generate_realistic_pub_sub(graph)
         else:
             self._generate_random_pub_sub(graph)
@@ -274,15 +271,10 @@ class GraphGenerator:
             # Assign broker to node (distribute across nodes)
             node_id = f'N{nodes[(i-1) % len(nodes)]}'
             
-            # Vary capacity slightly
-            capacity_multiplier = random.uniform(0.8, 1.2)
-            
             broker = {
                 'id': f'B{i}',
                 'name': f'Broker{i}',
-                'node_id': node_id,
-                'max_topics': int(avg_topics_per_broker * capacity_multiplier * 1.5),
-                'max_applications': int(avg_apps_per_broker * capacity_multiplier * 1.5)
+                'node_id': node_id
             }
             brokers.append(broker)
         
@@ -646,8 +638,7 @@ class GraphGenerator:
                         'from': app['id'],
                         'to': topic['id'],
                         'period_ms': int(1000 / actual_rate) if actual_rate > 0 else None,
-                        'msg_size': topic['message_size_bytes'],
-                        'burst_allowed': random.random() < 0.3
+                        'msg_size': topic['message_size_bytes']
                     })
             
             # Subscribers
@@ -666,9 +657,7 @@ class GraphGenerator:
                 for topic in sub_topics:
                     graph['relationships']['subscribes_to'].append({
                         'from': app['id'],
-                        'to': topic['id'],
-                        'queue_size': random.choice([10, 20, 50, 100]),
-                        'take_history': random.random() < 0.3
+                        'to': topic['id']
                     })
     
     def _find_relevant_topics_for_app(self, app_name: str, topics: List[Dict], action: str) -> List[Dict]:
@@ -911,7 +900,6 @@ class GraphGenerator:
         
         for pub in chatty_pubs:
             pub['period_ms'] = 1  # 1000 Hz
-            pub['burst_allowed'] = True
             pub['msg_size'] = random.choice([64, 128, 256])  # Small messages
         
         self.logger.info(f"Applied chatty_communication antipattern to {num_chatty} publishers")
@@ -1003,7 +991,6 @@ class GraphGenerator:
         for topic in graph['topics']:
             topic['num_publishers'] = topic_publishers[topic['id']]
             topic['num_subscribers'] = topic_subscribers[topic['id']]
-            topic['fanout'] = topic['num_subscribers']
         
         # Calculate app connectivity
         app_publishes = defaultdict(int)

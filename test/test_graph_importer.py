@@ -106,9 +106,7 @@ def create_test_graph():
         "brokers": [
             {
                 "id": "B1",
-                "name": "MainBroker",
-                "max_topics": 100,
-                "max_connections": 1000
+                "name": "MainBroker"
             }
         ],
         "relationships": {

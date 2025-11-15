@@ -321,9 +321,7 @@ class GraphImporter:
                         UNWIND $brokers AS broker
                         CREATE (b:Broker {
                             id: broker.id,
-                            name: broker.name,
-                            max_topics: coalesce(broker.max_topics, 100),
-                            max_connections: coalesce(broker.max_connections, 1000)
+                            name: broker.name
                         })
                     """, brokers=batch)
                 except Exception as e:
@@ -542,14 +540,11 @@ class GraphImporter:
             result = session.run("""
                 MATCH (b:Broker)-[:ROUTES]->(t:Topic)
                 WITH b, count(t) as topic_count
-                RETURN b.id, b.name, topic_count, b.max_topics,
-                       100.0 * topic_count / b.max_topics as utilization_pct
-                ORDER BY utilization_pct DESC
+                RETURN b.id, b.name, topic_count
+                ORDER BY topic_count DESC
             """)
             for record in result:
-                print(f"   • {record['b.name']:30s} "
-                      f"({record['topic_count']}/{record['b.max_topics']} topics, "
-                      f"{record['utilization_pct']:.1f}% util)")
+                print(f"   • {record['b.name']:30s} ")
             
             # Query 5: Application dependencies
             print("\n5. Application Dependency Chains:")

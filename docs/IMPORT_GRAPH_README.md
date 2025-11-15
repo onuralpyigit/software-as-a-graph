@@ -283,9 +283,7 @@ CREATE (t:Topic {
 ```cypher
 CREATE (b:Broker {
     id: string,            // Unique identifier
-    name: string,          // Broker name
-    max_topics: int,       // Topic capacity
-    max_connections: int   // Connection capacity
+    name: string          // Broker name
 })
 ```
 
@@ -433,9 +431,8 @@ ORDER BY dependency_count DESC
 ```cypher
 MATCH (b:Broker)-[:ROUTES]->(t:Topic)
 WITH b, count(t) as topic_count
-RETURN b.name, topic_count, b.max_topics,
-       round(100.0 * topic_count / b.max_topics, 2) as utilization_pct
-ORDER BY utilization_pct DESC
+RETURN b.name, topic_count
+ORDER BY topic_count DESC
 ```
 
 ### QoS and Performance

@@ -29,7 +29,6 @@ config = GraphConfig(
     num_applications=50,
     num_topics=25,
     num_brokers=3,
-    high_availability=True,
     antipatterns=['spof']
 )
 

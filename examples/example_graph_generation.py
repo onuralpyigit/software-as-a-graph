@@ -38,7 +38,6 @@ def example_1_basic():
         num_topics=8,
         num_brokers=2,
         edge_density=0.3,
-        high_availability=False,
         antipatterns=[],
         seed=42
     )
@@ -78,10 +77,8 @@ def example_2_realistic_iot():
         num_topics=12,
         num_brokers=2,
         edge_density=0.3,
-        high_availability=False,
         antipatterns=[],
-        seed=42,
-        realistic_topology=True
+        seed=42
     )
     
     generator = GraphGenerator(config)
@@ -133,7 +130,6 @@ def example_3_financial_ha():
         num_topics=25,
         num_brokers=3,
         edge_density=0.3,
-        high_availability=True,
         antipatterns=[],
         seed=42
     )
@@ -176,7 +172,6 @@ def example_4_antipatterns():
         num_topics=10,
         num_brokers=2,
         edge_density=0.3,
-        high_availability=False,
         antipatterns=['spof', 'god_object', 'tight_coupling'],
         seed=42
     )

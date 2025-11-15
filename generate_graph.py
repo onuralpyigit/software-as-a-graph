@@ -219,12 +219,6 @@ def validate_graph(graph: Dict, verbose: bool = False) -> Tuple[bool, List[str],
     for broker in graph['brokers']:
         broker_id = broker['id']
         topic_count = topics_per_broker.get(broker_id, 0)
-        max_topics = broker.get('max_topics', float('inf'))
-        
-        if topic_count > max_topics:
-            errors.append(f"Broker {broker_id} exceeds capacity: {topic_count} > {max_topics}")
-        elif topic_count > max_topics * 0.8:
-            warnings.append(f"Broker {broker_id} near capacity: {topic_count}/{max_topics}")
     
     try:
         builder = GraphBuilder()
@@ -315,7 +309,6 @@ def print_statistics(graph: Dict, config: GraphConfig, generation_time: float):
     print(f"{Colors.BOLD}Configuration:{Colors.ENDC}")
     print(f"  Scale: {config.scale}")
     print(f"  Scenario: {config.scenario}")
-    print(f"  High Availability: {'Yes' if config.high_availability else 'No'}")
     if config.antipatterns:
         print(f"  Anti-patterns: {', '.join(config.antipatterns)}")
     print(f"  Generation Time: {generation_time:.2f}s")
@@ -409,10 +402,8 @@ def preview_generation(config: GraphConfig):
     print(f"  Topics: {config.num_topics}")
     print(f"  Brokers: {config.num_brokers}")
     print(f"  Edge Density: {config.edge_density}")
-    print(f"  High Availability: {'Yes' if config.high_availability else 'No'}")
     if config.antipatterns:
         print(f"  Anti-patterns: {', '.join(config.antipatterns)}")
-    print(f"  Realistic Topology: {'Yes' if config.realistic_topology else 'No'}")
     print(f"  Random Seed: {config.seed}")
     print()
     
@@ -515,8 +506,6 @@ Examples:
     # Generation options
     parser.add_argument('--seed', type=int, default=42,
                        help='Random seed for reproducibility (default: 42)')
-    parser.add_argument('--no-realistic-topology', action='store_true',
-                       help='Disable realistic topology patterns')
     
     # Output options
     parser.add_argument('--output', '-o', default='system.json',
@@ -605,10 +594,8 @@ def main():
             num_topics=args.topics or scale_params['topics'],
             num_brokers=args.brokers or scale_params['brokers'],
             edge_density=args.density,
-            high_availability=args.ha,
             antipatterns=args.antipatterns or [],
-            seed=args.seed,
-            realistic_topology=not args.no_realistic_topology
+            seed=args.seed
         )
         
         # Preview mode

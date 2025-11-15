@@ -111,7 +111,6 @@ def print_sample_data(model):
         for i, (name, broker) in enumerate(list(model.brokers.items())[:3], 1):
             print(f"  {i}. {name}")
             print(f"     Type: {broker.broker_type}")
-            print(f"     Max Topics: {broker.max_topics}")
     
     # Sample infrastructure nodes
     if model.nodes:
