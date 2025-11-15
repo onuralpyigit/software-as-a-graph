@@ -241,12 +241,7 @@ python neo4j_utils.py \
 ```cypher
 CREATE (n:Node {
     id: string,              // Unique identifier
-    name: string,            // Human-readable name
-    cpu_capacity: float,     // CPU cores
-    memory_gb: float,        // RAM in GB
-    network_bandwidth_mbps: float,  // Network bandwidth
-    zone: string,            // Availability zone
-    region: string           // Geographic region
+    name: string             // Human-readable nameü
 })
 ```
 
@@ -255,11 +250,7 @@ CREATE (n:Node {
 CREATE (a:Application {
     id: string,              // Unique identifier
     name: string,            // Application name
-    type: string,            // PRODUCER/CONSUMER/PROSUMER
-    criticality: string,     // CRITICAL/HIGH/MEDIUM/LOW
-    replicas: int,           // Number of replicas
-    cpu_request: float,      // CPU requirement
-    memory_request_mb: float // Memory requirement
+    type: string             // PRODUCER/CONSUMER/PROSUMER
 })
 ```
 
@@ -331,11 +322,8 @@ The system automatically creates:
 
 **Indexes:**
 - `app_type`: Application type
-- `app_criticality`: Application criticality
 - `app_name`: Application name
 - `topic_name`: Topic name
-- `node_zone`: Node zone
-- `node_region`: Node region
 - `broker_name`: Broker name
 
 ## 🔍 Query Examples

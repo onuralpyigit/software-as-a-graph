@@ -207,12 +207,7 @@ class GraphImporter:
                         UNWIND $nodes AS node
                         CREATE (n:Node {
                             id: node.id,
-                            name: node.name,
-                            cpu_capacity: coalesce(node.cpu_capacity, 0.0),
-                            memory_gb: coalesce(node.memory_gb, 0.0),
-                            network_bandwidth_mbps: coalesce(node.network_bandwidth_mbps, 0.0),
-                            zone: coalesce(node.zone, 'unknown'),
-                            region: coalesce(node.region, 'unknown')
+                            name: node.name
                         })
                     """, nodes=batch)
                 except Exception as e:
