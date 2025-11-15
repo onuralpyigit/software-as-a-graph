@@ -80,7 +80,7 @@ def create_test_graph():
                 "id": "T1",
                 "name": "sensor_data",
                 "message_size_bytes": 1024,
-                "expected_rate_hz": 10,
+                "message_rate_hz": 10,
                 "qos": {
                     "durability": "PERSISTENT",
                     "reliability": "RELIABLE",
@@ -93,7 +93,7 @@ def create_test_graph():
                 "id": "T2",
                 "name": "control_commands",
                 "message_size_bytes": 512,
-                "expected_rate_hz": 5,
+                "message_rate_hz": 5,
                 "qos": {
                     "durability": "VOLATILE",
                     "reliability": "BEST_EFFORT",
@@ -207,9 +207,8 @@ def test_import():
             expected = {
                 'nodes': {'Node': 2, 'Application': 3, 'Topic': 2, 'Broker': 1, 'total': 8},
                 'relationships': {'RUNS_ON': 3, 'PUBLISHES_TO': 2, 'SUBSCRIBES_TO': 2, 
-                                'ROUTES': 2, 'DEPENDS_ON': 2, 'total': 11}
-            }
-            
+                                'ROUTES': 2, 'DEPENDS_ON': 2, 'CONNECTS_TO': 1, 'total': 12}
+            }   
             print("\nVerifying counts:")
             all_match = True
             for category in ['nodes', 'relationships']:
@@ -265,11 +264,6 @@ def test_queries():
                 'name': 'Count Dependencies',
                 'query': 'MATCH ()-[r:DEPENDS_ON]->() RETURN count(r) as count',
                 'expected': 2
-            },
-            {
-                'name': 'Find Critical Apps',
-                'query': 'MATCH (a:Application) WHERE a.criticality = "CRITICAL" RETURN count(a) as count',
-                'expected': 1
             },
             {
                 'name': 'Find Producers',
@@ -334,7 +328,7 @@ def test_schema():
             result = session.run("SHOW INDEXES")
             indexes = [record['name'] for record in result if 'name' in record.keys()]
             
-            expected_indexes = ['app_type', 'app_criticality', 'topic_name', 'node_zone']
+            expected_indexes = ['app_type', 'topic_name']
             for index in expected_indexes:
                 if any(index in i for i in indexes):
                     print(f"  ✓ Index exists: {index}")

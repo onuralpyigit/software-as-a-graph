@@ -234,11 +234,7 @@ class GraphImporter:
                         CREATE (a:Application {
                             id: app.id,
                             name: app.name,
-                            type: coalesce(app.type, 'UNKNOWN'),
-                            criticality: coalesce(app.criticality, 'MEDIUM'),
-                            replicas: coalesce(app.replicas, 1),
-                            cpu_request: coalesce(app.cpu_request, 0.0),
-                            memory_request_mb: coalesce(app.memory_request_mb, 0.0)
+                            type: coalesce(app.type, 'UNKNOWN')
                         })
                     """, apps=batch)
                 except Exception as e:
@@ -284,7 +280,7 @@ class GraphImporter:
                             id: topic.id,
                             name: topic.name,
                             message_size_bytes: topic.message_size_bytes,
-                            expected_rate_hz: topic.expected_rate_hz,
+                            message_rate_hz: topic.message_rate_hz,
                             qos_durability: topic.qos_durability,
                             qos_reliability: topic.qos_reliability,
                             qos_history_depth: topic.qos_history_depth,
@@ -432,21 +428,43 @@ class GraphImporter:
         self.logger.info(f"  ✓ Imported {len(relationships)} ROUTES")
     
     def _derive_dependencies(self):
-        """Derive DEPENDS_ON relationships from pub-sub patterns"""
         self.logger.info("Deriving DEPENDS_ON relationships...")
-        
+        self._derive_depends_on_dependencies()
+
+        self.logger.info("Deriving CONNECTS_TO relationships...")
+        self._derive_connects_to_dependencies()
+
+
+    def _derive_depends_on_dependencies(self):   
+        """Derive DEPENDS_ON relationships from pub-sub patterns"""
         with self.driver.session(database=self.database) as session:
             # Application depends on publisher if it subscribes to their topic
             result = session.run("""
                 MATCH (consumer:Application)-[:SUBSCRIBES_TO]->(t:Topic)
                       <-[:PUBLISHES_TO]-(producer:Application)
                 WHERE consumer.id <> producer.id
-                MERGE (consumer)-[:DEPENDS_ON]->(producer)
+                MERGE (consumer)-[:DEPENDS_ON { topic: t.id }]->(producer)
                 RETURN count(*) as count
             """)
             
             count = result.single()["count"]
             self.logger.info(f"  ✓ Derived {count} DEPENDS_ON relationships")
+
+    def _derive_connects_to_dependencies(self):   
+        """Derive CONNECTS_TO relationships from network patterns"""
+        with self.driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (n1:Node)<-[:RUNS_ON]-(a1:Application)-[d:DEPENDS_ON]->(a2:Application)-[:RUNS_ON]->(n2:Node)
+                WHERE n1 <> n2
+                MERGE (n1)-[c:CONNECTS_TO {
+                                subscriber_app: a1.id,
+                                publisher_app: a2.id
+                                 }]->(n2)
+                RETURN count(*) as count
+            """)
+
+            count = result.single()["count"]
+            self.logger.info(f"  ✓ Derived {count} CONNECTS_TO relationships")
     
     def get_statistics(self) -> Dict:
         """Get comprehensive graph statistics"""
@@ -463,6 +481,7 @@ class GraphImporter:
             subscribes = session.run("MATCH ()-[r:SUBSCRIBES_TO]->() RETURN count(r) as count").single()["count"]
             routes = session.run("MATCH ()-[r:ROUTES]->() RETURN count(r) as count").single()["count"]
             depends = session.run("MATCH ()-[r:DEPENDS_ON]->() RETURN count(r) as count").single()["count"]
+            connects = session.run("MATCH ()-[r:CONNECTS_TO]->() RETURN count(r) as count").single()["count"]
             
             return {
                 'nodes': {
@@ -478,7 +497,8 @@ class GraphImporter:
                     'SUBSCRIBES_TO': subscribes,
                     'ROUTES': routes,
                     'DEPENDS_ON': depends,
-                    'total': runs_on + publishes + subscribes + routes + depends
+                    'CONNECTS_TO': connects,
+                    'total': runs_on + publishes + subscribes + routes + depends + connects
                 }
             }
     
@@ -598,9 +618,9 @@ class GraphImporter:
             print("\n8. High-Frequency Topics (>50 Hz):")
             result = session.run("""
                 MATCH (t:Topic)
-                WHERE t.expected_rate_hz >= 50
-                WITH t, t.expected_rate_hz * t.message_size_bytes / 1024.0 as throughput_kb_s
-                RETURN t.id, t.name, t.expected_rate_hz, 
+                WHERE t.message_rate_hz >= 50
+                WITH t, t.message_rate_hz * t.message_size_bytes / 1024.0 as throughput_kb_s
+                RETURN t.id, t.name, t.message_rate_hz, 
                        t.message_size_bytes, throughput_kb_s
                 ORDER BY throughput_kb_s DESC
                 LIMIT 5
@@ -699,7 +719,7 @@ class GraphImporter:
             print("\n📈 Topic Throughput Summary:")
             result = session.run("""
                 MATCH (t:Topic)
-                WITH t.expected_rate_hz * t.message_size_bytes / 1024.0 / 1024.0 as throughput_mb_s
+                WITH t.message_rate_hz * t.message_size_bytes / 1024.0 / 1024.0 as throughput_mb_s
                 RETURN 
                     count(*) as total_topics,
                     round(avg(throughput_mb_s), 2) as avg_throughput_mb_s,

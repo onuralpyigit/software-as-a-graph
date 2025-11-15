@@ -59,8 +59,7 @@ class GraphBuilder:
                 "publishes": [...],    // or "publishes_to"
                 "subscribes": [...],   // or "subscribes_to"
                 "routes": [...],
-                "runs_on": [...],
-                "connects_to": [...]
+                "runs_on": [...]
             }
         }
         
@@ -122,7 +121,6 @@ class GraphBuilder:
         self._add_subscribes_edges(model, edges)
         self._add_routes_edges(model, edges)
         self._add_runs_on_edges(model, edges)
-        self._add_connects_to_edges(model, edges)
         
         # Step 3: Derive DEPENDS_ON relationships
         self._derive_dependencies(model)
@@ -382,37 +380,6 @@ class GraphBuilder:
                 
             except Exception as e:
                 self.errors.append(f"RunsOn edge {idx}: {str(e)}")
-    
-    def _add_connects_to_edges(self, model: GraphModel, edges: Dict):
-        """Add connects_to edges with flexible field mapping"""
-        connects_data = edges.get('connects_to', [])
-        
-        for idx, edge_data in enumerate(connects_data):
-            try:
-                # Support both from/to and source/target
-                source = edge_data.get('source') or edge_data.get('from')
-                target = edge_data.get('target') or edge_data.get('to')
-                
-                if not source or not target:
-                    self.errors.append(f"ConnectsTo edge {idx}: missing source or target")
-                    continue
-                
-                # Validate references
-                if source not in model.brokers:
-                    self.warnings.append(f"ConnectsTo edge {idx}: unknown broker '{source}'")
-                if target not in model.brokers:
-                    self.warnings.append(f"ConnectsTo edge {idx}: unknown broker '{target}'")
-                
-                edge = ConnectsToEdge(
-                    source=source,
-                    target=target,
-                    **{k: v for k, v in edge_data.items() 
-                       if k not in ['source', 'target', 'from', 'to']}
-                )
-                model.connects_to_edges.append(edge)
-                
-            except Exception as e:
-                self.errors.append(f"ConnectsTo edge {idx}: {str(e)}")
     
     # ========================================================================
     # Dependency Derivation
