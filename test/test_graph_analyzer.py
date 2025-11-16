@@ -23,6 +23,7 @@ import os
 from pathlib import Path
 import subprocess
 
+# Add src to path
 sys.path.insert(0, str(Path(__file__).parent / '..'))
 
 # Test graph generators
