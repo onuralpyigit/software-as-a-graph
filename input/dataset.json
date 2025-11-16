@@ -1,19 +1,19 @@
 {
   "metadata": {
-    "generated_at": "2025-11-16T12:17:21.395174",
+    "generated_at": "2025-11-16T20:20:58.898344",
     "generator_version": "2.0",
     "config": {
-      "scale": "small",
-      "scenario": "generic",
-      "num_nodes": 5,
-      "num_applications": 10,
-      "num_topics": 8,
-      "num_brokers": 2,
+      "scale": "medium",
+      "scenario": "financial",
+      "num_nodes": 15,
+      "num_applications": 50,
+      "num_topics": 25,
+      "num_brokers": 3,
       "edge_density": 0.3,
       "antipatterns": [],
       "seed": 42
     },
-    "description": "small scale generic system"
+    "description": "medium scale financial system"
   },
   "nodes": [
     {
@@ -35,6 +35,46 @@
     {
       "id": "N5",
       "name": "Node5"
+    },
+    {
+      "id": "N6",
+      "name": "Node6"
+    },
+    {
+      "id": "N7",
+      "name": "Node7"
+    },
+    {
+      "id": "N8",
+      "name": "Node8"
+    },
+    {
+      "id": "N9",
+      "name": "Node9"
+    },
+    {
+      "id": "N10",
+      "name": "Node10"
+    },
+    {
+      "id": "N11",
+      "name": "Node11"
+    },
+    {
+      "id": "N12",
+      "name": "Node12"
+    },
+    {
+      "id": "N13",
+      "name": "Node13"
+    },
+    {
+      "id": "N14",
+      "name": "Node14"
+    },
+    {
+      "id": "N15",
+      "name": "Node15"
     }
   ],
   "brokers": [
@@ -47,115 +87,216 @@
       "id": "B2",
       "name": "Broker2",
       "node_id": "N2"
+    },
+    {
+      "id": "B3",
+      "name": "Broker3",
+      "node_id": "N3"
     }
   ],
   "topics": [
     {
       "id": "T1",
-      "name": "commands/sub2_1",
+      "name": "price/quote_1",
       "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "history_depth": 1,
-        "deadline_ms": null,
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 10,
+        "deadline_ms": 50,
         "lifespan_ms": null,
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
-      "message_size_bytes": 256,
-      "message_rate_hz": 1,
-      "num_publishers": 0,
+      "message_size_bytes": 64,
+      "message_rate_hz": 5,
+      "num_publishers": 1,
       "num_subscribers": 0
     },
     {
       "id": "T2",
-      "name": "status_2",
+      "name": "price/indicative_2",
       "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "history_depth": 1,
-        "deadline_ms": null,
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 10,
+        "deadline_ms": 100,
         "lifespan_ms": null,
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
-      "message_size_bytes": 4096,
-      "message_rate_hz": 50,
+      "message_size_bytes": 64,
+      "message_rate_hz": 1,
       "num_publishers": 1,
       "num_subscribers": 0
     },
     {
       "id": "T3",
-      "name": "logs/sub2_3",
+      "name": "order/cancel_3",
       "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "history_depth": 1,
-        "deadline_ms": null,
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 10,
         "lifespan_ms": null,
-        "transport_priority": "MEDIUM"
+        "transport_priority": "URGENT"
       },
-      "message_size_bytes": 128,
-      "message_rate_hz": 0.1,
-      "num_publishers": 1,
+      "message_size_bytes": 256,
+      "message_rate_hz": 500,
+      "num_publishers": 6,
       "num_subscribers": 0
     },
     {
       "id": "T4",
-      "name": "commands/sub3_4",
+      "name": "risk/breach_4",
       "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "history_depth": 1,
-        "deadline_ms": null,
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 10,
+        "deadline_ms": 10,
         "lifespan_ms": null,
-        "transport_priority": "MEDIUM"
+        "transport_priority": "URGENT"
       },
-      "message_size_bytes": 2048,
-      "message_rate_hz": 0.1,
-      "num_publishers": 0,
-      "num_subscribers": 0
-    },
-    {
-      "id": "T5",
-      "name": "logs/sub3_5",
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "history_depth": 1,
-        "deadline_ms": null,
-        "lifespan_ms": null,
-        "transport_priority": "MEDIUM"
-      },
-      "message_size_bytes": 4096,
-      "message_rate_hz": 20,
+      "message_size_bytes": 512,
+      "message_rate_hz": 10,
       "num_publishers": 2,
       "num_subscribers": 0
     },
     {
-      "id": "T6",
-      "name": "config/sub3_6",
+      "id": "T5",
+      "name": "order/new_5",
       "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "history_depth": 1,
-        "deadline_ms": null,
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 10,
         "lifespan_ms": null,
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
       "message_size_bytes": 512,
-      "message_rate_hz": 100,
+      "message_rate_hz": 10,
       "num_publishers": 4,
       "num_subscribers": 0
     },
     {
-      "id": "T7",
-      "name": "events_7",
+      "id": "T6",
+      "name": "trade/execution_6",
       "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "history_depth": 1,
-        "deadline_ms": null,
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 10,
         "lifespan_ms": null,
-        "transport_priority": "MEDIUM"
+        "transport_priority": "URGENT"
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 1,
+      "num_publishers": 1,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T7",
+      "name": "compliance/alert_7",
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 10,
+        "deadline_ms": 50,
+        "lifespan_ms": null,
+        "transport_priority": "URGENT"
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 5,
+      "num_publishers": 1,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T8",
+      "name": "price/indicative_8",
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 10,
+        "deadline_ms": 10,
+        "lifespan_ms": null,
+        "transport_priority": "URGENT"
+      },
+      "message_size_bytes": 64,
+      "message_rate_hz": 5,
+      "num_publishers": 3,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T9",
+      "name": "audit/trail_9",
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 50,
+        "lifespan_ms": null,
+        "transport_priority": "URGENT"
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 10,
+      "num_publishers": 1,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T10",
+      "name": "order/new_10",
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 10,
+        "lifespan_ms": null,
+        "transport_priority": "URGENT"
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 10,
+      "num_publishers": 3,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T11",
+      "name": "risk/breach_11",
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 20,
+        "deadline_ms": 10,
+        "lifespan_ms": null,
+        "transport_priority": "URGENT"
+      },
+      "message_size_bytes": 512,
+      "message_rate_hz": 10,
+      "num_publishers": 0,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T12",
+      "name": "compliance/alert_12",
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 50,
+        "deadline_ms": 5,
+        "lifespan_ms": null,
+        "transport_priority": "HIGH"
+      },
+      "message_size_bytes": 256,
+      "message_rate_hz": 10,
+      "num_publishers": 3,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T13",
+      "name": "trade/confirmation_13",
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 10,
+        "lifespan_ms": null,
+        "transport_priority": "URGENT"
       },
       "message_size_bytes": 256,
       "message_rate_hz": 50,
@@ -163,18 +304,194 @@
       "num_subscribers": 0
     },
     {
-      "id": "T8",
-      "name": "config_8",
+      "id": "T14",
+      "name": "trade/confirmation_14",
       "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "history_depth": 1,
-        "deadline_ms": null,
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 10,
         "lifespan_ms": null,
-        "transport_priority": "MEDIUM"
+        "transport_priority": "HIGH"
       },
       "message_size_bytes": 256,
+      "message_rate_hz": 10,
+      "num_publishers": 2,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T15",
+      "name": "price/indicative_15",
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 50,
+        "lifespan_ms": null,
+        "transport_priority": "HIGH"
+      },
+      "message_size_bytes": 64,
+      "message_rate_hz": 50,
+      "num_publishers": 1,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T16",
+      "name": "market/data/L2_16",
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 10,
+        "deadline_ms": 10,
+        "lifespan_ms": null,
+        "transport_priority": "HIGH"
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 5000,
+      "num_publishers": 2,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T17",
+      "name": "risk/breach_17",
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 100,
+        "lifespan_ms": null,
+        "transport_priority": "URGENT"
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 10,
+      "num_publishers": 1,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T18",
+      "name": "risk/limit_18",
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 10,
+        "deadline_ms": 50,
+        "lifespan_ms": null,
+        "transport_priority": "URGENT"
+      },
+      "message_size_bytes": 256,
+      "message_rate_hz": 10,
+      "num_publishers": 1,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T19",
+      "name": "trade/confirmation_19",
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 10,
+        "lifespan_ms": null,
+        "transport_priority": "URGENT"
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 5,
+      "num_publishers": 0,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T20",
+      "name": "risk/limit_20",
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 50,
+        "deadline_ms": 10,
+        "lifespan_ms": null,
+        "transport_priority": "HIGH"
+      },
+      "message_size_bytes": 512,
+      "message_rate_hz": 5,
+      "num_publishers": 2,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T21",
+      "name": "risk/limit_21",
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 50,
+        "deadline_ms": 100,
+        "lifespan_ms": null,
+        "transport_priority": "HIGH"
+      },
+      "message_size_bytes": 256,
+      "message_rate_hz": 10,
+      "num_publishers": 0,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T22",
+      "name": "compliance/alert_22",
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 20,
+        "deadline_ms": 5,
+        "lifespan_ms": null,
+        "transport_priority": "HIGH"
+      },
+      "message_size_bytes": 1024,
       "message_rate_hz": 1,
+      "num_publishers": 1,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T23",
+      "name": "market/data/L2_23",
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 10,
+        "deadline_ms": 10,
+        "lifespan_ms": null,
+        "transport_priority": "HIGH"
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 5000,
+      "num_publishers": 4,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T24",
+      "name": "risk/limit_24",
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "history_depth": 50,
+        "deadline_ms": 100,
+        "lifespan_ms": null,
+        "transport_priority": "HIGH"
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 5,
+      "num_publishers": 0,
+      "num_subscribers": 0
+    },
+    {
+      "id": "T25",
+      "name": "price/indicative_25",
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "history_depth": 100,
+        "deadline_ms": 50,
+        "lifespan_ms": null,
+        "transport_priority": "URGENT"
+      },
+      "message_size_bytes": 256,
+      "message_rate_hz": 50,
       "num_publishers": 1,
       "num_subscribers": 0
     }
@@ -182,178 +499,806 @@
   "applications": [
     {
       "id": "A1",
-      "name": "ServiceA_1",
-      "type": "PROSUMER",
-      "num_topics_published": 1,
-      "num_topics_subscribed": 2
-    },
-    {
-      "id": "A2",
-      "name": "Logger_2",
-      "type": "PROSUMER",
-      "num_topics_published": 2,
-      "num_topics_subscribed": 2
-    },
-    {
-      "id": "A3",
-      "name": "Monitor_3",
+      "name": "MarketDataFeed_1",
       "type": "PROSUMER",
       "num_topics_published": 2,
       "num_topics_subscribed": 1
     },
     {
+      "id": "A2",
+      "name": "TradeExecutor_2",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A3",
+      "name": "TradeExecutor_3",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
       "id": "A4",
-      "name": "Gateway_4",
+      "name": "TradeExecutor_4",
       "type": "CONSUMER",
       "num_topics_published": 0,
       "num_topics_subscribed": 1
     },
     {
       "id": "A5",
-      "name": "ServiceB_5",
-      "type": "PRODUCER",
-      "num_topics_published": 2,
-      "num_topics_subscribed": 0
+      "name": "ReportGenerator_5",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
     },
     {
       "id": "A6",
-      "name": "Aggregator_6",
+      "name": "AuditLogger_6",
       "type": "PRODUCER",
       "num_topics_published": 1,
       "num_topics_subscribed": 0
     },
     {
       "id": "A7",
-      "name": "ServiceB_7",
+      "name": "RiskEngine_7",
       "type": "CONSUMER",
       "num_topics_published": 0,
       "num_topics_subscribed": 1
     },
     {
       "id": "A8",
-      "name": "Gateway_8",
+      "name": "PricingEngine_8",
       "type": "PROSUMER",
       "num_topics_published": 1,
-      "num_topics_subscribed": 2
+      "num_topics_subscribed": 1
     },
     {
       "id": "A9",
-      "name": "EventHandler_9",
+      "name": "RiskEngine_9",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A10",
+      "name": "PositionTracker_10",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A11",
+      "name": "AuditLogger_11",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A12",
+      "name": "TradeExecutor_12",
       "type": "PRODUCER",
       "num_topics_published": 1,
       "num_topics_subscribed": 0
     },
     {
-      "id": "A10",
-      "name": "Validator_10",
+      "id": "A13",
+      "name": "MarketDataFeed_13",
+      "type": "PROSUMER",
+      "num_topics_published": 2,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A14",
+      "name": "AuditLogger_14",
       "type": "CONSUMER",
       "num_topics_published": 0,
       "num_topics_subscribed": 1
+    },
+    {
+      "id": "A15",
+      "name": "ReportGenerator_15",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A16",
+      "name": "MarketDataFeed_16",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 2
+    },
+    {
+      "id": "A17",
+      "name": "OrderProcessor_17",
+      "type": "PROSUMER",
+      "num_topics_published": 3,
+      "num_topics_subscribed": 2
+    },
+    {
+      "id": "A18",
+      "name": "MatchingEngine_18",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A19",
+      "name": "ReportGenerator_19",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A20",
+      "name": "OrderProcessor_20",
+      "type": "PROSUMER",
+      "num_topics_published": 2,
+      "num_topics_subscribed": 3
+    },
+    {
+      "id": "A21",
+      "name": "MarketDataFeed_21",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 2
+    },
+    {
+      "id": "A22",
+      "name": "TradeExecutor_22",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A23",
+      "name": "RiskEngine_23",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A24",
+      "name": "PricingEngine_24",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A25",
+      "name": "AuditLogger_25",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A26",
+      "name": "AuditLogger_26",
+      "type": "PRODUCER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 0
+    },
+    {
+      "id": "A27",
+      "name": "TradeExecutor_27",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A28",
+      "name": "PricingEngine_28",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A29",
+      "name": "OrderProcessor_29",
+      "type": "PRODUCER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 0
+    },
+    {
+      "id": "A30",
+      "name": "RiskEngine_30",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A31",
+      "name": "PricingEngine_31",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A32",
+      "name": "OrderProcessor_32",
+      "type": "PROSUMER",
+      "num_topics_published": 3,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A33",
+      "name": "PricingEngine_33",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A34",
+      "name": "PositionTracker_34",
+      "type": "PRODUCER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 0
+    },
+    {
+      "id": "A35",
+      "name": "AuditLogger_35",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A36",
+      "name": "PositionTracker_36",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A37",
+      "name": "PricingEngine_37",
+      "type": "PRODUCER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 0
+    },
+    {
+      "id": "A38",
+      "name": "SettlementService_38",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A39",
+      "name": "SettlementService_39",
+      "type": "PRODUCER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 0
+    },
+    {
+      "id": "A40",
+      "name": "ReportGenerator_40",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A41",
+      "name": "MatchingEngine_41",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A42",
+      "name": "SettlementService_42",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A43",
+      "name": "AuditLogger_43",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A44",
+      "name": "RiskEngine_44",
+      "type": "PROSUMER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A45",
+      "name": "TradeExecutor_45",
+      "type": "PRODUCER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 0
+    },
+    {
+      "id": "A46",
+      "name": "PositionTracker_46",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 1
+    },
+    {
+      "id": "A47",
+      "name": "TradeExecutor_47",
+      "type": "PRODUCER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 0
+    },
+    {
+      "id": "A48",
+      "name": "OrderProcessor_48",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 3
+    },
+    {
+      "id": "A49",
+      "name": "OrderBookManager_49",
+      "type": "CONSUMER",
+      "num_topics_published": 0,
+      "num_topics_subscribed": 3
+    },
+    {
+      "id": "A50",
+      "name": "SettlementService_50",
+      "type": "PRODUCER",
+      "num_topics_published": 1,
+      "num_topics_subscribed": 0
     }
   ],
   "relationships": {
     "publishes_to": [
       {
         "from": "A1",
-        "to": "T7",
-        "period_ms": 20,
-        "msg_size": 256
+        "to": "T23",
+        "period_ms": 0,
+        "msg_size": 1024
+      },
+      {
+        "from": "A1",
+        "to": "T16",
+        "period_ms": 0,
+        "msg_size": 1024
       },
       {
         "from": "A2",
+        "to": "T20",
+        "period_ms": 166,
+        "msg_size": 512
+      },
+      {
+        "from": "A3",
         "to": "T3",
-        "period_ms": 10000,
-        "msg_size": 128
-      },
-      {
-        "from": "A2",
-        "to": "T8",
-        "period_ms": 1000,
+        "period_ms": 1,
         "msg_size": 256
       },
       {
-        "from": "A3",
-        "to": "T2",
-        "period_ms": 20,
-        "msg_size": 4096
-      },
-      {
-        "from": "A3",
-        "to": "T5",
-        "period_ms": 50,
-        "msg_size": 4096
-      },
-      {
         "from": "A5",
         "to": "T5",
-        "period_ms": 50,
-        "msg_size": 4096
-      },
-      {
-        "from": "A5",
-        "to": "T6",
-        "period_ms": 10,
+        "period_ms": 85,
         "msg_size": 512
       },
       {
         "from": "A6",
-        "to": "T6",
-        "period_ms": 10,
-        "msg_size": 512
+        "to": "T8",
+        "period_ms": 211,
+        "msg_size": 64
       },
       {
         "from": "A8",
-        "to": "T6",
-        "period_ms": 10,
+        "to": "T15",
+        "period_ms": 17,
+        "msg_size": 64
+      },
+      {
+        "from": "A12",
+        "to": "T17",
+        "period_ms": 124,
+        "msg_size": 1024
+      },
+      {
+        "from": "A13",
+        "to": "T16",
+        "period_ms": 0,
+        "msg_size": 1024
+      },
+      {
+        "from": "A13",
+        "to": "T23",
+        "period_ms": 0,
+        "msg_size": 1024
+      },
+      {
+        "from": "A15",
+        "to": "T20",
+        "period_ms": 226,
         "msg_size": 512
       },
       {
-        "from": "A9",
-        "to": "T6",
-        "period_ms": 10,
+        "from": "A16",
+        "to": "T23",
+        "period_ms": 0,
+        "msg_size": 1024
+      },
+      {
+        "from": "A17",
+        "to": "T5",
+        "period_ms": 124,
         "msg_size": 512
+      },
+      {
+        "from": "A17",
+        "to": "T10",
+        "period_ms": 90,
+        "msg_size": 1024
+      },
+      {
+        "from": "A17",
+        "to": "T3",
+        "period_ms": 1,
+        "msg_size": 256
+      },
+      {
+        "from": "A20",
+        "to": "T10",
+        "period_ms": 118,
+        "msg_size": 1024
+      },
+      {
+        "from": "A20",
+        "to": "T3",
+        "period_ms": 1,
+        "msg_size": 256
+      },
+      {
+        "from": "A21",
+        "to": "T23",
+        "period_ms": 0,
+        "msg_size": 1024
+      },
+      {
+        "from": "A24",
+        "to": "T22",
+        "period_ms": 1111,
+        "msg_size": 1024
+      },
+      {
+        "from": "A26",
+        "to": "T25",
+        "period_ms": 19,
+        "msg_size": 256
+      },
+      {
+        "from": "A27",
+        "to": "T14",
+        "period_ms": 84,
+        "msg_size": 256
+      },
+      {
+        "from": "A28",
+        "to": "T5",
+        "period_ms": 85,
+        "msg_size": 512
+      },
+      {
+        "from": "A29",
+        "to": "T3",
+        "period_ms": 1,
+        "msg_size": 256
+      },
+      {
+        "from": "A30",
+        "to": "T1",
+        "period_ms": 229,
+        "msg_size": 64
+      },
+      {
+        "from": "A32",
+        "to": "T10",
+        "period_ms": 115,
+        "msg_size": 1024
+      },
+      {
+        "from": "A32",
+        "to": "T3",
+        "period_ms": 1,
+        "msg_size": 256
+      },
+      {
+        "from": "A32",
+        "to": "T5",
+        "period_ms": 104,
+        "msg_size": 512
+      },
+      {
+        "from": "A33",
+        "to": "T8",
+        "period_ms": 227,
+        "msg_size": 64
+      },
+      {
+        "from": "A34",
+        "to": "T12",
+        "period_ms": 108,
+        "msg_size": 256
+      },
+      {
+        "from": "A35",
+        "to": "T8",
+        "period_ms": 224,
+        "msg_size": 64
+      },
+      {
+        "from": "A36",
+        "to": "T7",
+        "period_ms": 208,
+        "msg_size": 1024
+      },
+      {
+        "from": "A37",
+        "to": "T3",
+        "period_ms": 1,
+        "msg_size": 256
+      },
+      {
+        "from": "A38",
+        "to": "T9",
+        "period_ms": 106,
+        "msg_size": 1024
+      },
+      {
+        "from": "A39",
+        "to": "T13",
+        "period_ms": 18,
+        "msg_size": 256
+      },
+      {
+        "from": "A40",
+        "to": "T18",
+        "period_ms": 107,
+        "msg_size": 256
+      },
+      {
+        "from": "A41",
+        "to": "T4",
+        "period_ms": 86,
+        "msg_size": 512
+      },
+      {
+        "from": "A42",
+        "to": "T6",
+        "period_ms": 968,
+        "msg_size": 1024
+      },
+      {
+        "from": "A43",
+        "to": "T2",
+        "period_ms": 1185,
+        "msg_size": 64
+      },
+      {
+        "from": "A44",
+        "to": "T12",
+        "period_ms": 91,
+        "msg_size": 256
+      },
+      {
+        "from": "A45",
+        "to": "T14",
+        "period_ms": 95,
+        "msg_size": 256
+      },
+      {
+        "from": "A47",
+        "to": "T4",
+        "period_ms": 104,
+        "msg_size": 512
+      },
+      {
+        "from": "A50",
+        "to": "T12",
+        "period_ms": 102,
+        "msg_size": 256
       }
     ],
     "subscribes_to": [
       {
         "from": "A1",
-        "to": "T8"
-      },
-      {
-        "from": "A1",
-        "to": "T6"
+        "to": "T23"
       },
       {
         "from": "A2",
         "to": "T4"
-      },
-      {
-        "from": "A2",
-        "to": "T6"
       },
       {
         "from": "A3",
-        "to": "T4"
+        "to": "T17"
       },
       {
         "from": "A4",
-        "to": "T8"
+        "to": "T9"
+      },
+      {
+        "from": "A5",
+        "to": "T3"
       },
       {
         "from": "A7",
-        "to": "T4"
+        "to": "T6"
       },
       {
         "from": "A8",
-        "to": "T5"
+        "to": "T23"
       },
       {
-        "from": "A8",
-        "to": "T1"
+        "from": "A9",
+        "to": "T10"
       },
       {
         "from": "A10",
+        "to": "T20"
+      },
+      {
+        "from": "A11",
+        "to": "T21"
+      },
+      {
+        "from": "A13",
+        "to": "T23"
+      },
+      {
+        "from": "A14",
+        "to": "T10"
+      },
+      {
+        "from": "A15",
+        "to": "T11"
+      },
+      {
+        "from": "A16",
+        "to": "T16"
+      },
+      {
+        "from": "A16",
+        "to": "T23"
+      },
+      {
+        "from": "A17",
+        "to": "T3"
+      },
+      {
+        "from": "A17",
+        "to": "T5"
+      },
+      {
+        "from": "A18",
+        "to": "T18"
+      },
+      {
+        "from": "A19",
+        "to": "T23"
+      },
+      {
+        "from": "A20",
+        "to": "T3"
+      },
+      {
+        "from": "A20",
+        "to": "T10"
+      },
+      {
+        "from": "A20",
+        "to": "T5"
+      },
+      {
+        "from": "A21",
+        "to": "T23"
+      },
+      {
+        "from": "A21",
+        "to": "T16"
+      },
+      {
+        "from": "A22",
+        "to": "T12"
+      },
+      {
+        "from": "A23",
+        "to": "T7"
+      },
+      {
+        "from": "A24",
+        "to": "T4"
+      },
+      {
+        "from": "A25",
+        "to": "T12"
+      },
+      {
+        "from": "A27",
+        "to": "T24"
+      },
+      {
+        "from": "A28",
         "to": "T8"
+      },
+      {
+        "from": "A30",
+        "to": "T11"
+      },
+      {
+        "from": "A31",
+        "to": "T14"
+      },
+      {
+        "from": "A32",
+        "to": "T5"
+      },
+      {
+        "from": "A33",
+        "to": "T15"
+      },
+      {
+        "from": "A35",
+        "to": "T22"
+      },
+      {
+        "from": "A36",
+        "to": "T9"
+      },
+      {
+        "from": "A38",
+        "to": "T17"
+      },
+      {
+        "from": "A40",
+        "to": "T1"
+      },
+      {
+        "from": "A41",
+        "to": "T9"
+      },
+      {
+        "from": "A42",
+        "to": "T9"
+      },
+      {
+        "from": "A43",
+        "to": "T14"
+      },
+      {
+        "from": "A44",
+        "to": "T11"
+      },
+      {
+        "from": "A46",
+        "to": "T17"
+      },
+      {
+        "from": "A48",
+        "to": "T3"
+      },
+      {
+        "from": "A48",
+        "to": "T5"
+      },
+      {
+        "from": "A48",
+        "to": "T10"
+      },
+      {
+        "from": "A49",
+        "to": "T5"
+      },
+      {
+        "from": "A49",
+        "to": "T3"
+      },
+      {
+        "from": "A49",
+        "to": "T10"
       }
     ],
     "routes": [
@@ -368,22 +1313,22 @@
         "role": "primary"
       },
       {
-        "from": "B1",
+        "from": "B3",
         "to": "T3",
         "role": "primary"
       },
       {
-        "from": "B2",
+        "from": "B1",
         "to": "T4",
         "role": "primary"
       },
       {
-        "from": "B1",
+        "from": "B2",
         "to": "T5",
         "role": "primary"
       },
       {
-        "from": "B2",
+        "from": "B3",
         "to": "T6",
         "role": "primary"
       },
@@ -396,24 +1341,109 @@
         "from": "B2",
         "to": "T8",
         "role": "primary"
+      },
+      {
+        "from": "B3",
+        "to": "T9",
+        "role": "primary"
+      },
+      {
+        "from": "B1",
+        "to": "T10",
+        "role": "primary"
+      },
+      {
+        "from": "B2",
+        "to": "T11",
+        "role": "primary"
+      },
+      {
+        "from": "B3",
+        "to": "T12",
+        "role": "primary"
+      },
+      {
+        "from": "B1",
+        "to": "T13",
+        "role": "primary"
+      },
+      {
+        "from": "B2",
+        "to": "T14",
+        "role": "primary"
+      },
+      {
+        "from": "B3",
+        "to": "T15",
+        "role": "primary"
+      },
+      {
+        "from": "B1",
+        "to": "T16",
+        "role": "primary"
+      },
+      {
+        "from": "B2",
+        "to": "T17",
+        "role": "primary"
+      },
+      {
+        "from": "B3",
+        "to": "T18",
+        "role": "primary"
+      },
+      {
+        "from": "B1",
+        "to": "T19",
+        "role": "primary"
+      },
+      {
+        "from": "B2",
+        "to": "T20",
+        "role": "primary"
+      },
+      {
+        "from": "B3",
+        "to": "T21",
+        "role": "primary"
+      },
+      {
+        "from": "B1",
+        "to": "T22",
+        "role": "primary"
+      },
+      {
+        "from": "B2",
+        "to": "T23",
+        "role": "primary"
+      },
+      {
+        "from": "B3",
+        "to": "T24",
+        "role": "primary"
+      },
+      {
+        "from": "B1",
+        "to": "T25",
+        "role": "primary"
       }
     ],
     "runs_on": [
       {
         "from": "A1",
-        "to": "N5"
+        "to": "N9"
       },
       {
         "from": "A2",
-        "to": "N3"
+        "to": "N1"
       },
       {
         "from": "A3",
-        "to": "N5"
+        "to": "N12"
       },
       {
         "from": "A4",
-        "to": "N2"
+        "to": "N6"
       },
       {
         "from": "A5",
@@ -425,19 +1455,179 @@
       },
       {
         "from": "A7",
-        "to": "N2"
+        "to": "N10"
       },
       {
         "from": "A8",
-        "to": "N3"
+        "to": "N8"
       },
       {
         "from": "A9",
-        "to": "N1"
+        "to": "N9"
       },
       {
         "from": "A10",
+        "to": "N15"
+      },
+      {
+        "from": "A11",
+        "to": "N14"
+      },
+      {
+        "from": "A12",
+        "to": "N9"
+      },
+      {
+        "from": "A13",
+        "to": "N3"
+      },
+      {
+        "from": "A14",
+        "to": "N1"
+      },
+      {
+        "from": "A15",
+        "to": "N9"
+      },
+      {
+        "from": "A16",
         "to": "N2"
+      },
+      {
+        "from": "A17",
+        "to": "N14"
+      },
+      {
+        "from": "A18",
+        "to": "N3"
+      },
+      {
+        "from": "A19",
+        "to": "N2"
+      },
+      {
+        "from": "A20",
+        "to": "N10"
+      },
+      {
+        "from": "A21",
+        "to": "N2"
+      },
+      {
+        "from": "A22",
+        "to": "N11"
+      },
+      {
+        "from": "A23",
+        "to": "N14"
+      },
+      {
+        "from": "A24",
+        "to": "N4"
+      },
+      {
+        "from": "A25",
+        "to": "N7"
+      },
+      {
+        "from": "A26",
+        "to": "N2"
+      },
+      {
+        "from": "A27",
+        "to": "N15"
+      },
+      {
+        "from": "A28",
+        "to": "N10"
+      },
+      {
+        "from": "A29",
+        "to": "N4"
+      },
+      {
+        "from": "A30",
+        "to": "N10"
+      },
+      {
+        "from": "A31",
+        "to": "N10"
+      },
+      {
+        "from": "A32",
+        "to": "N1"
+      },
+      {
+        "from": "A33",
+        "to": "N10"
+      },
+      {
+        "from": "A34",
+        "to": "N2"
+      },
+      {
+        "from": "A35",
+        "to": "N7"
+      },
+      {
+        "from": "A36",
+        "to": "N11"
+      },
+      {
+        "from": "A37",
+        "to": "N10"
+      },
+      {
+        "from": "A38",
+        "to": "N10"
+      },
+      {
+        "from": "A39",
+        "to": "N9"
+      },
+      {
+        "from": "A40",
+        "to": "N6"
+      },
+      {
+        "from": "A41",
+        "to": "N15"
+      },
+      {
+        "from": "A42",
+        "to": "N5"
+      },
+      {
+        "from": "A43",
+        "to": "N4"
+      },
+      {
+        "from": "A44",
+        "to": "N11"
+      },
+      {
+        "from": "A45",
+        "to": "N12"
+      },
+      {
+        "from": "A46",
+        "to": "N6"
+      },
+      {
+        "from": "A47",
+        "to": "N4"
+      },
+      {
+        "from": "A48",
+        "to": "N5"
+      },
+      {
+        "from": "A49",
+        "to": "N7"
+      },
+      {
+        "from": "A50",
+        "to": "N3"
       }
     ]
   }

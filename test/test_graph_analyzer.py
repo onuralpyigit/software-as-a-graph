@@ -23,18 +23,20 @@ import os
 from pathlib import Path
 import subprocess
 
+sys.path.insert(0, str(Path(__file__).parent / '..'))
+
 # Test graph generators
 def generate_simple_test_graph():
     """Generate a simple connected graph"""
     return {
         "nodes": [
-            {"name": "node1", "type": "Node", "zone": "zone1"},
-            {"name": "node2", "type": "Node", "zone": "zone1"}
+            {"name": "node1", "type": "Node"},
+            {"name": "node2", "type": "Node"}
         ],
         "applications": [
-            {"name": "app1", "type": "Application", "criticality": "high"},
-            {"name": "app2", "type": "Application", "criticality": "medium"},
-            {"name": "app3", "type": "Application", "criticality": "low"}
+            {"name": "app1", "type": "Application"},
+            {"name": "app2", "type": "Application"},
+            {"name": "app3", "type": "Application"}
         ],
         "topics": [
             {"name": "topic1", "type": "Topic"},
@@ -275,7 +277,7 @@ def run_analysis_test(test_name, graph_data, expected_features):
         # Run analysis
         print_info(f"Running analysis on {temp_file}...")
         result = subprocess.run(
-            ['python3', 'analyze_graph.py', '--input', temp_file, '--export-json', 
+            ['python3', '../analyze_graph.py', '--input', temp_file, '--export-json', 
              '--output', temp_file.replace('.json', '_result')],
             capture_output=True,
             text=True,
@@ -473,7 +475,7 @@ def main():
     args = parser.parse_args()
     
     # Check if analyze_graph.py exists
-    if not os.path.exists('analyze_graph.py'):
+    if not os.path.exists('../analyze_graph.py'):
         print_error("analyze_graph.py not found in current directory")
         return 1
     
