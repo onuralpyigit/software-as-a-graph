@@ -12,7 +12,6 @@ Usage:
 """
 
 import sys
-import json
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / '..'))
@@ -253,7 +252,7 @@ def main():
         print("✓ All examples executed successfully")
         print("\nNext steps:")
         print("  1. Try: python generate_graph.py --scale medium --scenario iot --output iot.json")
-        print("  2. Try: python test_graph_generation.py --quick")
+        print("  2. Try: python test_graph_generator.py --quick")
         print("  3. Read: GENERATE_GRAPH_README.md")
         
     except KeyboardInterrupt:

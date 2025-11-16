@@ -13,18 +13,18 @@ Tests all features of the improved graph generation system:
 
 Usage:
     # Run all tests
-    python test_graph_generation.py
+    python test_graph_generator.py
     
     # Run specific test suites
-    python test_graph_generation.py --suite scales
-    python test_graph_generation.py --suite scenarios
-    python test_graph_generation.py --suite antipatterns
+    python test_graph_generator.py --suite scales
+    python test_graph_generator.py --suite scenarios
+    python test_graph_generator.py --suite antipatterns
     
     # Quick test (small graphs only)
-    python test_graph_generation.py --quick
+    python test_graph_generator.py --quick
     
     # Performance benchmark
-    python test_graph_generation.py --benchmark
+    python test_graph_generator.py --benchmark
 """
 
 import sys
