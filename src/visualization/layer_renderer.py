@@ -1,24 +1,26 @@
+#!/usr/bin/env python3
 """
-Layer Renderer
+Layer Renderer Module
 
-Creates layer-specific visualizations of the system architecture.
-Separates and visualizes different architectural layers (application, infrastructure, topic).
+Specialized renderer for multi-layer graph visualization in pub-sub systems.
+Handles individual layer rendering, cross-layer interaction visualization,
+and grouped layer views.
 
-Capabilities:
-- Application layer view
-- Infrastructure layer view
-- Topic/message layer view
-- Multi-layer composite view
-- Layer interaction visualization
-- Cross-layer dependency tracking
+Supports:
+- Application Layer: Shows application dependencies and message flows
+- Infrastructure Layer: Displays brokers, nodes, and physical topology
+- Topic Layer: Visualizes topic structure and routing
+- Cross-Layer: Highlights dependencies between layers
+- Grouped Views: Clusters nodes by attributes (QoS, criticality, domain)
 """
 
 import networkx as nx
-from typing import Dict, List, Optional, Tuple, Set, Any
-from dataclasses import dataclass
-from enum import Enum
 import logging
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Any
+from enum import Enum
+from dataclasses import dataclass
+import json
 
 
 class Layer(Enum):
@@ -26,66 +28,77 @@ class Layer(Enum):
     APPLICATION = "application"
     INFRASTRUCTURE = "infrastructure"
     TOPIC = "topic"
+    BROKER = "broker"
     ALL = "all"
+
+
+class LayoutStyle(Enum):
+    """Layout styles for layer rendering"""
+    FORCE_DIRECTED = "force"
+    HIERARCHICAL = "hierarchical"
+    CIRCULAR = "circular"
+    GRID = "grid"
 
 
 @dataclass
 class LayerConfig:
     """Configuration for layer rendering"""
     layer: Layer
+    layout: LayoutStyle = LayoutStyle.FORCE_DIRECTED
+    show_labels: bool = True
     show_cross_layer_deps: bool = True
-    layout_direction: str = "TB"  # TB (top-bottom), LR (left-right)
-    group_by_attribute: Optional[str] = None
-    show_statistics: bool = True
-    width: int = 1400
-    height: int = 900
-    
-    def to_dict(self) -> Dict:
-        """Convert to dictionary"""
-        return {
-            'layer': self.layer.value,
-            'show_cross_layer_deps': self.show_cross_layer_deps,
-            'layout_direction': self.layout_direction,
-            'group_by_attribute': self.group_by_attribute,
-            'show_statistics': self.show_statistics,
-            'width': self.width,
-            'height': self.height
-        }
+    highlight_critical: bool = True
+    color_by_criticality: bool = True
+    min_criticality_threshold: float = 0.0
+    interactive: bool = True
+
+
+class LayerColors:
+    """Color schemes for different layers"""
+    APPLICATION = {
+        'primary': '#3498db',
+        'critical': '#e74c3c',
+        'background': '#ecf0f1'
+    }
+    INFRASTRUCTURE = {
+        'primary': '#95a5a6',
+        'broker': '#e74c3c',
+        'node': '#7f8c8d',
+        'background': '#ecf0f1'
+    }
+    TOPIC = {
+        'primary': '#2ecc71',
+        'high_qos': '#27ae60',
+        'low_qos': '#a6e4a6',
+        'background': '#ecf0f1'
+    }
+    CROSS_LAYER = {
+        'dependency': '#e67e22',
+        'weak': '#f39c12',
+        'strong': '#d35400'
+    }
 
 
 class LayerRenderer:
     """
-    Creates layer-specific architectural visualizations
+    Renderer for multi-layer graph visualization
     
-    Features:
-    - Separate layer views
-    - Cross-layer dependencies
-    - Hierarchical layouts
-    - Grouped visualizations
-    - Statistics and metrics
+    Provides specialized rendering for each layer with appropriate
+    layout algorithms, color schemes, and interaction features.
     """
     
-    def __init__(self):
-        """Initialize layer renderer"""
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, logger: Optional[logging.Logger] = None):
+        """
+        Initialize layer renderer
         
-        # Layer colors
+        Args:
+            logger: Optional logger instance
+        """
+        self.logger = logger or logging.getLogger(__name__)
         self.layer_colors = {
-            Layer.APPLICATION: {
-                'bg': '#e3f2fd',
-                'border': '#1976d2',
-                'node': '#2196f3'
-            },
-            Layer.INFRASTRUCTURE: {
-                'bg': '#fff3e0',
-                'border': '#e65100',
-                'node': '#ff9800'
-            },
-            Layer.TOPIC: {
-                'bg': '#e8f5e9',
-                'border': '#2e7d32',
-                'node': '#4caf50'
-            }
+            Layer.APPLICATION: LayerColors.APPLICATION,
+            Layer.INFRASTRUCTURE: LayerColors.INFRASTRUCTURE,
+            Layer.TOPIC: LayerColors.TOPIC
         }
     
     def render_layer(self,
@@ -94,10 +107,10 @@ class LayerRenderer:
                     config: Optional[LayerConfig] = None,
                     output_path: Optional[str] = None) -> str:
         """
-        Render a specific layer
+        Render a single layer
         
         Args:
-            graph: NetworkX directed graph
+            graph: Full system graph
             layer: Layer to render
             config: Layer configuration
             output_path: Path to save output
@@ -128,7 +141,7 @@ class LayerRenderer:
         
         # Save if path provided
         if output_path:
-            Path(output_path).write_text(html)
+            Path(output_path).write_text(html, encoding='utf-8')
             self.logger.info(f"Saved layer visualization to {output_path}")
         
         return html
@@ -168,7 +181,7 @@ class LayerRenderer:
         
         # Save if path provided
         if output_path:
-            Path(output_path).write_text(html)
+            Path(output_path).write_text(html, encoding='utf-8')
             self.logger.info(f"Saved multi-layer visualization to {output_path}")
         
         return html
@@ -216,7 +229,7 @@ class LayerRenderer:
         
         # Save if path provided
         if output_path:
-            Path(output_path).write_text(html)
+            Path(output_path).write_text(html, encoding='utf-8')
             self.logger.info(f"Saved interaction visualization to {output_path}")
         
         return html
@@ -232,7 +245,7 @@ class LayerRenderer:
         Args:
             graph: NetworkX directed graph
             layer: Layer to render
-            group_by: Node attribute to group by
+            group_by: Node attribute to group by (e.g., 'broker', 'qos', 'criticality')
             output_path: Path to save output
         
         Returns:
@@ -256,7 +269,7 @@ class LayerRenderer:
         
         # Save if path provided
         if output_path:
-            Path(output_path).write_text(html)
+            Path(output_path).write_text(html, encoding='utf-8')
             self.logger.info(f"Saved grouped layer visualization to {output_path}")
         
         return html
@@ -276,24 +289,46 @@ class LayerRenderer:
         for layer in [Layer.APPLICATION, Layer.INFRASTRUCTURE, Layer.TOPIC]:
             layer_graph = self._extract_layer(graph, layer)
             
-            stats[layer.value] = {
-                'node_count': len(layer_graph),
-                'edge_count': len(layer_graph.edges()),
-                'avg_degree': sum(dict(layer_graph.degree()).values()) / len(layer_graph) if len(layer_graph) > 0 else 0,
-                'density': nx.density(layer_graph),
-                'components': nx.number_weakly_connected_components(layer_graph)
-            }
+            if len(layer_graph) > 0:
+                degrees = dict(layer_graph.degree())
+                stats[layer.value] = {
+                    'node_count': len(layer_graph),
+                    'edge_count': len(layer_graph.edges()),
+                    'avg_degree': sum(degrees.values()) / len(degrees),
+                    'max_degree': max(degrees.values()),
+                    'density': nx.density(layer_graph),
+                    'components': nx.number_weakly_connected_components(layer_graph)
+                }
+            else:
+                stats[layer.value] = {
+                    'node_count': 0,
+                    'edge_count': 0,
+                    'avg_degree': 0,
+                    'max_degree': 0,
+                    'density': 0,
+                    'components': 0
+                }
         
         # Add cross-layer statistics
         cross_deps = self._get_all_cross_layer_deps(graph)
         stats['cross_layer'] = {
             'total_dependencies': len(cross_deps),
-            'app_to_infra': len([d for d in cross_deps if d['from_layer'] == 'application' and d['to_layer'] == 'infrastructure']),
-            'app_to_topic': len([d for d in cross_deps if d['from_layer'] == 'application' and d['to_layer'] == 'topic']),
-            'topic_to_infra': len([d for d in cross_deps if d['from_layer'] == 'topic' and d['to_layer'] == 'infrastructure'])
+            'app_to_infra': len([d for d in cross_deps 
+                                if d['from_layer'] == 'application' 
+                                and d['to_layer'] == 'infrastructure']),
+            'app_to_topic': len([d for d in cross_deps 
+                                if d['from_layer'] == 'application' 
+                                and d['to_layer'] == 'topic']),
+            'topic_to_infra': len([d for d in cross_deps 
+                                  if d['from_layer'] == 'topic' 
+                                  and d['to_layer'] == 'infrastructure'])
         }
         
         return stats
+    
+    # ========================================================================
+    # Internal Methods
+    # ========================================================================
     
     def _extract_layer(self, graph: nx.DiGraph, layer: Layer) -> nx.DiGraph:
         """Extract subgraph for a specific layer"""
@@ -311,6 +346,8 @@ class LayerRenderer:
             elif layer == Layer.INFRASTRUCTURE and node_type in ['Broker', 'Node']:
                 layer_nodes.append(node)
             elif layer == Layer.TOPIC and node_type == 'Topic':
+                layer_nodes.append(node)
+            elif layer == Layer.BROKER and node_type == 'Broker':
                 layer_nodes.append(node)
         
         return graph.subgraph(layer_nodes).copy()
@@ -342,8 +379,9 @@ class LayerRenderer:
             
             if u_layer != v_layer:
                 if u_layer == layer or v_layer == layer:
-                    cross_deps.append((u, v, u_layer.value if u_layer else 'unknown', 
-                                     v_layer.value if v_layer else 'unknown'))
+                    u_layer_str = u_layer.value if u_layer else 'unknown'
+                    v_layer_str = v_layer.value if v_layer else 'unknown'
+                    cross_deps.append((u, v, u_layer_str, v_layer_str))
         
         return cross_deps
     
@@ -392,262 +430,359 @@ class LayerRenderer:
         stats = {
             'nodes': len(layer_graph),
             'edges': len(layer_graph.edges()),
-            'cross_layer': len(cross_layer_edges),
-            'density': nx.density(layer_graph) if len(layer_graph) > 0 else 0
+            'cross_layer': len(cross_layer_edges)
         }
         
-        # Build node list
-        nodes_html = ""
+        # Prepare nodes data
+        nodes_data = []
         for node in layer_graph.nodes():
             node_data = layer_graph.nodes[node]
-            nodes_html += f"""
-            <div class="node-item">
-                <span class="node-name">{node}</span>
-                <span class="node-degree">Degree: {layer_graph.degree(node)}</span>
-            </div>
-            """
+            criticality = node_data.get('criticality', 0.5)
+            
+            # Color by criticality if enabled
+            if config.color_by_criticality:
+                if criticality > 0.7:
+                    color = '#e74c3c'
+                elif criticality > 0.5:
+                    color = '#e67e22'
+                elif criticality > 0.3:
+                    color = '#f39c12'
+                else:
+                    color = colors['primary']
+            else:
+                color = colors['primary']
+            
+            nodes_data.append({
+                'id': node,
+                'label': node if config.show_labels else '',
+                'color': color,
+                'title': f"{node}<br>Type: {node_data.get('type', 'Unknown')}<br>Criticality: {criticality:.3f}",
+                'size': 10 + (criticality * 25)
+            })
         
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>{layer.value.title()} Layer View</title>
-            <style>
-                body {{
-                    margin: 0;
-                    padding: 20px;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    background: #f5f5f5;
-                }}
-                .container {{
-                    max-width: 1400px;
-                    margin: 0 auto;
-                    background: white;
-                    padding: 30px;
-                    border-radius: 10px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                }}
-                .header {{
-                    border-bottom: 3px solid {colors['border']};
-                    padding-bottom: 20px;
-                    margin-bottom: 30px;
-                }}
-                h1 {{
-                    color: {colors['border']};
-                    margin: 0 0 10px 0;
-                }}
-                .subtitle {{
-                    color: #666;
-                    font-size: 14px;
-                }}
-                .stats {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 20px;
-                    margin: 30px 0;
-                }}
-                .stat-card {{
-                    background: {colors['bg']};
-                    border-left: 4px solid {colors['border']};
-                    padding: 20px;
-                    border-radius: 5px;
-                }}
-                .stat-value {{
-                    font-size: 32px;
-                    font-weight: bold;
-                    color: {colors['border']};
-                    margin: 10px 0;
-                }}
-                .stat-label {{
-                    color: #666;
-                    font-size: 14px;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                }}
-                .nodes-section {{
-                    margin-top: 30px;
-                }}
-                .nodes-grid {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-                    gap: 15px;
-                    margin-top: 20px;
-                }}
-                .node-item {{
-                    background: {colors['bg']};
-                    padding: 15px;
-                    border-radius: 5px;
-                    border-left: 3px solid {colors['node']};
-                }}
-                .node-name {{
-                    font-weight: 600;
-                    color: #2c3e50;
-                    display: block;
-                    margin-bottom: 5px;
-                }}
-                .node-degree {{
-                    font-size: 12px;
-                    color: #7f8c8d;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>{layer.value.title()} Layer</h1>
-                    <div class="subtitle">Architectural layer visualization</div>
-                </div>
-                
-                <div class="stats">
-                    <div class="stat-card">
-                        <div class="stat-label">Components</div>
-                        <div class="stat-value">{stats['nodes']}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Connections</div>
-                        <div class="stat-value">{stats['edges']}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Cross-Layer Deps</div>
-                        <div class="stat-value">{stats['cross_layer']}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Density</div>
-                        <div class="stat-value">{stats['density']:.3f}</div>
-                    </div>
-                </div>
-                
-                <div class="nodes-section">
-                    <h2>Components in {layer.value.title()} Layer</h2>
-                    <div class="nodes-grid">
-                        {nodes_html}
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+        # Prepare edges data
+        edges_data = []
+        for u, v in layer_graph.edges():
+            edges_data.append({
+                'from': u,
+                'to': v,
+                'arrows': 'to',
+                'color': {'color': '#7f8c8d'}
+            })
+        
+        # Add cross-layer edges if enabled
+        if config.show_cross_layer_deps:
+            for u, v, u_layer, v_layer in cross_layer_edges:
+                edges_data.append({
+                    'from': u,
+                    'to': v,
+                    'arrows': 'to',
+                    'color': {'color': LayerColors.CROSS_LAYER['dependency']},
+                    'dashes': True,
+                    'width': 3,
+                    'title': f"Cross-layer: {u_layer} → {v_layer}"
+                })
+        
+        # Generate HTML
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{layer.value.title()} Layer Visualization</title>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f6fa;
+        }}
+        
+        #header {{
+            background: linear-gradient(135deg, {colors['primary']} 0%, {self._darken_color(colors['primary'])} 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        
+        #network {{
+            width: 100%;
+            height: calc(100vh - 180px);
+            background: white;
+        }}
+        
+        #stats {{
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #dfe4ea;
+            display: flex;
+            justify-content: space-around;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }}
+        
+        .stat-item {{
+            text-align: center;
+        }}
+        
+        .stat-value {{
+            font-size: 2em;
+            font-weight: bold;
+            color: {colors['primary']};
+        }}
+        
+        .stat-label {{
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }}
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>📊 {layer.value.title()} Layer</h1>
+        <p>System Architecture Visualization</p>
+    </div>
+    
+    <div id="network"></div>
+    
+    <div id="stats">
+        <div class="stat-item">
+            <div class="stat-value">{stats['nodes']}</div>
+            <div class="stat-label">Nodes</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{stats['edges']}</div>
+            <div class="stat-label">Edges</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{stats['cross_layer']}</div>
+            <div class="stat-label">Cross-Layer</div>
+        </div>
+    </div>
+
+    <script>
+        var nodes = new vis.DataSet({json.dumps(nodes_data)});
+        var edges = new vis.DataSet({json.dumps(edges_data)});
+        
+        var container = document.getElementById('network');
+        var data = {{ nodes: nodes, edges: edges }};
+        var options = {{
+            nodes: {{
+                shape: 'dot',
+                font: {{ size: 14 }},
+                borderWidth: 2,
+                shadow: true
+            }},
+            edges: {{
+                smooth: {{ type: 'continuous' }},
+                shadow: true
+            }},
+            physics: {{
+                barnesHut: {{
+                    gravitationalConstant: -5000,
+                    springLength: 150
+                }},
+                stabilization: {{ iterations: 200 }}
+            }},
+            interaction: {{
+                hover: true,
+                navigationButtons: true
+            }}
+        }};
+        
+        var network = new vis.Network(container, data, options);
+    </script>
+</body>
+</html>
+"""
         
         return html
     
     def _create_multi_layer_html(self,
-                                 layers: Dict[Layer, nx.DiGraph],
-                                 cross_deps: List[Dict]) -> str:
-        """Create HTML for multi-layer view"""
+                                layers: Dict[Layer, nx.DiGraph],
+                                cross_deps: List[Dict]) -> str:
+        """Create HTML for multi-layer composite view"""
         
-        html = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Multi-Layer Architecture View</title>
-            <style>
-                body {
-                    margin: 0;
-                    padding: 20px;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    background: #f5f5f5;
-                }
-                .container {
-                    max-width: 1600px;
-                    margin: 0 auto;
-                }
-                h1 {
-                    color: #2c3e50;
-                    text-align: center;
-                    margin-bottom: 40px;
-                }
-                .layers {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 20px;
-                }
-                .layer {
-                    background: white;
-                    padding: 30px;
-                    border-radius: 10px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                }
-                .layer-header {
-                    font-size: 24px;
-                    font-weight: 600;
-                    margin-bottom: 20px;
-                    padding-bottom: 15px;
-                    border-bottom: 3px solid;
-                }
-                .app-layer .layer-header { border-color: #1976d2; color: #1976d2; }
-                .infra-layer .layer-header { border-color: #e65100; color: #e65100; }
-                .topic-layer .layer-header { border-color: #2e7d32; color: #2e7d32; }
-                .layer-content {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 15px;
-                }
-                .node-box {
-                    padding: 15px 20px;
-                    border-radius: 5px;
-                    font-weight: 500;
-                    color: white;
-                }
-                .app-layer .node-box { background: #2196f3; }
-                .infra-layer .node-box { background: #ff9800; }
-                .topic-layer .node-box { background: #4caf50; }
-                .cross-deps {
-                    margin-top: 30px;
-                    background: white;
-                    padding: 30px;
-                    border-radius: 10px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                }
-                .dep-item {
-                    padding: 10px;
-                    margin: 5px 0;
-                    background: #f5f5f5;
-                    border-radius: 5px;
-                    font-size: 14px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Multi-Layer Architecture View</h1>
-                <div class="layers">
-        """
+        # Prepare all nodes and edges
+        all_nodes = []
+        all_edges = []
         
-        # Add each layer
-        for layer, graph in layers.items():
-            layer_class = layer.value
-            nodes_html = ''.join([
-                f'<div class="node-box">{node}</div>'
-                for node in graph.nodes()
-            ])
+        layer_positions = {
+            Layer.APPLICATION: 3,
+            Layer.TOPIC: 2,
+            Layer.INFRASTRUCTURE: 1
+        }
+        
+        # Add nodes from each layer
+        for layer, layer_graph in layers.items():
+            if layer == Layer.ALL:
+                continue
             
-            html += f"""
-            <div class="layer {layer_class}-layer">
-                <div class="layer-header">{layer.value.title()} Layer ({len(graph)} components)</div>
-                <div class="layer-content">
-                    {nodes_html}
-                </div>
-            </div>
-            """
+            y_pos = layer_positions.get(layer, 0)
+            node_count = len(layer_graph)
+            
+            for i, node in enumerate(layer_graph.nodes()):
+                node_data = layer_graph.nodes[node]
+                criticality = node_data.get('criticality', 0.5)
+                
+                color = self.layer_colors[layer]['primary']
+                
+                all_nodes.append({
+                    'id': node,
+                    'label': node,
+                    'color': color,
+                    'x': (i - node_count/2) * 200,
+                    'y': y_pos * 300,
+                    'size': 10 + (criticality * 25),
+                    'title': f"{node}<br>Layer: {layer.value}<br>Criticality: {criticality:.3f}",
+                    'font': {'size': 12}
+                })
         
-        # Add cross-layer dependencies
-        deps_html = ''.join([
-            f'<div class="dep-item">{dep["from"]} ({dep["from_layer"]}) → '
-            f'{dep["to"]} ({dep["to_layer"]})</div>'
-            for dep in cross_deps[:20]  # Show first 20
-        ])
+        # Add within-layer edges
+        for layer, layer_graph in layers.items():
+            if layer == Layer.ALL:
+                continue
+            
+            for u, v in layer_graph.edges():
+                all_edges.append({
+                    'from': u,
+                    'to': v,
+                    'arrows': 'to',
+                    'color': {'color': '#7f8c8d'},
+                    'width': 2
+                })
         
-        html += f"""
-                </div>
-                <div class="cross-deps">
-                    <h2>Cross-Layer Dependencies ({len(cross_deps)} total)</h2>
-                    {deps_html}
-                    {f'<p>... and {len(cross_deps) - 20} more</p>' if len(cross_deps) > 20 else ''}
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+        # Add cross-layer edges
+        for dep in cross_deps:
+            all_edges.append({
+                'from': dep['from'],
+                'to': dep['to'],
+                'arrows': 'to',
+                'color': {'color': LayerColors.CROSS_LAYER['dependency']},
+                'width': 3,
+                'dashes': True,
+                'title': f"Cross-layer: {dep['from_layer']} → {dep['to_layer']}"
+            })
+        
+        # Generate HTML
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Layer System Visualization</title>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f6fa;
+        }}
+        
+        #header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        
+        #network {{
+            width: 100%;
+            height: calc(100vh - 150px);
+            background: white;
+        }}
+        
+        #legend {{
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        
+        .legend-item {{
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }}
+        
+        .legend-color {{
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #2c3e50;
+        }}
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>🔄 Multi-Layer System Architecture</h1>
+        <p>Comprehensive View of Distributed Pub-Sub System</p>
+    </div>
+    
+    <div id="network"></div>
+    
+    <div id="legend">
+        <h3>Layers</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {LayerColors.APPLICATION['primary']}"></div>
+            <span>Application</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {LayerColors.TOPIC['primary']}"></div>
+            <span>Topic</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {LayerColors.INFRASTRUCTURE['primary']}"></div>
+            <span>Infrastructure</span>
+        </div>
+        <div class="legend-item" style="margin-top: 20px;">
+            <div style="width: 30px; height: 2px; background: {LayerColors.CROSS_LAYER['dependency']}; 
+                        border: 1px dashed {LayerColors.CROSS_LAYER['dependency']}; margin-right: 10px;"></div>
+            <span>Cross-Layer</span>
+        </div>
+    </div>
+
+    <script>
+        var nodes = new vis.DataSet({json.dumps(all_nodes)});
+        var edges = new vis.DataSet({json.dumps(all_edges)});
+        
+        var container = document.getElementById('network');
+        var data = {{ nodes: nodes, edges: edges }};
+        var options = {{
+            nodes: {{
+                shape: 'dot',
+                font: {{ size: 12 }},
+                borderWidth: 2,
+                shadow: true
+            }},
+            edges: {{
+                smooth: {{ type: 'continuous' }},
+                shadow: true
+            }},
+            physics: {{
+                enabled: false  // Use fixed positions
+            }},
+            interaction: {{
+                hover: true,
+                navigationButtons: true,
+                zoomView: true,
+                dragView: true
+            }}
+        }};
+        
+        var network = new vis.Network(container, data, options);
+        network.fit();
+    </script>
+</body>
+</html>
+"""
         
         return html
     
@@ -659,156 +794,170 @@ class LayerRenderer:
                                 target_layer: Layer) -> str:
         """Create HTML for layer interaction view"""
         
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Layer Interactions</title>
-            <style>
-                body {{
-                    margin: 0;
-                    padding: 20px;
-                    font-family: Arial, sans-serif;
-                    background: #f5f5f5;
-                }}
-                .container {{
-                    max-width: 1400px;
-                    margin: 0 auto;
-                    background: white;
-                    padding: 30px;
-                    border-radius: 10px;
-                }}
-                h1 {{ color: #2c3e50; }}
-                .layers {{
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 30px;
-                    margin: 30px 0;
-                }}
-                .layer-box {{
-                    padding: 20px;
-                    border-radius: 5px;
-                    border: 2px solid #ddd;
-                }}
-                .interactions {{
-                    margin-top: 30px;
-                }}
-                .interaction-item {{
-                    padding: 10px;
-                    margin: 5px 0;
-                    background: #e3f2fd;
-                    border-radius: 5px;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Layer Interactions: {source_layer.value} → {target_layer.value}</h1>
-                <div class="layers">
-                    <div class="layer-box">
-                        <h2>{source_layer.value.title()}</h2>
-                        <p>{len(source_graph)} components</p>
-                    </div>
-                    <div class="layer-box">
-                        <h2>{target_layer.value.title()}</h2>
-                        <p>{len(target_graph)} components</p>
-                    </div>
-                </div>
-                <div class="interactions">
-                    <h2>{len(interactions)} Interactions</h2>
-                    {''.join([f'<div class="interaction-item">{u} → {v}</div>' for u, v in interactions[:50]])}
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+        # Prepare nodes
+        nodes_data = []
+        
+        # Add source layer nodes
+        for i, node in enumerate(source_graph.nodes()):
+            node_data = source_graph.nodes[node]
+            nodes_data.append({
+                'id': node,
+                'label': node,
+                'color': self.layer_colors[source_layer]['primary'],
+                'x': (i - len(source_graph)/2) * 200,
+                'y': 200,
+                'title': f"{node}<br>Layer: {source_layer.value}"
+            })
+        
+        # Add target layer nodes
+        for i, node in enumerate(target_graph.nodes()):
+            node_data = target_graph.nodes[node]
+            nodes_data.append({
+                'id': node,
+                'label': node,
+                'color': self.layer_colors[target_layer]['primary'],
+                'x': (i - len(target_graph)/2) * 200,
+                'y': -200,
+                'title': f"{node}<br>Layer: {target_layer.value}"
+            })
+        
+        # Prepare interaction edges
+        edges_data = []
+        for u, v in interactions:
+            edges_data.append({
+                'from': u,
+                'to': v,
+                'arrows': 'to',
+                'color': {'color': LayerColors.CROSS_LAYER['dependency']},
+                'width': 3,
+                'title': f"Interaction: {u} → {v}"
+            })
+        
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{source_layer.value.title()} ↔ {target_layer.value.title()} Interactions</title>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {{ margin: 0; font-family: Arial, sans-serif; background: #f5f6fa; }}
+        #header {{ 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 30px; text-align: center;
+        }}
+        #network {{ width: 100%; height: calc(100vh - 150px); background: white; }}
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>{source_layer.value.title()} ↔ {target_layer.value.title()}</h1>
+        <p>{len(interactions)} interactions</p>
+    </div>
+    <div id="network"></div>
+    <script>
+        var nodes = new vis.DataSet({json.dumps(nodes_data)});
+        var edges = new vis.DataSet({json.dumps(edges_data)});
+        var network = new vis.Network(
+            document.getElementById('network'),
+            {{ nodes: nodes, edges: edges }},
+            {{
+                physics: {{ enabled: false }},
+                nodes: {{ shape: 'dot', size: 20, font: {{ size: 14 }} }},
+                edges: {{ smooth: {{ type: 'curvedCW' }} }}
+            }}
+        );
+    </script>
+</body>
+</html>
+"""
         
         return html
     
     def _create_grouped_layer_html(self,
-                                   layer_graph: nx.DiGraph,
-                                   groups: Dict[str, List[str]],
-                                   layer: Layer,
-                                   group_by: str) -> str:
+                                  layer_graph: nx.DiGraph,
+                                  groups: Dict[str, List[str]],
+                                  layer: Layer,
+                                  group_by: str) -> str:
         """Create HTML for grouped layer view"""
         
-        colors = self.layer_colors[layer]
+        # Assign positions based on groups
+        nodes_data = []
+        group_index = 0
         
-        groups_html = ""
-        for group_name, nodes in groups.items():
-            nodes_list = ', '.join(nodes[:10])
-            if len(nodes) > 10:
-                nodes_list += f" ... and {len(nodes) - 10} more"
+        for group_name, group_nodes in groups.items():
+            x_offset = group_index * 400
             
-            groups_html += f"""
-            <div class="group-card">
-                <div class="group-name">{group_name}</div>
-                <div class="group-count">{len(nodes)} components</div>
-                <div class="group-nodes">{nodes_list}</div>
-            </div>
-            """
+            for i, node in enumerate(group_nodes):
+                node_data = layer_graph.nodes[node]
+                criticality = node_data.get('criticality', 0.5)
+                
+                nodes_data.append({
+                    'id': node,
+                    'label': node,
+                    'color': self.layer_colors[layer]['primary'],
+                    'x': x_offset,
+                    'y': (i - len(group_nodes)/2) * 100,
+                    'size': 10 + (criticality * 25),
+                    'title': f"{node}<br>Group: {group_name}<br>Criticality: {criticality:.3f}",
+                    'group': group_name
+                })
+            
+            group_index += 1
         
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>{layer.value.title()} Layer (Grouped)</title>
-            <style>
-                body {{
-                    margin: 0;
-                    padding: 20px;
-                    font-family: Arial, sans-serif;
-                    background: #f5f5f5;
-                }}
-                .container {{
-                    max-width: 1400px;
-                    margin: 0 auto;
-                    background: white;
-                    padding: 30px;
-                    border-radius: 10px;
-                }}
-                h1 {{ color: {colors['border']}; }}
-                .groups {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                    gap: 20px;
-                    margin-top: 30px;
-                }}
-                .group-card {{
-                    background: {colors['bg']};
-                    padding: 20px;
-                    border-radius: 5px;
-                    border-left: 4px solid {colors['border']};
-                }}
-                .group-name {{
-                    font-size: 18px;
-                    font-weight: 600;
-                    color: {colors['border']};
-                    margin-bottom: 10px;
-                }}
-                .group-count {{
-                    font-size: 24px;
-                    font-weight: bold;
-                    color: {colors['node']};
-                    margin: 10px 0;
-                }}
-                .group-nodes {{
-                    font-size: 12px;
-                    color: #666;
-                    margin-top: 10px;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>{layer.value.title()} Layer</h1>
-                <p>Grouped by: <strong>{group_by}</strong></p>
-                <div class="groups">
-                    {groups_html}
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+        # Prepare edges
+        edges_data = []
+        for u, v in layer_graph.edges():
+            edges_data.append({
+                'from': u,
+                'to': v,
+                'arrows': 'to',
+                'color': {'color': '#7f8c8d'}
+            })
+        
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{layer.value.title()} Layer - Grouped by {group_by}</title>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {{ margin: 0; font-family: Arial, sans-serif; background: #f5f6fa; }}
+        #header {{ 
+            background: linear-gradient(135deg, {self.layer_colors[layer]['primary']} 0%, 
+                        {self._darken_color(self.layer_colors[layer]['primary'])} 100%);
+            color: white; padding: 30px; text-align: center;
+        }}
+        #network {{ width: 100%; height: calc(100vh - 150px); background: white; }}
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>{layer.value.title()} Layer - Grouped by {group_by}</h1>
+        <p>{len(groups)} groups | {len(layer_graph)} nodes</p>
+    </div>
+    <div id="network"></div>
+    <script>
+        var nodes = new vis.DataSet({json.dumps(nodes_data)});
+        var edges = new vis.DataSet({json.dumps(edges_data)});
+        var network = new vis.Network(
+            document.getElementById('network'),
+            {{ nodes: nodes, edges: edges }},
+            {{
+                physics: {{ enabled: false }},
+                nodes: {{ shape: 'dot', font: {{ size: 12 }} }},
+                interaction: {{ hover: true, navigationButtons: true }}
+            }}
+        );
+    </script>
+</body>
+</html>
+"""
         
         return html
+    
+    def _darken_color(self, color: str, factor: float = 0.8) -> str:
+        """Darken a hex color"""
+        color = color.lstrip('#')
+        r, g, b = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
+        r, g, b = int(r * factor), int(g * factor), int(b * factor)
+        return f'#{r:02x}{g:02x}{b:02x}'
