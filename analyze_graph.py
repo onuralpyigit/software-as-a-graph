@@ -87,16 +87,16 @@ def load_graph_from_json(filepath: str) -> Tuple[Dict, nx.DiGraph]:
         
         # Add nodes
         for node in graph_data.get('nodes', []):
-            G.add_node(node['name'], **{k: v for k, v in node.items() if k != 'name'})
+            G.add_node(node['id'], **{k: v for k, v in node.items() if k != 'id'})
             
         for app in graph_data.get('applications', []):
-            G.add_node(app['name'], **{k: v for k, v in app.items() if k != 'name'})
+            G.add_node(app['id'], **{k: v for k, v in app.items() if k != 'id'})
             
         for topic in graph_data.get('topics', []):
-            G.add_node(topic['name'], **{k: v for k, v in topic.items() if k != 'name'})
+            G.add_node(topic['id'], **{k: v for k, v in topic.items() if k != 'id'})
             
         for broker in graph_data.get('brokers', []):
-            G.add_node(broker['name'], **{k: v for k, v in broker.items() if k != 'name'})
+            G.add_node(broker['id'], **{k: v for k, v in broker.items() if k != 'id'})
         
         # Add edges
         relationships = graph_data.get('relationships', {})
@@ -112,9 +112,6 @@ def load_graph_from_json(filepath: str) -> Tuple[Dict, nx.DiGraph]:
             
         for rel in relationships.get('routes', []):
             G.add_edge(rel['from'], rel['to'], type='ROUTES')
-            
-        for rel in relationships.get('depends_on', []):
-            G.add_edge(rel['from'], rel['to'], type='DEPENDS_ON')
         
         logger.info(f"✓ Loaded graph: {len(G.nodes())} nodes, {len(G.edges())} edges")
         return graph_data, G
