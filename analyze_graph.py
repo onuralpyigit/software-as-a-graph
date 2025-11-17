@@ -155,7 +155,8 @@ def load_graph_from_neo4j(uri: str, user: str, password: str,
                 'publishes_to': [],
                 'subscribes_to': [],
                 'routes': [],
-                'depends_on': []
+                'depends_on': [],
+                'connects_to': []
             }
         }
         
@@ -213,6 +214,8 @@ def load_graph_from_neo4j(uri: str, user: str, password: str,
                     graph_data['relationships']['routes'].append(edge_data)
                 elif rel_type == 'DEPENDS_ON':
                     graph_data['relationships']['depends_on'].append(edge_data)
+                elif rel_type == 'CONNECTS_TO':
+                    graph_data['relationships']['connects_to'].append(edge_data)
         
         driver.close()
         logger.info(f"✓ Loaded from Neo4j: {len(G.nodes())} nodes, {len(G.edges())} edges")
@@ -489,10 +492,13 @@ def analyze_layer_dependencies(G: nx.DiGraph) -> Dict[str, Any]:
     }
     
     # Infrastructure layer analysis
+    nodes_dependencies = [(u, v) for u, v, d in G.edges(data=True) 
+                       if d.get('type') == 'CONNECTS_TO']
+    
     results['infrastructure_layer'] = {
         'total_nodes': len(nodes),
-        'total_brokers': len(brokers),
-        'broker_to_node_ratio': round(len(brokers) / len(nodes), 2) if nodes else 0
+        'direct_dependencies': len(nodes_dependencies),
+        'avg_dependencies_per_node': round(len(nodes_dependencies) / len(nodes), 2) if nodes else 0
     }
     
     logger.info("✓ Layer analysis complete")
