@@ -259,22 +259,13 @@ class GraphGenerator:
         return nodes
     
     def _generate_brokers(self) -> List[Dict]:
-        """Generate brokers with realistic capacity planning"""
+        """Generate brokers"""
         brokers = []
-        nodes = list(range(1, self.config.num_nodes + 1))
-        
-        # Calculate capacity based on total topics
-        avg_topics_per_broker = math.ceil(self.config.num_topics / self.config.num_brokers)
-        avg_apps_per_broker = math.ceil(self.config.num_applications / self.config.num_brokers)
         
         for i in range(1, self.config.num_brokers + 1):
-            # Assign broker to node (distribute across nodes)
-            node_id = f'N{nodes[(i-1) % len(nodes)]}'
-            
             broker = {
                 'id': f'B{i}',
-                'name': f'Broker{i}',
-                'node_id': node_id
+                'name': f'Broker{i}'
             }
             brokers.append(broker)
         
@@ -569,12 +560,20 @@ class GraphGenerator:
     def _generate_runs_on(self, graph: Dict):
         """Generate runs_on relationships with zone awareness"""
         apps = graph['applications']
+        brokers = graph['brokers']
         nodes = graph['nodes']
         
         for app in apps:
             node = random.choice(nodes)
             graph['relationships']['runs_on'].append({
                 'from': app['id'],
+                'to': node['id']
+            })
+
+        for broker in brokers:
+            node = random.choice(nodes)
+            graph['relationships']['runs_on'].append({
+                'from': broker['id'],
                 'to': node['id']
             })
     
@@ -988,10 +987,6 @@ class GraphGenerator:
         for sub in graph['relationships']['subscribes_to']:
             topic_subscribers[sub['from']] += 1
         
-        for topic in graph['topics']:
-            topic['num_publishers'] = topic_publishers[topic['id']]
-            topic['num_subscribers'] = topic_subscribers[topic['id']]
-        
         # Calculate app connectivity
         app_publishes = defaultdict(int)
         app_subscribes = defaultdict(int)
@@ -1001,7 +996,3 @@ class GraphGenerator:
         
         for sub in graph['relationships']['subscribes_to']:
             app_subscribes[sub['from']] += 1
-        
-        for app in graph['applications']:
-            app['num_topics_published'] = app_publishes[app['id']]
-            app['num_topics_subscribed'] = app_subscribes[app['id']]
