@@ -173,14 +173,15 @@ def load_graph_from_neo4j(uri: str, user: str, password: str,
                 node = record['n']
                 labels = record['labels']
                 node_props = dict(node.items())
-                node_name = node_props.get('name', node_props.get('id', str(node.id)))
+                node_name = node_props.get('name', None)
+                node_id = node_props.get('id', None)
                 
                 # Add to NetworkX
-                G.add_node(node_name, type=labels[0] if labels else 'Unknown', **node_props)
+                G.add_node(node_name, type=labels[0] if labels else 'Unknown', id=node_id)
                 
                 # Add to graph_data
                 if 'Node' in labels:
-                    graph_data['nodes'].append({'name': node_name, **node_props})
+                    graph_data['nodes'].append({'name': node_name, 'id': node_id, **node_props})
                 elif 'Application' in labels:
                     graph_data['applications'].append({'name': node_name, **node_props})
                 elif 'Topic' in labels:
