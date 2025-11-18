@@ -31,20 +31,20 @@ def generate_simple_test_graph():
     """Generate a simple connected graph"""
     return {
         "nodes": [
-            {"name": "node1", "type": "Node"},
-            {"name": "node2", "type": "Node"}
+            {"id": "node1", "name": "node1"},
+            {"id": "node2", "name": "node2"}
         ],
         "applications": [
-            {"name": "app1", "type": "Application"},
-            {"name": "app2", "type": "Application"},
-            {"name": "app3", "type": "Application"}
+            {"id": "app1", "name": "app1", "type": "PRODUCER"},
+            {"id": "app2", "name": "app2", "type": "PROSUMER"},
+            {"id": "app3", "name": "app3", "type": "CONSUMER"}
         ],
         "topics": [
-            {"name": "topic1", "type": "Topic"},
-            {"name": "topic2", "type": "Topic"}
+            {"id": "topic1", "name": "topic1"},
+            {"id": "topic2", "name": "topic2"}
         ],
         "brokers": [
-            {"name": "broker1", "type": "Broker"}
+            {"id": "broker1", "name": "broker1"}
         ],
         "relationships": {
             "runs_on": [
@@ -64,9 +64,6 @@ def generate_simple_test_graph():
             "routes": [
                 {"from": "broker1", "to": "topic1"},
                 {"from": "broker1", "to": "topic2"}
-            ],
-            "depends_on": [
-                {"from": "app2", "to": "app1"}
             ]
         }
     }
@@ -76,21 +73,21 @@ def generate_articulation_point_graph():
     """Generate a graph with clear articulation points"""
     return {
         "nodes": [
-            {"name": "node1", "type": "Node"},
-            {"name": "node2", "type": "Node"},
-            {"name": "node3", "type": "Node"}
+            {"id": "node1", "name": "node1"},
+            {"id": "node2", "name": "node2"},
+            {"id": "node3", "name": "node3"}
         ],
         "applications": [
-            {"name": "app1", "type": "Application"},
-            {"name": "app2", "type": "Application"},
-            {"name": "app3", "type": "Application"},
-            {"name": "app4", "type": "Application"},
-            {"name": "app5", "type": "Application"}
+            {"id": "app1", "name": "app1", "type": "PRODUCER"},
+            {"id": "app2", "name": "app2", "type": "PROSUMER"},
+            {"id": "app3", "name": "app3", "type": "PROSUMER"},
+            {"id": "app4", "name": "app4", "type": "PRODUCER"},
+            {"id": "app5", "name": "app5", "type": "CONSUMER"}
         ],
         "topics": [
-            {"name": "topic_central", "type": "Topic"},
-            {"name": "topic_a", "type": "Topic"},
-            {"name": "topic_b", "type": "Topic"}
+            {"id": "topic_central", "name": "topic_central"},
+            {"id": "topic_a", "name": "topic_a"},
+            {"id": "topic_b", "name": "topic_b"}
         ],
         "brokers": [],
         "relationships": {
@@ -113,8 +110,7 @@ def generate_articulation_point_graph():
                 {"from": "app3", "to": "topic_b"},
                 {"from": "app5", "to": "topic_b"}
             ],
-            "routes": [],
-            "depends_on": []
+            "routes": []
         }
     }
 
@@ -123,19 +119,19 @@ def generate_bridge_graph():
     """Generate a graph with bridge edges"""
     return {
         "nodes": [
-            {"name": "node1", "type": "Node"},
-            {"name": "node2", "type": "Node"}
+            {"id": "node1", "name": "node1"},
+            {"id": "node2", "name": "node2"}
         ],
         "applications": [
-            {"name": "app_cluster1_a", "type": "Application"},
-            {"name": "app_cluster1_b", "type": "Application"},
-            {"name": "app_cluster2_a", "type": "Application"},
-            {"name": "app_cluster2_b", "type": "Application"}
+            {"id": "app_cluster1_a", "name": "app_cluster1_a", "type": "PRODUCER"},
+            {"id": "app_cluster1_b", "name": "app_cluster1_b", "type": "PROSUMER"},
+            {"id": "app_cluster2_a", "name": "app_cluster2_a", "type": "PROSUMER"},
+            {"id": "app_cluster2_b", "name": "app_cluster2_b", "type": "CONSUMER"}
         ],
         "topics": [
-            {"name": "topic_cluster1", "type": "Topic"},
-            {"name": "topic_bridge", "type": "Topic"},
-            {"name": "topic_cluster2", "type": "Topic"}
+            {"id": "topic_cluster1", "name": "topic_cluster1"},
+            {"id": "topic_bridge", "name": "topic_bridge"},
+            {"id": "topic_cluster2", "name": "topic_cluster2"}
         ],
         "brokers": [],
         "relationships": {
@@ -155,8 +151,7 @@ def generate_bridge_graph():
                 {"from": "app_cluster2_a", "to": "topic_bridge"},
                 {"from": "app_cluster2_b", "to": "topic_cluster2"}
             ],
-            "routes": [],
-            "depends_on": []
+            "routes": []
         }
     }
 
@@ -165,17 +160,17 @@ def generate_disconnected_graph():
     """Generate a disconnected graph"""
     return {
         "nodes": [
-            {"name": "node1", "type": "Node"},
-            {"name": "node2", "type": "Node"}
+            {"id": "node1", "name": "node1"},
+            {"id": "node2", "name": "node2"}
         ],
         "applications": [
-            {"name": "app1", "type": "Application"},
-            {"name": "app2", "type": "Application"},
-            {"name": "app3", "type": "Application"}
+            {"id": "app1", "name": "app1", "type": "PRODUCER"},
+            {"id": "app2", "name": "app2", "type": "CONSUMER"},
+            {"id": "app3", "name": "app3", "type": ""},
         ],
         "topics": [
-            {"name": "topic1", "type": "Topic"},
-            {"name": "topic2", "type": "Topic"}
+            {"id": "topic1", "name": "topic1"},
+            {"id": "topic2", "name": "topic2"}
         ],
         "brokers": [],
         "relationships": {
@@ -190,8 +185,7 @@ def generate_disconnected_graph():
             "subscribes_to": [
                 {"from": "app2", "to": "topic1"}
             ],
-            "routes": [],
-            "depends_on": []
+            "routes": []
         }
     }
 
@@ -199,12 +193,12 @@ def generate_disconnected_graph():
 def generate_star_topology_graph():
     """Generate a star topology (one central hub)"""
     return {
-        "nodes": [{"name": f"node{i}", "type": "Node"} for i in range(1, 6)],
-        "applications": [{"name": f"app{i}", "type": "Application"} for i in range(1, 11)],
+        "nodes": [{"id": f"node{i}", "name": f"node{i}"} for i in range(1, 6)],
+        "applications": [{"id": f"app{i}", "name": f"app{i}", "type": "PROSUMER"} for i in range(1, 11)],
         "topics": [
-            {"name": "topic_central", "type": "Topic"}
-        ] + [{"name": f"topic{i}", "type": "Topic"} for i in range(1, 6)],
-        "brokers": [{"name": "broker_central", "type": "Broker"}],
+            {"id": "topic_central", "name": "topic_central"}
+        ] + [{"id": f"topic{i}", "name": f"topic{i}"} for i in range(1, 6)],
+        "brokers": [{"id": "broker_central", "name": "broker_central"}],
         "relationships": {
             "runs_on": [
                 {"from": f"app{i}", "to": f"node{(i-1)//2+1}"} for i in range(1, 11)
@@ -217,8 +211,7 @@ def generate_star_topology_graph():
             ],
             "routes": [
                 {"from": "broker_central", "to": "topic_central"}
-            ] + [{"from": "broker_central", "to": f"topic{i}"} for i in range(1, 6)],
-            "depends_on": []
+            ] + [{"from": "broker_central", "to": f"topic{i}"} for i in range(1, 6)]
         }
     }
 
