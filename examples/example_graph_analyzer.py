@@ -47,101 +47,79 @@ def create_smart_home_example():
     return {
         "nodes": [
             {
-                "name": "controller_main",
-                "type": "Node",
-                "zone": "home",
-                "region": "livingroom",
-                "resources": {"cpu": 4, "memory": 8192}
+                "id": "controller_main",
+                "name": "controller_main"
             },
             {
-                "name": "controller_backup",
-                "type": "Node",
-                "zone": "home",
-                "region": "garage",
-                "resources": {"cpu": 2, "memory": 4096}
+                "id": "controller_backup",
+                "name": "controller_backup"
             }
         ],
         "brokers": [
             {
-                "name": "mqtt_broker",
-                "type": "Broker",
-                "port": 1883,
-                "protocol": "MQTT"
+                "id": "mqtt_broker",
+                "name": "mqtt_broker"
             }
         ],
         "applications": [
             # Sensors
             {
+                "id": "temp_sensor",
                 "name": "temp_sensor",
-                "type": "Application",
-                "app_type": "sensor",
-                "criticality": "medium",
-                "publish_freq_hz": 1.0
+                "type": "PRODUCER"
             },
             {
+                "id": "motion_sensor",
                 "name": "motion_sensor",
-                "type": "Application",
-                "app_type": "sensor",
-                "criticality": "high",
-                "publish_freq_hz": 10.0
+                "type": "PRODUCER"
             },
             {
+                "id": "door_sensor",
                 "name": "door_sensor",
-                "type": "Application",
-                "app_type": "sensor",
-                "criticality": "high",
-                "publish_freq_hz": 5.0
+                "type": "PRODUCER"
             },
             {
+                "id": "window_sensor",
                 "name": "window_sensor",
-                "type": "Application",
-                "app_type": "sensor",
-                "criticality": "medium",
-                "publish_freq_hz": 5.0
+                "type": "PRODUCER"
             },
             {
+                "id": "camera",
                 "name": "camera",
-                "type": "Application",
-                "app_type": "sensor",
-                "criticality": "high",
-                "publish_freq_hz": 30.0
+                "type": "PRODUCER"
             },
             # Actuators
             {
+                "id": "hvac_controller",
                 "name": "hvac_controller",
-                "type": "Application",
-                "app_type": "actuator",
-                "criticality": "high"
+                "type": "PROSUMER"
             },
             {
+                "id": "light_controller",
                 "name": "light_controller",
-                "type": "Application",
-                "app_type": "actuator",
-                "criticality": "medium"
+                "type": "PROSUMER"
             },
             # Dashboard and Cloud
             {
+                "id": "dashboard",
                 "name": "dashboard",
-                "type": "Application",
-                "app_type": "ui",
-                "criticality": "low"
+                "type": "PROSUMER",
             },
             {
+                "id": "cloud_sync",
                 "name": "cloud_sync",
-                "type": "Application",
-                "app_type": "integration",
-                "criticality": "low"
+                "type": "CONSUMER",
             }
         ],
         "topics": [
-            {"name": "sensor/temperature", "type": "Topic", "qos": 1},
-            {"name": "sensor/motion", "type": "Topic", "qos": 2},
-            {"name": "sensor/door", "type": "Topic", "qos": 2},
-            {"name": "sensor/window", "type": "Topic", "qos": 1},
-            {"name": "sensor/camera", "type": "Topic", "qos": 1},
-            {"name": "command/hvac", "type": "Topic", "qos": 2},
-            {"name": "command/lights", "type": "Topic", "qos": 1},
-            {"name": "alerts", "type": "Topic", "qos": 2}
+            {"id": "sensor/temperature", "name": "sensor/temperature"},
+            {"id": "sensor/motion", "name": "sensor/motion"},
+            {"id": "sensor/door", "name": "sensor/door"},
+            {"id": "sensor/window", "name": "sensor/window"},
+            {"id": "sensor/camera", "name": "sensor/camera"},
+            {"id": "command/hvac", "name": "command/hvac"},
+            {"id": "command/lights", "name": "command/lights"},
+            {"id": "alerts", "name": "alerts"}
         ],
         "relationships": {
             "runs_on": [
@@ -206,11 +184,6 @@ def create_smart_home_example():
                 {"from": "mqtt_broker", "to": "command/hvac"},
                 {"from": "mqtt_broker", "to": "command/lights"},
                 {"from": "mqtt_broker", "to": "alerts"}
-            ],
-            "depends_on": [
-                # Dashboard depends on sensors (indirect via topics)
-                {"from": "hvac_controller", "to": "temp_sensor"},
-                {"from": "light_controller", "to": "motion_sensor"}
             ]
         }
     }
