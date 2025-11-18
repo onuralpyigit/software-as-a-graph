@@ -1,0 +1,550 @@
+{
+  "metadata": {
+    "timestamp": "2025-11-18 23:03:08",
+    "source": "neo4j:neo4j",
+    "analysis_time_seconds": 0.33
+  },
+  "structure": {
+    "nodes": 25,
+    "edges": 51,
+    "density": 0.085,
+    "is_weakly_connected": false,
+    "is_strongly_connected": false,
+    "number_weakly_connected_components": 2,
+    "number_strongly_connected_components": 23,
+    "node_types": {
+      "Node": 5,
+      "Application": 10,
+      "Topic": 8,
+      "Broker": 2
+    },
+    "edge_types": {
+      "CONNECTS_TO": 6,
+      "RUNS_ON": 10,
+      "PUBLISHES_TO": 7,
+      "SUBSCRIBES_TO": 8,
+      "DEPENDS_ON": 12,
+      "ROUTES": 8
+    },
+    "degree_stats": {
+      "mean": 4.08,
+      "min": 0,
+      "max": 9
+    }
+  },
+  "node_analysis": {
+    "articulation_points": [
+      "Broker1",
+      "Broker2"
+    ],
+    "top_betweenness": [
+      {
+        "node": "Node5",
+        "score": 0.0136
+      },
+      {
+        "node": "StatusMonitor_10",
+        "score": 0.0127
+      },
+      {
+        "node": "AlertProcessor_2",
+        "score": 0.0115
+      },
+      {
+        "node": "Node4",
+        "score": 0.0075
+      },
+      {
+        "node": "Node3",
+        "score": 0.0054
+      },
+      {
+        "node": "AlertProcessor_8",
+        "score": 0.0033
+      },
+      {
+        "node": "DeviceManager_4",
+        "score": 0.0021
+      },
+      {
+        "node": "AlertProcessor_7",
+        "score": 0.0012
+      },
+      {
+        "node": "DataForwarder_5",
+        "score": 0.0006
+      },
+      {
+        "node": "Node1",
+        "score": 0.0
+      }
+    ],
+    "top_degree": [
+      {
+        "node": "AlertProcessor_2",
+        "score": 0.375
+      },
+      {
+        "node": "AlertProcessor_7",
+        "score": 0.3333
+      },
+      {
+        "node": "Node5",
+        "score": 0.2917
+      },
+      {
+        "node": "AlertProcessor_8",
+        "score": 0.25
+      },
+      {
+        "node": "StatusMonitor_10",
+        "score": 0.25
+      },
+      {
+        "node": "alert/anomaly_5",
+        "score": 0.25
+      },
+      {
+        "node": "Node1",
+        "score": 0.2083
+      },
+      {
+        "node": "Node3",
+        "score": 0.2083
+      },
+      {
+        "node": "Node4",
+        "score": 0.2083
+      },
+      {
+        "node": "alert/threshold_7",
+        "score": 0.2083
+      }
+    ],
+    "top_pagerank": [
+      {
+        "node": "Node1",
+        "score": 0.1379
+      },
+      {
+        "node": "Node3",
+        "score": 0.0793
+      },
+      {
+        "node": "alert/anomaly_5",
+        "score": 0.0625
+      },
+      {
+        "node": "Node5",
+        "score": 0.0605
+      },
+      {
+        "node": "Node4",
+        "score": 0.0558
+      },
+      {
+        "node": "telemetry/raw_6",
+        "score": 0.0548
+      },
+      {
+        "node": "alert/threshold_7",
+        "score": 0.0486
+      },
+      {
+        "node": "diagnostic/performance_2",
+        "score": 0.0432
+      },
+      {
+        "node": "DeviceManager_4",
+        "score": 0.0351
+      },
+      {
+        "node": "AlertProcessor_8",
+        "score": 0.0341
+      }
+    ],
+    "top_critical_nodes": [
+      {
+        "node": "Broker1",
+        "score": 0.35,
+        "is_articulation_point": true,
+        "betweenness": 0.0,
+        "degree_centrality": 0.1667
+      },
+      {
+        "node": "Broker2",
+        "score": 0.35,
+        "is_articulation_point": true,
+        "betweenness": 0.0,
+        "degree_centrality": 0.1667
+      },
+      {
+        "node": "AlertProcessor_2",
+        "score": 0.1171,
+        "is_articulation_point": false,
+        "betweenness": 0.0115,
+        "degree_centrality": 0.375
+      },
+      {
+        "node": "AlertProcessor_7",
+        "score": 0.1005,
+        "is_articulation_point": false,
+        "betweenness": 0.0012,
+        "degree_centrality": 0.3333
+      },
+      {
+        "node": "Node5",
+        "score": 0.0929,
+        "is_articulation_point": false,
+        "betweenness": 0.0136,
+        "degree_centrality": 0.2917
+      },
+      {
+        "node": "StatusMonitor_10",
+        "score": 0.0801,
+        "is_articulation_point": false,
+        "betweenness": 0.0127,
+        "degree_centrality": 0.25
+      },
+      {
+        "node": "AlertProcessor_8",
+        "score": 0.0763,
+        "is_articulation_point": false,
+        "betweenness": 0.0033,
+        "degree_centrality": 0.25
+      },
+      {
+        "node": "alert/anomaly_5",
+        "score": 0.075,
+        "is_articulation_point": false,
+        "betweenness": 0.0,
+        "degree_centrality": 0.25
+      },
+      {
+        "node": "Node4",
+        "score": 0.0655,
+        "is_articulation_point": false,
+        "betweenness": 0.0075,
+        "degree_centrality": 0.2083
+      },
+      {
+        "node": "Node3",
+        "score": 0.0647,
+        "is_articulation_point": false,
+        "betweenness": 0.0054,
+        "degree_centrality": 0.2083
+      },
+      {
+        "node": "Node1",
+        "score": 0.0625,
+        "is_articulation_point": false,
+        "betweenness": 0.0,
+        "degree_centrality": 0.2083
+      },
+      {
+        "node": "alert/threshold_7",
+        "score": 0.0625,
+        "is_articulation_point": false,
+        "betweenness": 0.0,
+        "degree_centrality": 0.2083
+      },
+      {
+        "node": "DeviceManager_4",
+        "score": 0.0508,
+        "is_articulation_point": false,
+        "betweenness": 0.0021,
+        "degree_centrality": 0.1667
+      },
+      {
+        "node": "DataForwarder_5",
+        "score": 0.0502,
+        "is_articulation_point": false,
+        "betweenness": 0.0006,
+        "degree_centrality": 0.1667
+      },
+      {
+        "node": "EdgeGateway_9",
+        "score": 0.05,
+        "is_articulation_point": false,
+        "betweenness": 0.0,
+        "degree_centrality": 0.1667
+      }
+    ],
+    "statistics": {
+      "total_nodes": 25,
+      "articulation_points_count": 2,
+      "articulation_points_percentage": 8.0,
+      "avg_betweenness": 0.0023,
+      "max_betweenness": 0.0136
+    }
+  },
+  "edge_analysis": {
+    "bridges": [
+      {
+        "from": "diagnostic/health_1",
+        "to": "Broker1"
+      },
+      {
+        "from": "device/config_3",
+        "to": "Broker1"
+      },
+      {
+        "from": "device/config_8",
+        "to": "Broker2"
+      }
+    ],
+    "top_edge_betweenness": [
+      {
+        "from": "EdgeGateway_9",
+        "to": "AlertProcessor_2",
+        "score": 0.0117
+      },
+      {
+        "from": "AlertProcessor_2",
+        "to": "StatusMonitor_10",
+        "score": 0.0111
+      },
+      {
+        "from": "Node5",
+        "to": "Node1",
+        "score": 0.0081
+      },
+      {
+        "from": "StatusMonitor_10",
+        "to": "DeviceManager_4",
+        "score": 0.0078
+      },
+      {
+        "from": "DataForwarder_5",
+        "to": "Node4",
+        "score": 0.0072
+      },
+      {
+        "from": "Node3",
+        "to": "Node1",
+        "score": 0.0067
+      },
+      {
+        "from": "StatusMonitor_10",
+        "to": "telemetry/raw_6",
+        "score": 0.0067
+      },
+      {
+        "from": "Node4",
+        "to": "Node5",
+        "score": 0.0061
+      },
+      {
+        "from": "Node4",
+        "to": "Node3",
+        "score": 0.0058
+      },
+      {
+        "from": "DeviceManager_3",
+        "to": "Node5",
+        "score": 0.0058
+      },
+      {
+        "from": "AlertProcessor_7",
+        "to": "Node5",
+        "score": 0.0056
+      },
+      {
+        "from": "AlertProcessor_7",
+        "to": "StatusMonitor_10",
+        "score": 0.0056
+      },
+      {
+        "from": "AlertProcessor_8",
+        "to": "Node3",
+        "score": 0.0056
+      },
+      {
+        "from": "AlertProcessor_2",
+        "to": "Node4",
+        "score": 0.005
+      },
+      {
+        "from": "EdgeGateway_9",
+        "to": "Node5",
+        "score": 0.005
+      }
+    ],
+    "edges_by_type": {
+      "CONNECTS_TO": 6,
+      "RUNS_ON": 10,
+      "PUBLISHES_TO": 7,
+      "SUBSCRIBES_TO": 8,
+      "DEPENDS_ON": 12,
+      "ROUTES": 8
+    },
+    "edge_impact_analysis": [
+      {
+        "from": "EdgeGateway_9",
+        "to": "AlertProcessor_2",
+        "betweenness": 0.0117,
+        "creates_disconnection": false,
+        "components_after_removal": 2
+      },
+      {
+        "from": "AlertProcessor_2",
+        "to": "StatusMonitor_10",
+        "betweenness": 0.0111,
+        "creates_disconnection": false,
+        "components_after_removal": 2
+      },
+      {
+        "from": "Node5",
+        "to": "Node1",
+        "betweenness": 0.0081,
+        "creates_disconnection": false,
+        "components_after_removal": 2
+      },
+      {
+        "from": "StatusMonitor_10",
+        "to": "DeviceManager_4",
+        "betweenness": 0.0078,
+        "creates_disconnection": false,
+        "components_after_removal": 2
+      },
+      {
+        "from": "DataForwarder_5",
+        "to": "Node4",
+        "betweenness": 0.0072,
+        "creates_disconnection": false,
+        "components_after_removal": 2
+      },
+      {
+        "from": "Node3",
+        "to": "Node1",
+        "betweenness": 0.0067,
+        "creates_disconnection": false,
+        "components_after_removal": 2
+      },
+      {
+        "from": "StatusMonitor_10",
+        "to": "telemetry/raw_6",
+        "betweenness": 0.0067,
+        "creates_disconnection": false,
+        "components_after_removal": 2
+      },
+      {
+        "from": "Node4",
+        "to": "Node5",
+        "betweenness": 0.0061,
+        "creates_disconnection": false,
+        "components_after_removal": 2
+      },
+      {
+        "from": "Node4",
+        "to": "Node3",
+        "betweenness": 0.0058,
+        "creates_disconnection": false,
+        "components_after_removal": 2
+      },
+      {
+        "from": "DeviceManager_3",
+        "to": "Node5",
+        "betweenness": 0.0058,
+        "creates_disconnection": false,
+        "components_after_removal": 2
+      }
+    ],
+    "statistics": {
+      "total_edges": 51,
+      "bridge_count": 3,
+      "bridge_percentage": 5.88,
+      "avg_edge_betweenness": 0.0036,
+      "max_edge_betweenness": 0.0117
+    }
+  },
+  "layer_analysis": {
+    "application_layer": {
+      "total_applications": 10,
+      "direct_dependencies": 12,
+      "avg_dependencies_per_app": 1.2
+    },
+    "topic_layer": {
+      "total_topics": 8,
+      "avg_publishers_per_topic": 1.75,
+      "avg_subscribers_per_topic": 2.0,
+      "most_popular_topics": [
+        {
+          "topic": "alert/anomaly_5",
+          "total_connections": 5
+        },
+        {
+          "topic": "alert/threshold_7",
+          "total_connections": 4
+        },
+        {
+          "topic": "telemetry/raw_6",
+          "total_connections": 3
+        },
+        {
+          "topic": "diagnostic/performance_2",
+          "total_connections": 2
+        },
+        {
+          "topic": "telemetry/aggregated_4",
+          "total_connections": 1
+        }
+      ]
+    },
+    "infrastructure_layer": {
+      "total_nodes": 5,
+      "direct_dependencies": 6,
+      "avg_dependencies_per_node": 1.2
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "type": "Single Point of Failure",
+      "component": "Broker1",
+      "issue": "Node Broker1 is an articulation point - its failure will disconnect the system",
+      "recommendation": "Add redundant paths or backup components",
+      "impact": "High - system fragmentation"
+    },
+    {
+      "priority": "CRITICAL",
+      "type": "Single Point of Failure",
+      "component": "Broker2",
+      "issue": "Node Broker2 is an articulation point - its failure will disconnect the system",
+      "recommendation": "Add redundant paths or backup components",
+      "impact": "High - system fragmentation"
+    },
+    {
+      "priority": "HIGH",
+      "type": "Critical Link",
+      "component": "diagnostic/health_1 \u2192 Broker1",
+      "issue": "This connection is a bridge - its failure will partition the network",
+      "recommendation": "Establish alternative communication paths",
+      "impact": "High - network fragmentation"
+    },
+    {
+      "priority": "HIGH",
+      "type": "Critical Link",
+      "component": "device/config_3 \u2192 Broker1",
+      "issue": "This connection is a bridge - its failure will partition the network",
+      "recommendation": "Establish alternative communication paths",
+      "impact": "High - network fragmentation"
+    },
+    {
+      "priority": "HIGH",
+      "type": "Critical Link",
+      "component": "device/config_8 \u2192 Broker2",
+      "issue": "This connection is a bridge - its failure will partition the network",
+      "recommendation": "Establish alternative communication paths",
+      "impact": "High - network fragmentation"
+    },
+    {
+      "priority": "CRITICAL",
+      "type": "Disconnected System",
+      "component": "Overall System",
+      "issue": "System has 2 disconnected components",
+      "recommendation": "Establish connections between isolated components",
+      "impact": "Critical - some components cannot communicate"
+    }
+  ]
+}
