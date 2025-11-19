@@ -136,13 +136,10 @@ class GraphImporter:
             
             # Indexes for performance
             indexes = [
-                "CREATE INDEX app_type IF NOT EXISTS FOR (a:Application) ON (a.type)",
-                "CREATE INDEX app_criticality IF NOT EXISTS FOR (a:Application) ON (a.criticality)",
                 "CREATE INDEX app_name IF NOT EXISTS FOR (a:Application) ON (a.name)",
                 "CREATE INDEX topic_name IF NOT EXISTS FOR (t:Topic) ON (t.name)",
-                "CREATE INDEX node_zone IF NOT EXISTS FOR (n:Node) ON (n.zone)",
-                "CREATE INDEX node_region IF NOT EXISTS FOR (n:Node) ON (n.region)",
-                "CREATE INDEX broker_name IF NOT EXISTS FOR (b:Broker) ON (b.name)"
+                "CREATE INDEX broker_name IF NOT EXISTS FOR (b:Broker) ON (b.name)",
+                "CREATE INDEX node_name IF NOT EXISTS FOR (n:Node) ON (n.name)"
             ]
             
             for index in indexes:
