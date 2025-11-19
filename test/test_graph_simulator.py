@@ -70,65 +70,44 @@ class TestResults:
 
 
 def create_test_graph() -> Dict[str, Any]:
-    """Create a simple test graph"""
+    """Generate a simple connected graph"""
     return {
-        'nodes': [
-            {'id': 'N1', 'properties': {'name': 'Node1'}},
-            {'id': 'N2', 'properties': {'name': 'Node2'}}
+        "nodes": [
+            {"id": "node1", "name": "node1"},
+            {"id": "node2", "name": "node2"}
         ],
-        'applications': [
-            {
-                'id': 'A1',
-                'node': 'N1',
-                'properties': {
-                    'name': 'Publisher1',
-                    'publish_topics': [['T1', 1000, 1024]],  # topic, period_ms, size_bytes
-                    'subscribe_topics': []
-                }
-            },
-            {
-                'id': 'A2',
-                'node': 'N1',
-                'properties': {
-                    'name': 'Subscriber1',
-                    'publish_topics': [],
-                    'subscribe_topics': ['T1']
-                }
-            },
-            {
-                'id': 'A3',
-                'node': 'N2',
-                'properties': {
-                    'name': 'Subscriber2',
-                    'publish_topics': [],
-                    'subscribe_topics': ['T1']
-                }
-            }
+        "applications": [
+            {"id": "app1", "name": "app1", "type": "PRODUCER"},
+            {"id": "app2", "name": "app2", "type": "PROSUMER"},
+            {"id": "app3", "name": "app3", "type": "CONSUMER"}
         ],
-        'brokers': [
-            {
-                'id': 'B1',
-                'node': 'N1',
-                'properties': {
-                    'name': 'Broker1',
-                    'port': 7400,
-                    'routing_delay_ms': 2.0
-                }
-            }
+        "topics": [
+            {"id": "topic1", "name": "topic1", "message_size_bytes": 512, "message_rate_hz": 10},
+            {"id": "topic2", "name": "topic2", "message_size_bytes": 1024, "message_rate_hz": 1}
         ],
-        'topics': [
-            {
-                'id': 'T1',
-                'broker': 'B1',
-                'properties': {
-                    'name': 'TestTopic',
-                    'type': 'std_msgs/String',
-                    'reliability': 'RELIABLE',
-                    'deadline_ms': 5000,
-                    'lifespan_ms': 10000
-                }
-            }
-        ]
+        "brokers": [
+            {"id": "broker1", "name": "broker1"}
+        ],
+        "relationships": {
+            "runs_on": [
+                {"from": "app1", "to": "node1"},
+                {"from": "app2", "to": "node1"},
+                {"from": "app3", "to": "node2"},
+                {"from": "broker1", "to": "node1"}
+            ],
+            "publishes_to": [
+                {"from": "app1", "to": "topic1", "period_ms": 100, "msg_size": 512},
+                {"from": "app2", "to": "topic2", "period_ms": 1000, "msg_size": 1024}
+            ],
+            "subscribes_to": [
+                {"from": "app2", "to": "topic1"},
+                {"from": "app3", "to": "topic2"}
+            ],
+            "routes": [
+                {"from": "broker1", "to": "topic1"},
+                {"from": "broker1", "to": "topic2"}
+            ]
+        }
     }
 
 
@@ -154,11 +133,11 @@ def test_graph_loading(results: TestResults):
         assert len(simulator.nodes) == 2, f"Expected 2 nodes, got {len(simulator.nodes)}"
         assert len(simulator.applications) == 3, f"Expected 3 apps, got {len(simulator.applications)}"
         assert len(simulator.brokers) == 1, f"Expected 1 broker, got {len(simulator.brokers)}"
-        assert len(simulator.topics) == 1, f"Expected 1 topic, got {len(simulator.topics)}"
+        assert len(simulator.topics) == 2, f"Expected 2 topic, got {len(simulator.topics)}"
         
         results.add_pass(
             "Graph Loading",
-            f"Loaded 2 nodes, 3 apps, 1 broker, 1 topic"
+            f"Loaded 2 nodes, 3 apps, 1 broker, 2 topic"
         )
         
         # Cleanup
@@ -232,7 +211,7 @@ async def test_application_failure(results: TestResults):
         await asyncio.sleep(3)
         failure_sim.inject_failure(
             simulator,
-            'A1',  # Fail the publisher
+            'app1',  # Fail the publisher
             ComponentType.APPLICATION,
             FailureType.COMPLETE,
             severity=1.0,
@@ -244,7 +223,7 @@ async def test_application_failure(results: TestResults):
         
         # Verify failure impact
         assert len(failure_sim.failure_events) == 1, "Failure not recorded"
-        assert 'A1' in failure_sim.active_failures, "Failure not active"
+        assert 'app1' in failure_sim.active_failures, "Failure not active"
         
         # Verify reduced message delivery after failure
         stats = sim_results['global_stats']
@@ -252,7 +231,7 @@ async def test_application_failure(results: TestResults):
         
         results.add_pass(
             "Application Failure",
-            f"Failed A1, Dropped: {stats['messages_dropped']}, "
+            f"Failed app1, Dropped: {stats['messages_dropped']}, "
             f"Events: {len(failure_sim.failure_events)}"
         )
         
