@@ -405,7 +405,7 @@ async def test_qos_policies(results: TestResults):
         graph_data = create_test_graph()
         
         # Modify topic for stricter deadlines
-        graph_data['topics'][0]['properties']['deadline_ms'] = 100  # Very strict
+        graph_data['topics'][0]['qos']['deadline_ms'] = 100  # Very strict
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
             json.dump(graph_data, f)

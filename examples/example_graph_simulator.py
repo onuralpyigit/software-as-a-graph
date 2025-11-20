@@ -33,109 +33,44 @@ except ImportError as e:
 
 
 def create_example_graph():
-    """Create example pub-sub system"""
+    """Generate a simple connected graph"""
     return {
-        'nodes': [
-            {'id': 'N1', 'properties': {'name': 'DataCenter1', 'region': 'us-east'}},
-            {'id': 'N2', 'properties': {'name': 'DataCenter2', 'region': 'us-west'}},
-            {'id': 'N3', 'properties': {'name': 'EdgeNode1', 'region': 'eu-central'}}
+        "nodes": [
+            {"id": "node1", "name": "node1"},
+            {"id": "node2", "name": "node2"}
         ],
-        'applications': [
-            {
-                'id': 'SensorApp',
-                'node': 'N1',
-                'properties': {
-                    'name': 'SensorDataPublisher',
-                    'publish_topics': [
-                        ['temperature', 1000, 512],
-                        ['pressure', 1000, 512]
-                    ],
-                    'subscribe_topics': []
-                }
-            },
-            {
-                'id': 'ProcessorApp',
-                'node': 'N2',
-                'properties': {
-                    'name': 'DataProcessor',
-                    'publish_topics': [['processed_data', 5000, 2048]],
-                    'subscribe_topics': ['temperature', 'pressure']
-                }
-            },
-            {
-                'id': 'AnalyticsApp',
-                'node': 'N2',
-                'properties': {
-                    'name': 'Analytics',
-                    'publish_topics': [],
-                    'subscribe_topics': ['processed_data']
-                }
-            },
-            {
-                'id': 'MonitorApp',
-                'node': 'N3',
-                'properties': {
-                    'name': 'Monitor',
-                    'publish_topics': [],
-                    'subscribe_topics': ['temperature', 'pressure', 'processed_data']
-                }
-            }
+        "applications": [
+            {"id": "app1", "name": "app1", "type": "PRODUCER"},
+            {"id": "app2", "name": "app2", "type": "PROSUMER"},
+            {"id": "app3", "name": "app3", "type": "CONSUMER"}
         ],
-        'brokers': [
-            {
-                'id': 'MainBroker',
-                'node': 'N1',
-                'properties': {
-                    'name': 'PrimaryBroker',
-                    'port': 7400,
-                    'routing_delay_ms': 2.0
-                }
-            },
-            {
-                'id': 'BackupBroker',
-                'node': 'N2',
-                'properties': {
-                    'name': 'SecondaryBroker',
-                    'port': 7401,
-                    'routing_delay_ms': 3.0
-                }
-            }
+        "topics": [
+            {"id": "topic1", "name": "topic1", "message_size_bytes": 512, "message_rate_hz": 10},
+            {"id": "topic2", "name": "topic2", "message_size_bytes": 1024, "message_rate_hz": 1}
         ],
-        'topics': [
-            {
-                'id': 'temperature',
-                'broker': 'MainBroker',
-                'properties': {
-                    'name': 'TemperatureTopic',
-                    'type': 'sensor_msgs/Temperature',
-                    'reliability': 'RELIABLE',
-                    'deadline_ms': 5000,
-                    'lifespan_ms': 10000
-                }
-            },
-            {
-                'id': 'pressure',
-                'broker': 'MainBroker',
-                'properties': {
-                    'name': 'PressureTopic',
-                    'type': 'sensor_msgs/Pressure',
-                    'reliability': 'RELIABLE',
-                    'deadline_ms': 5000,
-                    'lifespan_ms': 10000
-                }
-            },
-            {
-                'id': 'processed_data',
-                'broker': 'BackupBroker',
-                'properties': {
-                    'name': 'ProcessedDataTopic',
-                    'type': 'custom_msgs/ProcessedData',
-                    'reliability': 'RELIABLE',
-                    'deadline_ms': 10000,
-                    'lifespan_ms': 30000
-                }
-            }
-        ]
+        "brokers": [
+            {"id": "broker1", "name": "broker1"}
+        ],
+        "relationships": {
+            "runs_on": [
+                {"from": "app1", "to": "node1"},
+                {"from": "app2", "to": "node1"},
+                {"from": "app3", "to": "node2"},
+                {"from": "broker1", "to": "node1"}
+            ],
+            "publishes_to": [
+                {"from": "app1", "to": "topic1", "period_ms": 100, "msg_size": 512},
+                {"from": "app2", "to": "topic2", "period_ms": 1000, "msg_size": 1024}
+            ],
+            "subscribes_to": [
+                {"from": "app2", "to": "topic1"},
+                {"from": "app3", "to": "topic2"}
+            ],
+            "routes": [
+                {"from": "broker1", "to": "topic1"},
+                {"from": "broker1", "to": "topic2"}
+            ]
+        }
     }
 
 
