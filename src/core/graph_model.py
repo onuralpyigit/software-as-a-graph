@@ -23,6 +23,13 @@ class QoSReliability(Enum):
     BEST_EFFORT = "BEST_EFFORT"
     RELIABLE = "RELIABLE"
 
+class QosTransportPriority(Enum):
+    """QoS Transport Priority Levels"""
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    URGENT = "URGENT"
+
 class ComponentType(Enum):
     """Types of components in the system"""
     APPLICATION = "Application"
@@ -50,7 +57,7 @@ class QoSPolicy:
     reliability: QoSReliability = QoSReliability.BEST_EFFORT
     deadline_ms: Optional[float] = None  # None = infinite
     lifespan_ms: Optional[float] = None  # None = infinite
-    transport_priority: int = 0  # 0-100 scale
+    transport_priority: QosTransportPriority = QosTransportPriority.MEDIUM
     history_depth: int = 1
     
     def get_criticality_score(self, weights: Optional[Dict[str, float]] = None) -> float:
@@ -101,7 +108,13 @@ class QoSPolicy:
             lifespan_score = math.log(self.lifespan_ms + 1) / math.log(86400000)  # Normalized to 24h
         
         # Transport priority score (normalized)
-        transport_score = self.transport_priority / 100
+        transport_score_map = {
+            QosTransportPriority.LOW: 0.25,
+            QosTransportPriority.MEDIUM: 0.5,
+            QosTransportPriority.HIGH: 0.75,
+            QosTransportPriority.CRITICAL: 1.0
+        }
+        transport_score = transport_score_map[self.transport_priority]
         
         # History depth score (log scale)
         import math
@@ -125,48 +138,16 @@ class ApplicationNode:
     """Application component in the system"""
     id: str
     name: str
+    type: str
     component_type: ComponentType = ComponentType.APPLICATION
-    app_type: ApplicationType = ApplicationType.PROSUMER
-    node_host: Optional[str] = None
-    
-    # QoS Requirements
-    required_latency_ms: Optional[float] = None
-    required_throughput_msgs_per_sec: Optional[float] = None
-    
-    # Resource Requirements
-    cpu_cores: float = 1.0
-    memory_mb: float = 512.0
-    
-    # Runtime Metrics
-    actual_latency_ms: Optional[float] = None
-    actual_throughput: Optional[float] = None
-    health_score: float = 1.0  # 0-1 scale
-    
-    # Metadata
-    business_domain: Optional[str] = None
-    team_owner: Optional[str] = None
-    version: Optional[str] = None
-    last_updated: Optional[datetime] = None
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for Neo4j"""
         return {
             'id': self.id,
             'name': self.name,
-            'type': self.component_type.value,
-            'app_type': self.app_type.value,
-            'node_host': self.node_host,
-            'required_latency_ms': self.required_latency_ms,
-            'required_throughput_msgs_per_sec': self.required_throughput_msgs_per_sec,
-            'cpu_cores': self.cpu_cores,
-            'memory_mb': self.memory_mb,
-            'actual_latency_ms': self.actual_latency_ms,
-            'actual_throughput': self.actual_throughput,
-            'health_score': self.health_score,
-            'business_domain': self.business_domain,
-            'team_owner': self.team_owner,
-            'version': self.version,
-            'last_updated': self.last_updated.isoformat() if self.last_updated else None
+            'type': self.type,
+            'component_type': self.component_type.value
         }
 
 
@@ -175,24 +156,15 @@ class TopicNode:
     """Topic (message channel) in the system"""
     id: str
     name: str
-    component_type: ComponentType = ComponentType.TOPIC
-    broker: Optional[str] = None
     
     # QoS Policies
     qos_policy: QoSPolicy = field(default_factory=QoSPolicy)
     
     # Traffic Characteristics
-    message_rate_per_sec: float = 0.0
-    avg_message_size_bytes: float = 0.0
-    peak_message_rate: float = 0.0
-    
-    # Schema Information
-    message_type: Optional[str] = None
-    schema_version: Optional[str] = None
-    
-    # Metadata
-    description: Optional[str] = None
-    created_at: Optional[datetime] = None
+    message_size_bytes: float = 0.0
+    message_rate_hz: float = 0.0
+
+    component_type: ComponentType = ComponentType.TOPIC
     
     def get_qos_criticality(self) -> float:
         """Get QoS-based criticality score for this topic"""
@@ -203,22 +175,15 @@ class TopicNode:
         return {
             'id': self.id,
             'name': self.name,
-            'type': self.component_type.value,
-            'broker': self.broker,
             'durability': self.qos_policy.durability.value,
             'reliability': self.qos_policy.reliability.value,
             'deadline_ms': self.qos_policy.deadline_ms,
             'lifespan_ms': self.qos_policy.lifespan_ms,
             'transport_priority': self.qos_policy.transport_priority,
             'history_depth': self.qos_policy.history_depth,
-            'qos_score': self.get_qos_criticality(),
-            'message_rate_per_sec': self.message_rate_per_sec,
-            'avg_message_size_bytes': self.avg_message_size_bytes,
-            'peak_message_rate': self.peak_message_rate,
-            'message_type': self.message_type,
-            'schema_version': self.schema_version,
-            'description': self.description,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'message_size_bytes': self.message_size_bytes,
+            'message_rate_hz': self.message_rate_hz,
+            'component_type': self.component_type.value,
         }
 
 
@@ -228,57 +193,13 @@ class BrokerNode:
     id: str
     name: str
     component_type: ComponentType = ComponentType.BROKER
-    node_host: Optional[str] = None
-    
-    # Configuration
-    max_connections: int = 1000
-    max_throughput_msgs_per_sec: float = 10000.0
-    replication_factor: int = 1
-    partition_count: int = 1
-    
-    # Performance Metrics
-    current_connections: int = 0
-    current_throughput: float = 0.0
-    avg_latency_ms: float = 0.0
-    cpu_utilization: float = 0.0  # 0-1 scale
-    memory_utilization: float = 0.0  # 0-1 scale
-    
-    # Health
-    health_score: float = 1.0
-    uptime_seconds: float = 0.0
-    
-    # Metadata
-    broker_type: str = "Generic"  # Kafka, RabbitMQ, MQTT, etc.
-    version: Optional[str] = None
-    
-    def get_capacity_utilization(self) -> float:
-        """Calculate overall capacity utilization"""
-        connection_util = self.current_connections / self.max_connections
-        throughput_util = self.current_throughput / self.max_throughput_msgs_per_sec
-        return (connection_util + throughput_util + 
-                self.cpu_utilization + self.memory_utilization) / 4
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for Neo4j"""
         return {
             'id': self.id,
             'name': self.name,
-            'type': self.component_type.value,
-            'node_host': self.node_host,
-            'max_connections': self.max_connections,
-            'max_throughput_msgs_per_sec': self.max_throughput_msgs_per_sec,
-            'replication_factor': self.replication_factor,
-            'partition_count': self.partition_count,
-            'current_connections': self.current_connections,
-            'current_throughput': self.current_throughput,
-            'avg_latency_ms': self.avg_latency_ms,
-            'cpu_utilization': self.cpu_utilization,
-            'memory_utilization': self.memory_utilization,
-            'capacity_utilization': self.get_capacity_utilization(),
-            'health_score': self.health_score,
-            'uptime_seconds': self.uptime_seconds,
-            'broker_type': self.broker_type,
-            'version': self.version
+            'component_type': self.component_type.value
         }
 
 
@@ -289,112 +210,101 @@ class InfrastructureNode:
     name: str
     component_type: ComponentType = ComponentType.NODE
     
-    # Location Hierarchy
-    datacenter: Optional[str] = None
-    rack: Optional[str] = None
-    zone: Optional[str] = None
-    region: Optional[str] = None
-    
-    # Capacity
-    total_cpu_cores: float = 4.0
-    total_memory_mb: float = 8192.0
-    total_disk_gb: float = 100.0
-    network_bandwidth_mbps: float = 1000.0
-    
-    # Utilization
-    cpu_utilization: float = 0.0  # 0-1 scale
-    memory_utilization: float = 0.0
-    disk_utilization: float = 0.0
-    network_utilization: float = 0.0
-    
-    # Health
-    health_score: float = 1.0
-    uptime_seconds: float = 0.0
-    
-    # Metadata
-    node_type: str = "VM"  # VM, Container, Physical, etc.
-    os: Optional[str] = None
-    ip_address: Optional[str] = None
-    
-    def get_resource_utilization(self) -> float:
-        """Calculate overall resource utilization"""
-        return (self.cpu_utilization + self.memory_utilization + 
-                self.disk_utilization + self.network_utilization) / 4
-    
     def to_dict(self) -> Dict:
         """Convert to dictionary for Neo4j"""
         return {
             'id': self.id,
             'name': self.name,
-            'type': self.component_type.value,
-            'datacenter': self.datacenter,
-            'rack': self.rack,
-            'zone': self.zone,
-            'region': self.region,
-            'total_cpu_cores': self.total_cpu_cores,
-            'total_memory_mb': self.total_memory_mb,
-            'total_disk_gb': self.total_disk_gb,
-            'network_bandwidth_mbps': self.network_bandwidth_mbps,
-            'cpu_utilization': self.cpu_utilization,
-            'memory_utilization': self.memory_utilization,
-            'disk_utilization': self.disk_utilization,
-            'network_utilization': self.network_utilization,
-            'resource_utilization': self.get_resource_utilization(),
-            'health_score': self.health_score,
-            'uptime_seconds': self.uptime_seconds,
-            'node_type': self.node_type,
-            'os': self.os,
-            'ip_address': self.ip_address
+            'component_type': self.component_type.value
         }
     
 class PublishesEdge:
     """Application publishes to Topic"""
-    def __init__(self, source: str, target: str, **kwargs):
+    def __init__(self, source: str, target: str, period_ms: Optional[float] = None, msg_size_bytes: Optional[float] = None):
         self.source = source
         self.target = target
-        self.properties = kwargs
+        self.period_ms = period_ms
+        self.msg_size_bytes = msg_size_bytes
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for Neo4j"""
+        return {
+            'source': self.source,
+            'target': self.target,
+            'period_ms': self.period_ms,
+            'msg_size_bytes': self.msg_size_bytes
+        }
 
 
 class SubscribesEdge:
     """Application subscribes to Topic"""
-    def __init__(self, source: str, target: str, **kwargs):
+    def __init__(self, source: str, target: str):
         self.source = source
         self.target = target
-        self.properties = kwargs
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for Neo4j"""
+        return {
+            'source': self.source,
+            'target': self.target
+        }
 
 
 class RoutesEdge:
     """Broker routes Topic"""
-    def __init__(self, source: str, target: str, **kwargs):
+    def __init__(self, source: str, target: str):
         self.source = source
         self.target = target
-        self.properties = kwargs
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for Neo4j"""
+        return {
+            'source': self.source,
+            'target': self.target
+        }
 
 
 class RunsOnEdge:
     """Application runs on Infrastructure Node"""
-    def __init__(self, source: str, target: str, **kwargs):
+    def __init__(self, source: str, target: str):
         self.source = source
         self.target = target
-        self.properties = kwargs
 
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for Neo4j"""
+        return {
+            'source': self.source,
+            'target': self.target
+        }
 
 class ConnectsToEdge:
     """Broker connects to Broker"""
-    def __init__(self, source: str, target: str, **kwargs):
+    def __init__(self, source: str, target: str):
         self.source = source
         self.target = target
-        self.properties = kwargs
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for Neo4j"""
+        return {
+            'source': self.source,
+            'target': self.target
+        }
 
 
 class DependsOnEdge:
     """Derived dependency relationship"""
-    def __init__(self, source: str, target: str,
-                 dependency_type: str = "FUNCTIONAL", strength: float = 1.0):
+    def __init__(self, source: str, target: str, topic: str):
         self.source = source
         self.target = target
-        self.dependency_type = dependency_type
-        self.strength = strength
+        self.topic = topic
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for Neo4j"""
+        return {
+            'source': self.source,
+            'target': self.target,
+            'topic': self.topic
+        }
 
 
 class GraphModel:

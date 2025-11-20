@@ -35,6 +35,8 @@ try:
         FailureSimulator, FailureType, ComponentType
     )
     from src.core.graph_model import GraphModel
+    from src.core.graph_builder import GraphBuilder
+    from src.core.graph_exporter import GraphExporter
     import networkx as nx
 except ImportError as e:
     print(f"❌ Error importing required modules: {e}")
@@ -164,27 +166,13 @@ def load_graph_from_json(json_path: str, logger: logging.Logger) -> Tuple[GraphM
     """Load graph from JSON file"""
     logger.info(f"Loading graph from {json_path}")
     
-    with open(json_path, 'r') as f:
-        data = json.load(f)
-    
-    # Create graph model
-    model = GraphModel()
-    
-    # Load components
-    for node in data.get('nodes', []):
-        model.add_node(node['id'], node.get('properties', {}))
-    
-    for app in data.get('applications', []):
-        model.add_application(app['id'], app.get('node'), app.get('properties', {}))
-    
-    for broker in data.get('brokers', []):
-        model.add_broker(broker['id'], broker.get('node'), broker.get('properties', {}))
-    
-    for topic in data.get('topics', []):
-        model.add_topic(topic['id'], topic.get('broker'), topic.get('properties', {}))
-    
+    # Build graph model
+    builder = GraphBuilder()
+    model = builder.build_from_json(json_path)
+
     # Convert to NetworkX graph
-    graph = model.to_networkx()
+    exporter = GraphExporter()
+    graph = exporter.export_to_networkx(model)
     
     logger.info(f"Loaded graph: {len(graph.nodes)} nodes, {len(graph.edges)} edges")
     

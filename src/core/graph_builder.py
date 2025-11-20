@@ -23,7 +23,7 @@ from datetime import datetime
 
 from .graph_model import (
     GraphModel, ApplicationNode, TopicNode, BrokerNode, InfrastructureNode,
-    QoSPolicy, QoSDurability, QoSReliability, ApplicationType, MessagePattern,
+    QoSPolicy, QoSDurability, QoSReliability, QosTransportPriority, ApplicationType,
     PublishesEdge, SubscribesEdge, RoutesEdge, RunsOnEdge, ConnectsToEdge, DependsOnEdge
 )
 
@@ -170,7 +170,7 @@ class GraphBuilder:
                 app = ApplicationNode(
                     id=id,
                     name=name,
-                    app_type=app_type
+                    type=app_type
                 )
                 model.add_application(app)
                 
@@ -187,18 +187,21 @@ class GraphBuilder:
                 
                 id = topic_data.get('id')
                 name = topic_data.get('name')
-                message_type = topic_data.get('message_type', 'unknown')
                 
                 # Parse QoS if present
                 qos_policy = None
-                if 'qos_policy' in topic_data:
-                    qos_policy = self._parse_qos_policy(topic_data['qos_policy'])
+                if 'qos' in topic_data:
+                    qos_policy = self._parse_qos_policy(topic_data['qos'])
+
+                message_size_bytes = topic_data.get('message_size_bytes')
+                message_rate_hz = topic_data.get('message_rate_hz')
                 
                 topic = TopicNode(
                     id=id,
                     name=name,
-                    message_type=message_type,
-                    qos_policy=qos_policy
+                    qos_policy=qos_policy,
+                    message_size_bytes=message_size_bytes,
+                    message_rate_hz=message_rate_hz
                 )
                 model.add_topic(topic)
                 
@@ -215,12 +218,10 @@ class GraphBuilder:
                 
                 id = broker_data.get('id')
                 name = broker_data.get('name')
-                broker_type = broker_data.get('protocol', 'DDS')
                 
                 broker = BrokerNode(
                     id=id,
-                    name=name,
-                    broker_type=broker_type
+                    name=name
                 )
                 model.add_broker(broker)
                 
@@ -263,6 +264,10 @@ class GraphBuilder:
                 # Support both from/to and source/target
                 source = edge_data.get('source') or edge_data.get('from')
                 target = edge_data.get('target') or edge_data.get('to')
+
+                period_ms = edge_data.get('period_ms')
+                msg_size_bytes = edge_data.get('message_size_bytes')
+
                 
                 if not source or not target:
                     self.errors.append(f"Publishes edge {idx}: missing source or target")
@@ -277,8 +282,8 @@ class GraphBuilder:
                 edge = PublishesEdge(
                     source=source,
                     target=target,
-                    **{k: v for k, v in edge_data.items() 
-                       if k not in ['source', 'target', 'from', 'to']}
+                    period_ms=period_ms,
+                    msg_size_bytes=msg_size_bytes
                 )
                 model.publishes_edges.append(edge)
                 
@@ -365,16 +370,14 @@ class GraphBuilder:
                     continue
                 
                 # Validate references
-                if source not in model.applications:
-                    self.warnings.append(f"RunsOn edge {idx}: unknown application '{source}'")
+                if source not in model.applications and source not in model.brokers:
+                    self.warnings.append(f"RunsOn edge {idx}: unknown application/broker '{source}'")
                 if target not in model.nodes:
                     self.warnings.append(f"RunsOn edge {idx}: unknown node '{target}'")
                 
                 edge = RunsOnEdge(
                     source=source,
-                    target=target,
-                    **{k: v for k, v in edge_data.items() 
-                       if k not in ['source', 'target', 'from', 'to']}
+                    target=target
                 )
                 model.runs_on_edges.append(edge)
                 
@@ -427,8 +430,7 @@ class GraphBuilder:
                             model.depends_on_edges.append(DependsOnEdge(
                                 source=subscriber,
                                 target=publisher,
-                                dependency_type='FUNCTIONAL',
-                                strength=0.8
+                                topic=topic
                             ))
         
         self.logger.info(f"Derived {len(model.depends_on_edges)} DEPENDS_ON relationships")
@@ -495,13 +497,21 @@ class GraphBuilder:
             except (KeyError, ValueError):
                 reliability = QoSReliability.BEST_EFFORT
                 self.warnings.append(f"Invalid reliability '{reliability_str}', using BEST_EFFORT")
+
+            # Parse transport priority
+            transport_priority_str = data.get('transport_priority', 'MEDIUM')
+            try:
+                transport_priority = QosTransportPriority[transport_priority_str]
+            except (KeyError, ValueError):
+                transport_priority = QosTransportPriority.MEDIUM
+                self.warnings.append(f"Invalid transport priority '{transport_priority_str}', using MEDIUM")
             
             return QoSPolicy(
                 durability=durability,
                 reliability=reliability,
                 deadline_ms=self._parse_float(data.get('deadline_ms')),
                 lifespan_ms=self._parse_float(data.get('lifespan_ms')),
-                transport_priority=self._parse_int(data.get('transport_priority', 0)),
+                transport_priority=transport_priority,
                 history_depth=self._parse_int(data.get('history_depth', 1))
             )
         except Exception as e:
