@@ -188,7 +188,7 @@ class FailureSimulator:
         self.failure_events.append(event)
         self.active_failures[component_id] = event
         
-        self.logger.info(f"Injecting {failure_type.value} failure: {component_type.value} {component_id}")
+        self.logger.info(f"Injecting {failure_type} failure: {component_type} {component_id}")
         
         # Apply failure to simulator
         self._apply_failure(simulator, event)
