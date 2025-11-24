@@ -20,7 +20,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / '..'))
 
 # Import Core Modules
 from src.core.graph_generator import GraphGenerator, GraphConfig
