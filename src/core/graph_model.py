@@ -138,7 +138,7 @@ class ApplicationNode:
     """Application component in the system"""
     id: str
     name: str
-    type: str
+    app_type: str
     component_type: ComponentType = ComponentType.APPLICATION
     
     def to_dict(self) -> Dict:
@@ -146,7 +146,7 @@ class ApplicationNode:
         return {
             'id': self.id,
             'name': self.name,
-            'type': self.type,
+            'app_type': self.app_type,
             'component_type': self.component_type.value
         }
 

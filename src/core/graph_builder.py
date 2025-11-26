@@ -170,7 +170,7 @@ class GraphBuilder:
                 app = ApplicationNode(
                     id=id,
                     name=name,
-                    type=app_type
+                    app_type=app_type
                 )
                 model.add_application(app)
                 

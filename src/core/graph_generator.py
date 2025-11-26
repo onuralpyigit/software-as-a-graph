@@ -550,7 +550,7 @@ class GraphGenerator:
             app = {
                 'id': f'A{i}',
                 'name': f'{base_name}_{i}',
-                'type': app_type
+                'app_type': app_type
             }
             
             applications.append(app)
@@ -597,8 +597,7 @@ class GraphGenerator:
                 primary_broker = brokers[i % len(brokers)]
                 graph['relationships']['routes'].append({
                     'from': primary_broker['id'],
-                    'to': topic['id'],
-                    'role': 'primary'
+                    'to': topic['id']
                 })
     
     def _generate_realistic_pub_sub(self, graph: Dict):
@@ -613,7 +612,7 @@ class GraphGenerator:
             topic_groups[prefix].append(topic)
         
         for app in apps:
-            app_type = app['type']
+            app_type = app['app_type']
             app_name = app['name'].lower()
             
             # Publishers
@@ -693,7 +692,7 @@ class GraphGenerator:
         max_sub = max(1, int(len(topics) * self.config.edge_density))
         
         for app in apps:
-            app_type = app['type']
+            app_type = app['app_type']
             
             # Publishers
             if app_type in ['PRODUCER', 'PROSUMER']:
@@ -791,8 +790,7 @@ class GraphGenerator:
         for topic in overload_topics:
             graph['relationships']['routes'].append({
                 'from': overloaded_broker['id'],
-                'to': topic['id'],
-                'role': 'primary'
+                'to': topic['id']
             })
         
         self.logger.info(f"Applied broker_overload antipattern to {overloaded_broker['id']}")
@@ -843,8 +841,7 @@ class GraphGenerator:
         for topic in topics:
             graph['relationships']['routes'].append({
                 'from': single_broker['id'],
-                'to': topic['id'],
-                'role': 'primary'
+                'to': topic['id']
             })
         
         self.logger.info(f"Applied single_broker antipattern - only {single_broker['id']} remains")
