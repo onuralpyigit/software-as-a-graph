@@ -231,7 +231,7 @@ class GraphImporter:
                         CREATE (a:Application {
                             id: app.id,
                             name: app.name,
-                            type: coalesce(app.type, 'UNKNOWN')
+                            app_type: coalesce(app.app_type, 'UNKNOWN')
                         })
                     """, apps=batch)
                 except Exception as e:
