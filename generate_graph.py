@@ -337,7 +337,7 @@ def print_statistics(graph: Dict, config: GraphConfig, generation_time: float):
     app_types = {}
     
     for app in graph['applications']:
-        app_type = app['type']
+        app_type = app['app_type']
         app_types[app_type] = app_types.get(app_type, 0) + 1
 
     print(f"{Colors.BOLD}Application Distribution:{Colors.ENDC}")
