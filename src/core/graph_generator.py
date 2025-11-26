@@ -801,7 +801,7 @@ class GraphGenerator:
         topics = graph['topics']
         
         # Select or create a god app
-        god_app = random.choice([a for a in apps if a['type'] in ['CONSUMER', 'PROSUMER']])
+        god_app = random.choice([a for a in apps if a['app_type'] in ['CONSUMER', 'PROSUMER']])
         god_app['name'] = f"GodObject_{god_app['id']}"
         
         # Subscribe to 80% of topics
@@ -911,7 +911,7 @@ class GraphGenerator:
         
         # Make 70% of apps publish to it
         num_publishers = int(len(apps) * 0.7)
-        publishers = random.sample([a for a in apps if a['type'] in ['PRODUCER', 'PROSUMER']], 
+        publishers = random.sample([a for a in apps if a['app_type'] in ['PRODUCER', 'PROSUMER']], 
                                    min(num_publishers, len(apps)))
         
         for pub_app in publishers:
@@ -926,7 +926,7 @@ class GraphGenerator:
         
         # Make 70% of apps subscribe to it
         num_subscribers = int(len(apps) * 0.7)
-        subscribers = random.sample([a for a in apps if a['type'] in ['CONSUMER', 'PROSUMER']], 
+        subscribers = random.sample([a for a in apps if a['app_type'] in ['CONSUMER', 'PROSUMER']], 
                                    min(num_subscribers, len(apps)))
         
         for sub_app in subscribers:
@@ -957,7 +957,7 @@ class GraphGenerator:
         for app in disconnected:
             topic = random.choice(topics)
             
-            if app['type'] in ['PRODUCER', 'PROSUMER']:
+            if app['app_type'] in ['PRODUCER', 'PROSUMER']:
                 graph['relationships']['publishes_to'].append({
                     'from': app['id'],
                     'to': topic['id'],
@@ -965,7 +965,7 @@ class GraphGenerator:
                     'msg_size': 512
                 })
             
-            if app['type'] in ['CONSUMER', 'PROSUMER']:
+            if app['app_type'] in ['CONSUMER', 'PROSUMER']:
                 topic = random.choice(topics)
                 graph['relationships']['subscribes_to'].append({
                     'from': app['id'],
