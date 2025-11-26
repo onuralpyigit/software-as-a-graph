@@ -66,49 +66,49 @@ def create_smart_home_example():
             {
                 "id": "temp_sensor",
                 "name": "temp_sensor",
-                "type": "PRODUCER"
+                "app_type": "PRODUCER"
             },
             {
                 "id": "motion_sensor",
                 "name": "motion_sensor",
-                "type": "PRODUCER"
+                "app_type": "PRODUCER"
             },
             {
                 "id": "door_sensor",
                 "name": "door_sensor",
-                "type": "PRODUCER"
+                "app_type": "PRODUCER"
             },
             {
                 "id": "window_sensor",
                 "name": "window_sensor",
-                "type": "PRODUCER"
+                "app_type": "PRODUCER"
             },
             {
                 "id": "camera",
                 "name": "camera",
-                "type": "PRODUCER"
+                "app_type": "PRODUCER"
             },
             # Actuators
             {
                 "id": "hvac_controller",
                 "name": "hvac_controller",
-                "type": "PROSUMER"
+                "app_type": "PROSUMER"
             },
             {
                 "id": "light_controller",
                 "name": "light_controller",
-                "type": "PROSUMER"
+                "app_type": "PROSUMER"
             },
             # Dashboard and Cloud
             {
                 "id": "dashboard",
                 "name": "dashboard",
-                "type": "PROSUMER",
+                "app_type": "PROSUMER",
             },
             {
                 "id": "cloud_sync",
                 "name": "cloud_sync",
-                "type": "CONSUMER",
+                "app_type": "CONSUMER",
             }
         ],
         "topics": [
@@ -287,7 +287,7 @@ def display_key_findings(results):
     # Critical nodes
     node_analysis = results['node_analysis']
     print(f"\n🔴 Critical Components:")
-    print(f"   • Articulation Points: {node_analysis['statistics']['articulation_points_count']}")
+    print(f"   • Articulation Points: {node_analysis['statistics']['articulation_point_count']}")
     print(f"\n   Top 3 Most Critical Nodes:")
     for idx, node in enumerate(node_analysis['top_critical_nodes'][:3], 1):
         ap = "⚠️  (Single Point of Failure)" if node['is_articulation_point'] else ""
