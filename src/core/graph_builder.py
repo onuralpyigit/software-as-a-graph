@@ -283,7 +283,7 @@ class GraphBuilder:
                     source=source,
                     target=target,
                     period_ms=edge.get('period_ms'),
-                    msg_size_bytes=edge.get('msg_size_bytes')
+                    message_size_bytes=edge.get('message_size_bytes')
                 ))
             else:
                 self.warnings.append(f"PUBLISHES edge missing source/target: {edge}")

@@ -289,7 +289,7 @@ class PublishesEdge:
     source: str  # Application ID
     target: str  # Topic ID
     period_ms: Optional[float] = None  # Publishing period
-    msg_size_bytes: Optional[float] = None  # Average message size
+    message_size_bytes: Optional[float] = None  # Average message size
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for Neo4j"""
@@ -297,7 +297,7 @@ class PublishesEdge:
             'source': self.source,
             'target': self.target,
             'period_ms': self.period_ms,
-            'msg_size_bytes': self.msg_size_bytes
+            'message_size_bytes': self.message_size_bytes
         }
 
 

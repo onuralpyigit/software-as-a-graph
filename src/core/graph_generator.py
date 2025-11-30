@@ -635,7 +635,9 @@ class GraphGenerator:
             topic = {
                 'id': f"topic_{i}",
                 'name': topic_name,
-                'qos': qos
+                'qos': qos,
+                'message_size_bytes': random.choice([64, 128, 256, 512, 1024, 4096, 8192, 16384, 32768, 65536]),
+                'message_rate_hz': random.choice([1, 10, 20, 50, 100, 200, 500, 1000])
             }
             self.topics.append(topic)
     
@@ -865,8 +867,8 @@ class GraphGenerator:
                 self.publishes_to.append({
                     'from': pub['id'],
                     'to': topic['id'],
-                    'period_ms': random.choice([10, 20, 50, 100, 200, 500, 1000]),
-                    'msg_size_bytes': random.choice([64, 128, 256, 512, 1024, 4096])
+                    'period_ms': int(1000 / topic['message_rate_hz']),
+                    'message_size_bytes': topic['message_size_bytes']
                 })
             
             # Assign subscribers
@@ -897,7 +899,7 @@ class GraphGenerator:
                         'from': app['id'],
                         'to': topic['id'],
                         'period_ms': 100,
-                        'msg_size_bytes': 256
+                        'message_size_bytes': 256
                     })
                 else:
                     self.subscribes_to.append({
@@ -965,7 +967,7 @@ class GraphGenerator:
             'from': spof_app['id'],
             'to': spof_topic['id'],
             'period_ms': 10,
-            'msg_size_bytes': 1024
+            'message_size_bytes': 1024
         })
         
         # Make many apps subscribe to it (creating the SPOF)
@@ -1022,7 +1024,7 @@ class GraphGenerator:
                 'from': pub['id'],
                 'to': god_topic['id'],
                 'period_ms': random.choice([50, 100, 200]),
-                'msg_size_bytes': 512
+                'message_size_bytes': 512
             })
         
         # Many subscribers
@@ -1108,7 +1110,7 @@ class GraphGenerator:
                     'from': app['id'],
                     'to': coupling_topics[i]['id'],
                     'period_ms': 20,
-                    'msg_size_bytes': 256
+                    'message_size_bytes': 256
                 })
             
             # Each app subscribes to previous topics
@@ -1140,7 +1142,7 @@ class GraphGenerator:
             for pub_rel in self.publishes_to:
                 if pub_rel['from'] == app['id']:
                     pub_rel['period_ms'] = 1  # Very frequent
-                    pub_rel['msg_size_bytes'] = 32  # Very small messages
+                    pub_rel['message_size_bytes'] = 32  # Very small messages
         
         self.injected_antipatterns.append({
             'type': 'chatty_communication',
@@ -1178,7 +1180,7 @@ class GraphGenerator:
                 'from': cycle_apps[i]['id'],
                 'to': cycle_topics[i]['id'],
                 'period_ms': 100,
-                'msg_size_bytes': 256
+                'message_size_bytes': 256
             })
             
             # App (i+1) % cycle_size subscribes to topic i
@@ -1250,7 +1252,7 @@ class GraphGenerator:
                 'from': app['id'],
                 'to': hidden_topic['id'],
                 'period_ms': 500,
-                'msg_size_bytes': 1024
+                'message_size_bytes': 1024
             })
         
         for app in coupled_apps[mid:]:
