@@ -54,10 +54,6 @@ class GraphConfig:
         edge_density: Connection density 0.0-1.0 (affects pub/sub connections)
         antipatterns: List of anti-patterns to inject
         seed: Random seed for reproducibility
-        ha_enabled: Enable high-availability patterns
-        multi_zone: Enable multi-zone deployment
-        num_zones: Number of availability zones
-        region_aware: Enable region-aware topology
     """
     scale: str = 'medium'
     scenario: str = 'generic'
@@ -68,10 +64,6 @@ class GraphConfig:
     edge_density: float = 0.3
     antipatterns: List[str] = field(default_factory=list)
     seed: int = 42
-    ha_enabled: bool = False
-    multi_zone: bool = False
-    num_zones: int = 3
-    region_aware: bool = False
     
     def __post_init__(self):
         """Validate configuration"""
@@ -503,6 +495,7 @@ class GraphGenerator:
         self.publishes_to: List[Dict] = []
         self.subscribes_to: List[Dict] = []
         self.routes: List[Dict] = []
+        self.connects_to: List[Dict] = []
         
         # Tracking for anti-patterns
         self.injected_antipatterns: List[Dict] = []
@@ -532,6 +525,7 @@ class GraphGenerator:
         # Generate relationships
         self._generate_runs_on_relationships()
         self._generate_routes_relationships()
+        self._generate_connects_to_relationships()
         self._generate_pubsub_relationships()
         
         # Inject anti-patterns if configured
@@ -833,10 +827,6 @@ class GraphGenerator:
         """Generate ROUTES relationships (brokers -> topics)"""
         self.logger.debug("Generating ROUTES relationships...")
         
-        # Distribute topics across brokers
-        # Each topic should be routed by at least one broker
-        topics_per_broker = max(1, len(self.topics) // len(self.brokers))
-        
         for i, topic in enumerate(self.topics):
             # Primary broker
             primary_broker = self.brokers[i % len(self.brokers)]
@@ -844,15 +834,17 @@ class GraphGenerator:
                 'from': primary_broker['id'],
                 'to': topic['id']
             })
-            
-            # Add redundant routing for HA if enabled
-            if self.config.ha_enabled and len(self.brokers) > 1:
-                secondary_idx = (i + 1) % len(self.brokers)
-                if secondary_idx != i % len(self.brokers):
-                    self.routes.append({
-                        'from': self.brokers[secondary_idx]['id'],
-                        'to': topic['id']
-                    })
+
+    def _generate_connects_to_relationships(self):
+        """Generate CONNECTS_TO relationships (nodes <-> nodes)"""
+        self.logger.debug("Generating CONNECTS_TO relationships...")
+        
+        for i in range(len(self.nodes)):
+            for j in range(i + 1, len(self.nodes)):
+                self.connects_to.append({
+                    'from': self.nodes[i]['id'],
+                    'to': self.nodes[j]['id']   
+                })
     
     def _generate_pubsub_relationships(self):
         """Generate PUBLISHES_TO and SUBSCRIBES_TO relationships"""
@@ -1288,8 +1280,6 @@ class GraphGenerator:
                     'scale': self.config.scale,
                     'scenario': self.config.scenario,
                     'seed': self.config.seed,
-                    'ha_enabled': self.config.ha_enabled,
-                    'multi_zone': self.config.multi_zone,
                     'antipatterns': self.config.antipatterns
                 }
             },
@@ -1301,7 +1291,8 @@ class GraphGenerator:
                 'runs_on': self.runs_on,
                 'publishes_to': self.publishes_to,
                 'subscribes_to': self.subscribes_to,
-                'routes': self.routes
+                'routes': self.routes,
+                'connects_to': self.connects_to
             },
             'statistics': self._calculate_statistics(),
             'injected_antipatterns': self.injected_antipatterns
@@ -1338,6 +1329,7 @@ class GraphGenerator:
             'total_publishes': len(self.publishes_to),
             'total_subscribes': len(self.subscribes_to),
             'total_routes': len(self.routes),
+            'total_connects': len(self.connects_to),
             'unique_publishers': publishers_count,
             'unique_subscribers': subscribers_count,
             'avg_publishers_per_topic': round(avg_pubs_per_topic, 2),

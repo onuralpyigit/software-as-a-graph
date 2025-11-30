@@ -110,7 +110,7 @@ def print_info(text: str):
 def print_kv(key: str, value: Any, indent: int = 2):
     """Print key-value pair"""
     spaces = ' ' * indent
-    print(f"{spaces}{Colors.DIM}{key}:{Colors.ENDC} {value}")
+    print(f"{spaces}{key}: {value}")
 
 
 # =============================================================================
@@ -250,11 +250,6 @@ def preview_generation(config: GraphConfig):
     print_kv("Applications", config.num_applications or scale_info.get('apps', 'default'))
     print_kv("Topics", config.num_topics or scale_info.get('topics', 'default'))
     print_kv("Brokers", config.num_brokers or scale_info.get('brokers', 'default'))
-    
-    print_section("Features")
-    print_kv("High Availability", "Enabled" if config.ha_enabled else "Disabled")
-    print_kv("Multi-Zone", f"Enabled ({config.num_zones} zones)" if config.multi_zone else "Disabled")
-    print_kv("Region-Aware", "Enabled" if config.region_aware else "Disabled")
     
     if config.antipatterns:
         print_section("Anti-Patterns to Inject")
@@ -643,11 +638,7 @@ def main():
         num_brokers=args.brokers or scale_params['brokers'],
         edge_density=args.density,
         antipatterns=args.antipatterns or [],
-        seed=args.seed,
-        ha_enabled=args.ha_enabled,
-        multi_zone=args.multi_zone,
-        num_zones=args.num_zones,
-        region_aware=args.region_aware
+        seed=args.seed
     )
     
     # Preview mode

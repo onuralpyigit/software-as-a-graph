@@ -118,8 +118,8 @@ def example_2_realistic_iot():
 
 
 def example_3_financial_ha():
-    """Example 3: Financial system with HA and strict QoS"""
-    print_section("Example 3: Financial Trading System (HA)")
+    """Example 3: Financial system with strict QoS"""
+    print_section("Example 3: Financial Trading System")
     
     config = GraphConfig(
         scale='medium',
