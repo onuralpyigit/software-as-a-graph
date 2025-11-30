@@ -35,7 +35,8 @@ from typing import Dict, List, Tuple
 import argparse
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent / '..'))
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from src.core.graph_generator import GraphGenerator, GraphConfig
 
 class TestResult:
@@ -114,12 +115,13 @@ class GraphGeneratorTester:
         
         antipatterns = [
             'spof',
+            'god_topic',
             'broker_overload',
-            'god_object',
-            'single_broker',
             'tight_coupling',
-            'chatty_communication',
-            'bottleneck'
+            'chatty',
+            'circular',
+            'bottleneck',
+            'hidden_coupling'
         ]
         
         for antipattern in antipatterns:
@@ -163,7 +165,6 @@ class GraphGeneratorTester:
         # Custom parameters
         self._run_test("Custom parameters", lambda: GraphGenerator(
             GraphConfig(
-                scale='custom',
                 scenario='generic',
                 num_nodes=10,
                 num_applications=30,
@@ -188,6 +189,7 @@ class GraphGeneratorTester:
             ('medium', 5),
             ('large', 3),
             ('xlarge', 2),
+            ('extreme', 1),
         ]
         
         results = {}

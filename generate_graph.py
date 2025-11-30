@@ -1,87 +1,95 @@
 #!/usr/bin/env python3
 """
-Graph Generation Script - Version 2.0
+Graph Generation CLI
 
-Comprehensive graph generation tool for Software-as-a-Graph analysis with:
+Command-line interface for generating realistic pub-sub system graphs.
+
+Features:
 - Multiple scale presets (tiny to extreme)
-- 7 domain-specific scenarios
-- Sophisticated anti-pattern injection
-- Zone/region-aware deployment
-- Comprehensive validation
+- 8 domain-specific scenarios
+- Anti-pattern injection for testing
 - Multiple export formats
-- Detailed statistics and visualization
-
-Key Improvements:
-1. Better error handling and validation
-2. Progress indicators for large graphs
-3. Comprehensive statistics output
-4. Validation with detailed reports
-5. Multiple export formats in one command
-6. Preview mode to see what will be generated
-7. Better logging and debugging
+- Validation and preview modes
+- Integration with analysis pipeline
 
 Usage Examples:
     # Basic generation
-    python generate_graph.py --scale small --output system.json
+    python generate_graph.py --scale medium --output system.json
     
-    # IoT system with high availability
-    python generate_graph.py --scale large --scenario iot --ha --output iot_ha.json
+    # IoT system with anti-patterns
+    python generate_graph.py --scale large --scenario iot \\
+        --antipatterns spof god_topic --output iot_system.json
     
-    # Financial system with anti-patterns
-    python generate_graph.py --scale medium --scenario financial \\
-        --antipatterns spof broker_overload --output financial_bad.json
+    # Preview configuration
+    python generate_graph.py --scale xlarge --scenario financial --preview
     
-    # Preview without generating
-    python generate_graph.py --scale xlarge --preview
-    
-    # Generate with all export formats
-    python generate_graph.py --scale medium --formats json graphml gexf pickle \\
-        --output system
-    
-    # Validate existing graph
-    python generate_graph.py --validate-only --input existing_system.json
+    # Generate with validation
+    python generate_graph.py --scale medium --validate --output validated.json
 """
 
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple, Any
 import logging
 from datetime import datetime
-import time
 
-# Add src to path
+# Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-# Import from graph generator
 from src.core.graph_generator import GraphGenerator, GraphConfig
 from src.core.graph_builder import GraphBuilder
-from src.core.graph_exporter import GraphExporter
+
+
+# =============================================================================
+# Terminal Colors
+# =============================================================================
 
 class Colors:
     """ANSI color codes for terminal output"""
     HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
     WARNING = '\033[93m'
     FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+    DIM = '\033[2m'
+
+    @classmethod
+    def disable(cls):
+        """Disable colors for non-TTY output"""
+        cls.HEADER = ''
+        cls.BLUE = ''
+        cls.CYAN = ''
+        cls.GREEN = ''
+        cls.WARNING = ''
+        cls.FAIL = ''
+        cls.ENDC = ''
+        cls.BOLD = ''
+        cls.DIM = ''
 
 
 def print_header(text: str):
     """Print formatted header"""
-    print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}")
-    print(f"{Colors.HEADER}{Colors.BOLD}{text:^70}{Colors.ENDC}")
-    print(f"{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}\n")
+    width = 70
+    print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*width}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{text:^{width}}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{'='*width}{Colors.ENDC}")
+
+
+def print_section(text: str):
+    """Print section header"""
+    print(f"\n{Colors.CYAN}{Colors.BOLD}{text}{Colors.ENDC}")
+    print(f"{Colors.DIM}{'-'*50}{Colors.ENDC}")
 
 
 def print_success(text: str):
     """Print success message"""
-    print(f"{Colors.OKGREEN}✓{Colors.ENDC} {text}")
+    print(f"{Colors.GREEN}✓{Colors.ENDC} {text}")
 
 
 def print_error(text: str):
@@ -96,12 +104,26 @@ def print_warning(text: str):
 
 def print_info(text: str):
     """Print info message"""
-    print(f"{Colors.OKCYAN}ℹ{Colors.ENDC} {text}")
+    print(f"{Colors.CYAN}ℹ{Colors.ENDC} {text}")
 
+
+def print_kv(key: str, value: Any, indent: int = 2):
+    """Print key-value pair"""
+    spaces = ' ' * indent
+    print(f"{spaces}{Colors.DIM}{key}:{Colors.ENDC} {value}")
+
+
+# =============================================================================
+# Validation
+# =============================================================================
 
 def validate_graph(graph: Dict, verbose: bool = False) -> Tuple[bool, List[str], List[str]]:
     """
-    Comprehensive graph validation
+    Validate a generated graph for consistency.
+    
+    Args:
+        graph: Generated graph dictionary
+        verbose: Print detailed validation info
     
     Returns:
         Tuple of (is_valid, errors, warnings)
@@ -109,579 +131,587 @@ def validate_graph(graph: Dict, verbose: bool = False) -> Tuple[bool, List[str],
     errors = []
     warnings = []
     
-    # Check basic structure
-    required_keys = ['metadata', 'nodes', 'applications', 'topics', 'brokers', 'relationships']
-    for key in required_keys:
-        if key not in graph:
-            errors.append(f"Missing required key: {key}")
+    # Check required sections
+    required_sections = ['nodes', 'brokers', 'applications', 'topics', 'relationships']
+    for section in required_sections:
+        if section not in graph:
+            errors.append(f"Missing required section: {section}")
     
     if errors:
         return False, errors, warnings
     
-    # Collect IDs
+    # Build ID sets
     node_ids = {n['id'] for n in graph['nodes']}
+    broker_ids = {b['id'] for b in graph['brokers']}
     app_ids = {a['id'] for a in graph['applications']}
     topic_ids = {t['id'] for t in graph['topics']}
-    broker_ids = {b['id'] for b in graph['brokers']}
+    all_ids = node_ids | broker_ids | app_ids | topic_ids
     
-    # Check for empty components
-    if not graph['nodes']:
-        errors.append("No nodes defined")
-    if not graph['applications']:
-        errors.append("No applications defined")
-    if not graph['topics']:
-        errors.append("No topics defined")
-    if not graph['brokers']:
-        errors.append("No brokers defined")
+    # Check for duplicate IDs
+    all_items = graph['nodes'] + graph['brokers'] + graph['applications'] + graph['topics']
+    seen_ids = set()
+    for item in all_items:
+        if item['id'] in seen_ids:
+            errors.append(f"Duplicate ID: {item['id']}")
+        seen_ids.add(item['id'])
     
     # Validate relationships
-    rels = graph['relationships']
+    relationships = graph.get('relationships', {})
     
-    # 1. Check runs_on relationships
-    apps_with_deployment = {r['from'] for r in rels['runs_on']}
-    orphaned_apps = app_ids - apps_with_deployment
-    if orphaned_apps:
-        errors.append(f"Applications without deployment: {orphaned_apps}")
-    
-    # Validate runs_on references
-    for r in rels['runs_on']:
-        if r['from'] not in app_ids:
-            errors.append(f"runs_on references unknown app: {r['from']}")
-        if r['to'] not in node_ids:
-            errors.append(f"runs_on references unknown node: {r['to']}")
-    
-    # 2. Check routes relationships
-    topics_with_routes = {r['to'] for r in rels['routes']}
-    orphaned_topics = topic_ids - topics_with_routes
-    if orphaned_topics:
-        errors.append(f"Topics without broker routes: {orphaned_topics}")
-    
-    # Validate route references
-    for r in rels['routes']:
-        if r['from'] not in broker_ids:
-            errors.append(f"routes references unknown broker: {r['from']}")
-        if r['to'] not in topic_ids:
-            errors.append(f"routes references unknown topic: {r['to']}")
-    
-    # 3. Check publishes_to relationships
-    for r in rels['publishes_to']:
-        if r['from'] not in app_ids:
-            errors.append(f"publishes_to references unknown app: {r['from']}")
-        if r['to'] not in topic_ids:
-            errors.append(f"publishes_to references unknown topic: {r['to']}")
-    
-    # 4. Check subscribes_to relationships
-    for r in rels['subscribes_to']:
-        if r['from'] not in app_ids:
-            errors.append(f"subscribes_to references unknown app: {r['from']}")
-        if r['to'] not in topic_ids:
-            errors.append(f"subscribes_to references unknown topic: {r['to']}")
-    
-    # Check for disconnected components
-    connected_apps = set()
-    for pub in rels['publishes_to']:
-        connected_apps.add(pub['from'])
-    for sub in rels['subscribes_to']:
-        connected_apps.add(sub['from'])
-    
-    disconnected_apps = app_ids - connected_apps
-    if disconnected_apps:
-        warnings.append(f"Disconnected applications (no pub/sub): {disconnected_apps}")
-    
-    # Check for topics with no publishers
-    topics_with_publishers = {r['to'] for r in rels['publishes_to']}
-    topics_without_publishers = topic_ids - topics_with_publishers
-    if topics_without_publishers:
-        warnings.append(f"Topics without publishers: {len(topics_without_publishers)} topics")
-    
-    # Check for topics with no subscribers
-    topics_with_subscribers = {r['to'] for r in rels['subscribes_to']}
-    topics_without_subscribers = topic_ids - topics_with_subscribers
-    if topics_without_subscribers:
-        warnings.append(f"Topics without subscribers: {len(topics_without_subscribers)} topics")
-    
-    # Check for node capacity issues
-    apps_per_node = {}
-    for r in rels['runs_on']:
-        node = r['to']
-        apps_per_node[node] = apps_per_node.get(node, 0) + 1
-    
-    for node_id, count in apps_per_node.items():
-        if count > 50:  # Arbitrary threshold
-            warnings.append(f"Node {node_id} has {count} applications (may be overloaded)")
-    
-    # Check for broker capacity issues
-    topics_per_broker = {}
-    for r in rels['routes']:
-        broker = r['from']
-        topics_per_broker[broker] = topics_per_broker.get(broker, 0) + 1
-    
-    for broker in graph['brokers']:
-        broker_id = broker['id']
-        topic_count = topics_per_broker.get(broker_id, 0)
-    
-    try:
-        builder = GraphBuilder()
-        model = builder.build_from_dict(graph)
-        print_info("Refactored validation passed")
-    except Exception as e:
-        errors.append(f"Refactored validation error: {e}")
-    
-    return len(errors) == 0, errors, warnings
-
-
-def export_graph(graph: Dict, output_path: str, formats: List[str], verbose: bool = False):
-    """
-    Export graph to multiple formats
-    
-    Args:
-        graph: Graph dictionary
-        output_path: Base output path
-        formats: List of formats ['json', 'graphml', 'gexf', 'pickle', 'dot']
-        verbose: Verbose output
-    """
-    output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    exported_files = []
-    
-    # Always save JSON
-    if 'json' in formats:
-        json_path = output_path.with_suffix('.json')
-        with open(json_path, 'w') as f:
-            json.dump(graph, f, indent=2)
-        exported_files.append(str(json_path))
-        print_success(f"Saved JSON: {json_path}")
-    
-    # Export to other formats
-    if len(formats) > 1:
-        try:
-            # Build model
-            builder = GraphBuilder()
-            model = builder.build_from_dict(graph)
-            
-            # Export
-            exporter = GraphExporter(model)
-            
-            for fmt in formats:
-                if fmt == 'json':
-                    continue
-                
-                try:
-                    export_path = output_path.with_suffix(f'.{fmt}')
-                    
-                    if fmt == 'graphml':
-                        exporter.export_to_graphml(str(export_path))
-                    elif fmt == 'gexf':
-                        exporter.export_to_gexf(str(export_path))
-                    elif fmt == 'pickle':
-                        exporter.export_to_pickle(str(export_path))
-                    elif fmt == 'dot':
-                        exporter.export_to_dot(str(export_path))
-                    else:
-                        print_warning(f"Unknown format: {fmt}")
-                        continue
-                    
-                    exported_files.append(str(export_path))
-                    print_success(f"Saved {fmt.upper()}: {export_path}")
-                    
-                except Exception as e:
-                    print_error(f"Failed to export {fmt}: {e}")
+    # RUNS_ON validation
+    for rel in relationships.get('runs_on', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
         
-        except Exception as e:
-            print_error(f"Export failed: {e}")
-            if verbose:
-                import traceback
-                traceback.print_exc()
+        if source not in app_ids and source not in broker_ids:
+            # Allow anti-pattern injected IDs
+            if not any(prefix in source for prefix in ['spof_', 'coupling_', 'cycle_']):
+                errors.append(f"RUNS_ON source not found: {source}")
+        if target not in node_ids:
+            errors.append(f"RUNS_ON target not found: {target}")
     
-    elif len(formats) > 1:
-        print_warning("Additional formats require refactored modules (only JSON exported)")
+    # PUBLISHES_TO validation
+    for rel in relationships.get('publishes_to', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        
+        if source not in app_ids:
+            if not any(prefix in source for prefix in ['spof_', 'coupling_', 'cycle_']):
+                warnings.append(f"PUBLISHES_TO source not in apps: {source}")
+        if target not in topic_ids:
+            if not any(prefix in target for prefix in ['spof_', 'coupling_', 'cycle_', 'god_', 'hidden_']):
+                errors.append(f"PUBLISHES_TO target not found: {target}")
     
-    return exported_files
-
-
-def print_statistics(graph: Dict, config: GraphConfig, generation_time: float):
-    """Print comprehensive statistics about generated graph"""
+    # SUBSCRIBES_TO validation
+    for rel in relationships.get('subscribes_to', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        
+        if source not in app_ids:
+            if not any(prefix in source for prefix in ['spof_', 'coupling_', 'cycle_']):
+                warnings.append(f"SUBSCRIBES_TO source not in apps: {source}")
+        if target not in topic_ids:
+            if not any(prefix in target for prefix in ['spof_', 'coupling_', 'cycle_', 'god_', 'hidden_']):
+                errors.append(f"SUBSCRIBES_TO target not found: {target}")
     
-    print_header("GRAPH GENERATION STATISTICS")
+    # ROUTES validation
+    for rel in relationships.get('routes', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        
+        if source not in broker_ids:
+            errors.append(f"ROUTES source not found: {source}")
+        if target not in topic_ids:
+            if not any(prefix in target for prefix in ['spof_', 'coupling_', 'cycle_', 'god_', 'hidden_']):
+                warnings.append(f"ROUTES target not in topics: {target}")
     
-    # Configuration
-    print(f"{Colors.BOLD}Configuration:{Colors.ENDC}")
-    print(f"  Scale: {config.scale}")
-    print(f"  Scenario: {config.scenario}")
-    if config.antipatterns:
-        print(f"  Anti-patterns: {', '.join(config.antipatterns)}")
-    print(f"  Generation Time: {generation_time:.2f}s")
-    print()
-    
-    # Components
-    print(f"{Colors.BOLD}Components:{Colors.ENDC}")
-    print(f"  Nodes: {len(graph['nodes'])}")
-    print(f"  Brokers: {len(graph['brokers'])}")
-    print(f"  Topics: {len(graph['topics'])}")
-    print(f"  Applications: {len(graph['applications'])}")
-    print()
-    
-    # Relationships
-    rels = graph['relationships']
-    print(f"{Colors.BOLD}Relationships:{Colors.ENDC}")
-    print(f"  Publishes: {len(rels['publishes_to'])}")
-    print(f"  Subscribes: {len(rels['subscribes_to'])}")
-    print(f"  Routes: {len(rels['routes'])}")
-    print(f"  Runs On: {len(rels['runs_on'])}")
-    total_edges = sum(len(rels[k]) for k in rels.keys())
-    print(f"  Total Edges: {total_edges}")
-    print()
-    
-    # Application distribution
-    app_types = {}
-    
-    for app in graph['applications']:
-        app_type = app['app_type']
-        app_types[app_type] = app_types.get(app_type, 0) + 1
-
-    print(f"{Colors.BOLD}Application Distribution:{Colors.ENDC}")
-    for app_type, count in sorted(app_types.items()):
-        pct = (count / len(graph['applications'])) * 100
-        print(f"  {app_type}: {count} ({pct:.1f}%)")
-    print()
-    
-    # Topic distribution
-    qos_durability = {}
-    qos_reliability = {}
+    # Check for orphan topics (no publishers or subscribers)
+    published_topics = {r.get('to', r.get('target')) for r in relationships.get('publishes_to', [])}
+    subscribed_topics = {r.get('to', r.get('target')) for r in relationships.get('subscribes_to', [])}
     
     for topic in graph['topics']:
-        qos = topic.get('qos', {})
-        durability = qos.get('durability', 'VOLATILE')
-        qos_durability[durability] = qos_durability.get(durability, 0) + 1
-        
-        reliability = qos.get('reliability', 'BEST_EFFORT')
-        qos_reliability[reliability] = qos_reliability.get(reliability, 0) + 1
+        if topic['id'] not in published_topics:
+            warnings.append(f"Topic has no publishers: {topic['id']}")
+        if topic['id'] not in subscribed_topics:
+            warnings.append(f"Topic has no subscribers: {topic['id']}")
     
-    print(f"{Colors.BOLD}QoS Distribution:{Colors.ENDC}")
-    print("  Durability:")
-    for durability, count in sorted(qos_durability.items()):
-        pct = (count / len(graph['topics'])) * 100
-        print(f"    {durability}: {count} ({pct:.1f}%)")
-    print("  Reliability:")
-    for reliability, count in sorted(qos_reliability.items()):
-        pct = (count / len(graph['topics'])) * 100
-        print(f"    {reliability}: {count} ({pct:.1f}%)")
-    print()
+    # Check for orphan applications
+    publishing_apps = {r.get('from', r.get('source')) for r in relationships.get('publishes_to', [])}
+    subscribing_apps = {r.get('from', r.get('source')) for r in relationships.get('subscribes_to', [])}
+    connected_apps = publishing_apps | subscribing_apps
     
-    # Connectivity metrics
-    publishers = {r['from'] for r in rels['publishes_to']}
-    subscribers = {r['from'] for r in rels['subscribes_to']}
+    for app in graph['applications']:
+        if app['id'] not in connected_apps:
+            warnings.append(f"Application has no pub/sub connections: {app['id']}")
     
-    print(f"{Colors.BOLD}Connectivity Metrics:{Colors.ENDC}")
-    print(f"  Publishing Apps: {len(publishers)} ({len(publishers)/len(graph['applications'])*100:.1f}%)")
-    print(f"  Subscribing Apps: {len(subscribers)} ({len(subscribers)/len(graph['applications'])*100:.1f}%)")
-    
-    # Topic fanout
-    topic_subs = {}
-    for r in rels['subscribes_to']:
-        topic_subs[r['to']] = topic_subs.get(r['to'], 0) + 1
-    
-    if topic_subs:
-        avg_fanout = sum(topic_subs.values()) / len(topic_subs)
-        max_fanout = max(topic_subs.values())
-        print(f"  Average Topic Fanout: {avg_fanout:.1f}")
-        print(f"  Maximum Topic Fanout: {max_fanout}")
+    is_valid = len(errors) == 0
+    return is_valid, errors, warnings
 
+
+# =============================================================================
+# Preview Mode
+# =============================================================================
 
 def preview_generation(config: GraphConfig):
     """Preview what will be generated without actually generating"""
+    print_header("GENERATION PREVIEW")
     
-    print_header("GRAPH GENERATION PREVIEW")
+    scale_info = GraphGenerator.SCALES.get(config.scale, {})
+    scenario_info = GraphGenerator.SCENARIOS.get(config.scenario, {})
     
-    print(f"{Colors.BOLD}Configuration:{Colors.ENDC}")
-    print(f"  Scale: {config.scale}")
-    print(f"  Scenario: {config.scenario}")
-    print(f"  Nodes: {config.num_nodes}")
-    print(f"  Applications: {config.num_applications}")
-    print(f"  Topics: {config.num_topics}")
-    print(f"  Brokers: {config.num_brokers}")
-    print(f"  Edge Density: {config.edge_density}")
+    print_section("Configuration")
+    print_kv("Scale", f"{config.scale} - {scale_info.get('description', 'Unknown')}")
+    print_kv("Scenario", f"{config.scenario} - {scenario_info.get('description', 'Unknown')}")
+    print_kv("Seed", config.seed)
+    print_kv("Edge Density", config.edge_density)
+    
+    print_section("Expected Components")
+    print_kv("Infrastructure Nodes", config.num_nodes or scale_info.get('nodes', 'default'))
+    print_kv("Applications", config.num_applications or scale_info.get('apps', 'default'))
+    print_kv("Topics", config.num_topics or scale_info.get('topics', 'default'))
+    print_kv("Brokers", config.num_brokers or scale_info.get('brokers', 'default'))
+    
+    print_section("Features")
+    print_kv("High Availability", "Enabled" if config.ha_enabled else "Disabled")
+    print_kv("Multi-Zone", f"Enabled ({config.num_zones} zones)" if config.multi_zone else "Disabled")
+    print_kv("Region-Aware", "Enabled" if config.region_aware else "Disabled")
+    
     if config.antipatterns:
-        print(f"  Anti-patterns: {', '.join(config.antipatterns)}")
-    print(f"  Random Seed: {config.seed}")
+        print_section("Anti-Patterns to Inject")
+        for ap in config.antipatterns:
+            print(f"  • {ap}")
+    
+    print_section("Application Types")
+    for app_type, role, weight in scenario_info.get('app_types', [])[:5]:
+        print(f"  • {app_type} ({role}) - {weight*100:.0f}%")
+    if len(scenario_info.get('app_types', [])) > 5:
+        print(f"  ... and {len(scenario_info['app_types'])-5} more")
+    
+    print_section("Topic Patterns")
+    for pattern, weight in scenario_info.get('topic_patterns', [])[:5]:
+        print(f"  • {pattern} - {weight*100:.0f}%")
+    if len(scenario_info.get('topic_patterns', [])) > 5:
+        print(f"  ... and {len(scenario_info['topic_patterns'])-5} more")
+    
     print()
-    
-    # Estimate counts
-    est_publishes = int(config.num_applications * 0.6 * 2)  # Rough estimate
-    est_subscribes = int(config.num_applications * 0.7 * config.edge_density * config.num_topics)
-    est_total_edges = est_publishes + est_subscribes + config.num_topics + config.num_applications
-    
-    print(f"{Colors.BOLD}Estimated Graph Size:{Colors.ENDC}")
-    print(f"  Total Vertices: {config.num_nodes + config.num_applications + config.num_topics + config.num_brokers}")
-    print(f"  Estimated Edges: ~{est_total_edges}")
-    print()
-    
-    # Estimate memory
-    avg_node_size = 500  # bytes
-    avg_edge_size = 200  # bytes
-    est_memory_mb = (
-        (config.num_nodes + config.num_applications + config.num_topics + config.num_brokers) * avg_node_size +
-        est_total_edges * avg_edge_size
-    ) / (1024 * 1024)
-    
-    print(f"{Colors.BOLD}Resource Estimates:{Colors.ENDC}")
-    print(f"  Estimated Memory: ~{est_memory_mb:.1f} MB")
-    
-    # Estimate generation time
-    base_time = 0.5  # seconds for tiny
-    scale_multiplier = {
-        'tiny': 1,
-        'small': 2,
-        'medium': 5,
-        'large': 20,
-        'xlarge': 60,
-        'extreme': 180
-    }.get(config.scale, 10)
-    
-    est_time = base_time * scale_multiplier
-    print(f"  Estimated Generation Time: ~{est_time:.1f}s")
-    print()
+    print_info("Use without --preview to generate the graph")
 
 
-def setup_argparse() -> argparse.ArgumentParser:
-    """Setup argument parser with comprehensive options"""
+# =============================================================================
+# Statistics Display
+# =============================================================================
+
+def print_statistics(graph: Dict):
+    """Print graph statistics"""
+    stats = graph.get('statistics', {})
     
+    print_section("Graph Statistics")
+    print_kv("Infrastructure Nodes", stats.get('total_nodes', 'N/A'))
+    print_kv("Brokers", stats.get('total_brokers', 'N/A'))
+    print_kv("Applications", stats.get('total_applications', 'N/A'))
+    print_kv("Topics", stats.get('total_topics', 'N/A'))
+    
+    print_section("Relationships")
+    print_kv("PUBLISHES_TO", stats.get('total_publishes', 'N/A'))
+    print_kv("SUBSCRIBES_TO", stats.get('total_subscribes', 'N/A'))
+    print_kv("ROUTES", stats.get('total_routes', 'N/A'))
+    print_kv("RUNS_ON", len(graph.get('relationships', {}).get('runs_on', [])))
+    
+    print_section("Density Metrics")
+    print_kv("Unique Publishers", stats.get('unique_publishers', 'N/A'))
+    print_kv("Unique Subscribers", stats.get('unique_subscribers', 'N/A'))
+    print_kv("Avg Publishers/Topic", stats.get('avg_publishers_per_topic', 'N/A'))
+    print_kv("Avg Subscribers/Topic", stats.get('avg_subscribers_per_topic', 'N/A'))
+    print_kv("Avg Apps/Node", stats.get('avg_apps_per_node', 'N/A'))
+    
+    # Anti-patterns
+    antipatterns = graph.get('injected_antipatterns', [])
+    if antipatterns:
+        print_section("Injected Anti-Patterns")
+        for ap in antipatterns:
+            print(f"  • {Colors.WARNING}{ap['type']}{Colors.ENDC}: {ap.get('description', 'N/A')}")
+
+
+# =============================================================================
+# Export Functions
+# =============================================================================
+
+def export_graph(graph: Dict, output_path: str, format: str = 'json'):
+    """
+    Export graph to file.
+    
+    Args:
+        graph: Graph dictionary
+        output_path: Output file path
+        format: Export format (json, graphml, etc.)
+    """
+    path = Path(output_path)
+    
+    if format == 'json':
+        with open(path, 'w') as f:
+            json.dump(graph, f, indent=2)
+    else:
+        # For other formats, use GraphBuilder to convert
+        builder = GraphBuilder()
+        
+        # Build model from generated data
+        model_data = {
+            'applications': graph['applications'],
+            'topics': graph['topics'],
+            'brokers': graph['brokers'],
+            'nodes': graph['nodes'],
+            'edges': graph['relationships']
+        }
+        model = builder.build_from_dict(model_data)
+        
+        # Convert to NetworkX
+        G = builder.to_networkx(model)
+        
+        if format == 'graphml':
+            import networkx as nx
+            nx.write_graphml(G, str(path))
+        elif format == 'gexf':
+            import networkx as nx
+            nx.write_gexf(G, str(path))
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+
+
+# =============================================================================
+# Main CLI
+# =============================================================================
+
+def create_parser() -> argparse.ArgumentParser:
+    """Create argument parser"""
     parser = argparse.ArgumentParser(
-        description='Enhanced Graph Generation for Software-as-a-Graph Analysis',
+        description='Generate realistic pub-sub system graphs',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Basic small system
-  %(prog)s --scale small --output system.json
-  
-  # Large IoT system with HA
-  %(prog)s --scale large --scenario iot --ha -output iot_system.json
-  
-  # Financial system with anti-patterns
-  %(prog)s --scale medium --scenario financial --antipatterns spof broker_overload \\
-      --output financial_bad.json
-  
-  # Preview large system
+  %(prog)s --scale medium --output system.json
+  %(prog)s --scale large --scenario iot --antipatterns spof god_topic
   %(prog)s --scale xlarge --preview
-  
-  # Export to multiple formats
-  %(prog)s --scale medium --formats json graphml gexf --output system
-  
-  # Validate existing graph
   %(prog)s --validate-only --input existing.json
         """
     )
     
     # Scale and scenario
-    parser.add_argument('--scale', '-s',
-                       choices=['tiny', 'small', 'medium', 'large', 'xlarge', 'extreme'],
-                       default='small',
-                       help='Graph scale preset (default: small)')
+    parser.add_argument(
+        '--scale', '-s',
+        choices=['tiny', 'small', 'medium', 'large', 'xlarge', 'extreme'],
+        default='medium',
+        help='Scale preset (default: medium)'
+    )
     
-    parser.add_argument('--scenario', '-c',
-                       choices=['generic', 'iot', 'financial', 'ecommerce', 'analytics', 
-                               'smart_city', 'healthcare'],
-                       default='generic',
-                       help='Domain scenario (default: generic)')
+    parser.add_argument(
+        '--scenario', '-S',
+        choices=['generic', 'iot', 'financial', 'ecommerce', 'autonomous_vehicle',
+                 'smart_city', 'healthcare', 'gaming'],
+        default='generic',
+        help='Domain scenario (default: generic)'
+    )
     
-    # Custom parameters (override scale)
-    parser.add_argument('--nodes', type=int, help='Number of nodes (overrides scale)')
-    parser.add_argument('--apps', type=int, help='Number of applications (overrides scale)')
-    parser.add_argument('--topics', type=int, help='Number of topics (overrides scale)')
-    parser.add_argument('--brokers', type=int, help='Number of brokers (overrides scale)')
-    parser.add_argument('--density', type=float, default=0.3,
-                       help='Edge density 0.0-1.0 (default: 0.3)')
+    # Component counts (overrides)
+    parser.add_argument('--nodes', '-n', type=int, help='Number of infrastructure nodes')
+    parser.add_argument('--apps', '-a', type=int, help='Number of applications')
+    parser.add_argument('--topics', '-t', type=int, help='Number of topics')
+    parser.add_argument('--brokers', '-b', type=int, help='Number of brokers')
     
-    # High availability
-    parser.add_argument('--ha', action='store_true',
-                       help='Enable high availability patterns')
+    # Density and patterns
+    parser.add_argument(
+        '--density', '-d',
+        type=float, default=0.3,
+        help='Edge density 0.0-1.0 (default: 0.3)'
+    )
     
-    # Anti-patterns
-    parser.add_argument('--antipatterns', '-a', nargs='+',
-                       choices=['spof', 'broker_overload', 'god_object', 'single_broker',
-                               'tight_coupling', 'chatty_communication', 'bottleneck'],
-                       help='Anti-patterns to inject')
+    parser.add_argument(
+        '--antipatterns', '-A',
+        nargs='+',
+        choices=['spof', 'god_topic', 'broker_overload', 'tight_coupling',
+                 'chatty', 'circular', 'bottleneck', 'hidden_coupling'],
+        help='Anti-patterns to inject'
+    )
     
-    # Generation options
-    parser.add_argument('--seed', type=int, default=42,
-                       help='Random seed for reproducibility (default: 42)')
+    # High availability options
+    parser.add_argument(
+        '--ha', '--high-availability',
+        action='store_true',
+        dest='ha_enabled',
+        help='Enable high-availability patterns'
+    )
+    
+    parser.add_argument(
+        '--multi-zone',
+        action='store_true',
+        help='Enable multi-zone deployment'
+    )
+    
+    parser.add_argument(
+        '--num-zones',
+        type=int, default=3,
+        help='Number of availability zones (default: 3)'
+    )
+    
+    parser.add_argument(
+        '--region-aware',
+        action='store_true',
+        help='Enable region-aware topology'
+    )
     
     # Output options
-    parser.add_argument('--output', '-o', default='system.json',
-                       help='Output file path (default: system.json)')
-    parser.add_argument('--formats', '-f', nargs='+',
-                       choices=['json', 'graphml', 'gexf', 'pickle', 'dot'],
-                       default=['json'],
-                       help='Export formats (default: json)')
+    parser.add_argument(
+        '--output', '-o',
+        help='Output file path'
+    )
     
-    # Validation
-    parser.add_argument('--validate', action='store_true',
-                       help='Validate graph after generation')
-    parser.add_argument('--validate-only', action='store_true',
-                       help='Only validate existing graph (requires --input)')
-    parser.add_argument('--input', '-i',
-                       help='Input file for validation')
+    parser.add_argument(
+        '--format', '-f',
+        choices=['json', 'graphml', 'gexf'],
+        default='json',
+        help='Output format (default: json)'
+    )
     
-    # Other options
-    parser.add_argument('--preview', '-p', action='store_true',
-                       help='Preview configuration without generating')
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Verbose output')
-    parser.add_argument('--no-stats', action='store_true',
-                       help='Skip statistics output')
-    parser.add_argument('--quiet', '-q', action='store_true',
-                       help='Minimal output')
+    # Seed
+    parser.add_argument(
+        '--seed',
+        type=int, default=42,
+        help='Random seed for reproducibility (default: 42)'
+    )
+    
+    # Modes
+    parser.add_argument(
+        '--preview',
+        action='store_true',
+        help='Preview what will be generated without generating'
+    )
+    
+    parser.add_argument(
+        '--validate',
+        action='store_true',
+        help='Validate generated graph'
+    )
+    
+    parser.add_argument(
+        '--validate-only',
+        action='store_true',
+        help='Only validate an existing graph'
+    )
+    
+    parser.add_argument(
+        '--input', '-i',
+        help='Input file for validation'
+    )
+    
+    # Verbosity
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Verbose output'
+    )
+    
+    parser.add_argument(
+        '--quiet', '-q',
+        action='store_true',
+        help='Minimal output'
+    )
+    
+    parser.add_argument(
+        '--no-color',
+        action='store_true',
+        help='Disable colored output'
+    )
+    
+    # List options
+    parser.add_argument(
+        '--list-scales',
+        action='store_true',
+        help='List available scale presets'
+    )
+    
+    parser.add_argument(
+        '--list-scenarios',
+        action='store_true',
+        help='List available scenarios'
+    )
+    
+    parser.add_argument(
+        '--list-antipatterns',
+        action='store_true',
+        help='List available anti-patterns'
+    )
     
     return parser
 
 
+def list_scales():
+    """List available scale presets"""
+    print_header("SCALE PRESETS")
+    
+    for name, params in GraphGenerator.SCALES.items():
+        print(f"\n{Colors.BOLD}{name}{Colors.ENDC}")
+        print(f"  {Colors.DIM}{params.get('description', '')}{Colors.ENDC}")
+        print(f"  Nodes: {params['nodes']}, Apps: {params['apps']}, "
+              f"Topics: {params['topics']}, Brokers: {params['brokers']}")
+
+
+def list_scenarios():
+    """List available scenarios"""
+    print_header("DOMAIN SCENARIOS")
+    
+    for name, config in GraphGenerator.SCENARIOS.items():
+        print(f"\n{Colors.BOLD}{name}{Colors.ENDC}")
+        print(f"  {Colors.DIM}{config.get('description', '')}{Colors.ENDC}")
+        print(f"  App types: {len(config.get('app_types', []))}")
+        print(f"  Topic patterns: {len(config.get('topic_patterns', []))}")
+        print(f"  QoS profile: {config.get('qos_profile', 'balanced')}")
+
+
+def list_antipatterns():
+    """List available anti-patterns"""
+    print_header("ANTI-PATTERNS")
+    
+    antipatterns = {
+        'spof': 'Single Point of Failure - Creates a critical component many apps depend on',
+        'god_topic': 'God Topic - Creates a topic with excessive publishers and subscribers',
+        'broker_overload': 'Broker Overload - Routes most topics through a single broker',
+        'tight_coupling': 'Tight Coupling - Creates a cluster of highly interdependent apps',
+        'chatty': 'Chatty Communication - Apps sending many small messages very frequently',
+        'circular': 'Circular Dependency - Creates cyclic dependency chains between apps',
+        'bottleneck': 'Infrastructure Bottleneck - Concentrates many apps on one node',
+        'hidden_coupling': 'Hidden Coupling - Creates implicit dependencies via shared topics'
+    }
+    
+    for name, desc in antipatterns.items():
+        print(f"\n{Colors.WARNING}{name}{Colors.ENDC}")
+        print(f"  {desc}")
+
+
 def main():
     """Main entry point"""
-    parser = setup_argparse()
+    parser = create_parser()
     args = parser.parse_args()
     
-    # Setup logging
-    log_level = logging.DEBUG if args.verbose else (logging.ERROR if args.quiet else logging.INFO)
+    # Setup
+    if args.no_color or not sys.stdout.isatty():
+        Colors.disable()
+    
     logging.basicConfig(
-        level=log_level,
+        level=logging.DEBUG if args.verbose else logging.INFO,
         format='%(levelname)s: %(message)s'
     )
-    logger = logging.getLogger(__name__)
     
-    try:
-        # Validate-only mode
-        if args.validate_only:
-            if not args.input:
-                print_error("--validate-only requires --input")
-                return 1
-            
-            print_header("GRAPH VALIDATION")
-            
-            with open(args.input, 'r') as f:
-                graph = json.load(f)
-            
-            print_info(f"Loaded graph from {args.input}")
-            
-            is_valid, errors, warnings = validate_graph(graph, verbose=args.verbose)
-            
-            if errors:
-                print(f"\n{Colors.FAIL}Validation Errors:{Colors.ENDC}")
-                for error in errors:
-                    print_error(error)
-            
-            if warnings:
-                print(f"\n{Colors.WARNING}Validation Warnings:{Colors.ENDC}")
-                for warning in warnings:
-                    print_warning(warning)
-            
-            if is_valid:
-                print_success("\nGraph validation passed!")
-                return 0
-            else:
-                print_error(f"\nGraph validation failed with {len(errors)} errors")
-                return 1
-        
-        # Get scale parameters
-        scale_params = GraphGenerator.SCALES[args.scale]
-        
-        # Create config
-        config = GraphConfig(
-            scale=args.scale,
-            scenario=args.scenario,
-            num_nodes=args.nodes or scale_params['nodes'],
-            num_applications=args.apps or scale_params['apps'],
-            num_topics=args.topics or scale_params['topics'],
-            num_brokers=args.brokers or scale_params['brokers'],
-            edge_density=args.density,
-            antipatterns=args.antipatterns or [],
-            seed=args.seed
-        )
-        
-        # Preview mode
-        if args.preview:
-            preview_generation(config)
-            return 0
-        
-        # Generate graph
-        if not args.quiet:
-            print_header("GRAPH GENERATION")
-            print_info(f"Generating {config.scale} scale {config.scenario} system...")
-        
-        start_time = time.time()
-        generator = GraphGenerator(config)
-        graph = generator.generate()
-        generation_time = time.time() - start_time
-        
-        if not args.quiet:
-            print_success(f"Graph generated in {generation_time:.2f}s")
-        
-        # Validate if requested
-        if args.validate:
-            if not args.quiet:
-                print()
-                print_info("Validating graph...")
-            
-            is_valid, errors, warnings = validate_graph(graph, verbose=args.verbose)
-            
-            if errors:
-                print(f"\n{Colors.FAIL}Validation Errors:{Colors.ENDC}")
-                for error in errors[:10]:  # Show first 10
-                    print_error(error)
-                if len(errors) > 10:
-                    print_error(f"... and {len(errors)-10} more errors")
-            
-            if warnings and args.verbose:
-                print(f"\n{Colors.WARNING}Validation Warnings:{Colors.ENDC}")
-                for warning in warnings[:10]:
-                    print_warning(warning)
-                if len(warnings) > 10:
-                    print_warning(f"... and {len(warnings)-10} more warnings")
-            
-            if not is_valid:
-                print()
-                response = input(f"{Colors.WARNING}Continue with invalid graph? [y/N]: {Colors.ENDC}")
-                if response.lower() != 'y':
-                    return 1
-            else:
-                print_success("Validation passed!")
-        
-        # Export
-        if not args.quiet:
-            print()
-            print_info("Exporting graph...")
-        
-        exported_files = export_graph(graph, args.output, args.formats, args.verbose)
-        
-        # Print statistics
-        if not args.no_stats and not args.quiet:
-            print_statistics(graph, config, generation_time)
-        
-        # Final summary
-        if not args.quiet:
-            print_header("GENERATION COMPLETE")
-            print_success(f"Generated {args.scale} scale {args.scenario} system")
-            print_success(f"Files created: {len(exported_files)}")
-            for f in exported_files:
-                print(f"  • {f}")
-        
+    # List modes
+    if args.list_scales:
+        list_scales()
         return 0
+    
+    if args.list_scenarios:
+        list_scenarios()
+        return 0
+    
+    if args.list_antipatterns:
+        list_antipatterns()
+        return 0
+    
+    # Validate-only mode
+    if args.validate_only:
+        if not args.input:
+            print_error("--input required for --validate-only mode")
+            return 1
         
-    except KeyboardInterrupt:
-        print_error("\nGeneration interrupted by user")
-        return 130
-    except FileNotFoundError as e:
-        print_error(f"File not found: {e}")
-        return 1
-    except json.JSONDecodeError as e:
-        print_error(f"Invalid JSON: {e}")
-        return 1
-    except Exception as e:
-        print_error(f"Generation failed: {e}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        return 1
+        print_header("GRAPH VALIDATION")
+        
+        try:
+            with open(args.input) as f:
+                graph = json.load(f)
+        except Exception as e:
+            print_error(f"Failed to load graph: {e}")
+            return 1
+        
+        is_valid, errors, warnings = validate_graph(graph, args.verbose)
+        
+        if errors:
+            print_section("Errors")
+            for err in errors[:20]:
+                print_error(err)
+            if len(errors) > 20:
+                print_error(f"... and {len(errors)-20} more errors")
+        
+        if warnings and args.verbose:
+            print_section("Warnings")
+            for warn in warnings[:20]:
+                print_warning(warn)
+            if len(warnings) > 20:
+                print_warning(f"... and {len(warnings)-20} more warnings")
+        
+        if is_valid:
+            print_success(f"Graph is valid ({len(warnings)} warnings)")
+            return 0
+        else:
+            print_error(f"Graph validation failed ({len(errors)} errors, {len(warnings)} warnings)")
+            return 1
+    
+    # Create config
+    scale_params = GraphGenerator.SCALES.get(args.scale, GraphGenerator.SCALES['medium'])
+    
+    config = GraphConfig(
+        scale=args.scale,
+        scenario=args.scenario,
+        num_nodes=args.nodes or scale_params['nodes'],
+        num_applications=args.apps or scale_params['apps'],
+        num_topics=args.topics or scale_params['topics'],
+        num_brokers=args.brokers or scale_params['brokers'],
+        edge_density=args.density,
+        antipatterns=args.antipatterns or [],
+        seed=args.seed,
+        ha_enabled=args.ha_enabled,
+        multi_zone=args.multi_zone,
+        num_zones=args.num_zones,
+        region_aware=args.region_aware
+    )
+    
+    # Preview mode
+    if args.preview:
+        preview_generation(config)
+        return 0
+    
+    # Generate
+    if not args.quiet:
+        print_header("GRAPH GENERATION")
+        print_info(f"Generating {config.scale} scale {config.scenario} system...")
+    
+    start_time = time.time()
+    generator = GraphGenerator(config)
+    graph = generator.generate()
+    generation_time = time.time() - start_time
+    
+    if not args.quiet:
+        print_success(f"Graph generated in {generation_time:.2f}s")
+    
+    # Validate if requested
+    if args.validate:
+        if not args.quiet:
+            print_info("Validating graph...")
+        
+        is_valid, errors, warnings = validate_graph(graph, args.verbose)
+        
+        if errors:
+            print_section("Validation Errors")
+            for err in errors[:10]:
+                print_error(err)
+        
+        if not is_valid:
+            print_error("Validation failed - graph may have issues")
+            response = input(f"{Colors.WARNING}Continue anyway? [y/N]: {Colors.ENDC}")
+            if response.lower() != 'y':
+                return 1
+        else:
+            print_success("Validation passed")
+    
+    # Print statistics
+    if not args.quiet:
+        print_statistics(graph)
+    
+    # Export
+    if args.output:
+        output_path = args.output
+        if not output_path.endswith(f'.{args.format}'):
+            output_path = f"{output_path}.{args.format}"
+        
+        if not args.quiet:
+            print_info(f"Exporting to {output_path}...")
+        
+        try:
+            export_graph(graph, output_path, args.format)
+            print_success(f"Graph exported to {output_path}")
+        except Exception as e:
+            print_error(f"Export failed: {e}")
+            return 1
+    else:
+        if not args.quiet:
+            print_warning("No output file specified. Use --output to save the graph.")
+    
+    return 0
 
 
 if __name__ == '__main__':

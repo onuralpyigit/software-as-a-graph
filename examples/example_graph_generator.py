@@ -54,7 +54,7 @@ def example_1_basic():
     app = graph['applications'][0]
     print(f"  ID: {app['id']}")
     print(f"  Name: {app['name']}")
-    print(f"  Type: {app['type']}")
+    print(f"  Type: {app['app_type']}")
     
     print("\nSample Topic:")
     topic = graph['topics'][0]
