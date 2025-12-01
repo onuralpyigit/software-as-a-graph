@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Layer Renderer Module
 
@@ -14,13 +13,19 @@ Supports:
 - Grouped Views: Clusters nodes by attributes (QoS, criticality, domain)
 """
 
-import networkx as nx
-import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
-from enum import Enum
-from dataclasses import dataclass
 import json
+from typing import Dict, List, Optional, Tuple, Any, Set
+from dataclasses import dataclass, field
+from enum import Enum
+from collections import defaultdict
+from datetime import datetime
+import logging
+
+try:
+    import networkx as nx
+    HAS_NETWORKX = True
+except ImportError:
+    HAS_NETWORKX = False
 
 
 class Layer(Enum):
@@ -38,6 +43,7 @@ class LayoutStyle(Enum):
     HIERARCHICAL = "hierarchical"
     CIRCULAR = "circular"
     GRID = "grid"
+    LAYERED = "layered"
 
 
 @dataclass
@@ -48,9 +54,10 @@ class LayerConfig:
     show_labels: bool = True
     show_cross_layer_deps: bool = True
     highlight_critical: bool = True
-    color_by_criticality: bool = True
+    color_by_criticality: bool = False
     min_criticality_threshold: float = 0.0
     interactive: bool = True
+    show_edge_labels: bool = False
 
 
 class LayerColors:
@@ -58,519 +65,564 @@ class LayerColors:
     APPLICATION = {
         'primary': '#3498db',
         'critical': '#e74c3c',
+        'high': '#e67e22',
+        'medium': '#f1c40f',
+        'low': '#27ae60',
+        'minimal': '#95a5a6',
         'background': '#ecf0f1'
     }
+    
     INFRASTRUCTURE = {
-        'primary': '#95a5a6',
+        'primary': '#9b59b6',
+        'node': '#8e44ad',
         'broker': '#e74c3c',
-        'node': '#7f8c8d',
+        'critical': '#c0392b',
         'background': '#ecf0f1'
     }
+    
     TOPIC = {
         'primary': '#2ecc71',
         'high_qos': '#27ae60',
         'low_qos': '#a6e4a6',
+        'god_topic': '#e74c3c',
+        'orphan': '#95a5a6',
         'background': '#ecf0f1'
     }
+    
+    BROKER = {
+        'primary': '#e74c3c',
+        'overloaded': '#c0392b',
+        'normal': '#e67e22',
+        'background': '#ecf0f1'
+    }
+    
     CROSS_LAYER = {
         'dependency': '#e67e22',
         'weak': '#f39c12',
-        'strong': '#d35400'
+        'strong': '#d35400',
+        'runs_on': '#9b59b6',
+        'routes': '#e74c3c'
     }
+    
+    EDGES = {
+        'PUBLISHES_TO': '#27ae60',
+        'SUBSCRIBES_TO': '#3498db',
+        'DEPENDS_ON': '#e74c3c',
+        'RUNS_ON': '#9b59b6',
+        'ROUTES': '#f39c12'
+    }
+
+
+@dataclass
+class CrossLayerDependency:
+    """Represents a cross-layer dependency"""
+    source: str
+    target: str
+    source_layer: Layer
+    target_layer: Layer
+    dependency_type: str
+    weight: float = 1.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class LayerRenderer:
     """
-    Renderer for multi-layer graph visualization
+    Renderer for multi-layer graph visualization.
     
     Provides specialized rendering for each layer with appropriate
     layout algorithms, color schemes, and interaction features.
     """
     
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(self, graph: 'nx.DiGraph', config: Optional[LayerConfig] = None):
         """
-        Initialize layer renderer
-        
-        Args:
-            logger: Optional logger instance
-        """
-        self.logger = logger or logging.getLogger(__name__)
-        self.layer_colors = {
-            Layer.APPLICATION: LayerColors.APPLICATION,
-            Layer.INFRASTRUCTURE: LayerColors.INFRASTRUCTURE,
-            Layer.TOPIC: LayerColors.TOPIC
-        }
-    
-    def render_layer(self,
-                    graph: nx.DiGraph,
-                    layer: Layer,
-                    config: Optional[LayerConfig] = None,
-                    output_path: Optional[str] = None) -> str:
-        """
-        Render a single layer
-        
-        Args:
-            graph: Full system graph
-            layer: Layer to render
-            config: Layer configuration
-            output_path: Path to save output
-        
-        Returns:
-            HTML string
-        """
-        if config is None:
-            config = LayerConfig(layer=layer)
-        
-        self.logger.info(f"Rendering {layer.value} layer...")
-        
-        # Extract layer
-        layer_graph = self._extract_layer(graph, layer)
-        
-        # Get cross-layer dependencies if enabled
-        cross_layer_edges = []
-        if config.show_cross_layer_deps:
-            cross_layer_edges = self._get_cross_layer_deps(graph, layer)
-        
-        # Generate HTML
-        html = self._create_layer_html(
-            layer_graph,
-            layer,
-            cross_layer_edges,
-            config
-        )
-        
-        # Save if path provided
-        if output_path:
-            Path(output_path).write_text(html, encoding='utf-8')
-            self.logger.info(f"Saved layer visualization to {output_path}")
-        
-        return html
-    
-    def render_all_layers(self,
-                         graph: nx.DiGraph,
-                         output_path: Optional[str] = None) -> str:
-        """
-        Render all layers in a composite view
+        Initialize the layer renderer.
         
         Args:
             graph: NetworkX directed graph
-            output_path: Path to save output
-        
-        Returns:
-            HTML string
+            config: Layer rendering configuration
         """
-        self.logger.info("Rendering all layers...")
+        if not HAS_NETWORKX:
+            raise ImportError("networkx is required for layer rendering")
         
-        # Extract each layer
-        app_layer = self._extract_layer(graph, Layer.APPLICATION)
-        infra_layer = self._extract_layer(graph, Layer.INFRASTRUCTURE)
-        topic_layer = self._extract_layer(graph, Layer.TOPIC)
-        
-        # Get cross-layer dependencies
-        cross_layer_deps = self._get_all_cross_layer_deps(graph)
-        
-        # Generate HTML
-        html = self._create_multi_layer_html(
-            {
-                Layer.APPLICATION: app_layer,
-                Layer.INFRASTRUCTURE: infra_layer,
-                Layer.TOPIC: topic_layer
-            },
-            cross_layer_deps
-        )
-        
-        # Save if path provided
-        if output_path:
-            Path(output_path).write_text(html, encoding='utf-8')
-            self.logger.info(f"Saved multi-layer visualization to {output_path}")
-        
-        return html
-    
-    def render_layer_interactions(self,
-                                  graph: nx.DiGraph,
-                                  source_layer: Layer,
-                                  target_layer: Layer,
-                                  output_path: Optional[str] = None) -> str:
-        """
-        Visualize interactions between two layers
-        
-        Args:
-            graph: NetworkX directed graph
-            source_layer: Source layer
-            target_layer: Target layer
-            output_path: Path to save output
-        
-        Returns:
-            HTML string
-        """
-        self.logger.info(f"Rendering interactions: {source_layer.value} -> {target_layer.value}")
+        self.graph = graph
+        self.config = config or LayerConfig(layer=Layer.ALL)
+        self.logger = logging.getLogger(__name__)
         
         # Extract layers
-        source_graph = self._extract_layer(graph, source_layer)
-        target_graph = self._extract_layer(graph, target_layer)
+        self._extract_layers()
         
-        # Find interactions
-        interactions = []
-        for u, v in graph.edges():
-            u_layer = self._get_node_layer(graph, u)
-            v_layer = self._get_node_layer(graph, v)
-            
-            if u_layer == source_layer and v_layer == target_layer:
-                interactions.append((u, v))
-        
-        # Generate HTML
-        html = self._create_interaction_html(
-            source_graph,
-            target_graph,
-            interactions,
-            source_layer,
-            target_layer
-        )
-        
-        # Save if path provided
-        if output_path:
-            Path(output_path).write_text(html, encoding='utf-8')
-            self.logger.info(f"Saved interaction visualization to {output_path}")
-        
-        return html
+        # Calculate cross-layer dependencies
+        self._calculate_cross_layer_deps()
     
-    def render_grouped_layer(self,
-                            graph: nx.DiGraph,
-                            layer: Layer,
-                            group_by: str,
-                            output_path: Optional[str] = None) -> str:
+    def _extract_layers(self):
+        """Extract nodes into their respective layers"""
+        self.layers: Dict[Layer, List[str]] = {
+            Layer.APPLICATION: [],
+            Layer.TOPIC: [],
+            Layer.BROKER: [],
+            Layer.INFRASTRUCTURE: []
+        }
+        
+        type_to_layer = {
+            'Application': Layer.APPLICATION,
+            'Topic': Layer.TOPIC,
+            'Broker': Layer.BROKER,
+            'Node': Layer.INFRASTRUCTURE
+        }
+        
+        for node, data in self.graph.nodes(data=True):
+            node_type = data.get('type', 'Unknown')
+            layer = type_to_layer.get(node_type)
+            if layer:
+                self.layers[layer].append(node)
+    
+    def _calculate_cross_layer_deps(self):
+        """Calculate dependencies between layers"""
+        self.cross_layer_deps: List[CrossLayerDependency] = []
+        
+        type_to_layer = {
+            'Application': Layer.APPLICATION,
+            'Topic': Layer.TOPIC,
+            'Broker': Layer.BROKER,
+            'Node': Layer.INFRASTRUCTURE
+        }
+        
+        for source, target, data in self.graph.edges(data=True):
+            source_type = self.graph.nodes[source].get('type', 'Unknown')
+            target_type = self.graph.nodes[target].get('type', 'Unknown')
+            
+            source_layer = type_to_layer.get(source_type)
+            target_layer = type_to_layer.get(target_type)
+            
+            if source_layer and target_layer and source_layer != target_layer:
+                self.cross_layer_deps.append(CrossLayerDependency(
+                    source=source,
+                    target=target,
+                    source_layer=source_layer,
+                    target_layer=target_layer,
+                    dependency_type=data.get('type', 'Unknown'),
+                    weight=data.get('weight', 1.0),
+                    metadata=dict(data)
+                ))
+    
+    def get_layer_subgraph(self, layer: Layer) -> 'nx.DiGraph':
+        """Get subgraph for a specific layer"""
+        if layer == Layer.ALL:
+            return self.graph.copy()
+        
+        nodes = self.layers.get(layer, [])
+        return self.graph.subgraph(nodes).copy()
+    
+    def render_layer_html(self, 
+                         layer: Layer,
+                         criticality: Optional[Dict[str, Dict]] = None,
+                         title: Optional[str] = None) -> str:
         """
-        Render layer with nodes grouped by attribute
+        Render a specific layer as interactive HTML.
         
         Args:
-            graph: NetworkX directed graph
             layer: Layer to render
-            group_by: Node attribute to group by (e.g., 'broker', 'qos', 'criticality')
-            output_path: Path to save output
+            criticality: Optional criticality scores
+            title: Optional title
         
         Returns:
             HTML string
         """
-        self.logger.info(f"Rendering {layer.value} layer grouped by {group_by}...")
+        subgraph = self.get_layer_subgraph(layer)
         
-        # Extract layer
-        layer_graph = self._extract_layer(graph, layer)
+        if title is None:
+            title = f"{layer.value.title()} Layer Visualization"
         
-        # Group nodes
-        groups = self._group_nodes(layer_graph, group_by)
-        
-        # Generate HTML
-        html = self._create_grouped_layer_html(
-            layer_graph,
-            groups,
-            layer,
-            group_by
-        )
-        
-        # Save if path provided
-        if output_path:
-            Path(output_path).write_text(html, encoding='utf-8')
-            self.logger.info(f"Saved grouped layer visualization to {output_path}")
-        
-        return html
-    
-    def get_layer_statistics(self, graph: nx.DiGraph) -> Dict[str, Any]:
-        """
-        Get statistics for each layer
-        
-        Args:
-            graph: NetworkX directed graph
-        
-        Returns:
-            Dictionary with layer statistics
-        """
-        stats = {}
-        
-        for layer in [Layer.APPLICATION, Layer.INFRASTRUCTURE, Layer.TOPIC]:
-            layer_graph = self._extract_layer(graph, layer)
-            
-            if len(layer_graph) > 0:
-                degrees = dict(layer_graph.degree())
-                stats[layer.value] = {
-                    'node_count': len(layer_graph),
-                    'edge_count': len(layer_graph.edges()),
-                    'avg_degree': sum(degrees.values()) / len(degrees),
-                    'max_degree': max(degrees.values()),
-                    'density': nx.density(layer_graph),
-                    'components': nx.number_weakly_connected_components(layer_graph)
-                }
-            else:
-                stats[layer.value] = {
-                    'node_count': 0,
-                    'edge_count': 0,
-                    'avg_degree': 0,
-                    'max_degree': 0,
-                    'density': 0,
-                    'components': 0
-                }
-        
-        # Add cross-layer statistics
-        cross_deps = self._get_all_cross_layer_deps(graph)
-        stats['cross_layer'] = {
-            'total_dependencies': len(cross_deps),
-            'app_to_infra': len([d for d in cross_deps 
-                                if d['from_layer'] == 'application' 
-                                and d['to_layer'] == 'infrastructure']),
-            'app_to_topic': len([d for d in cross_deps 
-                                if d['from_layer'] == 'application' 
-                                and d['to_layer'] == 'topic']),
-            'topic_to_infra': len([d for d in cross_deps 
-                                  if d['from_layer'] == 'topic' 
-                                  and d['to_layer'] == 'infrastructure'])
-        }
-        
-        return stats
-    
-    # ========================================================================
-    # Internal Methods
-    # ========================================================================
-    
-    def _extract_layer(self, graph: nx.DiGraph, layer: Layer) -> nx.DiGraph:
-        """Extract subgraph for a specific layer"""
-        
-        if layer == Layer.ALL:
-            return graph.copy()
-        
-        # Filter nodes by type
-        layer_nodes = []
-        for node in graph.nodes():
-            node_type = graph.nodes[node].get('type', 'Unknown')
-            
-            if layer == Layer.APPLICATION and node_type == 'Application':
-                layer_nodes.append(node)
-            elif layer == Layer.INFRASTRUCTURE and node_type in ['Broker', 'Node']:
-                layer_nodes.append(node)
-            elif layer == Layer.TOPIC and node_type == 'Topic':
-                layer_nodes.append(node)
-            elif layer == Layer.BROKER and node_type == 'Broker':
-                layer_nodes.append(node)
-        
-        return graph.subgraph(layer_nodes).copy()
-    
-    def _get_node_layer(self, graph: nx.DiGraph, node: str) -> Optional[Layer]:
-        """Determine which layer a node belongs to"""
-        
-        node_type = graph.nodes[node].get('type', 'Unknown')
-        
-        if node_type == 'Application':
-            return Layer.APPLICATION
-        elif node_type in ['Broker', 'Node']:
-            return Layer.INFRASTRUCTURE
-        elif node_type == 'Topic':
-            return Layer.TOPIC
-        
-        return None
-    
-    def _get_cross_layer_deps(self,
-                              graph: nx.DiGraph,
-                              layer: Layer) -> List[Tuple[str, str, str, str]]:
-        """Get dependencies crossing into/out of a layer"""
-        
-        cross_deps = []
-        
-        for u, v in graph.edges():
-            u_layer = self._get_node_layer(graph, u)
-            v_layer = self._get_node_layer(graph, v)
-            
-            if u_layer != v_layer:
-                if u_layer == layer or v_layer == layer:
-                    u_layer_str = u_layer.value if u_layer else 'unknown'
-                    v_layer_str = v_layer.value if v_layer else 'unknown'
-                    cross_deps.append((u, v, u_layer_str, v_layer_str))
-        
-        return cross_deps
-    
-    def _get_all_cross_layer_deps(self, graph: nx.DiGraph) -> List[Dict]:
-        """Get all cross-layer dependencies"""
-        
-        cross_deps = []
-        
-        for u, v in graph.edges():
-            u_layer = self._get_node_layer(graph, u)
-            v_layer = self._get_node_layer(graph, v)
-            
-            if u_layer and v_layer and u_layer != v_layer:
-                cross_deps.append({
-                    'from': u,
-                    'to': v,
-                    'from_layer': u_layer.value,
-                    'to_layer': v_layer.value
-                })
-        
-        return cross_deps
-    
-    def _group_nodes(self, graph: nx.DiGraph, attribute: str) -> Dict[str, List[str]]:
-        """Group nodes by attribute"""
-        
-        groups = {}
-        
-        for node in graph.nodes():
-            value = graph.nodes[node].get(attribute, 'Unknown')
-            if value not in groups:
-                groups[value] = []
-            groups[value].append(node)
-        
-        return groups
-    
-    def _create_layer_html(self,
-                          layer_graph: nx.DiGraph,
-                          layer: Layer,
-                          cross_layer_edges: List,
-                          config: LayerConfig) -> str:
-        """Create HTML for single layer view"""
-        
-        colors = self.layer_colors[layer]
-        
-        # Calculate statistics
-        stats = {
-            'nodes': len(layer_graph),
-            'edges': len(layer_graph.edges()),
-            'cross_layer': len(cross_layer_edges)
-        }
-        
-        # Prepare nodes data
+        # Prepare node data
         nodes_data = []
-        for node in layer_graph.nodes():
-            node_data = layer_graph.nodes[node]
-            criticality = node_data.get('criticality', 0.5)
+        for node in subgraph.nodes():
+            node_data = subgraph.nodes[node]
+            crit = criticality.get(node, {}) if criticality else {}
             
-            # Color by criticality if enabled
-            if config.color_by_criticality:
-                if criticality > 0.7:
-                    color = '#e74c3c'
-                elif criticality > 0.5:
-                    color = '#e67e22'
-                elif criticality > 0.3:
-                    color = '#f39c12'
-                else:
-                    color = colors['primary']
-            else:
-                color = colors['primary']
+            color = self._get_node_color(layer, node_data, crit)
+            size = self._get_node_size(crit)
+            
+            tooltip = self._create_tooltip(node, node_data, crit)
             
             nodes_data.append({
                 'id': node,
-                'label': node if config.show_labels else '',
+                'label': node_data.get('name', node)[:25],
                 'color': color,
-                'title': f"{node}<br>Type: {node_data.get('type', 'Unknown')}<br>Criticality: {criticality:.3f}",
-                'size': 10 + (criticality * 25)
+                'size': size,
+                'title': tooltip,
+                'font': {'size': 11}
             })
         
-        # Prepare edges data
+        # Prepare edge data
         edges_data = []
-        for u, v in layer_graph.edges():
+        for source, target, data in subgraph.edges(data=True):
+            edge_type = data.get('type', 'Unknown')
+            color = LayerColors.EDGES.get(edge_type, '#95a5a6')
+            
             edges_data.append({
-                'from': u,
-                'to': v,
+                'from': source,
+                'to': target,
                 'arrows': 'to',
-                'color': {'color': '#7f8c8d'}
+                'color': {'color': color, 'opacity': 0.7},
+                'width': 2,
+                'title': edge_type
             })
-        
-        # Add cross-layer edges if enabled
-        if config.show_cross_layer_deps:
-            for u, v, u_layer, v_layer in cross_layer_edges:
-                edges_data.append({
-                    'from': u,
-                    'to': v,
-                    'arrows': 'to',
-                    'color': {'color': LayerColors.CROSS_LAYER['dependency']},
-                    'dashes': True,
-                    'width': 3,
-                    'title': f"Cross-layer: {u_layer} → {v_layer}"
-                })
         
         # Generate HTML
+        return self._generate_layer_html(nodes_data, edges_data, layer, title)
+    
+    def render_multi_layer_html(self,
+                               criticality: Optional[Dict[str, Dict]] = None,
+                               title: str = "Multi-Layer System Architecture") -> str:
+        """
+        Render all layers in a unified multi-layer view.
+        
+        Args:
+            criticality: Optional criticality scores
+            title: Visualization title
+        
+        Returns:
+            HTML string
+        """
+        # Prepare nodes with layer positioning
+        nodes_data = []
+        
+        layer_y_positions = {
+            Layer.INFRASTRUCTURE: 0,
+            Layer.BROKER: 150,
+            Layer.TOPIC: 300,
+            Layer.APPLICATION: 450
+        }
+        
+        for layer, nodes in self.layers.items():
+            base_y = layer_y_positions.get(layer, 0)
+            n_nodes = len(nodes)
+            
+            for i, node in enumerate(sorted(nodes)):
+                node_data = self.graph.nodes[node]
+                crit = criticality.get(node, {}) if criticality else {}
+                
+                color = self._get_node_color(layer, node_data, crit)
+                size = self._get_node_size(crit)
+                
+                # Calculate x position
+                x = (i - (n_nodes - 1) / 2) * 120 if n_nodes > 1 else 0
+                
+                tooltip = self._create_tooltip(node, node_data, crit)
+                tooltip += f"<br>Layer: {layer.value}"
+                
+                nodes_data.append({
+                    'id': node,
+                    'label': node_data.get('name', node)[:20],
+                    'color': color,
+                    'size': size,
+                    'x': x,
+                    'y': base_y,
+                    'fixed': {'y': True},
+                    'title': tooltip,
+                    'font': {'size': 10},
+                    'group': layer.value
+                })
+        
+        # Prepare edges
+        edges_data = []
+        for source, target, data in self.graph.edges(data=True):
+            edge_type = data.get('type', 'Unknown')
+            color = LayerColors.EDGES.get(edge_type, '#95a5a6')
+            
+            # Check if cross-layer
+            source_type = self.graph.nodes[source].get('type')
+            target_type = self.graph.nodes[target].get('type')
+            is_cross_layer = source_type != target_type
+            
+            width = 3 if is_cross_layer else 2
+            dashes = is_cross_layer
+            
+            edges_data.append({
+                'from': source,
+                'to': target,
+                'arrows': 'to',
+                'color': {'color': color, 'opacity': 0.7},
+                'width': width,
+                'dashes': dashes,
+                'title': edge_type
+            })
+        
+        return self._generate_multi_layer_html(nodes_data, edges_data, title)
+    
+    def render_cross_layer_html(self,
+                               criticality: Optional[Dict[str, Dict]] = None,
+                               title: str = "Cross-Layer Dependencies") -> str:
+        """
+        Render only cross-layer dependencies.
+        
+        Args:
+            criticality: Optional criticality scores
+            title: Visualization title
+        
+        Returns:
+            HTML string
+        """
+        # Get nodes involved in cross-layer deps
+        cross_layer_nodes = set()
+        for dep in self.cross_layer_deps:
+            cross_layer_nodes.add(dep.source)
+            cross_layer_nodes.add(dep.target)
+        
+        # Prepare nodes
+        nodes_data = []
+        for node in cross_layer_nodes:
+            node_data = self.graph.nodes[node]
+            node_type = node_data.get('type', 'Unknown')
+            crit = criticality.get(node, {}) if criticality else {}
+            
+            # Color by type
+            type_colors = {
+                'Application': '#3498db',
+                'Topic': '#2ecc71',
+                'Broker': '#e74c3c',
+                'Node': '#9b59b6'
+            }
+            color = type_colors.get(node_type, '#95a5a6')
+            
+            size = self._get_node_size(crit)
+            tooltip = self._create_tooltip(node, node_data, crit)
+            
+            nodes_data.append({
+                'id': node,
+                'label': node_data.get('name', node)[:20],
+                'color': color,
+                'size': size,
+                'title': tooltip,
+                'font': {'size': 11}
+            })
+        
+        # Prepare edges (only cross-layer)
+        edges_data = []
+        for dep in self.cross_layer_deps:
+            color = LayerColors.CROSS_LAYER.get(dep.dependency_type.lower(), 
+                                                LayerColors.CROSS_LAYER['dependency'])
+            
+            edges_data.append({
+                'from': dep.source,
+                'to': dep.target,
+                'arrows': 'to',
+                'color': {'color': color, 'opacity': 0.8},
+                'width': 3,
+                'dashes': True,
+                'title': f"{dep.dependency_type}: {dep.source_layer.value} → {dep.target_layer.value}"
+            })
+        
+        return self._generate_layer_html(nodes_data, edges_data, Layer.ALL, title)
+    
+    def get_layer_statistics(self) -> Dict[str, Any]:
+        """Get statistics for each layer"""
+        stats = {}
+        
+        for layer, nodes in self.layers.items():
+            subgraph = self.get_layer_subgraph(layer)
+            
+            stats[layer.value] = {
+                'nodes': len(nodes),
+                'edges': subgraph.number_of_edges(),
+                'density': nx.density(subgraph) if len(subgraph) > 0 else 0,
+                'avg_degree': sum(dict(subgraph.degree()).values()) / max(1, len(nodes))
+            }
+        
+        # Cross-layer statistics
+        stats['cross_layer'] = {
+            'total_dependencies': len(self.cross_layer_deps),
+            'by_type': defaultdict(int)
+        }
+        
+        for dep in self.cross_layer_deps:
+            key = f"{dep.source_layer.value}_to_{dep.target_layer.value}"
+            stats['cross_layer']['by_type'][key] += 1
+        
+        stats['cross_layer']['by_type'] = dict(stats['cross_layer']['by_type'])
+        
+        return stats
+    
+    # =========================================================================
+    # Helper Methods
+    # =========================================================================
+    
+    def _get_node_color(self, 
+                       layer: Layer, 
+                       node_data: Dict, 
+                       crit: Dict) -> str:
+        """Get node color based on layer and criticality"""
+        if self.config.color_by_criticality and crit:
+            level = crit.get('level', 'MINIMAL')
+            colors = LayerColors.APPLICATION
+            return colors.get(level.lower(), colors['minimal'])
+        
+        layer_colors = {
+            Layer.APPLICATION: LayerColors.APPLICATION['primary'],
+            Layer.TOPIC: LayerColors.TOPIC['primary'],
+            Layer.BROKER: LayerColors.BROKER['primary'],
+            Layer.INFRASTRUCTURE: LayerColors.INFRASTRUCTURE['primary']
+        }
+        
+        return layer_colors.get(layer, '#95a5a6')
+    
+    def _get_node_size(self, crit: Dict) -> int:
+        """Get node size based on criticality"""
+        score = crit.get('score', 0.5) if crit else 0.5
+        return int(15 + score * 25)
+    
+    def _create_tooltip(self, node: str, node_data: Dict, crit: Dict) -> str:
+        """Create HTML tooltip for node"""
+        tooltip = f"<b>{node}</b><br>"
+        tooltip += f"Type: {node_data.get('type', 'Unknown')}<br>"
+        
+        if crit:
+            tooltip += f"Criticality: {crit.get('level', 'N/A')} ({crit.get('score', 0):.3f})<br>"
+            tooltip += f"Degree: {crit.get('degree', 0)}<br>"
+            if crit.get('is_articulation_point'):
+                tooltip += "<b style='color:#e74c3c'>Articulation Point</b><br>"
+        
+        return tooltip
+    
+    def _generate_layer_html(self,
+                            nodes_data: List[Dict],
+                            edges_data: List[Dict],
+                            layer: Layer,
+                            title: str) -> str:
+        """Generate HTML for single layer view"""
+        
+        layer_color = {
+            Layer.APPLICATION: '#3498db',
+            Layer.TOPIC: '#2ecc71',
+            Layer.BROKER: '#e74c3c',
+            Layer.INFRASTRUCTURE: '#9b59b6',
+            Layer.ALL: '#667eea'
+        }.get(layer, '#667eea')
+        
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{layer.value.title()} Layer Visualization</title>
+    <title>{title}</title>
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
-            background: #f5f6fa;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
         }}
         
         #header {{
-            background: linear-gradient(135deg, {colors['primary']} 0%, {self._darken_color(colors['primary'])} 100%);
+            background: linear-gradient(135deg, {layer_color} 0%, {layer_color}99 100%);
             color: white;
-            padding: 30px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }}
         
-        #network {{
-            width: 100%;
-            height: calc(100vh - 180px);
-            background: white;
+        #header h1 {{
+            font-size: 1.6em;
+            margin: 0;
         }}
         
         #stats {{
-            padding: 20px;
-            background: white;
-            border-top: 1px solid #dfe4ea;
             display: flex;
-            justify-content: space-around;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            gap: 30px;
+            font-size: 0.9em;
         }}
         
-        .stat-item {{
+        .stat {{
             text-align: center;
         }}
         
         .stat-value {{
-            font-size: 2em;
+            font-size: 1.4em;
             font-weight: bold;
-            color: {colors['primary']};
         }}
         
-        .stat-label {{
-            color: #7f8c8d;
-            font-size: 0.9em;
+        #network {{
+            width: 100%;
+            height: calc(100vh - 80px);
+            background: #0f0f23;
+        }}
+        
+        #legend {{
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+        }}
+        
+        .legend-item {{
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 0.85em;
+        }}
+        
+        .legend-color {{
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            margin-right: 8px;
         }}
     </style>
 </head>
 <body>
     <div id="header">
-        <h1>📊 {layer.value.title()} Layer</h1>
-        <p>System Architecture Visualization</p>
+        <h1>{title}</h1>
+        <div id="stats">
+            <div class="stat">
+                <div class="stat-value">{len(nodes_data)}</div>
+                <div>Nodes</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{len(edges_data)}</div>
+                <div>Edges</div>
+            </div>
+        </div>
     </div>
     
     <div id="network"></div>
     
-    <div id="stats">
-        <div class="stat-item">
-            <div class="stat-value">{stats['nodes']}</div>
-            <div class="stat-label">Nodes</div>
+    <div id="legend">
+        <strong>Edge Types</strong>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {LayerColors.EDGES['PUBLISHES_TO']}"></div>
+            <span>Publishes To</span>
         </div>
-        <div class="stat-item">
-            <div class="stat-value">{stats['edges']}</div>
-            <div class="stat-label">Edges</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {LayerColors.EDGES['SUBSCRIBES_TO']}"></div>
+            <span>Subscribes To</span>
         </div>
-        <div class="stat-item">
-            <div class="stat-value">{stats['cross_layer']}</div>
-            <div class="stat-label">Cross-Layer</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {LayerColors.EDGES['DEPENDS_ON']}"></div>
+            <span>Depends On</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {LayerColors.EDGES['RUNS_ON']}"></div>
+            <span>Runs On</span>
         </div>
     </div>
-
+    
     <script>
         var nodes = new vis.DataSet({json.dumps(nodes_data)});
         var edges = new vis.DataSet({json.dumps(edges_data)});
         
         var container = document.getElementById('network');
         var data = {{ nodes: nodes, edges: edges }};
+        
         var options = {{
             nodes: {{
                 shape: 'dot',
-                font: {{ size: 14 }},
+                font: {{ size: 11, color: '#ecf0f1' }},
                 borderWidth: 2,
                 shadow: true
             }},
@@ -580,10 +632,11 @@ class LayerRenderer:
             }},
             physics: {{
                 barnesHut: {{
-                    gravitationalConstant: -5000,
-                    springLength: 150
+                    gravitationalConstant: -4000,
+                    springLength: 120,
+                    springConstant: 0.04
                 }},
-                stabilization: {{ iterations: 200 }}
+                stabilization: {{ iterations: 150 }}
             }},
             interaction: {{
                 hover: true,
@@ -594,370 +647,198 @@ class LayerRenderer:
         var network = new vis.Network(container, data, options);
     </script>
 </body>
-</html>
-"""
+</html>"""
         
         return html
     
-    def _create_multi_layer_html(self,
-                                layers: Dict[Layer, nx.DiGraph],
-                                cross_deps: List[Dict]) -> str:
-        """Create HTML for multi-layer composite view"""
+    def _generate_multi_layer_html(self,
+                                  nodes_data: List[Dict],
+                                  edges_data: List[Dict],
+                                  title: str) -> str:
+        """Generate HTML for multi-layer view"""
         
-        # Prepare all nodes and edges
-        all_nodes = []
-        all_edges = []
-        
-        layer_positions = {
-            Layer.APPLICATION: 3,
-            Layer.TOPIC: 2,
-            Layer.INFRASTRUCTURE: 1
-        }
-        
-        # Add nodes from each layer
-        for layer, layer_graph in layers.items():
-            if layer == Layer.ALL:
-                continue
-            
-            y_pos = layer_positions.get(layer, 0)
-            node_count = len(layer_graph)
-            
-            for i, node in enumerate(layer_graph.nodes()):
-                node_data = layer_graph.nodes[node]
-                criticality = node_data.get('criticality', 0.5)
-                
-                color = self.layer_colors[layer]['primary']
-                
-                all_nodes.append({
-                    'id': node,
-                    'label': node,
-                    'color': color,
-                    'x': (i - node_count/2) * 200,
-                    'y': y_pos * 300,
-                    'size': 10 + (criticality * 25),
-                    'title': f"{node}<br>Layer: {layer.value}<br>Criticality: {criticality:.3f}",
-                    'font': {'size': 12}
-                })
-        
-        # Add within-layer edges
-        for layer, layer_graph in layers.items():
-            if layer == Layer.ALL:
-                continue
-            
-            for u, v in layer_graph.edges():
-                all_edges.append({
-                    'from': u,
-                    'to': v,
-                    'arrows': 'to',
-                    'color': {'color': '#7f8c8d'},
-                    'width': 2
-                })
-        
-        # Add cross-layer edges
-        for dep in cross_deps:
-            all_edges.append({
-                'from': dep['from'],
-                'to': dep['to'],
-                'arrows': 'to',
-                'color': {'color': LayerColors.CROSS_LAYER['dependency']},
-                'width': 3,
-                'dashes': True,
-                'title': f"Cross-layer: {dep['from_layer']} → {dep['to_layer']}"
-            })
-        
-        # Generate HTML
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Layer System Visualization</title>
+    <title>{title}</title>
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
-            background: #f5f6fa;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
         }}
         
         #header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 30px;
+            padding: 20px 30px;
             text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        
+        #header h1 {{
+            margin: 0 0 10px 0;
         }}
         
         #network {{
             width: 100%;
-            height: calc(100vh - 150px);
-            background: white;
+            height: calc(100vh - 100px);
+            background: #0f0f23;
+        }}
+        
+        #layer-labels {{
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 100px;
+        }}
+        
+        .layer-label {{
+            writing-mode: vertical-lr;
+            transform: rotate(180deg);
+            color: white;
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
         }}
         
         #legend {{
             position: fixed;
             top: 100px;
             right: 20px;
-            background: white;
-            padding: 20px;
+            background: rgba(0,0,0,0.85);
+            padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            color: white;
+            font-size: 0.85em;
+        }}
+        
+        .legend-section {{
+            margin-bottom: 15px;
+        }}
+        
+        .legend-section h4 {{
+            margin: 0 0 8px 0;
+            font-size: 0.9em;
+            color: #a8a8b3;
         }}
         
         .legend-item {{
             display: flex;
             align-items: center;
-            margin: 10px 0;
+            margin: 4px 0;
         }}
         
         .legend-color {{
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            margin-right: 10px;
-            border: 2px solid #2c3e50;
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            margin-right: 8px;
         }}
     </style>
 </head>
 <body>
     <div id="header">
-        <h1>🔄 Multi-Layer System Architecture</h1>
-        <p>Comprehensive View of Distributed Pub-Sub System</p>
+        <h1>🔗 {title}</h1>
+        <p>Hierarchical view showing all system layers and cross-layer dependencies</p>
     </div>
     
     <div id="network"></div>
     
+    <div id="layer-labels">
+        <div class="layer-label" style="background: #9b59b6">Infrastructure</div>
+        <div class="layer-label" style="background: #e74c3c">Broker</div>
+        <div class="layer-label" style="background: #2ecc71">Topic</div>
+        <div class="layer-label" style="background: #3498db">Application</div>
+    </div>
+    
     <div id="legend">
-        <h3>Layers</h3>
-        <div class="legend-item">
-            <div class="legend-color" style="background: {LayerColors.APPLICATION['primary']}"></div>
-            <span>Application</span>
+        <div class="legend-section">
+            <h4>Node Types</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #3498db"></div>
+                <span>Application</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #2ecc71"></div>
+                <span>Topic</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e74c3c"></div>
+                <span>Broker</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #9b59b6"></div>
+                <span>Infrastructure</span>
+            </div>
         </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: {LayerColors.TOPIC['primary']}"></div>
-            <span>Topic</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: {LayerColors.INFRASTRUCTURE['primary']}"></div>
-            <span>Infrastructure</span>
-        </div>
-        <div class="legend-item" style="margin-top: 20px;">
-            <div style="width: 30px; height: 2px; background: {LayerColors.CROSS_LAYER['dependency']}; 
-                        border: 1px dashed {LayerColors.CROSS_LAYER['dependency']}; margin-right: 10px;"></div>
-            <span>Cross-Layer</span>
+        <div class="legend-section">
+            <h4>Edge Types</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #27ae60"></div>
+                <span>Publishes</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #3498db"></div>
+                <span>Subscribes</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e74c3c"></div>
+                <span>Depends On</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #9b59b6"></div>
+                <span>Runs On</span>
+            </div>
         </div>
     </div>
-
+    
     <script>
-        var nodes = new vis.DataSet({json.dumps(all_nodes)});
-        var edges = new vis.DataSet({json.dumps(all_edges)});
+        var nodes = new vis.DataSet({json.dumps(nodes_data)});
+        var edges = new vis.DataSet({json.dumps(edges_data)});
         
         var container = document.getElementById('network');
         var data = {{ nodes: nodes, edges: edges }};
+        
         var options = {{
             nodes: {{
                 shape: 'dot',
-                font: {{ size: 12 }},
+                font: {{ size: 10, color: '#ecf0f1' }},
                 borderWidth: 2,
                 shadow: true
             }},
             edges: {{
-                smooth: {{ type: 'continuous' }},
+                smooth: {{ type: 'cubicBezier', roundness: 0.5 }},
                 shadow: true
             }},
             physics: {{
-                enabled: false  // Use fixed positions
+                enabled: true,
+                barnesHut: {{
+                    gravitationalConstant: -2000,
+                    springLength: 100
+                }},
+                stabilization: {{ iterations: 100 }}
             }},
             interaction: {{
                 hover: true,
-                navigationButtons: true,
-                zoomView: true,
-                dragView: true
+                navigationButtons: true
+            }},
+            layout: {{
+                improvedLayout: true
             }}
         }};
         
         var network = new vis.Network(container, data, options);
-        network.fit();
     </script>
 </body>
-</html>
-"""
+</html>"""
         
         return html
-    
-    def _create_interaction_html(self,
-                                source_graph: nx.DiGraph,
-                                target_graph: nx.DiGraph,
-                                interactions: List[Tuple[str, str]],
-                                source_layer: Layer,
-                                target_layer: Layer) -> str:
-        """Create HTML for layer interaction view"""
-        
-        # Prepare nodes
-        nodes_data = []
-        
-        # Add source layer nodes
-        for i, node in enumerate(source_graph.nodes()):
-            node_data = source_graph.nodes[node]
-            nodes_data.append({
-                'id': node,
-                'label': node,
-                'color': self.layer_colors[source_layer]['primary'],
-                'x': (i - len(source_graph)/2) * 200,
-                'y': 200,
-                'title': f"{node}<br>Layer: {source_layer.value}"
-            })
-        
-        # Add target layer nodes
-        for i, node in enumerate(target_graph.nodes()):
-            node_data = target_graph.nodes[node]
-            nodes_data.append({
-                'id': node,
-                'label': node,
-                'color': self.layer_colors[target_layer]['primary'],
-                'x': (i - len(target_graph)/2) * 200,
-                'y': -200,
-                'title': f"{node}<br>Layer: {target_layer.value}"
-            })
-        
-        # Prepare interaction edges
-        edges_data = []
-        for u, v in interactions:
-            edges_data.append({
-                'from': u,
-                'to': v,
-                'arrows': 'to',
-                'color': {'color': LayerColors.CROSS_LAYER['dependency']},
-                'width': 3,
-                'title': f"Interaction: {u} → {v}"
-            })
-        
-        html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>{source_layer.value.title()} ↔ {target_layer.value.title()} Interactions</title>
-    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-    <style>
-        body {{ margin: 0; font-family: Arial, sans-serif; background: #f5f6fa; }}
-        #header {{ 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; padding: 30px; text-align: center;
-        }}
-        #network {{ width: 100%; height: calc(100vh - 150px); background: white; }}
-    </style>
-</head>
-<body>
-    <div id="header">
-        <h1>{source_layer.value.title()} ↔ {target_layer.value.title()}</h1>
-        <p>{len(interactions)} interactions</p>
-    </div>
-    <div id="network"></div>
-    <script>
-        var nodes = new vis.DataSet({json.dumps(nodes_data)});
-        var edges = new vis.DataSet({json.dumps(edges_data)});
-        var network = new vis.Network(
-            document.getElementById('network'),
-            {{ nodes: nodes, edges: edges }},
-            {{
-                physics: {{ enabled: false }},
-                nodes: {{ shape: 'dot', size: 20, font: {{ size: 14 }} }},
-                edges: {{ smooth: {{ type: 'curvedCW' }} }}
-            }}
-        );
-    </script>
-</body>
-</html>
-"""
-        
-        return html
-    
-    def _create_grouped_layer_html(self,
-                                  layer_graph: nx.DiGraph,
-                                  groups: Dict[str, List[str]],
-                                  layer: Layer,
-                                  group_by: str) -> str:
-        """Create HTML for grouped layer view"""
-        
-        # Assign positions based on groups
-        nodes_data = []
-        group_index = 0
-        
-        for group_name, group_nodes in groups.items():
-            x_offset = group_index * 400
-            
-            for i, node in enumerate(group_nodes):
-                node_data = layer_graph.nodes[node]
-                criticality = node_data.get('criticality', 0.5)
-                
-                nodes_data.append({
-                    'id': node,
-                    'label': node,
-                    'color': self.layer_colors[layer]['primary'],
-                    'x': x_offset,
-                    'y': (i - len(group_nodes)/2) * 100,
-                    'size': 10 + (criticality * 25),
-                    'title': f"{node}<br>Group: {group_name}<br>Criticality: {criticality:.3f}",
-                    'group': group_name
-                })
-            
-            group_index += 1
-        
-        # Prepare edges
-        edges_data = []
-        for u, v in layer_graph.edges():
-            edges_data.append({
-                'from': u,
-                'to': v,
-                'arrows': 'to',
-                'color': {'color': '#7f8c8d'}
-            })
-        
-        html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>{layer.value.title()} Layer - Grouped by {group_by}</title>
-    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-    <style>
-        body {{ margin: 0; font-family: Arial, sans-serif; background: #f5f6fa; }}
-        #header {{ 
-            background: linear-gradient(135deg, {self.layer_colors[layer]['primary']} 0%, 
-                        {self._darken_color(self.layer_colors[layer]['primary'])} 100%);
-            color: white; padding: 30px; text-align: center;
-        }}
-        #network {{ width: 100%; height: calc(100vh - 150px); background: white; }}
-    </style>
-</head>
-<body>
-    <div id="header">
-        <h1>{layer.value.title()} Layer - Grouped by {group_by}</h1>
-        <p>{len(groups)} groups | {len(layer_graph)} nodes</p>
-    </div>
-    <div id="network"></div>
-    <script>
-        var nodes = new vis.DataSet({json.dumps(nodes_data)});
-        var edges = new vis.DataSet({json.dumps(edges_data)});
-        var network = new vis.Network(
-            document.getElementById('network'),
-            {{ nodes: nodes, edges: edges }},
-            {{
-                physics: {{ enabled: false }},
-                nodes: {{ shape: 'dot', font: {{ size: 12 }} }},
-                interaction: {{ hover: true, navigationButtons: true }}
-            }}
-        );
-    </script>
-</body>
-</html>
-"""
-        
-        return html
-    
-    def _darken_color(self, color: str, factor: float = 0.8) -> str:
-        """Darken a hex color"""
-        color = color.lstrip('#')
-        r, g, b = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
-        r, g, b = int(r * factor), int(g * factor), int(b * factor)
-        return f'#{r:02x}{g:02x}{b:02x}'

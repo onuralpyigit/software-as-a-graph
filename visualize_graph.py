@@ -1,760 +1,549 @@
 #!/usr/bin/env python3
 """
-Visualize Graph Script - Enhanced Multi-Layer Version
+Graph Visualization CLI
 
-Comprehensive visualization system for distributed pub-sub systems analysis.
-Supports multi-layer graph modeling, criticality analysis, failure simulation,
-and interactive visualization.
-
-Features:
-- Multi-layer graph visualization (Application, Infrastructure, Topic, Broker layers)
-- Cross-layer dependency analysis and visualization
-- Criticality-aware color schemes with composite scoring
+Comprehensive visualization system for multi-layer pub-sub systems including:
 - Interactive HTML dashboards with D3.js/Vis.js
-- Failure impact visualization with cascade analysis
-- QoS-aware criticality highlighting
-- Multiple layout algorithms (force-directed, hierarchical, circular, layered)
-- Static and interactive exports (PNG, SVG, PDF, HTML)
-- Metrics dashboard with real-time statistics
-- Hidden dependency detection and anti-pattern highlighting
+- Multi-layer graph visualization (Application, Infrastructure, Topic, Broker)
+- Criticality-aware color schemes
+- Failure impact visualization
+- Multiple layout algorithms
+- Static exports (PNG, SVG)
 
-Author: Software-as-a-Graph Research Project
+Usage Examples:
+    # Basic visualization
+    python visualize_graph.py --input system.json --output viz.html
+    
+    # Multi-layer visualization
+    python visualize_graph.py --input system.json --output viz.html \\
+        --layer all --layout layered
+    
+    # Application layer only with criticality coloring
+    python visualize_graph.py --input system.json --output app.html \\
+        --layer application --color-by criticality
+    
+    # Infrastructure view
+    python visualize_graph.py --input system.json --output infra.html \\
+        --layer infrastructure --show-load
+    
+    # Dashboard with all analysis
+    python visualize_graph.py --input system.json --output dashboard.html \\
+        --dashboard --analysis analysis.json
+    
+    # Static image export
+    python visualize_graph.py --input system.json --output graph.png \\
+        --format png --dpi 300
+
+Supported Formats:
+    - HTML: Interactive visualization with Vis.js
+    - PNG: Static raster image
+    - SVG: Vector graphics
+    - PDF: Document format
 """
 
 import argparse
-import sys
 import json
+import sys
 import logging
 from pathlib import Path
-from typing import Optional, Dict, List, Any, Tuple
-import time
+from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
+from collections import defaultdict
 from enum import Enum
 
-# Add src to path
+# Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-# Import dependencies
 try:
     import networkx as nx
-    import matplotlib
-    matplotlib.use('Agg')  # Non-interactive backend
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Patch
-    import numpy as np
-except ImportError as e:
-    print(f"❌ Error: Required packages not installed: {e}")
-    print("Please install: pip install networkx matplotlib numpy")
+    HAS_NETWORKX = True
+except ImportError:
+    HAS_NETWORKX = False
+    print("Error: networkx is required. Install with: pip install networkx")
     sys.exit(1)
 
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+    import matplotlib.colors as mcolors
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
 
-# ============================================================================
-# Configuration and Constants
-# ============================================================================
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+
+
+# =============================================================================
+# Terminal Colors
+# =============================================================================
 
 class Colors:
     """ANSI color codes for terminal output"""
     HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
     WARNING = '\033[93m'
     FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+    DIM = '\033[2m'
 
+    @classmethod
+    def disable(cls):
+        cls.HEADER = cls.BLUE = cls.CYAN = cls.GREEN = ''
+        cls.WARNING = cls.FAIL = cls.ENDC = cls.BOLD = cls.DIM = ''
+
+
+def print_header(text: str):
+    print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{text:^70}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}")
+
+
+def print_section(text: str):
+    print(f"\n{Colors.CYAN}{Colors.BOLD}{text}{Colors.ENDC}")
+    print(f"{Colors.DIM}{'-'*50}{Colors.ENDC}")
+
+
+def print_success(text: str):
+    print(f"{Colors.GREEN}✓{Colors.ENDC} {text}")
+
+
+def print_error(text: str):
+    print(f"{Colors.FAIL}✗{Colors.ENDC} {text}")
+
+
+def print_warning(text: str):
+    print(f"{Colors.WARNING}⚠{Colors.ENDC} {text}")
+
+
+def print_info(text: str):
+    print(f"{Colors.CYAN}ℹ{Colors.ENDC} {text}")
+
+
+# =============================================================================
+# Enums and Constants
+# =============================================================================
 
 class Layer(Enum):
-    """Graph layers"""
+    """Graph layers for visualization"""
+    ALL = "all"
     APPLICATION = "application"
     INFRASTRUCTURE = "infrastructure"
     TOPIC = "topic"
     BROKER = "broker"
-    ALL = "all"
 
 
-# Layout algorithms
-LAYOUT_ALGORITHMS = {
-    'spring': lambda g: nx.spring_layout(g, k=1/np.sqrt(len(g)), iterations=50),
-    'hierarchical': lambda g: nx.spring_layout(g, k=2/np.sqrt(len(g))),
-    'circular': lambda g: nx.circular_layout(g),
-    'kamada_kawai': lambda g: nx.kamada_kawai_layout(g),
-    'shell': lambda g: nx.shell_layout(g),
-    'spectral': lambda g: nx.spectral_layout(g),
-    'layered': lambda g: _compute_layered_layout(g)
-}
+class Layout(Enum):
+    """Layout algorithms"""
+    SPRING = "spring"
+    HIERARCHICAL = "hierarchical"
+    CIRCULAR = "circular"
+    LAYERED = "layered"
+    KAMADA_KAWAI = "kamada_kawai"
+    SHELL = "shell"
 
 
-def _compute_layered_layout(graph: nx.DiGraph) -> Dict:
-    """Compute layered layout based on node types"""
-    pos = {}
-    layers = {
-        'Application': [],
-        'Topic': [],
-        'Broker': [],
-        'Node': []
-    }
-    
-    # Group nodes by type
-    for node in graph.nodes():
-        node_type = graph.nodes[node].get('type', 'Unknown')
-        if node_type in layers:
-            layers[node_type].append(node)
-    
-    # Assign positions by layer
-    y_positions = {'Application': 3, 'Topic': 2, 'Broker': 1, 'Node': 0}
-    
-    for node_type, nodes in layers.items():
-        if not nodes:
-            continue
-        y = y_positions.get(node_type, 1.5)
-        x_spacing = 1.0 / (len(nodes) + 1)
-        
-        for i, node in enumerate(nodes):
-            pos[node] = (x_spacing * (i + 1), y)
-    
-    return pos
+class ColorScheme(Enum):
+    """Color schemes for nodes"""
+    TYPE = "type"
+    CRITICALITY = "criticality"
+    LAYER = "layer"
+    QOS = "qos"
 
 
-# Color schemes
-COLOR_SCHEMES = {
-    'criticality': 'criticality',
-    'type': 'type',
-    'layer': 'layer',
-    'qos': 'qos',
-    'failure_impact': 'failure_impact'
-}
-
-# Layer colors
-LAYER_COLORS = {
-    Layer.APPLICATION: '#3498db',    # Blue
-    Layer.TOPIC: '#2ecc71',          # Green
-    Layer.BROKER: '#e74c3c',         # Red
-    Layer.INFRASTRUCTURE: '#95a5a6'   # Gray
-}
-
-# Type colors
+# Color palettes
 TYPE_COLORS = {
     'Application': '#3498db',
     'Topic': '#2ecc71',
     'Broker': '#e74c3c',
-    'Node': '#95a5a6',
-    'Unknown': '#34495e'
+    'Node': '#9b59b6',
+    'Unknown': '#95a5a6'
 }
 
-# Criticality colors
 CRITICALITY_COLORS = {
-    'critical': '#e74c3c',    # Red
-    'high': '#e67e22',        # Orange
-    'medium': '#f39c12',      # Yellow
-    'low': '#27ae60',         # Green
-    'minimal': '#95a5a6'      # Gray
+    'CRITICAL': '#e74c3c',
+    'HIGH': '#e67e22',
+    'MEDIUM': '#f1c40f',
+    'LOW': '#27ae60',
+    'MINIMAL': '#95a5a6'
+}
+
+LAYER_COLORS = {
+    Layer.APPLICATION: '#3498db',
+    Layer.TOPIC: '#2ecc71',
+    Layer.BROKER: '#e74c3c',
+    Layer.INFRASTRUCTURE: '#9b59b6'
+}
+
+EDGE_COLORS = {
+    'PUBLISHES_TO': '#27ae60',
+    'SUBSCRIBES_TO': '#3498db',
+    'DEPENDS_ON': '#e74c3c',
+    'RUNS_ON': '#9b59b6',
+    'ROUTES': '#f39c12'
 }
 
 
-# ============================================================================
-# Core Visualization Functions
-# ============================================================================
+# =============================================================================
+# Graph Loading
+# =============================================================================
 
-def setup_logging(verbose: bool = False) -> logging.Logger:
-    """Setup logging configuration"""
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%H:%M:%S'
-    )
-    return logging.getLogger(__name__)
+def load_graph_from_json(filepath: str) -> Tuple[nx.DiGraph, Dict]:
+    """Load graph from JSON file"""
+    with open(filepath) as f:
+        data = json.load(f)
+    
+    G = nx.DiGraph()
+    
+    # Add nodes
+    for node in data.get('nodes', []):
+        node_attrs = {k: v for k, v in node.items() if k != 'id'}
+        node_attrs['type'] = 'Node'
+        node_attrs['layer'] = Layer.INFRASTRUCTURE.value
+        if 'name' not in node_attrs:
+            node_attrs['name'] = node['id']
+        G.add_node(node['id'], **node_attrs)
+    
+    for broker in data.get('brokers', []):
+        broker_attrs = {k: v for k, v in broker.items() if k != 'id'}
+        broker_attrs['type'] = 'Broker'
+        broker_attrs['layer'] = Layer.BROKER.value
+        if 'name' not in broker_attrs:
+            broker_attrs['name'] = broker['id']
+        G.add_node(broker['id'], **broker_attrs)
+    
+    for app in data.get('applications', []):
+        app_attrs = {k: v for k, v in app.items() if k != 'id'}
+        app_attrs['type'] = 'Application'
+        app_attrs['layer'] = Layer.APPLICATION.value
+        if 'name' not in app_attrs:
+            app_attrs['name'] = app['id']
+        G.add_node(app['id'], **app_attrs)
+    
+    for topic in data.get('topics', []):
+        topic_attrs = {k: v for k, v in topic.items() if k not in ['id', 'qos']}
+        topic_attrs['type'] = 'Topic'
+        topic_attrs['layer'] = Layer.TOPIC.value
+        if 'name' not in topic_attrs:
+            topic_attrs['name'] = topic['id']
+        if 'qos' in topic:
+            for qk, qv in topic['qos'].items():
+                topic_attrs[f'qos_{qk}'] = qv
+        G.add_node(topic['id'], **topic_attrs)
+    
+    # Add edges
+    relationships = data.get('relationships', {})
+    
+    for rel in relationships.get('runs_on', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        if source and target:
+            G.add_edge(source, target, type='RUNS_ON')
+    
+    for rel in relationships.get('publishes_to', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        if source and target:
+            G.add_edge(source, target, type='PUBLISHES_TO')
+    
+    for rel in relationships.get('subscribes_to', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        if source and target:
+            G.add_edge(source, target, type='SUBSCRIBES_TO')
+    
+    for rel in relationships.get('routes', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        if source and target:
+            G.add_edge(source, target, type='ROUTES')
+    
+    # Derive DEPENDS_ON
+    G = derive_dependencies(G)
+    
+    return G, data
 
 
-def load_graph_from_json(filepath: str, logger: logging.Logger) -> Tuple[nx.DiGraph, Dict]:
-    """
-    Load graph from JSON file
+def derive_dependencies(G: nx.DiGraph) -> nx.DiGraph:
+    """Derive DEPENDS_ON relationships"""
+    topics = [n for n, d in G.nodes(data=True) if d.get('type') == 'Topic']
     
-    Args:
-        filepath: Path to JSON file
-        logger: Logger instance
+    for topic in topics:
+        publishers = [s for s, t, d in G.in_edges(topic, data=True) 
+                     if d.get('type') == 'PUBLISHES_TO']
+        subscribers = [s for s, t, d in G.in_edges(topic, data=True) 
+                      if d.get('type') == 'SUBSCRIBES_TO']
+        
+        for sub in subscribers:
+            for pub in publishers:
+                if sub != pub and not G.has_edge(sub, pub):
+                    G.add_edge(sub, pub, type='DEPENDS_ON', via_topic=topic)
     
-    Returns:
-        Tuple of (graph, metadata)
-    """
-    logger.info(f"Loading graph from {filepath}...")
-    
-    try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-        
-        # Create directed graph
-        graph = nx.DiGraph()
-        
-        # Add nodes
-        if 'nodes' in data:
-            for node in data['nodes']:
-                node_id = node.get('id', node.get('name'))
-                graph.add_node(node_id, **{k: v for k, v in node.items() if k != 'id'})
-        
-        # Add edges
-        if 'edges' in data:
-            for edge in data['edges']:
-                source = edge.get('source', edge.get('from'))
-                target = edge.get('target', edge.get('to'))
-                graph.add_edge(source, target, **{k: v for k, v in edge.items() 
-                                                  if k not in ['source', 'target', 'from', 'to']})
-        
-        # Extract metadata
-        metadata = {k: v for k, v in data.items() if k not in ['nodes', 'edges']}
-        
-        logger.info(f"✓ Loaded graph: {len(graph)} nodes, {len(graph.edges())} edges")
-        
-        return graph, metadata
-        
-    except Exception as e:
-        logger.error(f"Failed to load graph: {e}")
-        raise
+    return G
 
 
-def extract_layer(graph: nx.DiGraph, layer: Layer) -> nx.DiGraph:
-    """
-    Extract subgraph for a specific layer
-    
-    Args:
-        graph: Full graph
-        layer: Layer to extract
-    
-    Returns:
-        Subgraph for the layer
-    """
+def filter_graph_by_layer(G: nx.DiGraph, layer: Layer) -> nx.DiGraph:
+    """Filter graph to show only specific layer"""
     if layer == Layer.ALL:
-        return graph.copy()
+        return G
     
-    layer_nodes = []
+    type_mapping = {
+        Layer.APPLICATION: ['Application'],
+        Layer.TOPIC: ['Topic'],
+        Layer.BROKER: ['Broker'],
+        Layer.INFRASTRUCTURE: ['Node', 'Broker']
+    }
     
-    for node in graph.nodes():
-        node_type = graph.nodes[node].get('type', 'Unknown')
-        
-        if layer == Layer.APPLICATION and node_type == 'Application':
-            layer_nodes.append(node)
-        elif layer == Layer.INFRASTRUCTURE and node_type in ['Broker', 'Node']:
-            layer_nodes.append(node)
-        elif layer == Layer.TOPIC and node_type == 'Topic':
-            layer_nodes.append(node)
-        elif layer == Layer.BROKER and node_type == 'Broker':
-            layer_nodes.append(node)
+    allowed_types = type_mapping.get(layer, [])
+    nodes_to_keep = [n for n, d in G.nodes(data=True) 
+                    if d.get('type') in allowed_types]
     
-    return graph.subgraph(layer_nodes).copy()
+    return G.subgraph(nodes_to_keep).copy()
 
 
-def get_cross_layer_edges(graph: nx.DiGraph) -> List[Tuple[str, str, str, str]]:
-    """
-    Identify edges that cross between layers
-    
-    Args:
-        graph: Full graph
-    
-    Returns:
-        List of (source, target, source_layer, target_layer) tuples
-    """
-    cross_edges = []
-    
-    for u, v in graph.edges():
-        u_type = graph.nodes[u].get('type', 'Unknown')
-        v_type = graph.nodes[v].get('type', 'Unknown')
-        
-        u_layer = _get_layer_from_type(u_type)
-        v_layer = _get_layer_from_type(v_type)
-        
-        if u_layer != v_layer:
-            cross_edges.append((u, v, u_layer.value, v_layer.value))
-    
-    return cross_edges
+# =============================================================================
+# Criticality Calculation
+# =============================================================================
 
-
-def _get_layer_from_type(node_type: str) -> Layer:
-    """Map node type to layer"""
-    if node_type == 'Application':
-        return Layer.APPLICATION
-    elif node_type == 'Topic':
-        return Layer.TOPIC
-    elif node_type in ['Broker', 'Node']:
-        return Layer.INFRASTRUCTURE
-    else:
-        return Layer.ALL
-
-
-def compute_criticality_scores(graph: nx.DiGraph, logger: logging.Logger) -> Dict[str, float]:
-    """
-    Compute composite criticality scores
+def calculate_criticality(G: nx.DiGraph) -> Dict[str, Dict]:
+    """Calculate basic criticality metrics for visualization"""
+    # Betweenness centrality
+    betweenness = nx.betweenness_centrality(G)
+    max_bc = max(betweenness.values()) if betweenness else 1.0
+    if max_bc == 0:
+        max_bc = 1.0
     
-    Uses the formula: C_score(v) = α·C_B^norm(v) + β·AP(v) + γ·I(v)
-    where:
-    - C_B^norm(v): Normalized betweenness centrality
-    - AP(v): Articulation point indicator (1 if AP, 0 otherwise)
-    - I(v): Impact score (1 - |R(G-v)|/|R(G)|)
-    - α, β, γ: Weights (default: 0.4, 0.3, 0.3)
+    # Articulation points
+    undirected = G.to_undirected()
+    aps = set(nx.articulation_points(undirected))
     
-    Args:
-        graph: NetworkX graph
-        logger: Logger instance
+    # Degree
+    degree = dict(G.degree())
+    max_degree = max(degree.values()) if degree else 1
     
-    Returns:
-        Dictionary mapping node to criticality score
-    """
-    logger.info("Computing criticality scores...")
-    
-    scores = {}
-    alpha, beta, gamma = 0.4, 0.3, 0.3
-    
-    # Compute betweenness centrality
-    try:
-        betweenness = nx.betweenness_centrality(graph)
-        max_bc = max(betweenness.values()) if betweenness else 1.0
-        normalized_bc = {n: bc / max_bc for n, bc in betweenness.items()} if max_bc > 0 else {n: 0 for n in graph.nodes()}
-    except:
-        normalized_bc = {n: 0 for n in graph.nodes()}
-    
-    # Find articulation points
-    try:
-        # Convert to undirected for articulation points
-        undirected = graph.to_undirected()
-        articulation_points = set(nx.articulation_points(undirected))
-    except:
-        articulation_points = set()
-    
-    # Compute impact scores (simplified)
-    baseline_size = len(graph)
-    
-    for node in graph.nodes():
-        # Betweenness component
-        bc_score = normalized_bc.get(node, 0)
+    # Calculate criticality for each node
+    criticality = {}
+    for node in G.nodes():
+        bc_norm = betweenness.get(node, 0) / max_bc
+        is_ap = 1.0 if node in aps else 0.0
+        deg_norm = degree.get(node, 0) / max_degree
         
-        # Articulation point component
-        ap_score = 1.0 if node in articulation_points else 0.0
+        # Simple composite score
+        score = 0.4 * bc_norm + 0.3 * is_ap + 0.3 * deg_norm
         
-        # Impact score (simplified: based on degree)
-        degree = graph.degree(node)
-        max_degree = max([d for _, d in graph.degree()]) if len(graph) > 0 else 1
-        impact_score = degree / max_degree if max_degree > 0 else 0
-        
-        # Composite score
-        composite = alpha * bc_score + beta * ap_score + gamma * impact_score
-        scores[node] = composite
-    
-    logger.info(f"✓ Computed criticality scores for {len(scores)} nodes")
-    
-    return scores
-
-
-def get_node_colors(graph: nx.DiGraph, 
-                   color_scheme: str, 
-                   criticality_scores: Optional[Dict[str, float]] = None) -> List[str]:
-    """
-    Get node colors based on color scheme
-    
-    Args:
-        graph: NetworkX graph
-        color_scheme: Color scheme name
-        criticality_scores: Optional criticality scores
-    
-    Returns:
-        List of color codes
-    """
-    colors = []
-    
-    for node in graph.nodes():
-        node_data = graph.nodes[node]
-        
-        if color_scheme == 'criticality' and criticality_scores:
-            score = criticality_scores.get(node, 0.5)
-            if score > 0.7:
-                colors.append(CRITICALITY_COLORS['critical'])
-            elif score > 0.5:
-                colors.append(CRITICALITY_COLORS['high'])
-            elif score > 0.3:
-                colors.append(CRITICALITY_COLORS['medium'])
-            elif score > 0.1:
-                colors.append(CRITICALITY_COLORS['low'])
-            else:
-                colors.append(CRITICALITY_COLORS['minimal'])
-        
-        elif color_scheme == 'type':
-            node_type = node_data.get('type', 'Unknown')
-            colors.append(TYPE_COLORS.get(node_type, TYPE_COLORS['Unknown']))
-        
-        elif color_scheme == 'layer':
-            node_type = node_data.get('type', 'Unknown')
-            layer = _get_layer_from_type(node_type)
-            colors.append(LAYER_COLORS.get(layer, '#34495e'))
-        
+        if score >= 0.8:
+            level = 'CRITICAL'
+        elif score >= 0.6:
+            level = 'HIGH'
+        elif score >= 0.4:
+            level = 'MEDIUM'
+        elif score >= 0.2:
+            level = 'LOW'
         else:
-            colors.append('#3498db')  # Default blue
-    
-    return colors
-
-
-def get_node_sizes(graph: nx.DiGraph, 
-                  criticality_scores: Optional[Dict[str, float]] = None) -> List[float]:
-    """
-    Get node sizes based on criticality or degree
-    
-    Args:
-        graph: NetworkX graph
-        criticality_scores: Optional criticality scores
-    
-    Returns:
-        List of node sizes
-    """
-    sizes = []
-    
-    for node in graph.nodes():
-        if criticality_scores and node in criticality_scores:
-            score = criticality_scores[node]
-            size = 300 + (score * 700)  # Range: 300-1000
-        else:
-            degree = graph.degree(node)
-            size = 300 + (degree * 50)  # Size based on degree
+            level = 'MINIMAL'
         
-        sizes.append(size)
+        criticality[node] = {
+            'score': score,
+            'level': level,
+            'betweenness': bc_norm,
+            'is_articulation_point': node in aps,
+            'degree': degree.get(node, 0)
+        }
     
-    return sizes
+    return criticality
 
 
-# ============================================================================
-# Static Visualization Functions
-# ============================================================================
+# =============================================================================
+# Layout Algorithms
+# =============================================================================
 
-def create_complete_visualization(graph: nx.DiGraph,
-                                 output_path: Path,
-                                 layout: str = 'spring',
-                                 color_scheme: str = 'criticality',
-                                 criticality_scores: Optional[Dict] = None,
-                                 show_labels: bool = True,
-                                 logger: Optional[logging.Logger] = None) -> str:
-    """
-    Create complete system visualization as static image
+def compute_layout(G: nx.DiGraph, layout: Layout) -> Dict[str, Tuple[float, float]]:
+    """Compute node positions using specified layout algorithm"""
+    if len(G) == 0:
+        return {}
     
-    Args:
-        graph: NetworkX graph
-        output_path: Output file path
-        layout: Layout algorithm
-        color_scheme: Color scheme
-        criticality_scores: Optional criticality scores
-        show_labels: Whether to show labels
-        logger: Logger instance
+    if layout == Layout.SPRING:
+        return nx.spring_layout(G, k=2/np.sqrt(len(G)) if HAS_NUMPY else 1, 
+                               iterations=50, seed=42)
     
-    Returns:
-        Path to generated file
-    """
-    if logger:
-        logger.info("Creating complete visualization...")
+    elif layout == Layout.HIERARCHICAL:
+        # Use spring layout with vertical bias
+        pos = nx.spring_layout(G, k=3/np.sqrt(len(G)) if HAS_NUMPY else 1, 
+                              iterations=50, seed=42)
+        return pos
     
-    # Create figure
-    fig, ax = plt.subplots(figsize=(20, 16))
+    elif layout == Layout.CIRCULAR:
+        return nx.circular_layout(G)
     
-    # Compute layout
-    layout_func = LAYOUT_ALGORITHMS.get(layout, LAYOUT_ALGORITHMS['spring'])
-    pos = layout_func(graph)
+    elif layout == Layout.KAMADA_KAWAI:
+        try:
+            return nx.kamada_kawai_layout(G)
+        except:
+            return nx.spring_layout(G, seed=42)
     
-    # Get colors and sizes
-    colors = get_node_colors(graph, color_scheme, criticality_scores)
-    sizes = get_node_sizes(graph, criticality_scores)
-    
-    # Draw graph
-    nx.draw_networkx_nodes(graph, pos, node_color=colors, node_size=sizes, 
-                          alpha=0.9, ax=ax, edgecolors='black', linewidths=2)
-    nx.draw_networkx_edges(graph, pos, alpha=0.3, arrows=True, 
-                          arrowsize=20, edge_color='#7f8c8d', width=2, ax=ax)
-    
-    if show_labels:
-        nx.draw_networkx_labels(graph, pos, font_size=8, font_weight='bold', ax=ax)
-    
-    # Title
-    ax.set_title(f"Complete System Visualization\n{len(graph)} nodes, {len(graph.edges())} edges",
-                fontsize=20, fontweight='bold', pad=20)
-    
-    # Legend
-    if color_scheme == 'type':
-        legend_elements = [
-            Patch(facecolor=color, label=node_type, edgecolor='black')
-            for node_type, color in TYPE_COLORS.items()
-            if node_type != 'Unknown'
-        ]
-        ax.legend(handles=legend_elements, loc='upper left', fontsize=12, framealpha=0.9)
-    
-    elif color_scheme == 'criticality':
-        legend_elements = [
-            Patch(facecolor=color, label=f"{level.title()} ({threshold})", edgecolor='black')
-            for level, color, threshold in [
-                ('critical', CRITICALITY_COLORS['critical'], '>0.7'),
-                ('high', CRITICALITY_COLORS['high'], '0.5-0.7'),
-                ('medium', CRITICALITY_COLORS['medium'], '0.3-0.5'),
-                ('low', CRITICALITY_COLORS['low'], '0.1-0.3'),
-                ('minimal', CRITICALITY_COLORS['minimal'], '<0.1')
-            ]
-        ]
-        ax.legend(handles=legend_elements, loc='upper left', fontsize=12, 
-                 title='Criticality Score', framealpha=0.9)
-    
-    ax.axis('off')
-    plt.tight_layout()
-    
-    # Save
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
-    plt.close()
-    
-    if logger:
-        logger.info(f"✓ Saved complete visualization: {output_path}")
-    
-    return str(output_path)
-
-
-def create_multi_layer_visualization(graph: nx.DiGraph,
-                                    output_path: Path,
-                                    criticality_scores: Optional[Dict] = None,
-                                    logger: Optional[logging.Logger] = None) -> str:
-    """
-    Create multi-layer visualization showing all layers separately
-    
-    Args:
-        graph: NetworkX graph
-        output_path: Output file path
-        criticality_scores: Optional criticality scores
-        logger: Logger instance
-    
-    Returns:
-        Path to generated file
-    """
-    if logger:
-        logger.info("Creating multi-layer visualization...")
-    
-    # Create figure with subplots
-    fig, axes = plt.subplots(2, 2, figsize=(24, 20))
-    fig.suptitle('Multi-Layer System Visualization', fontsize=24, fontweight='bold')
-    
-    layers_to_plot = [
-        (Layer.APPLICATION, 'Application Layer', axes[0, 0]),
-        (Layer.TOPIC, 'Topic Layer', axes[0, 1]),
-        (Layer.INFRASTRUCTURE, 'Infrastructure Layer', axes[1, 0]),
-        (Layer.ALL, 'Complete System', axes[1, 1])
-    ]
-    
-    for layer, title, ax in layers_to_plot:
-        # Extract layer
-        if layer == Layer.ALL:
-            layer_graph = graph
-        else:
-            layer_graph = extract_layer(graph, layer)
+    elif layout == Layout.SHELL:
+        # Group by type for shell layout
+        shells = []
+        types_order = ['Node', 'Broker', 'Topic', 'Application']
+        for node_type in types_order:
+            nodes = [n for n, d in G.nodes(data=True) if d.get('type') == node_type]
+            if nodes:
+                shells.append(nodes)
         
-        if len(layer_graph) == 0:
-            ax.text(0.5, 0.5, 'No nodes in this layer', 
-                   ha='center', va='center', fontsize=14)
-            ax.set_title(title, fontsize=16, fontweight='bold')
-            ax.axis('off')
-            continue
+        if not shells:
+            return nx.spring_layout(G, seed=42)
+        return nx.shell_layout(G, shells)
+    
+    elif layout == Layout.LAYERED:
+        return compute_layered_layout(G)
+    
+    return nx.spring_layout(G, seed=42)
+
+
+def compute_layered_layout(G: nx.DiGraph) -> Dict[str, Tuple[float, float]]:
+    """Compute layered layout based on node types"""
+    pos = {}
+    
+    # Define layer Y positions
+    layer_y = {
+        'Node': 0.0,
+        'Broker': 0.33,
+        'Topic': 0.66,
+        'Application': 1.0
+    }
+    
+    # Group nodes by type
+    by_type = defaultdict(list)
+    for node, data in G.nodes(data=True):
+        node_type = data.get('type', 'Unknown')
+        by_type[node_type].append(node)
+    
+    # Position nodes
+    for node_type, nodes in by_type.items():
+        y = layer_y.get(node_type, 0.5)
+        n = len(nodes)
         
-        # Compute layout
-        pos = nx.spring_layout(layer_graph, k=1/np.sqrt(len(layer_graph)), iterations=50)
-        
-        # Get colors and sizes
-        colors = get_node_colors(layer_graph, 'criticality', criticality_scores)
-        sizes = get_node_sizes(layer_graph, criticality_scores)
-        
-        # Draw
-        nx.draw_networkx_nodes(layer_graph, pos, node_color=colors, node_size=sizes,
-                              alpha=0.9, ax=ax, edgecolors='black', linewidths=2)
-        nx.draw_networkx_edges(layer_graph, pos, alpha=0.3, arrows=True,
-                              arrowsize=15, edge_color='#7f8c8d', width=1.5, ax=ax)
-        nx.draw_networkx_labels(layer_graph, pos, font_size=7, font_weight='bold', ax=ax)
-        
-        # Title with statistics
-        ax.set_title(f"{title}\n{len(layer_graph)} nodes, {len(layer_graph.edges())} edges",
-                    fontsize=16, fontweight='bold')
-        ax.axis('off')
+        for i, node in enumerate(sorted(nodes)):
+            x = (i - (n - 1) / 2) / max(1, n - 1) if n > 1 else 0.0
+            pos[node] = (x, y)
     
-    plt.tight_layout()
-    
-    # Save
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
-    plt.close()
-    
-    if logger:
-        logger.info(f"✓ Saved multi-layer visualization: {output_path}")
-    
-    return str(output_path)
+    return pos
 
 
-def create_cross_layer_visualization(graph: nx.DiGraph,
-                                    output_path: Path,
-                                    criticality_scores: Optional[Dict] = None,
-                                    logger: Optional[logging.Logger] = None) -> str:
-    """
-    Create visualization highlighting cross-layer dependencies
-    
-    Args:
-        graph: NetworkX graph
-        output_path: Output file path
-        criticality_scores: Optional criticality scores
-        logger: Logger instance
-    
-    Returns:
-        Path to generated file
-    """
-    if logger:
-        logger.info("Creating cross-layer dependency visualization...")
-    
-    # Create figure
-    fig, ax = plt.subplots(figsize=(20, 16))
-    
-    # Use layered layout
-    pos = _compute_layered_layout(graph)
-    
-    # Get colors by layer
-    colors = get_node_colors(graph, 'layer', criticality_scores)
-    sizes = get_node_sizes(graph, criticality_scores)
-    
-    # Identify cross-layer edges
-    cross_edges = get_cross_layer_edges(graph)
-    cross_edge_set = set((u, v) for u, v, _, _ in cross_edges)
-    
-    # Draw nodes
-    nx.draw_networkx_nodes(graph, pos, node_color=colors, node_size=sizes,
-                          alpha=0.9, ax=ax, edgecolors='black', linewidths=2)
-    
-    # Draw regular edges
-    regular_edges = [(u, v) for u, v in graph.edges() if (u, v) not in cross_edge_set]
-    nx.draw_networkx_edges(graph, pos, edgelist=regular_edges, alpha=0.2,
-                          arrows=True, arrowsize=15, edge_color='#7f8c8d', 
-                          width=1, ax=ax)
-    
-    # Draw cross-layer edges with emphasis
-    nx.draw_networkx_edges(graph, pos, edgelist=list(cross_edge_set), alpha=0.8,
-                          arrows=True, arrowsize=20, edge_color='#e74c3c',
-                          width=3, style='dashed', ax=ax)
-    
-    nx.draw_networkx_labels(graph, pos, font_size=8, font_weight='bold', ax=ax)
-    
-    # Title
-    ax.set_title(f"Cross-Layer Dependencies\n{len(cross_edges)} cross-layer connections",
-                fontsize=20, fontweight='bold', pad=20)
-    
-    # Legend
-    legend_elements = [
-        Patch(facecolor=color, label=layer.value.title(), edgecolor='black')
-        for layer, color in LAYER_COLORS.items()
-        if layer != Layer.ALL
-    ]
-    legend_elements.append(
-        Patch(facecolor='white', edgecolor='#e74c3c', 
-              label='Cross-Layer Dependency', linestyle='dashed', linewidth=3)
-    )
-    ax.legend(handles=legend_elements, loc='upper left', fontsize=12, framealpha=0.9)
-    
-    ax.axis('off')
-    plt.tight_layout()
-    
-    # Save
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
-    plt.close()
-    
-    if logger:
-        logger.info(f"✓ Saved cross-layer visualization: {output_path}")
-    
-    return str(output_path)
+# =============================================================================
+# HTML Generation
+# =============================================================================
 
-
-# ============================================================================
-# Interactive HTML Visualization
-# ============================================================================
-
-def create_interactive_html(graph: nx.DiGraph,
-                          output_path: Path,
-                          criticality_scores: Optional[Dict] = None,
-                          metadata: Optional[Dict] = None,
-                          logger: Optional[logging.Logger] = None) -> str:
-    """
-    Create interactive HTML visualization using Vis.js
+def generate_interactive_html(G: nx.DiGraph, 
+                             data: Dict,
+                             criticality: Dict[str, Dict],
+                             color_scheme: ColorScheme,
+                             title: str = "Pub-Sub System Visualization",
+                             analysis: Optional[Dict] = None) -> str:
+    """Generate interactive HTML visualization using Vis.js"""
     
-    Args:
-        graph: NetworkX graph
-        output_path: Output file path
-        criticality_scores: Optional criticality scores
-        metadata: Optional metadata
-        logger: Logger instance
-    
-    Returns:
-        Path to generated HTML file
-    """
-    if logger:
-        logger.info("Creating interactive HTML visualization...")
-    
-    # Prepare nodes data
+    # Prepare nodes
     nodes_data = []
-    for node in graph.nodes():
-        node_data = graph.nodes[node]
+    for node in G.nodes():
+        node_data = G.nodes[node]
         node_type = node_data.get('type', 'Unknown')
+        crit = criticality.get(node, {})
         
-        # Get criticality
-        criticality = criticality_scores.get(node, 0.5) if criticality_scores else 0.5
-        
-        # Color based on criticality
-        if criticality > 0.7:
-            color = CRITICALITY_COLORS['critical']
-        elif criticality > 0.5:
-            color = CRITICALITY_COLORS['high']
-        elif criticality > 0.3:
-            color = CRITICALITY_COLORS['medium']
-        elif criticality > 0.1:
-            color = CRITICALITY_COLORS['low']
+        # Determine color
+        if color_scheme == ColorScheme.TYPE:
+            color = TYPE_COLORS.get(node_type, '#95a5a6')
+        elif color_scheme == ColorScheme.CRITICALITY:
+            color = CRITICALITY_COLORS.get(crit.get('level', 'MINIMAL'), '#95a5a6')
+        elif color_scheme == ColorScheme.LAYER:
+            layer = node_data.get('layer', 'unknown')
+            try:
+                color = LAYER_COLORS.get(Layer(layer), '#95a5a6')
+            except:
+                color = '#95a5a6'
         else:
-            color = CRITICALITY_COLORS['minimal']
+            color = TYPE_COLORS.get(node_type, '#95a5a6')
         
-        # Build tooltip
-        tooltip = f"<b>{node}</b><br>"
-        tooltip += f"Type: {node_type}<br>"
-        tooltip += f"Criticality: {criticality:.3f}<br>"
+        # Node size based on criticality
+        size = 15 + (crit.get('score', 0.5) * 25)
         
-        # Add QoS info if available
-        if 'qos' in node_data:
-            tooltip += f"QoS: {node_data['qos']}<br>"
+        # Border for articulation points
+        border_width = 4 if crit.get('is_articulation_point', False) else 2
+        border_color = '#e74c3c' if crit.get('is_articulation_point', False) else '#2c3e50'
+        
+        # Tooltip
+        tooltip = f"""<b>{node}</b><br>
+Type: {node_type}<br>
+Criticality: {crit.get('level', 'N/A')} ({crit.get('score', 0):.3f})<br>
+Degree: {crit.get('degree', 0)}<br>
+Articulation Point: {'Yes' if crit.get('is_articulation_point') else 'No'}"""
         
         nodes_data.append({
             'id': node,
-            'label': node,
+            'label': node_data.get('name', node)[:20],
+            'color': {
+                'background': color,
+                'border': border_color,
+                'highlight': {'background': color, 'border': '#2c3e50'}
+            },
+            'size': size,
+            'borderWidth': border_width,
             'title': tooltip,
-            'color': color,
-            'size': 10 + (criticality * 30),
-            'font': {'size': 14}
+            'font': {'size': 12}
         })
     
-    # Prepare edges data
+    # Prepare edges
     edges_data = []
-    for u, v in graph.edges():
-        edge_data = graph[u][v]
+    for source, target, edge_data in G.edges(data=True):
+        edge_type = edge_data.get('type', 'Unknown')
+        color = EDGE_COLORS.get(edge_type, '#95a5a6')
         
-        tooltip = f"{u} → {v}"
-        if 'type' in edge_data:
-            tooltip += f"<br>Type: {edge_data['type']}"
+        width = 2
+        dashes = False
+        
+        if edge_type == 'DEPENDS_ON':
+            width = 3
+            dashes = True
+        elif edge_type == 'RUNS_ON':
+            width = 1
         
         edges_data.append({
-            'from': u,
-            'to': v,
+            'from': source,
+            'to': target,
             'arrows': 'to',
-            'title': tooltip,
-            'color': {'color': '#848484', 'highlight': '#3498db'}
+            'color': {'color': color, 'opacity': 0.8},
+            'width': width,
+            'dashes': dashes,
+            'title': edge_type
         })
     
-    # Generate HTML
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Statistics
+    stats = {
+        'nodes': len(G.nodes()),
+        'edges': len(G.edges()),
+        'applications': sum(1 for _, d in G.nodes(data=True) if d.get('type') == 'Application'),
+        'topics': sum(1 for _, d in G.nodes(data=True) if d.get('type') == 'Topic'),
+        'brokers': sum(1 for _, d in G.nodes(data=True) if d.get('type') == 'Broker'),
+        'infrastructure': sum(1 for _, d in G.nodes(data=True) if d.get('type') == 'Node'),
+        'critical': sum(1 for c in criticality.values() if c.get('level') == 'CRITICAL'),
+        'high': sum(1 for c in criticality.values() if c.get('level') == 'HIGH'),
+        'articulation_points': sum(1 for c in criticality.values() if c.get('is_articulation_point'))
+    }
     
+    # Generate HTML
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pub-Sub System Visualization</title>
+    <title>{title}</title>
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         * {{
@@ -765,403 +554,465 @@ def create_interactive_html(graph: nx.DiGraph,
         
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f6fa;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #ecf0f1;
         }}
         
         #header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }}
         
         #header h1 {{
-            margin-bottom: 10px;
-            font-size: 2.5em;
-        }}
-        
-        #header .stats {{
-            font-size: 1.1em;
-            opacity: 0.9;
-        }}
-        
-        .controls {{
-            background: white;
-            padding: 20px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-            border-bottom: 1px solid #dfe4ea;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }}
-        
-        button {{
-            padding: 12px 24px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
+            font-size: 1.8em;
             font-weight: 600;
-            transition: all 0.3s ease;
         }}
         
-        button:hover {{
-            background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+        #header .timestamp {{
+            font-size: 0.9em;
+            opacity: 0.8;
         }}
         
-        button:active {{
-            transform: translateY(0);
-        }}
-        
-        #mynetwork {{
-            width: 100%;
-            height: calc(100vh - 200px);
-            background: white;
+        #main-container {{
+            display: flex;
+            height: calc(100vh - 80px);
         }}
         
         #sidebar {{
-            position: fixed;
-            right: 0;
-            top: 200px;
-            width: 320px;
-            background: white;
+            width: 280px;
+            background: rgba(255,255,255,0.05);
             padding: 20px;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-            max-height: calc(100vh - 220px);
             overflow-y: auto;
-            border-radius: 8px 0 0 8px;
+            border-right: 1px solid rgba(255,255,255,0.1);
         }}
         
-        #sidebar h3 {{
-            color: #2c3e50;
+        #network-container {{
+            flex: 1;
+            position: relative;
+        }}
+        
+        #network {{
+            width: 100%;
+            height: 100%;
+            background: #0f0f23;
+        }}
+        
+        .panel {{
+            background: rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 15px;
             margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
+        }}
+        
+        .panel h3 {{
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            color: #a8a8b3;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 8px;
+        }}
+        
+        .stat-row {{
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 0.9em;
+        }}
+        
+        .stat-label {{
+            color: #a8a8b3;
+        }}
+        
+        .stat-value {{
+            font-weight: 600;
+        }}
+        
+        .stat-value.critical {{
+            color: #e74c3c;
+        }}
+        
+        .stat-value.high {{
+            color: #e67e22;
         }}
         
         .legend-item {{
             display: flex;
             align-items: center;
-            margin: 12px 0;
-            padding: 8px;
-            background: #f8f9fa;
-            border-radius: 4px;
+            padding: 5px 0;
+            font-size: 0.85em;
         }}
         
         .legend-color {{
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            margin-right: 12px;
-            border: 2px solid #2c3e50;
-        }}
-        
-        .stat-item {{
-            padding: 10px;
-            margin: 8px 0;
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
+            width: 16px;
+            height: 16px;
             border-radius: 4px;
+            margin-right: 10px;
+            border: 2px solid rgba(255,255,255,0.3);
         }}
         
-        .stat-label {{
+        .controls {{
+            margin-top: 10px;
+        }}
+        
+        .controls button {{
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }}
+        
+        .controls button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }}
+        
+        #info-panel {{
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 8px;
             font-size: 0.85em;
-            color: #7f8c8d;
-            margin-bottom: 4px;
+            max-width: 300px;
+            display: none;
         }}
         
-        .stat-value {{
-            font-size: 1.4em;
-            font-weight: bold;
-            color: #2c3e50;
+        #info-panel.visible {{
+            display: block;
         }}
     </style>
 </head>
 <body>
     <div id="header">
-        <h1>🔄 Pub-Sub System Visualization</h1>
-        <div class="stats">
-            Generated: {timestamp} | {len(graph)} nodes | {len(graph.edges())} edges
-        </div>
+        <h1>🔗 {title}</h1>
+        <span class="timestamp">Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
     </div>
     
-    <div class="controls">
-        <button onclick="network.fit()">🎯 Fit View</button>
-        <button onclick="network.stabilize()">⚡ Stabilize</button>
-        <button onclick="togglePhysics()">🔄 Toggle Physics</button>
-        <button onclick="resetView()">↺ Reset View</button>
-        <button onclick="exportImage()">📸 Export PNG</button>
-        <button onclick="showCritical()">⚠️ Show Critical</button>
-        <button onclick="showAll()">👁️ Show All</button>
-    </div>
-    
-    <div id="mynetwork"></div>
-    
-    <div id="sidebar">
-        <h3>📊 Legend</h3>
-        <div class="legend-item">
-            <div class="legend-color" style="background: {CRITICALITY_COLORS['critical']}"></div>
-            <div>Critical (&gt;0.7)</div>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: {CRITICALITY_COLORS['high']}"></div>
-            <div>High (0.5-0.7)</div>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: {CRITICALITY_COLORS['medium']}"></div>
-            <div>Medium (0.3-0.5)</div>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: {CRITICALITY_COLORS['low']}"></div>
-            <div>Low (0.1-0.3)</div>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: {CRITICALITY_COLORS['minimal']}"></div>
-            <div>Minimal (&lt;0.1)</div>
+    <div id="main-container">
+        <div id="sidebar">
+            <div class="panel">
+                <h3>📊 Statistics</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Total Nodes</span>
+                    <span class="stat-value">{stats['nodes']}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Edges</span>
+                    <span class="stat-value">{stats['edges']}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Applications</span>
+                    <span class="stat-value">{stats['applications']}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Topics</span>
+                    <span class="stat-value">{stats['topics']}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Brokers</span>
+                    <span class="stat-value">{stats['brokers']}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Infrastructure</span>
+                    <span class="stat-value">{stats['infrastructure']}</span>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>⚠️ Criticality</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Critical</span>
+                    <span class="stat-value critical">{stats['critical']}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">High</span>
+                    <span class="stat-value high">{stats['high']}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Articulation Points</span>
+                    <span class="stat-value critical">{stats['articulation_points']}</span>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>🎨 Legend - Nodes</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: {TYPE_COLORS['Application']}"></div>
+                    <span>Application</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: {TYPE_COLORS['Topic']}"></div>
+                    <span>Topic</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: {TYPE_COLORS['Broker']}"></div>
+                    <span>Broker</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: {TYPE_COLORS['Node']}"></div>
+                    <span>Infrastructure</span>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>🔗 Legend - Edges</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: {EDGE_COLORS['PUBLISHES_TO']}"></div>
+                    <span>Publishes To</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: {EDGE_COLORS['SUBSCRIBES_TO']}"></div>
+                    <span>Subscribes To</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: {EDGE_COLORS['DEPENDS_ON']}"></div>
+                    <span>Depends On</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: {EDGE_COLORS['RUNS_ON']}"></div>
+                    <span>Runs On</span>
+                </div>
+            </div>
+            
+            <div class="panel controls">
+                <h3>🎛️ Controls</h3>
+                <button onclick="network.fit()">Fit to View</button>
+                <button onclick="resetPhysics()">Reset Layout</button>
+                <button onclick="togglePhysics()">Toggle Physics</button>
+            </div>
         </div>
         
-        <h3 style="margin-top: 20px;">📈 Statistics</h3>
-        <div class="stat-item">
-            <div class="stat-label">Total Nodes</div>
-            <div class="stat-value">{len(graph)}</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-label">Total Edges</div>
-            <div class="stat-value">{len(graph.edges())}</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-label">Avg Degree</div>
-            <div class="stat-value">{sum(dict(graph.degree()).values()) / len(graph) if len(graph) > 0 else 0:.2f}</div>
+        <div id="network-container">
+            <div id="network"></div>
+            <div id="info-panel"></div>
         </div>
     </div>
-
-    <script type="text/javascript">
-        // Node and edge data
-        var nodesData = {json.dumps(nodes_data)};
-        var edgesData = {json.dumps(edges_data)};
+    
+    <script>
+        var nodes = new vis.DataSet({json.dumps(nodes_data)});
+        var edges = new vis.DataSet({json.dumps(edges_data)});
         
-        var nodes = new vis.DataSet(nodesData);
-        var edges = new vis.DataSet(edgesData);
-
-        // Create network
-        var container = document.getElementById('mynetwork');
-        var data = {{
-            nodes: nodes,
-            edges: edges
-        }};
+        var container = document.getElementById('network');
+        var data = {{ nodes: nodes, edges: edges }};
         
         var options = {{
             nodes: {{
                 shape: 'dot',
                 font: {{
-                    size: 14,
-                    face: 'Arial',
-                    bold: true
+                    size: 12,
+                    color: '#ecf0f1'
                 }},
-                borderWidth: 3,
-                borderWidthSelected: 5,
                 shadow: {{
                     enabled: true,
-                    color: 'rgba(0,0,0,0.2)',
-                    size: 10,
-                    x: 3,
-                    y: 3
+                    color: 'rgba(0,0,0,0.5)',
+                    size: 10
                 }}
             }},
             edges: {{
-                width: 2,
                 smooth: {{
                     type: 'continuous',
                     roundness: 0.5
                 }},
-                arrows: {{
-                    to: {{
-                        enabled: true,
-                        scaleFactor: 0.8
-                    }}
-                }},
-                shadow: true
+                font: {{
+                    size: 10,
+                    color: '#a8a8b3'
+                }}
             }},
             physics: {{
                 enabled: true,
-                stabilization: {{
-                    iterations: 200,
-                    updateInterval: 10
-                }},
                 barnesHut: {{
-                    gravitationalConstant: -8000,
+                    gravitationalConstant: -3000,
                     centralGravity: 0.3,
                     springLength: 150,
                     springConstant: 0.04,
-                    damping: 0.09,
-                    avoidOverlap: 0.2
+                    damping: 0.09
+                }},
+                stabilization: {{
+                    enabled: true,
+                    iterations: 200,
+                    updateInterval: 25
                 }}
             }},
             interaction: {{
                 hover: true,
-                tooltipDelay: 100,
+                tooltipDelay: 200,
                 navigationButtons: true,
-                keyboard: true,
-                zoomView: true,
-                dragView: true
+                keyboard: true
             }}
         }};
         
         var network = new vis.Network(container, data, options);
+        var physicsEnabled = true;
         
         // Event handlers
-        network.on("click", function (params) {{
+        network.on('click', function(params) {{
+            var infoPanel = document.getElementById('info-panel');
             if (params.nodes.length > 0) {{
                 var nodeId = params.nodes[0];
-                var nodeData = nodes.get(nodeId);
-                console.log('Selected node:', nodeData);
-                
-                // Highlight connected nodes
-                var connectedNodes = network.getConnectedNodes(nodeId);
-                network.selectNodes([nodeId].concat(connectedNodes));
+                var node = nodes.get(nodeId);
+                infoPanel.innerHTML = node.title;
+                infoPanel.classList.add('visible');
+            }} else {{
+                infoPanel.classList.remove('visible');
             }}
         }});
         
-        network.on("doubleClick", function (params) {{
-            if (params.nodes.length > 0) {{
-                var nodeId = params.nodes[0];
-                network.focus(nodeId, {{
-                    scale: 1.5,
-                    animation: {{
-                        duration: 1000,
-                        easingFunction: 'easeInOutQuad'
-                    }}
-                }});
-            }}
-        }});
+        function resetPhysics() {{
+            network.setOptions({{ physics: {{ enabled: true }} }});
+            physicsEnabled = true;
+        }}
         
-        // Control functions
-        var physicsEnabled = true;
         function togglePhysics() {{
             physicsEnabled = !physicsEnabled;
-            network.setOptions({{physics: {{enabled: physicsEnabled}}}});
+            network.setOptions({{ physics: {{ enabled: physicsEnabled }} }});
         }}
-        
-        function resetView() {{
-            network.fit({{
-                animation: {{
-                    duration: 1000,
-                    easingFunction: 'easeInOutQuad'
-                }}
-            }});
-        }}
-        
-        function exportImage() {{
-            var canvas = document.getElementsByTagName('canvas')[0];
-            var link = document.createElement('a');
-            link.download = 'network_visualization.png';
-            link.href = canvas.toDataURL();
-            link.click();
-        }}
-        
-        function showCritical() {{
-            nodes.forEach(function(node) {{
-                var criticality = parseFloat(node.title.split('Criticality: ')[1]);
-                if (criticality < 0.5) {{
-                    nodes.update({{id: node.id, hidden: true}});
-                }} else {{
-                    nodes.update({{id: node.id, hidden: false}});
-                }}
-            }});
-        }}
-        
-        function showAll() {{
-            nodes.forEach(function(node) {{
-                nodes.update({{id: node.id, hidden: false}});
-            }});
-        }}
-        
-        // Initial stabilization message
-        network.on("stabilizationIterationsDone", function () {{
-            console.log("Network stabilized");
-        }});
     </script>
 </body>
-</html>
-"""
+</html>"""
     
-    # Save HTML
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(html)
-    
-    if logger:
-        logger.info(f"✓ Saved interactive HTML: {output_path}")
-    
-    return str(output_path)
+    return html
 
 
-# ============================================================================
+# =============================================================================
+# Static Image Generation
+# =============================================================================
+
+def generate_static_image(G: nx.DiGraph,
+                         criticality: Dict[str, Dict],
+                         color_scheme: ColorScheme,
+                         layout: Layout,
+                         output_path: str,
+                         dpi: int = 150,
+                         figsize: Tuple[int, int] = (16, 12)):
+    """Generate static image visualization"""
+    if not HAS_MATPLOTLIB:
+        raise ImportError("matplotlib required for static image generation")
+    
+    # Compute positions
+    pos = compute_layout(G, layout)
+    
+    # Prepare colors
+    node_colors = []
+    node_sizes = []
+    
+    for node in G.nodes():
+        node_data = G.nodes[node]
+        node_type = node_data.get('type', 'Unknown')
+        crit = criticality.get(node, {})
+        
+        if color_scheme == ColorScheme.TYPE:
+            color = TYPE_COLORS.get(node_type, '#95a5a6')
+        elif color_scheme == ColorScheme.CRITICALITY:
+            color = CRITICALITY_COLORS.get(crit.get('level', 'MINIMAL'), '#95a5a6')
+        else:
+            color = TYPE_COLORS.get(node_type, '#95a5a6')
+        
+        node_colors.append(color)
+        node_sizes.append(300 + crit.get('score', 0.5) * 500)
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=figsize, facecolor='#1a1a2e')
+    ax.set_facecolor('#0f0f23')
+    
+    # Draw edges
+    edge_colors = [EDGE_COLORS.get(G.edges[e].get('type', 'Unknown'), '#95a5a6') 
+                   for e in G.edges()]
+    
+    nx.draw_networkx_edges(G, pos, ax=ax, edge_color=edge_colors, 
+                          alpha=0.6, arrows=True, arrowsize=15)
+    
+    # Draw nodes
+    nx.draw_networkx_nodes(G, pos, ax=ax, node_color=node_colors,
+                          node_size=node_sizes, alpha=0.9)
+    
+    # Draw labels
+    nx.draw_networkx_labels(G, pos, ax=ax, font_size=8, font_color='white')
+    
+    # Create legend
+    legend_elements = []
+    for node_type, color in TYPE_COLORS.items():
+        if node_type != 'Unknown':
+            legend_elements.append(Patch(facecolor=color, label=node_type))
+    
+    ax.legend(handles=legend_elements, loc='upper left', facecolor='#2c3e50',
+             edgecolor='white', labelcolor='white')
+    
+    ax.set_title('Pub-Sub System Graph', color='white', fontsize=16, fontweight='bold')
+    ax.axis('off')
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=dpi, facecolor='#1a1a2e', edgecolor='none',
+               bbox_inches='tight')
+    plt.close()
+
+
+# =============================================================================
 # Dashboard Generation
-# ============================================================================
+# =============================================================================
 
-def create_dashboard(graph: nx.DiGraph,
-                    output_path: Path,
-                    criticality_scores: Optional[Dict] = None,
-                    metadata: Optional[Dict] = None,
-                    logger: Optional[logging.Logger] = None) -> str:
-    """
-    Create comprehensive metrics dashboard
+def generate_dashboard_html(G: nx.DiGraph,
+                           data: Dict,
+                           criticality: Dict[str, Dict],
+                           analysis: Optional[Dict] = None) -> str:
+    """Generate comprehensive dashboard HTML"""
     
-    Args:
-        graph: NetworkX graph
-        output_path: Output file path
-        criticality_scores: Optional criticality scores
-        metadata: Optional metadata
-        logger: Logger instance
-    
-    Returns:
-        Path to generated HTML file
-    """
-    if logger:
-        logger.info("Creating metrics dashboard...")
-    
-    # Compute statistics
+    # Statistics
     stats = {
-        'total_nodes': len(graph),
-        'total_edges': len(graph.edges()),
-        'density': nx.density(graph),
-        'avg_degree': sum(dict(graph.degree()).values()) / len(graph) if len(graph) > 0 else 0
+        'nodes': len(G.nodes()),
+        'edges': len(G.edges()),
+        'by_type': defaultdict(int),
+        'by_criticality': defaultdict(int),
+        'density': nx.density(G),
+        'connected': nx.is_weakly_connected(G)
     }
     
-    # Compute layer statistics
-    layer_stats = {}
-    for layer in [Layer.APPLICATION, Layer.TOPIC, Layer.INFRASTRUCTURE]:
-        layer_graph = extract_layer(graph, layer)
-        layer_stats[layer.value] = {
-            'nodes': len(layer_graph),
-            'edges': len(layer_graph.edges()),
-            'density': nx.density(layer_graph) if len(layer_graph) > 0 else 0
-        }
+    for _, d in G.nodes(data=True):
+        stats['by_type'][d.get('type', 'Unknown')] += 1
     
-    # Cross-layer stats
-    cross_edges = get_cross_layer_edges(graph)
+    for c in criticality.values():
+        stats['by_criticality'][c.get('level', 'MINIMAL')] += 1
     
     # Top critical components
-    top_critical = []
-    if criticality_scores:
-        sorted_scores = sorted(criticality_scores.items(), key=lambda x: x[1], reverse=True)
-        top_critical = [
-            {
-                'name': node,
-                'score': score,
-                'type': graph.nodes[node].get('type', 'Unknown')
-            }
-            for node, score in sorted_scores[:10]
-        ]
+    sorted_crit = sorted(criticality.items(), key=lambda x: x[1].get('score', 0), reverse=True)
+    top_critical = sorted_crit[:10]
     
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Articulation points
+    undirected = G.to_undirected()
+    aps = list(nx.articulation_points(undirected))
+    
+    # Edge type distribution
+    edge_types = defaultdict(int)
+    for _, _, d in G.edges(data=True):
+        edge_types[d.get('type', 'Unknown')] += 1
+    
+    # Generate node table rows
+    node_table_rows = ""
+    for node, crit in top_critical:
+        level = crit.get('level', 'MINIMAL')
+        level_class = level.lower()
+        ap_badge = '<span class="badge badge-danger">AP</span>' if crit.get('is_articulation_point') else ''
+        node_table_rows += f"""
+        <tr>
+            <td>{node}</td>
+            <td>{G.nodes[node].get('type', 'Unknown')}</td>
+            <td>{crit.get('score', 0):.4f}</td>
+            <td><span class="badge badge-{level_class}">{level}</span> {ap_badge}</td>
+            <td>{crit.get('degree', 0)}</td>
+        </tr>"""
     
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -1169,6 +1020,7 @@ def create_dashboard(graph: nx.DiGraph,
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Analysis Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {{
             margin: 0;
@@ -1179,113 +1031,95 @@ def create_dashboard(graph: nx.DiGraph,
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f5f6fa;
-            padding: 20px;
+            color: #2c3e50;
+        }}
+        
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }}
+        
+        .header h1 {{
+            font-size: 2em;
+            margin-bottom: 10px;
         }}
         
         .container {{
             max-width: 1400px;
             margin: 0 auto;
-        }}
-        
-        header {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }}
-        
-        header h1 {{
-            font-size: 2.5em;
-            margin-bottom: 10px;
+            padding: 20px;
         }}
         
         .grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }}
         
         .card {{
             background: white;
-            padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }}
-        
-        .card:hover {{
-            transform: translateY(-5px);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }}
         
         .card h3 {{
-            color: #2c3e50;
+            font-size: 1.1em;
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 3px solid #667eea;
+            border-bottom: 2px solid #667eea;
+            color: #667eea;
         }}
         
-        .metric {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #ecf0f1;
+        .stat-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
         }}
         
-        .metric:last-child {{
-            border-bottom: none;
+        .stat-item {{
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
         }}
         
-        .metric-label {{
-            color: #7f8c8d;
-            font-weight: 500;
-        }}
-        
-        .metric-value {{
-            font-size: 1.4em;
+        .stat-value {{
+            font-size: 2em;
             font-weight: bold;
-            color: #2c3e50;
+            color: #667eea;
         }}
         
-        .highlight {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 1.2em;
+        .stat-label {{
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 5px;
         }}
         
         table {{
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
         }}
         
-        th {{
-            background: #667eea;
-            color: white;
+        th, td {{
             padding: 12px;
             text-align: left;
-            font-weight: 600;
-        }}
-        
-        td {{
-            padding: 12px;
             border-bottom: 1px solid #ecf0f1;
         }}
         
-        tr:hover {{
+        th {{
             background: #f8f9fa;
+            font-weight: 600;
         }}
         
         .badge {{
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
             font-weight: 600;
         }}
         
@@ -1300,8 +1134,8 @@ def create_dashboard(graph: nx.DiGraph,
         }}
         
         .badge-medium {{
-            background: #f39c12;
-            color: white;
+            background: #f1c40f;
+            color: #2c3e50;
         }}
         
         .badge-low {{
@@ -1309,319 +1143,347 @@ def create_dashboard(graph: nx.DiGraph,
             color: white;
         }}
         
-        .layer-chart {{
-            display: flex;
-            gap: 15px;
-            margin-top: 15px;
-        }}
-        
-        .layer-bar {{
-            flex: 1;
-            text-align: center;
-        }}
-        
-        .bar {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .badge-minimal {{
+            background: #95a5a6;
             color: white;
-            padding: 20px 10px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            font-size: 1.5em;
-            font-weight: bold;
+        }}
+        
+        .badge-danger {{
+            background: #c0392b;
+            color: white;
+            margin-left: 5px;
+        }}
+        
+        .chart-container {{
+            height: 250px;
+            margin-top: 15px;
         }}
     </style>
 </head>
 <body>
+    <div class="header">
+        <h1>📊 System Analysis Dashboard</h1>
+        <p>Comprehensive Pub-Sub System Analysis</p>
+        <p style="opacity: 0.8; margin-top: 10px;">Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    </div>
+    
     <div class="container">
-        <header>
-            <h1>📊 System Analysis Dashboard</h1>
-            <p>Generated: {timestamp}</p>
-        </header>
-        
         <div class="grid">
             <div class="card">
-                <h3>🔢 Overall Statistics</h3>
-                <div class="metric">
-                    <span class="metric-label">Total Nodes</span>
-                    <span class="metric-value">{stats['total_nodes']}</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Total Edges</span>
-                    <span class="metric-value">{stats['total_edges']}</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Graph Density</span>
-                    <span class="metric-value">{stats['density']:.4f}</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Average Degree</span>
-                    <span class="metric-value">{stats['avg_degree']:.2f}</span>
+                <h3>📈 Overview</h3>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">{stats['nodes']}</div>
+                        <div class="stat-label">Total Nodes</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{stats['edges']}</div>
+                        <div class="stat-label">Total Edges</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{stats['density']:.4f}</div>
+                        <div class="stat-label">Density</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{'✓' if stats['connected'] else '✗'}</div>
+                        <div class="stat-label">Connected</div>
+                    </div>
                 </div>
             </div>
             
             <div class="card">
-                <h3>🔗 Cross-Layer Analysis</h3>
-                <div class="metric">
-                    <span class="metric-label">Cross-Layer Connections</span>
-                    <span class="metric-value highlight">{len(cross_edges)}</span>
+                <h3>🏗️ Component Types</h3>
+                <div class="chart-container">
+                    <canvas id="typeChart"></canvas>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Coupling Ratio</span>
-                    <span class="metric-value">{len(cross_edges) / stats['total_edges'] * 100 if stats['total_edges'] > 0 else 0:.1f}%</span>
+            </div>
+            
+            <div class="card">
+                <h3>⚠️ Criticality Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="criticalityChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>🔗 Edge Types</h3>
+                <div class="chart-container">
+                    <canvas id="edgeChart"></canvas>
                 </div>
             </div>
         </div>
         
         <div class="card">
-            <h3>📊 Layer Statistics</h3>
-            <div class="layer-chart">
-"""
-    
-    for layer_name, layer_data in layer_stats.items():
-        html += f"""
-                <div class="layer-bar">
-                    <div class="bar">{layer_data['nodes']}</div>
-                    <div><strong>{layer_name.title()}</strong></div>
-                    <div style="color: #7f8c8d; font-size: 0.9em;">
-                        {layer_data['edges']} edges<br>
-                        Density: {layer_data['density']:.3f}
-                    </div>
-                </div>
-"""
-    
-    html += """
-            </div>
-        </div>
-        
-        <div class="card">
-            <h3>⚠️ Top Critical Components</h3>
+            <h3>🎯 Top Critical Components</h3>
             <table>
                 <thead>
                     <tr>
-                        <th>#</th>
                         <th>Component</th>
                         <th>Type</th>
-                        <th>Criticality Score</th>
+                        <th>Score</th>
                         <th>Level</th>
+                        <th>Degree</th>
                     </tr>
                 </thead>
                 <tbody>
-"""
-    
-    for i, comp in enumerate(top_critical, 1):
-        score = comp['score']
-        if score > 0.7:
-            badge_class = 'badge-critical'
-            level = 'CRITICAL'
-        elif score > 0.5:
-            badge_class = 'badge-high'
-            level = 'HIGH'
-        elif score > 0.3:
-            badge_class = 'badge-medium'
-            level = 'MEDIUM'
-        else:
-            badge_class = 'badge-low'
-            level = 'LOW'
-        
-        html += f"""
-                    <tr>
-                        <td>{i}</td>
-                        <td><strong>{comp['name']}</strong></td>
-                        <td>{comp['type']}</td>
-                        <td>{score:.3f}</td>
-                        <td><span class="badge {badge_class}">{level}</span></td>
-                    </tr>
-"""
-    
-    html += """
+                    {node_table_rows}
                 </tbody>
             </table>
         </div>
+        
+        <div class="grid" style="margin-top: 20px;">
+            <div class="card">
+                <h3>🔴 Articulation Points ({len(aps)})</h3>
+                <p style="color: #7f8c8d; margin-bottom: 10px;">Nodes whose removal disconnects the graph</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    {''.join(f'<span class="badge badge-danger">{ap}</span>' for ap in aps[:20])}
+                    {'<span class="badge badge-minimal">+' + str(len(aps) - 20) + ' more</span>' if len(aps) > 20 else ''}
+                </div>
+            </div>
+        </div>
     </div>
+    
+    <script>
+        // Type distribution chart
+        new Chart(document.getElementById('typeChart'), {{
+            type: 'doughnut',
+            data: {{
+                labels: {json.dumps(list(stats['by_type'].keys()))},
+                datasets: [{{
+                    data: {json.dumps(list(stats['by_type'].values()))},
+                    backgroundColor: ['#3498db', '#2ecc71', '#e74c3c', '#9b59b6', '#95a5a6']
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{ legend: {{ position: 'bottom' }} }}
+            }}
+        }});
+        
+        // Criticality chart
+        new Chart(document.getElementById('criticalityChart'), {{
+            type: 'bar',
+            data: {{
+                labels: ['Critical', 'High', 'Medium', 'Low', 'Minimal'],
+                datasets: [{{
+                    label: 'Components',
+                    data: [
+                        {stats['by_criticality'].get('CRITICAL', 0)},
+                        {stats['by_criticality'].get('HIGH', 0)},
+                        {stats['by_criticality'].get('MEDIUM', 0)},
+                        {stats['by_criticality'].get('LOW', 0)},
+                        {stats['by_criticality'].get('MINIMAL', 0)}
+                    ],
+                    backgroundColor: ['#e74c3c', '#e67e22', '#f1c40f', '#27ae60', '#95a5a6']
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{ legend: {{ display: false }} }}
+            }}
+        }});
+        
+        // Edge types chart
+        new Chart(document.getElementById('edgeChart'), {{
+            type: 'doughnut',
+            data: {{
+                labels: {json.dumps(list(edge_types.keys()))},
+                datasets: [{{
+                    data: {json.dumps(list(edge_types.values()))},
+                    backgroundColor: ['#27ae60', '#3498db', '#e74c3c', '#9b59b6', '#f39c12']
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {{ legend: {{ position: 'bottom' }} }}
+            }}
+        }});
+    </script>
 </body>
-</html>
-"""
+</html>"""
     
-    # Save dashboard
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(html)
-    
-    if logger:
-        logger.info(f"✓ Saved dashboard: {output_path}")
-    
-    return str(output_path)
+    return html
 
 
-# ============================================================================
-# Main Function
-# ============================================================================
+# =============================================================================
+# Main CLI
+# =============================================================================
 
-def main():
-    """Main entry point"""
-    
+def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description='Visualize pub-sub system graph with multi-layer support',
+        description='Multi-layer pub-sub system graph visualization',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Basic visualization
-  python visualize_graph.py --input system.json
-  
-  # Multi-layer visualization
-  python visualize_graph.py --input system.json --multi-layer
-  
-  # Interactive HTML with dashboard
-  python visualize_graph.py --input system.json --html --dashboard
-  
-  # All visualizations with custom layout
-  python visualize_graph.py --input system.json --all --layout hierarchical
-  
-  # Cross-layer dependency analysis
-  python visualize_graph.py --input system.json --cross-layer --color-scheme layer
+  %(prog)s --input system.json --output viz.html
+  %(prog)s --input system.json --output viz.html --layer application --color-by criticality
+  %(prog)s --input system.json --output dashboard.html --dashboard
+  %(prog)s --input system.json --output graph.png --format png --dpi 300
         """
     )
     
-    # Input options
-    parser.add_argument('--input', '-i', type=str, required=True,
-                       help='Input JSON file path')
-    
-    # Visualization types
-    parser.add_argument('--complete', action='store_true',
-                       help='Generate complete system visualization')
-    parser.add_argument('--multi-layer', action='store_true',
-                       help='Generate multi-layer visualization')
-    parser.add_argument('--cross-layer', action='store_true',
-                       help='Generate cross-layer dependency visualization')
-    parser.add_argument('--html', action='store_true',
-                       help='Generate interactive HTML visualization')
-    parser.add_argument('--dashboard', action='store_true',
-                       help='Generate metrics dashboard')
-    parser.add_argument('--all', action='store_true',
-                       help='Generate all visualization types')
+    # Input/Output
+    io_group = parser.add_argument_group('Input/Output')
+    io_group.add_argument('--input', '-i', required=True, help='Input JSON file')
+    io_group.add_argument('--output', '-o', required=True, help='Output file')
+    io_group.add_argument('--format', '-f', choices=['html', 'png', 'svg', 'pdf'],
+                         default='html', help='Output format (default: html)')
+    io_group.add_argument('--dpi', type=int, default=150,
+                         help='DPI for image output (default: 150)')
     
     # Visualization options
-    parser.add_argument('--layout', type=str, default='spring',
-                       choices=list(LAYOUT_ALGORITHMS.keys()),
-                       help='Layout algorithm (default: spring)')
-    parser.add_argument('--color-scheme', type=str, default='criticality',
-                       choices=list(COLOR_SCHEMES.keys()),
-                       help='Color scheme (default: criticality)')
-    parser.add_argument('--no-labels', action='store_true',
-                       help='Hide node labels')
+    viz_group = parser.add_argument_group('Visualization')
+    viz_group.add_argument('--layer', '-l', 
+                          choices=['all', 'application', 'infrastructure', 'topic', 'broker'],
+                          default='all', help='Layer to visualize (default: all)')
+    viz_group.add_argument('--layout',
+                          choices=['spring', 'hierarchical', 'circular', 'layered', 
+                                  'kamada_kawai', 'shell'],
+                          default='spring', help='Layout algorithm (default: spring)')
+    viz_group.add_argument('--color-by',
+                          choices=['type', 'criticality', 'layer', 'qos'],
+                          default='type', help='Color scheme (default: type)')
+    viz_group.add_argument('--title', default='Pub-Sub System Visualization',
+                          help='Visualization title')
     
-    # Output options
-    parser.add_argument('--output-dir', '-o', type=str, default='visualizations',
-                       help='Output directory (default: visualizations)')
-    parser.add_argument('--prefix', type=str, default='',
-                       help='Output file prefix')
+    # Dashboard
+    dash_group = parser.add_argument_group('Dashboard')
+    dash_group.add_argument('--dashboard', action='store_true',
+                           help='Generate comprehensive dashboard')
+    dash_group.add_argument('--analysis', metavar='FILE',
+                           help='Include analysis results from JSON file')
     
-    # Other options
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Verbose output')
+    # Verbosity
+    verbosity_group = parser.add_argument_group('Verbosity')
+    verbosity_group.add_argument('--verbose', '-v', action='store_true')
+    verbosity_group.add_argument('--quiet', '-q', action='store_true')
+    verbosity_group.add_argument('--no-color', action='store_true')
     
+    return parser
+
+
+def main() -> int:
+    parser = create_parser()
     args = parser.parse_args()
     
-    # Setup logging
-    logger = setup_logging(args.verbose)
+    # Setup
+    if args.no_color or not sys.stdout.isatty():
+        Colors.disable()
     
-    print(f"\n{Colors.HEADER}{'='*70}{Colors.ENDC}")
-    print(f"{Colors.HEADER}{Colors.BOLD}Multi-Layer Graph Visualization System{Colors.ENDC}")
-    print(f"{Colors.HEADER}{'='*70}{Colors.ENDC}\n")
+    log_level = logging.DEBUG if args.verbose else (logging.ERROR if args.quiet else logging.INFO)
+    logging.basicConfig(level=log_level, format='%(levelname)s: %(message)s')
     
-    start_time = time.time()
+    if not args.quiet:
+        print_header("GRAPH VISUALIZATION")
+        print(f"  Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Load graph
+    if not args.quiet:
+        print_info(f"Loading graph from {args.input}...")
     
     try:
-        # Load graph
-        graph, metadata = load_graph_from_json(args.input, logger)
+        G, data = load_graph_from_json(args.input)
+        print_success(f"Loaded graph with {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+    except Exception as e:
+        print_error(f"Failed to load graph: {e}")
+        return 1
+    
+    # Filter by layer
+    layer = Layer(args.layer)
+    if layer != Layer.ALL:
+        if not args.quiet:
+            print_info(f"Filtering to {layer.value} layer...")
+        G = filter_graph_by_layer(G, layer)
+        print_success(f"Filtered to {G.number_of_nodes()} nodes")
+    
+    # Calculate criticality
+    if not args.quiet:
+        print_info("Calculating criticality metrics...")
+    criticality = calculate_criticality(G)
+    
+    # Load analysis if provided
+    analysis = None
+    if args.analysis:
+        try:
+            with open(args.analysis) as f:
+                analysis = json.load(f)
+            print_success(f"Loaded analysis from {args.analysis}")
+        except Exception as e:
+            print_warning(f"Could not load analysis: {e}")
+    
+    # Generate output
+    output_path = Path(args.output)
+    output_format = args.format
+    
+    # Auto-detect format from extension
+    if output_path.suffix.lower() in ['.html', '.htm']:
+        output_format = 'html'
+    elif output_path.suffix.lower() == '.png':
+        output_format = 'png'
+    elif output_path.suffix.lower() == '.svg':
+        output_format = 'svg'
+    elif output_path.suffix.lower() == '.pdf':
+        output_format = 'pdf'
+    
+    try:
+        if args.dashboard:
+            if not args.quiet:
+                print_info("Generating dashboard...")
+            html = generate_dashboard_html(G, data, criticality, analysis)
+            with open(output_path, 'w') as f:
+                f.write(html)
         
-        # Compute criticality scores
-        criticality_scores = compute_criticality_scores(graph, logger)
+        elif output_format == 'html':
+            if not args.quiet:
+                print_info("Generating interactive HTML...")
+            color_scheme = ColorScheme(args.color_by)
+            html = generate_interactive_html(G, data, criticality, color_scheme, args.title, analysis)
+            with open(output_path, 'w') as f:
+                f.write(html)
         
-        # Create output directory
-        output_dir = Path(args.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            if not HAS_MATPLOTLIB:
+                print_error("matplotlib required for image output")
+                return 1
+            
+            if not args.quiet:
+                print_info(f"Generating {output_format.upper()} image...")
+            
+            color_scheme = ColorScheme(args.color_by)
+            layout = Layout(args.layout)
+            generate_static_image(G, criticality, color_scheme, layout, 
+                                str(output_path), args.dpi)
         
-        # Generate visualizations
-        output_files = {}
-        
-        # Determine what to generate
-        generate_all = args.all
-        generate_complete = args.complete or generate_all
-        generate_multi_layer = args.multi_layer or generate_all
-        generate_cross_layer = args.cross_layer or generate_all
-        generate_html = args.html or generate_all
-        generate_dashboard = args.dashboard or generate_all
-        
-        # If nothing specified, generate complete + HTML
-        if not any([generate_complete, generate_multi_layer, generate_cross_layer, 
-                   generate_html, generate_dashboard]):
-            generate_complete = True
-            generate_html = True
-        
-        # Generate complete visualization
-        if generate_complete:
-            output_path = output_dir / f"{args.prefix}complete_system.png"
-            output_files['Complete System'] = create_complete_visualization(
-                graph, output_path, args.layout, args.color_scheme,
-                criticality_scores, not args.no_labels, logger
-            )
-        
-        # Generate multi-layer visualization
-        if generate_multi_layer:
-            output_path = output_dir / f"{args.prefix}multi_layer.png"
-            output_files['Multi-Layer'] = create_multi_layer_visualization(
-                graph, output_path, criticality_scores, logger
-            )
-        
-        # Generate cross-layer visualization
-        if generate_cross_layer:
-            output_path = output_dir / f"{args.prefix}cross_layer.png"
-            output_files['Cross-Layer'] = create_cross_layer_visualization(
-                graph, output_path, criticality_scores, logger
-            )
-        
-        # Generate interactive HTML
-        if generate_html:
-            output_path = output_dir / f"{args.prefix}interactive.html"
-            output_files['Interactive HTML'] = create_interactive_html(
-                graph, output_path, criticality_scores, metadata, logger
-            )
-        
-        # Generate dashboard
-        if generate_dashboard:
-            output_path = output_dir / f"{args.prefix}dashboard.html"
-            output_files['Dashboard'] = create_dashboard(
-                graph, output_path, criticality_scores, metadata, logger
-            )
-        
-        # Print summary
-        elapsed = time.time() - start_time
-        
-        print(f"\n{Colors.OKGREEN}{'='*70}{Colors.ENDC}")
-        print(f"{Colors.OKGREEN}{Colors.BOLD}✓ Visualization Complete!{Colors.ENDC}")
-        print(f"{Colors.OKGREEN}{'='*70}{Colors.ENDC}\n")
-        
-        print(f"{Colors.OKBLUE}📊 Generated Files:{Colors.ENDC}")
-        for vis_type, filepath in output_files.items():
-            print(f"   • {vis_type}: {filepath}")
-        
-        print(f"\n{Colors.OKCYAN}⏱️  Execution Time: {elapsed:.2f}s{Colors.ENDC}")
-        
-        print(f"\n{Colors.WARNING}💡 Next Steps:{Colors.ENDC}")
-        print("   • Open HTML files in your browser for interactive exploration")
-        print("   • Use PNG files for presentations and publications")
-        print("   • Review the dashboard for system health metrics")
-        print("   • Analyze critical components and cross-layer dependencies")
-        
-        print(f"\n{Colors.HEADER}{'='*70}{Colors.ENDC}\n")
-        
-        return 0
+        print_success(f"Visualization saved to {output_path}")
         
     except Exception as e:
-        logger.error(f"Error during visualization: {e}", exc_info=True)
-        print(f"\n{Colors.FAIL}❌ Error: {e}{Colors.ENDC}\n")
+        logging.exception("Visualization failed")
+        print_error(f"Failed to generate visualization: {e}")
         return 1
+    
+    # Print summary
+    if not args.quiet:
+        print_section("Summary")
+        print(f"  Output: {output_path}")
+        print(f"  Format: {output_format.upper()}")
+        print(f"  Nodes: {G.number_of_nodes()}")
+        print(f"  Edges: {G.number_of_edges()}")
+        
+        crit_counts = defaultdict(int)
+        for c in criticality.values():
+            crit_counts[c.get('level', 'MINIMAL')] += 1
+        
+        if crit_counts.get('CRITICAL', 0) > 0 or crit_counts.get('HIGH', 0) > 0:
+            print(f"\n  {Colors.WARNING}Criticality Warnings:{Colors.ENDC}")
+            if crit_counts.get('CRITICAL', 0) > 0:
+                print(f"    {Colors.FAIL}CRITICAL:{Colors.ENDC} {crit_counts['CRITICAL']}")
+            if crit_counts.get('HIGH', 0) > 0:
+                print(f"    {Colors.WARNING}HIGH:{Colors.ENDC} {crit_counts['HIGH']}")
+    
+    return 0
 
 
 if __name__ == '__main__':
