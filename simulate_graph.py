@@ -1,779 +1,710 @@
 #!/usr/bin/env python3
 """
-Graph Simulation Script - Production Version
+Graph Simulation CLI
 
-Comprehensive simulation capabilities for pub-sub systems including:
-- Realistic message traffic simulation (1000x speedup)
-- Advanced failure injection and cascading analysis
-- Performance impact assessment with detailed metrics
-- Real-time monitoring with progress reporting
-- Multiple predefined scenarios
-- Baseline vs failure comparison
-- Comprehensive reporting (JSON, HTML, Markdown)
+Comprehensive simulation capabilities for pub-sub system graphs including:
+- Component failure simulation
+- Cascading failure analysis
+- Event-driven message flow simulation
+- Load testing
+- Chaos engineering scenarios
+- Impact assessment and validation
 
-Author: Research Team
-Version: 2.0
+Usage Examples:
+    # Simulate single component failure
+    python simulate_graph.py --input system.json --component app_1
+    
+    # Simulate multiple failures
+    python simulate_graph.py --input system.json \\
+        --components app_1 app_2 app_3 --cascade
+    
+    # Targeted attack simulation
+    python simulate_graph.py --input system.json \\
+        --attack --strategy criticality --count 5
+    
+    # Run failure campaign (test all components)
+    python simulate_graph.py --input system.json --campaign
+    
+    # Event-driven simulation with failures
+    python simulate_graph.py --input system.json \\
+        --event-sim --duration 60000 --failure-at 30000
+    
+    # Load test
+    python simulate_graph.py --input system.json \\
+        --load-test --initial-rate 10 --peak-rate 1000
+    
+    # Chaos simulation
+    python simulate_graph.py --input system.json \\
+        --chaos --failure-prob 0.05 --recovery-prob 0.3
+
+Research Validation:
+    - Compare predicted vs actual impact scores
+    - Calculate Spearman correlation with criticality scores
+    - Validate SPOF identification accuracy
 """
 
 import argparse
-import sys
 import json
-import asyncio
-import logging
+import sys
 import time
+import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
-import statistics
+from collections import defaultdict
 
-# Add src to path
+# Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from src.simulation.lightweight_dds_simulator import LightweightDDSSimulator
-    from src.simulation.enhanced_failure_simulator import (
-        FailureSimulator, FailureType, ComponentType
-    )
-    from src.core.graph_model import GraphModel
-    from src.core.graph_builder import GraphBuilder
-    from src.core.graph_exporter import GraphExporter
     import networkx as nx
-except ImportError as e:
-    print(f"❌ Error importing required modules: {e}")
-    print("\nPlease ensure all required files are in the src/ directory:")
-    print("  - src/simulation/lightweight_dds_simulator.py")
-    print("  - src/simulation/enhanced_failure_simulator.py")
-    print("  - src/core/graph_model.py")
+    HAS_NETWORKX = True
+except ImportError:
+    HAS_NETWORKX = False
+    print("Error: networkx is required. Install with: pip install networkx")
     sys.exit(1)
 
+try:
+    from src.simulation.failure_simulator import (
+        FailureSimulator, FailureType, FailureMode, SimulationResult
+    )
+    HAS_FAILURE_SIM = True
+except ImportError as e:
+    HAS_FAILURE_SIM = False
+    FAILURE_SIM_ERROR = str(e)
 
-# Color codes for terminal output
+try:
+    from src.simulation.event_simulator import (
+        EventDrivenSimulator, SimulationMetrics
+    )
+    HAS_EVENT_SIM = True
+except ImportError as e:
+    HAS_EVENT_SIM = False
+    EVENT_SIM_ERROR = str(e)
+
+
+# =============================================================================
+# Terminal Colors
+# =============================================================================
+
 class Colors:
     """ANSI color codes for terminal output"""
     HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
     WARNING = '\033[93m'
     FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+    DIM = '\033[2m'
+
+    @classmethod
+    def disable(cls):
+        cls.HEADER = cls.BLUE = cls.CYAN = cls.GREEN = ''
+        cls.WARNING = cls.FAIL = cls.ENDC = cls.BOLD = cls.DIM = ''
 
 
-# Predefined simulation scenarios
-SIMULATION_SCENARIOS = {
-    'single-app': {
-        'description': 'Single application failure',
-        'duration': 60,
-        'failures': [{
-            'time': 30,
-            'components': ['A1'],
-            'type': 'complete',
-            'cascade': False
-        }]
-    },
-    'cascading-broker': {
-        'description': 'Broker failure with cascading effects',
-        'duration': 120,
-        'failures': [{
-            'time': 40,
-            'components': ['B1'],
-            'type': 'complete',
-            'cascade': True
-        }]
-    },
-    'node-failure': {
-        'description': 'Infrastructure node failure',
-        'duration': 90,
-        'failures': [{
-            'time': 30,
-            'components': ['N1'],
-            'type': 'complete',
-            'cascade': True
-        }]
-    },
-    'multiple-simultaneous': {
-        'description': 'Multiple simultaneous failures',
-        'duration': 60,
-        'failures': [{
-            'time': 20,
-            'components': ['A1', 'A2', 'B1'],
-            'type': 'complete',
-            'cascade': False
-        }]
-    },
-    'degraded-performance': {
-        'description': 'Gradual performance degradation',
-        'duration': 90,
-        'failures': [
-            {'time': 20, 'components': ['B1'], 'type': 'partial', 'cascade': False},
-            {'time': 40, 'components': ['B2'], 'type': 'partial', 'cascade': False},
-            {'time': 60, 'components': ['N1'], 'type': 'partial', 'cascade': False}
-        ]
-    },
-    'failure-recovery': {
-        'description': 'Failure with automatic recovery',
-        'duration': 120,
-        'failures': [{
-            'time': 30,
-            'components': ['A1'],
-            'type': 'complete',
-            'cascade': False,
-            'recovery_time': 40
-        }]
-    },
-    'sequential-failures': {
-        'description': 'Sequential failures over time',
-        'duration': 120,
-        'failures': [
-            {'time': 20, 'components': ['A1'], 'type': 'complete', 'cascade': False},
-            {'time': 40, 'components': ['A2'], 'type': 'complete', 'cascade': False},
-            {'time': 60, 'components': ['B1'], 'type': 'complete', 'cascade': True},
-            {'time': 80, 'components': ['N1'], 'type': 'complete', 'cascade': True}
-        ]
-    }
-}
+def print_header(text: str):
+    print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{text:^70}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}")
 
 
-def setup_logging(verbose: bool = False, log_file: str = 'simulation.log') -> logging.Logger:
-    """Setup logging configuration"""
-    level = logging.DEBUG if verbose else logging.INFO
-    
-    # Create logger
-    logger = logging.getLogger('simulation')
-    logger.setLevel(level)
-    
-    # File handler
-    fh = logging.FileHandler(log_file)
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter(logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    ))
-    
-    # Console handler  
-    ch = logging.StreamHandler()
-    ch.setLevel(level)
-    ch.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
-    
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-    
-    return logger
+def print_section(text: str):
+    print(f"\n{Colors.CYAN}{Colors.BOLD}{text}{Colors.ENDC}")
+    print(f"{Colors.DIM}{'-'*50}{Colors.ENDC}")
 
 
-def load_graph_from_json(json_path: str, logger: logging.Logger) -> Tuple[GraphModel, nx.DiGraph]:
+def print_success(text: str):
+    print(f"{Colors.GREEN}✓{Colors.ENDC} {text}")
+
+
+def print_error(text: str):
+    print(f"{Colors.FAIL}✗{Colors.ENDC} {text}")
+
+
+def print_warning(text: str):
+    print(f"{Colors.WARNING}⚠{Colors.ENDC} {text}")
+
+
+def print_info(text: str):
+    print(f"{Colors.CYAN}ℹ{Colors.ENDC} {text}")
+
+
+def print_kv(key: str, value: Any, indent: int = 2):
+    spaces = ' ' * indent
+    print(f"{spaces}{Colors.DIM}{key}:{Colors.ENDC} {value}")
+
+
+# =============================================================================
+# Graph Loading
+# =============================================================================
+
+def load_graph_from_json(filepath: str) -> Tuple[nx.DiGraph, Dict]:
     """Load graph from JSON file"""
-    logger.info(f"Loading graph from {json_path}")
+    with open(filepath) as f:
+        data = json.load(f)
     
-    # Build graph model
-    builder = GraphBuilder()
-    model = builder.build_from_json(json_path)
-
-    # Convert to NetworkX graph
-    exporter = GraphExporter()
-    graph = exporter.export_to_networkx(model)
+    G = nx.DiGraph()
     
-    logger.info(f"Loaded graph: {len(graph.nodes)} nodes, {len(graph.edges)} edges")
+    # Add nodes
+    for node in data.get('nodes', []):
+        node_attrs = {k: v for k, v in node.items() if k != 'id'}
+        node_attrs['type'] = 'Node'
+        if 'name' not in node_attrs:
+            node_attrs['name'] = node['id']
+        G.add_node(node['id'], **node_attrs)
     
-    return model, graph
-
-
-def validate_simulation_config(model: GraphModel, 
-                               fail_components: List[str],
-                               logger: logging.Logger) -> Tuple[bool, List[str]]:
-    """Validate simulation configuration"""
-    warnings = []
-    is_valid = True
+    for broker in data.get('brokers', []):
+        broker_attrs = {k: v for k, v in broker.items() if k != 'id'}
+        broker_attrs['type'] = 'Broker'
+        if 'name' not in broker_attrs:
+            broker_attrs['name'] = broker['id']
+        G.add_node(broker['id'], **broker_attrs)
     
-    # Check if components exist
-    all_components = set()
-    for comp_list in [model.nodes, model.applications, model.brokers, model.topics]:
-        all_components.update(comp_list.keys())
+    for app in data.get('applications', []):
+        app_attrs = {k: v for k, v in app.items() if k != 'id'}
+        app_attrs['type'] = 'Application'
+        if 'name' not in app_attrs:
+            app_attrs['name'] = app['id']
+        G.add_node(app['id'], **app_attrs)
     
-    for comp in fail_components:
-        if comp not in all_components:
-            warnings.append(f"Component {comp} not found in graph")
-            is_valid = False
+    for topic in data.get('topics', []):
+        topic_attrs = {k: v for k, v in topic.items() if k not in ['id', 'qos']}
+        topic_attrs['type'] = 'Topic'
+        if 'name' not in topic_attrs:
+            topic_attrs['name'] = topic['id']
+        if 'qos' in topic:
+            for qk, qv in topic['qos'].items():
+                topic_attrs[f'qos_{qk}'] = qv
+        G.add_node(topic['id'], **topic_attrs)
     
-    if warnings:
-        for warning in warnings:
-            logger.warning(warning)
+    # Add edges
+    relationships = data.get('relationships', {})
     
-    return is_valid, warnings
-
-
-async def run_baseline_simulation(simulator: LightweightDDSSimulator,
-                                  duration: int,
-                                  logger: logging.Logger) -> Dict[str, Any]:
-    """Run baseline simulation without failures"""
-    logger.info(f"Running baseline simulation for {duration}s...")
+    for rel in relationships.get('runs_on', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        if source and target:
+            G.add_edge(source, target, type='RUNS_ON')
     
-    results = await simulator.run_simulation(duration)
+    for rel in relationships.get('publishes_to', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        if source and target:
+            G.add_edge(source, target, type='PUBLISHES_TO',
+                      period_ms=rel.get('period_ms'), msg_size=rel.get('msg_size_bytes'))
     
-    logger.info("Baseline simulation complete")
-    logger.info(f"  Messages delivered: {results['global_stats']['messages_delivered']}")
-    logger.info(f"  Avg latency: {results['global_stats']['avg_latency_ms']:.2f}ms")
-    logger.info(f"  Delivery rate: {results['global_stats']['delivery_rate']:.2%}")
+    for rel in relationships.get('subscribes_to', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        if source and target:
+            G.add_edge(source, target, type='SUBSCRIBES_TO')
     
-    return results
-
-
-async def run_failure_simulation(simulator: LightweightDDSSimulator,
-                                 duration: int,
-                                 failures: List[Dict],
-                                 failure_sim: FailureSimulator,
-                                 logger: logging.Logger,
-                                 monitor: bool = False,
-                                 monitor_interval: int = 10) -> Dict[str, Any]:
-    """Run simulation with failure injection"""
-    logger.info(f"Running failure simulation for {duration}s with {len(failures)} failure(s)...")
+    for rel in relationships.get('routes', []):
+        source = rel.get('from', rel.get('source'))
+        target = rel.get('to', rel.get('target'))
+        if source and target:
+            G.add_edge(source, target, type='ROUTES')
     
-    # Start monitoring task if requested
-    if monitor:
-        monitor_task = asyncio.create_task(
-            monitor_simulation(simulator, duration, monitor_interval, logger)
-        )
+    # Derive DEPENDS_ON
+    G = derive_dependencies(G)
     
-    # Schedule failure injections
-    failure_task = asyncio.create_task(
-        inject_failures(simulator, failure_sim, failures, logger)
-    )
-    
-    # Run simulation
-    results = await simulator.run_simulation(duration)
-    
-    # Cancel monitoring task
-    if monitor:
-        monitor_task.cancel()
-        try:
-            await monitor_task
-        except asyncio.CancelledError:
-            pass
-    
-    # Wait for failure injections to complete
-    try:
-        await failure_task
-    except Exception as e:
-        logger.error(f"Error in failure injection: {e}")
-    
-    logger.info("Failure simulation complete")
-    
-    return results
+    return G, data
 
 
-async def inject_failures(simulator: LightweightDDSSimulator,
-                         failure_sim: FailureSimulator,
-                         failures: List[Dict],
-                         logger: logging.Logger):
-    """Inject failures according to schedule"""
-    for failure in sorted(failures, key=lambda x: x['time']):
-        # Wait until scheduled time
-        await asyncio.sleep(failure['time'])
+def derive_dependencies(G: nx.DiGraph) -> nx.DiGraph:
+    """Derive DEPENDS_ON relationships from pub/sub patterns"""
+    topics = [n for n, d in G.nodes(data=True) if d.get('type') == 'Topic']
+    
+    for topic in topics:
+        publishers = [s for s, t, d in G.in_edges(topic, data=True) 
+                     if d.get('type') == 'PUBLISHES_TO']
+        subscribers = [s for s, t, d in G.in_edges(topic, data=True) 
+                      if d.get('type') == 'SUBSCRIBES_TO']
         
-        # Inject failure for each component
-        for component in failure['components']:
-            # Determine component type
-            comp_type = _determine_component_type(simulator, component)
-            
-            if comp_type is None:
-                logger.warning(f"Could not determine type for component {component}")
-                continue
-            
-            # Inject failure
-            fail_type = FailureType.COMPLETE if failure['type'] == 'complete' else FailureType.PARTIAL
-            
-            failure_sim.inject_failure(
-                simulator,
-                component,
-                comp_type,
-                fail_type,
-                severity=1.0 if failure['type'] == 'complete' else 0.5,
-                enable_cascade=failure.get('cascade', False)
-            )
+        for sub in subscribers:
+            for pub in publishers:
+                if sub != pub and not G.has_edge(sub, pub):
+                    G.add_edge(sub, pub, type='DEPENDS_ON', 
+                              dependency_type='app_to_app', via_topic=topic)
+    
+    return G
+
+
+# =============================================================================
+# Result Printing
+# =============================================================================
+
+def print_simulation_result(result: SimulationResult, verbose: bool = False):
+    """Print formatted simulation result"""
+    
+    # Severity coloring
+    impact = result.impact_score
+    if impact >= 0.7:
+        severity_color = Colors.FAIL
+        severity = "CRITICAL"
+    elif impact >= 0.4:
+        severity_color = Colors.WARNING
+        severity = "HIGH"
+    elif impact >= 0.2:
+        severity_color = Colors.CYAN
+        severity = "MEDIUM"
+    else:
+        severity_color = Colors.GREEN
+        severity = "LOW"
+    
+    print_section(f"Simulation Result: {result.simulation_id}")
+    print(f"  {Colors.BOLD}Type:{Colors.ENDC} {result.simulation_type}")
+    print(f"  {Colors.BOLD}Severity:{Colors.ENDC} {severity_color}{severity}{Colors.ENDC}")
+    
+    print(f"\n  {Colors.BOLD}Impact Metrics:{Colors.ENDC}")
+    print_kv("Impact Score", f"{result.impact_score:.4f}", indent=4)
+    print_kv("Resilience Score", f"{result.resilience_score:.4f}", indent=4)
+    print_kv("Service Continuity", f"{result.service_continuity:.4f}", indent=4)
+    
+    print(f"\n  {Colors.BOLD}Failures:{Colors.ENDC}")
+    print_kv("Primary Failures", len(result.failed_components) - len(result.cascade_failures), indent=4)
+    print_kv("Cascade Failures", len(result.cascade_failures), indent=4)
+    print_kv("Total Failed", len(result.failed_components), indent=4)
+    
+    if result.failed_components and verbose:
+        print(f"    {Colors.DIM}Failed:{Colors.ENDC} {', '.join(result.failed_components[:10])}")
+        if len(result.failed_components) > 10:
+            print(f"    {Colors.DIM}... and {len(result.failed_components) - 10} more{Colors.ENDC}")
+    
+    print(f"\n  {Colors.BOLD}Connectivity:{Colors.ENDC}")
+    print_kv("Reachability Loss", f"{result.reachability_loss_pct:.2f}%", indent=4)
+    print_kv("Fragmentation", f"+{result.fragmentation} components", indent=4)
+    print_kv("Affected Components", len(result.affected_components), indent=4)
+    print_kv("Isolated Components", len(result.isolated_components), indent=4)
+
+
+def print_event_simulation_result(result: Dict[str, Any]):
+    """Print event simulation results"""
+    
+    print_section("Event Simulation Results")
+    
+    if 'pre_failure_metrics' in result:
+        print(f"\n  {Colors.BOLD}Pre-Failure Phase:{Colors.ENDC}")
+        pre = result['pre_failure_metrics']
+        print_kv("Messages Published", pre['messages']['published'], indent=4)
+        print_kv("Delivery Rate", f"{pre['messages']['delivery_rate']:.2%}", indent=4)
+        print_kv("Avg Latency", f"{pre['latency_ms']['avg']:.2f}ms", indent=4)
+    
+    if 'post_failure_metrics' in result:
+        print(f"\n  {Colors.BOLD}Post-Failure Phase:{Colors.ENDC}")
+        post = result['post_failure_metrics']
+        print_kv("Messages Published", post['messages']['published'], indent=4)
+        print_kv("Delivery Rate", f"{post['messages']['delivery_rate']:.2%}", indent=4)
+        print_kv("Avg Latency", f"{post['latency_ms']['avg']:.2f}ms", indent=4)
+        print_kv("Messages Dropped", post['messages']['dropped'], indent=4)
+    
+    if 'impact_analysis' in result:
+        print(f"\n  {Colors.BOLD}Impact Analysis:{Colors.ENDC}")
+        impact = result['impact_analysis']
+        severity_color = Colors.FAIL if impact['severity'] == 'CRITICAL' else Colors.WARNING
+        print(f"    {Colors.DIM}Severity:{Colors.ENDC} {severity_color}{impact['severity']}{Colors.ENDC}")
+        print_kv("Delivery Rate Impact", f"{impact['delivery_rate_impact']:+.2%}", indent=4)
+        print_kv("Latency Impact", f"+{impact['latency_impact_ms']:.2f}ms", indent=4)
+    
+    if 'failed_components' in result:
+        print(f"\n  {Colors.BOLD}Failed Components:{Colors.ENDC}")
+        for comp in result['failed_components'][:5]:
+            print(f"    {Colors.FAIL}•{Colors.ENDC} {comp}")
+        if len(result['failed_components']) > 5:
+            print(f"    {Colors.DIM}... and {len(result['failed_components']) - 5} more{Colors.ENDC}")
+
+
+def print_campaign_summary(results: List[SimulationResult]):
+    """Print summary of failure campaign"""
+    
+    print_section(f"Failure Campaign Summary ({len(results)} simulations)")
+    
+    # Aggregate statistics
+    impact_scores = [r.impact_score for r in results]
+    reachability_losses = [r.reachability_loss_pct for r in results]
+    cascade_counts = [len(r.cascade_failures) for r in results]
+    
+    print(f"\n  {Colors.BOLD}Impact Distribution:{Colors.ENDC}")
+    print_kv("Avg Impact Score", f"{sum(impact_scores)/len(impact_scores):.4f}", indent=4)
+    print_kv("Max Impact Score", f"{max(impact_scores):.4f}", indent=4)
+    print_kv("Min Impact Score", f"{min(impact_scores):.4f}", indent=4)
+    
+    # Categorize by severity
+    critical = sum(1 for s in impact_scores if s >= 0.7)
+    high = sum(1 for s in impact_scores if 0.4 <= s < 0.7)
+    medium = sum(1 for s in impact_scores if 0.2 <= s < 0.4)
+    low = sum(1 for s in impact_scores if s < 0.2)
+    
+    print(f"\n  {Colors.BOLD}By Severity:{Colors.ENDC}")
+    print(f"    {Colors.FAIL}CRITICAL:{Colors.ENDC} {critical}")
+    print(f"    {Colors.WARNING}HIGH:{Colors.ENDC} {high}")
+    print(f"    {Colors.CYAN}MEDIUM:{Colors.ENDC} {medium}")
+    print(f"    {Colors.GREEN}LOW:{Colors.ENDC} {low}")
+    
+    print(f"\n  {Colors.BOLD}Reachability:{Colors.ENDC}")
+    print_kv("Avg Loss", f"{sum(reachability_losses)/len(reachability_losses):.2f}%", indent=4)
+    print_kv("Max Loss", f"{max(reachability_losses):.2f}%", indent=4)
+    
+    print(f"\n  {Colors.BOLD}Cascade Behavior:{Colors.ENDC}")
+    print_kv("Simulations with Cascades", sum(1 for c in cascade_counts if c > 0), indent=4)
+    print_kv("Avg Cascade Size", f"{sum(cascade_counts)/len(cascade_counts):.1f}", indent=4)
+    print_kv("Max Cascade Size", max(cascade_counts), indent=4)
+    
+    # Top impactful components
+    sorted_results = sorted(results, key=lambda r: r.impact_score, reverse=True)
+    print(f"\n  {Colors.BOLD}Most Impactful Failures:{Colors.ENDC}")
+    for result in sorted_results[:5]:
+        comp = result.failed_components[0] if result.failed_components else "unknown"
+        print(f"    {Colors.FAIL}•{Colors.ENDC} {comp}: impact={result.impact_score:.4f}, "
+              f"cascades={len(result.cascade_failures)}")
+
+
+# =============================================================================
+# Export Functions
+# =============================================================================
+
+def export_results_json(results: Any, filepath: str):
+    """Export results to JSON file"""
+    if isinstance(results, SimulationResult):
+        data = results.to_dict()
+    elif isinstance(results, list):
+        data = {
+            'simulations': [r.to_dict() if isinstance(r, SimulationResult) else r for r in results],
+            'count': len(results),
+            'exported_at': datetime.now().isoformat()
+        }
+    else:
+        data = results
+    
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=2)
+
+
+def export_results_csv(results: List[SimulationResult], filepath: str):
+    """Export campaign results to CSV"""
+    import csv
+    
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            'component', 'impact_score', 'resilience_score', 'service_continuity',
+            'reachability_loss_pct', 'cascade_failures', 'affected_components',
+            'fragmentation', 'simulation_type'
+        ])
         
-        # Handle recovery if specified
-        if 'recovery_time' in failure:
-            await asyncio.sleep(failure['recovery_time'])
-            logger.info(f"Recovering components: {failure['components']}")
-            # Implement recovery logic here
+        for result in results:
+            comp = result.failed_components[0] if result.failed_components else "multiple"
+            writer.writerow([
+                comp,
+                round(result.impact_score, 4),
+                round(result.resilience_score, 4),
+                round(result.service_continuity, 4),
+                round(result.reachability_loss_pct, 2),
+                len(result.cascade_failures),
+                len(result.affected_components),
+                result.fragmentation,
+                result.simulation_type
+            ])
 
 
-async def monitor_simulation(simulator: LightweightDDSSimulator,
-                            duration: int,
-                            interval: int,
-                            logger: logging.Logger):
-    """Monitor simulation progress"""
-    start_time = time.time()
-    
-    while time.time() - start_time < duration:
-        await asyncio.sleep(interval)
-        
-        elapsed = time.time() - start_time
-        stats = simulator.global_stats
-        
-        print(f"\n{Colors.OKCYAN}[Monitor] T+{elapsed:.0f}s:{Colors.ENDC}")
-        print(f"  Delivered: {stats.messages_delivered:,}")
-        print(f"  Dropped: {stats.messages_dropped:,}")
-        print(f"  Active failures: {len(simulator.global_stats.__dict__.get('active_failures', []))}")
+# =============================================================================
+# Main CLI
+# =============================================================================
 
-
-def _determine_component_type(simulator: LightweightDDSSimulator, 
-                              component_id: str) -> Optional[ComponentType]:
-    """Determine component type from ID"""
-    if component_id in simulator.nodes:
-        return ComponentType.NODE
-    elif component_id in simulator.applications:
-        return ComponentType.APPLICATION
-    elif component_id in simulator.brokers:
-        return ComponentType.BROKER
-    elif component_id in simulator.topics:
-        return ComponentType.TOPIC
-    return None
-
-
-def compare_with_baseline(baseline: Dict[str, Any],
-                         failure: Dict[str, Any],
-                         logger: logging.Logger) -> Dict[str, Any]:
-    """Compare failure simulation with baseline"""
-    baseline_stats = baseline['global_stats']
-    failure_stats = failure['global_stats']
-    
-    comparison = {
-        'latency': {
-            'baseline': baseline_stats['avg_latency_ms'],
-            'failure': failure_stats['avg_latency_ms'],
-            'increase': failure_stats['avg_latency_ms'] - baseline_stats['avg_latency_ms'],
-            'increase_pct': (
-                (failure_stats['avg_latency_ms'] - baseline_stats['avg_latency_ms']) /
-                baseline_stats['avg_latency_ms'] * 100 if baseline_stats['avg_latency_ms'] > 0 else 0
-            )
-        },
-        'throughput': {
-            'baseline': baseline_stats['messages_delivered'] / baseline['elapsed_seconds'],
-            'failure': failure_stats['messages_delivered'] / failure['elapsed_seconds'],
-            'decrease_pct': (
-                ((baseline_stats['messages_delivered'] / baseline['elapsed_seconds']) -
-                 (failure_stats['messages_delivered'] / failure['elapsed_seconds'])) /
-                (baseline_stats['messages_delivered'] / baseline['elapsed_seconds']) * 100
-                if baseline_stats['messages_delivered'] > 0 else 0
-            )
-        },
-        'delivery_rate': {
-            'baseline': baseline_stats['delivery_rate'],
-            'failure': failure_stats['delivery_rate'],
-            'decrease': baseline_stats['delivery_rate'] - failure_stats['delivery_rate']
-        },
-        'messages_lost': failure_stats['messages_dropped'] - baseline_stats['messages_dropped']
-    }
-    
-    return comparison
-
-
-def export_results(results: Dict[str, Any],
-                  output_dir: str,
-                  export_json: bool = True,
-                  export_html: bool = False,
-                  export_md: bool = False,
-                  logger: logging.Logger = None):
-    """Export simulation results in various formats"""
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    
-    if export_json:
-        json_file = output_path / f'simulation_{timestamp}.json'
-        with open(json_file, 'w') as f:
-            json.dump(results, f, indent=2)
-        if logger:
-            logger.info(f"Results exported to {json_file}")
-    
-    if export_html:
-        html_file = output_path / f'simulation_{timestamp}.html'
-        _export_html_report(results, html_file)
-        if logger:
-            logger.info(f"HTML report exported to {html_file}")
-    
-    if export_md:
-        md_file = output_path / f'simulation_{timestamp}.md'
-        _export_markdown_report(results, md_file)
-        if logger:
-            logger.info(f"Markdown report exported to {md_file}")
-
-
-def _export_html_report(results: Dict[str, Any], output_file: Path):
-    """Export HTML report"""
-    html = f"""<!DOCTYPE html>
-<html>
-<head>
-    <title>Simulation Report - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
-        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 20px; }}
-        h1 {{ color: #333; border-bottom: 3px solid #4CAF50; padding-bottom: 10px; }}
-        h2 {{ color: #555; margin-top: 30px; }}
-        .metric {{ display: inline-block; margin: 10px 20px 10px 0; padding: 15px; background: #f9f9f9; border-left: 4px solid #4CAF50; }}
-        .metric-label {{ font-size: 12px; color: #666; text-transform: uppercase; }}
-        .metric-value {{ font-size: 24px; font-weight: bold; color: #333; }}
-        table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
-        th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
-        th {{ background-color: #4CAF50; color: white; }}
-        tr:hover {{ background-color: #f5f5f5; }}
-        .warning {{ color: #ff9800; }}
-        .error {{ color: #f44336; }}
-        .success {{ color: #4CAF50; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Pub-Sub System Simulation Report</h1>
-        <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-        
-        <h2>Global Statistics</h2>
-        <div class="metric">
-            <div class="metric-label">Messages Sent</div>
-            <div class="metric-value">{results.get('simulation', {}).get('global_stats', {}).get('messages_sent', 0):,}</div>
-        </div>
-        <div class="metric">
-            <div class="metric-label">Messages Delivered</div>
-            <div class="metric-value">{results.get('simulation', {}).get('global_stats', {}).get('messages_delivered', 0):,}</div>
-        </div>
-        <div class="metric">
-            <div class="metric-label">Delivery Rate</div>
-            <div class="metric-value">{results.get('simulation', {}).get('global_stats', {}).get('delivery_rate', 0) * 100:.1f}%</div>
-        </div>
-        <div class="metric">
-            <div class="metric-label">Avg Latency</div>
-            <div class="metric-value">{results.get('simulation', {}).get('global_stats', {}).get('avg_latency_ms', 0):.2f}ms</div>
-        </div>
-        
-        <h2>Simulation Details</h2>
-        <table>
-            <tr>
-                <th>Metric</th>
-                <th>Value</th>
-            </tr>
-            <tr>
-                <td>Duration</td>
-                <td>{results.get('simulation', {}).get('elapsed_seconds', 0):.2f}s</td>
-            </tr>
-            <tr>
-                <td>Messages Dropped</td>
-                <td class="warning">{results.get('simulation', {}).get('global_stats', {}).get('messages_dropped', 0):,}</td>
-            </tr>
-            <tr>
-                <td>Deadline Misses</td>
-                <td class="warning">{results.get('simulation', {}).get('global_stats', {}).get('deadline_misses', 0):,}</td>
-            </tr>
-            <tr>
-                <td>Data Transferred</td>
-                <td>{results.get('simulation', {}).get('global_stats', {}).get('bytes_transferred', 0) / 1024 / 1024:.2f} MB</td>
-            </tr>
-        </table>
-    </div>
-</body>
-</html>"""
-    
-    with open(output_file, 'w') as f:
-        f.write(html)
-
-
-def _export_markdown_report(results: Dict[str, Any], output_file: Path):
-    """Export Markdown report"""
-    md = f"""# Pub-Sub System Simulation Report
-
-Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-## Global Statistics
-
-| Metric | Value |
-|--------|-------|
-| Messages Sent | {results.get('simulation', {}).get('global_stats', {}).get('messages_sent', 0):,} |
-| Messages Delivered | {results.get('simulation', {}).get('global_stats', {}).get('messages_delivered', 0):,} |
-| Messages Dropped | {results.get('simulation', {}).get('global_stats', {}).get('messages_dropped', 0):,} |
-| Delivery Rate | {results.get('simulation', {}).get('global_stats', {}).get('delivery_rate', 0) * 100:.1f}% |
-| Average Latency | {results.get('simulation', {}).get('global_stats', {}).get('avg_latency_ms', 0):.2f}ms |
-| Data Transferred | {results.get('simulation', {}).get('global_stats', {}).get('bytes_transferred', 0) / 1024 / 1024:.2f} MB |
-
-## Duration
-
-Total simulation time: {results.get('simulation', {}).get('elapsed_seconds', 0):.2f}s
-"""
-    
-    with open(output_file, 'w') as f:
-        f.write(md)
-
-
-def print_simulation_summary(results: Dict[str, Any],
-                            baseline: Optional[Dict[str, Any]] = None,
-                            comparison: Optional[Dict[str, Any]] = None):
-    """Print comprehensive simulation summary"""
-    print(f"\n{Colors.HEADER}{'='*70}{Colors.ENDC}")
-    print(f"{Colors.HEADER}{Colors.BOLD}SIMULATION SUMMARY{Colors.ENDC}")
-    print(f"{Colors.HEADER}{'='*70}{Colors.ENDC}\n")
-    
-    # Global statistics
-    stats = results.get('simulation', {}).get('global_stats', {})
-    counts = results.get('simulation', {}).get('component_counts', {})
-    
-    print(f"{Colors.OKBLUE}📊 Topology:{Colors.ENDC}")
-    print(f"   Nodes: {counts.get('nodes', 0)}")
-    print(f"   Applications: {counts.get('applications', 0)}")
-    print(f"   Topics: {counts.get('topics', 0)}")
-    print(f"   Brokers: {counts.get('brokers', 0)}")
-    
-    print(f"\n{Colors.OKBLUE}📨 Message Statistics:{Colors.ENDC}")
-    print(f"   Sent: {stats.get('messages_sent', 0):,}")
-    print(f"   Delivered: {stats.get('messages_delivered', 0):,}")
-    print(f"   Dropped: {stats.get('messages_dropped', 0):,}")
-    print(f"   Delivery Rate: {stats.get('delivery_rate', 0):.2%}")
-    
-    print(f"\n{Colors.OKBLUE}⏱️  Latency:{Colors.ENDC}")
-    print(f"   Average: {stats.get('avg_latency_ms', 0):.2f}ms")
-    print(f"   Min: {stats.get('min_latency_ms', 0):.2f}ms")
-    print(f"   Max: {stats.get('max_latency_ms', 0):.2f}ms")
-    
-    # Comparison with baseline
-    if comparison:
-        print(f"\n{Colors.WARNING}📈 Baseline Comparison:{Colors.ENDC}")
-        
-        lat = comparison['latency']
-        print(f"\n   Latency:")
-        print(f"     Baseline: {lat['baseline']:.2f}ms")
-        print(f"     With Failures: {lat['failure']:.2f}ms")
-        if lat['increase'] > 0:
-            print(f"     {Colors.FAIL}Increase: +{lat['increase_pct']:.1f}% (+{lat['increase']:.2f}ms){Colors.ENDC}")
-        
-        thr = comparison['throughput']
-        print(f"\n   Throughput:")
-        print(f"     Baseline: {thr['baseline']:.1f} msg/s")
-        print(f"     With Failures: {thr['failure']:.1f} msg/s")
-        if thr['decrease_pct'] > 0:
-            print(f"     {Colors.FAIL}Decrease: -{thr['decrease_pct']:.1f}%{Colors.ENDC}")
-        
-        print(f"\n   {Colors.FAIL}Additional Messages Lost: {comparison['messages_lost']}{Colors.ENDC}")
-    
-    # Failure impact
-    if 'failures' in results:
-        failures = results['failures']
-        impact = results.get('impact', {})
-        
-        print(f"\n{Colors.FAIL}❌ Failure Impact:{Colors.ENDC}")
-        print(f"   Total Failures: {failures.get('total_failures', 0)}")
-        print(f"   Failed Components: {len(impact.get('failed_components', []))}")
-        print(f"   Affected Components: {len(impact.get('affected_components', []))}")
-        print(f"   Cascade Depth: {impact.get('cascade_depth', 0)}")
-    
-    print(f"\n{Colors.HEADER}{'='*70}{Colors.ENDC}\n")
-
-
-def main() -> int:
-    """Main entry point"""
-    
+def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description='Simulate pub-sub system with failure injection',
+        description='Comprehensive pub-sub system simulation',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Basic simulation
-  python simulate_graph.py --input system.json --duration 60
-
-  # With failure injection
-  python simulate_graph.py --input system.json --duration 60 \\
-      --fail-component A1 --fail-time 30 --fail-type complete
-
-  # Multiple failures with cascading
-  python simulate_graph.py --input system.json --duration 60 \\
-      --fail-component A1,B1,N1 --fail-time 30 --cascade
-
-  # Predefined scenario
-  python simulate_graph.py --input system.json --scenario cascading-broker
-
-  # With monitoring and reports
-  python simulate_graph.py --input system.json --duration 120 \\
-      --scenario sequential-failures --monitor --export-json --export-html
+  %(prog)s --input system.json --component app_1
+  %(prog)s --input system.json --attack --strategy criticality --count 5
+  %(prog)s --input system.json --campaign
+  %(prog)s --input system.json --event-sim --duration 60000
+  %(prog)s --input system.json --load-test --peak-rate 1000
+  %(prog)s --input system.json --chaos --failure-prob 0.05
         """
     )
     
     # Input
-    parser.add_argument('--input', '-i', type=str, required=True,
-                       help='Input graph JSON file')
+    input_group = parser.add_argument_group('Input')
+    input_group.add_argument('--input', '-i', required=True, help='Input JSON file')
+    input_group.add_argument('--seed', type=int, help='Random seed for reproducibility')
     
-    # Simulation
-    parser.add_argument('--duration', '-d', type=int, default=60,
-                       help='Simulation duration in seconds (default: 60)')
-    parser.add_argument('--baseline', action='store_true',
-                       help='Run baseline simulation first for comparison')
+    # Failure simulation options
+    failure_group = parser.add_argument_group('Failure Simulation')
+    failure_group.add_argument('--component', '-c', help='Single component to fail')
+    failure_group.add_argument('--components', nargs='+', help='Multiple components to fail')
+    failure_group.add_argument('--cascade', action='store_true', default=True,
+                              help='Enable cascading failures (default: True)')
+    failure_group.add_argument('--no-cascade', action='store_false', dest='cascade',
+                              help='Disable cascading failures')
     
-    # Failure injection
-    parser.add_argument('--fail-component', type=str,
-                       help='Component(s) to fail (comma-separated)')
-    parser.add_argument('--fail-time', type=float, default=30.0,
-                       help='Time to inject failure (seconds, default: 30)')
-    parser.add_argument('--fail-type', choices=['complete', 'partial'],
-                       default='complete',
-                       help='Failure type (default: complete)')
-    parser.add_argument('--cascade', action='store_true',
-                       help='Enable cascading failures')
-    parser.add_argument('--recovery-time', type=float,
-                       help='Time to recovery after failure (seconds)')
+    # Attack simulation
+    attack_group = parser.add_argument_group('Attack Simulation')
+    attack_group.add_argument('--attack', action='store_true', help='Run targeted attack simulation')
+    attack_group.add_argument('--strategy', choices=['criticality', 'degree', 'betweenness'],
+                             default='criticality', help='Attack target selection strategy')
+    attack_group.add_argument('--count', type=int, default=5, help='Number of targets')
     
-    # Scenarios
-    parser.add_argument('--scenario', choices=list(SIMULATION_SCENARIOS.keys()),
-                       help='Use predefined scenario')
+    # Random failures
+    random_group = parser.add_argument_group('Random Failures')
+    random_group.add_argument('--random', action='store_true', help='Simulate random failures')
+    random_group.add_argument('--failure-prob', type=float, default=0.1,
+                             help='Failure probability (default: 0.1)')
     
-    # Monitoring
-    parser.add_argument('--monitor', action='store_true',
-                       help='Enable real-time monitoring')
-    parser.add_argument('--monitor-interval', type=int, default=10,
-                       help='Monitoring interval in seconds (default: 10)')
+    # Campaign
+    campaign_group = parser.add_argument_group('Failure Campaign')
+    campaign_group.add_argument('--campaign', action='store_true',
+                               help='Run failure simulation for each component')
+    campaign_group.add_argument('--component-types', nargs='+',
+                               default=['Application'],
+                               help='Component types to test (default: Application)')
     
-    # Output
-    parser.add_argument('--output', '-o', type=str, default='output',
-                       help='Output directory (default: output)')
-    parser.add_argument('--export-json', action='store_true',
-                       help='Export results as JSON')
-    parser.add_argument('--export-html', action='store_true',
-                       help='Export results as HTML report')
-    parser.add_argument('--export-md', action='store_true',
-                       help='Export results as Markdown report')
+    # Event-driven simulation
+    event_group = parser.add_argument_group('Event-Driven Simulation')
+    event_group.add_argument('--event-sim', action='store_true',
+                            help='Run event-driven simulation')
+    event_group.add_argument('--duration', type=float, default=60000,
+                            help='Simulation duration in ms (default: 60000)')
+    event_group.add_argument('--failure-at', type=float,
+                            help='Inject failure at this time (ms)')
+    event_group.add_argument('--message-rate', type=float, default=100,
+                            help='Messages per second (default: 100)')
     
-    # Logging
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Verbose logging')
-    parser.add_argument('--log-file', type=str, default='simulation.log',
-                       help='Log file path')
-    parser.add_argument('--no-color', action='store_true',
-                       help='Disable colored output')
+    # Load test
+    load_group = parser.add_argument_group('Load Testing')
+    load_group.add_argument('--load-test', action='store_true', help='Run load test')
+    load_group.add_argument('--initial-rate', type=float, default=10,
+                           help='Initial message rate (default: 10)')
+    load_group.add_argument('--peak-rate', type=float, default=1000,
+                           help='Peak message rate (default: 1000)')
+    load_group.add_argument('--ramp-time', type=float, default=10000,
+                           help='Ramp up time in ms (default: 10000)')
     
+    # Chaos simulation
+    chaos_group = parser.add_argument_group('Chaos Engineering')
+    chaos_group.add_argument('--chaos', action='store_true', help='Run chaos simulation')
+    chaos_group.add_argument('--recovery-prob', type=float, default=0.3,
+                            help='Recovery probability (default: 0.3)')
+    
+    # Export
+    export_group = parser.add_argument_group('Export')
+    export_group.add_argument('--export-json', metavar='FILE', help='Export results to JSON')
+    export_group.add_argument('--export-csv', metavar='FILE', help='Export campaign to CSV')
+    
+    # Verbosity
+    verbosity_group = parser.add_argument_group('Verbosity')
+    verbosity_group.add_argument('--verbose', '-v', action='store_true')
+    verbosity_group.add_argument('--quiet', '-q', action='store_true')
+    verbosity_group.add_argument('--no-color', action='store_true')
+    
+    return parser
+
+
+def main() -> int:
+    parser = create_parser()
     args = parser.parse_args()
     
-    # Disable colors if requested
-    if args.no_color:
-        for attr in dir(Colors):
-            if not attr.startswith('_'):
-                setattr(Colors, attr, '')
+    # Setup
+    if args.no_color or not sys.stdout.isatty():
+        Colors.disable()
     
-    # Setup logging
-    logger = setup_logging(args.verbose, args.log_file)
+    log_level = logging.DEBUG if args.verbose else (logging.ERROR if args.quiet else logging.INFO)
+    logging.basicConfig(level=log_level, format='%(levelname)s: %(message)s')
+    logger = logging.getLogger(__name__)
+    
+    if not args.quiet:
+        print_header("GRAPH SIMULATION")
+        print(f"  Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Load graph
+    if not args.quiet:
+        print_info(f"Loading graph from {args.input}...")
     
     try:
-        # Print header
-        print(f"\n{Colors.HEADER}{'='*70}{Colors.ENDC}")
-        print(f"{Colors.HEADER}{Colors.BOLD}PUB-SUB SYSTEM SIMULATION{Colors.ENDC}")
-        print(f"{Colors.HEADER}{'='*70}{Colors.ENDC}\n")
-        
-        # Load graph
-        logger.info("Loading graph...")
-        model, graph = load_graph_from_json(args.input, logger)
-        
-        # Create simulator
-        simulator = LightweightDDSSimulator()
-        simulator.load_from_json(args.input)
-        
-        # Determine scenario
-        failures = []
-        duration = args.duration
-        
-        if args.scenario:
-            scenario = SIMULATION_SCENARIOS[args.scenario]
-            logger.info(f"Using scenario: {args.scenario} - {scenario['description']}")
-            duration = scenario.get('duration', duration)
-            failures = scenario['failures']
-        elif args.fail_component:
-            components = args.fail_component.split(',')
-            failures = [{
-                'time': args.fail_time,
-                'components': components,
-                'type': args.fail_type,
-                'cascade': args.cascade,
-                'recovery_time': args.recovery_time
-            }]
-        
-        # Validate configuration
-        if failures:
-            all_fail_components = []
-            for failure in failures:
-                all_fail_components.extend(failure.get('components', []))
-            
-            is_valid, warnings = validate_simulation_config(model, all_fail_components, logger)
-            if not is_valid:
-                logger.error("Simulation configuration validation failed!")
-                return 1
-        
-        # Run baseline if requested
-        baseline_results = None
-        if args.baseline or failures:
-            baseline_results = asyncio.run(
-                run_baseline_simulation(
-                    LightweightDDSSimulator(),
-                    duration,
-                    logger
-                )
-            )
-        
-        # Run main simulation
-        if failures:
-            failure_sim = FailureSimulator(cascade_threshold=0.7, cascade_probability=0.6)
-            
-            results = asyncio.run(
-                run_failure_simulation(
-                    simulator,
-                    duration,
-                    failures,
-                    failure_sim,
-                    logger,
-                    args.monitor,
-                    args.monitor_interval
-                )
-            )
-            
-            # Analyze impact
-            impact = failure_sim.analyze_impact(simulator, baseline_results['global_stats'] if baseline_results else None)
-            
-            # Compile complete results
-            complete_results = {
-                'simulation': results,
-                'baseline': baseline_results,
-                'failures': {
-                    'events': [e.to_dict() for e in failure_sim.failure_events],
-                    'total_failures': len(failure_sim.failure_events)
-                },
-                'impact': impact.to_dict() if hasattr(impact, 'to_dict') else impact
-            }
-        else:
-            results = asyncio.run(simulator.run_simulation(duration))
-            complete_results = {'simulation': results}
-        
-        # Compare with baseline
-        comparison = None
-        if baseline_results and failures:
-            comparison = compare_with_baseline(baseline_results, results, logger)
-            complete_results['comparison'] = comparison
-        
-        # Print summary
-        print_simulation_summary(complete_results, baseline_results, comparison)
-        
-        # Export results
-        if args.export_json or args.export_html or args.export_md:
-            export_results(
-                complete_results,
-                args.output,
-                args.export_json,
-                args.export_html,
-                args.export_md,
-                logger
-            )
-        
-        logger.info("Simulation completed successfully")
-        return 0
-        
-    except KeyboardInterrupt:
-        logger.info("Simulation interrupted by user")
-        return 130
+        G, data = load_graph_from_json(args.input)
+        print_success(f"Loaded graph with {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     except Exception as e:
-        logger.error(f"Simulation failed: {e}", exc_info=True)
+        print_error(f"Failed to load graph: {e}")
         return 1
+    
+    results = None
+    
+    # Run appropriate simulation
+    try:
+        # Event-driven simulations
+        if args.event_sim or args.load_test or args.chaos:
+            if not HAS_EVENT_SIM:
+                print_error(f"Event simulator not available: {EVENT_SIM_ERROR}")
+                return 1
+            
+            simulator = EventDrivenSimulator(G, data, seed=args.seed)
+            
+            if args.event_sim:
+                if not args.quiet:
+                    print_info("Running event-driven simulation...")
+                
+                if args.failure_at:
+                    results = simulator.run_failure_simulation(
+                        duration_ms=args.duration,
+                        failure_time_ms=args.failure_at,
+                        message_rate_per_sec=args.message_rate,
+                        enable_cascade=args.cascade
+                    )
+                else:
+                    metrics = simulator.run_baseline_simulation(
+                        duration_ms=args.duration,
+                        message_rate_per_sec=args.message_rate
+                    )
+                    results = {'baseline_metrics': metrics.to_dict()}
+                
+                if not args.quiet:
+                    print_event_simulation_result(results)
+            
+            elif args.load_test:
+                if not args.quiet:
+                    print_info("Running load test...")
+                
+                results = simulator.run_load_test(
+                    duration_ms=args.duration,
+                    initial_rate=args.initial_rate,
+                    peak_rate=args.peak_rate,
+                    ramp_time_ms=args.ramp_time
+                )
+                
+                if not args.quiet:
+                    print_section("Load Test Results")
+                    m = results['metrics']
+                    print_kv("Peak Rate Achieved", f"{m['throughput']['messages_per_sec']:.1f} msg/s")
+                    print_kv("Delivery Rate", f"{m['messages']['delivery_rate']:.2%}")
+                    print_kv("P99 Latency", f"{m['latency_ms']['p99']:.2f}ms")
+                    print_kv("Saturated", results['saturation_analysis']['saturated'])
+            
+            elif args.chaos:
+                if not args.quiet:
+                    print_info("Running chaos simulation...")
+                
+                results = simulator.run_chaos_simulation(
+                    duration_ms=args.duration,
+                    failure_probability=args.failure_prob,
+                    recovery_probability=args.recovery_prob,
+                    message_rate_per_sec=args.message_rate
+                )
+                
+                if not args.quiet:
+                    print_section("Chaos Simulation Results")
+                    m = results['metrics']
+                    print_kv("Delivery Rate", f"{m['messages']['delivery_rate']:.2%}")
+                    print_kv("Component Failures", m['failures']['component_failures'])
+                    print_kv("Cascade Failures", m['failures']['cascade_failures'])
+                    print_kv("Resilience Score", f"{results['resilience_score']:.4f}")
+        
+        # Failure simulations
+        else:
+            if not HAS_FAILURE_SIM:
+                print_error(f"Failure simulator not available: {FAILURE_SIM_ERROR}")
+                return 1
+            
+            simulator = FailureSimulator(seed=args.seed)
+            
+            if args.campaign:
+                if not args.quiet:
+                    print_info(f"Running failure campaign for {args.component_types}...")
+                
+                # Get components to test
+                components = [
+                    n for n, d in G.nodes(data=True)
+                    if d.get('type') in args.component_types
+                ]
+                
+                if not args.quiet:
+                    print_info(f"Testing {len(components)} components...")
+                
+                results = simulator.run_failure_campaign(G, components)
+                
+                if not args.quiet:
+                    print_campaign_summary(results)
+            
+            elif args.attack:
+                if not args.quiet:
+                    print_info(f"Running targeted attack ({args.strategy}, n={args.count})...")
+                
+                result = simulator.simulate_targeted_attack(
+                    G,
+                    target_count=args.count,
+                    strategy=args.strategy
+                )
+                results = result
+                
+                if not args.quiet:
+                    print_simulation_result(result, args.verbose)
+            
+            elif args.random:
+                if not args.quiet:
+                    print_info(f"Running random failure simulation (p={args.failure_prob})...")
+                
+                result = simulator.simulate_random_failures(
+                    G,
+                    failure_probability=args.failure_prob,
+                    enable_cascade=args.cascade
+                )
+                results = result
+                
+                if not args.quiet:
+                    print_simulation_result(result, args.verbose)
+            
+            elif args.components:
+                if not args.quiet:
+                    print_info(f"Simulating failure of {len(args.components)} components...")
+                
+                result = simulator.simulate_multiple_failures(
+                    G,
+                    args.components,
+                    enable_cascade=args.cascade
+                )
+                results = result
+                
+                if not args.quiet:
+                    print_simulation_result(result, args.verbose)
+            
+            elif args.component:
+                if not args.quiet:
+                    print_info(f"Simulating failure of {args.component}...")
+                
+                result = simulator.simulate_single_failure(
+                    G,
+                    args.component,
+                    enable_cascade=args.cascade
+                )
+                results = result
+                
+                if not args.quiet:
+                    print_simulation_result(result, args.verbose)
+            
+            else:
+                print_warning("No simulation type specified. Use --help for options.")
+                return 0
+    
+    except Exception as e:
+        logger.exception("Simulation failed")
+        print_error(f"Simulation failed: {e}")
+        return 1
+    
+    # Export results
+    if results:
+        if args.export_json:
+            export_results_json(results, args.export_json)
+            print_success(f"Results exported to {args.export_json}")
+        
+        if args.export_csv and isinstance(results, list):
+            export_results_csv(results, args.export_csv)
+            print_success(f"Campaign results exported to {args.export_csv}")
+    
+    return 0
 
 
 if __name__ == '__main__':
