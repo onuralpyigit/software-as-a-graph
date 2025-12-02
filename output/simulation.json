@@ -1,0 +1,3906 @@
+{
+  "simulations": [
+    {
+      "simulation_id": "sim_1",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.907451",
+      "end_time": "2025-12-02T22:36:46.908131",
+      "duration_ms": 0.68,
+      "failed_components": [
+        "app_0"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "topic_19",
+        "edge_3",
+        "app_3",
+        "app_7",
+        "topic_15",
+        "app_38",
+        "app_12",
+        "app_18",
+        "app_29",
+        "app_46",
+        "app_22",
+        "app_6",
+        "topic_25",
+        "topic_0",
+        "topic_11",
+        "app_19",
+        "app_34",
+        "app_8",
+        "app_23",
+        "app_36"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_0",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.907451",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2143,
+        "resilience_score": 0.7857,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 21,
+        "remaining_paths": 581
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 20,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_2",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.914249",
+      "end_time": "2025-12-02T22:36:46.914935",
+      "duration_ms": 0.6859999999999999,
+      "failed_components": [
+        "app_1"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_22",
+        "app_49",
+        "topic_6",
+        "edge_3",
+        "app_3",
+        "app_2"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_1",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.914249",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.0714,
+        "resilience_score": 0.9286,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 6,
+        "remaining_paths": 596
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 38,
+        "loss_percentage": 1.24
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 6,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_3",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.920897",
+      "end_time": "2025-12-02T22:36:46.921528",
+      "duration_ms": 0.631,
+      "failed_components": [
+        "app_2"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "edge_2",
+        "topic_14",
+        "app_46",
+        "topic_29",
+        "topic_6",
+        "app_6",
+        "app_20",
+        "app_31",
+        "app_34",
+        "app_1",
+        "app_5",
+        "app_16"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_2",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.920897",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1327,
+        "resilience_score": 0.8673,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 12,
+        "remaining_paths": 590
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 84,
+        "loss_percentage": 2.73
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 12,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_4",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.934248",
+      "end_time": "2025-12-02T22:36:46.935041",
+      "duration_ms": 0.7929999999999999,
+      "failed_components": [
+        "app_3"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "cloud_11",
+        "topic_10",
+        "topic_29",
+        "app_31",
+        "app_48",
+        "app_1",
+        "app_0",
+        "app_26",
+        "topic_6",
+        "app_28",
+        "topic_5",
+        "app_17",
+        "app_39",
+        "app_16",
+        "app_29",
+        "app_44",
+        "app_46",
+        "app_22",
+        "app_14",
+        "app_43",
+        "app_6",
+        "topic_27",
+        "topic_0",
+        "app_11",
+        "topic_12",
+        "app_5",
+        "topic_22",
+        "app_41",
+        "topic_13",
+        "app_20",
+        "topic_23",
+        "app_33",
+        "app_15"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_3",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.934248",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.3469,
+        "resilience_score": 0.6531,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 36,
+        "remaining_paths": 566
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 33,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_5",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.941307",
+      "end_time": "2025-12-02T22:36:46.941925",
+      "duration_ms": 0.618,
+      "failed_components": [
+        "app_4"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_19",
+        "topic_1",
+        "app_35",
+        "compute_5",
+        "app_21",
+        "app_16"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_4",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.941307",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.0714,
+        "resilience_score": 0.9286,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 6,
+        "remaining_paths": 596
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 38,
+        "loss_percentage": 1.24
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 6,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_6",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.947537",
+      "end_time": "2025-12-02T22:36:46.948170",
+      "duration_ms": 0.633,
+      "failed_components": [
+        "app_5"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "edge_2",
+        "topic_2",
+        "app_26",
+        "app_22",
+        "app_49",
+        "topic_6",
+        "app_38",
+        "app_27",
+        "app_3",
+        "app_8",
+        "app_35",
+        "topic_5",
+        "app_2",
+        "app_21",
+        "app_25",
+        "app_16",
+        "topic_8"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_5",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.947537",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1837,
+        "resilience_score": 0.8163,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 18,
+        "remaining_paths": 584
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 17,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_7",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.954306",
+      "end_time": "2025-12-02T22:36:46.955078",
+      "duration_ms": 0.772,
+      "failed_components": [
+        "app_6"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_13",
+        "topic_2",
+        "topic_29",
+        "app_10",
+        "edge_3",
+        "app_3",
+        "app_2",
+        "app_0",
+        "app_26",
+        "app_38",
+        "app_24",
+        "app_39",
+        "app_16",
+        "app_46",
+        "app_22",
+        "app_14",
+        "topic_27",
+        "topic_25",
+        "topic_18",
+        "app_34",
+        "app_8",
+        "topic_9",
+        "app_32"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_6",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.954306",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2449,
+        "resilience_score": 0.7551,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 24,
+        "remaining_paths": 578
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 23,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_8",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.960833",
+      "end_time": "2025-12-02T22:36:46.961446",
+      "duration_ms": 0.6130000000000001,
+      "failed_components": [
+        "app_7"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_18",
+        "app_44",
+        "app_46",
+        "topic_10",
+        "app_49",
+        "topic_15",
+        "topic_28",
+        "app_23",
+        "app_20",
+        "app_28",
+        "topic_26",
+        "app_40",
+        "app_48",
+        "compute_5",
+        "app_21",
+        "app_17",
+        "app_0",
+        "app_15"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_7",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.960833",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1939,
+        "resilience_score": 0.8061,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 18,
+        "remaining_paths": 584
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 84,
+        "loss_percentage": 2.73
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 18,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_9",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.967313",
+      "end_time": "2025-12-02T22:36:46.968010",
+      "duration_ms": 0.6970000000000001,
+      "failed_components": [
+        "app_8"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_12",
+        "app_42",
+        "app_45",
+        "topic_2",
+        "app_39",
+        "app_22",
+        "app_43",
+        "app_9",
+        "app_6",
+        "app_23",
+        "topic_11",
+        "topic_24",
+        "app_5",
+        "app_36",
+        "app_0",
+        "edge_0",
+        "app_32",
+        "topic_16"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_8",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.967313",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1939,
+        "resilience_score": 0.8061,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 18,
+        "remaining_paths": 584
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 18,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_10",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.974335",
+      "end_time": "2025-12-02T22:36:46.974938",
+      "duration_ms": 0.603,
+      "failed_components": [
+        "app_9"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_44",
+        "app_26",
+        "edge_3",
+        "app_8",
+        "topic_24"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_9",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.974335",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.0612,
+        "resilience_score": 0.9388,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 5,
+        "remaining_paths": 597
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 38,
+        "loss_percentage": 1.24
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 5,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_11",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.980874",
+      "end_time": "2025-12-02T22:36:46.981592",
+      "duration_ms": 0.718,
+      "failed_components": [
+        "app_10"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_12",
+        "topic_18",
+        "topic_14",
+        "app_22",
+        "app_43",
+        "app_38",
+        "app_6",
+        "app_20",
+        "edge_3",
+        "app_31",
+        "app_11",
+        "app_34",
+        "topic_25",
+        "app_21",
+        "topic_3"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_10",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.980874",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1633,
+        "resilience_score": 0.8367,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 18,
+        "remaining_paths": 584
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 15,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_12",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.988812",
+      "end_time": "2025-12-02T22:36:46.989541",
+      "duration_ms": 0.7290000000000001,
+      "failed_components": [
+        "app_11"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "topic_18",
+        "cloud_11",
+        "app_26",
+        "app_46",
+        "app_49",
+        "app_14",
+        "topic_13",
+        "app_10",
+        "app_31",
+        "app_3",
+        "topic_3",
+        "app_23",
+        "app_36"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_11",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.988812",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1429,
+        "resilience_score": 0.8571,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 14,
+        "remaining_paths": 588
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 13,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_13",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.995499",
+      "end_time": "2025-12-02T22:36:46.996022",
+      "duration_ms": 0.523,
+      "failed_components": [
+        "app_12"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "topic_2",
+        "app_47",
+        "app_10",
+        "app_48",
+        "app_0",
+        "app_26",
+        "app_38",
+        "topic_7",
+        "edge_4",
+        "app_16",
+        "topic_16",
+        "app_42",
+        "topic_20",
+        "app_22",
+        "app_14",
+        "topic_25",
+        "app_35",
+        "app_32",
+        "app_34",
+        "topic_23",
+        "app_8",
+        "app_33",
+        "app_36"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_12",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.995499",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2449,
+        "resilience_score": 0.7551,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 24,
+        "remaining_paths": 578
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 23,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_14",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:46.999006",
+      "end_time": "2025-12-02T22:36:46.999349",
+      "duration_ms": 0.34299999999999997,
+      "failed_components": [
+        "app_13"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "topic_14",
+        "app_46",
+        "app_22",
+        "topic_29",
+        "compute_10",
+        "app_6",
+        "app_20",
+        "app_31",
+        "app_34",
+        "app_48",
+        "topic_9"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_13",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:46.999006",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1224,
+        "resilience_score": 0.8776,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 11,
+        "remaining_paths": 591
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 85,
+        "loss_percentage": 2.76
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 11,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_15",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.002774",
+      "end_time": "2025-12-02T22:36:47.003237",
+      "duration_ms": 0.46299999999999997,
+      "failed_components": [
+        "app_14"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_12",
+        "topic_18",
+        "app_30",
+        "app_19",
+        "app_22",
+        "app_43",
+        "cloud_13",
+        "app_6",
+        "app_34",
+        "app_3",
+        "app_11",
+        "app_33",
+        "topic_7",
+        "app_37",
+        "topic_22"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_14",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.002774",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1633,
+        "resilience_score": 0.8367,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 15,
+        "remaining_paths": 587
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 15,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_16",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.006556",
+      "end_time": "2025-12-02T22:36:47.006850",
+      "duration_ms": 0.294,
+      "failed_components": [
+        "app_15"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_46",
+        "topic_10",
+        "app_3",
+        "compute_5",
+        "app_37",
+        "app_7"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_15",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.006556",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.0714,
+        "resilience_score": 0.9286,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 6,
+        "remaining_paths": 596
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 38,
+        "loss_percentage": 1.24
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 6,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_17",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.010035",
+      "end_time": "2025-12-02T22:36:47.010404",
+      "duration_ms": 0.36900000000000005,
+      "failed_components": [
+        "app_16"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_12",
+        "app_29",
+        "topic_2",
+        "cloud_11",
+        "app_4",
+        "app_22",
+        "app_49",
+        "topic_1",
+        "topic_6",
+        "app_6",
+        "app_20",
+        "app_3",
+        "app_2",
+        "app_5",
+        "topic_12",
+        "app_32"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_16",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.010035",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1735,
+        "resilience_score": 0.8265,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 17,
+        "remaining_paths": 585
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 16,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_18",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.013627",
+      "end_time": "2025-12-02T22:36:47.013947",
+      "duration_ms": 0.32,
+      "failed_components": [
+        "app_17"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_30",
+        "app_19",
+        "app_46",
+        "topic_13",
+        "app_34",
+        "app_31",
+        "app_3",
+        "app_35",
+        "compute_6",
+        "topic_22",
+        "topic_28",
+        "app_23",
+        "app_7"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_17",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.013627",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1429,
+        "resilience_score": 0.8571,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 14,
+        "remaining_paths": 588
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 153,
+        "loss_percentage": 4.98
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 13,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_19",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.017171",
+      "end_time": "2025-12-02T22:36:47.017522",
+      "duration_ms": 0.35100000000000003,
+      "failed_components": [
+        "app_18"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_45",
+        "app_26",
+        "app_43",
+        "compute_9",
+        "topic_26",
+        "topic_11",
+        "app_0",
+        "app_32",
+        "app_7"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_18",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.017171",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.102,
+        "resilience_score": 0.898,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 9,
+        "remaining_paths": 593
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 39,
+        "loss_percentage": 1.27
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 9,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_20",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.021523",
+      "end_time": "2025-12-02T22:36:47.021892",
+      "duration_ms": 0.36900000000000005,
+      "failed_components": [
+        "app_19"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_49",
+        "topic_1",
+        "app_31",
+        "app_40",
+        "app_0",
+        "topic_15",
+        "app_38",
+        "cloud_12",
+        "app_21",
+        "app_17",
+        "app_29",
+        "topic_17",
+        "app_4",
+        "app_46",
+        "app_14",
+        "topic_0",
+        "topic_22",
+        "app_41",
+        "app_20",
+        "app_37",
+        "topic_28",
+        "app_32"
+      ],
+      "isolated_components": [
+        "gateway_14",
+        "cloud_12"
+      ],
+      "failure_events": [
+        {
+          "component": "app_19",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.021523",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2347,
+        "resilience_score": 0.7653,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 24,
+        "remaining_paths": 578
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 220,
+        "loss_percentage": 7.15
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 3,
+        "fragmentation": 1
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 22,
+        "isolated_count": 2,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_21",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.025382",
+      "end_time": "2025-12-02T22:36:47.025716",
+      "duration_ms": 0.33399999999999996,
+      "failed_components": [
+        "app_20"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_13",
+        "app_29",
+        "topic_14",
+        "app_16",
+        "topic_17",
+        "app_19",
+        "app_46",
+        "topic_1",
+        "topic_10",
+        "app_10",
+        "app_3",
+        "app_33",
+        "app_35",
+        "app_2",
+        "app_21",
+        "app_37",
+        "edge_0",
+        "app_7"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_20",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.025382",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1939,
+        "resilience_score": 0.8061,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 19,
+        "remaining_paths": 583
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 18,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_22",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.029022",
+      "end_time": "2025-12-02T22:36:47.029359",
+      "duration_ms": 0.337,
+      "failed_components": [
+        "app_21"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_49",
+        "topic_1",
+        "app_10",
+        "app_31",
+        "app_7",
+        "app_45",
+        "topic_15",
+        "topic_5",
+        "topic_4",
+        "app_39",
+        "app_4",
+        "app_46",
+        "app_22",
+        "app_43",
+        "edge_1",
+        "app_5",
+        "app_32",
+        "app_19",
+        "app_34",
+        "app_20",
+        "topic_3",
+        "app_23",
+        "app_36"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_21",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.029022",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2449,
+        "resilience_score": 0.7551,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 24,
+        "remaining_paths": 578
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 23,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_23",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.032602",
+      "end_time": "2025-12-02T22:36:47.032895",
+      "duration_ms": 0.29300000000000004,
+      "failed_components": [
+        "app_22"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_13",
+        "topic_2",
+        "topic_19",
+        "app_10",
+        "app_31",
+        "app_3",
+        "app_1",
+        "app_0",
+        "app_45",
+        "app_26",
+        "topic_6",
+        "app_38",
+        "app_28",
+        "topic_7",
+        "app_21",
+        "app_36",
+        "topic_4",
+        "app_39",
+        "app_16",
+        "edge_0",
+        "app_12",
+        "app_29",
+        "app_46",
+        "app_43",
+        "app_14",
+        "app_6",
+        "topic_27",
+        "app_5",
+        "topic_11",
+        "topic_18",
+        "app_30",
+        "topic_13",
+        "app_34",
+        "topic_23",
+        "app_8",
+        "app_33",
+        "app_37",
+        "topic_9",
+        "app_23",
+        "app_32"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_22",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.032602",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.4184,
+        "resilience_score": 0.5816,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 44,
+        "remaining_paths": 558
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 40,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_24",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.036583",
+      "end_time": "2025-12-02T22:36:47.037030",
+      "duration_ms": 0.447,
+      "failed_components": [
+        "app_23"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "topic_19",
+        "app_49",
+        "app_47",
+        "app_31",
+        "topic_26",
+        "app_25",
+        "app_0",
+        "app_7",
+        "app_45",
+        "app_26",
+        "app_24",
+        "app_21",
+        "app_17",
+        "topic_16",
+        "app_29",
+        "app_46",
+        "app_22",
+        "compute_9",
+        "app_43",
+        "topic_0",
+        "app_11",
+        "app_30",
+        "topic_21",
+        "app_8",
+        "app_37",
+        "topic_3",
+        "topic_28",
+        "app_32"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_23",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.036583",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2959,
+        "resilience_score": 0.7041,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 30,
+        "remaining_paths": 572
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 28,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_25",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.040426",
+      "end_time": "2025-12-02T22:36:47.040735",
+      "duration_ms": 0.309,
+      "failed_components": [
+        "app_24"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_45",
+        "app_29",
+        "app_30",
+        "app_46",
+        "topic_19",
+        "topic_29",
+        "app_6",
+        "topic_21",
+        "edge_3",
+        "app_31",
+        "app_37",
+        "app_25",
+        "app_23",
+        "app_36"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_24",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.040426",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1531,
+        "resilience_score": 0.8469,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 14,
+        "remaining_paths": 588
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 14,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_26",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.044029",
+      "end_time": "2025-12-02T22:36:47.044365",
+      "duration_ms": 0.33599999999999997,
+      "failed_components": [
+        "app_25"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_43",
+        "compute_9",
+        "topic_21",
+        "app_31",
+        "app_24",
+        "app_40",
+        "topic_5",
+        "app_5",
+        "app_23"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_25",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.044029",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.102,
+        "resilience_score": 0.898,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 9,
+        "remaining_paths": 593
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 84,
+        "loss_percentage": 2.73
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 9,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_27",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.047491",
+      "end_time": "2025-12-02T22:36:47.047774",
+      "duration_ms": 0.283,
+      "failed_components": [
+        "app_26"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "topic_26",
+        "app_3",
+        "app_48",
+        "topic_24",
+        "app_45",
+        "app_9",
+        "app_39",
+        "app_12",
+        "app_18",
+        "app_42",
+        "app_44",
+        "app_46",
+        "app_22",
+        "compute_9",
+        "app_43",
+        "app_6",
+        "topic_27",
+        "app_11",
+        "app_5",
+        "topic_18",
+        "app_30",
+        "app_34",
+        "topic_23",
+        "topic_9",
+        "app_23",
+        "app_36",
+        "topic_8"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_26",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.047491",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2857,
+        "resilience_score": 0.7143,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 29,
+        "remaining_paths": 573
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 27,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_28",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.051463",
+      "end_time": "2025-12-02T22:36:47.051942",
+      "duration_ms": 0.479,
+      "failed_components": [
+        "app_27"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_46",
+        "compute_9",
+        "app_34",
+        "app_5",
+        "topic_8"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_27",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.051463",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.0612,
+        "resilience_score": 0.9388,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 5,
+        "remaining_paths": 597
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 84,
+        "loss_percentage": 2.73
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 5,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_29",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.056049",
+      "end_time": "2025-12-02T22:36:47.056379",
+      "duration_ms": 0.33,
+      "failed_components": [
+        "app_28"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_45",
+        "app_46",
+        "topic_10",
+        "app_22",
+        "app_43",
+        "app_3",
+        "edge_1",
+        "app_37",
+        "topic_4",
+        "app_39",
+        "app_7"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_28",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.056049",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1224,
+        "resilience_score": 0.8776,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 11,
+        "remaining_paths": 591
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 39,
+        "loss_percentage": 1.27
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 11,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_30",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.059841",
+      "end_time": "2025-12-02T22:36:47.060184",
+      "duration_ms": 0.34299999999999997,
+      "failed_components": [
+        "app_29"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_44",
+        "topic_17",
+        "app_19",
+        "app_39",
+        "app_22",
+        "compute_9",
+        "app_46",
+        "app_38",
+        "topic_19",
+        "app_23",
+        "app_20",
+        "app_3",
+        "app_24",
+        "topic_0",
+        "app_37",
+        "topic_12",
+        "app_0",
+        "app_16"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_29",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.059841",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1939,
+        "resilience_score": 0.8061,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 18,
+        "remaining_paths": 584
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 41,
+        "loss_percentage": 1.33
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 18,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_31",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.063538",
+      "end_time": "2025-12-02T22:36:47.064118",
+      "duration_ms": 0.58,
+      "failed_components": [
+        "app_30"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_41",
+        "app_26",
+        "app_22",
+        "app_14",
+        "topic_21",
+        "edge_3",
+        "topic_23",
+        "app_24",
+        "app_33",
+        "app_40",
+        "topic_22",
+        "app_17",
+        "app_23"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_30",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.063538",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1429,
+        "resilience_score": 0.8571,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 13,
+        "remaining_paths": 589
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 84,
+        "loss_percentage": 2.73
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 13,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_32",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.068644",
+      "end_time": "2025-12-02T22:36:47.069161",
+      "duration_ms": 0.517,
+      "failed_components": [
+        "app_31"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_13",
+        "topic_14",
+        "topic_29",
+        "app_10",
+        "app_3",
+        "app_2",
+        "app_25",
+        "app_38",
+        "app_24",
+        "topic_5",
+        "app_21",
+        "app_17",
+        "app_22",
+        "topic_0",
+        "app_11",
+        "app_35",
+        "compute_8",
+        "app_19",
+        "topic_13",
+        "app_23"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_31",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.068644",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2143,
+        "resilience_score": 0.7857,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 20,
+        "remaining_paths": 582
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 42,
+        "loss_percentage": 1.37
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 20,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_33",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.073502",
+      "end_time": "2025-12-02T22:36:47.073953",
+      "duration_ms": 0.451,
+      "failed_components": [
+        "app_32"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "topic_1",
+        "topic_26",
+        "app_45",
+        "app_38",
+        "app_21",
+        "topic_4",
+        "app_39",
+        "app_16",
+        "topic_16",
+        "app_12",
+        "app_18",
+        "app_44",
+        "app_22",
+        "app_43",
+        "app_6",
+        "topic_25",
+        "app_35",
+        "topic_12",
+        "topic_11",
+        "compute_8",
+        "app_19",
+        "app_34",
+        "app_8",
+        "app_23"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_32",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.073502",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2551,
+        "resilience_score": 0.7449,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 27,
+        "remaining_paths": 575
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 24,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_34",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.077740",
+      "end_time": "2025-12-02T22:36:47.078166",
+      "duration_ms": 0.426,
+      "failed_components": [
+        "app_33"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_12",
+        "compute_7",
+        "app_30",
+        "topic_17",
+        "app_46",
+        "app_22",
+        "app_14",
+        "app_38",
+        "app_20",
+        "topic_23",
+        "app_3",
+        "topic_7",
+        "app_35",
+        "app_37",
+        "app_39",
+        "app_36"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_33",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.077740",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1735,
+        "resilience_score": 0.8265,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 16,
+        "remaining_paths": 586
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 40,
+        "loss_percentage": 1.3
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 16,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_35",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.082099",
+      "end_time": "2025-12-02T22:36:47.082578",
+      "duration_ms": 0.479,
+      "failed_components": [
+        "app_34"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_13",
+        "topic_14",
+        "app_10",
+        "app_40",
+        "app_48",
+        "app_2",
+        "app_0",
+        "app_45",
+        "app_26",
+        "topic_15",
+        "app_38",
+        "app_21",
+        "app_17",
+        "topic_20",
+        "app_12",
+        "app_22",
+        "compute_9",
+        "app_14",
+        "app_6",
+        "topic_25",
+        "topic_22",
+        "app_32",
+        "app_41",
+        "app_27",
+        "topic_9",
+        "app_36",
+        "topic_8"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_34",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.082099",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2857,
+        "resilience_score": 0.7143,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 28,
+        "remaining_paths": 574
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 27,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_36",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.086564",
+      "end_time": "2025-12-02T22:36:47.087093",
+      "duration_ms": 0.5289999999999999,
+      "failed_components": [
+        "app_35"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_12",
+        "app_4",
+        "app_46",
+        "app_43",
+        "app_49",
+        "topic_1",
+        "topic_28",
+        "app_20",
+        "app_31",
+        "app_33",
+        "topic_7",
+        "topic_5",
+        "app_37",
+        "app_5",
+        "app_17",
+        "app_32",
+        "compute_8"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_35",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.086564",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1837,
+        "resilience_score": 0.8163,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 17,
+        "remaining_paths": 585
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 84,
+        "loss_percentage": 2.73
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 17,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_37",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.091224",
+      "end_time": "2025-12-02T22:36:47.091625",
+      "duration_ms": 0.40099999999999997,
+      "failed_components": [
+        "app_36"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "edge_2",
+        "topic_19",
+        "app_48",
+        "topic_24",
+        "app_0",
+        "app_26",
+        "app_24",
+        "topic_7",
+        "app_21",
+        "topic_20",
+        "app_12",
+        "app_42",
+        "app_44",
+        "app_22",
+        "app_43",
+        "app_11",
+        "app_34",
+        "app_8",
+        "app_33",
+        "app_37",
+        "topic_3"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_36",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.091224",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2245,
+        "resilience_score": 0.7755,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 21,
+        "remaining_paths": 581
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 190,
+        "loss_percentage": 6.18
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 21,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_38",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.094904",
+      "end_time": "2025-12-02T22:36:47.095269",
+      "duration_ms": 0.365,
+      "failed_components": [
+        "app_37"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "topic_10",
+        "app_40",
+        "app_48",
+        "app_15",
+        "app_28",
+        "app_24",
+        "topic_7",
+        "app_29",
+        "topic_17",
+        "app_22",
+        "app_14",
+        "cloud_13",
+        "app_35",
+        "app_19",
+        "app_20",
+        "topic_21",
+        "app_33",
+        "app_23",
+        "app_36"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_37",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.094904",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2041,
+        "resilience_score": 0.7959,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 19,
+        "remaining_paths": 583
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 149,
+        "loss_percentage": 4.85
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 19,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_39",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.098381",
+      "end_time": "2025-12-02T22:36:47.098735",
+      "duration_ms": 0.354,
+      "failed_components": [
+        "app_38"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "topic_2",
+        "app_10",
+        "app_31",
+        "app_48",
+        "app_0",
+        "edge_4",
+        "topic_20",
+        "app_12",
+        "app_42",
+        "app_29",
+        "topic_17",
+        "app_46",
+        "app_22",
+        "app_6",
+        "topic_25",
+        "topic_0",
+        "app_5",
+        "app_19",
+        "app_34",
+        "app_33",
+        "app_32",
+        "topic_8"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_38",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.098381",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2347,
+        "resilience_score": 0.7653,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 23,
+        "remaining_paths": 579
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 22,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_40",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.102806",
+      "end_time": "2025-12-02T22:36:47.103337",
+      "duration_ms": 0.531,
+      "failed_components": [
+        "app_39"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_47",
+        "app_3",
+        "app_48",
+        "compute_5",
+        "app_26",
+        "app_28",
+        "app_21",
+        "topic_4",
+        "topic_16",
+        "app_29",
+        "app_46",
+        "app_22",
+        "app_6",
+        "topic_27",
+        "topic_12",
+        "topic_23",
+        "app_8",
+        "app_33",
+        "topic_9",
+        "app_32"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_39",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.102806",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2143,
+        "resilience_score": 0.7857,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 20,
+        "remaining_paths": 582
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 84,
+        "loss_percentage": 2.73
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 20,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_41",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.106795",
+      "end_time": "2025-12-02T22:36:47.107125",
+      "duration_ms": 0.33,
+      "failed_components": [
+        "app_40"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_45",
+        "app_30",
+        "app_19",
+        "app_46",
+        "topic_15",
+        "app_34",
+        "topic_21",
+        "app_37",
+        "app_25",
+        "edge_4",
+        "app_7"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_40",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.106795",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1224,
+        "resilience_score": 0.8776,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 11,
+        "remaining_paths": 591
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 39,
+        "loss_percentage": 1.27
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 11,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_42",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.110617",
+      "end_time": "2025-12-02T22:36:47.110944",
+      "duration_ms": 0.32699999999999996,
+      "failed_components": [
+        "app_41"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_30",
+        "app_19",
+        "app_34",
+        "app_3",
+        "topic_22",
+        "edge_0"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_41",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.110617",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.0714,
+        "resilience_score": 0.9286,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 6,
+        "remaining_paths": 596
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 38,
+        "loss_percentage": 1.24
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 6,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_43",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.114184",
+      "end_time": "2025-12-02T22:36:47.114529",
+      "duration_ms": 0.345,
+      "failed_components": [
+        "app_42"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_12",
+        "app_45",
+        "app_44",
+        "app_26",
+        "app_38",
+        "app_8",
+        "topic_24",
+        "edge_1",
+        "app_36",
+        "topic_20"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_42",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.114184",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1122,
+        "resilience_score": 0.8878,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 10,
+        "remaining_paths": 592
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 39,
+        "loss_percentage": 1.27
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 10,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_44",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.117831",
+      "end_time": "2025-12-02T22:36:47.118238",
+      "duration_ms": 0.40700000000000003,
+      "failed_components": [
+        "app_43"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_49",
+        "app_47",
+        "app_10",
+        "app_3",
+        "app_25",
+        "app_26",
+        "app_28",
+        "topic_5",
+        "app_21",
+        "topic_4",
+        "topic_16",
+        "app_18",
+        "app_22",
+        "app_14",
+        "edge_1",
+        "app_35",
+        "topic_11",
+        "app_32",
+        "topic_18",
+        "app_8",
+        "topic_3",
+        "app_23",
+        "app_36"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_43",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.117831",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2449,
+        "resilience_score": 0.7551,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 25,
+        "remaining_paths": 577
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 23,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_45",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.122063",
+      "end_time": "2025-12-02T22:36:47.122482",
+      "duration_ms": 0.419,
+      "failed_components": [
+        "app_44"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_42",
+        "app_45",
+        "app_29",
+        "compute_7",
+        "app_26",
+        "app_9",
+        "topic_26",
+        "app_3",
+        "topic_24",
+        "topic_12",
+        "app_36",
+        "app_32",
+        "app_7"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_44",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.122063",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1429,
+        "resilience_score": 0.8571,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 14,
+        "remaining_paths": 588
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 13,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_46",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.125516",
+      "end_time": "2025-12-02T22:36:47.125867",
+      "duration_ms": 0.35100000000000003,
+      "failed_components": [
+        "app_45"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "topic_26",
+        "app_40",
+        "app_48",
+        "app_26",
+        "app_28",
+        "app_24",
+        "app_21",
+        "topic_4",
+        "topic_20",
+        "app_18",
+        "app_42",
+        "app_44",
+        "app_46",
+        "app_22",
+        "compute_10",
+        "topic_27",
+        "topic_11",
+        "app_34",
+        "topic_21",
+        "app_8",
+        "app_23",
+        "app_32"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_45",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.125516",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.2347,
+        "resilience_score": 0.7653,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 22,
+        "remaining_paths": 580
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 85,
+        "loss_percentage": 2.76
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 22,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_47",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.129265",
+      "end_time": "2025-12-02T22:36:47.129605",
+      "duration_ms": 0.34,
+      "failed_components": [
+        "app_46"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_13",
+        "topic_10",
+        "topic_29",
+        "app_3",
+        "app_40",
+        "app_48",
+        "compute_5",
+        "app_2",
+        "app_0",
+        "app_7",
+        "app_45",
+        "app_26",
+        "topic_15",
+        "app_38",
+        "app_28",
+        "app_24",
+        "app_21",
+        "app_17",
+        "app_39",
+        "app_29",
+        "topic_17",
+        "app_22",
+        "app_6",
+        "topic_27",
+        "app_11",
+        "app_35",
+        "app_19",
+        "topic_13",
+        "app_20",
+        "app_27",
+        "app_33",
+        "topic_28",
+        "app_23",
+        "app_15",
+        "topic_8"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_46",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.129265",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.3673,
+        "resilience_score": 0.6327,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 36,
+        "remaining_paths": 566
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 35,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_48",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.132832",
+      "end_time": "2025-12-02T22:36:47.133168",
+      "duration_ms": 0.33599999999999997,
+      "failed_components": [
+        "app_47"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_12",
+        "app_39",
+        "app_43",
+        "edge_1",
+        "app_23",
+        "topic_16"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_47",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.132832",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.0714,
+        "resilience_score": 0.9286,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 6,
+        "remaining_paths": 596
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 38,
+        "loss_percentage": 1.24
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 6,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_49",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.137605",
+      "end_time": "2025-12-02T22:36:47.137956",
+      "duration_ms": 0.35100000000000003,
+      "failed_components": [
+        "app_48"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_12",
+        "app_13",
+        "app_45",
+        "app_26",
+        "app_46",
+        "topic_10",
+        "app_38",
+        "app_34",
+        "app_3",
+        "edge_1",
+        "app_37",
+        "topic_9",
+        "app_39",
+        "app_36",
+        "app_7",
+        "topic_20"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_48",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.137605",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1735,
+        "resilience_score": 0.8265,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 16,
+        "remaining_paths": 586
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 40,
+        "loss_percentage": 1.3
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 16,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    },
+    {
+      "simulation_id": "sim_50",
+      "simulation_type": "single_failure",
+      "start_time": "2025-12-02T22:36:47.141062",
+      "end_time": "2025-12-02T22:36:47.141407",
+      "duration_ms": 0.345,
+      "failed_components": [
+        "app_49"
+      ],
+      "cascade_failures": [],
+      "affected_components": [
+        "app_19",
+        "app_43",
+        "topic_28",
+        "topic_6",
+        "app_11",
+        "edge_1",
+        "app_1",
+        "app_35",
+        "app_5",
+        "app_21",
+        "topic_3",
+        "app_23",
+        "app_16",
+        "app_7"
+      ],
+      "isolated_components": [
+        "gateway_14"
+      ],
+      "failure_events": [
+        {
+          "component": "app_49",
+          "failure_type": "complete",
+          "failure_mode": "crash",
+          "timestamp": "2025-12-02T22:36:47.141062",
+          "severity": 1.0,
+          "cause": "Primary failure (simulated)",
+          "is_cascade": false,
+          "cascade_depth": 0,
+          "recovery_time_ms": null
+        }
+      ],
+      "impact_metrics": {
+        "impact_score": 0.1531,
+        "resilience_score": 0.8469,
+        "service_continuity": 0.9898
+      },
+      "path_analysis": {
+        "original_paths": 602,
+        "affected_paths": 14,
+        "remaining_paths": 588
+      },
+      "reachability": {
+        "original": 3075,
+        "lost": 118,
+        "loss_percentage": 3.84
+      },
+      "connectivity": {
+        "original_components": 2,
+        "resulting_components": 2,
+        "fragmentation": 0
+      },
+      "statistics": {
+        "total_nodes": 98,
+        "total_edges": 602,
+        "failed_count": 1,
+        "cascade_count": 0,
+        "affected_count": 14,
+        "isolated_count": 1,
+        "primary_failures": 1,
+        "by_type": {
+          "Application": 1
+        }
+      }
+    }
+  ],
+  "count": 50,
+  "exported_at": "2025-12-02T22:36:47.144958"
+}

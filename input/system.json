@@ -1,0 +1,2533 @@
+{
+  "metadata": {
+    "generated_at": "2025-12-02T22:36:43.122039",
+    "generator_version": "2.0.0",
+    "config": {
+      "scale": "medium",
+      "scenario": "iot",
+      "seed": 42,
+      "antipatterns": []
+    }
+  },
+  "nodes": [
+    {
+      "id": "edge_0",
+      "name": "Edge Node 0",
+      "node_type": "edge"
+    },
+    {
+      "id": "edge_1",
+      "name": "Edge Node 1",
+      "node_type": "edge"
+    },
+    {
+      "id": "edge_2",
+      "name": "Edge Node 2",
+      "node_type": "edge"
+    },
+    {
+      "id": "edge_3",
+      "name": "Edge Node 3",
+      "node_type": "edge"
+    },
+    {
+      "id": "edge_4",
+      "name": "Edge Node 4",
+      "node_type": "edge"
+    },
+    {
+      "id": "compute_5",
+      "name": "Compute Node 5",
+      "node_type": "compute"
+    },
+    {
+      "id": "compute_6",
+      "name": "Compute Node 6",
+      "node_type": "compute"
+    },
+    {
+      "id": "compute_7",
+      "name": "Compute Node 7",
+      "node_type": "compute"
+    },
+    {
+      "id": "compute_8",
+      "name": "Compute Node 8",
+      "node_type": "compute"
+    },
+    {
+      "id": "compute_9",
+      "name": "Compute Node 9",
+      "node_type": "compute"
+    },
+    {
+      "id": "compute_10",
+      "name": "Compute Node 10",
+      "node_type": "compute"
+    },
+    {
+      "id": "cloud_11",
+      "name": "Cloud Node 11",
+      "node_type": "cloud"
+    },
+    {
+      "id": "cloud_12",
+      "name": "Cloud Node 12",
+      "node_type": "cloud"
+    },
+    {
+      "id": "cloud_13",
+      "name": "Cloud Node 13",
+      "node_type": "cloud"
+    },
+    {
+      "id": "gateway_14",
+      "name": "Gateway Node 14",
+      "node_type": "gateway"
+    }
+  ],
+  "brokers": [
+    {
+      "id": "broker_0",
+      "name": "Broker 0 (MQTT)",
+      "broker_type": "mqtt"
+    },
+    {
+      "id": "broker_1",
+      "name": "Broker 1 (DDS)",
+      "broker_type": "dds"
+    },
+    {
+      "id": "broker_2",
+      "name": "Broker 2 (DDS)",
+      "broker_type": "dds"
+    }
+  ],
+  "applications": [
+    {
+      "id": "app_0",
+      "name": "EdgeGateway_0",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_1",
+      "name": "SensorCollector_0",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_2",
+      "name": "DeviceManager_0",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_3",
+      "name": "TelemetryAggregator_0",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_4",
+      "name": "CommandDispatcher_0",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_5",
+      "name": "DeviceManager_1",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_6",
+      "name": "EdgeGateway_1",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_7",
+      "name": "AlertProcessor_0",
+      "app_type": "CONSUMER"
+    },
+    {
+      "id": "app_8",
+      "name": "EdgeGateway_2",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_9",
+      "name": "SensorCollector_1",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_10",
+      "name": "DeviceManager_2",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_11",
+      "name": "TelemetryAggregator_1",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_12",
+      "name": "DeviceManager_3",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_13",
+      "name": "AlertProcessor_1",
+      "app_type": "CONSUMER"
+    },
+    {
+      "id": "app_14",
+      "name": "TelemetryAggregator_2",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_15",
+      "name": "CommandDispatcher_1",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_16",
+      "name": "TelemetryAggregator_3",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_17",
+      "name": "DiagnosticsEngine_0",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_18",
+      "name": "CommandDispatcher_2",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_19",
+      "name": "TelemetryAggregator_4",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_20",
+      "name": "EdgeGateway_3",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_21",
+      "name": "DeviceManager_4",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_22",
+      "name": "DeviceManager_5",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_23",
+      "name": "DataForwarder_0",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_24",
+      "name": "DeviceManager_6",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_25",
+      "name": "DataForwarder_1",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_26",
+      "name": "DiagnosticsEngine_1",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_27",
+      "name": "AlertProcessor_2",
+      "app_type": "CONSUMER"
+    },
+    {
+      "id": "app_28",
+      "name": "SensorCollector_2",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_29",
+      "name": "DataForwarder_2",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_30",
+      "name": "DeviceManager_7",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_31",
+      "name": "CommandDispatcher_3",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_32",
+      "name": "DataForwarder_3",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_33",
+      "name": "CommandDispatcher_4",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_34",
+      "name": "DiagnosticsEngine_2",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_35",
+      "name": "StatusMonitor_0",
+      "app_type": "CONSUMER"
+    },
+    {
+      "id": "app_36",
+      "name": "DeviceManager_8",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_37",
+      "name": "TelemetryAggregator_5",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_38",
+      "name": "DeviceManager_9",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_39",
+      "name": "AlertProcessor_3",
+      "app_type": "CONSUMER"
+    },
+    {
+      "id": "app_40",
+      "name": "SensorCollector_3",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_41",
+      "name": "SensorCollector_4",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_42",
+      "name": "SensorCollector_5",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_43",
+      "name": "DeviceManager_10",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_44",
+      "name": "DiagnosticsEngine_3",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_45",
+      "name": "AlertProcessor_4",
+      "app_type": "CONSUMER"
+    },
+    {
+      "id": "app_46",
+      "name": "DataForwarder_4",
+      "app_type": "PROSUMER"
+    },
+    {
+      "id": "app_47",
+      "name": "SensorCollector_6",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_48",
+      "name": "SensorCollector_7",
+      "app_type": "PRODUCER"
+    },
+    {
+      "id": "app_49",
+      "name": "DeviceManager_11",
+      "app_type": "PROSUMER"
+    }
+  ],
+  "topics": [
+    {
+      "id": "topic_0",
+      "name": "status/device_0",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 3536,
+        "transport_priority": 1,
+        "history_depth": 5
+      },
+      "message_size_bytes": 16384,
+      "message_rate_hz": 100
+    },
+    {
+      "id": "topic_1",
+      "name": "firmware/gateway/updates",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "transient_local",
+        "deadline_ms": 4492,
+        "transport_priority": 1,
+        "history_depth": 1
+      },
+      "message_size_bytes": 8192,
+      "message_rate_hz": 10
+    },
+    {
+      "id": "topic_2",
+      "name": "alerts/critical",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 1816,
+        "transport_priority": 1,
+        "history_depth": 10
+      },
+      "message_size_bytes": 128,
+      "message_rate_hz": 20
+    },
+    {
+      "id": "topic_3",
+      "name": "commands/gateway/control",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "transient_local",
+        "deadline_ms": 2677,
+        "transport_priority": 2,
+        "history_depth": 5
+      },
+      "message_size_bytes": 16384,
+      "message_rate_hz": 500
+    },
+    {
+      "id": "topic_4",
+      "name": "diagnostics/zone_4",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 1410,
+        "transport_priority": 0,
+        "history_depth": 100
+      },
+      "message_size_bytes": 65536,
+      "message_rate_hz": 10
+    },
+    {
+      "id": "topic_5",
+      "name": "telemetry/zone_5/aggregate",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 4200,
+        "transport_priority": 1,
+        "history_depth": 5
+      },
+      "message_size_bytes": 32768,
+      "message_rate_hz": 10
+    },
+    {
+      "id": "topic_6",
+      "name": "diagnostics/zone_6",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 745,
+        "transport_priority": 1,
+        "history_depth": 1
+      },
+      "message_size_bytes": 16384,
+      "message_rate_hz": 10
+    },
+    {
+      "id": "topic_7",
+      "name": "config/actuator",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 4339,
+        "transport_priority": 1,
+        "history_depth": 100
+      },
+      "message_size_bytes": 128,
+      "message_rate_hz": 50
+    },
+    {
+      "id": "topic_8",
+      "name": "sensors/temperature/device_8/data",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 1855,
+        "transport_priority": 1,
+        "history_depth": 5
+      },
+      "message_size_bytes": 65536,
+      "message_rate_hz": 1000
+    },
+    {
+      "id": "topic_9",
+      "name": "sensors/motion/device_9/data",
+      "qos": {
+        "reliability": "reliable",
+        "durability": "transient_local",
+        "deadline_ms": 1669,
+        "transport_priority": 0,
+        "history_depth": 5
+      },
+      "message_size_bytes": 32768,
+      "message_rate_hz": 1000
+    },
+    {
+      "id": "topic_10",
+      "name": "sensors/humidity/device_10/data",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 580,
+        "transport_priority": 1,
+        "history_depth": 5
+      },
+      "message_size_bytes": 8192,
+      "message_rate_hz": 1
+    },
+    {
+      "id": "topic_11",
+      "name": "config/controller",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 1389,
+        "transport_priority": 2,
+        "history_depth": 1
+      },
+      "message_size_bytes": 32768,
+      "message_rate_hz": 10
+    },
+    {
+      "id": "topic_12",
+      "name": "firmware/sensor/updates",
+      "qos": {
+        "reliability": "reliable",
+        "durability": "volatile",
+        "deadline_ms": 2055,
+        "transport_priority": 1,
+        "history_depth": 10
+      },
+      "message_size_bytes": 8192,
+      "message_rate_hz": 20
+    },
+    {
+      "id": "topic_13",
+      "name": "status/device_13",
+      "qos": {
+        "reliability": "reliable",
+        "durability": "volatile",
+        "deadline_ms": 4550,
+        "transport_priority": 0,
+        "history_depth": 10
+      },
+      "message_size_bytes": 65536,
+      "message_rate_hz": 1
+    },
+    {
+      "id": "topic_14",
+      "name": "alerts/info",
+      "qos": {
+        "reliability": "reliable",
+        "durability": "volatile",
+        "deadline_ms": 2262,
+        "transport_priority": 1,
+        "history_depth": 100
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 1
+    },
+    {
+      "id": "topic_15",
+      "name": "sensors/humidity/device_15/data",
+      "qos": {
+        "reliability": "reliable",
+        "durability": "volatile",
+        "deadline_ms": 395,
+        "transport_priority": 0,
+        "history_depth": 10
+      },
+      "message_size_bytes": 65536,
+      "message_rate_hz": 20
+    },
+    {
+      "id": "topic_16",
+      "name": "commands/controller/control",
+      "qos": {
+        "reliability": "reliable",
+        "durability": "transient_local",
+        "deadline_ms": 303,
+        "transport_priority": 2,
+        "history_depth": 5
+      },
+      "message_size_bytes": 4096,
+      "message_rate_hz": 500
+    },
+    {
+      "id": "topic_17",
+      "name": "firmware/actuator/updates",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 2382,
+        "transport_priority": 1,
+        "history_depth": 1
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 200
+    },
+    {
+      "id": "topic_18",
+      "name": "alerts/info",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "transient_local",
+        "deadline_ms": 4823,
+        "transport_priority": 0,
+        "history_depth": 5
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 1
+    },
+    {
+      "id": "topic_19",
+      "name": "status/device_19",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 1671,
+        "transport_priority": 1,
+        "history_depth": 100
+      },
+      "message_size_bytes": 8192,
+      "message_rate_hz": 20
+    },
+    {
+      "id": "topic_20",
+      "name": "alerts/warning",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 1490,
+        "transport_priority": 2,
+        "history_depth": 1
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 200
+    },
+    {
+      "id": "topic_21",
+      "name": "sensors/humidity/device_21/data",
+      "qos": {
+        "reliability": "reliable",
+        "durability": "volatile",
+        "deadline_ms": 1308,
+        "transport_priority": 1,
+        "history_depth": 1
+      },
+      "message_size_bytes": 128,
+      "message_rate_hz": 500
+    },
+    {
+      "id": "topic_22",
+      "name": "sensors/motion/device_22/data",
+      "qos": {
+        "reliability": "reliable",
+        "durability": "volatile",
+        "deadline_ms": 2223,
+        "transport_priority": 1,
+        "history_depth": 5
+      },
+      "message_size_bytes": 1024,
+      "message_rate_hz": 1000
+    },
+    {
+      "id": "topic_23",
+      "name": "alerts/critical",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 3439,
+        "transport_priority": 0,
+        "history_depth": 10
+      },
+      "message_size_bytes": 32768,
+      "message_rate_hz": 1000
+    },
+    {
+      "id": "topic_24",
+      "name": "commands/gateway/control",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 3285,
+        "transport_priority": 1,
+        "history_depth": 10
+      },
+      "message_size_bytes": 8192,
+      "message_rate_hz": 20
+    },
+    {
+      "id": "topic_25",
+      "name": "firmware/sensor/updates",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 3205,
+        "transport_priority": 1,
+        "history_depth": 10
+      },
+      "message_size_bytes": 8192,
+      "message_rate_hz": 100
+    },
+    {
+      "id": "topic_26",
+      "name": "firmware/sensor/updates",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 3909,
+        "transport_priority": 2,
+        "history_depth": 10
+      },
+      "message_size_bytes": 4096,
+      "message_rate_hz": 20
+    },
+    {
+      "id": "topic_27",
+      "name": "alerts/info",
+      "qos": {
+        "reliability": "reliable",
+        "durability": "volatile",
+        "deadline_ms": 4736,
+        "transport_priority": 0,
+        "history_depth": 1
+      },
+      "message_size_bytes": 4096,
+      "message_rate_hz": 500
+    },
+    {
+      "id": "topic_28",
+      "name": "alerts/info",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "transient_local",
+        "deadline_ms": 3908,
+        "transport_priority": 1,
+        "history_depth": 100
+      },
+      "message_size_bytes": 65536,
+      "message_rate_hz": 100
+    },
+    {
+      "id": "topic_29",
+      "name": "telemetry/zone_9/aggregate",
+      "qos": {
+        "reliability": "best_effort",
+        "durability": "volatile",
+        "deadline_ms": 4983,
+        "transport_priority": 0,
+        "history_depth": 10
+      },
+      "message_size_bytes": 32768,
+      "message_rate_hz": 1
+    }
+  ],
+  "relationships": {
+    "runs_on": [
+      {
+        "from": "app_0",
+        "to": "edge_3"
+      },
+      {
+        "from": "app_1",
+        "to": "edge_3"
+      },
+      {
+        "from": "app_2",
+        "to": "edge_2"
+      },
+      {
+        "from": "app_3",
+        "to": "cloud_11"
+      },
+      {
+        "from": "app_4",
+        "to": "compute_5"
+      },
+      {
+        "from": "app_5",
+        "to": "edge_2"
+      },
+      {
+        "from": "app_6",
+        "to": "edge_3"
+      },
+      {
+        "from": "app_7",
+        "to": "compute_5"
+      },
+      {
+        "from": "app_8",
+        "to": "edge_0"
+      },
+      {
+        "from": "app_9",
+        "to": "edge_3"
+      },
+      {
+        "from": "app_10",
+        "to": "edge_3"
+      },
+      {
+        "from": "app_11",
+        "to": "cloud_11"
+      },
+      {
+        "from": "app_12",
+        "to": "edge_4"
+      },
+      {
+        "from": "app_13",
+        "to": "compute_10"
+      },
+      {
+        "from": "app_14",
+        "to": "cloud_13"
+      },
+      {
+        "from": "app_15",
+        "to": "compute_5"
+      },
+      {
+        "from": "app_16",
+        "to": "cloud_11"
+      },
+      {
+        "from": "app_17",
+        "to": "compute_6"
+      },
+      {
+        "from": "app_18",
+        "to": "compute_9"
+      },
+      {
+        "from": "app_19",
+        "to": "cloud_12"
+      },
+      {
+        "from": "app_20",
+        "to": "edge_0"
+      },
+      {
+        "from": "app_21",
+        "to": "edge_1"
+      },
+      {
+        "from": "app_22",
+        "to": "edge_0"
+      },
+      {
+        "from": "app_23",
+        "to": "compute_9"
+      },
+      {
+        "from": "app_24",
+        "to": "edge_3"
+      },
+      {
+        "from": "app_25",
+        "to": "compute_9"
+      },
+      {
+        "from": "app_26",
+        "to": "compute_9"
+      },
+      {
+        "from": "app_27",
+        "to": "compute_9"
+      },
+      {
+        "from": "app_28",
+        "to": "edge_1"
+      },
+      {
+        "from": "app_29",
+        "to": "compute_9"
+      },
+      {
+        "from": "app_30",
+        "to": "edge_3"
+      },
+      {
+        "from": "app_31",
+        "to": "compute_8"
+      },
+      {
+        "from": "app_32",
+        "to": "compute_8"
+      },
+      {
+        "from": "app_33",
+        "to": "compute_7"
+      },
+      {
+        "from": "app_34",
+        "to": "compute_9"
+      },
+      {
+        "from": "app_35",
+        "to": "compute_8"
+      },
+      {
+        "from": "app_36",
+        "to": "edge_2"
+      },
+      {
+        "from": "app_37",
+        "to": "cloud_13"
+      },
+      {
+        "from": "app_38",
+        "to": "edge_4"
+      },
+      {
+        "from": "app_39",
+        "to": "compute_5"
+      },
+      {
+        "from": "app_40",
+        "to": "edge_4"
+      },
+      {
+        "from": "app_41",
+        "to": "edge_0"
+      },
+      {
+        "from": "app_42",
+        "to": "edge_1"
+      },
+      {
+        "from": "app_43",
+        "to": "edge_1"
+      },
+      {
+        "from": "app_44",
+        "to": "compute_7"
+      },
+      {
+        "from": "app_45",
+        "to": "compute_10"
+      },
+      {
+        "from": "app_46",
+        "to": "compute_5"
+      },
+      {
+        "from": "app_47",
+        "to": "edge_1"
+      },
+      {
+        "from": "app_48",
+        "to": "edge_1"
+      },
+      {
+        "from": "app_49",
+        "to": "edge_1"
+      },
+      {
+        "from": "broker_0",
+        "to": "cloud_13"
+      },
+      {
+        "from": "broker_1",
+        "to": "compute_6"
+      },
+      {
+        "from": "broker_2",
+        "to": "compute_7"
+      }
+    ],
+    "publishes_to": [
+      {
+        "from": "app_0",
+        "to": "topic_0",
+        "period_ms": 10,
+        "message_size_bytes": 16384
+      },
+      {
+        "from": "app_29",
+        "to": "topic_0",
+        "period_ms": 10,
+        "message_size_bytes": 16384
+      },
+      {
+        "from": "app_31",
+        "to": "topic_0",
+        "period_ms": 10,
+        "message_size_bytes": 16384
+      },
+      {
+        "from": "app_20",
+        "to": "topic_1",
+        "period_ms": 100,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_32",
+        "to": "topic_1",
+        "period_ms": 100,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_4",
+        "to": "topic_1",
+        "period_ms": 100,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_8",
+        "to": "topic_2",
+        "period_ms": 50,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_38",
+        "to": "topic_2",
+        "period_ms": 50,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_16",
+        "to": "topic_2",
+        "period_ms": 50,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_11",
+        "to": "topic_3",
+        "period_ms": 2,
+        "message_size_bytes": 16384
+      },
+      {
+        "from": "app_21",
+        "to": "topic_3",
+        "period_ms": 2,
+        "message_size_bytes": 16384
+      },
+      {
+        "from": "app_43",
+        "to": "topic_3",
+        "period_ms": 2,
+        "message_size_bytes": 16384
+      },
+      {
+        "from": "app_32",
+        "to": "topic_4",
+        "period_ms": 100,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_21",
+        "to": "topic_4",
+        "period_ms": 100,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_28",
+        "to": "topic_4",
+        "period_ms": 100,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_31",
+        "to": "topic_5",
+        "period_ms": 100,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_5",
+        "to": "topic_5",
+        "period_ms": 100,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_43",
+        "to": "topic_5",
+        "period_ms": 100,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_1",
+        "to": "topic_6",
+        "period_ms": 100,
+        "message_size_bytes": 16384
+      },
+      {
+        "from": "app_5",
+        "to": "topic_6",
+        "period_ms": 100,
+        "message_size_bytes": 16384
+      },
+      {
+        "from": "app_16",
+        "to": "topic_6",
+        "period_ms": 100,
+        "message_size_bytes": 16384
+      },
+      {
+        "from": "app_12",
+        "to": "topic_7",
+        "period_ms": 20,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_33",
+        "to": "topic_7",
+        "period_ms": 20,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_37",
+        "to": "topic_7",
+        "period_ms": 20,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_46",
+        "to": "topic_8",
+        "period_ms": 1,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_34",
+        "to": "topic_8",
+        "period_ms": 1,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_5",
+        "to": "topic_8",
+        "period_ms": 1,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_22",
+        "to": "topic_9",
+        "period_ms": 1,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_48",
+        "to": "topic_9",
+        "period_ms": 1,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_6",
+        "to": "topic_9",
+        "period_ms": 1,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_20",
+        "to": "topic_10",
+        "period_ms": 1000,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_48",
+        "to": "topic_10",
+        "period_ms": 1000,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_28",
+        "to": "topic_10",
+        "period_ms": 1000,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_22",
+        "to": "topic_11",
+        "period_ms": 100,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_18",
+        "to": "topic_11",
+        "period_ms": 100,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_8",
+        "to": "topic_11",
+        "period_ms": 100,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_32",
+        "to": "topic_12",
+        "period_ms": 50,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_29",
+        "to": "topic_12",
+        "period_ms": 50,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_3",
+        "to": "topic_12",
+        "period_ms": 50,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_46",
+        "to": "topic_13",
+        "period_ms": 1000,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_31",
+        "to": "topic_13",
+        "period_ms": 1000,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_3",
+        "to": "topic_13",
+        "period_ms": 1000,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_20",
+        "to": "topic_14",
+        "period_ms": 1000,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_31",
+        "to": "topic_14",
+        "period_ms": 1000,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_34",
+        "to": "topic_14",
+        "period_ms": 1000,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_21",
+        "to": "topic_15",
+        "period_ms": 50,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_40",
+        "to": "topic_15",
+        "period_ms": 50,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_0",
+        "to": "topic_15",
+        "period_ms": 50,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_8",
+        "to": "topic_16",
+        "period_ms": 2,
+        "message_size_bytes": 4096
+      },
+      {
+        "from": "app_32",
+        "to": "topic_16",
+        "period_ms": 2,
+        "message_size_bytes": 4096
+      },
+      {
+        "from": "app_47",
+        "to": "topic_16",
+        "period_ms": 2,
+        "message_size_bytes": 4096
+      },
+      {
+        "from": "app_19",
+        "to": "topic_17",
+        "period_ms": 5,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_29",
+        "to": "topic_17",
+        "period_ms": 5,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_33",
+        "to": "topic_17",
+        "period_ms": 5,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_10",
+        "to": "topic_18",
+        "period_ms": 1000,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_26",
+        "to": "topic_18",
+        "period_ms": 1000,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_14",
+        "to": "topic_18",
+        "period_ms": 1000,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_29",
+        "to": "topic_19",
+        "period_ms": 50,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_23",
+        "to": "topic_19",
+        "period_ms": 50,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_36",
+        "to": "topic_19",
+        "period_ms": 50,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_42",
+        "to": "topic_20",
+        "period_ms": 5,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_48",
+        "to": "topic_20",
+        "period_ms": 5,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_34",
+        "to": "topic_20",
+        "period_ms": 5,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_24",
+        "to": "topic_21",
+        "period_ms": 2,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_23",
+        "to": "topic_21",
+        "period_ms": 2,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_40",
+        "to": "topic_21",
+        "period_ms": 2,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_14",
+        "to": "topic_22",
+        "period_ms": 1,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_17",
+        "to": "topic_22",
+        "period_ms": 1,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_41",
+        "to": "topic_22",
+        "period_ms": 1,
+        "message_size_bytes": 1024
+      },
+      {
+        "from": "app_22",
+        "to": "topic_23",
+        "period_ms": 1,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_33",
+        "to": "topic_23",
+        "period_ms": 1,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_26",
+        "to": "topic_23",
+        "period_ms": 1,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_9",
+        "to": "topic_24",
+        "period_ms": 50,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_36",
+        "to": "topic_24",
+        "period_ms": 50,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_42",
+        "to": "topic_24",
+        "period_ms": 50,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_32",
+        "to": "topic_25",
+        "period_ms": 10,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_0",
+        "to": "topic_25",
+        "period_ms": 10,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_10",
+        "to": "topic_25",
+        "period_ms": 10,
+        "message_size_bytes": 8192
+      },
+      {
+        "from": "app_18",
+        "to": "topic_26",
+        "period_ms": 50,
+        "message_size_bytes": 4096
+      },
+      {
+        "from": "app_23",
+        "to": "topic_26",
+        "period_ms": 50,
+        "message_size_bytes": 4096
+      },
+      {
+        "from": "app_44",
+        "to": "topic_26",
+        "period_ms": 50,
+        "message_size_bytes": 4096
+      },
+      {
+        "from": "app_26",
+        "to": "topic_27",
+        "period_ms": 2,
+        "message_size_bytes": 4096
+      },
+      {
+        "from": "app_22",
+        "to": "topic_27",
+        "period_ms": 2,
+        "message_size_bytes": 4096
+      },
+      {
+        "from": "app_46",
+        "to": "topic_27",
+        "period_ms": 2,
+        "message_size_bytes": 4096
+      },
+      {
+        "from": "app_17",
+        "to": "topic_28",
+        "period_ms": 10,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_46",
+        "to": "topic_28",
+        "period_ms": 10,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_49",
+        "to": "topic_28",
+        "period_ms": 10,
+        "message_size_bytes": 65536
+      },
+      {
+        "from": "app_6",
+        "to": "topic_29",
+        "period_ms": 1000,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_46",
+        "to": "topic_29",
+        "period_ms": 1000,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_31",
+        "to": "topic_29",
+        "period_ms": 1000,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_15",
+        "to": "topic_10",
+        "period_ms": 100,
+        "message_size_bytes": 256
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "app_38",
+        "to": "topic_0"
+      },
+      {
+        "from": "app_23",
+        "to": "topic_0"
+      },
+      {
+        "from": "app_3",
+        "to": "topic_0"
+      },
+      {
+        "from": "app_19",
+        "to": "topic_0"
+      },
+      {
+        "from": "app_19",
+        "to": "topic_1"
+      },
+      {
+        "from": "app_21",
+        "to": "topic_1"
+      },
+      {
+        "from": "app_16",
+        "to": "topic_1"
+      },
+      {
+        "from": "app_35",
+        "to": "topic_1"
+      },
+      {
+        "from": "app_12",
+        "to": "topic_2"
+      },
+      {
+        "from": "app_22",
+        "to": "topic_2"
+      },
+      {
+        "from": "app_6",
+        "to": "topic_2"
+      },
+      {
+        "from": "app_5",
+        "to": "topic_2"
+      },
+      {
+        "from": "app_49",
+        "to": "topic_3"
+      },
+      {
+        "from": "app_23",
+        "to": "topic_3"
+      },
+      {
+        "from": "app_36",
+        "to": "topic_3"
+      },
+      {
+        "from": "app_10",
+        "to": "topic_3"
+      },
+      {
+        "from": "app_22",
+        "to": "topic_4"
+      },
+      {
+        "from": "app_43",
+        "to": "topic_4"
+      },
+      {
+        "from": "app_45",
+        "to": "topic_4"
+      },
+      {
+        "from": "app_39",
+        "to": "topic_4"
+      },
+      {
+        "from": "app_3",
+        "to": "topic_5"
+      },
+      {
+        "from": "app_35",
+        "to": "topic_5"
+      },
+      {
+        "from": "app_25",
+        "to": "topic_5"
+      },
+      {
+        "from": "app_21",
+        "to": "topic_5"
+      },
+      {
+        "from": "app_49",
+        "to": "topic_6"
+      },
+      {
+        "from": "app_2",
+        "to": "topic_6"
+      },
+      {
+        "from": "app_22",
+        "to": "topic_6"
+      },
+      {
+        "from": "app_3",
+        "to": "topic_6"
+      },
+      {
+        "from": "app_36",
+        "to": "topic_7"
+      },
+      {
+        "from": "app_22",
+        "to": "topic_7"
+      },
+      {
+        "from": "app_14",
+        "to": "topic_7"
+      },
+      {
+        "from": "app_35",
+        "to": "topic_7"
+      },
+      {
+        "from": "app_38",
+        "to": "topic_8"
+      },
+      {
+        "from": "app_27",
+        "to": "topic_8"
+      },
+      {
+        "from": "app_26",
+        "to": "topic_8"
+      },
+      {
+        "from": "app_13",
+        "to": "topic_9"
+      },
+      {
+        "from": "app_26",
+        "to": "topic_9"
+      },
+      {
+        "from": "app_34",
+        "to": "topic_9"
+      },
+      {
+        "from": "app_39",
+        "to": "topic_9"
+      },
+      {
+        "from": "app_46",
+        "to": "topic_10"
+      },
+      {
+        "from": "app_3",
+        "to": "topic_10"
+      },
+      {
+        "from": "app_37",
+        "to": "topic_10"
+      },
+      {
+        "from": "app_7",
+        "to": "topic_10"
+      },
+      {
+        "from": "app_32",
+        "to": "topic_11"
+      },
+      {
+        "from": "app_43",
+        "to": "topic_11"
+      },
+      {
+        "from": "app_0",
+        "to": "topic_11"
+      },
+      {
+        "from": "app_45",
+        "to": "topic_11"
+      },
+      {
+        "from": "app_16",
+        "to": "topic_12"
+      },
+      {
+        "from": "app_44",
+        "to": "topic_12"
+      },
+      {
+        "from": "app_39",
+        "to": "topic_12"
+      },
+      {
+        "from": "app_17",
+        "to": "topic_13"
+      },
+      {
+        "from": "app_22",
+        "to": "topic_13"
+      },
+      {
+        "from": "app_11",
+        "to": "topic_13"
+      },
+      {
+        "from": "app_10",
+        "to": "topic_14"
+      },
+      {
+        "from": "app_2",
+        "to": "topic_14"
+      },
+      {
+        "from": "app_13",
+        "to": "topic_14"
+      },
+      {
+        "from": "app_46",
+        "to": "topic_15"
+      },
+      {
+        "from": "app_34",
+        "to": "topic_15"
+      },
+      {
+        "from": "app_7",
+        "to": "topic_15"
+      },
+      {
+        "from": "app_19",
+        "to": "topic_15"
+      },
+      {
+        "from": "app_12",
+        "to": "topic_16"
+      },
+      {
+        "from": "app_39",
+        "to": "topic_16"
+      },
+      {
+        "from": "app_23",
+        "to": "topic_16"
+      },
+      {
+        "from": "app_43",
+        "to": "topic_16"
+      },
+      {
+        "from": "app_38",
+        "to": "topic_17"
+      },
+      {
+        "from": "app_20",
+        "to": "topic_17"
+      },
+      {
+        "from": "app_37",
+        "to": "topic_17"
+      },
+      {
+        "from": "app_46",
+        "to": "topic_17"
+      },
+      {
+        "from": "app_43",
+        "to": "topic_18"
+      },
+      {
+        "from": "app_11",
+        "to": "topic_18"
+      },
+      {
+        "from": "app_6",
+        "to": "topic_18"
+      },
+      {
+        "from": "app_22",
+        "to": "topic_18"
+      },
+      {
+        "from": "app_22",
+        "to": "topic_19"
+      },
+      {
+        "from": "app_0",
+        "to": "topic_19"
+      },
+      {
+        "from": "app_24",
+        "to": "topic_19"
+      },
+      {
+        "from": "app_12",
+        "to": "topic_20"
+      },
+      {
+        "from": "app_36",
+        "to": "topic_20"
+      },
+      {
+        "from": "app_45",
+        "to": "topic_20"
+      },
+      {
+        "from": "app_38",
+        "to": "topic_20"
+      },
+      {
+        "from": "app_45",
+        "to": "topic_21"
+      },
+      {
+        "from": "app_30",
+        "to": "topic_21"
+      },
+      {
+        "from": "app_37",
+        "to": "topic_21"
+      },
+      {
+        "from": "app_25",
+        "to": "topic_21"
+      },
+      {
+        "from": "app_30",
+        "to": "topic_22"
+      },
+      {
+        "from": "app_19",
+        "to": "topic_22"
+      },
+      {
+        "from": "app_34",
+        "to": "topic_22"
+      },
+      {
+        "from": "app_3",
+        "to": "topic_22"
+      },
+      {
+        "from": "app_30",
+        "to": "topic_23"
+      },
+      {
+        "from": "app_12",
+        "to": "topic_23"
+      },
+      {
+        "from": "app_39",
+        "to": "topic_23"
+      },
+      {
+        "from": "app_3",
+        "to": "topic_23"
+      },
+      {
+        "from": "app_26",
+        "to": "topic_24"
+      },
+      {
+        "from": "app_8",
+        "to": "topic_24"
+      },
+      {
+        "from": "app_44",
+        "to": "topic_24"
+      },
+      {
+        "from": "app_34",
+        "to": "topic_25"
+      },
+      {
+        "from": "app_12",
+        "to": "topic_25"
+      },
+      {
+        "from": "app_6",
+        "to": "topic_25"
+      },
+      {
+        "from": "app_38",
+        "to": "topic_25"
+      },
+      {
+        "from": "app_32",
+        "to": "topic_26"
+      },
+      {
+        "from": "app_7",
+        "to": "topic_26"
+      },
+      {
+        "from": "app_26",
+        "to": "topic_26"
+      },
+      {
+        "from": "app_45",
+        "to": "topic_26"
+      },
+      {
+        "from": "app_39",
+        "to": "topic_27"
+      },
+      {
+        "from": "app_45",
+        "to": "topic_27"
+      },
+      {
+        "from": "app_3",
+        "to": "topic_27"
+      },
+      {
+        "from": "app_6",
+        "to": "topic_27"
+      },
+      {
+        "from": "app_23",
+        "to": "topic_28"
+      },
+      {
+        "from": "app_19",
+        "to": "topic_28"
+      },
+      {
+        "from": "app_7",
+        "to": "topic_28"
+      },
+      {
+        "from": "app_35",
+        "to": "topic_28"
+      },
+      {
+        "from": "app_13",
+        "to": "topic_29"
+      },
+      {
+        "from": "app_24",
+        "to": "topic_29"
+      },
+      {
+        "from": "app_2",
+        "to": "topic_29"
+      },
+      {
+        "from": "app_3",
+        "to": "topic_29"
+      }
+    ],
+    "routes": [
+      {
+        "from": "broker_0",
+        "to": "topic_0"
+      },
+      {
+        "from": "broker_1",
+        "to": "topic_1"
+      },
+      {
+        "from": "broker_2",
+        "to": "topic_2"
+      },
+      {
+        "from": "broker_0",
+        "to": "topic_3"
+      },
+      {
+        "from": "broker_1",
+        "to": "topic_4"
+      },
+      {
+        "from": "broker_2",
+        "to": "topic_5"
+      },
+      {
+        "from": "broker_0",
+        "to": "topic_6"
+      },
+      {
+        "from": "broker_1",
+        "to": "topic_7"
+      },
+      {
+        "from": "broker_2",
+        "to": "topic_8"
+      },
+      {
+        "from": "broker_0",
+        "to": "topic_9"
+      },
+      {
+        "from": "broker_1",
+        "to": "topic_10"
+      },
+      {
+        "from": "broker_2",
+        "to": "topic_11"
+      },
+      {
+        "from": "broker_0",
+        "to": "topic_12"
+      },
+      {
+        "from": "broker_1",
+        "to": "topic_13"
+      },
+      {
+        "from": "broker_2",
+        "to": "topic_14"
+      },
+      {
+        "from": "broker_0",
+        "to": "topic_15"
+      },
+      {
+        "from": "broker_1",
+        "to": "topic_16"
+      },
+      {
+        "from": "broker_2",
+        "to": "topic_17"
+      },
+      {
+        "from": "broker_0",
+        "to": "topic_18"
+      },
+      {
+        "from": "broker_1",
+        "to": "topic_19"
+      },
+      {
+        "from": "broker_2",
+        "to": "topic_20"
+      },
+      {
+        "from": "broker_0",
+        "to": "topic_21"
+      },
+      {
+        "from": "broker_1",
+        "to": "topic_22"
+      },
+      {
+        "from": "broker_2",
+        "to": "topic_23"
+      },
+      {
+        "from": "broker_0",
+        "to": "topic_24"
+      },
+      {
+        "from": "broker_1",
+        "to": "topic_25"
+      },
+      {
+        "from": "broker_2",
+        "to": "topic_26"
+      },
+      {
+        "from": "broker_0",
+        "to": "topic_27"
+      },
+      {
+        "from": "broker_1",
+        "to": "topic_28"
+      },
+      {
+        "from": "broker_2",
+        "to": "topic_29"
+      }
+    ],
+    "connects_to": [
+      {
+        "from": "edge_0",
+        "to": "edge_1"
+      },
+      {
+        "from": "edge_0",
+        "to": "edge_2"
+      },
+      {
+        "from": "edge_0",
+        "to": "edge_3"
+      },
+      {
+        "from": "edge_0",
+        "to": "edge_4"
+      },
+      {
+        "from": "edge_0",
+        "to": "compute_5"
+      },
+      {
+        "from": "edge_0",
+        "to": "compute_6"
+      },
+      {
+        "from": "edge_0",
+        "to": "compute_7"
+      },
+      {
+        "from": "edge_0",
+        "to": "compute_8"
+      },
+      {
+        "from": "edge_0",
+        "to": "compute_9"
+      },
+      {
+        "from": "edge_0",
+        "to": "compute_10"
+      },
+      {
+        "from": "edge_0",
+        "to": "cloud_11"
+      },
+      {
+        "from": "edge_0",
+        "to": "cloud_12"
+      },
+      {
+        "from": "edge_0",
+        "to": "cloud_13"
+      },
+      {
+        "from": "edge_0",
+        "to": "gateway_14"
+      },
+      {
+        "from": "edge_1",
+        "to": "edge_2"
+      },
+      {
+        "from": "edge_1",
+        "to": "edge_3"
+      },
+      {
+        "from": "edge_1",
+        "to": "edge_4"
+      },
+      {
+        "from": "edge_1",
+        "to": "compute_5"
+      },
+      {
+        "from": "edge_1",
+        "to": "compute_6"
+      },
+      {
+        "from": "edge_1",
+        "to": "compute_7"
+      },
+      {
+        "from": "edge_1",
+        "to": "compute_8"
+      },
+      {
+        "from": "edge_1",
+        "to": "compute_9"
+      },
+      {
+        "from": "edge_1",
+        "to": "compute_10"
+      },
+      {
+        "from": "edge_1",
+        "to": "cloud_11"
+      },
+      {
+        "from": "edge_1",
+        "to": "cloud_12"
+      },
+      {
+        "from": "edge_1",
+        "to": "cloud_13"
+      },
+      {
+        "from": "edge_1",
+        "to": "gateway_14"
+      },
+      {
+        "from": "edge_2",
+        "to": "edge_3"
+      },
+      {
+        "from": "edge_2",
+        "to": "edge_4"
+      },
+      {
+        "from": "edge_2",
+        "to": "compute_5"
+      },
+      {
+        "from": "edge_2",
+        "to": "compute_6"
+      },
+      {
+        "from": "edge_2",
+        "to": "compute_7"
+      },
+      {
+        "from": "edge_2",
+        "to": "compute_8"
+      },
+      {
+        "from": "edge_2",
+        "to": "compute_9"
+      },
+      {
+        "from": "edge_2",
+        "to": "compute_10"
+      },
+      {
+        "from": "edge_2",
+        "to": "cloud_11"
+      },
+      {
+        "from": "edge_2",
+        "to": "cloud_12"
+      },
+      {
+        "from": "edge_2",
+        "to": "cloud_13"
+      },
+      {
+        "from": "edge_2",
+        "to": "gateway_14"
+      },
+      {
+        "from": "edge_3",
+        "to": "edge_4"
+      },
+      {
+        "from": "edge_3",
+        "to": "compute_5"
+      },
+      {
+        "from": "edge_3",
+        "to": "compute_6"
+      },
+      {
+        "from": "edge_3",
+        "to": "compute_7"
+      },
+      {
+        "from": "edge_3",
+        "to": "compute_8"
+      },
+      {
+        "from": "edge_3",
+        "to": "compute_9"
+      },
+      {
+        "from": "edge_3",
+        "to": "compute_10"
+      },
+      {
+        "from": "edge_3",
+        "to": "cloud_11"
+      },
+      {
+        "from": "edge_3",
+        "to": "cloud_12"
+      },
+      {
+        "from": "edge_3",
+        "to": "cloud_13"
+      },
+      {
+        "from": "edge_3",
+        "to": "gateway_14"
+      },
+      {
+        "from": "edge_4",
+        "to": "compute_5"
+      },
+      {
+        "from": "edge_4",
+        "to": "compute_6"
+      },
+      {
+        "from": "edge_4",
+        "to": "compute_7"
+      },
+      {
+        "from": "edge_4",
+        "to": "compute_8"
+      },
+      {
+        "from": "edge_4",
+        "to": "compute_9"
+      },
+      {
+        "from": "edge_4",
+        "to": "compute_10"
+      },
+      {
+        "from": "edge_4",
+        "to": "cloud_11"
+      },
+      {
+        "from": "edge_4",
+        "to": "cloud_12"
+      },
+      {
+        "from": "edge_4",
+        "to": "cloud_13"
+      },
+      {
+        "from": "edge_4",
+        "to": "gateway_14"
+      },
+      {
+        "from": "compute_5",
+        "to": "compute_6"
+      },
+      {
+        "from": "compute_5",
+        "to": "compute_7"
+      },
+      {
+        "from": "compute_5",
+        "to": "compute_8"
+      },
+      {
+        "from": "compute_5",
+        "to": "compute_9"
+      },
+      {
+        "from": "compute_5",
+        "to": "compute_10"
+      },
+      {
+        "from": "compute_5",
+        "to": "cloud_11"
+      },
+      {
+        "from": "compute_5",
+        "to": "cloud_12"
+      },
+      {
+        "from": "compute_5",
+        "to": "cloud_13"
+      },
+      {
+        "from": "compute_5",
+        "to": "gateway_14"
+      },
+      {
+        "from": "compute_6",
+        "to": "compute_7"
+      },
+      {
+        "from": "compute_6",
+        "to": "compute_8"
+      },
+      {
+        "from": "compute_6",
+        "to": "compute_9"
+      },
+      {
+        "from": "compute_6",
+        "to": "compute_10"
+      },
+      {
+        "from": "compute_6",
+        "to": "cloud_11"
+      },
+      {
+        "from": "compute_6",
+        "to": "cloud_12"
+      },
+      {
+        "from": "compute_6",
+        "to": "cloud_13"
+      },
+      {
+        "from": "compute_6",
+        "to": "gateway_14"
+      },
+      {
+        "from": "compute_7",
+        "to": "compute_8"
+      },
+      {
+        "from": "compute_7",
+        "to": "compute_9"
+      },
+      {
+        "from": "compute_7",
+        "to": "compute_10"
+      },
+      {
+        "from": "compute_7",
+        "to": "cloud_11"
+      },
+      {
+        "from": "compute_7",
+        "to": "cloud_12"
+      },
+      {
+        "from": "compute_7",
+        "to": "cloud_13"
+      },
+      {
+        "from": "compute_7",
+        "to": "gateway_14"
+      },
+      {
+        "from": "compute_8",
+        "to": "compute_9"
+      },
+      {
+        "from": "compute_8",
+        "to": "compute_10"
+      },
+      {
+        "from": "compute_8",
+        "to": "cloud_11"
+      },
+      {
+        "from": "compute_8",
+        "to": "cloud_12"
+      },
+      {
+        "from": "compute_8",
+        "to": "cloud_13"
+      },
+      {
+        "from": "compute_8",
+        "to": "gateway_14"
+      },
+      {
+        "from": "compute_9",
+        "to": "compute_10"
+      },
+      {
+        "from": "compute_9",
+        "to": "cloud_11"
+      },
+      {
+        "from": "compute_9",
+        "to": "cloud_12"
+      },
+      {
+        "from": "compute_9",
+        "to": "cloud_13"
+      },
+      {
+        "from": "compute_9",
+        "to": "gateway_14"
+      },
+      {
+        "from": "compute_10",
+        "to": "cloud_11"
+      },
+      {
+        "from": "compute_10",
+        "to": "cloud_12"
+      },
+      {
+        "from": "compute_10",
+        "to": "cloud_13"
+      },
+      {
+        "from": "compute_10",
+        "to": "gateway_14"
+      },
+      {
+        "from": "cloud_11",
+        "to": "cloud_12"
+      },
+      {
+        "from": "cloud_11",
+        "to": "cloud_13"
+      },
+      {
+        "from": "cloud_11",
+        "to": "gateway_14"
+      },
+      {
+        "from": "cloud_12",
+        "to": "cloud_13"
+      },
+      {
+        "from": "cloud_12",
+        "to": "gateway_14"
+      },
+      {
+        "from": "cloud_13",
+        "to": "gateway_14"
+      }
+    ]
+  },
+  "statistics": {
+    "total_nodes": 15,
+    "total_brokers": 3,
+    "total_applications": 50,
+    "total_topics": 30,
+    "total_publishes": 91,
+    "total_subscribes": 114,
+    "total_routes": 30,
+    "total_connects": 105,
+    "unique_publishers": 41,
+    "unique_subscribers": 36,
+    "avg_publishers_per_topic": 3.03,
+    "avg_subscribers_per_topic": 3.8,
+    "avg_apps_per_node": 3.33,
+    "antipatterns_injected": 0
+  },
+  "injected_antipatterns": []
+}
