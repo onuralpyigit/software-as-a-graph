@@ -24,6 +24,7 @@ from ..analysis.criticality_scorer import CompositeCriticalityScorer, CompositeC
 from ..analysis.qos_analyzer import QoSAnalyzer
 from ..analysis.reachability_analyzer import ReachabilityAnalyzer
 from ..analysis.structural_analyzer import StructuralAnalyzer
+from ..analysis.path_analyzer import PathAnalyzer, PathAnalysisResult
 
 
 class AnalysisOrchestrator:
@@ -69,13 +70,15 @@ class AnalysisOrchestrator:
         
         self.qos_analyzer = QoSAnalyzer() if enable_qos else None
         self.structural_analyzer = StructuralAnalyzer()
-        
+        self.path_analyzer = PathAnalyzer()
+
         # Results storage
         self.results = {
             'timestamp': None,
             'graph_summary': {},
             'criticality_scores': {},
             'structural_analysis': {},
+            'path_analysis': {},
             'qos_analysis': {},
             'layer_analysis': {},
             'failure_simulation': {},
@@ -103,70 +106,79 @@ class AnalysisOrchestrator:
         self.logger.info("=" * 60)
         self.logger.info("Starting Comprehensive Graph Analysis")
         self.logger.info("=" * 60)
-        
+
         total_start = time.time()
         self.results['timestamp'] = pd.Timestamp.now().isoformat()
-        
+
         # Step 1: Graph Summary
-        self.logger.info("\n[1/7] Analyzing graph structure...")
+        self.logger.info("\n[1/8] Analyzing graph structure...")
         step_start = time.time()
         self.results['graph_summary'] = self._analyze_graph_structure(graph)
         self.results['execution_time']['graph_summary'] = time.time() - step_start
         self.logger.info(f"  ✓ Completed in {self.results['execution_time']['graph_summary']:.2f}s")
-        
+
         # Step 2: QoS Analysis (if enabled)
         if self.enable_qos and self.qos_analyzer:
-            self.logger.info("\n[2/7] Analyzing QoS policies...")
+            self.logger.info("\n[2/8] Analyzing QoS policies...")
             step_start = time.time()
             self.results['qos_analysis'] = self.qos_analyzer.analyze_graph(graph, graph_model)
             self.results['execution_time']['qos_analysis'] = time.time() - step_start
             self.logger.info(f"  ✓ Completed in {self.results['execution_time']['qos_analysis']:.2f}s")
         else:
-            self.logger.info("\n[2/7] Skipping QoS analysis (disabled)")
+            self.logger.info("\n[2/8] Skipping QoS analysis (disabled)")
             self.results['qos_analysis'] = {}
-        
+
         # Step 3: Structural Analysis
-        self.logger.info("\n[3/7] Performing structural analysis...")
+        self.logger.info("\n[3/8] Performing structural analysis...")
         step_start = time.time()
         self.results['structural_analysis'] = self.structural_analyzer.analyze(graph)
         self.results['execution_time']['structural_analysis'] = time.time() - step_start
         self.logger.info(f"  ✓ Completed in {self.results['execution_time']['structural_analysis']:.2f}s")
-        
-        # Step 4: Criticality Scoring
-        self.logger.info("\n[4/7] Calculating criticality scores...")
+
+        # Step 4: Path Analysis
+        self.logger.info("\n[4/8] Performing path analysis...")
+        step_start = time.time()
+        path_result = self.path_analyzer.analyze(graph)
+        self.results['path_analysis'] = path_result.to_dict()
+        self.results['execution_time']['path_analysis'] = time.time() - step_start
+        self.logger.info(f"  ✓ Completed in {self.results['execution_time']['path_analysis']:.2f}s")
+
+        # Step 5: Criticality Scoring
+        self.logger.info("\n[5/8] Calculating criticality scores...")
         step_start = time.time()
         qos_scores = self.results['qos_analysis'].get('component_scores', {}) if self.enable_qos else None
         criticality_scores = self.criticality_scorer.calculate_all_scores(graph, qos_scores)
         self.results['criticality_scores'] = self._format_criticality_results(criticality_scores)
         self.results['execution_time']['criticality_scoring'] = time.time() - step_start
         self.logger.info(f"  ✓ Completed in {self.results['execution_time']['criticality_scoring']:.2f}s")
-        
-        # Step 5: Layer Analysis
-        self.logger.info("\n[5/7] Analyzing system layers...")
+
+        # Step 6: Layer Analysis
+        self.logger.info("\n[6/8] Analyzing system layers...")
         step_start = time.time()
         self.results['layer_analysis'] = self._analyze_layers(graph, criticality_scores)
         self.results['execution_time']['layer_analysis'] = time.time() - step_start
         self.logger.info(f"  ✓ Completed in {self.results['execution_time']['layer_analysis']:.2f}s")
-        
-        # Step 6: Failure Simulation (if enabled)
+
+        # Step 7: Failure Simulation (if enabled)
         if enable_simulation:
-            self.logger.info("\n[6/7] Running failure simulations...")
+            self.logger.info("\n[7/8] Running failure simulations...")
             step_start = time.time()
             self.results['failure_simulation'] = self._simulate_failures(graph, criticality_scores)
             self.results['execution_time']['failure_simulation'] = time.time() - step_start
             self.logger.info(f"  ✓ Completed in {self.results['execution_time']['failure_simulation']:.2f}s")
         else:
-            self.logger.info("\n[6/7] Skipping failure simulation (disabled)")
+            self.logger.info("\n[7/8] Skipping failure simulation (disabled)")
             self.results['failure_simulation'] = {}
-        
-        # Step 7: Generate Recommendations
-        self.logger.info("\n[7/7] Generating recommendations...")
+
+        # Step 8: Generate Recommendations
+        self.logger.info("\n[8/8] Generating recommendations...")
         step_start = time.time()
         self.results['recommendations'] = self._generate_recommendations(
-            graph, 
+            graph,
             criticality_scores,
             self.results['structural_analysis'],
-            self.results['qos_analysis']
+            self.results['qos_analysis'],
+            self.results['path_analysis']
         )
         self.results['execution_time']['recommendations'] = time.time() - step_start
         self.logger.info(f"  ✓ Completed in {self.results['execution_time']['recommendations']:.2f}s")
@@ -395,19 +407,20 @@ class AnalysisOrchestrator:
             'results': simulations
         }
     
-    def _generate_recommendations(self, 
+    def _generate_recommendations(self,
                                  graph: nx.DiGraph,
                                  criticality_scores: Dict[str, CompositeCriticalityScore],
                                  structural_analysis: Dict,
-                                 qos_analysis: Dict) -> List[Dict]:
+                                 qos_analysis: Dict,
+                                 path_analysis: Optional[Dict] = None) -> List[Dict]:
         """Generate actionable recommendations"""
         recommendations = []
-        
+
         # 1. Critical component recommendations
         critical_components = self.criticality_scorer.get_critical_components(
             criticality_scores, threshold=0.7
         )
-        
+
         for score in critical_components[:5]:  # Top 5
             if score.is_articulation_point:
                 recommendations.append({
@@ -419,7 +432,7 @@ class AnalysisOrchestrator:
                     'impact': f'Affects {score.components_affected} components',
                     'risk_reduction': 'High'
                 })
-            
+
             if score.impact_score > 0.5:
                 recommendations.append({
                     'priority': 'HIGH',
@@ -430,7 +443,7 @@ class AnalysisOrchestrator:
                     'impact': f'{score.reachability_loss_percentage:.0f}% of system affected',
                     'risk_reduction': 'Medium-High'
                 })
-        
+
         # 2. Structural vulnerability recommendations
         if 'bridges' in structural_analysis and structural_analysis['bridges']:
             for bridge in structural_analysis['bridges'][:3]:
@@ -443,8 +456,69 @@ class AnalysisOrchestrator:
                     'impact': 'Network fragmentation risk',
                     'risk_reduction': 'High'
                 })
-        
-        # 3. QoS recommendations (if available)
+
+        # 3. Path Analysis recommendations
+        if path_analysis:
+            # Critical dependency chains
+            critical_chains = path_analysis.get('dependency_chains', {}).get('critical', [])
+            for chain in critical_chains[:3]:
+                apps = chain.get('applications', [])
+                if len(apps) >= 2:
+                    recommendations.append({
+                        'priority': 'CRITICAL',
+                        'type': 'Critical Dependency Chain',
+                        'component': ' -> '.join(apps),
+                        'issue': f'Critical dependency chain of length {chain.get("chain_length", 0)} with no redundancy',
+                        'recommendation': 'Add alternative data paths or reduce chain length',
+                        'impact': 'Single point of failure in dependency chain',
+                        'risk_reduction': 'High'
+                    })
+
+            # Low redundancy paths
+            low_redundancy = path_analysis.get('redundancy', {}).get('low_redundancy_pairs', [])
+            for pair in low_redundancy[:3]:
+                if isinstance(pair, (list, tuple)) and len(pair) == 2:
+                    recommendations.append({
+                        'priority': 'HIGH',
+                        'type': 'Low Path Redundancy',
+                        'component': f'{pair[0]} -> {pair[1]}',
+                        'issue': 'Insufficient path redundancy between components',
+                        'recommendation': 'Add alternative communication paths between these components',
+                        'impact': 'Vulnerability to single path failure',
+                        'risk_reduction': 'High'
+                    })
+
+            # Bottleneck message flows
+            bottleneck_flows = path_analysis.get('message_flows', {}).get('bottleneck_flows', [])
+            for flow in bottleneck_flows[:3]:
+                recommendations.append({
+                    'priority': 'MEDIUM',
+                    'type': 'Message Flow Bottleneck',
+                    'component': f'{flow.get("publisher", "?")} -> {flow.get("topic", "?")} -> {flow.get("subscriber", "?")}',
+                    'issue': f'High bottleneck score ({flow.get("bottleneck_score", 0):.2f}) indicates potential performance issues',
+                    'recommendation': 'Consider load balancing or adding parallel message paths',
+                    'impact': 'Message latency and throughput degradation',
+                    'risk_reduction': 'Medium'
+                })
+
+            # High impact failure origins
+            high_impact = path_analysis.get('failure_propagation', {}).get('high_impact_origins', [])
+            propagation_details = path_analysis.get('failure_propagation', {}).get('propagation_details', {})
+            for origin in high_impact[:3]:
+                details = propagation_details.get(origin, {})
+                impact_radius = details.get('impact_radius', 0)
+                if impact_radius > 0:
+                    recommendations.append({
+                        'priority': 'HIGH',
+                        'type': 'Failure Propagation Risk',
+                        'component': origin,
+                        'issue': f'Failure could propagate to {impact_radius} other components',
+                        'recommendation': 'Implement circuit breakers or failure isolation mechanisms',
+                        'impact': f'Cascade failure affecting {impact_radius} components',
+                        'risk_reduction': 'High'
+                    })
+
+        # 4. QoS recommendations (if available)
         if qos_analysis and 'high_priority_topics' in qos_analysis:
             for topic in qos_analysis['high_priority_topics'][:3]:
                 recommendations.append({
@@ -456,11 +530,11 @@ class AnalysisOrchestrator:
                     'impact': 'Service quality degradation risk',
                     'risk_reduction': 'Medium'
                 })
-        
+
         # Sort by priority
         priority_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}
         recommendations.sort(key=lambda x: priority_order[x['priority']])
-        
+
         return recommendations
     
     def export_results(self, filename: Optional[str] = None) -> Path:
@@ -482,14 +556,14 @@ class AnalysisOrchestrator:
         print("\n" + "=" * 70)
         print("ANALYSIS SUMMARY")
         print("=" * 70)
-        
+
         # Graph summary
         gs = self.results['graph_summary']
         print(f"\nGraph Structure:")
         print(f"  Nodes: {gs['total_nodes']}, Edges: {gs['total_edges']}")
         print(f"  Node Types: {gs['node_types']}")
         print(f"  Connected Components: {gs['num_connected_components']}")
-        
+
         # Criticality summary
         cs = self.results['criticality_scores']['summary']
         print(f"\nCriticality Distribution:")
@@ -499,24 +573,37 @@ class AnalysisOrchestrator:
         print(f"  Low: {cs['low_count']}")
         print(f"  Minimal: {cs['minimal_count']}")
         print(f"  Articulation Points: {cs['articulation_points']}")
-        
+
+        # Path Analysis summary
+        if self.results.get('path_analysis'):
+            pa = self.results['path_analysis'].get('summary', {})
+            print(f"\nPath Analysis:")
+            print(f"  Dependency Chains: {self.results['path_analysis'].get('dependency_chains', {}).get('total', 0)}")
+            print(f"  Critical Chains: {pa.get('critical_chains_count', 0)}")
+            print(f"  Message Flows: {self.results['path_analysis'].get('message_flows', {}).get('total', 0)}")
+            print(f"  Bottleneck Flows: {pa.get('bottleneck_flows_count', 0)}")
+            print(f"  Avg Path Length: {pa.get('avg_path_length', 0):.2f}")
+            print(f"  Avg Redundancy Level: {pa.get('avg_redundancy_level', 0):.2f}")
+
         # Top critical components
         print(f"\nTop 5 Critical Components:")
         for i, comp in enumerate(self.results['criticality_scores']['top_critical_components'][:5], 1):
             print(f"  {i}. {comp['component']} ({comp['type']})")
             print(f"     Score: {comp['composite_score']}, Level: {comp['level']}")
             print(f"     Affects {comp['components_affected']} components")
-        
+
         # Recommendations
-        print(f"\nTop 3 Recommendations:")
-        for i, rec in enumerate(self.results['recommendations'][:3], 1):
+        print(f"\nTop 5 Recommendations:")
+        for i, rec in enumerate(self.results['recommendations'][:5], 1):
             print(f"  {i}. [{rec['priority']}] {rec['type']}")
             print(f"     Component: {rec['component']}")
             print(f"     Issue: {rec['issue']}")
             print(f"     Action: {rec['recommendation']}")
-        
+
         # Performance
         print(f"\nExecution Time:")
         print(f"  Total: {self.results['execution_time']['total']:.2f}s")
-        
+        if 'path_analysis' in self.results['execution_time']:
+            print(f"  Path Analysis: {self.results['execution_time']['path_analysis']:.2f}s")
+
         print("=" * 70)
