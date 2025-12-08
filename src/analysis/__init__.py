@@ -13,6 +13,7 @@ Components:
 - structural_analyzer: Structural graph properties
 - qos_analyzer: QoS-aware analysis
 - reachability_analyzer: Connectivity impact analysis
+- path_analyzer: Comprehensive path analysis (dependency chains, message flows, redundancy)
 """
 
 from .criticality_scorer import (
@@ -51,6 +52,17 @@ from .qos_analyzer import (
     QoSAnalysisResult
 )
 
+from .path_analyzer import (
+    PathAnalyzer,
+    PathAnalysisResult,
+    PathCriticalityLevel,
+    PathInfo,
+    MessageFlowPath,
+    DependencyChain,
+    PathRedundancyInfo,
+    FailurePropagationPath
+)
+
 __all__ = [
     # Criticality Scoring
     'CompositeCriticalityScorer',
@@ -82,4 +94,14 @@ __all__ = [
     # QoS Analysis
     'QoSAnalyzer',
     'QoSAnalysisResult',
+
+    # Path Analysis
+    'PathAnalyzer',
+    'PathAnalysisResult',
+    'PathCriticalityLevel',
+    'PathInfo',
+    'MessageFlowPath',
+    'DependencyChain',
+    'PathRedundancyInfo',
+    'FailurePropagationPath',
 ]
