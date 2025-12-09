@@ -95,8 +95,8 @@ class GraphGeneratorTester:
         print("-" * 70)
         
         scenarios = [
-            'generic', 'iot', 'financial', 'ecommerce', 
-            'analytics', 'smart_city', 'healthcare'
+            'generic', 'iot', 'financial', 'ecommerce',
+            'autonomous_vehicle', 'smart_city', 'healthcare', 'gaming'
         ]
         
         scale = 'small' if quick else 'medium'
