@@ -11,6 +11,9 @@ Key Features:
 - QoS-aware topic generation
 - Zone/region-aware deployment
 - Realistic message flow topologies
+- Semantic topic-application matching
+- Hierarchical data flow patterns (edge→gateway→cloud)
+- Network topology patterns (star, ring, hierarchical, mesh)
 - Integration with unified DEPENDS_ON model
 
 Research Applications:
@@ -31,7 +34,7 @@ from enum import Enum
 import logging
 
 from .graph_model import (
-    QoSReliability, QoSDurability, QosTransportPriority
+    QoSReliability, QoSDurability, QosTransportPriority, DependencyType
 )
 
 
@@ -85,6 +88,25 @@ class AntiPatternType(Enum):
     CIRCULAR_DEPENDENCY = "circular"        # Circular dependency chains
     BOTTLENECK = "bottleneck"               # Infrastructure bottleneck
     HIDDEN_COUPLING = "hidden_coupling"     # Implicit dependencies via shared topics
+
+
+class NetworkTopology(Enum):
+    """Network topology patterns for infrastructure connectivity"""
+    FULL_MESH = "full_mesh"      # All nodes connected (unrealistic for large systems)
+    HIERARCHICAL = "hierarchical" # Tree structure: edge → compute → cloud
+    STAR = "star"                 # Hub-and-spoke: central nodes connect to others
+    RING = "ring"                 # Ring topology with redundant connections
+    HYBRID = "hybrid"             # Combination of patterns (most realistic)
+
+
+class DataFlowPattern(Enum):
+    """Data flow patterns in pub-sub systems"""
+    RANDOM = "random"             # Random connections (current behavior)
+    PIPELINE = "pipeline"         # Linear: producer → processor → consumer
+    FANOUT = "fanout"             # One producer → many consumers
+    FANIN = "fanin"               # Many producers → one aggregator
+    HIERARCHICAL = "hierarchical" # Tiered: edge → gateway → cloud
+    MIXED = "mixed"               # Realistic mix of all patterns
 
 
 # =============================================================================
@@ -441,14 +463,137 @@ class GraphGenerator:
     }
     
     # =========================================================================
+    # Semantic Keyword Mappings (App Type → Topic Keywords)
+    # =========================================================================
+
+    # Maps application type keywords to relevant topic pattern keywords
+    # Used for semantic matching between apps and topics
+    SEMANTIC_MAPPINGS = {
+        # Generic services
+        'Service': ['events', 'data', 'commands', 'status'],
+        'Gateway': ['events', 'commands', 'notifications', 'status'],
+        'Processor': ['data', 'events', 'stream', 'processing'],
+        'Handler': ['events', 'commands', 'notifications'],
+        'Publisher': ['events', 'data', 'notifications'],
+        'Aggregator': ['data', 'metrics', 'aggregate', 'summary'],
+        'Monitor': ['metrics', 'status', 'health', 'diagnostics'],
+        'Logger': ['logs', 'audit', 'events', 'debug'],
+        'Validator': ['validation', 'events', 'data'],
+        'Router': ['commands', 'events', 'routing'],
+
+        # IoT specific
+        'SensorCollector': ['sensors', 'telemetry', 'data', 'raw'],
+        'DeviceManager': ['devices', 'status', 'commands', 'config'],
+        'TelemetryAggregator': ['telemetry', 'aggregate', 'summary'],
+        'EdgeGateway': ['sensors', 'telemetry', 'commands', 'edge'],
+        'CommandDispatcher': ['commands', 'control', 'dispatch'],
+        'AlertProcessor': ['alerts', 'notifications', 'critical'],
+        'DataForwarder': ['data', 'forward', 'stream'],
+        'StatusMonitor': ['status', 'health', 'monitoring'],
+        'FirmwareUpdater': ['firmware', 'updates', 'config'],
+        'DiagnosticsEngine': ['diagnostics', 'health', 'debug'],
+
+        # Financial specific
+        'MarketDataFeed': ['market', 'quotes', 'prices', 'feed'],
+        'OrderProcessor': ['orders', 'new', 'status', 'execution'],
+        'RiskEngine': ['risk', 'exposure', 'limits', 'compliance'],
+        'TradeExecutor': ['trades', 'execution', 'orders'],
+        'PositionTracker': ['positions', 'updates', 'portfolio'],
+        'PricingEngine': ['pricing', 'quotes', 'market'],
+        'MatchingEngine': ['orders', 'matching', 'execution'],
+        'ComplianceMonitor': ['compliance', 'audit', 'alerts'],
+        'AuditLogger': ['audit', 'logs', 'events', 'compliance'],
+        'SettlementService': ['settlement', 'instructions', 'clearing'],
+
+        # E-commerce specific
+        'OrderService': ['orders', 'created', 'status'],
+        'InventoryManager': ['inventory', 'updates', 'stock'],
+        'PaymentProcessor': ['payments', 'events', 'transactions'],
+        'CartService': ['cart', 'updates', 'session'],
+        'ProductCatalog': ['products', 'catalog', 'updates'],
+        'RecommendationEngine': ['recommendations', 'products', 'user'],
+        'NotificationService': ['notifications', 'email', 'sms', 'push'],
+        'ShippingCalculator': ['shipping', 'rates', 'delivery'],
+        'FraudDetector': ['fraud', 'alerts', 'transactions'],
+        'ReviewAggregator': ['reviews', 'ratings', 'products'],
+
+        # Autonomous vehicle specific
+        'SensorFusion': ['sensors', 'fusion', 'perception'],
+        'PerceptionNode': ['perception', 'objects', 'lanes', 'sensors'],
+        'PlanningNode': ['planning', 'trajectory', 'path'],
+        'ControlNode': ['control', 'commands', 'actuator'],
+        'LocalizationNode': ['localization', 'pose', 'position'],
+        'MappingNode': ['mapping', 'map', 'environment'],
+        'NavigationNode': ['navigation', 'trajectory', 'route'],
+        'SafetyMonitor': ['safety', 'status', 'emergency'],
+        'DiagnosticsNode': ['diagnostics', 'health', 'status'],
+        'V2XCommunicator': ['v2x', 'messages', 'vehicle'],
+
+        # Smart city specific
+        'TrafficController': ['traffic', 'flow', 'intersection'],
+        'EnvironmentSensor': ['environment', 'air_quality', 'noise'],
+        'EnergyManager': ['energy', 'consumption', 'power'],
+        'PublicSafetyMonitor': ['safety', 'incidents', 'emergency'],
+        'WasteManager': ['waste', 'levels', 'collection'],
+        'ParkingService': ['parking', 'availability', 'zones'],
+        'TransitTracker': ['transit', 'position', 'schedule'],
+        'EmergencyDispatcher': ['emergency', 'dispatch', 'response'],
+        'CitizenNotifier': ['notifications', 'public', 'alerts'],
+        'DataAggregator': ['data', 'aggregate', 'analytics'],
+
+        # Healthcare specific
+        'PatientMonitor': ['vitals', 'patient', 'realtime'],
+        'VitalSignsAnalyzer': ['vitals', 'analysis', 'alerts'],
+        'AlertManager': ['alerts', 'notifications', 'critical'],
+        'MedicationTracker': ['medications', 'schedule', 'patient'],
+        'NurseStation': ['nursing', 'tasks', 'alerts'],
+        'PhysicianDashboard': ['patient', 'vitals', 'results'],
+        'EMRIntegrator': ['emr', 'updates', 'records'],
+        'LabResultsProcessor': ['lab', 'results', 'patient'],
+        'EquipmentMonitor': ['equipment', 'status', 'maintenance'],
+        'ComplianceLogger': ['compliance', 'audit', 'hipaa'],
+
+        # Gaming specific
+        'GameServer': ['game', 'state', 'events', 'session'],
+        'MatchMaker': ['matchmaking', 'queue', 'lobby'],
+        'PlayerService': ['player', 'updates', 'profile'],
+        'SessionManager': ['session', 'game', 'connection'],
+        'LeaderboardService': ['leaderboard', 'scores', 'ranking'],
+        'ChatService': ['chat', 'messages', 'channel'],
+        'InventoryService': ['inventory', 'items', 'player'],
+        'AnalyticsCollector': ['analytics', 'events', 'telemetry'],
+        'AntiCheatEngine': ['anticheat', 'reports', 'violations'],
+        'NotificationPusher': ['notifications', 'push', 'player']
+    }
+
+    # Data flow tiers for hierarchical patterns
+    DATA_FLOW_TIERS = {
+        'edge': {
+            'app_keywords': ['Sensor', 'Collector', 'Edge', 'Device', 'Monitor'],
+            'publishes_to_tier': 'gateway',
+            'tier_level': 0
+        },
+        'gateway': {
+            'app_keywords': ['Gateway', 'Aggregator', 'Forwarder', 'Dispatcher'],
+            'publishes_to_tier': 'cloud',
+            'tier_level': 1
+        },
+        'cloud': {
+            'app_keywords': ['Processor', 'Engine', 'Service', 'Analyzer', 'Manager'],
+            'publishes_to_tier': None,  # Terminal tier
+            'tier_level': 2
+        }
+    }
+
+    # =========================================================================
     # Infrastructure Templates
     # =========================================================================
-    
+
     NODE_TYPES = {
-        'edge': {'prefix': 'edge', 'weight': 0.3, 'capacity_range': (10, 50)},
-        'compute': {'prefix': 'compute', 'weight': 0.4, 'capacity_range': (50, 200)},
-        'cloud': {'prefix': 'cloud', 'weight': 0.2, 'capacity_range': (200, 1000)},
-        'gateway': {'prefix': 'gateway', 'weight': 0.1, 'capacity_range': (100, 500)}
+        'edge': {'prefix': 'edge', 'weight': 0.3, 'capacity_range': (10, 50), 'tier': 0},
+        'compute': {'prefix': 'compute', 'weight': 0.4, 'capacity_range': (50, 200), 'tier': 1},
+        'cloud': {'prefix': 'cloud', 'weight': 0.2, 'capacity_range': (200, 1000), 'tier': 2},
+        'gateway': {'prefix': 'gateway', 'weight': 0.1, 'capacity_range': (100, 500), 'tier': 1}
     }
     
     # =========================================================================
@@ -496,9 +641,14 @@ class GraphGenerator:
         self.subscribes_to: List[Dict] = []
         self.routes: List[Dict] = []
         self.connects_to: List[Dict] = []
-        
+        self.depends_on: List[Dict] = []  # Unified dependency relationships
+
         # Tracking for anti-patterns
         self.injected_antipatterns: List[Dict] = []
+
+        # App and topic categorization for semantic matching
+        self.app_tiers: Dict[str, str] = {}  # app_id -> tier name
+        self.topic_keywords: Dict[str, List[str]] = {}  # topic_id -> keywords
     
     # =========================================================================
     # Main Generation Method
@@ -527,11 +677,14 @@ class GraphGenerator:
         self._generate_routes_relationships()
         self._generate_connects_to_relationships()
         self._generate_pubsub_relationships()
-        
+
+        # Generate unified DEPENDS_ON relationships
+        self._generate_depends_on_relationships()
+
         # Inject anti-patterns if configured
         if self.config.antipatterns:
             self._inject_antipatterns()
-        
+
         # Build final graph
         graph = self._build_graph_dict()
         
@@ -552,7 +705,11 @@ class GraphGenerator:
         self.publishes_to = []
         self.subscribes_to = []
         self.routes = []
+        self.connects_to = []
+        self.depends_on = []
         self.injected_antipatterns = []
+        self.app_tiers = {}
+        self.topic_keywords = {}
     
     # =========================================================================
     # Infrastructure Generation
@@ -613,33 +770,40 @@ class GraphGenerator:
     # =========================================================================
     
     def _generate_topics(self):
-        """Generate topics with QoS policies"""
+        """Generate topics with QoS policies and keyword extraction for semantic matching"""
         self.logger.debug(f"Generating {self.num_topics} topics...")
-        
+
         # Get topic patterns for scenario
         patterns = self.scenario_config['topic_patterns']
         pattern_weights = [p[1] for p in patterns]
         pattern_templates = [p[0] for p in patterns]
-        
+
         # Generate topic names from patterns
         for i in range(self.num_topics):
             # Select pattern based on weights
             pattern = self._weighted_choice(pattern_templates, pattern_weights)
-            
+
             # Fill in pattern variables
             topic_name = self._fill_topic_pattern(pattern, i)
-            
+
             # Generate QoS based on profile
             qos = self._generate_qos()
-            
+
+            # Extract keywords for semantic matching
+            keywords = self._extract_topic_keywords(topic_name, pattern)
+
             topic = {
                 'id': f"topic_{i}",
                 'name': topic_name,
                 'qos': qos,
                 'message_size_bytes': random.choice([64, 128, 256, 512, 1024, 4096, 8192, 16384, 32768, 65536]),
-                'message_rate_hz': random.choice([1, 10, 20, 50, 100, 200, 500, 1000])
+                'message_rate_hz': random.choice([1, 10, 20, 50, 100, 200, 500, 1000]),
+                'keywords': keywords  # Store keywords for matching
             }
             self.topics.append(topic)
+
+            # Store keywords for semantic matching
+            self.topic_keywords[topic['id']] = keywords
     
     def _fill_topic_pattern(self, pattern: str, index: int) -> str:
         """Fill in topic pattern placeholders"""
@@ -679,6 +843,60 @@ class GraphGenerator:
         
         return result
     
+    def _extract_topic_keywords(self, topic_name: str, pattern: str) -> List[str]:
+        """
+        Extract keywords from topic name and pattern for semantic matching.
+
+        Args:
+            topic_name: The filled topic name
+            pattern: The original pattern template
+
+        Returns:
+            List of keywords that can be used for semantic matching
+        """
+        keywords = set()
+
+        # Extract keywords from pattern (before variable substitution)
+        pattern_parts = pattern.replace('/', ' ').replace('{', ' ').replace('}', ' ').split()
+        for part in pattern_parts:
+            # Clean and add meaningful parts
+            part = part.lower().strip('_')
+            if len(part) > 2 and not part.isdigit():
+                keywords.add(part)
+
+        # Extract keywords from topic name
+        name_parts = topic_name.replace('/', ' ').replace('_', ' ').split()
+        for part in name_parts:
+            part = part.lower()
+            if len(part) > 2 and not part.isdigit():
+                keywords.add(part)
+
+        # Add domain-specific keywords based on common patterns
+        keyword_expansions = {
+            'sensor': ['sensors', 'telemetry', 'data', 'raw'],
+            'telemetry': ['sensors', 'data', 'metrics'],
+            'command': ['commands', 'control'],
+            'alert': ['alerts', 'notifications', 'warning'],
+            'order': ['orders', 'trades', 'transactions'],
+            'status': ['status', 'health', 'state'],
+            'event': ['events', 'notifications'],
+            'metric': ['metrics', 'telemetry', 'monitoring'],
+            'position': ['positions', 'localization', 'location'],
+            'vital': ['vitals', 'health', 'patient'],
+            'game': ['game', 'session', 'player'],
+            'traffic': ['traffic', 'flow', 'intersection'],
+            'market': ['market', 'quotes', 'prices'],
+            'inventory': ['inventory', 'stock', 'items']
+        }
+
+        expanded_keywords = set()
+        for kw in keywords:
+            if kw in keyword_expansions:
+                expanded_keywords.update(keyword_expansions[kw])
+        keywords.update(expanded_keywords)
+
+        return list(keywords)
+
     def _generate_message_type(self, pattern: str) -> str:
         """Generate appropriate message type based on topic pattern"""
         if 'sensor' in pattern or 'telemetry' in pattern:
@@ -733,30 +951,96 @@ class GraphGenerator:
     # =========================================================================
     
     def _generate_applications(self):
-        """Generate applications with domain-specific types"""
+        """Generate applications with domain-specific types and tier classification"""
         self.logger.debug(f"Generating {self.num_apps} applications...")
-        
+
         # Get app types and weights for scenario
         app_types = self.scenario_config['app_types']
         type_names = [t[0] for t in app_types]
         type_roles = [t[1] for t in app_types]
         type_weights = [t[2] for t in app_types]
-        
+
         for i in range(self.num_apps):
             # Select app type based on weights
             idx = self._weighted_choice_index(type_weights)
             app_type = type_names[idx]
             app_role = type_roles[idx]
-            
+
             # Generate unique name
             type_count = sum(1 for a in self.applications if app_type in a['name'])
-            
+
+            # Classify app into tier based on app type keywords
+            tier = self._classify_app_tier(app_type)
+
             app = {
                 'id': f"app_{i}",
                 'name': f"{app_type}_{type_count}",
-                'app_type': app_role
+                'app_type': app_role,
+                'tier': tier  # Add tier for hierarchical data flow
             }
             self.applications.append(app)
+
+            # Store tier classification
+            self.app_tiers[app['id']] = tier
+
+    def _classify_app_tier(self, app_type: str) -> str:
+        """
+        Classify an application into a data flow tier based on its type.
+
+        Args:
+            app_type: The application type name
+
+        Returns:
+            Tier name: 'edge', 'gateway', or 'cloud'
+        """
+        app_type_lower = app_type.lower()
+
+        # Check each tier's keywords
+        for tier_name, tier_config in self.DATA_FLOW_TIERS.items():
+            for keyword in tier_config['app_keywords']:
+                if keyword.lower() in app_type_lower:
+                    return tier_name
+
+        # Default classification based on role patterns
+        if any(kw in app_type_lower for kw in ['sensor', 'collector', 'device', 'monitor']):
+            return 'edge'
+        elif any(kw in app_type_lower for kw in ['gateway', 'aggregator', 'forwarder', 'dispatcher']):
+            return 'gateway'
+        else:
+            return 'cloud'
+
+    def _get_semantic_keywords_for_app(self, app: Dict) -> List[str]:
+        """
+        Get semantic keywords for an application based on its type.
+
+        Args:
+            app: Application dictionary
+
+        Returns:
+            List of keywords this app should be interested in
+        """
+        app_name = app['name']
+
+        # Extract base type (before the underscore and number)
+        base_type = app_name.rsplit('_', 1)[0] if '_' in app_name else app_name
+
+        # Look up in semantic mappings
+        if base_type in self.SEMANTIC_MAPPINGS:
+            return self.SEMANTIC_MAPPINGS[base_type]
+
+        # Try partial matches
+        for type_key, keywords in self.SEMANTIC_MAPPINGS.items():
+            if type_key.lower() in base_type.lower() or base_type.lower() in type_key.lower():
+                return keywords
+
+        # Default keywords based on role
+        role = app.get('app_type', 'PROSUMER')
+        if role == 'PRODUCER':
+            return ['events', 'data', 'status', 'notifications']
+        elif role == 'CONSUMER':
+            return ['events', 'commands', 'alerts', 'updates']
+        else:
+            return ['events', 'data', 'status', 'commands']
     
     def _generate_criticality_weight(self, app_type: str, role: str) -> float:
         """Generate criticality weight based on app characteristics"""
@@ -838,74 +1122,464 @@ class GraphGenerator:
             })
 
     def _generate_connects_to_relationships(self):
-        """Generate CONNECTS_TO relationships (nodes <-> nodes)"""
-        self.logger.debug("Generating CONNECTS_TO relationships...")
-        
-        for i in range(len(self.nodes)):
-            for j in range(i + 1, len(self.nodes)):
-                self.connects_to.append({
-                    'from': self.nodes[i]['id'],
-                    'to': self.nodes[j]['id']   
-                })
+        """
+        Generate CONNECTS_TO relationships with realistic network topologies.
+
+        Uses a hybrid topology that combines:
+        - Hierarchical connections between tiers (edge → compute → cloud)
+        - Intra-tier connections for redundancy
+        - Hub connections through gateway nodes
+        """
+        self.logger.debug("Generating CONNECTS_TO relationships with hybrid topology...")
+
+        if len(self.nodes) < 2:
+            return
+
+        # Group nodes by type/tier
+        edge_nodes = [n for n in self.nodes if n['node_type'] == 'edge']
+        compute_nodes = [n for n in self.nodes if n['node_type'] == 'compute']
+        cloud_nodes = [n for n in self.nodes if n['node_type'] == 'cloud']
+        gateway_nodes = [n for n in self.nodes if n['node_type'] == 'gateway']
+
+        connections_set: Set[Tuple[str, str]] = set()
+
+        def add_connection(node1_id: str, node2_id: str):
+            """Add bidirectional connection avoiding duplicates"""
+            if node1_id != node2_id:
+                key = tuple(sorted([node1_id, node2_id]))
+                connections_set.add(key)
+
+        # 1. Hierarchical inter-tier connections
+        # Edge nodes connect to compute/gateway nodes
+        for edge in edge_nodes:
+            # Each edge connects to 1-2 compute or gateway nodes
+            targets = compute_nodes + gateway_nodes
+            if targets:
+                num_connections = min(2, len(targets))
+                for target in random.sample(targets, num_connections):
+                    add_connection(edge['id'], target['id'])
+
+        # Compute/Gateway nodes connect to cloud nodes
+        for compute in compute_nodes + gateway_nodes:
+            if cloud_nodes:
+                # Each compute connects to 1-2 cloud nodes
+                num_connections = min(2, len(cloud_nodes))
+                for cloud in random.sample(cloud_nodes, num_connections):
+                    add_connection(compute['id'], cloud['id'])
+
+        # 2. Intra-tier redundancy connections
+        # Connect some nodes within the same tier for fault tolerance
+
+        # Edge nodes: sparse ring-like connections
+        if len(edge_nodes) > 1:
+            for i in range(len(edge_nodes)):
+                # Connect to next node in ring
+                next_idx = (i + 1) % len(edge_nodes)
+                add_connection(edge_nodes[i]['id'], edge_nodes[next_idx]['id'])
+
+        # Compute nodes: more connected (small-world like)
+        if len(compute_nodes) > 1:
+            for i, node in enumerate(compute_nodes):
+                # Connect to 2-3 nearby compute nodes
+                for j in range(1, min(3, len(compute_nodes))):
+                    target_idx = (i + j) % len(compute_nodes)
+                    if target_idx != i:
+                        add_connection(node['id'], compute_nodes[target_idx]['id'])
+
+        # Cloud nodes: highly connected (data center fabric)
+        if len(cloud_nodes) > 1:
+            # Near full mesh for cloud nodes (they're in data centers)
+            for i in range(len(cloud_nodes)):
+                for j in range(i + 1, len(cloud_nodes)):
+                    add_connection(cloud_nodes[i]['id'], cloud_nodes[j]['id'])
+
+        # Gateway nodes: connect to each other
+        if len(gateway_nodes) > 1:
+            for i in range(len(gateway_nodes)):
+                for j in range(i + 1, len(gateway_nodes)):
+                    add_connection(gateway_nodes[i]['id'], gateway_nodes[j]['id'])
+
+        # 3. Ensure connectivity - add random connections if graph is too sparse
+        all_node_ids = [n['id'] for n in self.nodes]
+        min_connections = len(self.nodes) - 1  # At least a spanning tree
+
+        if len(connections_set) < min_connections:
+            # Add random connections to ensure connectivity
+            attempts = 0
+            while len(connections_set) < min_connections and attempts < 100:
+                n1, n2 = random.sample(all_node_ids, 2)
+                add_connection(n1, n2)
+                attempts += 1
+
+        # Convert set to list of relationships
+        for node1_id, node2_id in connections_set:
+            self.connects_to.append({
+                'from': node1_id,
+                'to': node2_id
+            })
     
     def _generate_pubsub_relationships(self):
-        """Generate PUBLISHES_TO and SUBSCRIBES_TO relationships"""
-        self.logger.debug("Generating pub/sub relationships...")
-        
-        # Group apps by role
+        """
+        Generate PUBLISHES_TO and SUBSCRIBES_TO relationships with semantic matching.
+
+        Uses keyword matching to create realistic connections between apps and topics,
+        and implements hierarchical data flow patterns (edge → gateway → cloud).
+        """
+        self.logger.debug("Generating pub/sub relationships with semantic matching...")
+
+        # Group apps by role and tier
         publishers = [a for a in self.applications if a['app_type'] in ['PRODUCER', 'PROSUMER']]
         subscribers = [a for a in self.applications if a['app_type'] in ['CONSUMER', 'PROSUMER']]
-        
-        # Each topic needs at least one publisher
-        for topic in self.topics:
-            # Assign publishers
-            num_publishers = max(1, int(len(publishers) * self.config.edge_density * 0.3))
-            num_publishers = min(num_publishers, len(publishers))
-            
-            topic_publishers = random.sample(publishers, num_publishers)
-            for pub in topic_publishers:
-                self.publishes_to.append({
-                    'from': pub['id'],
-                    'to': topic['id'],
-                    'period_ms': int(1000 / topic['message_rate_hz']),
-                    'message_size_bytes': topic['message_size_bytes']
-                })
-            
-            # Assign subscribers
-            num_subscribers = max(1, int(len(subscribers) * self.config.edge_density * 0.4))
-            num_subscribers = min(num_subscribers, len(subscribers))
-            
-            topic_subscribers = random.sample(subscribers, num_subscribers)
-            for sub in topic_subscribers:
-                # Avoid self-subscription for 'PROSUMER' app_type apps
-                if sub['id'] not in [p['from'] for p in self.publishes_to if p['to'] == topic['id']]:
-                    self.subscribes_to.append({
-                        'from': sub['id'],
-                        'to': topic['id']
+
+        # Score topics for each app based on semantic matching
+        app_topic_scores: Dict[str, List[Tuple[str, float]]] = {}
+
+        for app in self.applications:
+            app_keywords = self._get_semantic_keywords_for_app(app)
+            topic_scores = []
+
+            for topic in self.topics:
+                topic_kws = self.topic_keywords.get(topic['id'], [])
+                score = self._calculate_semantic_match_score(app_keywords, topic_kws)
+                topic_scores.append((topic['id'], score))
+
+            # Sort by score descending
+            topic_scores.sort(key=lambda x: x[1], reverse=True)
+            app_topic_scores[app['id']] = topic_scores
+
+        # Generate publishing relationships with semantic preference
+        for app in publishers:
+            app_tier = self.app_tiers.get(app['id'], 'cloud')
+
+            # Get topic scores for this app
+            topic_scores = app_topic_scores.get(app['id'], [])
+
+            # Determine number of topics to publish to
+            base_num_topics = max(1, int(len(self.topics) * self.config.edge_density * 0.2))
+
+            # Adjust based on tier (edge apps typically publish to fewer topics)
+            if app_tier == 'edge':
+                num_topics = max(1, base_num_topics // 2)
+            elif app_tier == 'gateway':
+                num_topics = base_num_topics
+            else:  # cloud
+                num_topics = max(1, int(base_num_topics * 1.2))
+
+            num_topics = min(num_topics, len(self.topics))
+
+            # Select topics preferring high-scoring semantic matches
+            # Use weighted random selection favoring better matches
+            selected_topics = self._select_topics_by_score(topic_scores, num_topics)
+
+            for topic_id in selected_topics:
+                topic = next((t for t in self.topics if t['id'] == topic_id), None)
+                if topic:
+                    self.publishes_to.append({
+                        'from': app['id'],
+                        'to': topic_id,
+                        'period_ms': int(1000 / topic.get('message_rate_hz', 100)),
+                        'message_size_bytes': topic.get('message_size_bytes', 256)
                     })
-        
+
+        # Generate subscription relationships with semantic preference
+        for app in subscribers:
+            app_tier = self.app_tiers.get(app['id'], 'cloud')
+
+            # Get topic scores for this app
+            topic_scores = app_topic_scores.get(app['id'], [])
+
+            # Determine number of topics to subscribe to
+            base_num_topics = max(1, int(len(self.topics) * self.config.edge_density * 0.25))
+
+            # Adjust based on tier (cloud/gateway apps typically subscribe to more topics)
+            if app_tier == 'edge':
+                num_topics = max(1, base_num_topics // 2)  # Edge devices often just produce
+            elif app_tier == 'gateway':
+                num_topics = int(base_num_topics * 1.5)  # Gateways aggregate from many
+            else:  # cloud
+                num_topics = base_num_topics
+
+            num_topics = min(num_topics, len(self.topics))
+
+            # Select topics preferring high-scoring semantic matches
+            selected_topics = self._select_topics_by_score(topic_scores, num_topics)
+
+            # Get topics this app already publishes to (to avoid self-subscription)
+            published_topics = {rel['to'] for rel in self.publishes_to if rel['from'] == app['id']}
+
+            for topic_id in selected_topics:
+                if topic_id not in published_topics:
+                    self.subscribes_to.append({
+                        'from': app['id'],
+                        'to': topic_id
+                    })
+
         # Ensure every app has at least one connection
+        self._ensure_all_apps_connected()
+
+        # Add hierarchical data flow patterns (edge → gateway → cloud)
+        self._add_hierarchical_data_flows()
+
+    # =========================================================================
+    # DEPENDS_ON Relationship Generation
+    # =========================================================================
+
+    def _generate_depends_on_relationships(self):
+        """
+        Generate unified DEPENDS_ON relationships across all layers.
+
+        This creates the semantic dependency graph used for criticality analysis:
+        - APP_TO_APP: Application A depends on B if B publishes to a topic A subscribes to
+        - APP_TO_BROKER: Application depends on broker routing its topics
+        - NODE_TO_NODE: Derived from app dependencies of hosted applications
+        - NODE_TO_BROKER: Node depends on broker if hosted apps use it
+        """
+        self.logger.debug("Generating unified DEPENDS_ON relationships...")
+
+        # Build lookup structures
+        topic_publishers: Dict[str, List[str]] = defaultdict(list)  # topic_id -> [app_ids]
+        topic_subscribers: Dict[str, List[str]] = defaultdict(list)  # topic_id -> [app_ids]
+        topic_brokers: Dict[str, List[str]] = defaultdict(list)  # topic_id -> [broker_ids]
+        app_to_node: Dict[str, str] = {}  # app_id -> node_id
+        broker_to_node: Dict[str, str] = {}  # broker_id -> node_id
+
+        # Build publisher/subscriber maps
+        for rel in self.publishes_to:
+            topic_publishers[rel['to']].append(rel['from'])
+        for rel in self.subscribes_to:
+            topic_subscribers[rel['to']].append(rel['from'])
+        for rel in self.routes:
+            topic_brokers[rel['to']].append(rel['from'])
+
+        # Build placement maps
+        for rel in self.runs_on:
+            source = rel['from']
+            if source.startswith('app_') or any(prefix in source for prefix in ['spof_', 'coupling_', 'cycle_']):
+                app_to_node[source] = rel['to']
+            elif source.startswith('broker_'):
+                broker_to_node[source] = rel['to']
+
+        # 1. Generate APP_TO_APP dependencies
+        # A subscriber depends on all publishers to the topics it subscribes to
+        for topic_id, subscribers in topic_subscribers.items():
+            publishers = topic_publishers.get(topic_id, [])
+            for subscriber in subscribers:
+                for publisher in publishers:
+                    if subscriber != publisher:  # No self-dependency
+                        self.depends_on.append({
+                            'from': subscriber,
+                            'to': publisher,
+                            'type': DependencyType.APP_TO_APP.value,
+                            'via_topic': topic_id,
+                            'weight': 1.0
+                        })
+
+        # 2. Generate APP_TO_BROKER dependencies
+        # Apps depend on brokers that route topics they publish/subscribe to
+        app_broker_deps: Set[Tuple[str, str]] = set()
+        for topic_id, brokers in topic_brokers.items():
+            # Publishers depend on brokers
+            for publisher in topic_publishers.get(topic_id, []):
+                for broker in brokers:
+                    app_broker_deps.add((publisher, broker))
+            # Subscribers depend on brokers
+            for subscriber in topic_subscribers.get(topic_id, []):
+                for broker in brokers:
+                    app_broker_deps.add((subscriber, broker))
+
+        for app_id, broker_id in app_broker_deps:
+            self.depends_on.append({
+                'from': app_id,
+                'to': broker_id,
+                'type': DependencyType.APP_TO_BROKER.value,
+                'weight': 1.0
+            })
+
+        # 3. Generate NODE_TO_NODE dependencies (derived from app dependencies)
+        node_deps: Dict[Tuple[str, str], int] = defaultdict(int)  # (from_node, to_node) -> count
+        for dep in self.depends_on:
+            if dep['type'] == DependencyType.APP_TO_APP.value:
+                from_node = app_to_node.get(dep['from'])
+                to_node = app_to_node.get(dep['to'])
+                if from_node and to_node and from_node != to_node:
+                    node_deps[(from_node, to_node)] += 1
+
+        for (from_node, to_node), count in node_deps.items():
+            self.depends_on.append({
+                'from': from_node,
+                'to': to_node,
+                'type': DependencyType.NODE_TO_NODE.value,
+                'weight': min(1.0, count / 5.0),  # Normalize weight
+                'derived_count': count
+            })
+
+        # 4. Generate NODE_TO_BROKER dependencies
+        node_broker_deps: Set[Tuple[str, str]] = set()
+        for dep in self.depends_on:
+            if dep['type'] == DependencyType.APP_TO_BROKER.value:
+                app_node = app_to_node.get(dep['from'])
+                broker_node = broker_to_node.get(dep['to'])
+                if app_node and broker_node and app_node != broker_node:
+                    node_broker_deps.add((app_node, broker_node))
+
+        for node_id, broker_node in node_broker_deps:
+            self.depends_on.append({
+                'from': node_id,
+                'to': broker_node,
+                'type': DependencyType.NODE_TO_BROKER.value,
+                'weight': 1.0
+            })
+
+        self.logger.debug(f"Generated {len(self.depends_on)} DEPENDS_ON relationships")
+
+    def _calculate_semantic_match_score(self, app_keywords: List[str], topic_keywords: List[str]) -> float:
+        """
+        Calculate semantic match score between app and topic keywords.
+
+        Args:
+            app_keywords: Keywords associated with the app type
+            topic_keywords: Keywords extracted from the topic
+
+        Returns:
+            Score between 0.0 and 1.0 indicating match quality
+        """
+        if not app_keywords or not topic_keywords:
+            return 0.1  # Small baseline score
+
+        app_set = set(kw.lower() for kw in app_keywords)
+        topic_set = set(kw.lower() for kw in topic_keywords)
+
+        # Calculate Jaccard similarity
+        intersection = len(app_set & topic_set)
+        union = len(app_set | topic_set)
+
+        if union == 0:
+            return 0.1
+
+        jaccard = intersection / union
+
+        # Boost score if there's exact keyword match
+        exact_matches = len(app_set & topic_set)
+        boost = min(0.3, exact_matches * 0.1)
+
+        return min(1.0, jaccard + boost + 0.1)  # Add small baseline
+
+    def _select_topics_by_score(self, topic_scores: List[Tuple[str, float]], num_topics: int) -> List[str]:
+        """
+        Select topics using weighted random selection based on scores.
+
+        Args:
+            topic_scores: List of (topic_id, score) tuples sorted by score
+            num_topics: Number of topics to select
+
+        Returns:
+            List of selected topic IDs
+        """
+        if not topic_scores:
+            return []
+
+        # Use scores as weights for selection
+        topics = [t[0] for t in topic_scores]
+        scores = [max(0.1, t[1]) for t in topic_scores]  # Ensure minimum weight
+
+        selected = []
+        available_topics = list(zip(topics, scores))
+
+        for _ in range(min(num_topics, len(available_topics))):
+            if not available_topics:
+                break
+
+            # Weighted random selection
+            total_weight = sum(s for _, s in available_topics)
+            r = random.uniform(0, total_weight)
+            cumulative = 0
+
+            for i, (topic, score) in enumerate(available_topics):
+                cumulative += score
+                if r <= cumulative:
+                    selected.append(topic)
+                    available_topics.pop(i)
+                    break
+
+        return selected
+
+    def _ensure_all_apps_connected(self):
+        """Ensure every application has at least one pub/sub connection."""
         connected_apps = set()
         for rel in self.publishes_to:
             connected_apps.add(rel['from'])
         for rel in self.subscribes_to:
             connected_apps.add(rel['from'])
-        
+
         for app in self.applications:
             if app['id'] not in connected_apps:
-                topic = random.choice(self.topics)
+                # Use semantic matching to find best topic
+                app_keywords = self._get_semantic_keywords_for_app(app)
+                best_topic = None
+                best_score = -1
+
+                for topic in self.topics:
+                    topic_kws = self.topic_keywords.get(topic['id'], [])
+                    score = self._calculate_semantic_match_score(app_keywords, topic_kws)
+                    if score > best_score:
+                        best_score = score
+                        best_topic = topic
+
+                if best_topic is None:
+                    best_topic = random.choice(self.topics)
+
                 if app['app_type'] in ['PRODUCER', 'PROSUMER']:
                     self.publishes_to.append({
                         'from': app['id'],
-                        'to': topic['id'],
-                        'period_ms': 100,
-                        'message_size_bytes': 256
+                        'to': best_topic['id'],
+                        'period_ms': int(1000 / best_topic.get('message_rate_hz', 100)),
+                        'message_size_bytes': best_topic.get('message_size_bytes', 256)
                     })
                 else:
                     self.subscribes_to.append({
                         'from': app['id'],
-                        'to': topic['id']
+                        'to': best_topic['id']
                     })
+
+    def _add_hierarchical_data_flows(self):
+        """
+        Add hierarchical data flow patterns to create realistic tiered architecture.
+
+        Creates connections: edge apps → gateway apps → cloud apps
+        """
+        # Group apps by tier
+        edge_apps = [a for a in self.applications if self.app_tiers.get(a['id']) == 'edge']
+        gateway_apps = [a for a in self.applications if self.app_tiers.get(a['id']) == 'gateway']
+        cloud_apps = [a for a in self.applications if self.app_tiers.get(a['id']) == 'cloud']
+
+        # For IoT/smart city scenarios, create clear tier connections
+        if self.config.scenario in ['iot', 'smart_city', 'healthcare', 'autonomous_vehicle']:
+            # Ensure some gateway apps subscribe to topics published by edge apps
+            edge_published_topics = {rel['to'] for rel in self.publishes_to
+                                     if rel['from'] in {a['id'] for a in edge_apps}}
+
+            for topic_id in edge_published_topics:
+                # Assign some gateway apps to subscribe
+                for gateway in gateway_apps[:min(2, len(gateway_apps))]:
+                    if not any(s['from'] == gateway['id'] and s['to'] == topic_id
+                               for s in self.subscribes_to):
+                        self.subscribes_to.append({
+                            'from': gateway['id'],
+                            'to': topic_id
+                        })
+
+            # Ensure some cloud apps subscribe to topics published by gateway apps
+            gateway_published_topics = {rel['to'] for rel in self.publishes_to
+                                        if rel['from'] in {a['id'] for a in gateway_apps}}
+
+            for topic_id in gateway_published_topics:
+                for cloud in cloud_apps[:min(2, len(cloud_apps))]:
+                    if not any(s['from'] == cloud['id'] and s['to'] == topic_id
+                               for s in self.subscribes_to):
+                        self.subscribes_to.append({
+                            'from': cloud['id'],
+                            'to': topic_id
+                        })
     
     # =========================================================================
     # Anti-Pattern Injection
@@ -937,6 +1611,34 @@ class GraphGenerator:
             else:
                 self.logger.warning(f"Unknown anti-pattern: {pattern}")
     
+    def _create_antipattern_topic(self, topic_id: str, topic_name: str,
+                                     reliability: str = 'reliable',
+                                     durability: str = 'volatile',
+                                     deadline_ms: int = 100,
+                                     priority: int = 1,
+                                     message_size: int = 256,
+                                     message_rate: int = 100) -> Dict:
+        """
+        Create a properly formatted topic for anti-pattern injection.
+
+        Ensures all required fields are present for consistency with regular topics.
+        """
+        keywords = self._extract_topic_keywords(topic_name, topic_name)
+        return {
+            'id': topic_id,
+            'name': topic_name,
+            'qos': {
+                'reliability': reliability,
+                'durability': durability,
+                'deadline_ms': deadline_ms,
+                'transport_priority': priority,
+                'history_depth': 10
+            },
+            'message_size_bytes': message_size,
+            'message_rate_hz': message_rate,
+            'keywords': keywords
+        }
+
     def _inject_spof(self):
         """Inject Single Point of Failure pattern"""
         # Create a critical app that many others depend on
@@ -944,23 +1646,25 @@ class GraphGenerator:
             'id': 'spof_critical_service',
             'name': 'CriticalSPOFService',
             'app_type': 'PROSUMER',
+            'tier': 'cloud',
             'criticality_weight': 2.0
         }
         self.applications.append(spof_app)
-        
+        self.app_tiers[spof_app['id']] = 'cloud'
+
         # Create a topic that this SPOF publishes to
-        spof_topic = {
-            'id': 'spof_critical_topic',
-            'name': 'critical/spof/data',
-            'message_type': 'CriticalData',
-            'qos': {
-                'reliability': 'reliable',
-                'durability': 'persistent',
-                'deadline_ms': 10,
-                'transport_priority': 3
-            }
-        }
+        spof_topic = self._create_antipattern_topic(
+            topic_id='spof_critical_topic',
+            topic_name='critical/spof/data',
+            reliability='reliable',
+            durability='persistent',
+            deadline_ms=10,
+            priority=3,
+            message_size=1024,
+            message_rate=100
+        )
         self.topics.append(spof_topic)
+        self.topic_keywords[spof_topic['id']] = spof_topic['keywords']
         
         # SPOF publishes to this topic
         self.publishes_to.append({
@@ -999,18 +1703,18 @@ class GraphGenerator:
     
     def _inject_god_topic(self):
         """Inject God Topic pattern (topic with too many connections)"""
-        god_topic = {
-            'id': 'god_topic',
-            'name': 'central/everything/events',
-            'message_type': 'GenericEvent',
-            'qos': {
-                'reliability': 'reliable',
-                'durability': 'transient_local',
-                'deadline_ms': 100,
-                'transport_priority': 2
-            }
-        }
+        god_topic = self._create_antipattern_topic(
+            topic_id='god_topic',
+            topic_name='central/everything/events',
+            reliability='reliable',
+            durability='transient_local',
+            deadline_ms=100,
+            priority=2,
+            message_size=512,
+            message_rate=200
+        )
         self.topics.append(god_topic)
+        self.topic_keywords[god_topic['id']] = god_topic['keywords']
         
         # Many publishers
         num_publishers = min(len(self.applications) // 3, 15)
@@ -1084,22 +1788,22 @@ class GraphGenerator:
         # Create a cluster of tightly coupled apps
         cluster_size = min(8, len(self.applications) // 4)
         cluster_apps = random.sample(self.applications, cluster_size)
-        
+
         # Create shared topics for tight coupling
         coupling_topics = []
         for i in range(cluster_size - 1):
-            topic = {
-                'id': f'coupling_topic_{i}',
-                'name': f'coupling/internal/channel_{i}',
-                'message_type': 'InternalMessage',
-                'qos': {
-                    'reliability': 'reliable',
-                    'durability': 'volatile',
-                    'deadline_ms': 50,
-                    'transport_priority': 1
-                }
-            }
+            topic = self._create_antipattern_topic(
+                topic_id=f'coupling_topic_{i}',
+                topic_name=f'coupling/internal/channel_{i}',
+                reliability='reliable',
+                durability='volatile',
+                deadline_ms=50,
+                priority=1,
+                message_size=256,
+                message_rate=50
+            )
             self.topics.append(topic)
+            self.topic_keywords[topic['id']] = topic['keywords']
             coupling_topics.append(topic)
         
         # Create dense pub/sub mesh
@@ -1155,22 +1859,22 @@ class GraphGenerator:
         # Create a cycle: A -> B -> C -> A
         cycle_size = min(4, len(self.applications) // 4)
         cycle_apps = random.sample(self.applications, cycle_size)
-        
+
         # Create topics for the cycle
         cycle_topics = []
         for i in range(cycle_size):
-            topic = {
-                'id': f'cycle_topic_{i}',
-                'name': f'cycle/step_{i}',
-                'message_type': 'CycleMessage',
-                'qos': {
-                    'reliability': 'reliable',
-                    'durability': 'volatile',
-                    'deadline_ms': 100,
-                    'transport_priority': 1
-                }
-            }
+            topic = self._create_antipattern_topic(
+                topic_id=f'cycle_topic_{i}',
+                topic_name=f'cycle/step_{i}',
+                reliability='reliable',
+                durability='volatile',
+                deadline_ms=100,
+                priority=1,
+                message_size=256,
+                message_rate=10
+            )
             self.topics.append(topic)
+            self.topic_keywords[topic['id']] = topic['keywords']
             cycle_topics.append(topic)
         
         # Create the cycle
@@ -1228,18 +1932,18 @@ class GraphGenerator:
     def _inject_hidden_coupling(self):
         """Inject Hidden Coupling pattern (shared topics creating implicit dependencies)"""
         # Create a "hidden" topic that multiple unrelated apps use
-        hidden_topic = {
-            'id': 'hidden_coupling_topic',
-            'name': 'system/internal/shared_state',
-            'message_type': 'SharedState',
-            'qos': {
-                'reliability': 'reliable',
-                'durability': 'transient_local',
-                'deadline_ms': 200,
-                'transport_priority': 1
-            }
-        }
+        hidden_topic = self._create_antipattern_topic(
+            topic_id='hidden_coupling_topic',
+            topic_name='system/internal/shared_state',
+            reliability='reliable',
+            durability='transient_local',
+            deadline_ms=200,
+            priority=1,
+            message_size=1024,
+            message_rate=2
+        )
         self.topics.append(hidden_topic)
+        self.topic_keywords[hidden_topic['id']] = hidden_topic['keywords']
         
         # Select random apps to create hidden coupling
         num_coupled = min(10, len(self.applications) // 3)
@@ -1277,13 +1981,19 @@ class GraphGenerator:
         return {
             'metadata': {
                 'generated_at': datetime.now().isoformat(),
-                'generator_version': '2.0.0',
+                'generator_version': '3.0.0',  # Version bump for new features
                 'config': {
                     'scale': self.config.scale,
                     'scenario': self.config.scenario,
                     'seed': self.config.seed,
                     'antipatterns': self.config.antipatterns
-                }
+                },
+                'features': [
+                    'semantic_topic_matching',
+                    'hierarchical_data_flow',
+                    'realistic_network_topology',
+                    'unified_depends_on_model'
+                ]
             },
             'nodes': self.nodes,
             'brokers': self.brokers,
@@ -1294,7 +2004,8 @@ class GraphGenerator:
                 'publishes_to': self.publishes_to,
                 'subscribes_to': self.subscribes_to,
                 'routes': self.routes,
-                'connects_to': self.connects_to
+                'connects_to': self.connects_to,
+                'depends_on': self.depends_on  # Unified dependency relationships
             },
             'statistics': self._calculate_statistics(),
             'injected_antipatterns': self.injected_antipatterns
@@ -1305,7 +2016,7 @@ class GraphGenerator:
         # Publisher/subscriber stats
         publishers_count = len(set(r['from'] for r in self.publishes_to))
         subscribers_count = len(set(r['from'] for r in self.subscribes_to))
-        
+
         # Topics stats
         topic_pub_counts = defaultdict(int)
         topic_sub_counts = defaultdict(int)
@@ -1313,16 +2024,26 @@ class GraphGenerator:
             topic_pub_counts[r['to']] += 1
         for r in self.subscribes_to:
             topic_sub_counts[r['to']] += 1
-        
+
         avg_pubs_per_topic = sum(topic_pub_counts.values()) / max(1, len(self.topics))
         avg_subs_per_topic = sum(topic_sub_counts.values()) / max(1, len(self.topics))
-        
+
         # Node stats
         apps_per_node = defaultdict(int)
         for r in self.runs_on:
             if r['from'].startswith('app_') or any(r['from'].startswith(p) for p in ['spof_', 'coupling_']):
                 apps_per_node[r['to']] += 1
-        
+
+        # Dependency stats by type
+        depends_on_by_type = defaultdict(int)
+        for dep in self.depends_on:
+            depends_on_by_type[dep.get('type', 'unknown')] += 1
+
+        # App tier distribution
+        tier_counts = defaultdict(int)
+        for tier in self.app_tiers.values():
+            tier_counts[tier] += 1
+
         return {
             'total_nodes': len(self.nodes),
             'total_brokers': len(self.brokers),
@@ -1332,12 +2053,15 @@ class GraphGenerator:
             'total_subscribes': len(self.subscribes_to),
             'total_routes': len(self.routes),
             'total_connects': len(self.connects_to),
+            'total_depends_on': len(self.depends_on),
             'unique_publishers': publishers_count,
             'unique_subscribers': subscribers_count,
             'avg_publishers_per_topic': round(avg_pubs_per_topic, 2),
             'avg_subscribers_per_topic': round(avg_subs_per_topic, 2),
             'avg_apps_per_node': round(sum(apps_per_node.values()) / max(1, len(self.nodes)), 2),
-            'antipatterns_injected': len(self.injected_antipatterns)
+            'antipatterns_injected': len(self.injected_antipatterns),
+            'depends_on_by_type': dict(depends_on_by_type),
+            'app_tiers': dict(tier_counts)
         }
     
     # =========================================================================

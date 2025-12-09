@@ -171,14 +171,14 @@ def example_4_antipatterns():
         num_topics=10,
         num_brokers=2,
         edge_density=0.3,
-        antipatterns=['spof', 'god_object', 'tight_coupling'],
+        antipatterns=['spof', 'god_topic', 'tight_coupling'],
         seed=42
     )
     
     generator = GraphGenerator(config)
     graph = generator.generate()
     
-    print("✓ Generated system with anti-patterns: SPOF, God Object, Tight Coupling")
+    print("✓ Generated system with anti-patterns: SPOF, God Topic, Tight Coupling")
     
     # Find SPOF
     print("\n1. Single Point of Failure (SPOF):")
