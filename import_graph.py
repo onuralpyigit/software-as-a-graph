@@ -629,113 +629,125 @@ def main() -> int:
     # Connect to Neo4j
     if not args.quiet:
         print_info(f"Connecting to Neo4j at {args.uri}...")
-    
+
     try:
-        importer = GraphImporter(
+        # Use context manager for reliable connection cleanup
+        with GraphImporter(
             uri=args.uri,
             user=args.user,
             password=args.password,
             database=args.database
-        )
-        print_success("Connected to Neo4j")
-    except Exception as e:
-        print_error(f"Failed to connect to Neo4j: {e}")
-        print_connection_help()
-        return 1
-    
-    try:
-        # Clear database if requested
-        if args.clear:
-            if not args.quiet:
-                response = input(f"\n{Colors.WARNING}⚠ Clear ALL data from database? [y/N]: {Colors.ENDC}")
-                if response.lower() != 'y':
-                    print_info("Skipping clear")
+        ) as importer:
+            print_success("Connected to Neo4j")
+
+            # Clear database if requested
+            if args.clear:
+                if not args.quiet:
+                    response = input(f"\n{Colors.WARNING}Clear ALL data from database? [y/N]: {Colors.ENDC}")
+                    if response.lower() != 'y':
+                        print_info("Skipping clear")
+                    else:
+                        print_info("Clearing database...")
+                        importer.clear_database()
+                        print_success("Database cleared")
                 else:
-                    print_info("Clearing database...")
                     importer.clear_database()
-                    print_success("Database cleared")
-            else:
-                importer.clear_database()
-        
-        # Import graph data
-        if graph_data:
-            # Create schema
-            if not args.quiet:
-                print_info("Creating schema...")
-            importer.create_schema()
-            print_success("Schema created")
-            
-            # Import graph
-            if not args.quiet:
-                print_info("Importing graph...")
-            
-            import_start = time.time()
-            importer.import_graph(
-                graph_data,
-                batch_size=args.batch_size,
-                show_progress=args.progress
-            )
-            import_duration = time.time() - import_start
-            
-            print_success(f"Graph imported in {import_duration:.2f}s")
-            
-            # Get and display statistics
-            if not args.quiet:
-                stats = importer.get_statistics()
-                
-                print_section("Import Statistics")
-                print(f"  {Colors.BOLD}Nodes:{Colors.ENDC}")
-                for node_type, count in stats.get('nodes', {}).items():
-                    if node_type != 'total':
+
+            # Import graph data
+            if graph_data:
+                # Import graph (includes schema creation)
+                if not args.quiet:
+                    print_info("Importing graph...")
+
+                import_start = time.time()
+
+                # Define progress callback for CLI
+                def cli_progress(phase: str, current: int, total: int):
+                    if args.progress and total > 0:
+                        print_import_progress(phase, current, total, import_start)
+
+                stats = importer.import_graph(
+                    graph_data,
+                    batch_size=args.batch_size,
+                    show_progress=args.progress,
+                    clear_first=False,  # Already handled above
+                    derive_dependencies=not args.skip_dependencies,
+                    progress_callback=cli_progress if args.progress else None
+                )
+                import_duration = time.time() - import_start
+
+                print_success(f"Graph imported in {import_duration:.2f}s")
+
+                # Get and display statistics
+                if not args.quiet:
+                    print_section("Import Statistics")
+                    print(f"  {Colors.BOLD}Nodes:{Colors.ENDC}")
+                    node_total = 0
+                    for node_type, count in stats.get('nodes', {}).items():
                         print_kv(node_type, count, indent=4)
-                print_kv("Total", stats.get('nodes', {}).get('total', 0), indent=4)
-                
-                print(f"\n  {Colors.BOLD}Relationships:{Colors.ENDC}")
-                for rel_type, count in stats.get('relationships', {}).items():
-                    if rel_type != 'total':
+                        node_total += count
+                    print_kv("Total", node_total, indent=4)
+
+                    print(f"\n  {Colors.BOLD}Relationships:{Colors.ENDC}")
+                    rel_total = 0
+                    for rel_type, count in stats.get('relationships', {}).items():
                         print_kv(rel_type, count, indent=4)
-                print_kv("Total", stats.get('relationships', {}).get('total', 0), indent=4)
-                
-                print(f"\n  {Colors.BOLD}Performance:{Colors.ENDC}")
-                total_items = stats.get('nodes', {}).get('total', 0) + stats.get('relationships', {}).get('total', 0)
-                rate = total_items / import_duration if import_duration > 0 else 0
-                print_kv("Duration", f"{import_duration:.2f}s", indent=4)
-                print_kv("Items/sec", f"{rate:.1f}", indent=4)
-                
-                # Export stats if requested
-                if args.export_stats:
-                    stats['import_duration'] = import_duration
-                    stats['timestamp'] = datetime.now().isoformat()
-                    stats['source_file'] = str(args.input)
-                    with open(args.export_stats, 'w') as f:
-                        json.dump(stats, f, indent=2)
-                    print_success(f"Statistics exported to {args.export_stats}")
-        
-        # Run sample queries
-        if args.queries:
-            print_section("Sample Queries")
-            importer.run_sample_queries()
-        
-        # Run analytics
-        if args.analytics:
-            print_section("Advanced Analytics")
-            importer.run_analytics()
-        
-        # Export Cypher queries
-        if args.export_queries:
-            importer.export_cypher_queries(args.export_queries)
-            print_success(f"Cypher queries exported to {args.export_queries}")
-        
-        # Export graph from Neo4j
-        if args.export_graph:
-            importer.export_to_json(args.export_graph)
-            print_success(f"Graph exported to {args.export_graph}")
-        
-        # Print success message
-        if not args.quiet and graph_data:
-            print_section("Success!")
-            print(f"""
-{Colors.GREEN}✓{Colors.ENDC} Graph successfully imported to Neo4j database '{args.database}'
+                        rel_total += count
+                    print_kv("Total", rel_total, indent=4)
+
+                    # Show DEPENDS_ON breakdown if available
+                    depends_on_stats = stats.get('depends_on_by_type', {})
+                    if depends_on_stats:
+                        print(f"\n  {Colors.BOLD}DEPENDS_ON by Type:{Colors.ENDC}")
+                        for dep_type, count in depends_on_stats.items():
+                            print_kv(dep_type, count, indent=4)
+
+                    print(f"\n  {Colors.BOLD}Performance:{Colors.ENDC}")
+                    total_items = node_total + rel_total
+                    rate = total_items / import_duration if import_duration > 0 else 0
+                    print_kv("Duration", f"{import_duration:.2f}s", indent=4)
+                    print_kv("Items/sec", f"{rate:.1f}", indent=4)
+
+                    # Export stats if requested
+                    if args.export_stats:
+                        export_stats = {
+                            'import_duration': import_duration,
+                            'timestamp': datetime.now().isoformat(),
+                            'source_file': str(args.input),
+                            'nodes': stats.get('nodes', {}),
+                            'relationships': stats.get('relationships', {}),
+                            'depends_on_by_type': stats.get('depends_on_by_type', {}),
+                            'items_per_second': rate
+                        }
+                        with open(args.export_stats, 'w') as f:
+                            json.dump(export_stats, f, indent=2)
+                        print_success(f"Statistics exported to {args.export_stats}")
+
+            # Run sample queries
+            if args.queries:
+                print_section("Sample Queries")
+                importer.run_sample_queries()
+
+            # Run analytics
+            if args.analytics:
+                print_section("Advanced Analytics")
+                importer.run_analytics()
+
+            # Export Cypher queries
+            if args.export_queries:
+                importer.export_cypher_queries(args.export_queries)
+                print_success(f"Cypher queries exported to {args.export_queries}")
+
+            # Export graph from Neo4j
+            if args.export_graph:
+                importer.export_to_json(args.export_graph)
+                print_success(f"Graph exported to {args.export_graph}")
+
+            # Print success message
+            if not args.quiet and graph_data:
+                print_section("Success!")
+                print(f"""
+{Colors.GREEN}{Colors.ENDC} Graph successfully imported to Neo4j database '{args.database}'
 
 {Colors.BOLD}Access Neo4j Browser:{Colors.ENDC}
   URL:      http://localhost:7474
@@ -745,13 +757,13 @@ def main() -> int:
 {Colors.BOLD}Quick Cypher Queries:{Colors.ENDC}
   // View all applications
   MATCH (a:Application) RETURN a LIMIT 25
-  
+
   // View pub-sub network
   MATCH (a:Application)-[r]->(t:Topic) RETURN a, r, t LIMIT 100
-  
+
   // Find dependencies
   MATCH (a)-[:DEPENDS_ON]->(b) RETURN a.name, b.name LIMIT 50
-  
+
   // Find critical components
   MATCH ()-[d:DEPENDS_ON]->(target)
   WITH target, count(*) AS dependents
@@ -760,17 +772,20 @@ def main() -> int:
 
 {Colors.DIM}Use --queries or --analytics for more analysis{Colors.ENDC}
 """)
-    
+
     except KeyboardInterrupt:
         print(f"\n{Colors.WARNING}Import interrupted by user{Colors.ENDC}")
         return 130
+    except ImportError as e:
+        print_error(f"Missing dependency: {e}")
+        print_info("Install neo4j driver: pip install neo4j")
+        return 1
     except Exception as e:
         logger.exception("Import failed")
         print_error(f"Import failed: {e}")
+        print_connection_help()
         return 1
-    finally:
-        importer.close()
-    
+
     return 0
 
 
