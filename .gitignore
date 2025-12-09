@@ -133,3 +133,5 @@ dmypy.json
 
 # Ignore virtual environment directories
 software_system_env/
+# Test output files
+test_outputs/
