@@ -1324,17 +1324,92 @@ class GraphGenerator:
     # DEPENDS_ON Relationship Generation
     # =========================================================================
 
+    def _calculate_topic_qos_criticality(self, topic: Dict) -> float:
+        """
+        Calculate criticality weight based on topic QoS policies.
+
+        Higher scores indicate more critical dependencies:
+        - Reliable topics create stronger dependencies than best-effort
+        - Persistent/durable topics are more critical than volatile
+        - Lower deadlines indicate time-critical communication
+        - Higher transport priority indicates business criticality
+
+        Args:
+            topic: Topic dictionary with 'qos' field
+
+        Returns:
+            Criticality score between 0.1 and 1.0
+        """
+        qos = topic.get('qos', {})
+        score = 0.0
+
+        # Reliability contributes up to 0.30
+        # RELIABLE topics create stronger dependencies - failure affects data integrity
+        reliability = qos.get('reliability', 'best_effort')
+        if reliability in ['reliable', 'RELIABLE']:
+            score += 0.30
+        else:  # best_effort
+            score += 0.05
+
+        # Durability contributes up to 0.25
+        # PERSISTENT topics indicate critical data that must survive failures
+        durability = qos.get('durability', 'volatile')
+        durability_scores = {
+            'persistent': 0.25,
+            'PERSISTENT': 0.25,
+            'transient': 0.15,
+            'TRANSIENT': 0.15,
+            'transient_local': 0.10,
+            'TRANSIENT_LOCAL': 0.10,
+            'volatile': 0.02,
+            'VOLATILE': 0.02
+        }
+        score += durability_scores.get(durability, 0.02)
+
+        # Deadline contributes up to 0.25
+        # Tighter deadlines = more time-critical = higher dependency weight
+        deadline_ms = qos.get('deadline_ms')
+        if deadline_ms is not None:
+            if deadline_ms <= 10:
+                score += 0.25  # Ultra-low latency (real-time systems)
+            elif deadline_ms <= 50:
+                score += 0.20  # Low latency (financial, gaming)
+            elif deadline_ms <= 100:
+                score += 0.15  # Medium latency
+            elif deadline_ms <= 500:
+                score += 0.08  # Standard latency
+            else:
+                score += 0.03  # Relaxed deadline
+
+        # Transport priority contributes up to 0.20
+        # Higher priority = more business-critical
+        priority = qos.get('transport_priority', 1)
+        if isinstance(priority, str):
+            priority_map = {'LOW': 0, 'MEDIUM': 1, 'HIGH': 2, 'URGENT': 3}
+            priority = priority_map.get(priority.upper(), 1)
+        priority_scores = {0: 0.02, 1: 0.08, 2: 0.14, 3: 0.20}
+        score += priority_scores.get(priority, 0.08)
+
+        # Ensure score is in valid range [0.1, 1.0]
+        return max(0.1, min(1.0, score))
+
     def _generate_depends_on_relationships(self):
         """
-        Generate unified DEPENDS_ON relationships across all layers.
+        Generate unified DEPENDS_ON relationships across all layers with QoS-based weighting.
 
         This creates the semantic dependency graph used for criticality analysis:
         - APP_TO_APP: Application A depends on B if B publishes to a topic A subscribes to
+          Weight is determined by the topic's QoS criticality (reliability, durability, deadline, priority)
         - APP_TO_BROKER: Application depends on broker routing its topics
+          Weight is the maximum QoS criticality of topics routed through the broker
         - NODE_TO_NODE: Derived from app dependencies of hosted applications
+          Weight aggregates the QoS-weighted app dependencies
         - NODE_TO_BROKER: Node depends on broker if hosted apps use it
         """
-        self.logger.debug("Generating unified DEPENDS_ON relationships...")
+        self.logger.debug("Generating unified DEPENDS_ON relationships with QoS weighting...")
+
+        # Build topic lookup by ID for QoS access
+        topic_by_id: Dict[str, Dict] = {t['id']: t for t in self.topics}
 
         # Build lookup structures
         topic_publishers: Dict[str, List[str]] = defaultdict(list)  # topic_id -> [app_ids]
@@ -1359,10 +1434,14 @@ class GraphGenerator:
             elif source.startswith('broker_'):
                 broker_to_node[source] = rel['to']
 
-        # 1. Generate APP_TO_APP dependencies
+        # 1. Generate APP_TO_APP dependencies with QoS-based weights
         # A subscriber depends on all publishers to the topics it subscribes to
+        # Weight reflects the criticality of the topic's QoS policies
         for topic_id, subscribers in topic_subscribers.items():
             publishers = topic_publishers.get(topic_id, [])
+            topic = topic_by_id.get(topic_id, {})
+            qos_weight = self._calculate_topic_qos_criticality(topic)
+
             for subscriber in subscribers:
                 for publisher in publishers:
                     if subscriber != publisher:  # No self-dependency
@@ -1371,66 +1450,92 @@ class GraphGenerator:
                             'to': publisher,
                             'type': DependencyType.APP_TO_APP.value,
                             'via_topic': topic_id,
-                            'weight': 1.0
+                            'weight': round(qos_weight, 3),
+                            'qos_factors': {
+                                'reliability': topic.get('qos', {}).get('reliability', 'unknown'),
+                                'durability': topic.get('qos', {}).get('durability', 'unknown'),
+                                'deadline_ms': topic.get('qos', {}).get('deadline_ms'),
+                                'priority': topic.get('qos', {}).get('transport_priority', 'unknown')
+                            }
                         })
 
-        # 2. Generate APP_TO_BROKER dependencies
+        # 2. Generate APP_TO_BROKER dependencies with max QoS weight
         # Apps depend on brokers that route topics they publish/subscribe to
-        app_broker_deps: Set[Tuple[str, str]] = set()
+        # Weight is the maximum QoS criticality across all topics the app uses through this broker
+        app_broker_deps: Dict[Tuple[str, str], float] = {}  # (app_id, broker_id) -> max_weight
+
         for topic_id, brokers in topic_brokers.items():
+            topic = topic_by_id.get(topic_id, {})
+            qos_weight = self._calculate_topic_qos_criticality(topic)
+
             # Publishers depend on brokers
             for publisher in topic_publishers.get(topic_id, []):
                 for broker in brokers:
-                    app_broker_deps.add((publisher, broker))
+                    key = (publisher, broker)
+                    app_broker_deps[key] = max(app_broker_deps.get(key, 0), qos_weight)
+
             # Subscribers depend on brokers
             for subscriber in topic_subscribers.get(topic_id, []):
                 for broker in brokers:
-                    app_broker_deps.add((subscriber, broker))
+                    key = (subscriber, broker)
+                    app_broker_deps[key] = max(app_broker_deps.get(key, 0), qos_weight)
 
-        for app_id, broker_id in app_broker_deps:
+        for (app_id, broker_id), weight in app_broker_deps.items():
             self.depends_on.append({
                 'from': app_id,
                 'to': broker_id,
                 'type': DependencyType.APP_TO_BROKER.value,
-                'weight': 1.0
+                'weight': round(weight, 3)
             })
 
         # 3. Generate NODE_TO_NODE dependencies (derived from app dependencies)
-        node_deps: Dict[Tuple[str, str], int] = defaultdict(int)  # (from_node, to_node) -> count
+        # Weight aggregates QoS-weighted app dependencies between nodes
+        node_deps: Dict[Tuple[str, str], List[float]] = defaultdict(list)  # (from_node, to_node) -> [weights]
+
         for dep in self.depends_on:
             if dep['type'] == DependencyType.APP_TO_APP.value:
                 from_node = app_to_node.get(dep['from'])
                 to_node = app_to_node.get(dep['to'])
                 if from_node and to_node and from_node != to_node:
-                    node_deps[(from_node, to_node)] += 1
+                    node_deps[(from_node, to_node)].append(dep['weight'])
 
-        for (from_node, to_node), count in node_deps.items():
+        for (from_node, to_node), weights in node_deps.items():
+            # Aggregate weight: use weighted average with count factor
+            # More dependencies with higher weights = higher node-level criticality
+            avg_weight = sum(weights) / len(weights)
+            count_factor = min(1.0, len(weights) / 5.0)  # Normalize by count
+            aggregated_weight = (avg_weight * 0.7) + (count_factor * 0.3)
+
             self.depends_on.append({
                 'from': from_node,
                 'to': to_node,
                 'type': DependencyType.NODE_TO_NODE.value,
-                'weight': min(1.0, count / 5.0),  # Normalize weight
-                'derived_count': count
+                'weight': round(aggregated_weight, 3),
+                'derived_count': len(weights),
+                'avg_qos_weight': round(avg_weight, 3)
             })
 
         # 4. Generate NODE_TO_BROKER dependencies
-        node_broker_deps: Set[Tuple[str, str]] = set()
+        # Weight is max of app-to-broker weights for apps on this node
+        node_broker_deps: Dict[Tuple[str, str], float] = {}
+
         for dep in self.depends_on:
             if dep['type'] == DependencyType.APP_TO_BROKER.value:
                 app_node = app_to_node.get(dep['from'])
                 broker_node = broker_to_node.get(dep['to'])
                 if app_node and broker_node and app_node != broker_node:
-                    node_broker_deps.add((app_node, broker_node))
+                    key = (app_node, broker_node)
+                    node_broker_deps[key] = max(node_broker_deps.get(key, 0), dep['weight'])
 
-        for node_id, broker_node in node_broker_deps:
+        for (node_id, broker_node), weight in node_broker_deps.items():
             self.depends_on.append({
                 'from': node_id,
                 'to': broker_node,
                 'type': DependencyType.NODE_TO_BROKER.value,
-                'weight': 1.0
+                'weight': round(weight, 3)
             })
 
-        self.logger.debug(f"Generated {len(self.depends_on)} DEPENDS_ON relationships")
+        self.logger.debug(f"Generated {len(self.depends_on)} DEPENDS_ON relationships with QoS weighting")
 
     def _calculate_semantic_match_score(self, app_keywords: List[str], topic_keywords: List[str]) -> float:
         """
