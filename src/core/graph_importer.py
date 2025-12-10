@@ -679,8 +679,12 @@ class GraphImporter:
     def _derive_app_to_app(self) -> int:
         """
         Derive APP_TO_APP dependencies from topic subscription patterns.
-        
+
         Rule: subscriber DEPENDS_ON publisher via shared topic
+
+        Weight calculation considers:
+        - Number of shared topics (more topics = stronger coupling)
+        - QoS criticality of topics (higher reliability/durability = more critical dependency)
         """
         with self.driver.session(database=self.database) as session:
             result = session.run("""
@@ -688,60 +692,138 @@ class GraphImporter:
                 MATCH (subscriber:Application)-[:SUBSCRIBES_TO]->(t:Topic)
                       <-[:PUBLISHES_TO]-(publisher:Application)
                 WHERE subscriber.id <> publisher.id
-                
-                // Collect all shared topics for each pair
-                WITH subscriber, publisher, collect(t.id) AS topics
-                
-                // Calculate weight based on number of shared topics
+
+                // Calculate QoS criticality score for each topic
+                // Based on: reliability (0.3), durability (0.2), deadline (0.25), priority (0.25)
+                WITH subscriber, publisher, t,
+                     // Reliability score: reliable = 0.3, best_effort = 0.0
+                     CASE t.qos_reliability
+                         WHEN 'reliable' THEN 0.3
+                         ELSE 0.0
+                     END +
+                     // Durability score: persistent = 0.2, transient = 0.1, transient_local = 0.05
+                     CASE t.qos_durability
+                         WHEN 'persistent' THEN 0.2
+                         WHEN 'transient' THEN 0.1
+                         WHEN 'transient_local' THEN 0.05
+                         ELSE 0.0
+                     END +
+                     // Deadline score: <=10ms = 0.25, <=100ms = 0.15, <=1000ms = 0.05
+                     CASE
+                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 10 THEN 0.25
+                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 100 THEN 0.15
+                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 1000 THEN 0.05
+                         ELSE 0.0
+                     END +
+                     // Transport priority score: 3 (urgent) = 0.25, 2 (high) = 0.15, 1 (medium) = 0.05
+                     CASE t.qos_transport_priority
+                         WHEN 3 THEN 0.25
+                         WHEN 2 THEN 0.15
+                         WHEN 1 THEN 0.05
+                         ELSE 0.0
+                     END AS qos_score
+
+                // Collect topics and find max QoS score for each pair
+                WITH subscriber, publisher,
+                     collect(t.id) AS topics,
+                     max(qos_score) AS max_qos_score
+
+                // Calculate combined weight: base (topic count) + QoS contribution
+                // Base: 1.0 + (topic_count - 1) * 0.2
+                // QoS: max_qos_score * 0.5 (QoS can add up to 0.5 weight)
                 WITH subscriber, publisher, topics,
-                     1.0 + (size(topics) - 1) * 0.2 AS weight
-                
+                     1.0 + (size(topics) - 1) * 0.2 + (max_qos_score * 0.5) AS weight,
+                     max_qos_score AS qos_factor
+
                 // Create DEPENDS_ON with aggregated information
                 MERGE (subscriber)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(publisher)
                 SET d.topics = topics,
-                    d.weight = CASE WHEN weight > 2.0 THEN 2.0 ELSE weight END,
+                    d.weight = CASE WHEN weight > 2.5 THEN 2.5 ELSE weight END,
+                    d.qos_factor = qos_factor,
                     d.derived_at = datetime()
-                
+
                 RETURN count(*) AS count
             """)
-            
+
             return result.single()["count"]
     
     def _derive_app_to_broker(self) -> int:
         """
         Derive APP_TO_BROKER dependencies from topic routing.
-        
+
         Rule: app DEPENDS_ON broker that routes topics the app uses
+
+        Weight calculation considers:
+        - Number of topics routed through the broker (more topics = stronger coupling)
+        - QoS criticality of topics (higher reliability/durability = more critical dependency)
         """
         with self.driver.session(database=self.database) as session:
             result = session.run("""
                 // Find apps and the brokers routing their topics
                 MATCH (app:Application)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
                       <-[:ROUTES]-(broker:Broker)
-                
-                // Collect all topics per app-broker pair
-                WITH app, broker, collect(DISTINCT t.id) AS topics
-                
-                // Calculate weight
+
+                // Calculate QoS criticality score for each topic
+                WITH app, broker, t,
+                     // Reliability score: reliable = 0.3, best_effort = 0.0
+                     CASE t.qos_reliability
+                         WHEN 'reliable' THEN 0.3
+                         ELSE 0.0
+                     END +
+                     // Durability score: persistent = 0.2, transient = 0.1, transient_local = 0.05
+                     CASE t.qos_durability
+                         WHEN 'persistent' THEN 0.2
+                         WHEN 'transient' THEN 0.1
+                         WHEN 'transient_local' THEN 0.05
+                         ELSE 0.0
+                     END +
+                     // Deadline score: <=10ms = 0.25, <=100ms = 0.15, <=1000ms = 0.05
+                     CASE
+                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 10 THEN 0.25
+                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 100 THEN 0.15
+                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 1000 THEN 0.05
+                         ELSE 0.0
+                     END +
+                     // Transport priority score: 3 (urgent) = 0.25, 2 (high) = 0.15, 1 (medium) = 0.05
+                     CASE t.qos_transport_priority
+                         WHEN 3 THEN 0.25
+                         WHEN 2 THEN 0.15
+                         WHEN 1 THEN 0.05
+                         ELSE 0.0
+                     END AS qos_score
+
+                // Collect unique topics and find max QoS score per app-broker pair
+                WITH app, broker,
+                     collect(DISTINCT t.id) AS topics,
+                     max(qos_score) AS max_qos_score
+
+                // Calculate combined weight: base (topic count) + QoS contribution
+                // Base: 1.0 + (topic_count - 1) * 0.15
+                // QoS: max_qos_score * 0.4 (QoS can add up to 0.4 weight for broker deps)
                 WITH app, broker, topics,
-                     1.0 + (size(topics) - 1) * 0.15 AS weight
-                
+                     1.0 + (size(topics) - 1) * 0.15 + (max_qos_score * 0.4) AS weight,
+                     max_qos_score AS qos_factor
+
                 // Create DEPENDS_ON
                 MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
                 SET d.topics = topics,
-                    d.weight = CASE WHEN weight > 1.8 THEN 1.8 ELSE weight END,
+                    d.weight = CASE WHEN weight > 2.2 THEN 2.2 ELSE weight END,
+                    d.qos_factor = qos_factor,
                     d.derived_at = datetime()
-                
+
                 RETURN count(*) AS count
             """)
-            
+
             return result.single()["count"]
     
     def _derive_node_to_node(self) -> int:
         """
         Derive NODE_TO_NODE dependencies from application dependencies.
-        
+
         Rule: node_X DEPENDS_ON node_Y if app on node_X depends on app on node_Y
+
+        The weight reflects the aggregated importance of underlying app dependencies,
+        which now include QoS factors.
         """
         with self.driver.session(database=self.database) as session:
             result = session.run("""
@@ -750,57 +832,69 @@ class GraphImporter:
                       -[dep:DEPENDS_ON {dependency_type: 'app_to_app'}]->
                       (a2:Application)-[:RUNS_ON]->(n2:Node)
                 WHERE n1.id <> n2.id
-                
-                // Aggregate all app pairs for each node pair
-                WITH n1, n2, 
-                     collect({source: a1.id, target: a2.id, weight: dep.weight}) AS app_deps
-                
-                // Calculate aggregated weight
+
+                // Aggregate all app pairs for each node pair, including QoS factor
+                WITH n1, n2,
+                     collect({source: a1.id, target: a2.id, weight: dep.weight,
+                              qos_factor: coalesce(dep.qos_factor, 0.0)}) AS app_deps
+
+                // Calculate aggregated weight (app weights now include QoS factors)
                 WITH n1, n2, app_deps,
-                     reduce(s = 0.0, d IN app_deps | s + d.weight) AS total_weight
+                     reduce(s = 0.0, d IN app_deps | s + d.weight) AS total_weight,
+                     reduce(m = 0.0, d IN app_deps | CASE WHEN d.qos_factor > m THEN d.qos_factor ELSE m END) AS max_qos
                 WITH n1, n2, app_deps,
-                     1.0 + (total_weight - 1) * 0.3 AS weight
-                
+                     1.0 + (total_weight - 1) * 0.3 AS weight,
+                     max_qos AS qos_factor
+
                 // Create NODE_TO_NODE DEPENDS_ON
                 MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
                 SET d.app_dependency_count = size(app_deps),
                     d.underlying_apps = [dep IN app_deps | dep.source + '->' + dep.target],
-                    d.weight = CASE WHEN weight > 3.0 THEN 3.0 ELSE weight END,
+                    d.weight = CASE WHEN weight > 3.5 THEN 3.5 ELSE weight END,
+                    d.qos_factor = qos_factor,
                     d.derived_at = datetime()
-                
+
                 RETURN count(*) AS count
             """)
-            
+
             return result.single()["count"]
     
     def _derive_node_to_broker(self) -> int:
         """
         Derive NODE_TO_BROKER dependencies from broker placement.
-        
+
         Rule: node DEPENDS_ON broker if apps on node depend on that broker
+
+        The weight incorporates QoS-aware weights from underlying app-broker dependencies.
         """
         with self.driver.session(database=self.database) as session:
             result = session.run("""
                 // Find nodes that depend on brokers through their apps
                 MATCH (n:Node)<-[:RUNS_ON]-(app:Application)
                       -[dep:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker:Broker)
-                
-                // Aggregate dependent apps per node-broker pair
-                WITH n, broker, collect(DISTINCT app.id) AS dependent_apps
-                
-                // Calculate weight
-                WITH n, broker, dependent_apps,
-                     1.0 + (size(dependent_apps) - 1) * 0.25 AS weight
-                
+
+                // Aggregate dependent apps and their QoS factors per node-broker pair
+                WITH n, broker,
+                     collect(DISTINCT app.id) AS dependent_apps,
+                     avg(dep.weight) AS avg_app_weight,
+                     max(coalesce(dep.qos_factor, 0.0)) AS max_qos
+
+                // Calculate weight incorporating QoS-aware app-broker weights
+                // Base: 1.0 + (app_count - 1) * 0.25
+                // Scale by ratio of avg app-broker weight to base (1.0)
+                WITH n, broker, dependent_apps, max_qos,
+                     (1.0 + (size(dependent_apps) - 1) * 0.25) * avg_app_weight AS weight
+
                 // Create NODE_TO_BROKER DEPENDS_ON
                 MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(broker)
                 SET d.dependent_apps = dependent_apps,
-                    d.weight = CASE WHEN weight > 2.5 THEN 2.5 ELSE weight END,
+                    d.weight = CASE WHEN weight > 3.0 THEN 3.0 ELSE weight END,
+                    d.qos_factor = max_qos,
                     d.derived_at = datetime()
-                
+
                 RETURN count(*) AS count
             """)
-            
+
             return result.single()["count"]
     
     # =========================================================================

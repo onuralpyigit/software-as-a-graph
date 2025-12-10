@@ -403,48 +403,90 @@ class GraphBuilder:
         self.logger.info(f"  Derived {node_to_broker_count} NODE_TO_BROKER dependencies")
         self.logger.info(f"  Total: {total} DEPENDS_ON relationships")
     
+    def _calculate_qos_weight_factor(self, model: GraphModel, topic_ids: List[str]) -> float:
+        """
+        Calculate QoS-based weight factor from topics.
+
+        The QoS factor reflects the criticality of the dependency based on
+        the QoS policies of the underlying topics. Higher durability and
+        reliability indicate more critical dependencies.
+
+        Args:
+            model: The GraphModel containing topic definitions
+            topic_ids: List of topic IDs involved in the dependency
+
+        Returns:
+            QoS weight factor between 0.0 and 1.0
+        """
+        if not topic_ids:
+            return 0.0
+
+        qos_scores = []
+        for topic_id in topic_ids:
+            topic = model.topics.get(topic_id)
+            if topic and topic.qos:
+                qos_scores.append(topic.qos.get_criticality_score())
+
+        if not qos_scores:
+            return 0.0
+
+        # Use maximum QoS score to reflect the most critical topic in the dependency
+        # This ensures that even one highly critical topic raises the dependency weight
+        return max(qos_scores)
+
     def _derive_app_to_app_dependencies(self, model: GraphModel):
         """
         Derive APP_TO_APP dependencies from topic subscription patterns.
-        
+
         Rule: If App_A subscribes to Topic_T and App_B publishes to Topic_T,
               then App_A DEPENDS_ON App_B (via Topic_T)
-        
+
         Multiple topics between the same app pair are aggregated into a single
         DEPENDS_ON edge with increased weight.
+
+        Weight calculation considers:
+        - Number of shared topics (more topics = stronger coupling)
+        - QoS criticality of topics (higher reliability/durability = more critical dependency)
         """
         self.logger.debug("Deriving APP_TO_APP dependencies...")
-        
+
         # Map topics to their publishers and subscribers
         topic_publishers: Dict[str, List[str]] = defaultdict(list)
         topic_subscribers: Dict[str, List[str]] = defaultdict(list)
-        
+
         for edge in model.publishes_edges:
             topic_publishers[edge.target].append(edge.source)
-        
+
         for edge in model.subscribes_edges:
             topic_subscribers[edge.target].append(edge.source)
-        
+
         # Track dependencies to aggregate multiple topic connections
         # Key: (subscriber, publisher), Value: list of topics
         dependency_topics: Dict[Tuple[str, str], List[str]] = defaultdict(list)
-        
+
         # Find all app-to-app dependencies through topics
         for topic, publishers in topic_publishers.items():
             subscribers = topic_subscribers.get(topic, [])
-            
+
             for subscriber in subscribers:
                 for publisher in publishers:
                     if subscriber != publisher:
                         # Subscriber depends on publisher via this topic
                         key = (subscriber, publisher)
                         dependency_topics[key].append(topic)
-        
+
         # Create DEPENDS_ON edges with aggregated topic information
         for (subscriber, publisher), topics in dependency_topics.items():
-            # Weight increases with number of shared topics
-            weight = 1.0 + (len(topics) - 1) * 0.2  # +0.2 for each additional topic
-            
+            # Base weight from topic count
+            topic_count_weight = 1.0 + (len(topics) - 1) * 0.2  # +0.2 for each additional topic
+
+            # QoS-based weight factor (0.0 to 1.0)
+            qos_factor = self._calculate_qos_weight_factor(model, topics)
+
+            # Combined weight: base weight + QoS contribution
+            # QoS factor can add up to 0.5 additional weight
+            weight = topic_count_weight + (qos_factor * 0.5)
+
             model.depends_on_edges.append(DependsOnEdge(
                 source=subscriber,
                 target=publisher,
@@ -452,38 +494,42 @@ class GraphBuilder:
                 derived_from=[f"SUBSCRIBES_TO({subscriber},{t})" for t in topics] +
                              [f"PUBLISHES_TO({publisher},{t})" for t in topics],
                 topics=topics,
-                weight=min(weight, 2.0)  # Cap at 2.0
+                weight=min(weight, 2.5)  # Cap at 2.5 (increased from 2.0 to accommodate QoS)
             ))
     
     def _derive_app_to_broker_dependencies(self, model: GraphModel):
         """
         Derive APP_TO_BROKER dependencies from topic routing.
-        
+
         Rule: If App uses Topic_T (publish or subscribe) and Broker_B routes Topic_T,
               then App DEPENDS_ON Broker_B (for topic routing)
-        
+
         This captures the application's operational dependency on the broker
         infrastructure for message delivery.
+
+        Weight calculation considers:
+        - Number of topics routed through the broker (more topics = stronger coupling)
+        - QoS criticality of topics (higher reliability/durability = more critical dependency)
         """
         self.logger.debug("Deriving APP_TO_BROKER dependencies...")
-        
+
         # Map topics to their routing brokers
         topic_brokers: Dict[str, List[str]] = defaultdict(list)
         for edge in model.routes_edges:
             topic_brokers[edge.target].append(edge.source)
-        
+
         # Map applications to topics they use
         app_topics: Dict[str, Set[str]] = defaultdict(set)
-        
+
         for edge in model.publishes_edges:
             app_topics[edge.source].add(edge.target)
-        
+
         for edge in model.subscribes_edges:
             app_topics[edge.source].add(edge.target)
-        
+
         # Track unique app-broker dependencies
         app_broker_deps: Dict[Tuple[str, str], List[str]] = defaultdict(list)
-        
+
         # Find app-to-broker dependencies
         for app, topics in app_topics.items():
             for topic in topics:
@@ -491,60 +537,69 @@ class GraphBuilder:
                 for broker in brokers:
                     key = (app, broker)
                     app_broker_deps[key].append(topic)
-        
+
         # Create DEPENDS_ON edges
         for (app, broker), topics in app_broker_deps.items():
-            weight = 1.0 + (len(topics) - 1) * 0.15  # Slightly lower weight per topic
-            
+            # Base weight from topic count
+            topic_count_weight = 1.0 + (len(topics) - 1) * 0.15  # Slightly lower weight per topic
+
+            # QoS-based weight factor (0.0 to 1.0)
+            qos_factor = self._calculate_qos_weight_factor(model, topics)
+
+            # Combined weight: base weight + QoS contribution
+            # QoS factor can add up to 0.4 additional weight for broker dependencies
+            weight = topic_count_weight + (qos_factor * 0.4)
+
             model.depends_on_edges.append(DependsOnEdge(
                 source=app,
                 target=broker,
                 dependency_type=DependencyType.APP_TO_BROKER,
                 derived_from=[f"ROUTES({broker},{t})" for t in topics],
                 topics=topics,
-                weight=min(weight, 1.8)
+                weight=min(weight, 2.2)  # Cap at 2.2 (increased from 1.8 to accommodate QoS)
             ))
     
     def _derive_node_to_node_dependencies(self, model: GraphModel):
         """
         Derive NODE_TO_NODE dependencies from application dependencies.
-        
+
         Rule: If App_A DEPENDS_ON App_B (APP_TO_APP)
               and App_A RUNS_ON Node_X
               and App_B RUNS_ON Node_Y
               and Node_X != Node_Y
               then Node_X DEPENDS_ON Node_Y
-        
+
         The weight of the node dependency reflects the aggregated importance
-        of the underlying application dependencies.
+        of the underlying application dependencies, which now include QoS factors.
         """
         self.logger.debug("Deriving NODE_TO_NODE dependencies...")
-        
+
         # Map applications/brokers to their infrastructure nodes
         component_to_node: Dict[str, str] = {}
         for edge in model.runs_on_edges:
             component_to_node[edge.source] = edge.target
-        
+
         # Track node-to-node dependencies with their sources
         # Key: (source_node, target_node), Value: list of (source_app, target_app, weight)
         node_deps: Dict[Tuple[str, str], List[Tuple[str, str, float]]] = defaultdict(list)
-        
+
         # Get APP_TO_APP dependencies
         app_deps = model.get_depends_on_by_type(DependencyType.APP_TO_APP)
-        
+
         for dep in app_deps:
             source_node = component_to_node.get(dep.source)
             target_node = component_to_node.get(dep.target)
-            
+
             if source_node and target_node and source_node != target_node:
                 key = (source_node, target_node)
                 node_deps[key].append((dep.source, dep.target, dep.weight))
-        
+
         # Create NODE_TO_NODE DEPENDS_ON edges
         for (source_node, target_node), app_pairs in node_deps.items():
             # Aggregate weight based on number and importance of app dependencies
+            # App weights now include QoS factors, so node weights reflect QoS criticality
             total_weight = sum(w for _, _, w in app_pairs)
-            normalized_weight = min(1.0 + (total_weight - 1) * 0.3, 3.0)
+            normalized_weight = min(1.0 + (total_weight - 1) * 0.3, 3.5)  # Increased cap for QoS
             
             # Build derived_from list
             derived_from = [
@@ -593,15 +648,26 @@ class GraphBuilder:
         
         # Create NODE_TO_BROKER DEPENDS_ON edges
         for (node, broker), apps in node_broker_deps.items():
+            # Base weight from number of dependent apps
             weight = 1.0 + (len(apps) - 1) * 0.25
-            
+
+            # Get the underlying APP_TO_BROKER dependencies to incorporate their QoS-aware weights
+            app_broker_deps = model.get_depends_on_by_type(DependencyType.APP_TO_BROKER)
+            relevant_deps = [d for d in app_broker_deps if d.source in apps and d.target == broker]
+
+            if relevant_deps:
+                # Use the average QoS-influenced weight from underlying dependencies
+                avg_app_weight = sum(d.weight for d in relevant_deps) / len(relevant_deps)
+                # Adjust node-broker weight based on underlying app-broker weights
+                weight = weight * (avg_app_weight / 1.0)  # Scale by ratio to base weight
+
             model.depends_on_edges.append(DependsOnEdge(
                 source=node,
                 target=broker,
                 dependency_type=DependencyType.NODE_TO_BROKER,
                 derived_from=[f"APP_TO_BROKER({app},{broker})" for app in apps],
                 topics=[],
-                weight=min(weight, 2.5)
+                weight=min(weight, 3.0)  # Increased cap to accommodate QoS influence
             ))
     
     # =========================================================================
