@@ -365,18 +365,15 @@ def import_graph_to_neo4j(data: Dict[str, Any]):
             # Get statistics
             print("\nImport Statistics:")
             stats = importer.get_statistics()
-            
+
             print(f"\n  Nodes:")
             for node_type, count in stats['nodes'].items():
-                if node_type != 'total':
-                    print(f"    {node_type:20s}: {count:3d}")
-            print(f"    {'Total':20s}: {stats['nodes']['total']:3d}")
+                print(f"    {node_type:20s}: {count:3d}")
             
             print(f"\n  Relationships:")
             for rel_type, count in stats['relationships'].items():
                 if rel_type != 'total':
                     print(f"    {rel_type:20s}: {count:3d}")
-            print(f"    {'Total':20s}: {stats['relationships']['total']:3d}")
             
             print_success(f"Import complete!")
             

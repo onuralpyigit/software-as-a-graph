@@ -29,76 +29,48 @@ def create_test_graph():
         "nodes": [
             {
                 "id": "N1",
-                "name": "TestNode1",
-                "cpu_capacity": 16.0,
-                "memory_gb": 32.0,
-                "network_bandwidth_mbps": 1000.0,
-                "zone": "zone-a",
-                "region": "us-east-1"
+                "name": "TestNode1"
             },
             {
                 "id": "N2",
-                "name": "TestNode2",
-                "cpu_capacity": 8.0,
-                "memory_gb": 16.0,
-                "network_bandwidth_mbps": 1000.0,
-                "zone": "zone-b",
-                "region": "us-east-1"
+                "name": "TestNode2"
             }
         ],
         "applications": [
             {
                 "id": "A1",
                 "name": "ProducerApp",
-                "type": "PRODUCER",
-                "criticality": "HIGH",
-                "replicas": 2,
-                "cpu_request": 2.0,
-                "memory_request_mb": 1024.0
+                "role": "pub"
             },
             {
                 "id": "A2",
                 "name": "ConsumerApp",
-                "type": "CONSUMER",
-                "criticality": "CRITICAL",
-                "replicas": 1,
-                "cpu_request": 1.0,
-                "memory_request_mb": 512.0
+                "role": "sub"
             },
             {
                 "id": "A3",
                 "name": "ProsumerApp",
-                "type": "PROSUMER",
-                "criticality": "MEDIUM",
-                "replicas": 3,
-                "cpu_request": 1.5,
-                "memory_request_mb": 768.0
+                "role": "pubsub"
             }
         ],
         "topics": [
             {
                 "id": "T1",
                 "name": "sensor_data",
-                "message_size_bytes": 1024,
-                "message_rate_hz": 10,
+                "size": 1024,
                 "qos": {
                     "durability": "PERSISTENT",
                     "reliability": "RELIABLE",
-                    "history_depth": 10,
-                    "deadline_ms": 100,
                     "transport_priority": "HIGH"
                 }
             },
             {
                 "id": "T2",
                 "name": "control_commands",
-                "message_size_bytes": 512,
-                "message_rate_hz": 5,
+                "size": 512,
                 "qos": {
                     "durability": "VOLATILE",
                     "reliability": "BEST_EFFORT",
-                    "history_depth": 1,
-                    "deadline_ms": 50,
                     "transport_priority": "MEDIUM"
                 }
             }
@@ -116,8 +88,8 @@ def create_test_graph():
                 {"from": "A3", "to": "N1"}
             ],
             "publishes_to": [
-                {"from": "A1", "to": "T1", "period_ms": 100, "msg_size": 1024},
-                {"from": "A3", "to": "T2", "period_ms": 200, "msg_size": 512}
+                {"from": "A1", "to": "T1"},
+                {"from": "A3", "to": "T2"}
             ],
             "subscribes_to": [
                 {"from": "A2", "to": "T1"},
@@ -126,6 +98,10 @@ def create_test_graph():
             "routes": [
                 {"from": "B1", "to": "T1"},
                 {"from": "B1", "to": "T2"}
+            ],
+            "connects_to": [
+                {"from": "N1", "to": "N2"},
+                {"from": "N2", "to": "N1"}
             ]
         }
     }
@@ -205,9 +181,9 @@ def test_import():
             stats = importer.get_statistics()
             
             expected = {
-                'nodes': {'Node': 2, 'Application': 3, 'Topic': 2, 'Broker': 1, 'total': 8},
+                'nodes': {'Node': 2, 'Application': 3, 'Topic': 2, 'Broker': 1},
                 'relationships': {'RUNS_ON': 3, 'PUBLISHES_TO': 2, 'SUBSCRIBES_TO': 2, 
-                                'ROUTES': 2, 'DEPENDS_ON': 2, 'CONNECTS_TO': 1, 'total': 12}
+                                'ROUTES': 2, 'DEPENDS_ON': 8, 'CONNECTS_TO': 2}
             }   
             print("\nVerifying counts:")
             all_match = True
@@ -263,11 +239,11 @@ def test_queries():
             {
                 'name': 'Count Dependencies',
                 'query': 'MATCH ()-[r:DEPENDS_ON]->() RETURN count(r) as count',
-                'expected': 2
+                'expected': 8
             },
             {
                 'name': 'Find Producers',
-                'query': 'MATCH (a:Application) WHERE a.type = "PRODUCER" RETURN count(a) as count',
+                'query': 'MATCH (a:Application) WHERE a.role = "pub" RETURN count(a) as count',
                 'expected': 1
             }
         ]
@@ -358,7 +334,7 @@ def test_error_handling():
         invalid_graph = {
             "nodes": [],
             "applications": [
-                {"id": "A1", "name": "App1", "type": "PRODUCER"}
+                {"id": "A1", "name": "App1", "role": "pub"}
             ],
             "topics": [],
             "brokers": [],
@@ -414,11 +390,7 @@ def test_performance():
             large_graph['applications'].append({
                 "id": f"A{i+10}",
                 "name": f"App{i+10}",
-                "type": "CONSUMER",
-                "criticality": "MEDIUM",
-                "replicas": 1,
-                "cpu_request": 1.0,
-                "memory_request_mb": 512.0
+                "role": "sub"
             })
         
         importer = GraphImporter(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, NEO4J_DATABASE)
@@ -433,7 +405,8 @@ def test_performance():
             duration = time.time() - start_time
             
             stats = importer.get_statistics()
-            total_components = stats['nodes']['total']
+            total_components = stats['nodes']['Node'] + stats['nodes']['Application'] + \
+                               stats['nodes']['Topic'] + stats['nodes']['Broker']
             
             components_per_sec = total_components / duration if duration > 0 else 0
             

@@ -214,12 +214,9 @@ class GraphImporter:
             # Performance indexes
             indexes = [
                 "CREATE INDEX app_name IF NOT EXISTS FOR (a:Application) ON (a.name)",
-                "CREATE INDEX app_type IF NOT EXISTS FOR (a:Application) ON (a.app_type)",
                 "CREATE INDEX topic_name IF NOT EXISTS FOR (t:Topic) ON (t.name)",
                 "CREATE INDEX broker_name IF NOT EXISTS FOR (b:Broker) ON (b.name)",
-                "CREATE INDEX broker_type IF NOT EXISTS FOR (b:Broker) ON (b.broker_type)",
-                "CREATE INDEX node_name IF NOT EXISTS FOR (n:Node) ON (n.name)",
-                "CREATE INDEX node_type IF NOT EXISTS FOR (n:Node) ON (n.node_type)"
+                "CREATE INDEX node_name IF NOT EXISTS FOR (n:Node) ON (n.name)"
             ]
             
             for index in indexes:
@@ -401,10 +398,7 @@ class GraphImporter:
                         UNWIND $apps AS app
                         MERGE (a:Application {id: app.id})
                         SET a.name = coalesce(app.name, app.id),
-                            a.app_type = coalesce(app.type, app.app_type, 'PROSUMER'),
-                            a.criticality_weight = app.criticality_weight,
-                            a.domain = app.domain,
-                            a.updated_at = datetime()
+                            a.role = coalesce(app.role, 'pubsub')
                     """, apps=batch)
                     tx.commit()
 
@@ -425,15 +419,10 @@ class GraphImporter:
             processed_topic = {
                 'id': t.get('id'),
                 'name': t.get('name'),
-                'message_size_bytes': t.get('message_size_bytes'),
-                'message_rate_hz': t.get('message_rate_hz'),
-                'message_type': t.get('message_type'),
+                'size': t.get('message_size_bytes'),
                 'qos_reliability': qos.get('reliability', 'best_effort'),
                 'qos_durability': qos.get('durability', 'volatile'),
-                'qos_deadline_ms': qos.get('deadline_ms'),
-                'qos_lifespan_ms': qos.get('lifespan_ms'),
-                'qos_history_depth': qos.get('history_depth'),
-                'qos_transport_priority': qos.get('transport_priority', 0)
+                'qos_transport_priority': qos.get('transport_priority', 'MEDIUM')
             }
             processed_topics.append(processed_topic)
 
@@ -1166,7 +1155,7 @@ class GraphImporter:
         queries = [
             ("Application Count by Type", """
                 MATCH (a:Application)
-                RETURN a.app_type AS type, count(*) AS count
+                RETURN a.role AS role, count(*) AS count
                 ORDER BY count DESC
             """),
             
@@ -1515,8 +1504,7 @@ class GraphImporter:
             # Export applications
             apps_result = session.run("""
                 MATCH (a:Application)
-                RETURN a.id AS id, a.name AS name, a.app_type AS app_type,
-                       a.criticality_weight AS criticality_weight, a.domain AS domain
+                RETURN a.id AS id, a.name AS name, a.role AS role
             """)
             applications = [dict(r) for r in apps_result]
 
@@ -1524,14 +1512,9 @@ class GraphImporter:
             topics_result = session.run("""
                 MATCH (t:Topic)
                 RETURN t.id AS id, t.name AS name,
-                       t.message_type AS message_type,
-                       t.message_size_bytes AS message_size_bytes,
-                       t.message_rate_hz AS message_rate_hz,
+                       t.size AS message_size,
                        t.qos_reliability AS qos_reliability,
                        t.qos_durability AS qos_durability,
-                       t.qos_deadline_ms AS qos_deadline_ms,
-                       t.qos_lifespan_ms AS qos_lifespan_ms,
-                       t.qos_history_depth AS qos_history_depth,
                        t.qos_transport_priority AS qos_transport_priority
             """)
             topics = []
@@ -1541,9 +1524,6 @@ class GraphImporter:
                 qos = {
                     'reliability': topic_data.pop('qos_reliability', None),
                     'durability': topic_data.pop('qos_durability', None),
-                    'deadline_ms': topic_data.pop('qos_deadline_ms', None),
-                    'lifespan_ms': topic_data.pop('qos_lifespan_ms', None),
-                    'history_depth': topic_data.pop('qos_history_depth', None),
                     'transport_priority': topic_data.pop('qos_transport_priority', None)
                 }
                 # Remove None values
@@ -1560,15 +1540,13 @@ class GraphImporter:
             # Export PUBLISHES_TO relationships
             publishes_result = session.run("""
                 MATCH (a:Application)-[r:PUBLISHES_TO]->(t:Topic)
-                RETURN a.id AS source, t.id AS target,
-                       r.period_ms AS period_ms, r.message_size_bytes AS message_size_bytes
+                RETURN a.id AS source, t.id AS target, t.size AS message_size
             """)
             publishes = [
                 {
                     'from': r['source'],
                     'to': r['target'],
-                    'period_ms': r['period_ms'],
-                    'message_size_bytes': r['message_size_bytes']
+                    'message_size': r['message_size']
                 }
                 for r in publishes_result
             ]
@@ -1688,7 +1666,7 @@ MATCH (a:Application)
 OPTIONAL MATCH (a)-[:PUBLISHES_TO]->(pub:Topic)
 OPTIONAL MATCH (a)-[:SUBSCRIBES_TO]->(sub:Topic)
 WITH a, collect(DISTINCT pub.name) AS publishes, collect(DISTINCT sub.name) AS subscribes
-RETURN a.name AS application, a.app_type AS type,
+RETURN a.name AS application, a.role AS role,
        size(publishes) AS pub_count, size(subscribes) AS sub_count,
        publishes, subscribes
 ORDER BY pub_count + sub_count DESC
@@ -1696,8 +1674,8 @@ LIMIT 20;
 
 // Find applications by type
 MATCH (a:Application)
-WHERE a.app_type = 'PRODUCER'  // Change to 'CONSUMER' or 'PROSUMER'
-RETURN a.name, a.app_type;
+WHERE a.role = 'pub'  // Change to 'sub' or 'pubsub'
+RETURN a.name, a.role;
 
 // --- Dependency Analysis ---
 

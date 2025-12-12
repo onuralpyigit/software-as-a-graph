@@ -819,7 +819,8 @@ class GraphGenerator:
                 'applications': len(apps),
                 'brokers': len(graph['brokers']),
                 'topics': len(topics),
-                'nodes': len(graph['nodes'])
+                'nodes': len(graph['nodes']),
+                'total': len(apps) + len(graph['brokers']) + len(topics) + len(graph['nodes'])
             },
             'edge_counts': {
                 'publishes_to': len(edges['publishes_to']),

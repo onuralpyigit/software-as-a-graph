@@ -216,8 +216,7 @@ class Neo4jUtilities:
             applications = []
             result = session.run("""
                 MATCH (a:Application)
-                RETURN a.id AS id, a.name AS name, a.app_type AS app_type,
-                       a.criticality_weight AS criticality_weight, a.domain AS domain
+                RETURN a.id AS id, a.name AS name, a.role AS role
             """)
             for record in result:
                 applications.append(dict(record))
@@ -227,14 +226,9 @@ class Neo4jUtilities:
             result = session.run("""
                 MATCH (t:Topic)
                 RETURN t.id AS id, t.name AS name,
-                       t.message_type AS message_type,
-                       t.message_size_bytes AS message_size_bytes,
-                       t.message_rate_hz AS message_rate_hz,
+                       t.size AS message_size_bytes,
                        t.qos_durability AS qos_durability,
                        t.qos_reliability AS qos_reliability,
-                       t.qos_history_depth AS qos_history_depth,
-                       t.qos_deadline_ms AS qos_deadline_ms,
-                       t.qos_lifespan_ms AS qos_lifespan_ms,
                        t.qos_transport_priority AS qos_transport_priority
             """)
             for record in result:
@@ -243,9 +237,6 @@ class Neo4jUtilities:
                 qos = {
                     'durability': topic_data.pop('qos_durability', None),
                     'reliability': topic_data.pop('qos_reliability', None),
-                    'history_depth': topic_data.pop('qos_history_depth', None),
-                    'deadline_ms': topic_data.pop('qos_deadline_ms', None),
-                    'lifespan_ms': topic_data.pop('qos_lifespan_ms', None),
                     'transport_priority': topic_data.pop('qos_transport_priority', None)
                 }
                 topic_data['qos'] = {k: v for k, v in qos.items() if v is not None}
@@ -255,8 +246,7 @@ class Neo4jUtilities:
             brokers = []
             result = session.run("""
                 MATCH (b:Broker)
-                RETURN b.id AS id, b.name AS name, b.broker_type AS broker_type,
-                       b.capacity AS capacity, b.current_load AS current_load
+                RETURN b.id AS id, b.name AS name
             """)
             for record in result:
                 brokers.append(dict(record))
@@ -284,15 +274,13 @@ class Neo4jUtilities:
             # PUBLISHES_TO
             result = session.run("""
                 MATCH (a:Application)-[r:PUBLISHES_TO]->(t:Topic)
-                RETURN a.id AS from_id, t.id AS to_id,
-                       r.period_ms AS period_ms, r.message_size_bytes AS message_size_bytes
+                RETURN a.id AS from_id, t.id AS to_id, t.size AS message_size
             """)
             for record in result:
                 relationships['publishes_to'].append({
                     'from': record['from_id'],
                     'to': record['to_id'],
-                    'period_ms': record['period_ms'],
-                    'message_size_bytes': record['message_size_bytes']
+                    'message_size': record['message_size']
                 })
 
             # SUBSCRIBES_TO
