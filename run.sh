@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Step 1: Generate
-python generate_graph.py --scale medium --scenario iot --output input/system.json
+python generate_graph.py --scale small --scenario iot --output input/system.json
 
 # Step 2: Import
 python import_graph.py --input input/system.json --clear
