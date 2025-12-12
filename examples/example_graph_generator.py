@@ -36,7 +36,6 @@ def example_1_basic():
         num_applications=10,
         num_topics=8,
         num_brokers=2,
-        edge_density=0.3,
         antipatterns=[],
         seed=42
     )
@@ -54,7 +53,7 @@ def example_1_basic():
     app = graph['applications'][0]
     print(f"  ID: {app['id']}")
     print(f"  Name: {app['name']}")
-    print(f"  Type: {app['app_type']}")
+    print(f"  Type: {app['role']}")
     
     print("\nSample Topic:")
     topic = graph['topics'][0]
@@ -75,7 +74,6 @@ def example_2_realistic_iot():
         num_applications=10,
         num_topics=12,
         num_brokers=2,
-        edge_density=0.3,
         antipatterns=[],
         seed=42
     )
@@ -128,7 +126,6 @@ def example_3_financial_ha():
         num_applications=50,
         num_topics=25,
         num_brokers=3,
-        edge_density=0.3,
         antipatterns=[],
         seed=42
     )
@@ -170,7 +167,6 @@ def example_4_antipatterns():
         num_applications=15,
         num_topics=10,
         num_brokers=2,
-        edge_density=0.3,
         antipatterns=['spof', 'god_topic', 'tight_coupling'],
         seed=42
     )

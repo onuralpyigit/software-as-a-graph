@@ -1,1369 +1,248 @@
 {
   "metadata": {
-    "generated_at": "2025-12-11T23:41:33.037950",
-    "generator_version": "3.0.0",
-    "config": {
-      "scale": "small",
-      "scenario": "iot",
-      "seed": 42,
-      "antipatterns": []
-    },
-    "features": [
-      "semantic_topic_matching",
-      "hierarchical_data_flow",
-      "realistic_network_topology",
-      "unified_depends_on_model"
-    ]
+    "id": "graph_generic_tiny_42",
+    "generated_at": "2025-12-12T20:18:23.573971Z",
+    "generator_version": "3.0",
+    "scale": "tiny",
+    "scenario": "generic",
+    "seed": 42,
+    "generation_time_seconds": 9.6e-05,
+    "antipatterns_applied": null
   },
-  "nodes": [
+  "applications": [
     {
-      "id": "edge_0",
-      "name": "Edge Node 0",
-      "node_type": "edge"
+      "id": "A1",
+      "name": "ServiceHandler",
+      "role": "sub"
     },
     {
-      "id": "edge_1",
-      "name": "Edge Node 1",
-      "node_type": "edge"
+      "id": "A2",
+      "name": "DataProcessor",
+      "role": "pub"
     },
     {
-      "id": "compute_2",
-      "name": "Compute Node 2",
-      "node_type": "compute"
+      "id": "A3",
+      "name": "EventRouter",
+      "role": "pubsub"
     },
     {
-      "id": "compute_3",
-      "name": "Compute Node 3",
-      "node_type": "compute"
+      "id": "A4",
+      "name": "MessageGateway",
+      "role": "sub"
     },
     {
-      "id": "cloud_4",
-      "name": "Cloud Node 4",
-      "node_type": "cloud"
+      "id": "A5",
+      "name": "StateManager",
+      "role": "pubsub"
     }
   ],
   "brokers": [
     {
-      "id": "broker_0",
-      "name": "Broker 0 (MQTT)",
-      "broker_type": "mqtt"
-    },
-    {
-      "id": "broker_1",
-      "name": "Broker 1 (DDS)",
-      "broker_type": "dds"
-    }
-  ],
-  "applications": [
-    {
-      "id": "app_0",
-      "name": "SensorCollector_0",
-      "app_type": "PRODUCER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_1",
-      "name": "SensorCollector_1",
-      "app_type": "PRODUCER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_2",
-      "name": "EdgeGateway_0",
-      "app_type": "PROSUMER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_3",
-      "name": "StatusMonitor_0",
-      "app_type": "CONSUMER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_4",
-      "name": "SensorCollector_2",
-      "app_type": "PRODUCER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_5",
-      "name": "StatusMonitor_1",
-      "app_type": "CONSUMER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_6",
-      "name": "StatusMonitor_2",
-      "app_type": "CONSUMER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_7",
-      "name": "SensorCollector_3",
-      "app_type": "PRODUCER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_8",
-      "name": "AlertProcessor_0",
-      "app_type": "CONSUMER",
-      "tier": "cloud"
-    },
-    {
-      "id": "app_9",
-      "name": "CommandDispatcher_0",
-      "app_type": "PRODUCER",
-      "tier": "gateway"
-    },
-    {
-      "id": "app_10",
-      "name": "SensorCollector_4",
-      "app_type": "PRODUCER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_11",
-      "name": "SensorCollector_5",
-      "app_type": "PRODUCER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_12",
-      "name": "DataForwarder_0",
-      "app_type": "PROSUMER",
-      "tier": "gateway"
-    },
-    {
-      "id": "app_13",
-      "name": "DeviceManager_0",
-      "app_type": "PROSUMER",
-      "tier": "edge"
-    },
-    {
-      "id": "app_14",
-      "name": "TelemetryAggregator_0",
-      "app_type": "PROSUMER",
-      "tier": "gateway"
+      "id": "B1",
+      "name": "Broker1"
     }
   ],
   "topics": [
     {
-      "id": "topic_0",
-      "name": "sensors/pressure/device_0/data",
+      "id": "T1",
+      "name": "events/created",
+      "size": 959,
       "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 3536,
-        "transport_priority": 1,
-        "history_depth": 5
-      },
-      "message_size_bytes": 16384,
-      "message_rate_hz": 100,
-      "keywords": [
-        "type",
-        "device_id",
-        "sensors",
-        "data",
-        "device",
-        "pressure"
-      ]
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
     },
     {
-      "id": "topic_1",
-      "name": "firmware/gateway/updates",
+      "id": "T2",
+      "name": "data/user",
+      "size": 3984,
       "qos": {
-        "reliability": "best_effort",
-        "durability": "transient_local",
-        "deadline_ms": 4492,
-        "transport_priority": 1,
-        "history_depth": 1
-      },
-      "message_size_bytes": 8192,
-      "message_rate_hz": 10,
-      "keywords": [
-        "firmware",
-        "updates",
-        "gateway",
-        "device_type"
-      ]
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
     },
     {
-      "id": "topic_2",
-      "name": "alerts/critical",
+      "id": "T3",
+      "name": "commands/service",
+      "size": 1264,
       "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 1816,
-        "transport_priority": 1,
-        "history_depth": 10
-      },
-      "message_size_bytes": 128,
-      "message_rate_hz": 20,
-      "keywords": [
-        "severity",
-        "alerts",
-        "critical"
-      ]
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "N1",
+      "name": "Node1"
     },
     {
-      "id": "topic_3",
-      "name": "commands/gateway/control",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "transient_local",
-        "deadline_ms": 2677,
-        "transport_priority": 2,
-        "history_depth": 5
-      },
-      "message_size_bytes": 16384,
-      "message_rate_hz": 500,
-      "keywords": [
-        "control",
-        "commands",
-        "gateway",
-        "device_type"
-      ]
+      "id": "N2",
+      "name": "Node2"
     },
     {
-      "id": "topic_4",
-      "name": "diagnostics/zone_4",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 1410,
-        "transport_priority": 0,
-        "history_depth": 100
-      },
-      "message_size_bytes": 65536,
-      "message_rate_hz": 10,
-      "keywords": [
-        "diagnostics",
-        "zone"
-      ]
-    },
-    {
-      "id": "topic_5",
-      "name": "telemetry/zone_5/aggregate",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 4200,
-        "transport_priority": 1,
-        "history_depth": 5
-      },
-      "message_size_bytes": 32768,
-      "message_rate_hz": 10,
-      "keywords": [
-        "aggregate",
-        "telemetry",
-        "metrics",
-        "data",
-        "sensors",
-        "zone"
-      ]
-    },
-    {
-      "id": "topic_6",
-      "name": "diagnostics/zone_6",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 745,
-        "transport_priority": 1,
-        "history_depth": 1
-      },
-      "message_size_bytes": 16384,
-      "message_rate_hz": 10,
-      "keywords": [
-        "diagnostics",
-        "zone"
-      ]
-    },
-    {
-      "id": "topic_7",
-      "name": "config/actuator",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 4339,
-        "transport_priority": 1,
-        "history_depth": 100
-      },
-      "message_size_bytes": 128,
-      "message_rate_hz": 50,
-      "keywords": [
-        "actuator",
-        "config",
-        "device_type"
-      ]
-    },
-    {
-      "id": "topic_8",
-      "name": "sensors/temperature/device_8/data",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 1855,
-        "transport_priority": 1,
-        "history_depth": 5
-      },
-      "message_size_bytes": 65536,
-      "message_rate_hz": 1000,
-      "keywords": [
-        "type",
-        "device_id",
-        "sensors",
-        "temperature",
-        "data",
-        "device"
-      ]
-    },
-    {
-      "id": "topic_9",
-      "name": "sensors/motion/device_9/data",
-      "qos": {
-        "reliability": "reliable",
-        "durability": "transient_local",
-        "deadline_ms": 1669,
-        "transport_priority": 0,
-        "history_depth": 5
-      },
-      "message_size_bytes": 32768,
-      "message_rate_hz": 1000,
-      "keywords": [
-        "motion",
-        "type",
-        "device_id",
-        "sensors",
-        "data",
-        "device"
-      ]
+      "id": "N3",
+      "name": "Node3"
     }
   ],
   "relationships": {
-    "runs_on": [
-      {
-        "from": "app_0",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_1",
-        "to": "edge_0"
-      },
-      {
-        "from": "app_2",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_3",
-        "to": "compute_2"
-      },
-      {
-        "from": "app_4",
-        "to": "edge_0"
-      },
-      {
-        "from": "app_5",
-        "to": "compute_3"
-      },
-      {
-        "from": "app_6",
-        "to": "compute_2"
-      },
-      {
-        "from": "app_7",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_8",
-        "to": "compute_3"
-      },
-      {
-        "from": "app_9",
-        "to": "compute_3"
-      },
-      {
-        "from": "app_10",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_11",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_12",
-        "to": "compute_3"
-      },
-      {
-        "from": "app_13",
-        "to": "edge_0"
-      },
-      {
-        "from": "app_14",
-        "to": "cloud_4"
-      },
-      {
-        "from": "broker_0",
-        "to": "compute_3"
-      },
-      {
-        "from": "broker_1",
-        "to": "compute_2"
-      }
-    ],
     "publishes_to": [
       {
-        "from": "app_0",
-        "to": "topic_8",
-        "period_ms": 1,
-        "message_size_bytes": 65536
+        "from": "A2",
+        "to": "T2"
       },
       {
-        "from": "app_1",
-        "to": "topic_2",
-        "period_ms": 50,
-        "message_size_bytes": 128
+        "from": "A3",
+        "to": "T2"
       },
       {
-        "from": "app_2",
-        "to": "topic_5",
-        "period_ms": 100,
-        "message_size_bytes": 32768
+        "from": "A3",
+        "to": "T3"
       },
       {
-        "from": "app_4",
-        "to": "topic_6",
-        "period_ms": 100,
-        "message_size_bytes": 16384
+        "from": "A5",
+        "to": "T3"
       },
       {
-        "from": "app_7",
-        "to": "topic_5",
-        "period_ms": 100,
-        "message_size_bytes": 32768
+        "from": "A5",
+        "to": "T1"
       },
       {
-        "from": "app_9",
-        "to": "topic_3",
-        "period_ms": 2,
-        "message_size_bytes": 16384
-      },
-      {
-        "from": "app_10",
-        "to": "topic_8",
-        "period_ms": 1,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_11",
-        "to": "topic_9",
-        "period_ms": 1,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_12",
-        "to": "topic_5",
-        "period_ms": 100,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_13",
-        "to": "topic_7",
-        "period_ms": 20,
-        "message_size_bytes": 128
-      },
-      {
-        "from": "app_14",
-        "to": "topic_8",
-        "period_ms": 1,
-        "message_size_bytes": 65536
+        "from": "A5",
+        "to": "T2"
       }
     ],
     "subscribes_to": [
       {
-        "from": "app_2",
-        "to": "topic_3"
+        "from": "A1",
+        "to": "T1"
       },
       {
-        "from": "app_3",
-        "to": "topic_5"
+        "from": "A1",
+        "to": "T3"
       },
       {
-        "from": "app_5",
-        "to": "topic_6"
+        "from": "A3",
+        "to": "T2"
       },
       {
-        "from": "app_6",
-        "to": "topic_4"
+        "from": "A4",
+        "to": "T1"
       },
       {
-        "from": "app_8",
-        "to": "topic_1"
+        "from": "A4",
+        "to": "T2"
       },
       {
-        "from": "app_12",
-        "to": "topic_9"
+        "from": "A5",
+        "to": "T3"
       },
       {
-        "from": "app_13",
-        "to": "topic_9"
+        "from": "A5",
+        "to": "T1"
       },
       {
-        "from": "app_14",
-        "to": "topic_5"
-      },
-      {
-        "from": "app_9",
-        "to": "topic_5"
-      },
-      {
-        "from": "app_12",
-        "to": "topic_5"
-      },
-      {
-        "from": "app_9",
-        "to": "topic_7"
-      },
-      {
-        "from": "app_12",
-        "to": "topic_7"
-      },
-      {
-        "from": "app_9",
-        "to": "topic_2"
-      },
-      {
-        "from": "app_12",
-        "to": "topic_2"
-      },
-      {
-        "from": "app_9",
-        "to": "topic_8"
-      },
-      {
-        "from": "app_12",
-        "to": "topic_8"
-      },
-      {
-        "from": "app_9",
-        "to": "topic_9"
-      },
-      {
-        "from": "app_9",
-        "to": "topic_6"
-      },
-      {
-        "from": "app_12",
-        "to": "topic_6"
-      },
-      {
-        "from": "app_8",
-        "to": "topic_8"
-      },
-      {
-        "from": "app_8",
-        "to": "topic_5"
-      },
-      {
-        "from": "app_8",
-        "to": "topic_3"
+        "from": "A5",
+        "to": "T2"
       }
     ],
     "routes": [
       {
-        "from": "broker_0",
-        "to": "topic_0"
+        "from": "B1",
+        "to": "T1"
       },
       {
-        "from": "broker_1",
-        "to": "topic_1"
+        "from": "B1",
+        "to": "T2"
       },
       {
-        "from": "broker_0",
-        "to": "topic_2"
+        "from": "B1",
+        "to": "T3"
+      }
+    ],
+    "runs_on": [
+      {
+        "from": "A1",
+        "to": "N3"
       },
       {
-        "from": "broker_1",
-        "to": "topic_3"
+        "from": "A2",
+        "to": "N1"
       },
       {
-        "from": "broker_0",
-        "to": "topic_4"
+        "from": "A3",
+        "to": "N1"
       },
       {
-        "from": "broker_1",
-        "to": "topic_5"
+        "from": "A4",
+        "to": "N3"
       },
       {
-        "from": "broker_0",
-        "to": "topic_6"
+        "from": "A5",
+        "to": "N1"
       },
       {
-        "from": "broker_1",
-        "to": "topic_7"
-      },
-      {
-        "from": "broker_0",
-        "to": "topic_8"
-      },
-      {
-        "from": "broker_1",
-        "to": "topic_9"
+        "from": "B1",
+        "to": "N1"
       }
     ],
     "connects_to": [
       {
-        "from": "compute_2",
-        "to": "edge_1"
+        "from": "N1",
+        "to": "N2"
       },
       {
-        "from": "cloud_4",
-        "to": "compute_3"
+        "from": "N2",
+        "to": "N3"
       },
       {
-        "from": "compute_3",
-        "to": "edge_1"
-      },
-      {
-        "from": "edge_0",
-        "to": "edge_1"
-      },
-      {
-        "from": "cloud_4",
-        "to": "compute_2"
-      },
-      {
-        "from": "compute_2",
-        "to": "edge_0"
-      },
-      {
-        "from": "compute_2",
-        "to": "compute_3"
-      },
-      {
-        "from": "compute_3",
-        "to": "edge_0"
-      }
-    ],
-    "depends_on": [
-      {
-        "from": "app_2",
-        "to": "app_9",
-        "type": "app_to_app",
-        "via_topic": "topic_3",
-        "weight": 0.32,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "transient_local",
-          "deadline_ms": 2677,
-          "priority": 2
-        }
-      },
-      {
-        "from": "app_8",
-        "to": "app_9",
-        "type": "app_to_app",
-        "via_topic": "topic_3",
-        "weight": 0.32,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "transient_local",
-          "deadline_ms": 2677,
-          "priority": 2
-        }
-      },
-      {
-        "from": "app_3",
-        "to": "app_2",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_3",
-        "to": "app_7",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_3",
-        "to": "app_12",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_14",
-        "to": "app_2",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_14",
-        "to": "app_7",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_14",
-        "to": "app_12",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_9",
-        "to": "app_2",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_9",
-        "to": "app_7",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_9",
-        "to": "app_12",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_12",
-        "to": "app_2",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_12",
-        "to": "app_7",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_8",
-        "to": "app_2",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_8",
-        "to": "app_7",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_8",
-        "to": "app_12",
-        "type": "app_to_app",
-        "via_topic": "topic_5",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4200,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_5",
-        "to": "app_4",
-        "type": "app_to_app",
-        "via_topic": "topic_6",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 745,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_9",
-        "to": "app_4",
-        "type": "app_to_app",
-        "via_topic": "topic_6",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 745,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_12",
-        "to": "app_4",
-        "type": "app_to_app",
-        "via_topic": "topic_6",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 745,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_12",
-        "to": "app_11",
-        "type": "app_to_app",
-        "via_topic": "topic_9",
-        "weight": 0.45,
-        "qos_factors": {
-          "reliability": "reliable",
-          "durability": "transient_local",
-          "deadline_ms": 1669,
-          "priority": 0
-        }
-      },
-      {
-        "from": "app_13",
-        "to": "app_11",
-        "type": "app_to_app",
-        "via_topic": "topic_9",
-        "weight": 0.45,
-        "qos_factors": {
-          "reliability": "reliable",
-          "durability": "transient_local",
-          "deadline_ms": 1669,
-          "priority": 0
-        }
-      },
-      {
-        "from": "app_9",
-        "to": "app_11",
-        "type": "app_to_app",
-        "via_topic": "topic_9",
-        "weight": 0.45,
-        "qos_factors": {
-          "reliability": "reliable",
-          "durability": "transient_local",
-          "deadline_ms": 1669,
-          "priority": 0
-        }
-      },
-      {
-        "from": "app_9",
-        "to": "app_13",
-        "type": "app_to_app",
-        "via_topic": "topic_7",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4339,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_12",
-        "to": "app_13",
-        "type": "app_to_app",
-        "via_topic": "topic_7",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 4339,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_9",
-        "to": "app_1",
-        "type": "app_to_app",
-        "via_topic": "topic_2",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1816,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_12",
-        "to": "app_1",
-        "type": "app_to_app",
-        "via_topic": "topic_2",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1816,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_9",
-        "to": "app_0",
-        "type": "app_to_app",
-        "via_topic": "topic_8",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1855,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_9",
-        "to": "app_10",
-        "type": "app_to_app",
-        "via_topic": "topic_8",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1855,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_9",
-        "to": "app_14",
-        "type": "app_to_app",
-        "via_topic": "topic_8",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1855,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_12",
-        "to": "app_0",
-        "type": "app_to_app",
-        "via_topic": "topic_8",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1855,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_12",
-        "to": "app_10",
-        "type": "app_to_app",
-        "via_topic": "topic_8",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1855,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_12",
-        "to": "app_14",
-        "type": "app_to_app",
-        "via_topic": "topic_8",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1855,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_8",
-        "to": "app_0",
-        "type": "app_to_app",
-        "via_topic": "topic_8",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1855,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_8",
-        "to": "app_10",
-        "type": "app_to_app",
-        "via_topic": "topic_8",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1855,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_8",
-        "to": "app_14",
-        "type": "app_to_app",
-        "via_topic": "topic_8",
-        "weight": 0.18,
-        "qos_factors": {
-          "reliability": "best_effort",
-          "durability": "volatile",
-          "deadline_ms": 1855,
-          "priority": 1
-        }
-      },
-      {
-        "from": "app_8",
-        "to": "broker_1",
-        "type": "app_to_broker",
-        "weight": 0.32
-      },
-      {
-        "from": "app_1",
-        "to": "broker_0",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_9",
-        "to": "broker_0",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_12",
-        "to": "broker_0",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_9",
-        "to": "broker_1",
-        "type": "app_to_broker",
-        "weight": 0.45
-      },
-      {
-        "from": "app_2",
-        "to": "broker_1",
-        "type": "app_to_broker",
-        "weight": 0.32
-      },
-      {
-        "from": "app_6",
-        "to": "broker_0",
-        "type": "app_to_broker",
-        "weight": 0.12
-      },
-      {
-        "from": "app_7",
-        "to": "broker_1",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_12",
-        "to": "broker_1",
-        "type": "app_to_broker",
-        "weight": 0.45
-      },
-      {
-        "from": "app_3",
-        "to": "broker_1",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_14",
-        "to": "broker_1",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_4",
-        "to": "broker_0",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_5",
-        "to": "broker_0",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_13",
-        "to": "broker_1",
-        "type": "app_to_broker",
-        "weight": 0.45
-      },
-      {
-        "from": "app_0",
-        "to": "broker_0",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_10",
-        "to": "broker_0",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_14",
-        "to": "broker_0",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_8",
-        "to": "broker_0",
-        "type": "app_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "app_11",
-        "to": "broker_1",
-        "type": "app_to_broker",
-        "weight": 0.45
-      },
-      {
-        "from": "edge_1",
-        "to": "compute_3",
-        "type": "node_to_node",
-        "weight": 0.284,
-        "derived_count": 1,
-        "avg_qos_weight": 0.32
-      },
-      {
-        "from": "compute_2",
-        "to": "edge_1",
-        "type": "node_to_node",
-        "weight": 0.246,
-        "derived_count": 2,
-        "avg_qos_weight": 0.18
-      },
-      {
-        "from": "compute_2",
-        "to": "compute_3",
-        "type": "node_to_node",
-        "weight": 0.186,
-        "derived_count": 1,
-        "avg_qos_weight": 0.18
-      },
-      {
-        "from": "cloud_4",
-        "to": "edge_1",
-        "type": "node_to_node",
-        "weight": 0.246,
-        "derived_count": 2,
-        "avg_qos_weight": 0.18
-      },
-      {
-        "from": "cloud_4",
-        "to": "compute_3",
-        "type": "node_to_node",
-        "weight": 0.186,
-        "derived_count": 1,
-        "avg_qos_weight": 0.18
-      },
-      {
-        "from": "compute_3",
-        "to": "edge_1",
-        "type": "node_to_node",
-        "weight": 0.453,
-        "derived_count": 14,
-        "avg_qos_weight": 0.219
-      },
-      {
-        "from": "compute_3",
-        "to": "edge_0",
-        "type": "node_to_node",
-        "weight": 0.426,
-        "derived_count": 7,
-        "avg_qos_weight": 0.18
-      },
-      {
-        "from": "edge_0",
-        "to": "edge_1",
-        "type": "node_to_node",
-        "weight": 0.375,
-        "derived_count": 1,
-        "avg_qos_weight": 0.45
-      },
-      {
-        "from": "compute_3",
-        "to": "cloud_4",
-        "type": "node_to_node",
-        "weight": 0.306,
-        "derived_count": 3,
-        "avg_qos_weight": 0.18
-      },
-      {
-        "from": "compute_3",
-        "to": "compute_2",
-        "type": "node_to_broker",
-        "weight": 0.45
-      },
-      {
-        "from": "edge_0",
-        "to": "compute_3",
-        "type": "node_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "edge_1",
-        "to": "compute_2",
-        "type": "node_to_broker",
-        "weight": 0.45
-      },
-      {
-        "from": "compute_2",
-        "to": "compute_3",
-        "type": "node_to_broker",
-        "weight": 0.12
-      },
-      {
-        "from": "cloud_4",
-        "to": "compute_2",
-        "type": "node_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "edge_0",
-        "to": "compute_2",
-        "type": "node_to_broker",
-        "weight": 0.45
-      },
-      {
-        "from": "edge_1",
-        "to": "compute_3",
-        "type": "node_to_broker",
-        "weight": 0.18
-      },
-      {
-        "from": "cloud_4",
-        "to": "compute_3",
-        "type": "node_to_broker",
-        "weight": 0.18
+        "from": "N3",
+        "to": "N1"
       }
     ]
   },
-  "statistics": {
-    "total_nodes": 5,
-    "total_brokers": 2,
-    "total_applications": 15,
-    "total_topics": 10,
-    "total_publishes": 11,
-    "total_subscribes": 22,
-    "total_routes": 10,
-    "total_connects": 8,
-    "total_depends_on": 71,
-    "unique_publishers": 11,
-    "unique_subscribers": 9,
-    "avg_publishers_per_topic": 1.1,
-    "avg_subscribers_per_topic": 2.2,
-    "avg_apps_per_node": 3.0,
-    "antipatterns_injected": 0,
-    "depends_on_by_type": {
-      "app_to_app": 35,
-      "app_to_broker": 19,
-      "node_to_node": 9,
-      "node_to_broker": 8
+  "metrics": {
+    "vertex_counts": {
+      "applications": 5,
+      "brokers": 1,
+      "topics": 3,
+      "nodes": 3
     },
-    "app_tiers": {
-      "edge": 11,
-      "cloud": 1,
-      "gateway": 3
+    "edge_counts": {
+      "publishes_to": 6,
+      "subscribes_to": 8,
+      "routes": 3,
+      "runs_on": 6,
+      "connects_to": 3,
+      "total": 26
+    },
+    "pub_sub": {
+      "unique_publishers": 3,
+      "unique_subscribers": 4,
+      "avg_pubs_per_topic": 2.0,
+      "avg_subs_per_topic": 2.6666666666666665,
+      "max_fanout": 3
+    },
+    "role_distribution": {
+      "sub": 2,
+      "pub": 1,
+      "pubsub": 2
+    },
+    "qos_distribution": {
+      "durability": {
+        "VOLATILE": 2,
+        "TRANSIENT_LOCAL": 1
+      },
+      "reliability": {
+        "BEST_EFFORT": 2,
+        "RELIABLE": 1
+      },
+      "transport_priority": {
+        "MEDIUM": 3
+      }
     }
-  },
-  "injected_antipatterns": []
+  }
 }

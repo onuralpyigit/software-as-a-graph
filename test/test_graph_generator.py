@@ -119,9 +119,9 @@ class GraphGeneratorTester:
             'broker_overload',
             'tight_coupling',
             'chatty',
-            'circular',
+            'circular_dependency',
             'bottleneck',
-            'hidden_coupling'
+            'single_broker'
         ]
         
         for antipattern in antipatterns:
@@ -170,7 +170,6 @@ class GraphGeneratorTester:
                 num_applications=30,
                 num_topics=15,
                 num_brokers=3,
-                edge_density=0.4,
                 antipatterns=[],
                 seed=12345
             )
@@ -206,7 +205,6 @@ class GraphGeneratorTester:
                     num_applications=GraphGenerator.SCALES[scale]['apps'],
                     num_topics=GraphGenerator.SCALES[scale]['topics'],
                     num_brokers=GraphGenerator.SCALES[scale]['brokers'],
-                    edge_density=0.3,
                     antipatterns=[],
                     seed=42 + i
                 )
@@ -284,7 +282,6 @@ class GraphGeneratorTester:
             num_applications=scale_params['apps'],
             num_topics=scale_params['topics'],
             num_brokers=scale_params['brokers'],
-            edge_density=kwargs.get('density', 0.3),
             antipatterns=kwargs.get('antipatterns', []),
             seed=kwargs.get('seed', 42)
         )
