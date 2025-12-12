@@ -1,13 +1,19 @@
 {
   "metadata": {
-    "generated_at": "2025-12-02T22:36:43.122039",
-    "generator_version": "2.0.0",
+    "generated_at": "2025-12-11T23:41:33.037950",
+    "generator_version": "3.0.0",
     "config": {
-      "scale": "medium",
+      "scale": "small",
       "scenario": "iot",
       "seed": 42,
       "antipatterns": []
-    }
+    },
+    "features": [
+      "semantic_topic_matching",
+      "hierarchical_data_flow",
+      "realistic_network_topology",
+      "unified_depends_on_model"
+    ]
   },
   "nodes": [
     {
@@ -21,69 +27,19 @@
       "node_type": "edge"
     },
     {
-      "id": "edge_2",
-      "name": "Edge Node 2",
-      "node_type": "edge"
-    },
-    {
-      "id": "edge_3",
-      "name": "Edge Node 3",
-      "node_type": "edge"
-    },
-    {
-      "id": "edge_4",
-      "name": "Edge Node 4",
-      "node_type": "edge"
-    },
-    {
-      "id": "compute_5",
-      "name": "Compute Node 5",
+      "id": "compute_2",
+      "name": "Compute Node 2",
       "node_type": "compute"
     },
     {
-      "id": "compute_6",
-      "name": "Compute Node 6",
+      "id": "compute_3",
+      "name": "Compute Node 3",
       "node_type": "compute"
     },
     {
-      "id": "compute_7",
-      "name": "Compute Node 7",
-      "node_type": "compute"
-    },
-    {
-      "id": "compute_8",
-      "name": "Compute Node 8",
-      "node_type": "compute"
-    },
-    {
-      "id": "compute_9",
-      "name": "Compute Node 9",
-      "node_type": "compute"
-    },
-    {
-      "id": "compute_10",
-      "name": "Compute Node 10",
-      "node_type": "compute"
-    },
-    {
-      "id": "cloud_11",
-      "name": "Cloud Node 11",
+      "id": "cloud_4",
+      "name": "Cloud Node 4",
       "node_type": "cloud"
-    },
-    {
-      "id": "cloud_12",
-      "name": "Cloud Node 12",
-      "node_type": "cloud"
-    },
-    {
-      "id": "cloud_13",
-      "name": "Cloud Node 13",
-      "node_type": "cloud"
-    },
-    {
-      "id": "gateway_14",
-      "name": "Gateway Node 14",
-      "node_type": "gateway"
     }
   ],
   "brokers": [
@@ -96,269 +52,104 @@
       "id": "broker_1",
       "name": "Broker 1 (DDS)",
       "broker_type": "dds"
-    },
-    {
-      "id": "broker_2",
-      "name": "Broker 2 (DDS)",
-      "broker_type": "dds"
     }
   ],
   "applications": [
     {
       "id": "app_0",
-      "name": "EdgeGateway_0",
-      "app_type": "PROSUMER"
+      "name": "SensorCollector_0",
+      "app_type": "PRODUCER",
+      "tier": "edge"
     },
     {
       "id": "app_1",
-      "name": "SensorCollector_0",
-      "app_type": "PRODUCER"
+      "name": "SensorCollector_1",
+      "app_type": "PRODUCER",
+      "tier": "edge"
     },
     {
       "id": "app_2",
-      "name": "DeviceManager_0",
-      "app_type": "PROSUMER"
+      "name": "EdgeGateway_0",
+      "app_type": "PROSUMER",
+      "tier": "edge"
     },
     {
       "id": "app_3",
-      "name": "TelemetryAggregator_0",
-      "app_type": "PROSUMER"
+      "name": "StatusMonitor_0",
+      "app_type": "CONSUMER",
+      "tier": "edge"
     },
     {
       "id": "app_4",
-      "name": "CommandDispatcher_0",
-      "app_type": "PRODUCER"
+      "name": "SensorCollector_2",
+      "app_type": "PRODUCER",
+      "tier": "edge"
     },
     {
       "id": "app_5",
-      "name": "DeviceManager_1",
-      "app_type": "PROSUMER"
+      "name": "StatusMonitor_1",
+      "app_type": "CONSUMER",
+      "tier": "edge"
     },
     {
       "id": "app_6",
-      "name": "EdgeGateway_1",
-      "app_type": "PROSUMER"
+      "name": "StatusMonitor_2",
+      "app_type": "CONSUMER",
+      "tier": "edge"
     },
     {
       "id": "app_7",
-      "name": "AlertProcessor_0",
-      "app_type": "CONSUMER"
+      "name": "SensorCollector_3",
+      "app_type": "PRODUCER",
+      "tier": "edge"
     },
     {
       "id": "app_8",
-      "name": "EdgeGateway_2",
-      "app_type": "PROSUMER"
+      "name": "AlertProcessor_0",
+      "app_type": "CONSUMER",
+      "tier": "cloud"
     },
     {
       "id": "app_9",
-      "name": "SensorCollector_1",
-      "app_type": "PRODUCER"
+      "name": "CommandDispatcher_0",
+      "app_type": "PRODUCER",
+      "tier": "gateway"
     },
     {
       "id": "app_10",
-      "name": "DeviceManager_2",
-      "app_type": "PROSUMER"
+      "name": "SensorCollector_4",
+      "app_type": "PRODUCER",
+      "tier": "edge"
     },
     {
       "id": "app_11",
-      "name": "TelemetryAggregator_1",
-      "app_type": "PROSUMER"
+      "name": "SensorCollector_5",
+      "app_type": "PRODUCER",
+      "tier": "edge"
     },
     {
       "id": "app_12",
-      "name": "DeviceManager_3",
-      "app_type": "PROSUMER"
+      "name": "DataForwarder_0",
+      "app_type": "PROSUMER",
+      "tier": "gateway"
     },
     {
       "id": "app_13",
-      "name": "AlertProcessor_1",
-      "app_type": "CONSUMER"
+      "name": "DeviceManager_0",
+      "app_type": "PROSUMER",
+      "tier": "edge"
     },
     {
       "id": "app_14",
-      "name": "TelemetryAggregator_2",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_15",
-      "name": "CommandDispatcher_1",
-      "app_type": "PRODUCER"
-    },
-    {
-      "id": "app_16",
-      "name": "TelemetryAggregator_3",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_17",
-      "name": "DiagnosticsEngine_0",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_18",
-      "name": "CommandDispatcher_2",
-      "app_type": "PRODUCER"
-    },
-    {
-      "id": "app_19",
-      "name": "TelemetryAggregator_4",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_20",
-      "name": "EdgeGateway_3",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_21",
-      "name": "DeviceManager_4",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_22",
-      "name": "DeviceManager_5",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_23",
-      "name": "DataForwarder_0",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_24",
-      "name": "DeviceManager_6",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_25",
-      "name": "DataForwarder_1",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_26",
-      "name": "DiagnosticsEngine_1",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_27",
-      "name": "AlertProcessor_2",
-      "app_type": "CONSUMER"
-    },
-    {
-      "id": "app_28",
-      "name": "SensorCollector_2",
-      "app_type": "PRODUCER"
-    },
-    {
-      "id": "app_29",
-      "name": "DataForwarder_2",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_30",
-      "name": "DeviceManager_7",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_31",
-      "name": "CommandDispatcher_3",
-      "app_type": "PRODUCER"
-    },
-    {
-      "id": "app_32",
-      "name": "DataForwarder_3",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_33",
-      "name": "CommandDispatcher_4",
-      "app_type": "PRODUCER"
-    },
-    {
-      "id": "app_34",
-      "name": "DiagnosticsEngine_2",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_35",
-      "name": "StatusMonitor_0",
-      "app_type": "CONSUMER"
-    },
-    {
-      "id": "app_36",
-      "name": "DeviceManager_8",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_37",
-      "name": "TelemetryAggregator_5",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_38",
-      "name": "DeviceManager_9",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_39",
-      "name": "AlertProcessor_3",
-      "app_type": "CONSUMER"
-    },
-    {
-      "id": "app_40",
-      "name": "SensorCollector_3",
-      "app_type": "PRODUCER"
-    },
-    {
-      "id": "app_41",
-      "name": "SensorCollector_4",
-      "app_type": "PRODUCER"
-    },
-    {
-      "id": "app_42",
-      "name": "SensorCollector_5",
-      "app_type": "PRODUCER"
-    },
-    {
-      "id": "app_43",
-      "name": "DeviceManager_10",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_44",
-      "name": "DiagnosticsEngine_3",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_45",
-      "name": "AlertProcessor_4",
-      "app_type": "CONSUMER"
-    },
-    {
-      "id": "app_46",
-      "name": "DataForwarder_4",
-      "app_type": "PROSUMER"
-    },
-    {
-      "id": "app_47",
-      "name": "SensorCollector_6",
-      "app_type": "PRODUCER"
-    },
-    {
-      "id": "app_48",
-      "name": "SensorCollector_7",
-      "app_type": "PRODUCER"
-    },
-    {
-      "id": "app_49",
-      "name": "DeviceManager_11",
-      "app_type": "PROSUMER"
+      "name": "TelemetryAggregator_0",
+      "app_type": "PROSUMER",
+      "tier": "gateway"
     }
   ],
   "topics": [
     {
       "id": "topic_0",
-      "name": "status/device_0",
+      "name": "sensors/pressure/device_0/data",
       "qos": {
         "reliability": "best_effort",
         "durability": "volatile",
@@ -367,7 +158,15 @@
         "history_depth": 5
       },
       "message_size_bytes": 16384,
-      "message_rate_hz": 100
+      "message_rate_hz": 100,
+      "keywords": [
+        "type",
+        "device_id",
+        "sensors",
+        "data",
+        "device",
+        "pressure"
+      ]
     },
     {
       "id": "topic_1",
@@ -380,7 +179,13 @@
         "history_depth": 1
       },
       "message_size_bytes": 8192,
-      "message_rate_hz": 10
+      "message_rate_hz": 10,
+      "keywords": [
+        "firmware",
+        "updates",
+        "gateway",
+        "device_type"
+      ]
     },
     {
       "id": "topic_2",
@@ -393,7 +198,12 @@
         "history_depth": 10
       },
       "message_size_bytes": 128,
-      "message_rate_hz": 20
+      "message_rate_hz": 20,
+      "keywords": [
+        "severity",
+        "alerts",
+        "critical"
+      ]
     },
     {
       "id": "topic_3",
@@ -406,7 +216,13 @@
         "history_depth": 5
       },
       "message_size_bytes": 16384,
-      "message_rate_hz": 500
+      "message_rate_hz": 500,
+      "keywords": [
+        "control",
+        "commands",
+        "gateway",
+        "device_type"
+      ]
     },
     {
       "id": "topic_4",
@@ -419,7 +235,11 @@
         "history_depth": 100
       },
       "message_size_bytes": 65536,
-      "message_rate_hz": 10
+      "message_rate_hz": 10,
+      "keywords": [
+        "diagnostics",
+        "zone"
+      ]
     },
     {
       "id": "topic_5",
@@ -432,7 +252,15 @@
         "history_depth": 5
       },
       "message_size_bytes": 32768,
-      "message_rate_hz": 10
+      "message_rate_hz": 10,
+      "keywords": [
+        "aggregate",
+        "telemetry",
+        "metrics",
+        "data",
+        "sensors",
+        "zone"
+      ]
     },
     {
       "id": "topic_6",
@@ -445,7 +273,11 @@
         "history_depth": 1
       },
       "message_size_bytes": 16384,
-      "message_rate_hz": 10
+      "message_rate_hz": 10,
+      "keywords": [
+        "diagnostics",
+        "zone"
+      ]
     },
     {
       "id": "topic_7",
@@ -458,7 +290,12 @@
         "history_depth": 100
       },
       "message_size_bytes": 128,
-      "message_rate_hz": 50
+      "message_rate_hz": 50,
+      "keywords": [
+        "actuator",
+        "config",
+        "device_type"
+      ]
     },
     {
       "id": "topic_8",
@@ -471,7 +308,15 @@
         "history_depth": 5
       },
       "message_size_bytes": 65536,
-      "message_rate_hz": 1000
+      "message_rate_hz": 1000,
+      "keywords": [
+        "type",
+        "device_id",
+        "sensors",
+        "temperature",
+        "data",
+        "device"
+      ]
     },
     {
       "id": "topic_9",
@@ -484,1488 +329,244 @@
         "history_depth": 5
       },
       "message_size_bytes": 32768,
-      "message_rate_hz": 1000
-    },
-    {
-      "id": "topic_10",
-      "name": "sensors/humidity/device_10/data",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 580,
-        "transport_priority": 1,
-        "history_depth": 5
-      },
-      "message_size_bytes": 8192,
-      "message_rate_hz": 1
-    },
-    {
-      "id": "topic_11",
-      "name": "config/controller",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 1389,
-        "transport_priority": 2,
-        "history_depth": 1
-      },
-      "message_size_bytes": 32768,
-      "message_rate_hz": 10
-    },
-    {
-      "id": "topic_12",
-      "name": "firmware/sensor/updates",
-      "qos": {
-        "reliability": "reliable",
-        "durability": "volatile",
-        "deadline_ms": 2055,
-        "transport_priority": 1,
-        "history_depth": 10
-      },
-      "message_size_bytes": 8192,
-      "message_rate_hz": 20
-    },
-    {
-      "id": "topic_13",
-      "name": "status/device_13",
-      "qos": {
-        "reliability": "reliable",
-        "durability": "volatile",
-        "deadline_ms": 4550,
-        "transport_priority": 0,
-        "history_depth": 10
-      },
-      "message_size_bytes": 65536,
-      "message_rate_hz": 1
-    },
-    {
-      "id": "topic_14",
-      "name": "alerts/info",
-      "qos": {
-        "reliability": "reliable",
-        "durability": "volatile",
-        "deadline_ms": 2262,
-        "transport_priority": 1,
-        "history_depth": 100
-      },
-      "message_size_bytes": 1024,
-      "message_rate_hz": 1
-    },
-    {
-      "id": "topic_15",
-      "name": "sensors/humidity/device_15/data",
-      "qos": {
-        "reliability": "reliable",
-        "durability": "volatile",
-        "deadline_ms": 395,
-        "transport_priority": 0,
-        "history_depth": 10
-      },
-      "message_size_bytes": 65536,
-      "message_rate_hz": 20
-    },
-    {
-      "id": "topic_16",
-      "name": "commands/controller/control",
-      "qos": {
-        "reliability": "reliable",
-        "durability": "transient_local",
-        "deadline_ms": 303,
-        "transport_priority": 2,
-        "history_depth": 5
-      },
-      "message_size_bytes": 4096,
-      "message_rate_hz": 500
-    },
-    {
-      "id": "topic_17",
-      "name": "firmware/actuator/updates",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 2382,
-        "transport_priority": 1,
-        "history_depth": 1
-      },
-      "message_size_bytes": 1024,
-      "message_rate_hz": 200
-    },
-    {
-      "id": "topic_18",
-      "name": "alerts/info",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "transient_local",
-        "deadline_ms": 4823,
-        "transport_priority": 0,
-        "history_depth": 5
-      },
-      "message_size_bytes": 1024,
-      "message_rate_hz": 1
-    },
-    {
-      "id": "topic_19",
-      "name": "status/device_19",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 1671,
-        "transport_priority": 1,
-        "history_depth": 100
-      },
-      "message_size_bytes": 8192,
-      "message_rate_hz": 20
-    },
-    {
-      "id": "topic_20",
-      "name": "alerts/warning",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 1490,
-        "transport_priority": 2,
-        "history_depth": 1
-      },
-      "message_size_bytes": 1024,
-      "message_rate_hz": 200
-    },
-    {
-      "id": "topic_21",
-      "name": "sensors/humidity/device_21/data",
-      "qos": {
-        "reliability": "reliable",
-        "durability": "volatile",
-        "deadline_ms": 1308,
-        "transport_priority": 1,
-        "history_depth": 1
-      },
-      "message_size_bytes": 128,
-      "message_rate_hz": 500
-    },
-    {
-      "id": "topic_22",
-      "name": "sensors/motion/device_22/data",
-      "qos": {
-        "reliability": "reliable",
-        "durability": "volatile",
-        "deadline_ms": 2223,
-        "transport_priority": 1,
-        "history_depth": 5
-      },
-      "message_size_bytes": 1024,
-      "message_rate_hz": 1000
-    },
-    {
-      "id": "topic_23",
-      "name": "alerts/critical",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 3439,
-        "transport_priority": 0,
-        "history_depth": 10
-      },
-      "message_size_bytes": 32768,
-      "message_rate_hz": 1000
-    },
-    {
-      "id": "topic_24",
-      "name": "commands/gateway/control",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 3285,
-        "transport_priority": 1,
-        "history_depth": 10
-      },
-      "message_size_bytes": 8192,
-      "message_rate_hz": 20
-    },
-    {
-      "id": "topic_25",
-      "name": "firmware/sensor/updates",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 3205,
-        "transport_priority": 1,
-        "history_depth": 10
-      },
-      "message_size_bytes": 8192,
-      "message_rate_hz": 100
-    },
-    {
-      "id": "topic_26",
-      "name": "firmware/sensor/updates",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 3909,
-        "transport_priority": 2,
-        "history_depth": 10
-      },
-      "message_size_bytes": 4096,
-      "message_rate_hz": 20
-    },
-    {
-      "id": "topic_27",
-      "name": "alerts/info",
-      "qos": {
-        "reliability": "reliable",
-        "durability": "volatile",
-        "deadline_ms": 4736,
-        "transport_priority": 0,
-        "history_depth": 1
-      },
-      "message_size_bytes": 4096,
-      "message_rate_hz": 500
-    },
-    {
-      "id": "topic_28",
-      "name": "alerts/info",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "transient_local",
-        "deadline_ms": 3908,
-        "transport_priority": 1,
-        "history_depth": 100
-      },
-      "message_size_bytes": 65536,
-      "message_rate_hz": 100
-    },
-    {
-      "id": "topic_29",
-      "name": "telemetry/zone_9/aggregate",
-      "qos": {
-        "reliability": "best_effort",
-        "durability": "volatile",
-        "deadline_ms": 4983,
-        "transport_priority": 0,
-        "history_depth": 10
-      },
-      "message_size_bytes": 32768,
-      "message_rate_hz": 1
+      "message_rate_hz": 1000,
+      "keywords": [
+        "motion",
+        "type",
+        "device_id",
+        "sensors",
+        "data",
+        "device"
+      ]
     }
   ],
   "relationships": {
     "runs_on": [
       {
         "from": "app_0",
-        "to": "edge_3"
+        "to": "edge_1"
       },
       {
         "from": "app_1",
-        "to": "edge_3"
+        "to": "edge_0"
       },
       {
         "from": "app_2",
-        "to": "edge_2"
+        "to": "edge_1"
       },
       {
         "from": "app_3",
-        "to": "cloud_11"
+        "to": "compute_2"
       },
       {
         "from": "app_4",
-        "to": "compute_5"
+        "to": "edge_0"
       },
       {
         "from": "app_5",
-        "to": "edge_2"
+        "to": "compute_3"
       },
       {
         "from": "app_6",
-        "to": "edge_3"
+        "to": "compute_2"
       },
       {
         "from": "app_7",
-        "to": "compute_5"
+        "to": "edge_1"
       },
       {
         "from": "app_8",
-        "to": "edge_0"
+        "to": "compute_3"
       },
       {
         "from": "app_9",
-        "to": "edge_3"
+        "to": "compute_3"
       },
       {
         "from": "app_10",
-        "to": "edge_3"
+        "to": "edge_1"
       },
       {
         "from": "app_11",
-        "to": "cloud_11"
+        "to": "edge_1"
       },
       {
         "from": "app_12",
-        "to": "edge_4"
+        "to": "compute_3"
       },
       {
         "from": "app_13",
-        "to": "compute_10"
+        "to": "edge_0"
       },
       {
         "from": "app_14",
-        "to": "cloud_13"
-      },
-      {
-        "from": "app_15",
-        "to": "compute_5"
-      },
-      {
-        "from": "app_16",
-        "to": "cloud_11"
-      },
-      {
-        "from": "app_17",
-        "to": "compute_6"
-      },
-      {
-        "from": "app_18",
-        "to": "compute_9"
-      },
-      {
-        "from": "app_19",
-        "to": "cloud_12"
-      },
-      {
-        "from": "app_20",
-        "to": "edge_0"
-      },
-      {
-        "from": "app_21",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_22",
-        "to": "edge_0"
-      },
-      {
-        "from": "app_23",
-        "to": "compute_9"
-      },
-      {
-        "from": "app_24",
-        "to": "edge_3"
-      },
-      {
-        "from": "app_25",
-        "to": "compute_9"
-      },
-      {
-        "from": "app_26",
-        "to": "compute_9"
-      },
-      {
-        "from": "app_27",
-        "to": "compute_9"
-      },
-      {
-        "from": "app_28",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_29",
-        "to": "compute_9"
-      },
-      {
-        "from": "app_30",
-        "to": "edge_3"
-      },
-      {
-        "from": "app_31",
-        "to": "compute_8"
-      },
-      {
-        "from": "app_32",
-        "to": "compute_8"
-      },
-      {
-        "from": "app_33",
-        "to": "compute_7"
-      },
-      {
-        "from": "app_34",
-        "to": "compute_9"
-      },
-      {
-        "from": "app_35",
-        "to": "compute_8"
-      },
-      {
-        "from": "app_36",
-        "to": "edge_2"
-      },
-      {
-        "from": "app_37",
-        "to": "cloud_13"
-      },
-      {
-        "from": "app_38",
-        "to": "edge_4"
-      },
-      {
-        "from": "app_39",
-        "to": "compute_5"
-      },
-      {
-        "from": "app_40",
-        "to": "edge_4"
-      },
-      {
-        "from": "app_41",
-        "to": "edge_0"
-      },
-      {
-        "from": "app_42",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_43",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_44",
-        "to": "compute_7"
-      },
-      {
-        "from": "app_45",
-        "to": "compute_10"
-      },
-      {
-        "from": "app_46",
-        "to": "compute_5"
-      },
-      {
-        "from": "app_47",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_48",
-        "to": "edge_1"
-      },
-      {
-        "from": "app_49",
-        "to": "edge_1"
+        "to": "cloud_4"
       },
       {
         "from": "broker_0",
-        "to": "cloud_13"
+        "to": "compute_3"
       },
       {
         "from": "broker_1",
-        "to": "compute_6"
-      },
-      {
-        "from": "broker_2",
-        "to": "compute_7"
+        "to": "compute_2"
       }
     ],
     "publishes_to": [
       {
         "from": "app_0",
-        "to": "topic_0",
-        "period_ms": 10,
-        "message_size_bytes": 16384
-      },
-      {
-        "from": "app_29",
-        "to": "topic_0",
-        "period_ms": 10,
-        "message_size_bytes": 16384
-      },
-      {
-        "from": "app_31",
-        "to": "topic_0",
-        "period_ms": 10,
-        "message_size_bytes": 16384
-      },
-      {
-        "from": "app_20",
-        "to": "topic_1",
-        "period_ms": 100,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_32",
-        "to": "topic_1",
-        "period_ms": 100,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_4",
-        "to": "topic_1",
-        "period_ms": 100,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_8",
-        "to": "topic_2",
-        "period_ms": 50,
-        "message_size_bytes": 128
-      },
-      {
-        "from": "app_38",
-        "to": "topic_2",
-        "period_ms": 50,
-        "message_size_bytes": 128
-      },
-      {
-        "from": "app_16",
-        "to": "topic_2",
-        "period_ms": 50,
-        "message_size_bytes": 128
-      },
-      {
-        "from": "app_11",
-        "to": "topic_3",
-        "period_ms": 2,
-        "message_size_bytes": 16384
-      },
-      {
-        "from": "app_21",
-        "to": "topic_3",
-        "period_ms": 2,
-        "message_size_bytes": 16384
-      },
-      {
-        "from": "app_43",
-        "to": "topic_3",
-        "period_ms": 2,
-        "message_size_bytes": 16384
-      },
-      {
-        "from": "app_32",
-        "to": "topic_4",
-        "period_ms": 100,
+        "to": "topic_8",
+        "period_ms": 1,
         "message_size_bytes": 65536
-      },
-      {
-        "from": "app_21",
-        "to": "topic_4",
-        "period_ms": 100,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_28",
-        "to": "topic_4",
-        "period_ms": 100,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_31",
-        "to": "topic_5",
-        "period_ms": 100,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_5",
-        "to": "topic_5",
-        "period_ms": 100,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_43",
-        "to": "topic_5",
-        "period_ms": 100,
-        "message_size_bytes": 32768
       },
       {
         "from": "app_1",
+        "to": "topic_2",
+        "period_ms": 50,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_2",
+        "to": "topic_5",
+        "period_ms": 100,
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_4",
         "to": "topic_6",
         "period_ms": 100,
         "message_size_bytes": 16384
       },
       {
-        "from": "app_5",
-        "to": "topic_6",
+        "from": "app_7",
+        "to": "topic_5",
         "period_ms": 100,
-        "message_size_bytes": 16384
-      },
-      {
-        "from": "app_16",
-        "to": "topic_6",
-        "period_ms": 100,
-        "message_size_bytes": 16384
-      },
-      {
-        "from": "app_12",
-        "to": "topic_7",
-        "period_ms": 20,
-        "message_size_bytes": 128
-      },
-      {
-        "from": "app_33",
-        "to": "topic_7",
-        "period_ms": 20,
-        "message_size_bytes": 128
-      },
-      {
-        "from": "app_37",
-        "to": "topic_7",
-        "period_ms": 20,
-        "message_size_bytes": 128
-      },
-      {
-        "from": "app_46",
-        "to": "topic_8",
-        "period_ms": 1,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_34",
-        "to": "topic_8",
-        "period_ms": 1,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_5",
-        "to": "topic_8",
-        "period_ms": 1,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_22",
-        "to": "topic_9",
-        "period_ms": 1,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_48",
-        "to": "topic_9",
-        "period_ms": 1,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_6",
-        "to": "topic_9",
-        "period_ms": 1,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_20",
-        "to": "topic_10",
-        "period_ms": 1000,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_48",
-        "to": "topic_10",
-        "period_ms": 1000,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_28",
-        "to": "topic_10",
-        "period_ms": 1000,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_22",
-        "to": "topic_11",
-        "period_ms": 100,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_18",
-        "to": "topic_11",
-        "period_ms": 100,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_8",
-        "to": "topic_11",
-        "period_ms": 100,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_32",
-        "to": "topic_12",
-        "period_ms": 50,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_29",
-        "to": "topic_12",
-        "period_ms": 50,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_3",
-        "to": "topic_12",
-        "period_ms": 50,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_46",
-        "to": "topic_13",
-        "period_ms": 1000,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_31",
-        "to": "topic_13",
-        "period_ms": 1000,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_3",
-        "to": "topic_13",
-        "period_ms": 1000,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_20",
-        "to": "topic_14",
-        "period_ms": 1000,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_31",
-        "to": "topic_14",
-        "period_ms": 1000,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_34",
-        "to": "topic_14",
-        "period_ms": 1000,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_21",
-        "to": "topic_15",
-        "period_ms": 50,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_40",
-        "to": "topic_15",
-        "period_ms": 50,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_0",
-        "to": "topic_15",
-        "period_ms": 50,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_8",
-        "to": "topic_16",
-        "period_ms": 2,
-        "message_size_bytes": 4096
-      },
-      {
-        "from": "app_32",
-        "to": "topic_16",
-        "period_ms": 2,
-        "message_size_bytes": 4096
-      },
-      {
-        "from": "app_47",
-        "to": "topic_16",
-        "period_ms": 2,
-        "message_size_bytes": 4096
-      },
-      {
-        "from": "app_19",
-        "to": "topic_17",
-        "period_ms": 5,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_29",
-        "to": "topic_17",
-        "period_ms": 5,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_33",
-        "to": "topic_17",
-        "period_ms": 5,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_10",
-        "to": "topic_18",
-        "period_ms": 1000,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_26",
-        "to": "topic_18",
-        "period_ms": 1000,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_14",
-        "to": "topic_18",
-        "period_ms": 1000,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_29",
-        "to": "topic_19",
-        "period_ms": 50,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_23",
-        "to": "topic_19",
-        "period_ms": 50,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_36",
-        "to": "topic_19",
-        "period_ms": 50,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_42",
-        "to": "topic_20",
-        "period_ms": 5,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_48",
-        "to": "topic_20",
-        "period_ms": 5,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_34",
-        "to": "topic_20",
-        "period_ms": 5,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_24",
-        "to": "topic_21",
-        "period_ms": 2,
-        "message_size_bytes": 128
-      },
-      {
-        "from": "app_23",
-        "to": "topic_21",
-        "period_ms": 2,
-        "message_size_bytes": 128
-      },
-      {
-        "from": "app_40",
-        "to": "topic_21",
-        "period_ms": 2,
-        "message_size_bytes": 128
-      },
-      {
-        "from": "app_14",
-        "to": "topic_22",
-        "period_ms": 1,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_17",
-        "to": "topic_22",
-        "period_ms": 1,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_41",
-        "to": "topic_22",
-        "period_ms": 1,
-        "message_size_bytes": 1024
-      },
-      {
-        "from": "app_22",
-        "to": "topic_23",
-        "period_ms": 1,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_33",
-        "to": "topic_23",
-        "period_ms": 1,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_26",
-        "to": "topic_23",
-        "period_ms": 1,
         "message_size_bytes": 32768
       },
       {
         "from": "app_9",
-        "to": "topic_24",
-        "period_ms": 50,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_36",
-        "to": "topic_24",
-        "period_ms": 50,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_42",
-        "to": "topic_24",
-        "period_ms": 50,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_32",
-        "to": "topic_25",
-        "period_ms": 10,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_0",
-        "to": "topic_25",
-        "period_ms": 10,
-        "message_size_bytes": 8192
+        "to": "topic_3",
+        "period_ms": 2,
+        "message_size_bytes": 16384
       },
       {
         "from": "app_10",
-        "to": "topic_25",
-        "period_ms": 10,
-        "message_size_bytes": 8192
-      },
-      {
-        "from": "app_18",
-        "to": "topic_26",
-        "period_ms": 50,
-        "message_size_bytes": 4096
-      },
-      {
-        "from": "app_23",
-        "to": "topic_26",
-        "period_ms": 50,
-        "message_size_bytes": 4096
-      },
-      {
-        "from": "app_44",
-        "to": "topic_26",
-        "period_ms": 50,
-        "message_size_bytes": 4096
-      },
-      {
-        "from": "app_26",
-        "to": "topic_27",
-        "period_ms": 2,
-        "message_size_bytes": 4096
-      },
-      {
-        "from": "app_22",
-        "to": "topic_27",
-        "period_ms": 2,
-        "message_size_bytes": 4096
-      },
-      {
-        "from": "app_46",
-        "to": "topic_27",
-        "period_ms": 2,
-        "message_size_bytes": 4096
-      },
-      {
-        "from": "app_17",
-        "to": "topic_28",
-        "period_ms": 10,
+        "to": "topic_8",
+        "period_ms": 1,
         "message_size_bytes": 65536
       },
       {
-        "from": "app_46",
-        "to": "topic_28",
-        "period_ms": 10,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_49",
-        "to": "topic_28",
-        "period_ms": 10,
-        "message_size_bytes": 65536
-      },
-      {
-        "from": "app_6",
-        "to": "topic_29",
-        "period_ms": 1000,
+        "from": "app_11",
+        "to": "topic_9",
+        "period_ms": 1,
         "message_size_bytes": 32768
       },
       {
-        "from": "app_46",
-        "to": "topic_29",
-        "period_ms": 1000,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_31",
-        "to": "topic_29",
-        "period_ms": 1000,
-        "message_size_bytes": 32768
-      },
-      {
-        "from": "app_15",
-        "to": "topic_10",
+        "from": "app_12",
+        "to": "topic_5",
         "period_ms": 100,
-        "message_size_bytes": 256
+        "message_size_bytes": 32768
+      },
+      {
+        "from": "app_13",
+        "to": "topic_7",
+        "period_ms": 20,
+        "message_size_bytes": 128
+      },
+      {
+        "from": "app_14",
+        "to": "topic_8",
+        "period_ms": 1,
+        "message_size_bytes": 65536
       }
     ],
     "subscribes_to": [
       {
-        "from": "app_38",
-        "to": "topic_0"
-      },
-      {
-        "from": "app_23",
-        "to": "topic_0"
+        "from": "app_2",
+        "to": "topic_3"
       },
       {
         "from": "app_3",
-        "to": "topic_0"
-      },
-      {
-        "from": "app_19",
-        "to": "topic_0"
-      },
-      {
-        "from": "app_19",
-        "to": "topic_1"
-      },
-      {
-        "from": "app_21",
-        "to": "topic_1"
-      },
-      {
-        "from": "app_16",
-        "to": "topic_1"
-      },
-      {
-        "from": "app_35",
-        "to": "topic_1"
-      },
-      {
-        "from": "app_12",
-        "to": "topic_2"
-      },
-      {
-        "from": "app_22",
-        "to": "topic_2"
-      },
-      {
-        "from": "app_6",
-        "to": "topic_2"
+        "to": "topic_5"
       },
       {
         "from": "app_5",
-        "to": "topic_2"
-      },
-      {
-        "from": "app_49",
-        "to": "topic_3"
-      },
-      {
-        "from": "app_23",
-        "to": "topic_3"
-      },
-      {
-        "from": "app_36",
-        "to": "topic_3"
-      },
-      {
-        "from": "app_10",
-        "to": "topic_3"
-      },
-      {
-        "from": "app_22",
-        "to": "topic_4"
-      },
-      {
-        "from": "app_43",
-        "to": "topic_4"
-      },
-      {
-        "from": "app_45",
-        "to": "topic_4"
-      },
-      {
-        "from": "app_39",
-        "to": "topic_4"
-      },
-      {
-        "from": "app_3",
-        "to": "topic_5"
-      },
-      {
-        "from": "app_35",
-        "to": "topic_5"
-      },
-      {
-        "from": "app_25",
-        "to": "topic_5"
-      },
-      {
-        "from": "app_21",
-        "to": "topic_5"
-      },
-      {
-        "from": "app_49",
         "to": "topic_6"
-      },
-      {
-        "from": "app_2",
-        "to": "topic_6"
-      },
-      {
-        "from": "app_22",
-        "to": "topic_6"
-      },
-      {
-        "from": "app_3",
-        "to": "topic_6"
-      },
-      {
-        "from": "app_36",
-        "to": "topic_7"
-      },
-      {
-        "from": "app_22",
-        "to": "topic_7"
-      },
-      {
-        "from": "app_14",
-        "to": "topic_7"
-      },
-      {
-        "from": "app_35",
-        "to": "topic_7"
-      },
-      {
-        "from": "app_38",
-        "to": "topic_8"
-      },
-      {
-        "from": "app_27",
-        "to": "topic_8"
-      },
-      {
-        "from": "app_26",
-        "to": "topic_8"
-      },
-      {
-        "from": "app_13",
-        "to": "topic_9"
-      },
-      {
-        "from": "app_26",
-        "to": "topic_9"
-      },
-      {
-        "from": "app_34",
-        "to": "topic_9"
-      },
-      {
-        "from": "app_39",
-        "to": "topic_9"
-      },
-      {
-        "from": "app_46",
-        "to": "topic_10"
-      },
-      {
-        "from": "app_3",
-        "to": "topic_10"
-      },
-      {
-        "from": "app_37",
-        "to": "topic_10"
-      },
-      {
-        "from": "app_7",
-        "to": "topic_10"
-      },
-      {
-        "from": "app_32",
-        "to": "topic_11"
-      },
-      {
-        "from": "app_43",
-        "to": "topic_11"
-      },
-      {
-        "from": "app_0",
-        "to": "topic_11"
-      },
-      {
-        "from": "app_45",
-        "to": "topic_11"
-      },
-      {
-        "from": "app_16",
-        "to": "topic_12"
-      },
-      {
-        "from": "app_44",
-        "to": "topic_12"
-      },
-      {
-        "from": "app_39",
-        "to": "topic_12"
-      },
-      {
-        "from": "app_17",
-        "to": "topic_13"
-      },
-      {
-        "from": "app_22",
-        "to": "topic_13"
-      },
-      {
-        "from": "app_11",
-        "to": "topic_13"
-      },
-      {
-        "from": "app_10",
-        "to": "topic_14"
-      },
-      {
-        "from": "app_2",
-        "to": "topic_14"
-      },
-      {
-        "from": "app_13",
-        "to": "topic_14"
-      },
-      {
-        "from": "app_46",
-        "to": "topic_15"
-      },
-      {
-        "from": "app_34",
-        "to": "topic_15"
-      },
-      {
-        "from": "app_7",
-        "to": "topic_15"
-      },
-      {
-        "from": "app_19",
-        "to": "topic_15"
-      },
-      {
-        "from": "app_12",
-        "to": "topic_16"
-      },
-      {
-        "from": "app_39",
-        "to": "topic_16"
-      },
-      {
-        "from": "app_23",
-        "to": "topic_16"
-      },
-      {
-        "from": "app_43",
-        "to": "topic_16"
-      },
-      {
-        "from": "app_38",
-        "to": "topic_17"
-      },
-      {
-        "from": "app_20",
-        "to": "topic_17"
-      },
-      {
-        "from": "app_37",
-        "to": "topic_17"
-      },
-      {
-        "from": "app_46",
-        "to": "topic_17"
-      },
-      {
-        "from": "app_43",
-        "to": "topic_18"
-      },
-      {
-        "from": "app_11",
-        "to": "topic_18"
       },
       {
         "from": "app_6",
-        "to": "topic_18"
-      },
-      {
-        "from": "app_22",
-        "to": "topic_18"
-      },
-      {
-        "from": "app_22",
-        "to": "topic_19"
-      },
-      {
-        "from": "app_0",
-        "to": "topic_19"
-      },
-      {
-        "from": "app_24",
-        "to": "topic_19"
-      },
-      {
-        "from": "app_12",
-        "to": "topic_20"
-      },
-      {
-        "from": "app_36",
-        "to": "topic_20"
-      },
-      {
-        "from": "app_45",
-        "to": "topic_20"
-      },
-      {
-        "from": "app_38",
-        "to": "topic_20"
-      },
-      {
-        "from": "app_45",
-        "to": "topic_21"
-      },
-      {
-        "from": "app_30",
-        "to": "topic_21"
-      },
-      {
-        "from": "app_37",
-        "to": "topic_21"
-      },
-      {
-        "from": "app_25",
-        "to": "topic_21"
-      },
-      {
-        "from": "app_30",
-        "to": "topic_22"
-      },
-      {
-        "from": "app_19",
-        "to": "topic_22"
-      },
-      {
-        "from": "app_34",
-        "to": "topic_22"
-      },
-      {
-        "from": "app_3",
-        "to": "topic_22"
-      },
-      {
-        "from": "app_30",
-        "to": "topic_23"
-      },
-      {
-        "from": "app_12",
-        "to": "topic_23"
-      },
-      {
-        "from": "app_39",
-        "to": "topic_23"
-      },
-      {
-        "from": "app_3",
-        "to": "topic_23"
-      },
-      {
-        "from": "app_26",
-        "to": "topic_24"
+        "to": "topic_4"
       },
       {
         "from": "app_8",
-        "to": "topic_24"
-      },
-      {
-        "from": "app_44",
-        "to": "topic_24"
-      },
-      {
-        "from": "app_34",
-        "to": "topic_25"
+        "to": "topic_1"
       },
       {
         "from": "app_12",
-        "to": "topic_25"
-      },
-      {
-        "from": "app_6",
-        "to": "topic_25"
-      },
-      {
-        "from": "app_38",
-        "to": "topic_25"
-      },
-      {
-        "from": "app_32",
-        "to": "topic_26"
-      },
-      {
-        "from": "app_7",
-        "to": "topic_26"
-      },
-      {
-        "from": "app_26",
-        "to": "topic_26"
-      },
-      {
-        "from": "app_45",
-        "to": "topic_26"
-      },
-      {
-        "from": "app_39",
-        "to": "topic_27"
-      },
-      {
-        "from": "app_45",
-        "to": "topic_27"
-      },
-      {
-        "from": "app_3",
-        "to": "topic_27"
-      },
-      {
-        "from": "app_6",
-        "to": "topic_27"
-      },
-      {
-        "from": "app_23",
-        "to": "topic_28"
-      },
-      {
-        "from": "app_19",
-        "to": "topic_28"
-      },
-      {
-        "from": "app_7",
-        "to": "topic_28"
-      },
-      {
-        "from": "app_35",
-        "to": "topic_28"
+        "to": "topic_9"
       },
       {
         "from": "app_13",
-        "to": "topic_29"
+        "to": "topic_9"
       },
       {
-        "from": "app_24",
-        "to": "topic_29"
+        "from": "app_14",
+        "to": "topic_5"
       },
       {
-        "from": "app_2",
-        "to": "topic_29"
+        "from": "app_9",
+        "to": "topic_5"
       },
       {
-        "from": "app_3",
-        "to": "topic_29"
+        "from": "app_12",
+        "to": "topic_5"
+      },
+      {
+        "from": "app_9",
+        "to": "topic_7"
+      },
+      {
+        "from": "app_12",
+        "to": "topic_7"
+      },
+      {
+        "from": "app_9",
+        "to": "topic_2"
+      },
+      {
+        "from": "app_12",
+        "to": "topic_2"
+      },
+      {
+        "from": "app_9",
+        "to": "topic_8"
+      },
+      {
+        "from": "app_12",
+        "to": "topic_8"
+      },
+      {
+        "from": "app_9",
+        "to": "topic_9"
+      },
+      {
+        "from": "app_9",
+        "to": "topic_6"
+      },
+      {
+        "from": "app_12",
+        "to": "topic_6"
+      },
+      {
+        "from": "app_8",
+        "to": "topic_8"
+      },
+      {
+        "from": "app_8",
+        "to": "topic_5"
+      },
+      {
+        "from": "app_8",
+        "to": "topic_3"
       }
     ],
     "routes": [
@@ -1978,19 +579,19 @@
         "to": "topic_1"
       },
       {
-        "from": "broker_2",
+        "from": "broker_0",
         "to": "topic_2"
       },
       {
-        "from": "broker_0",
+        "from": "broker_1",
         "to": "topic_3"
       },
       {
-        "from": "broker_1",
+        "from": "broker_0",
         "to": "topic_4"
       },
       {
-        "from": "broker_2",
+        "from": "broker_1",
         "to": "topic_5"
       },
       {
@@ -2002,532 +603,767 @@
         "to": "topic_7"
       },
       {
-        "from": "broker_2",
+        "from": "broker_0",
         "to": "topic_8"
       },
       {
-        "from": "broker_0",
+        "from": "broker_1",
         "to": "topic_9"
-      },
-      {
-        "from": "broker_1",
-        "to": "topic_10"
-      },
-      {
-        "from": "broker_2",
-        "to": "topic_11"
-      },
-      {
-        "from": "broker_0",
-        "to": "topic_12"
-      },
-      {
-        "from": "broker_1",
-        "to": "topic_13"
-      },
-      {
-        "from": "broker_2",
-        "to": "topic_14"
-      },
-      {
-        "from": "broker_0",
-        "to": "topic_15"
-      },
-      {
-        "from": "broker_1",
-        "to": "topic_16"
-      },
-      {
-        "from": "broker_2",
-        "to": "topic_17"
-      },
-      {
-        "from": "broker_0",
-        "to": "topic_18"
-      },
-      {
-        "from": "broker_1",
-        "to": "topic_19"
-      },
-      {
-        "from": "broker_2",
-        "to": "topic_20"
-      },
-      {
-        "from": "broker_0",
-        "to": "topic_21"
-      },
-      {
-        "from": "broker_1",
-        "to": "topic_22"
-      },
-      {
-        "from": "broker_2",
-        "to": "topic_23"
-      },
-      {
-        "from": "broker_0",
-        "to": "topic_24"
-      },
-      {
-        "from": "broker_1",
-        "to": "topic_25"
-      },
-      {
-        "from": "broker_2",
-        "to": "topic_26"
-      },
-      {
-        "from": "broker_0",
-        "to": "topic_27"
-      },
-      {
-        "from": "broker_1",
-        "to": "topic_28"
-      },
-      {
-        "from": "broker_2",
-        "to": "topic_29"
       }
     ],
     "connects_to": [
+      {
+        "from": "compute_2",
+        "to": "edge_1"
+      },
+      {
+        "from": "cloud_4",
+        "to": "compute_3"
+      },
+      {
+        "from": "compute_3",
+        "to": "edge_1"
+      },
       {
         "from": "edge_0",
         "to": "edge_1"
       },
       {
-        "from": "edge_0",
-        "to": "edge_2"
+        "from": "cloud_4",
+        "to": "compute_2"
       },
       {
-        "from": "edge_0",
-        "to": "edge_3"
+        "from": "compute_2",
+        "to": "edge_0"
       },
       {
-        "from": "edge_0",
-        "to": "edge_4"
+        "from": "compute_2",
+        "to": "compute_3"
       },
       {
-        "from": "edge_0",
-        "to": "compute_5"
+        "from": "compute_3",
+        "to": "edge_0"
+      }
+    ],
+    "depends_on": [
+      {
+        "from": "app_2",
+        "to": "app_9",
+        "type": "app_to_app",
+        "via_topic": "topic_3",
+        "weight": 0.32,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "transient_local",
+          "deadline_ms": 2677,
+          "priority": 2
+        }
       },
       {
-        "from": "edge_0",
-        "to": "compute_6"
+        "from": "app_8",
+        "to": "app_9",
+        "type": "app_to_app",
+        "via_topic": "topic_3",
+        "weight": 0.32,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "transient_local",
+          "deadline_ms": 2677,
+          "priority": 2
+        }
       },
       {
-        "from": "edge_0",
-        "to": "compute_7"
+        "from": "app_3",
+        "to": "app_2",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
       },
       {
-        "from": "edge_0",
-        "to": "compute_8"
+        "from": "app_3",
+        "to": "app_7",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
       },
       {
-        "from": "edge_0",
-        "to": "compute_9"
+        "from": "app_3",
+        "to": "app_12",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
       },
       {
-        "from": "edge_0",
-        "to": "compute_10"
+        "from": "app_14",
+        "to": "app_2",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
       },
       {
-        "from": "edge_0",
-        "to": "cloud_11"
+        "from": "app_14",
+        "to": "app_7",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
       },
       {
-        "from": "edge_0",
-        "to": "cloud_12"
+        "from": "app_14",
+        "to": "app_12",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
       },
       {
-        "from": "edge_0",
-        "to": "cloud_13"
+        "from": "app_9",
+        "to": "app_2",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
       },
       {
-        "from": "edge_0",
-        "to": "gateway_14"
+        "from": "app_9",
+        "to": "app_7",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_9",
+        "to": "app_12",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_12",
+        "to": "app_2",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_12",
+        "to": "app_7",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_8",
+        "to": "app_2",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_8",
+        "to": "app_7",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_8",
+        "to": "app_12",
+        "type": "app_to_app",
+        "via_topic": "topic_5",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4200,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_5",
+        "to": "app_4",
+        "type": "app_to_app",
+        "via_topic": "topic_6",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 745,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_9",
+        "to": "app_4",
+        "type": "app_to_app",
+        "via_topic": "topic_6",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 745,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_12",
+        "to": "app_4",
+        "type": "app_to_app",
+        "via_topic": "topic_6",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 745,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_12",
+        "to": "app_11",
+        "type": "app_to_app",
+        "via_topic": "topic_9",
+        "weight": 0.45,
+        "qos_factors": {
+          "reliability": "reliable",
+          "durability": "transient_local",
+          "deadline_ms": 1669,
+          "priority": 0
+        }
+      },
+      {
+        "from": "app_13",
+        "to": "app_11",
+        "type": "app_to_app",
+        "via_topic": "topic_9",
+        "weight": 0.45,
+        "qos_factors": {
+          "reliability": "reliable",
+          "durability": "transient_local",
+          "deadline_ms": 1669,
+          "priority": 0
+        }
+      },
+      {
+        "from": "app_9",
+        "to": "app_11",
+        "type": "app_to_app",
+        "via_topic": "topic_9",
+        "weight": 0.45,
+        "qos_factors": {
+          "reliability": "reliable",
+          "durability": "transient_local",
+          "deadline_ms": 1669,
+          "priority": 0
+        }
+      },
+      {
+        "from": "app_9",
+        "to": "app_13",
+        "type": "app_to_app",
+        "via_topic": "topic_7",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4339,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_12",
+        "to": "app_13",
+        "type": "app_to_app",
+        "via_topic": "topic_7",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 4339,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_9",
+        "to": "app_1",
+        "type": "app_to_app",
+        "via_topic": "topic_2",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1816,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_12",
+        "to": "app_1",
+        "type": "app_to_app",
+        "via_topic": "topic_2",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1816,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_9",
+        "to": "app_0",
+        "type": "app_to_app",
+        "via_topic": "topic_8",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1855,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_9",
+        "to": "app_10",
+        "type": "app_to_app",
+        "via_topic": "topic_8",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1855,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_9",
+        "to": "app_14",
+        "type": "app_to_app",
+        "via_topic": "topic_8",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1855,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_12",
+        "to": "app_0",
+        "type": "app_to_app",
+        "via_topic": "topic_8",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1855,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_12",
+        "to": "app_10",
+        "type": "app_to_app",
+        "via_topic": "topic_8",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1855,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_12",
+        "to": "app_14",
+        "type": "app_to_app",
+        "via_topic": "topic_8",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1855,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_8",
+        "to": "app_0",
+        "type": "app_to_app",
+        "via_topic": "topic_8",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1855,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_8",
+        "to": "app_10",
+        "type": "app_to_app",
+        "via_topic": "topic_8",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1855,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_8",
+        "to": "app_14",
+        "type": "app_to_app",
+        "via_topic": "topic_8",
+        "weight": 0.18,
+        "qos_factors": {
+          "reliability": "best_effort",
+          "durability": "volatile",
+          "deadline_ms": 1855,
+          "priority": 1
+        }
+      },
+      {
+        "from": "app_8",
+        "to": "broker_1",
+        "type": "app_to_broker",
+        "weight": 0.32
+      },
+      {
+        "from": "app_1",
+        "to": "broker_0",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_9",
+        "to": "broker_0",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_12",
+        "to": "broker_0",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_9",
+        "to": "broker_1",
+        "type": "app_to_broker",
+        "weight": 0.45
+      },
+      {
+        "from": "app_2",
+        "to": "broker_1",
+        "type": "app_to_broker",
+        "weight": 0.32
+      },
+      {
+        "from": "app_6",
+        "to": "broker_0",
+        "type": "app_to_broker",
+        "weight": 0.12
+      },
+      {
+        "from": "app_7",
+        "to": "broker_1",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_12",
+        "to": "broker_1",
+        "type": "app_to_broker",
+        "weight": 0.45
+      },
+      {
+        "from": "app_3",
+        "to": "broker_1",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_14",
+        "to": "broker_1",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_4",
+        "to": "broker_0",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_5",
+        "to": "broker_0",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_13",
+        "to": "broker_1",
+        "type": "app_to_broker",
+        "weight": 0.45
+      },
+      {
+        "from": "app_0",
+        "to": "broker_0",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_10",
+        "to": "broker_0",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_14",
+        "to": "broker_0",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_8",
+        "to": "broker_0",
+        "type": "app_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "app_11",
+        "to": "broker_1",
+        "type": "app_to_broker",
+        "weight": 0.45
       },
       {
         "from": "edge_1",
-        "to": "edge_2"
+        "to": "compute_3",
+        "type": "node_to_node",
+        "weight": 0.284,
+        "derived_count": 1,
+        "avg_qos_weight": 0.32
+      },
+      {
+        "from": "compute_2",
+        "to": "edge_1",
+        "type": "node_to_node",
+        "weight": 0.246,
+        "derived_count": 2,
+        "avg_qos_weight": 0.18
+      },
+      {
+        "from": "compute_2",
+        "to": "compute_3",
+        "type": "node_to_node",
+        "weight": 0.186,
+        "derived_count": 1,
+        "avg_qos_weight": 0.18
+      },
+      {
+        "from": "cloud_4",
+        "to": "edge_1",
+        "type": "node_to_node",
+        "weight": 0.246,
+        "derived_count": 2,
+        "avg_qos_weight": 0.18
+      },
+      {
+        "from": "cloud_4",
+        "to": "compute_3",
+        "type": "node_to_node",
+        "weight": 0.186,
+        "derived_count": 1,
+        "avg_qos_weight": 0.18
+      },
+      {
+        "from": "compute_3",
+        "to": "edge_1",
+        "type": "node_to_node",
+        "weight": 0.453,
+        "derived_count": 14,
+        "avg_qos_weight": 0.219
+      },
+      {
+        "from": "compute_3",
+        "to": "edge_0",
+        "type": "node_to_node",
+        "weight": 0.426,
+        "derived_count": 7,
+        "avg_qos_weight": 0.18
+      },
+      {
+        "from": "edge_0",
+        "to": "edge_1",
+        "type": "node_to_node",
+        "weight": 0.375,
+        "derived_count": 1,
+        "avg_qos_weight": 0.45
+      },
+      {
+        "from": "compute_3",
+        "to": "cloud_4",
+        "type": "node_to_node",
+        "weight": 0.306,
+        "derived_count": 3,
+        "avg_qos_weight": 0.18
+      },
+      {
+        "from": "compute_3",
+        "to": "compute_2",
+        "type": "node_to_broker",
+        "weight": 0.45
+      },
+      {
+        "from": "edge_0",
+        "to": "compute_3",
+        "type": "node_to_broker",
+        "weight": 0.18
       },
       {
         "from": "edge_1",
-        "to": "edge_3"
+        "to": "compute_2",
+        "type": "node_to_broker",
+        "weight": 0.45
+      },
+      {
+        "from": "compute_2",
+        "to": "compute_3",
+        "type": "node_to_broker",
+        "weight": 0.12
+      },
+      {
+        "from": "cloud_4",
+        "to": "compute_2",
+        "type": "node_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "edge_0",
+        "to": "compute_2",
+        "type": "node_to_broker",
+        "weight": 0.45
       },
       {
         "from": "edge_1",
-        "to": "edge_4"
-      },
-      {
-        "from": "edge_1",
-        "to": "compute_5"
-      },
-      {
-        "from": "edge_1",
-        "to": "compute_6"
-      },
-      {
-        "from": "edge_1",
-        "to": "compute_7"
-      },
-      {
-        "from": "edge_1",
-        "to": "compute_8"
-      },
-      {
-        "from": "edge_1",
-        "to": "compute_9"
-      },
-      {
-        "from": "edge_1",
-        "to": "compute_10"
-      },
-      {
-        "from": "edge_1",
-        "to": "cloud_11"
-      },
-      {
-        "from": "edge_1",
-        "to": "cloud_12"
-      },
-      {
-        "from": "edge_1",
-        "to": "cloud_13"
-      },
-      {
-        "from": "edge_1",
-        "to": "gateway_14"
-      },
-      {
-        "from": "edge_2",
-        "to": "edge_3"
-      },
-      {
-        "from": "edge_2",
-        "to": "edge_4"
-      },
-      {
-        "from": "edge_2",
-        "to": "compute_5"
-      },
-      {
-        "from": "edge_2",
-        "to": "compute_6"
-      },
-      {
-        "from": "edge_2",
-        "to": "compute_7"
-      },
-      {
-        "from": "edge_2",
-        "to": "compute_8"
-      },
-      {
-        "from": "edge_2",
-        "to": "compute_9"
-      },
-      {
-        "from": "edge_2",
-        "to": "compute_10"
-      },
-      {
-        "from": "edge_2",
-        "to": "cloud_11"
-      },
-      {
-        "from": "edge_2",
-        "to": "cloud_12"
-      },
-      {
-        "from": "edge_2",
-        "to": "cloud_13"
-      },
-      {
-        "from": "edge_2",
-        "to": "gateway_14"
-      },
-      {
-        "from": "edge_3",
-        "to": "edge_4"
-      },
-      {
-        "from": "edge_3",
-        "to": "compute_5"
-      },
-      {
-        "from": "edge_3",
-        "to": "compute_6"
-      },
-      {
-        "from": "edge_3",
-        "to": "compute_7"
-      },
-      {
-        "from": "edge_3",
-        "to": "compute_8"
-      },
-      {
-        "from": "edge_3",
-        "to": "compute_9"
-      },
-      {
-        "from": "edge_3",
-        "to": "compute_10"
-      },
-      {
-        "from": "edge_3",
-        "to": "cloud_11"
-      },
-      {
-        "from": "edge_3",
-        "to": "cloud_12"
-      },
-      {
-        "from": "edge_3",
-        "to": "cloud_13"
-      },
-      {
-        "from": "edge_3",
-        "to": "gateway_14"
-      },
-      {
-        "from": "edge_4",
-        "to": "compute_5"
-      },
-      {
-        "from": "edge_4",
-        "to": "compute_6"
-      },
-      {
-        "from": "edge_4",
-        "to": "compute_7"
-      },
-      {
-        "from": "edge_4",
-        "to": "compute_8"
-      },
-      {
-        "from": "edge_4",
-        "to": "compute_9"
-      },
-      {
-        "from": "edge_4",
-        "to": "compute_10"
-      },
-      {
-        "from": "edge_4",
-        "to": "cloud_11"
-      },
-      {
-        "from": "edge_4",
-        "to": "cloud_12"
-      },
-      {
-        "from": "edge_4",
-        "to": "cloud_13"
-      },
-      {
-        "from": "edge_4",
-        "to": "gateway_14"
-      },
-      {
-        "from": "compute_5",
-        "to": "compute_6"
-      },
-      {
-        "from": "compute_5",
-        "to": "compute_7"
-      },
-      {
-        "from": "compute_5",
-        "to": "compute_8"
-      },
-      {
-        "from": "compute_5",
-        "to": "compute_9"
-      },
-      {
-        "from": "compute_5",
-        "to": "compute_10"
-      },
-      {
-        "from": "compute_5",
-        "to": "cloud_11"
-      },
-      {
-        "from": "compute_5",
-        "to": "cloud_12"
-      },
-      {
-        "from": "compute_5",
-        "to": "cloud_13"
-      },
-      {
-        "from": "compute_5",
-        "to": "gateway_14"
-      },
-      {
-        "from": "compute_6",
-        "to": "compute_7"
-      },
-      {
-        "from": "compute_6",
-        "to": "compute_8"
-      },
-      {
-        "from": "compute_6",
-        "to": "compute_9"
-      },
-      {
-        "from": "compute_6",
-        "to": "compute_10"
-      },
-      {
-        "from": "compute_6",
-        "to": "cloud_11"
-      },
-      {
-        "from": "compute_6",
-        "to": "cloud_12"
-      },
-      {
-        "from": "compute_6",
-        "to": "cloud_13"
-      },
-      {
-        "from": "compute_6",
-        "to": "gateway_14"
-      },
-      {
-        "from": "compute_7",
-        "to": "compute_8"
-      },
-      {
-        "from": "compute_7",
-        "to": "compute_9"
-      },
-      {
-        "from": "compute_7",
-        "to": "compute_10"
-      },
-      {
-        "from": "compute_7",
-        "to": "cloud_11"
-      },
-      {
-        "from": "compute_7",
-        "to": "cloud_12"
-      },
-      {
-        "from": "compute_7",
-        "to": "cloud_13"
-      },
-      {
-        "from": "compute_7",
-        "to": "gateway_14"
-      },
-      {
-        "from": "compute_8",
-        "to": "compute_9"
-      },
-      {
-        "from": "compute_8",
-        "to": "compute_10"
-      },
-      {
-        "from": "compute_8",
-        "to": "cloud_11"
-      },
-      {
-        "from": "compute_8",
-        "to": "cloud_12"
-      },
-      {
-        "from": "compute_8",
-        "to": "cloud_13"
-      },
-      {
-        "from": "compute_8",
-        "to": "gateway_14"
-      },
-      {
-        "from": "compute_9",
-        "to": "compute_10"
-      },
-      {
-        "from": "compute_9",
-        "to": "cloud_11"
-      },
-      {
-        "from": "compute_9",
-        "to": "cloud_12"
-      },
-      {
-        "from": "compute_9",
-        "to": "cloud_13"
-      },
-      {
-        "from": "compute_9",
-        "to": "gateway_14"
-      },
-      {
-        "from": "compute_10",
-        "to": "cloud_11"
-      },
-      {
-        "from": "compute_10",
-        "to": "cloud_12"
-      },
-      {
-        "from": "compute_10",
-        "to": "cloud_13"
-      },
-      {
-        "from": "compute_10",
-        "to": "gateway_14"
-      },
-      {
-        "from": "cloud_11",
-        "to": "cloud_12"
-      },
-      {
-        "from": "cloud_11",
-        "to": "cloud_13"
-      },
-      {
-        "from": "cloud_11",
-        "to": "gateway_14"
-      },
-      {
-        "from": "cloud_12",
-        "to": "cloud_13"
-      },
-      {
-        "from": "cloud_12",
-        "to": "gateway_14"
-      },
-      {
-        "from": "cloud_13",
-        "to": "gateway_14"
+        "to": "compute_3",
+        "type": "node_to_broker",
+        "weight": 0.18
+      },
+      {
+        "from": "cloud_4",
+        "to": "compute_3",
+        "type": "node_to_broker",
+        "weight": 0.18
       }
     ]
   },
   "statistics": {
-    "total_nodes": 15,
-    "total_brokers": 3,
-    "total_applications": 50,
-    "total_topics": 30,
-    "total_publishes": 91,
-    "total_subscribes": 114,
-    "total_routes": 30,
-    "total_connects": 105,
-    "unique_publishers": 41,
-    "unique_subscribers": 36,
-    "avg_publishers_per_topic": 3.03,
-    "avg_subscribers_per_topic": 3.8,
-    "avg_apps_per_node": 3.33,
-    "antipatterns_injected": 0
+    "total_nodes": 5,
+    "total_brokers": 2,
+    "total_applications": 15,
+    "total_topics": 10,
+    "total_publishes": 11,
+    "total_subscribes": 22,
+    "total_routes": 10,
+    "total_connects": 8,
+    "total_depends_on": 71,
+    "unique_publishers": 11,
+    "unique_subscribers": 9,
+    "avg_publishers_per_topic": 1.1,
+    "avg_subscribers_per_topic": 2.2,
+    "avg_apps_per_node": 3.0,
+    "antipatterns_injected": 0,
+    "depends_on_by_type": {
+      "app_to_app": 35,
+      "app_to_broker": 19,
+      "node_to_node": 9,
+      "node_to_broker": 8
+    },
+    "app_tiers": {
+      "edge": 11,
+      "cloud": 1,
+      "gateway": 3
+    }
   },
   "injected_antipatterns": []
 }
