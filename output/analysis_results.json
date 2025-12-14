@@ -1,0 +1,1050 @@
+{
+  "metadata": {
+    "analysis_time": "2025-12-12T21:44:05.764058",
+    "mode": "full",
+    "input_file": "input/system.json",
+    "version": "2.0",
+    "duration_seconds": 0.149607
+  },
+  "dependency_analysis": {
+    "graph_metrics": {
+      "nodes": 14,
+      "edges": 0,
+      "density": 0,
+      "is_connected": false,
+      "num_components": 14,
+      "avg_clustering": 0.0
+    },
+    "layer_metrics": {
+      "application": {
+        "node_count": 6,
+        "internal_edges": 0,
+        "incoming_cross_layer": 0,
+        "outgoing_cross_layer": 0,
+        "density": 0
+      },
+      "topic": {
+        "node_count": 4,
+        "internal_edges": 0,
+        "incoming_cross_layer": 0,
+        "outgoing_cross_layer": 0,
+        "density": 0
+      },
+      "broker": {
+        "node_count": 1,
+        "internal_edges": 0,
+        "incoming_cross_layer": 0,
+        "outgoing_cross_layer": 0,
+        "density": 0
+      },
+      "infrastructure": {
+        "node_count": 3,
+        "internal_edges": 0,
+        "incoming_cross_layer": 0,
+        "outgoing_cross_layer": 0,
+        "density": 0
+      }
+    },
+    "critical_nodes": [
+      {
+        "node_id": "topic_2",
+        "layer": "topic",
+        "node_type": "topic",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_authority_score",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "authority_score": 0.404,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Key data sink; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "topic_3",
+        "layer": "topic",
+        "node_type": "topic",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_authority_score",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "authority_score": 0.529,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Key data sink; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "edge_0",
+        "layer": "infrastructure",
+        "node_type": "node",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "compute_1",
+        "layer": "infrastructure",
+        "node_type": "node",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "compute_2",
+        "layer": "infrastructure",
+        "node_type": "node",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "broker_0",
+        "layer": "broker",
+        "node_type": "broker",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "topic_0",
+        "layer": "topic",
+        "node_type": "topic",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "topic_1",
+        "layer": "topic",
+        "node_type": "topic",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "app_0",
+        "layer": "application",
+        "node_type": "application",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "app_1",
+        "layer": "application",
+        "node_type": "application",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "app_2",
+        "layer": "application",
+        "node_type": "application",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "app_3",
+        "layer": "application",
+        "node_type": "application",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "app_4",
+        "layer": "application",
+        "node_type": "application",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      },
+      {
+        "node_id": "app_5",
+        "layer": "application",
+        "node_type": "application",
+        "reasons": [
+          "high_betweenness",
+          "high_pagerank",
+          "high_in_degree",
+          "high_out_degree",
+          "inner_core",
+          "high_load"
+        ],
+        "metrics": {
+          "betweenness": 0.0,
+          "pagerank": 0.0714,
+          "in_degree": 0,
+          "out_degree": 0,
+          "core_number": 0,
+          "load": 0.0
+        },
+        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
+        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+      }
+    ],
+    "critical_edges": [],
+    "anti_patterns": [
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "edge_0"
+        ],
+        "description": "Component 'edge_0' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "compute_1"
+        ],
+        "description": "Component 'compute_1' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "compute_2"
+        ],
+        "description": "Component 'compute_2' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "broker_0"
+        ],
+        "description": "Component 'broker_0' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "topic_0"
+        ],
+        "description": "Component 'topic_0' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "topic_1"
+        ],
+        "description": "Component 'topic_1' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "topic_2"
+        ],
+        "description": "Component 'topic_2' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "topic_3"
+        ],
+        "description": "Component 'topic_3' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "app_0"
+        ],
+        "description": "Component 'app_0' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "app_1"
+        ],
+        "description": "Component 'app_1' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "app_2"
+        ],
+        "description": "Component 'app_2' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "app_3"
+        ],
+        "description": "Component 'app_3' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "app_4"
+        ],
+        "description": "Component 'app_4' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      },
+      {
+        "pattern_type": "orphan_component",
+        "severity": "low",
+        "affected_components": [
+          "app_5"
+        ],
+        "description": "Component 'app_5' is completely isolated (no connections)",
+        "impact": "Unused component. May indicate incomplete configuration or dead code.",
+        "recommendation": "Verify if component is needed. Connect it or remove it.",
+        "metrics": {
+          "in_degree": 0,
+          "out_degree": 0
+        }
+      }
+    ],
+    "summary": {
+      "total_critical_nodes": 14,
+      "critical_by_layer": {
+        "topic": 4,
+        "infrastructure": 3,
+        "broker": 1,
+        "application": 6
+      },
+      "total_critical_edges": 0,
+      "total_anti_patterns": 14,
+      "anti_patterns_by_severity": {
+        "low": 14
+      },
+      "anti_patterns_by_type": {
+        "orphan_component": 14
+      },
+      "top_critical_nodes": [
+        "topic_2",
+        "topic_3",
+        "edge_0",
+        "compute_1",
+        "compute_2"
+      ],
+      "most_severe_anti_patterns": []
+    }
+  },
+  "extended_algorithms": {
+    "communities": {
+      "num_communities": 14,
+      "modularity": 0.0,
+      "composition": [
+        {
+          "community_id": 0,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "edge_0"
+          ]
+        },
+        {
+          "community_id": 1,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "compute_1"
+          ]
+        },
+        {
+          "community_id": 2,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "compute_2"
+          ]
+        },
+        {
+          "community_id": 3,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "broker_0"
+          ]
+        },
+        {
+          "community_id": 4,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "topic_0"
+          ]
+        },
+        {
+          "community_id": 5,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "topic_1"
+          ]
+        },
+        {
+          "community_id": 6,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "topic_2"
+          ]
+        },
+        {
+          "community_id": 7,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "topic_3"
+          ]
+        },
+        {
+          "community_id": 8,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "app_0"
+          ]
+        },
+        {
+          "community_id": 9,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "app_1"
+          ]
+        },
+        {
+          "community_id": 10,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "app_2"
+          ]
+        },
+        {
+          "community_id": 11,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "app_3"
+          ]
+        },
+        {
+          "community_id": 12,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "app_4"
+          ]
+        },
+        {
+          "community_id": 13,
+          "size": 1,
+          "types": {
+            "Unknown": 1
+          },
+          "members": [
+            "app_5"
+          ]
+        }
+      ]
+    },
+    "message_flow": {
+      "flow_chains": [],
+      "total_topics_analyzed": 0,
+      "max_fanout": 0,
+      "max_fanin": 0,
+      "interpretation": "Flow analysis shows how messages distribute from publishers through topics to subscribers. High fanout indicates topics serving many consumers."
+    },
+    "bottlenecks": {
+      "bottleneck_scores": {
+        "edge_0": 0.0,
+        "compute_1": 0.0,
+        "compute_2": 0.0,
+        "broker_0": 0.0,
+        "topic_0": 0.0,
+        "topic_1": 0.0,
+        "topic_2": 0.0,
+        "topic_3": 0.0,
+        "app_0": 0.0,
+        "app_1": 0.0,
+        "app_2": 0.0,
+        "app_3": 0.0,
+        "app_4": 0.0,
+        "app_5": 0.0
+      },
+      "top_bottlenecks": [
+        [
+          "edge_0",
+          0.0
+        ],
+        [
+          "compute_1",
+          0.0
+        ],
+        [
+          "compute_2",
+          0.0
+        ],
+        [
+          "broker_0",
+          0.0
+        ],
+        [
+          "topic_0",
+          0.0
+        ],
+        [
+          "topic_1",
+          0.0
+        ],
+        [
+          "topic_2",
+          0.0
+        ],
+        [
+          "topic_3",
+          0.0
+        ],
+        [
+          "app_0",
+          0.0
+        ],
+        [
+          "app_1",
+          0.0
+        ]
+      ],
+      "interpretation": "Bottlenecks are nodes that handle disproportionate message traffic. They may need scaling, redundancy, or architectural changes."
+    },
+    "coupling": {
+      "coupling_metrics": {
+        "edge_0": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "compute_1": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "compute_2": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "broker_0": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "topic_0": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "topic_1": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "topic_2": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "topic_3": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "app_0": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "app_1": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "app_2": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "app_3": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "app_4": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        },
+        "app_5": {
+          "afferent_coupling": 0,
+          "efferent_coupling": 0,
+          "total_coupling": 0,
+          "instability": 0,
+          "type": "Unknown"
+        }
+      },
+      "highly_coupled": [
+        [
+          "edge_0",
+          {
+            "afferent_coupling": 0,
+            "efferent_coupling": 0,
+            "total_coupling": 0,
+            "instability": 0,
+            "type": "Unknown"
+          }
+        ],
+        [
+          "compute_1",
+          {
+            "afferent_coupling": 0,
+            "efferent_coupling": 0,
+            "total_coupling": 0,
+            "instability": 0,
+            "type": "Unknown"
+          }
+        ],
+        [
+          "compute_2",
+          {
+            "afferent_coupling": 0,
+            "efferent_coupling": 0,
+            "total_coupling": 0,
+            "instability": 0,
+            "type": "Unknown"
+          }
+        ],
+        [
+          "broker_0",
+          {
+            "afferent_coupling": 0,
+            "efferent_coupling": 0,
+            "total_coupling": 0,
+            "instability": 0,
+            "type": "Unknown"
+          }
+        ],
+        [
+          "topic_0",
+          {
+            "afferent_coupling": 0,
+            "efferent_coupling": 0,
+            "total_coupling": 0,
+            "instability": 0,
+            "type": "Unknown"
+          }
+        ],
+        [
+          "topic_1",
+          {
+            "afferent_coupling": 0,
+            "efferent_coupling": 0,
+            "total_coupling": 0,
+            "instability": 0,
+            "type": "Unknown"
+          }
+        ],
+        [
+          "topic_2",
+          {
+            "afferent_coupling": 0,
+            "efferent_coupling": 0,
+            "total_coupling": 0,
+            "instability": 0,
+            "type": "Unknown"
+          }
+        ],
+        [
+          "topic_3",
+          {
+            "afferent_coupling": 0,
+            "efferent_coupling": 0,
+            "total_coupling": 0,
+            "instability": 0,
+            "type": "Unknown"
+          }
+        ],
+        [
+          "app_0",
+          {
+            "afferent_coupling": 0,
+            "efferent_coupling": 0,
+            "total_coupling": 0,
+            "instability": 0,
+            "type": "Unknown"
+          }
+        ],
+        [
+          "app_1",
+          {
+            "afferent_coupling": 0,
+            "efferent_coupling": 0,
+            "total_coupling": 0,
+            "instability": 0,
+            "type": "Unknown"
+          }
+        ]
+      ],
+      "average_instability": 0.0,
+      "interpretation": "Coupling analysis reveals dependencies between components. High coupling indicates tight dependencies; instability > 0.5 suggests the component depends more on others than others depend on it."
+    }
+  },
+  "robustness": {
+    "vulnerability_to_targeted_attacks": 0.0,
+    "comparison": {
+      "random": {
+        "critical_threshold": 0.07142857142857142,
+        "auc_robustness": 0.5357142857142857
+      },
+      "targeted_degree": {
+        "critical_threshold": 0.07142857142857142,
+        "auc_robustness": 0.5357142857142857
+      },
+      "targeted_betweenness": {
+        "critical_threshold": 0.07142857142857142,
+        "auc_robustness": 0.5357142857142857
+      }
+    }
+  },
+  "summary": {
+    "overall_health": "needs_attention",
+    "key_findings": [],
+    "recommendations": [],
+    "metrics": {
+      "critical_nodes": 14,
+      "anti_patterns": 14,
+      "vulnerability_score": 0.0
+    }
+  }
+}

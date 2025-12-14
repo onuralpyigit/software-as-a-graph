@@ -382,7 +382,7 @@ class GraphModel:
             'brokers': [b.to_dict() for b in self.brokers.values()],
             'topics': [t.to_dict() for t in self.topics.values()],
             'nodes': [n.to_dict() for n in self.nodes.values()],
-            'edges': {
+            'relationships': {
                 'publishes_to': [e.to_dict() for e in self._edges_by_type[EdgeType.PUBLISHES_TO.value]],
                 'subscribes_to': [e.to_dict() for e in self._edges_by_type[EdgeType.SUBSCRIBES_TO.value]],
                 'routes': [e.to_dict() for e in self._edges_by_type[EdgeType.ROUTES.value]],
@@ -397,9 +397,9 @@ class GraphModel:
             'num_brokers': len(self.brokers),
             'num_topics': len(self.topics),
             'num_nodes': len(self.nodes),
-            'num_edges': len(self.edges),
+            'num_relationships': len(self.edges),
             'edges_by_type': {k: len(v) for k, v in self._edges_by_type.items()}
         }
     
     def __repr__(self) -> str:
-        return f"GraphModel(apps={len(self.applications)}, brokers={len(self.brokers)}, topics={len(self.topics)}, nodes={len(self.nodes)}, edges={len(self.edges)})"
+        return f"GraphModel(apps={len(self.applications)}, brokers={len(self.brokers)}, topics={len(self.topics)}, nodes={len(self.nodes)}, relationships={len(self.edges)})"

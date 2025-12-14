@@ -484,7 +484,7 @@ class TestBuilderAdvanced(unittest.TestCase):
         summary = self.builder.get_build_summary(self.model)
         
         self.assertIn('Applications:', summary)
-        self.assertIn('Edges by Type:', summary)
+        self.assertIn('Relationships by Type:', summary)
 
 
 class TestGraphModelQueries(unittest.TestCase):

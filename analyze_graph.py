@@ -1,1221 +1,979 @@
 #!/usr/bin/env python3
 """
-Graph Analysis CLI
+Comprehensive Pub-Sub System Graph Analyzer
+============================================
 
-Comprehensive analysis of pub-sub system graphs including:
-- Criticality scoring: C_score(v) = α·C_B^norm(v) + β·AP(v) + γ·I(v)
-- Structural analysis (articulation points, bridges, communities)
-- Anti-pattern detection (SPOF, god topics, circular dependencies)
-- Failure simulation and impact assessment
-- Multi-layer dependency analysis
-- QoS-aware analysis
+Main entry point for analyzing distributed publish-subscribe systems using
+graph-based methods. This script integrates multiple analysis approaches:
 
-Usage Examples:
-    # Basic analysis from JSON file
+1. DEPENDENCY ANALYSIS - Multi-layer DEPENDS_ON relationship analysis
+2. GRAPH ALGORITHMS - Direct application of centrality, structural algorithms
+3. ANTI-PATTERN DETECTION - Automatic identification of architectural issues
+4. CRITICALITY ASSESSMENT - Multiple perspectives on component importance
+
+Usage:
+    # Basic analysis with dependency graph
     python analyze_graph.py --input system.json
     
-    # Full analysis with exports
-    python analyze_graph.py --input system.json \\
-        --detect-antipatterns --simulate \\
-        --export-json results.json --export-csv results.csv
+    # Full analysis with all features
+    python analyze_graph.py --input system.json --full --export-all
     
-    # Analysis from Neo4j database
-    python analyze_graph.py --neo4j --uri bolt://localhost:7687 \\
-        --user neo4j --password password
+    # Specific analysis modes
+    python analyze_graph.py --input system.json --mode dependency
+    python analyze_graph.py --input system.json --mode algorithms
+    python analyze_graph.py --input system.json --mode antipatterns
     
-    # Custom criticality weights
-    python analyze_graph.py --input system.json \\
-        --alpha 0.5 --beta 0.25 --gamma 0.25
+    # Export options
+    python analyze_graph.py --input system.json --export-json --export-html --export-csv
+    
+    # With Neo4j integration
+    python analyze_graph.py --input system.json --neo4j --neo4j-uri bolt://localhost:7687
 
-Research Target Metrics:
-    - Spearman correlation ≥ 0.7 with failure simulations
-    - F1-score ≥ 0.9 for critical component identification
-    - Precision ≥ 0.9, Recall ≥ 0.85
+Author: Software-as-a-Graph Research Project
+Version: 2.0
 """
 
 import argparse
 import json
-import sys
-import time
 import logging
+import sys
+import csv
 from pathlib import Path
-from typing import Dict, List, Any, Tuple, Optional, Set
-from dataclasses import dataclass, field, asdict
-from enum import Enum
 from datetime import datetime
+from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass, asdict
+from enum import Enum
 from collections import defaultdict
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 try:
     import networkx as nx
-    HAS_NETWORKX = True
+    NETWORKX_AVAILABLE = True
 except ImportError:
-    HAS_NETWORKX = False
-    print("Error: networkx is required. Install with: pip install networkx")
-    sys.exit(1)
+    NETWORKX_AVAILABLE = False
+    print("Warning: NetworkX not available. Install with: pip install networkx")
 
-try:
-    from src.core.graph_builder import GraphBuilder
-    HAS_BUILDER = True
-except ImportError:
-    HAS_BUILDER = False
+# Import our analysis modules
+from src.analysis.dependency_analyzer import (
+    MultiLayerDependencyAnalyzer,
+    DependencyGraphBuilder,
+    GraphAlgorithmAnalyzer,
+    AntiPatternDetector,
+    CriticalComponentIdentifier,
+    ReportGenerator,
+    AnalysisResult,
+    CriticalNode,
+    CriticalEdge,
+    AntiPattern,
+    AntiPatternType,
+    CriticalityReason,
+    Layer,
+    DependencyType
+)
 
-
-# =============================================================================
-# Terminal Colors
-# =============================================================================
-
-class Colors:
-    """ANSI color codes for terminal output"""
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    DIM = '\033[2m'
-
-    @classmethod
-    def disable(cls):
-        cls.HEADER = cls.BLUE = cls.CYAN = cls.GREEN = ''
-        cls.WARNING = cls.FAIL = cls.ENDC = cls.BOLD = cls.DIM = ''
-
-
-def print_header(text: str):
-    print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}")
-    print(f"{Colors.HEADER}{Colors.BOLD}{text:^70}{Colors.ENDC}")
-    print(f"{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}")
+from src.analysis.graph_algorithms import (
+    CentralityAnalyzer,
+    StructuralAnalyzer,
+    CommunityDetector,
+    PathFlowAnalyzer,
+    SimilarityCouplingAnalyzer,
+    RobustnessAnalyzer,
+    LayerAwareAnalyzer,
+    ComprehensiveGraphAnalyzer,
+    get_algorithm_recommendations
+)
 
 
-def print_section(text: str):
-    print(f"\n{Colors.CYAN}{Colors.BOLD}{text}{Colors.ENDC}")
-    print(f"{Colors.DIM}{'-'*50}{Colors.ENDC}")
+# ============================================================================
+# Configuration and Constants
+# ============================================================================
 
-
-def print_success(text: str):
-    print(f"{Colors.GREEN}✓{Colors.ENDC} {text}")
-
-
-def print_error(text: str):
-    print(f"{Colors.FAIL}✗{Colors.ENDC} {text}")
-
-
-def print_warning(text: str):
-    print(f"{Colors.WARNING}⚠{Colors.ENDC} {text}")
-
-
-def print_info(text: str):
-    print(f"{Colors.CYAN}ℹ{Colors.ENDC} {text}")
-
-
-def print_kv(key: str, value: Any, indent: int = 2):
-    spaces = ' ' * indent
-    print(f"{spaces}{Colors.DIM}{key}:{Colors.ENDC} {value}")
-
-
-# =============================================================================
-# Data Classes
-# =============================================================================
-
-class CriticalityLevel(Enum):
-    """Criticality classification levels"""
-    CRITICAL = "CRITICAL"
-    HIGH = "HIGH"
-    MEDIUM = "MEDIUM"
-    LOW = "LOW"
-    MINIMAL = "MINIMAL"
+class AnalysisMode(Enum):
+    """Available analysis modes"""
+    FULL = "full"                    # All analyses
+    DEPENDENCY = "dependency"        # Dependency graph analysis only
+    ALGORITHMS = "algorithms"        # Graph algorithms only
+    ANTIPATTERNS = "antipatterns"   # Anti-pattern detection only
+    CRITICALITY = "criticality"     # Critical component identification
+    QUICK = "quick"                 # Fast basic analysis
 
 
 @dataclass
-class CriticalityScore:
-    """Criticality assessment for a component"""
-    component: str
-    component_type: str
-    betweenness_centrality_norm: float
-    is_articulation_point: bool
-    impact_score: float
-    composite_score: float
-    criticality_level: CriticalityLevel
-    degree_centrality: float = 0.0
-    closeness_centrality: float = 0.0
-    pagerank: float = 0.0
-    components_affected: int = 0
-    reachability_loss_pct: float = 0.0
+class AnalysisConfig:
+    """Configuration for analysis"""
+    # Input/Output
+    input_file: str
+    output_dir: str = "output"
+    output_prefix: str = "analysis"
     
-    def to_dict(self) -> Dict:
-        return {
-            'component': self.component,
-            'type': self.component_type,
-            'composite_score': round(self.composite_score, 4),
-            'level': self.criticality_level.value,
-            'betweenness_norm': round(self.betweenness_centrality_norm, 4),
-            'is_articulation_point': self.is_articulation_point,
-            'impact_score': round(self.impact_score, 4),
-            'degree_centrality': round(self.degree_centrality, 4),
-            'closeness_centrality': round(self.closeness_centrality, 4),
-            'pagerank': round(self.pagerank, 4),
-            'components_affected': self.components_affected,
-            'reachability_loss_pct': round(self.reachability_loss_pct, 2)
-        }
-
-
-@dataclass
-class AntiPattern:
-    """Detected anti-pattern"""
-    pattern_type: str
-    severity: str
-    components: List[str]
-    description: str
-    recommendation: str
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    # Analysis modes
+    mode: AnalysisMode = AnalysisMode.FULL
     
-    def to_dict(self) -> Dict:
-        return {
-            'type': self.pattern_type,
-            'severity': self.severity,
-            'components': self.components,
-            'description': self.description,
-            'recommendation': self.recommendation,
-            'metrics': self.metrics
-        }
-
-
-@dataclass 
-class AnalysisResults:
-    """Complete analysis results"""
-    timestamp: str
-    graph_summary: Dict[str, Any]
-    criticality_scores: Dict[str, CriticalityScore]
-    structural_analysis: Dict[str, Any]
-    antipatterns: List[AntiPattern]
-    simulation_results: Dict[str, Any]
-    recommendations: List[Dict[str, Any]]
-    execution_time: Dict[str, float]
+    # Algorithm settings
+    percentile_threshold: int = 90  # For "high" value detection
     
-    def to_dict(self) -> Dict:
-        return {
-            'timestamp': self.timestamp,
-            'graph_summary': self.graph_summary,
-            'criticality_analysis': {
-                'scores': {k: v.to_dict() for k, v in self.criticality_scores.items()},
-                'summary': self._criticality_summary()
-            },
-            'structural_analysis': self.structural_analysis,
-            'antipatterns': [ap.to_dict() for ap in self.antipatterns],
-            'simulation_results': self.simulation_results,
-            'recommendations': self.recommendations,
-            'execution_time': self.execution_time
-        }
+    # Anti-pattern thresholds
+    god_topic_threshold: int = 10
+    hub_overload_threshold: int = 15
+    long_chain_threshold: int = 5
+    tight_coupling_min_size: int = 4
     
-    def _criticality_summary(self) -> Dict:
-        scores = list(self.criticality_scores.values())
-        if not scores:
-            return {}
-        
-        all_scores = [s.composite_score for s in scores]
-        return {
-            'total_components': len(scores),
-            'avg_score': round(sum(all_scores) / len(all_scores), 4),
-            'max_score': round(max(all_scores), 4),
-            'critical_count': sum(1 for s in scores if s.criticality_level == CriticalityLevel.CRITICAL),
-            'high_count': sum(1 for s in scores if s.criticality_level == CriticalityLevel.HIGH),
-            'medium_count': sum(1 for s in scores if s.criticality_level == CriticalityLevel.MEDIUM),
-            'low_count': sum(1 for s in scores if s.criticality_level == CriticalityLevel.LOW),
-            'minimal_count': sum(1 for s in scores if s.criticality_level == CriticalityLevel.MINIMAL),
-            'articulation_points': sum(1 for s in scores if s.is_articulation_point)
-        }
+    # Export options
+    export_json: bool = True
+    export_html: bool = True
+    export_csv: bool = False
+    export_text: bool = False
+    
+    # Neo4j integration
+    use_neo4j: bool = False
+    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = ""
+    
+    # Logging
+    verbose: bool = False
+    quiet: bool = False
 
 
-# =============================================================================
-# Graph Loading
-# =============================================================================
+# ============================================================================
+# Main Analyzer Class
+# ============================================================================
 
-def load_graph_from_json(filepath: str) -> Tuple[nx.DiGraph, Dict]:
+class PubSubGraphAnalyzer:
     """
-    Load graph from JSON file and convert to NetworkX.
+    Comprehensive analyzer for pub-sub systems.
     
-    Returns:
-        Tuple of (NetworkX DiGraph, original data dict)
+    Integrates multiple analysis approaches:
+    - Dependency graph construction and analysis
+    - Graph algorithm application
+    - Anti-pattern detection
+    - Critical component identification
     """
-    with open(filepath) as f:
-        data = json.load(f)
     
-    G = nx.DiGraph()
-    
-    # Add nodes
-    for node in data.get('nodes', []):
-        node_attrs = {k: v for k, v in node.items() if k != 'id'}
-        node_attrs['type'] = 'Node'
-        if 'name' not in node_attrs:
-            node_attrs['name'] = node['id']
-        G.add_node(node['id'], **node_attrs)
-    
-    for broker in data.get('brokers', []):
-        broker_attrs = {k: v for k, v in broker.items() if k != 'id'}
-        broker_attrs['type'] = 'Broker'
-        if 'name' not in broker_attrs:
-            broker_attrs['name'] = broker['id']
-        G.add_node(broker['id'], **broker_attrs)
-    
-    for app in data.get('applications', []):
-        app_attrs = {k: v for k, v in app.items() if k != 'id'}
-        app_attrs['type'] = 'Application'
-        if 'name' not in app_attrs:
-            app_attrs['name'] = app['id']
-        G.add_node(app['id'], **app_attrs)
-    
-    for topic in data.get('topics', []):
-        # Flatten QoS
-        topic_attrs = {k: v for k, v in topic.items() if k not in ['id', 'qos']}
-        topic_attrs['type'] = 'Topic'
-        if 'name' not in topic_attrs:
-            topic_attrs['name'] = topic['id']
-        if 'qos' in topic:
-            for qk, qv in topic['qos'].items():
-                topic_attrs[f'qos_{qk}'] = qv
-        G.add_node(topic['id'], **topic_attrs)
-    
-    # Add edges
-    relationships = data.get('relationships', {})
-    
-    for rel in relationships.get('runs_on', []):
-        source = rel.get('from', rel.get('source'))
-        target = rel.get('to', rel.get('target'))
-        if source and target:
-            G.add_edge(source, target, type='RUNS_ON')
-    
-    for rel in relationships.get('publishes_to', []):
-        source = rel.get('from', rel.get('source'))
-        target = rel.get('to', rel.get('target'))
-        if source and target:
-            G.add_edge(source, target, type='PUBLISHES_TO', 
-                      period_ms=rel.get('period_ms'), msg_size=rel.get('msg_size_bytes'))
-    
-    for rel in relationships.get('subscribes_to', []):
-        source = rel.get('from', rel.get('source'))
-        target = rel.get('to', rel.get('target'))
-        if source and target:
-            G.add_edge(source, target, type='SUBSCRIBES_TO')
-    
-    for rel in relationships.get('routes', []):
-        source = rel.get('from', rel.get('source'))
-        target = rel.get('to', rel.get('target'))
-        if source and target:
-            G.add_edge(source, target, type='ROUTES')
-    
-    # Derive DEPENDS_ON edges
-    G = derive_dependencies(G)
-    
-    return G, data
-
-
-def derive_dependencies(G: nx.DiGraph) -> nx.DiGraph:
-    """Derive DEPENDS_ON relationships from pub/sub patterns"""
-    
-    # APP_TO_APP: subscriber depends on publisher via shared topic
-    topics = [n for n, d in G.nodes(data=True) if d.get('type') == 'Topic']
-    
-    for topic in topics:
-        # Find publishers and subscribers
-        publishers = [s for s, t, d in G.in_edges(topic, data=True) 
-                     if d.get('type') == 'PUBLISHES_TO']
-        subscribers = [s for s, t, d in G.in_edges(topic, data=True) 
-                      if d.get('type') == 'SUBSCRIBES_TO']
+    def __init__(self, config: AnalysisConfig):
+        self.config = config
+        self.logger = self._setup_logging()
         
-        # Subscribers depend on publishers
-        for sub in subscribers:
-            for pub in publishers:
-                if sub != pub and not G.has_edge(sub, pub):
-                    G.add_edge(sub, pub, type='DEPENDS_ON', 
-                              dependency_type='app_to_app', via_topic=topic)
-    
-    return G
-
-
-def load_graph_from_neo4j(uri: str, user: str, password: str, database: str = 'neo4j') -> nx.DiGraph:
-    """Load graph from Neo4j database"""
-    try:
-        from neo4j import GraphDatabase
-    except ImportError:
-        raise ImportError("neo4j driver required. Install with: pip install neo4j")
-    
-    driver = GraphDatabase.driver(uri, auth=(user, password))
-    G = nx.DiGraph()
-    
-    with driver.session(database=database) as session:
-        # Load all nodes
-        result = session.run("""
-            MATCH (n)
-            RETURN n.id AS id, labels(n)[0] AS type, properties(n) AS props
-        """)
-        for record in result:
-            props = dict(record['props'])
-            props['type'] = record['type']
-            G.add_node(record['id'], **props)
+        # Analysis results
+        self.graph: Optional[nx.DiGraph] = None
+        self.raw_data: Optional[Dict] = None
+        self.dependency_result: Optional[AnalysisResult] = None
+        self.algorithm_results: Optional[Dict] = None
         
-        # Load all relationships
-        result = session.run("""
-            MATCH (s)-[r]->(t)
-            RETURN s.id AS source, t.id AS target, type(r) AS rel_type, properties(r) AS props
-        """)
-        for record in result:
-            props = dict(record['props']) if record['props'] else {}
-            props['type'] = record['rel_type']
-            G.add_edge(record['source'], record['target'], **props)
+        # Timing
+        self.start_time: Optional[datetime] = None
+        self.end_time: Optional[datetime] = None
     
-    driver.close()
-    return G
-
-
-# =============================================================================
-# Criticality Analysis
-# =============================================================================
-
-DEFAULT_ALPHA = 0.4  # Betweenness centrality weight
-DEFAULT_BETA = 0.3   # Articulation point weight
-DEFAULT_GAMMA = 0.3  # Impact score weight
-
-
-def calculate_betweenness_centrality(G: nx.DiGraph) -> Dict[str, float]:
-    """Calculate betweenness centrality for all nodes"""
-    return nx.betweenness_centrality(G, normalized=True)
-
-
-def find_articulation_points(G: nx.DiGraph) -> Set[str]:
-    """Find articulation points (cut vertices)"""
-    undirected = G.to_undirected()
-    return set(nx.articulation_points(undirected))
-
-
-def calculate_impact_score(G: nx.DiGraph, node: str) -> Tuple[float, int, float]:
-    """
-    Calculate impact score I(v) for removing a node.
-    
-    I(v) = 1 - |R(G-v)| / |R(G)|
-    
-    Returns:
-        Tuple of (impact_score, components_affected, reachability_loss_pct)
-    """
-    # Calculate original reachability
-    original_reachable = set()
-    for source in G.nodes():
-        for target in nx.descendants(G, source):
-            if source != target:
-                original_reachable.add((source, target))
-    
-    # Calculate reachability without the node
-    G_minus_v = G.copy()
-    G_minus_v.remove_node(node)
-    
-    new_reachable = set()
-    for source in G_minus_v.nodes():
-        for target in nx.descendants(G_minus_v, source):
-            if source != target:
-                new_reachable.add((source, target))
-    
-    # Calculate loss
-    lost_reachability = original_reachable - new_reachable
-    components_affected = len(set(p[0] for p in lost_reachability) | 
-                             set(p[1] for p in lost_reachability))
-    
-    if len(original_reachable) > 0:
-        reachability_loss_pct = (len(lost_reachability) / len(original_reachable)) * 100
-        impact_score = len(lost_reachability) / len(original_reachable)
-    else:
-        reachability_loss_pct = 0.0
-        impact_score = 0.0
-    
-    return min(1.0, impact_score), components_affected, reachability_loss_pct
-
-
-def classify_criticality(score: float) -> CriticalityLevel:
-    """Classify criticality based on composite score"""
-    if score >= 0.8:
-        return CriticalityLevel.CRITICAL
-    elif score >= 0.6:
-        return CriticalityLevel.HIGH
-    elif score >= 0.4:
-        return CriticalityLevel.MEDIUM
-    elif score >= 0.2:
-        return CriticalityLevel.LOW
-    else:
-        return CriticalityLevel.MINIMAL
-
-
-def calculate_criticality_scores(
-    G: nx.DiGraph,
-    alpha: float = DEFAULT_ALPHA,
-    beta: float = DEFAULT_BETA,
-    gamma: float = DEFAULT_GAMMA,
-    calculate_impact: bool = True,
-    logger: logging.Logger = None
-) -> Dict[str, CriticalityScore]:
-    """
-    Calculate composite criticality scores for all nodes.
-    
-    Formula: C_score(v) = α·C_B^norm(v) + β·AP(v) + γ·I(v)
-    """
-    if logger:
-        logger.info("Calculating criticality scores...")
-    
-    # Calculate centrality metrics
-    betweenness = calculate_betweenness_centrality(G)
-    articulation_points = find_articulation_points(G)
-    degree = nx.degree_centrality(G)
-    closeness = nx.closeness_centrality(G)
-    pagerank = nx.pagerank(G, alpha=0.85)
-    
-    # Normalize betweenness
-    max_bc = max(betweenness.values()) if betweenness else 1.0
-    if max_bc == 0:
-        max_bc = 1.0
-    
-    scores = {}
-    total = len(G.nodes())
-    
-    for i, node in enumerate(G.nodes()):
-        node_data = G.nodes[node]
-        node_type = node_data.get('type', 'Unknown')
+    def _setup_logging(self) -> logging.Logger:
+        """Setup logging configuration"""
+        logger = logging.getLogger('pub_sub_analyzer')
         
-        # Normalized betweenness
-        bc_norm = betweenness.get(node, 0.0) / max_bc
-        
-        # Articulation point indicator
-        is_ap = node in articulation_points
-        ap_indicator = 1.0 if is_ap else 0.0
-        
-        # Impact score
-        if calculate_impact:
-            impact, affected, loss_pct = calculate_impact_score(G, node)
+        if self.config.quiet:
+            level = logging.WARNING
+        elif self.config.verbose:
+            level = logging.DEBUG
         else:
-            impact, affected, loss_pct = 0.0, 0, 0.0
+            level = logging.INFO
         
-        # Composite score
-        composite = alpha * bc_norm + beta * ap_indicator + gamma * impact
-        
-        # Classify
-        level = classify_criticality(composite)
-        
-        scores[node] = CriticalityScore(
-            component=node,
-            component_type=node_type,
-            betweenness_centrality_norm=bc_norm,
-            is_articulation_point=is_ap,
-            impact_score=impact,
-            composite_score=composite,
-            criticality_level=level,
-            degree_centrality=degree.get(node, 0.0),
-            closeness_centrality=closeness.get(node, 0.0),
-            pagerank=pagerank.get(node, 0.0),
-            components_affected=affected,
-            reachability_loss_pct=loss_pct
+        logging.basicConfig(
+            level=level,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%H:%M:%S'
         )
         
-        if logger and (i + 1) % 50 == 0:
-            logger.debug(f"  Processed {i + 1}/{total} nodes")
+        return logger
     
-    return scores
-
-
-# =============================================================================
-# Structural Analysis
-# =============================================================================
-
-def analyze_structure(G: nx.DiGraph) -> Dict[str, Any]:
-    """Perform structural analysis of the graph"""
-    
-    # Basic metrics
-    undirected = G.to_undirected()
-    
-    results = {
-        'nodes': G.number_of_nodes(),
-        'edges': G.number_of_edges(),
-        'density': nx.density(G),
-        'is_connected': nx.is_weakly_connected(G),
-        'connected_components': nx.number_weakly_connected_components(G)
-    }
-    
-    # Node types
-    node_types = defaultdict(int)
-    for _, data in G.nodes(data=True):
-        node_types[data.get('type', 'Unknown')] += 1
-    results['node_types'] = dict(node_types)
-    
-    # Edge types
-    edge_types = defaultdict(int)
-    for _, _, data in G.edges(data=True):
-        edge_types[data.get('type', 'Unknown')] += 1
-    results['edge_types'] = dict(edge_types)
-    
-    # Degree statistics
-    degrees = [d for _, d in G.degree()]
-    if degrees:
-        results['degree_stats'] = {
-            'avg': round(sum(degrees) / len(degrees), 2),
-            'max': max(degrees),
-            'min': min(degrees)
-        }
-    
-    # Articulation points
-    aps = list(nx.articulation_points(undirected))
-    results['articulation_points'] = {
-        'count': len(aps),
-        'nodes': aps[:20]  # Top 20
-    }
-    
-    # Bridges
-    bridges = list(nx.bridges(undirected))
-    results['bridges'] = {
-        'count': len(bridges),
-        'edges': bridges[:20]
-    }
-    
-    # Clustering
-    try:
-        results['avg_clustering'] = round(nx.average_clustering(undirected), 4)
-    except:
-        results['avg_clustering'] = 0.0
-    
-    # Diameter (if connected)
-    if results['is_connected']:
-        try:
-            results['diameter'] = nx.diameter(undirected)
-        except:
-            results['diameter'] = None
-    
-    return results
-
-
-# =============================================================================
-# Anti-Pattern Detection
-# =============================================================================
-
-def detect_antipatterns(G: nx.DiGraph, data: Dict = None) -> List[AntiPattern]:
-    """Detect architectural anti-patterns in the graph"""
-    antipatterns = []
-    
-    # 1. Single Points of Failure (SPOF)
-    antipatterns.extend(detect_spof(G))
-    
-    # 2. God Topics
-    antipatterns.extend(detect_god_topics(G))
-    
-    # 3. Circular Dependencies
-    antipatterns.extend(detect_circular_dependencies(G))
-    
-    # 4. Broker Overload
-    antipatterns.extend(detect_broker_overload(G))
-    
-    # 5. Tight Coupling
-    antipatterns.extend(detect_tight_coupling(G))
-    
-    # 6. Orphan Components
-    antipatterns.extend(detect_orphans(G))
-    
-    # Check for injected anti-patterns in data
-    if data and 'injected_antipatterns' in data:
-        for ap in data['injected_antipatterns']:
-            antipatterns.append(AntiPattern(
-                pattern_type=f"INJECTED_{ap.get('type', 'unknown').upper()}",
-                severity='HIGH',
-                components=ap.get('components', [ap.get('component', 'unknown')]),
-                description=ap.get('description', 'Injected anti-pattern'),
-                recommendation='This was intentionally injected for testing',
-                metrics=ap
-            ))
-    
-    return antipatterns
-
-
-def detect_spof(G: nx.DiGraph) -> List[AntiPattern]:
-    """Detect Single Points of Failure"""
-    antipatterns = []
-    
-    # Find nodes with high in-degree of DEPENDS_ON
-    depends_on_count = defaultdict(int)
-    for s, t, d in G.edges(data=True):
-        if d.get('type') == 'DEPENDS_ON':
-            depends_on_count[t] += 1
-    
-    # Threshold: 5+ dependents
-    for node, count in depends_on_count.items():
-        if count >= 5:
-            node_type = G.nodes[node].get('type', 'Unknown')
-            antipatterns.append(AntiPattern(
-                pattern_type='SPOF',
-                severity='CRITICAL' if count >= 10 else 'HIGH',
-                components=[node],
-                description=f"{node_type} '{node}' has {count} dependent components",
-                recommendation=f"Add redundancy or redistribute responsibilities from {node}",
-                metrics={'dependents': count, 'node_type': node_type}
-            ))
-    
-    # Also check articulation points
-    undirected = G.to_undirected()
-    for ap in nx.articulation_points(undirected):
-        if ap not in depends_on_count or depends_on_count[ap] < 5:
-            node_type = G.nodes[ap].get('type', 'Unknown')
-            antipatterns.append(AntiPattern(
-                pattern_type='SPOF_ARTICULATION',
-                severity='HIGH',
-                components=[ap],
-                description=f"{node_type} '{ap}' is an articulation point",
-                recommendation=f"Add redundant path around {ap}",
-                metrics={'node_type': node_type, 'is_articulation_point': True}
-            ))
-    
-    return antipatterns
-
-
-def detect_god_topics(G: nx.DiGraph) -> List[AntiPattern]:
-    """Detect God Topics (topics with too many connections)"""
-    antipatterns = []
-    
-    topics = [n for n, d in G.nodes(data=True) if d.get('type') == 'Topic']
-    
-    for topic in topics:
-        # Count publishers and subscribers
-        publishers = [s for s, t, d in G.in_edges(topic, data=True) 
-                     if d.get('type') == 'PUBLISHES_TO']
-        subscribers = [s for s, t, d in G.in_edges(topic, data=True) 
-                      if d.get('type') == 'SUBSCRIBES_TO']
+    def load_data(self) -> Dict[str, Any]:
+        """Load pub-sub system data from file"""
+        self.logger.info(f"Loading data from: {self.config.input_file}")
         
-        total = len(publishers) + len(subscribers)
+        input_path = Path(self.config.input_file)
+        if not input_path.exists():
+            raise FileNotFoundError(f"Input file not found: {self.config.input_file}")
         
-        # Threshold: 10+ total connections
-        if total >= 10:
-            antipatterns.append(AntiPattern(
-                pattern_type='GOD_TOPIC',
-                severity='HIGH' if total >= 15 else 'MEDIUM',
-                components=[topic],
-                description=f"Topic '{topic}' has {len(publishers)} publishers and {len(subscribers)} subscribers",
-                recommendation=f"Split '{topic}' into more specific topics",
-                metrics={'publishers': len(publishers), 'subscribers': len(subscribers), 'total': total}
-            ))
-    
-    return antipatterns
-
-
-def detect_circular_dependencies(G: nx.DiGraph) -> List[AntiPattern]:
-    """Detect circular dependency chains"""
-    antipatterns = []
-    
-    # Find cycles in DEPENDS_ON edges
-    depends_on_graph = nx.DiGraph()
-    for s, t, d in G.edges(data=True):
-        if d.get('type') == 'DEPENDS_ON':
-            depends_on_graph.add_edge(s, t)
-    
-    try:
-        cycles = list(nx.simple_cycles(depends_on_graph))
+        with open(input_path) as f:
+            self.raw_data = json.load(f)
         
-        # Filter to meaningful cycles (length 2-6)
-        for cycle in cycles:
-            if 2 <= len(cycle) <= 6:
-                antipatterns.append(AntiPattern(
-                    pattern_type='CIRCULAR_DEPENDENCY',
-                    severity='HIGH' if len(cycle) <= 3 else 'MEDIUM',
-                    components=cycle,
-                    description=f"Circular dependency chain: {' → '.join(cycle)} → {cycle[0]}",
-                    recommendation="Break the cycle by introducing an abstraction layer",
-                    metrics={'cycle_length': len(cycle)}
-                ))
-    except:
-        pass
-    
-    return antipatterns
-
-
-def detect_broker_overload(G: nx.DiGraph) -> List[AntiPattern]:
-    """Detect overloaded brokers"""
-    antipatterns = []
-    
-    brokers = [n for n, d in G.nodes(data=True) if d.get('type') == 'Broker']
-    
-    for broker in brokers:
-        # Count topics routed
-        topics = [t for s, t, d in G.out_edges(broker, data=True) 
-                 if d.get('type') == 'ROUTES']
+        # Validate basic structure
+        required_keys = ['applications', 'topics']
+        for key in required_keys:
+            if key not in self.raw_data:
+                self.logger.warning(f"Missing expected key in input: {key}")
         
-        # Check load
-        load = G.nodes[broker].get('current_load', 0.0)
+        # Log summary
+        self.logger.info(f"Loaded: {len(self.raw_data.get('nodes', []))} nodes, "
+                        f"{len(self.raw_data.get('brokers', []))} brokers, "
+                        f"{len(self.raw_data.get('topics', []))} topics, "
+                        f"{len(self.raw_data.get('applications', []))} applications")
         
-        if len(topics) >= 20 or load >= 0.8:
-            antipatterns.append(AntiPattern(
-                pattern_type='BROKER_OVERLOAD',
-                severity='CRITICAL' if load >= 0.9 else 'HIGH',
-                components=[broker],
-                description=f"Broker '{broker}' routes {len(topics)} topics with {load*100:.0f}% load",
-                recommendation=f"Distribute topics across additional brokers",
-                metrics={'topics_routed': len(topics), 'current_load': load}
-            ))
+        return self.raw_data
     
-    return antipatterns
-
-
-def detect_tight_coupling(G: nx.DiGraph) -> List[AntiPattern]:
-    """Detect tightly coupled component clusters"""
-    antipatterns = []
-    
-    # Build dependency graph
-    apps = [n for n, d in G.nodes(data=True) if d.get('type') == 'Application']
-    
-    # Count bidirectional dependencies
-    dep_pairs = defaultdict(int)
-    for s, t, d in G.edges(data=True):
-        if d.get('type') == 'DEPENDS_ON' and s in apps and t in apps:
-            pair = tuple(sorted([s, t]))
-            dep_pairs[pair] += 1
-    
-    # Find highly coupled pairs
-    for (a, b), count in dep_pairs.items():
-        if count >= 2:  # Bidirectional
-            antipatterns.append(AntiPattern(
-                pattern_type='TIGHT_COUPLING',
-                severity='MEDIUM',
-                components=[a, b],
-                description=f"Bidirectional dependency between '{a}' and '{b}'",
-                recommendation="Consider merging or introducing an intermediary",
-                metrics={'dependency_count': count}
-            ))
-    
-    return antipatterns
-
-
-def detect_orphans(G: nx.DiGraph) -> List[AntiPattern]:
-    """Detect orphan components with no connections"""
-    antipatterns = []
-    
-    for node in G.nodes():
-        in_deg = G.in_degree(node)
-        out_deg = G.out_degree(node)
+    def analyze(self) -> Dict[str, Any]:
+        """
+        Run comprehensive analysis based on configuration.
         
-        if in_deg == 0 and out_deg == 0:
-            node_type = G.nodes[node].get('type', 'Unknown')
-            antipatterns.append(AntiPattern(
-                pattern_type='ORPHAN_COMPONENT',
-                severity='LOW',
-                components=[node],
-                description=f"{node_type} '{node}' has no connections",
-                recommendation=f"Remove unused component or add necessary connections",
-                metrics={'node_type': node_type}
-            ))
-    
-    return antipatterns
-
-
-# =============================================================================
-# Failure Simulation
-# =============================================================================
-
-def simulate_failures(
-    G: nx.DiGraph, 
-    scores: Dict[str, CriticalityScore],
-    top_n: int = 10
-) -> Dict[str, Any]:
-    """Simulate failures of top critical components"""
-    
-    # Sort by criticality
-    sorted_scores = sorted(scores.values(), key=lambda s: s.composite_score, reverse=True)
-    
-    results = {
-        'simulations': [],
-        'summary': {}
-    }
-    
-    for score in sorted_scores[:top_n]:
-        node = score.component
+        Returns:
+            Dict containing all analysis results
+        """
+        self.start_time = datetime.now()
+        self.logger.info(f"Starting analysis in {self.config.mode.value} mode...")
         
-        # Simulate removal
-        G_sim = G.copy()
-        G_sim.remove_node(node)
-        
-        # Measure impact
-        original_components = nx.number_weakly_connected_components(G)
-        new_components = nx.number_weakly_connected_components(G_sim)
-        
-        # Calculate message flow disruption
-        original_paths = sum(1 for _ in nx.all_pairs_shortest_path_length(G))
-        try:
-            new_paths = sum(1 for _ in nx.all_pairs_shortest_path_length(G_sim))
-        except:
-            new_paths = 0
-        
-        results['simulations'].append({
-            'component': node,
-            'type': score.component_type,
-            'criticality_score': round(score.composite_score, 4),
-            'impact': {
-                'components_before': original_components,
-                'components_after': new_components,
-                'fragmentation': new_components - original_components,
-                'reachability_loss_pct': round(score.reachability_loss_pct, 2),
-                'nodes_affected': score.components_affected
+        results = {
+            'metadata': {
+                'analysis_time': self.start_time.isoformat(),
+                'mode': self.config.mode.value,
+                'input_file': self.config.input_file,
+                'version': '2.0'
             }
-        })
-    
-    # Summary statistics
-    if results['simulations']:
-        avg_loss = sum(s['impact']['reachability_loss_pct'] for s in results['simulations']) / len(results['simulations'])
-        max_loss = max(s['impact']['reachability_loss_pct'] for s in results['simulations'])
+        }
         
-        results['summary'] = {
-            'simulations_run': len(results['simulations']),
-            'avg_reachability_loss_pct': round(avg_loss, 2),
-            'max_reachability_loss_pct': round(max_loss, 2),
-            'total_fragmentation_events': sum(1 for s in results['simulations'] if s['impact']['fragmentation'] > 0)
+        # Load data if not already loaded
+        if self.raw_data is None:
+            self.load_data()
+        
+        # Run analyses based on mode
+        if self.config.mode == AnalysisMode.FULL:
+            results.update(self._run_full_analysis())
+        elif self.config.mode == AnalysisMode.DEPENDENCY:
+            results.update(self._run_dependency_analysis())
+        elif self.config.mode == AnalysisMode.ALGORITHMS:
+            results.update(self._run_algorithm_analysis())
+        elif self.config.mode == AnalysisMode.ANTIPATTERNS:
+            results.update(self._run_antipattern_analysis())
+        elif self.config.mode == AnalysisMode.CRITICALITY:
+            results.update(self._run_criticality_analysis())
+        elif self.config.mode == AnalysisMode.QUICK:
+            results.update(self._run_quick_analysis())
+        
+        self.end_time = datetime.now()
+        duration = (self.end_time - self.start_time).total_seconds()
+        results['metadata']['duration_seconds'] = duration
+        
+        self.logger.info(f"Analysis complete in {duration:.2f} seconds")
+        
+        return results
+    
+    def _run_full_analysis(self) -> Dict[str, Any]:
+        """Run complete analysis with all features"""
+        self.logger.info("Running FULL analysis...")
+        
+        results = {}
+        
+        # 1. Dependency Analysis (includes algorithms, anti-patterns, criticality)
+        self.logger.info("[1/4] Running dependency analysis...")
+        dep_analyzer = MultiLayerDependencyAnalyzer()
+        self.dependency_result = dep_analyzer.analyze(self.raw_data)
+        
+        results['dependency_analysis'] = self._serialize_dependency_result(self.dependency_result)
+        
+        # Store graph for further analysis
+        builder = DependencyGraphBuilder()
+        self.graph = builder.build_from_pubsub_data(self.raw_data)
+        
+        # 2. Extended Algorithm Analysis
+        self.logger.info("[2/4] Running extended algorithm analysis...")
+        results['extended_algorithms'] = self._run_extended_algorithms()
+        
+        # 3. Robustness Analysis
+        self.logger.info("[3/4] Running robustness analysis...")
+        results['robustness'] = self._run_robustness_analysis()
+        
+        # 4. Generate Summary
+        self.logger.info("[4/4] Generating summary...")
+        results['summary'] = self._generate_comprehensive_summary(results)
+        
+        return results
+    
+    def _run_dependency_analysis(self) -> Dict[str, Any]:
+        """Run dependency-focused analysis"""
+        self.logger.info("Running DEPENDENCY analysis...")
+        
+        dep_analyzer = MultiLayerDependencyAnalyzer()
+        self.dependency_result = dep_analyzer.analyze(self.raw_data)
+        
+        # Store graph
+        builder = DependencyGraphBuilder()
+        self.graph = builder.build_from_pubsub_data(self.raw_data)
+        
+        return {
+            'dependency_analysis': self._serialize_dependency_result(self.dependency_result)
         }
     
-    return results
-
-
-# =============================================================================
-# Recommendations
-# =============================================================================
-
-def generate_recommendations(
-    scores: Dict[str, CriticalityScore],
-    antipatterns: List[AntiPattern],
-    structural: Dict[str, Any]
-) -> List[Dict[str, Any]]:
-    """Generate actionable recommendations"""
-    recommendations = []
-    
-    # From criticality scores
-    critical_components = [s for s in scores.values() 
-                         if s.criticality_level == CriticalityLevel.CRITICAL]
-    
-    for score in critical_components[:5]:
-        if score.is_articulation_point:
-            recommendations.append({
-                'priority': 'CRITICAL',
-                'category': 'Redundancy',
-                'component': score.component,
-                'issue': f'{score.component_type} is a single point of failure',
-                'recommendation': f'Add redundancy for {score.component}',
-                'risk_reduction': 'High'
-            })
+    def _run_algorithm_analysis(self) -> Dict[str, Any]:
+        """Run graph algorithm-focused analysis"""
+        self.logger.info("Running ALGORITHM analysis...")
         
-        if score.impact_score > 0.5:
-            recommendations.append({
-                'priority': 'HIGH',
-                'category': 'Fault Tolerance',
-                'component': score.component,
-                'issue': f'High impact score ({score.impact_score:.2f})',
-                'recommendation': f'Implement fallback mechanism for {score.component}',
-                'risk_reduction': 'Medium-High'
-            })
+        # Build graph
+        builder = DependencyGraphBuilder()
+        self.graph = builder.build_from_pubsub_data(self.raw_data)
+        
+        # Run comprehensive algorithms
+        comprehensive = ComprehensiveGraphAnalyzer(self.graph)
+        self.algorithm_results = comprehensive.run_comprehensive_analysis()
+        
+        return {
+            'algorithm_analysis': self._serialize_algorithm_results(self.algorithm_results)
+        }
     
-    # From anti-patterns
-    for ap in antipatterns:
-        if ap.severity in ['CRITICAL', 'HIGH']:
-            recommendations.append({
-                'priority': ap.severity,
-                'category': f'Anti-Pattern: {ap.pattern_type}',
-                'component': ', '.join(ap.components[:3]),
-                'issue': ap.description,
-                'recommendation': ap.recommendation,
-                'risk_reduction': 'Medium'
-            })
-    
-    # From structural analysis
-    if structural.get('bridges', {}).get('count', 0) > 0:
-        recommendations.append({
-            'priority': 'HIGH',
-            'category': 'Network Topology',
-            'component': 'Network',
-            'issue': f'{structural["bridges"]["count"]} bridge edges detected',
-            'recommendation': 'Add redundant network paths',
-            'risk_reduction': 'High'
+    def _run_antipattern_analysis(self) -> Dict[str, Any]:
+        """Run anti-pattern detection focused analysis"""
+        self.logger.info("Running ANTIPATTERN analysis...")
+        
+        # Build graph and run algorithms (needed for anti-pattern detection)
+        builder = DependencyGraphBuilder()
+        self.graph = builder.build_from_pubsub_data(self.raw_data)
+        
+        algo_analyzer = GraphAlgorithmAnalyzer(self.graph)
+        algo_results = algo_analyzer.run_all_algorithms()
+        
+        # Detect anti-patterns
+        detector = AntiPatternDetector(self.graph, algo_results)
+        detector.config.update({
+            'god_topic_threshold': self.config.god_topic_threshold,
+            'hub_overload_threshold': self.config.hub_overload_threshold,
+            'long_chain_threshold': self.config.long_chain_threshold,
+            'tight_coupling_min_size': self.config.tight_coupling_min_size,
         })
-    
-    # Sort by priority
-    priority_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}
-    recommendations.sort(key=lambda r: priority_order.get(r['priority'], 4))
-    
-    return recommendations
-
-
-# =============================================================================
-# Output Functions
-# =============================================================================
-
-def print_analysis_results(results: AnalysisResults, verbose: bool = False):
-    """Print formatted analysis results"""
-    
-    # Graph Summary
-    print_section("Graph Summary")
-    gs = results.graph_summary
-    print_kv("Nodes", gs.get('nodes', 'N/A'))
-    print_kv("Edges", gs.get('edges', 'N/A'))
-    print_kv("Density", f"{gs.get('density', 0):.4f}")
-    print_kv("Connected", gs.get('is_connected', 'N/A'))
-    
-    if 'node_types' in gs:
-        print(f"\n  {Colors.DIM}Node Types:{Colors.ENDC}")
-        for ntype, count in gs['node_types'].items():
-            print_kv(ntype, count, indent=4)
-    
-    # Criticality Summary
-    print_section("Criticality Analysis")
-    crit_summary = results.to_dict()['criticality_analysis']['summary']
-    print_kv("Total Components", crit_summary.get('total_components', 0))
-    print_kv("Avg Score", f"{crit_summary.get('avg_score', 0):.4f}")
-    print_kv("Max Score", f"{crit_summary.get('max_score', 0):.4f}")
-    print(f"\n  {Colors.DIM}By Level:{Colors.ENDC}")
-    print(f"    {Colors.FAIL}CRITICAL:{Colors.ENDC} {crit_summary.get('critical_count', 0)}")
-    print(f"    {Colors.WARNING}HIGH:{Colors.ENDC} {crit_summary.get('high_count', 0)}")
-    print(f"    {Colors.CYAN}MEDIUM:{Colors.ENDC} {crit_summary.get('medium_count', 0)}")
-    print(f"    {Colors.GREEN}LOW:{Colors.ENDC} {crit_summary.get('low_count', 0)}")
-    print(f"    {Colors.DIM}MINIMAL:{Colors.ENDC} {crit_summary.get('minimal_count', 0)}")
-    print_kv("Articulation Points", crit_summary.get('articulation_points', 0))
-    
-    # Top Critical Components
-    print(f"\n  {Colors.BOLD}Top Critical Components:{Colors.ENDC}")
-    sorted_scores = sorted(results.criticality_scores.values(), 
-                          key=lambda s: s.composite_score, reverse=True)
-    for score in sorted_scores[:10]:
-        level_color = {
-            CriticalityLevel.CRITICAL: Colors.FAIL,
-            CriticalityLevel.HIGH: Colors.WARNING,
-            CriticalityLevel.MEDIUM: Colors.CYAN,
-            CriticalityLevel.LOW: Colors.GREEN,
-            CriticalityLevel.MINIMAL: Colors.DIM
-        }.get(score.criticality_level, '')
         
-        ap_marker = " [AP]" if score.is_articulation_point else ""
-        print(f"    {level_color}{score.criticality_level.value:8s}{Colors.ENDC} "
-              f"{score.component:30s} ({score.component_type:12s}) "
-              f"Score: {score.composite_score:.4f}{ap_marker}")
-    
-    # Anti-Patterns
-    if results.antipatterns:
-        print_section(f"Anti-Patterns Detected ({len(results.antipatterns)})")
-        for ap in results.antipatterns[:10]:
-            severity_color = Colors.FAIL if ap.severity == 'CRITICAL' else Colors.WARNING
-            print(f"  {severity_color}[{ap.severity}]{Colors.ENDC} {ap.pattern_type}")
-            print(f"    {Colors.DIM}{ap.description}{Colors.ENDC}")
-    
-    # Simulation Results
-    if results.simulation_results.get('simulations'):
-        print_section("Failure Simulation")
-        summary = results.simulation_results['summary']
-        print_kv("Simulations Run", summary.get('simulations_run', 0))
-        print_kv("Avg Reachability Loss", f"{summary.get('avg_reachability_loss_pct', 0):.2f}%")
-        print_kv("Max Reachability Loss", f"{summary.get('max_reachability_loss_pct', 0):.2f}%")
-    
-    # Recommendations
-    if results.recommendations:
-        print_section(f"Recommendations ({len(results.recommendations)})")
-        for rec in results.recommendations[:5]:
-            priority_color = Colors.FAIL if rec['priority'] == 'CRITICAL' else Colors.WARNING
-            print(f"  {priority_color}[{rec['priority']}]{Colors.ENDC} {rec['category']}")
-            print(f"    {Colors.DIM}{rec['recommendation']}{Colors.ENDC}")
-    
-    # Execution Time
-    print_section("Execution Time")
-    for phase, duration in results.execution_time.items():
-        print_kv(phase, f"{duration:.2f}s")
-    total = sum(results.execution_time.values())
-    print_kv("Total", f"{total:.2f}s", indent=2)
-
-
-def export_to_json(results: AnalysisResults, filepath: str):
-    """Export results to JSON file"""
-    with open(filepath, 'w') as f:
-        json.dump(results.to_dict(), f, indent=2)
-
-
-def export_to_csv(results: AnalysisResults, filepath: str):
-    """Export criticality scores to CSV"""
-    import csv
-    
-    with open(filepath, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            'component', 'type', 'composite_score', 'level',
-            'betweenness_norm', 'is_articulation_point', 'impact_score',
-            'degree_centrality', 'closeness_centrality', 'pagerank',
-            'components_affected', 'reachability_loss_pct'
-        ])
+        anti_patterns = detector.detect_all()
         
-        for score in results.criticality_scores.values():
-            writer.writerow([
-                score.component, score.component_type,
-                round(score.composite_score, 4), score.criticality_level.value,
-                round(score.betweenness_centrality_norm, 4), score.is_articulation_point,
-                round(score.impact_score, 4), round(score.degree_centrality, 4),
-                round(score.closeness_centrality, 4), round(score.pagerank, 4),
-                score.components_affected, round(score.reachability_loss_pct, 2)
-            ])
+        return {
+            'anti_patterns': [self._serialize_antipattern(ap) for ap in anti_patterns],
+            'summary': {
+                'total': len(anti_patterns),
+                'by_severity': self._count_by_severity(anti_patterns),
+                'by_type': self._count_by_type(anti_patterns)
+            }
+        }
+    
+    def _run_criticality_analysis(self) -> Dict[str, Any]:
+        """Run critical component identification focused analysis"""
+        self.logger.info("Running CRITICALITY analysis...")
+        
+        # Build graph and run algorithms
+        builder = DependencyGraphBuilder()
+        self.graph = builder.build_from_pubsub_data(self.raw_data)
+        
+        algo_analyzer = GraphAlgorithmAnalyzer(self.graph)
+        algo_results = algo_analyzer.run_all_algorithms()
+        
+        # Identify critical components
+        identifier = CriticalComponentIdentifier(self.graph, algo_results)
+        critical_nodes = identifier.identify_critical_nodes()
+        critical_edges = identifier.identify_critical_edges()
+        
+        return {
+            'critical_nodes': [self._serialize_critical_node(cn) for cn in critical_nodes],
+            'critical_edges': [self._serialize_critical_edge(ce) for ce in critical_edges],
+            'summary': {
+                'total_critical_nodes': len(critical_nodes),
+                'total_critical_edges': len(critical_edges),
+                'by_layer': self._count_nodes_by_layer(critical_nodes),
+                'by_reason': self._count_nodes_by_reason(critical_nodes)
+            }
+        }
+    
+    def _run_quick_analysis(self) -> Dict[str, Any]:
+        """Run fast basic analysis"""
+        self.logger.info("Running QUICK analysis...")
+        
+        # Build graph
+        builder = DependencyGraphBuilder()
+        self.graph = builder.build_from_pubsub_data(self.raw_data)
+        
+        # Basic metrics only
+        results = {
+            'graph_metrics': {
+                'nodes': len(self.graph.nodes()),
+                'edges': len(self.graph.edges()),
+                'density': nx.density(self.graph),
+                'is_connected': nx.is_weakly_connected(self.graph),
+            },
+            'layer_counts': self._get_layer_counts(),
+            'basic_centrality': self._get_basic_centrality(),
+            'structural_quick': self._get_structural_quick()
+        }
+        
+        return results
+    
+    def _run_extended_algorithms(self) -> Dict[str, Any]:
+        """Run extended algorithm analysis beyond dependency analyzer"""
+        if self.graph is None:
+            return {}
+        
+        results = {}
+        
+        # Community analysis with more detail
+        try:
+            community_detector = CommunityDetector(self.graph)
+            louvain = community_detector.louvain_communities()
+            composition = community_detector.analyze_community_composition(louvain)
+            
+            results['communities'] = {
+                'num_communities': louvain.statistics['num_communities'],
+                'modularity': louvain.modularity,
+                'composition': composition['communities']
+            }
+        except Exception as e:
+            self.logger.warning(f"Community analysis failed: {e}")
+        
+        # Path flow analysis
+        try:
+            path_analyzer = PathFlowAnalyzer(self.graph)
+            results['message_flow'] = path_analyzer.message_flow_analysis()
+            results['bottlenecks'] = path_analyzer.find_bottlenecks()
+        except Exception as e:
+            self.logger.warning(f"Path flow analysis failed: {e}")
+        
+        # Coupling analysis
+        try:
+            coupling_analyzer = SimilarityCouplingAnalyzer(self.graph)
+            results['coupling'] = coupling_analyzer.coupling_analysis()
+        except Exception as e:
+            self.logger.warning(f"Coupling analysis failed: {e}")
+        
+        return results
+    
+    def _run_robustness_analysis(self) -> Dict[str, Any]:
+        """Run robustness/resilience analysis"""
+        if self.graph is None:
+            return {}
+        
+        try:
+            robustness = RobustnessAnalyzer(self.graph)
+            comparison = robustness.compare_robustness()
+            
+            return {
+                'vulnerability_to_targeted_attacks': comparison['vulnerability_to_targeted_attacks'],
+                'comparison': {
+                    name: {
+                        'critical_threshold': r['critical_threshold'],
+                        'auc_robustness': r['auc_robustness']
+                    }
+                    for name, r in comparison['comparison'].items()
+                }
+            }
+        except Exception as e:
+            self.logger.warning(f"Robustness analysis failed: {e}")
+            return {}
+    
+    # ========================================================================
+    # Helper Methods
+    # ========================================================================
+    
+    def _get_layer_counts(self) -> Dict[str, int]:
+        """Get node counts by layer"""
+        counts = defaultdict(int)
+        for node, data in self.graph.nodes(data=True):
+            layer = data.get('layer', 'unknown')
+            counts[layer] += 1
+        return dict(counts)
+    
+    def _get_basic_centrality(self) -> Dict[str, Any]:
+        """Get basic centrality measures"""
+        bc = nx.betweenness_centrality(self.graph)
+        pr = nx.pagerank(self.graph)
+        
+        # Top 5 by each measure
+        top_bc = sorted(bc.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_pr = sorted(pr.items(), key=lambda x: x[1], reverse=True)[:5]
+        
+        return {
+            'top_betweenness': [{'node': n, 'score': round(s, 4)} for n, s in top_bc],
+            'top_pagerank': [{'node': n, 'score': round(s, 4)} for n, s in top_pr]
+        }
+    
+    def _get_structural_quick(self) -> Dict[str, Any]:
+        """Get quick structural analysis"""
+        G_undirected = self.graph.to_undirected()
+        
+        aps = list(nx.articulation_points(G_undirected))
+        bridges = list(nx.bridges(G_undirected))
+        
+        return {
+            'articulation_points': aps,
+            'articulation_point_count': len(aps),
+            'bridge_count': len(bridges),
+            'has_cycles': len(list(nx.simple_cycles(self.graph))) > 0 if len(self.graph) < 100 else 'not_computed'
+        }
+    
+    def _generate_comprehensive_summary(self, results: Dict) -> Dict[str, Any]:
+        """Generate comprehensive summary of all analyses"""
+        summary = {
+            'overall_health': 'unknown',
+            'key_findings': [],
+            'recommendations': [],
+            'metrics': {}
+        }
+        
+        # Extract key metrics
+        if 'dependency_analysis' in results:
+            dep = results['dependency_analysis']
+            summary['metrics']['critical_nodes'] = dep.get('summary', {}).get('total_critical_nodes', 0)
+            summary['metrics']['anti_patterns'] = dep.get('summary', {}).get('total_anti_patterns', 0)
+            
+            # Key findings from anti-patterns
+            for ap in dep.get('anti_patterns', [])[:5]:
+                if ap.get('severity') in ['critical', 'high']:
+                    summary['key_findings'].append({
+                        'type': ap.get('pattern_type'),
+                        'severity': ap.get('severity'),
+                        'description': ap.get('description')
+                    })
+        
+        # Robustness assessment
+        if 'robustness' in results:
+            vuln = results['robustness'].get('vulnerability_to_targeted_attacks', 0)
+            summary['metrics']['vulnerability_score'] = round(vuln, 4)
+            
+            if vuln > 0.5:
+                summary['recommendations'].append(
+                    "High vulnerability to targeted attacks. Add redundancy to critical components."
+                )
+        
+        # Health assessment
+        critical_count = summary['metrics'].get('critical_nodes', 0)
+        antipattern_count = summary['metrics'].get('anti_patterns', 0)
+        
+        if critical_count == 0 and antipattern_count == 0:
+            summary['overall_health'] = 'excellent'
+        elif critical_count <= 3 and antipattern_count <= 5:
+            summary['overall_health'] = 'good'
+        elif critical_count <= 10 and antipattern_count <= 15:
+            summary['overall_health'] = 'fair'
+        else:
+            summary['overall_health'] = 'needs_attention'
+        
+        return summary
+    
+    # ========================================================================
+    # Serialization Methods
+    # ========================================================================
+    
+    def _serialize_dependency_result(self, result: AnalysisResult) -> Dict:
+        """Serialize AnalysisResult to JSON-compatible dict"""
+        return {
+            'graph_metrics': result.graph_metrics,
+            'layer_metrics': result.layer_metrics,
+            'critical_nodes': [self._serialize_critical_node(cn) for cn in result.critical_nodes],
+            'critical_edges': [self._serialize_critical_edge(ce) for ce in result.critical_edges],
+            'anti_patterns': [self._serialize_antipattern(ap) for ap in result.anti_patterns],
+            'summary': result.summary
+        }
+    
+    def _serialize_critical_node(self, node: CriticalNode) -> Dict:
+        """Serialize CriticalNode"""
+        return {
+            'node_id': node.node_id,
+            'layer': node.layer,
+            'node_type': node.node_type,
+            'reasons': [r.value for r in node.reasons],
+            'metrics': {k: round(v, 4) if isinstance(v, float) else v 
+                       for k, v in node.metrics.items()},
+            'impact_description': node.impact_description,
+            'recommendation': node.recommendation
+        }
+    
+    def _serialize_critical_edge(self, edge: CriticalEdge) -> Dict:
+        """Serialize CriticalEdge"""
+        return {
+            'source': edge.source,
+            'target': edge.target,
+            'dependency_type': edge.dependency_type,
+            'reasons': [r.value for r in edge.reasons],
+            'metrics': {k: round(v, 4) if isinstance(v, float) else v 
+                       for k, v in edge.metrics.items()},
+            'impact_description': edge.impact_description,
+            'recommendation': edge.recommendation
+        }
+    
+    def _serialize_antipattern(self, pattern: AntiPattern) -> Dict:
+        """Serialize AntiPattern"""
+        return {
+            'pattern_type': pattern.pattern_type.value,
+            'severity': pattern.severity,
+            'affected_components': pattern.affected_components,
+            'description': pattern.description,
+            'impact': pattern.impact,
+            'recommendation': pattern.recommendation,
+            'metrics': pattern.metrics
+        }
+    
+    def _serialize_algorithm_results(self, results: Dict) -> Dict:
+        """Serialize algorithm results"""
+        serialized = {}
+        
+        for key, value in results.items():
+            if hasattr(value, '__dict__'):
+                serialized[key] = self._serialize_object(value)
+            elif isinstance(value, dict):
+                serialized[key] = {str(k): self._serialize_object(v) 
+                                  for k, v in value.items()}
+            else:
+                serialized[key] = value
+        
+        return serialized
+    
+    def _serialize_object(self, obj) -> Any:
+        """Generic object serialization"""
+        if isinstance(obj, Enum):
+            return obj.value
+        elif hasattr(obj, '__dict__'):
+            return {k: self._serialize_object(v) for k, v in obj.__dict__.items()}
+        elif isinstance(obj, dict):
+            return {str(k): self._serialize_object(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._serialize_object(i) for i in obj]
+        elif isinstance(obj, set):
+            return list(obj)
+        elif isinstance(obj, float):
+            if obj == float('inf'):
+                return "inf"
+            return round(obj, 6)
+        return obj
+    
+    def _count_by_severity(self, patterns: List[AntiPattern]) -> Dict[str, int]:
+        """Count anti-patterns by severity"""
+        counts = defaultdict(int)
+        for p in patterns:
+            counts[p.severity] += 1
+        return dict(counts)
+    
+    def _count_by_type(self, patterns: List[AntiPattern]) -> Dict[str, int]:
+        """Count anti-patterns by type"""
+        counts = defaultdict(int)
+        for p in patterns:
+            counts[p.pattern_type.value] += 1
+        return dict(counts)
+    
+    def _count_nodes_by_layer(self, nodes: List[CriticalNode]) -> Dict[str, int]:
+        """Count critical nodes by layer"""
+        counts = defaultdict(int)
+        for n in nodes:
+            counts[n.layer] += 1
+        return dict(counts)
+    
+    def _count_nodes_by_reason(self, nodes: List[CriticalNode]) -> Dict[str, int]:
+        """Count critical nodes by reason"""
+        counts = defaultdict(int)
+        for n in nodes:
+            for r in n.reasons:
+                counts[r.value] += 1
+        return dict(counts)
+    
+    # ========================================================================
+    # Export Methods
+    # ========================================================================
+    
+    def export_results(self, results: Dict[str, Any]):
+        """Export results in configured formats"""
+        output_dir = Path(self.config.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        prefix = self.config.output_prefix
+        
+        if self.config.export_json:
+            self._export_json(results, output_dir / f"{prefix}_results.json")
+        
+        if self.config.export_html:
+            self._export_html(results, output_dir / f"{prefix}_report.html")
+        
+        if self.config.export_csv:
+            self._export_csv(results, output_dir / f"{prefix}")
+        
+        if self.config.export_text:
+            self._export_text(results, output_dir / f"{prefix}_report.txt")
+        
+        self.logger.info(f"Results exported to: {output_dir}")
+    
+    def _export_json(self, results: Dict, filepath: Path):
+        """Export to JSON"""
+        with open(filepath, 'w') as f:
+            json.dump(results, f, indent=2, default=str)
+        self.logger.info(f"  ✓ JSON: {filepath}")
+    
+    def _export_html(self, results: Dict, filepath: Path):
+        """Export to HTML report"""
+        # Use ReportGenerator if we have dependency results
+        if self.dependency_result:
+            html = ReportGenerator.generate_html_report(self.dependency_result)
+        else:
+            html = self._generate_basic_html(results)
+        
+        with open(filepath, 'w') as f:
+            f.write(html)
+        self.logger.info(f"  ✓ HTML: {filepath}")
+    
+    def _export_csv(self, results: Dict, filepath_prefix: Path):
+        """Export to CSV files"""
+        # Export critical nodes
+        if 'dependency_analysis' in results:
+            dep = results['dependency_analysis']
+            
+            # Critical nodes CSV
+            if 'critical_nodes' in dep:
+                csv_path = Path(f"{filepath_prefix}_critical_nodes.csv")
+                with open(csv_path, 'w', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['node_id', 'layer', 'type', 'reasons', 'impact', 'recommendation'])
+                    for node in dep['critical_nodes']:
+                        writer.writerow([
+                            node['node_id'],
+                            node['layer'],
+                            node['node_type'],
+                            ';'.join(node['reasons']),
+                            node['impact_description'],
+                            node['recommendation']
+                        ])
+                self.logger.info(f"  ✓ CSV: {csv_path}")
+            
+            # Anti-patterns CSV
+            if 'anti_patterns' in dep:
+                csv_path = Path(f"{filepath_prefix}_anti_patterns.csv")
+                with open(csv_path, 'w', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['type', 'severity', 'components', 'description', 'recommendation'])
+                    for ap in dep['anti_patterns']:
+                        writer.writerow([
+                            ap['pattern_type'],
+                            ap['severity'],
+                            ';'.join(ap['affected_components'][:5]),
+                            ap['description'],
+                            ap['recommendation']
+                        ])
+                self.logger.info(f"  ✓ CSV: {csv_path}")
+    
+    def _export_text(self, results: Dict, filepath: Path):
+        """Export to text report"""
+        if self.dependency_result:
+            text = ReportGenerator.generate_text_report(self.dependency_result)
+        else:
+            text = self._generate_basic_text(results)
+        
+        with open(filepath, 'w') as f:
+            f.write(text)
+        self.logger.info(f"  ✓ Text: {filepath}")
+    
+    def _generate_basic_html(self, results: Dict) -> str:
+        """Generate basic HTML when full dependency result not available"""
+        return f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>Graph Analysis Report</title>
+    <style>
+        body {{ font-family: sans-serif; padding: 20px; background: #1a1a2e; color: #eee; }}
+        .container {{ max-width: 1000px; margin: 0 auto; }}
+        pre {{ background: #2d2d44; padding: 15px; border-radius: 5px; overflow-x: auto; }}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Graph Analysis Report</h1>
+    <p>Generated: {datetime.now().isoformat()}</p>
+    <h2>Results</h2>
+    <pre>{json.dumps(results, indent=2, default=str)}</pre>
+</div>
+</body>
+</html>"""
+    
+    def _generate_basic_text(self, results: Dict) -> str:
+        """Generate basic text report"""
+        lines = [
+            "=" * 60,
+            "  GRAPH ANALYSIS REPORT",
+            "=" * 60,
+            f"\nGenerated: {datetime.now().isoformat()}",
+            "\nResults:",
+            json.dumps(results, indent=2, default=str)
+        ]
+        return "\n".join(lines)
 
 
-# =============================================================================
-# Main CLI
-# =============================================================================
+# ============================================================================
+# CLI Interface
+# ============================================================================
 
-def create_parser() -> argparse.ArgumentParser:
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments"""
     parser = argparse.ArgumentParser(
-        description='Comprehensive pub-sub system graph analysis',
+        description="Comprehensive Pub-Sub System Graph Analyzer",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s --input system.json
-  %(prog)s --input system.json --detect-antipatterns --simulate
-  %(prog)s --neo4j --uri bolt://localhost:7687 --user neo4j --password pass
+  # Basic analysis
+  python analyze_graph.py --input system.json
+  
+  # Full analysis with all exports
+  python analyze_graph.py --input system.json --mode full --export-all
+  
+  # Quick analysis
+  python analyze_graph.py --input system.json --mode quick
+  
+  # Anti-pattern detection only
+  python analyze_graph.py --input system.json --mode antipatterns
+  
+  # Custom thresholds
+  python analyze_graph.py --input system.json --god-topic-threshold 5
         """
     )
     
-    # Input options
-    input_group = parser.add_argument_group('Input')
-    input_group.add_argument('--input', '-i', help='Input JSON file')
-    input_group.add_argument('--neo4j', action='store_true', help='Load from Neo4j')
-    input_group.add_argument('--uri', default='bolt://localhost:7687', help='Neo4j URI')
-    input_group.add_argument('--user', default='neo4j', help='Neo4j username')
-    input_group.add_argument('--password', default='password', help='Neo4j password')
-    input_group.add_argument('--database', default='neo4j', help='Neo4j database')
+    # Input/Output
+    parser.add_argument('--input', '-i', required=True,
+                       help='Input JSON file with pub-sub system definition')
+    parser.add_argument('--output-dir', '-o', default='output',
+                       help='Output directory (default: output)')
+    parser.add_argument('--output-prefix', default='analysis',
+                       help='Prefix for output files (default: analysis)')
     
-    # Analysis options
-    analysis_group = parser.add_argument_group('Analysis')
-    analysis_group.add_argument('--alpha', type=float, default=DEFAULT_ALPHA,
-                               help=f'Betweenness weight (default: {DEFAULT_ALPHA})')
-    analysis_group.add_argument('--beta', type=float, default=DEFAULT_BETA,
-                               help=f'Articulation point weight (default: {DEFAULT_BETA})')
-    analysis_group.add_argument('--gamma', type=float, default=DEFAULT_GAMMA,
-                               help=f'Impact score weight (default: {DEFAULT_GAMMA})')
-    analysis_group.add_argument('--skip-impact', action='store_true',
-                               help='Skip impact score calculation (faster)')
-    analysis_group.add_argument('--detect-antipatterns', '-d', action='store_true',
-                               help='Detect anti-patterns')
-    analysis_group.add_argument('--simulate', '-s', action='store_true',
-                               help='Run failure simulations')
-    analysis_group.add_argument('--top-n', type=int, default=10,
-                               help='Number of components to simulate (default: 10)')
+    # Analysis Mode
+    parser.add_argument('--mode', '-m', 
+                       choices=['full', 'dependency', 'algorithms', 'antipatterns', 'criticality', 'quick'],
+                       default='full',
+                       help='Analysis mode (default: full)')
     
-    # Export options
-    export_group = parser.add_argument_group('Export')
-    export_group.add_argument('--export-json', metavar='FILE', help='Export to JSON')
-    export_group.add_argument('--export-csv', metavar='FILE', help='Export scores to CSV')
+    # Export Options
+    parser.add_argument('--export-json', action='store_true', default=True,
+                       help='Export results as JSON (default: True)')
+    parser.add_argument('--export-html', action='store_true', default=True,
+                       help='Export results as HTML report (default: True)')
+    parser.add_argument('--export-csv', action='store_true',
+                       help='Export results as CSV files')
+    parser.add_argument('--export-text', action='store_true',
+                       help='Export results as text report')
+    parser.add_argument('--export-all', action='store_true',
+                       help='Export in all formats')
+    parser.add_argument('--no-export', action='store_true',
+                       help='Do not export results (print to stdout)')
     
-    # Verbosity
-    verbosity_group = parser.add_argument_group('Verbosity')
-    verbosity_group.add_argument('--verbose', '-v', action='store_true')
-    verbosity_group.add_argument('--quiet', '-q', action='store_true')
-    verbosity_group.add_argument('--no-color', action='store_true')
+    # Anti-pattern Thresholds
+    parser.add_argument('--god-topic-threshold', type=int, default=10,
+                       help='Connections threshold for god topic detection (default: 10)')
+    parser.add_argument('--hub-overload-threshold', type=int, default=15,
+                       help='Out-degree threshold for hub overload (default: 15)')
+    parser.add_argument('--long-chain-threshold', type=int, default=5,
+                       help='Depth threshold for long dependency chains (default: 5)')
+    parser.add_argument('--tight-coupling-size', type=int, default=4,
+                       help='Minimum clique size for tight coupling (default: 4)')
     
-    return parser
+    # Algorithm Settings
+    parser.add_argument('--percentile-threshold', type=int, default=90,
+                       help='Percentile for "high" value detection (default: 90)')
+    
+    # Neo4j Integration
+    parser.add_argument('--neo4j', action='store_true',
+                       help='Enable Neo4j integration')
+    parser.add_argument('--neo4j-uri', default='bolt://localhost:7687',
+                       help='Neo4j connection URI')
+    parser.add_argument('--neo4j-user', default='neo4j',
+                       help='Neo4j username')
+    parser.add_argument('--neo4j-password', default='',
+                       help='Neo4j password')
+    
+    # Logging
+    parser.add_argument('--verbose', '-v', action='store_true',
+                       help='Verbose output')
+    parser.add_argument('--quiet', '-q', action='store_true',
+                       help='Quiet mode (warnings only)')
+    
+    return parser.parse_args()
 
 
-def main() -> int:
-    parser = create_parser()
-    args = parser.parse_args()
+def main():
+    """Main entry point"""
+    args = parse_arguments()
     
-    # Setup
-    if args.no_color or not sys.stdout.isatty():
-        Colors.disable()
+    # Build configuration
+    config = AnalysisConfig(
+        input_file=args.input,
+        output_dir=args.output_dir,
+        output_prefix=args.output_prefix,
+        mode=AnalysisMode(args.mode),
+        percentile_threshold=args.percentile_threshold,
+        god_topic_threshold=args.god_topic_threshold,
+        hub_overload_threshold=args.hub_overload_threshold,
+        long_chain_threshold=args.long_chain_threshold,
+        tight_coupling_min_size=args.tight_coupling_size,
+        export_json=args.export_json and not args.no_export,
+        export_html=args.export_html and not args.no_export,
+        export_csv=args.export_csv or args.export_all,
+        export_text=args.export_text or args.export_all,
+        use_neo4j=args.neo4j,
+        neo4j_uri=args.neo4j_uri,
+        neo4j_user=args.neo4j_user,
+        neo4j_password=args.neo4j_password,
+        verbose=args.verbose,
+        quiet=args.quiet
+    )
     
-    log_level = logging.DEBUG if args.verbose else (logging.ERROR if args.quiet else logging.INFO)
-    logging.basicConfig(level=log_level, format='%(levelname)s: %(message)s')
-    logger = logging.getLogger(__name__)
+    if args.export_all:
+        config.export_json = True
+        config.export_html = True
+        config.export_csv = True
+        config.export_text = True
     
-    # Validate input
-    if not args.input and not args.neo4j:
-        print_error("Input required. Use --input FILE or --neo4j")
-        return 1
+    # Print banner
+    if not config.quiet:
+        print("""
+╔══════════════════════════════════════════════════════════════════╗
+║     PUB-SUB SYSTEM GRAPH ANALYZER v2.0                          ║
+║     Graph-Based Analysis of Distributed Systems                  ║
+╚══════════════════════════════════════════════════════════════════╝
+        """)
     
-    if not args.quiet:
-        print_header("GRAPH ANALYSIS")
-        print(f"  Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"  Weights: α={args.alpha}, β={args.beta}, γ={args.gamma}")
-    
-    execution_time = {}
-    
-    # Load graph
-    if not args.quiet:
-        print_info("Loading graph...")
-    
-    start = time.time()
     try:
-        if args.neo4j:
-            G = load_graph_from_neo4j(args.uri, args.user, args.password, args.database)
-            data = {}
+        # Create analyzer and run
+        analyzer = PubSubGraphAnalyzer(config)
+        results = analyzer.analyze()
+        
+        # Export results
+        if not args.no_export:
+            analyzer.export_results(results)
         else:
-            G, data = load_graph_from_json(args.input)
-        execution_time['load_graph'] = time.time() - start
-        print_success(f"Loaded graph with {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
-    except Exception as e:
-        print_error(f"Failed to load graph: {e}")
+            # Print to stdout
+            print(json.dumps(results, indent=2, default=str))
+        
+        # Print summary
+        if not config.quiet:
+            print("\n" + "=" * 60)
+            print("  ANALYSIS SUMMARY")
+            print("=" * 60)
+            
+            if 'summary' in results:
+                summary = results['summary']
+                print(f"\n  Overall Health: {summary.get('overall_health', 'unknown').upper()}")
+                
+                metrics = summary.get('metrics', {})
+                print(f"  Critical Nodes: {metrics.get('critical_nodes', 'N/A')}")
+                print(f"  Anti-Patterns: {metrics.get('anti_patterns', 'N/A')}")
+                
+                if 'key_findings' in summary and summary['key_findings']:
+                    print("\n  Key Findings:")
+                    for finding in summary['key_findings'][:3]:
+                        print(f"    • [{finding.get('severity', '').upper()}] {finding.get('type')}")
+                
+                if 'recommendations' in summary and summary['recommendations']:
+                    print("\n  Recommendations:")
+                    for rec in summary['recommendations'][:3]:
+                        print(f"    • {rec}")
+            
+            print("\n" + "=" * 60)
+        
+        return 0
+        
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
         return 1
-    
-    # Structural analysis
-    if not args.quiet:
-        print_info("Analyzing structure...")
-    start = time.time()
-    structural = analyze_structure(G)
-    execution_time['structural_analysis'] = time.time() - start
-    
-    # Criticality scoring
-    if not args.quiet:
-        print_info("Calculating criticality scores...")
-    start = time.time()
-    scores = calculate_criticality_scores(
-        G, args.alpha, args.beta, args.gamma,
-        calculate_impact=not args.skip_impact,
-        logger=logger if args.verbose else None
-    )
-    execution_time['criticality_scoring'] = time.time() - start
-    
-    # Anti-pattern detection
-    antipatterns = []
-    if args.detect_antipatterns:
-        if not args.quiet:
-            print_info("Detecting anti-patterns...")
-        start = time.time()
-        antipatterns = detect_antipatterns(G, data)
-        execution_time['antipattern_detection'] = time.time() - start
-    
-    # Failure simulation
-    simulation_results = {}
-    if args.simulate:
-        if not args.quiet:
-            print_info("Running failure simulations...")
-        start = time.time()
-        simulation_results = simulate_failures(G, scores, args.top_n)
-        execution_time['failure_simulation'] = time.time() - start
-    
-    # Generate recommendations
-    recommendations = generate_recommendations(scores, antipatterns, structural)
-    
-    # Build results
-    results = AnalysisResults(
-        timestamp=datetime.now().isoformat(),
-        graph_summary=structural,
-        criticality_scores=scores,
-        structural_analysis=structural,
-        antipatterns=antipatterns,
-        simulation_results=simulation_results,
-        recommendations=recommendations,
-        execution_time=execution_time
-    )
-    
-    # Print results
-    if not args.quiet:
-        print_analysis_results(results, args.verbose)
-    
-    # Export
-    if args.export_json:
-        export_to_json(results, args.export_json)
-        print_success(f"Results exported to {args.export_json}")
-    
-    if args.export_csv:
-        export_to_csv(results, args.export_csv)
-        print_success(f"Scores exported to {args.export_csv}")
-    
-    return 0
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in input file: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
 
 
 if __name__ == '__main__':

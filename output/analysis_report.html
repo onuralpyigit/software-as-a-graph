@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dependency Analysis Report</title>
+    <style>
+        :root {
+            --critical: #e74c3c;
+            --high: #e67e22;
+            --medium: #f1c40f;
+            --low: #27ae60;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; color: #3498db; }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .card h2 { color: #3498db; margin-top: 0; }
+        .metric { display: inline-block; margin: 10px 20px 10px 0; }
+        .metric-value { font-size: 24px; font-weight: bold; color: #3498db; }
+        .metric-label { color: #999; }
+        .severity-critical { color: var(--critical); }
+        .severity-high { color: var(--high); }
+        .severity-medium { color: var(--medium); }
+        .severity-low { color: var(--low); }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        th { background: rgba(52, 152, 219, 0.2); }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+        }
+        .badge-reason { background: rgba(52, 152, 219, 0.3); }
+        .badge-critical { background: var(--critical); }
+        .badge-high { background: var(--high); }
+        .badge-medium { background: var(--medium); }
+        .badge-low { background: var(--low); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔍 Multi-Layer Dependency Analysis Report</h1>
+
+    <div class="card">
+        <h2>📊 Graph Overview</h2>
+        <div class="metric">
+            <div class="metric-value">14</div>
+            <div class="metric-label">Nodes</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">0</div>
+            <div class="metric-label">Edges</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">0.0000</div>
+            <div class="metric-label">Density</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">14</div>
+            <div class="metric-label">Critical Nodes</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">14</div>
+            <div class="metric-label">Anti-Patterns</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🎯 Critical Nodes</h2>
+        <table>
+            <tr><th>Node</th><th>Layer</th><th>Type</th><th>Reasons</th><th>Impact</th></tr>
+
+            <tr>
+                <td><strong>topic_2</strong></td>
+                <td>topic</td>
+                <td>topic</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_authority_score</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Key data sink; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>topic_3</strong></td>
+                <td>topic</td>
+                <td>topic</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_authority_score</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Key data sink; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>edge_0</strong></td>
+                <td>infrastructure</td>
+                <td>node</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>compute_1</strong></td>
+                <td>infrastructure</td>
+                <td>node</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>compute_2</strong></td>
+                <td>infrastructure</td>
+                <td>node</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>broker_0</strong></td>
+                <td>broker</td>
+                <td>broker</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>topic_0</strong></td>
+                <td>topic</td>
+                <td>topic</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>topic_1</strong></td>
+                <td>topic</td>
+                <td>topic</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>app_0</strong></td>
+                <td>application</td>
+                <td>application</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>app_1</strong></td>
+                <td>application</td>
+                <td>application</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>app_2</strong></td>
+                <td>application</td>
+                <td>application</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>app_3</strong></td>
+                <td>application</td>
+                <td>application</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>app_4</strong></td>
+                <td>application</td>
+                <td>application</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+
+            <tr>
+                <td><strong>app_5</strong></td>
+                <td>application</td>
+                <td>application</td>
+                <td><span class="badge badge-reason">high_betweenness</span><span class="badge badge-reason">high_pagerank</span><span class="badge badge-reason">high_in_degree</span><span class="badge badge-reason">high_out_degree</span><span class="badge badge-reason">inner_core</span><span class="badge badge-reason">high_load</span></td>
+                <td>Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core</td>
+            </tr>
+</table></div>
+    <div class="card">
+        <h2>⚠️ Anti-Patterns Detected</h2>
+        <table>
+            <tr><th>Severity</th><th>Type</th><th>Components</th><th>Description</th><th>Recommendation</th></tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>edge_0</td>
+                <td>Component 'edge_0' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>compute_1</td>
+                <td>Component 'compute_1' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>compute_2</td>
+                <td>Component 'compute_2' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>broker_0</td>
+                <td>Component 'broker_0' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>topic_0</td>
+                <td>Component 'topic_0' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>topic_1</td>
+                <td>Component 'topic_1' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>topic_2</td>
+                <td>Component 'topic_2' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>topic_3</td>
+                <td>Component 'topic_3' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>app_0</td>
+                <td>Component 'app_0' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>app_1</td>
+                <td>Component 'app_1' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>app_2</td>
+                <td>Component 'app_2' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>app_3</td>
+                <td>Component 'app_3' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>app_4</td>
+                <td>Component 'app_4' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+
+            <tr>
+                <td><span class="badge badge-low">LOW</span></td>
+                <td>orphan_component</td>
+                <td>app_5</td>
+                <td>Component 'app_5' is completely isolated (no connections)</td>
+                <td>Verify if component is needed. Connect it or remove it.</td>
+            </tr>
+</table></div>
+</div>
+</body>
+</html>

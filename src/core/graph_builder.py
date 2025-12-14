@@ -299,7 +299,7 @@ class GraphBuilder:
         stats = model.get_statistics()
         self.logger.info(
             f"Built graph: {stats['num_applications']} apps, {stats['num_brokers']} brokers, "
-            f"{stats['num_topics']} topics, {stats['num_nodes']} nodes, {stats['num_edges']} edges"
+            f"{stats['num_topics']} topics, {stats['num_nodes']} nodes, {stats['num_relationships']} relationships"
         )
         
         return model
@@ -1207,9 +1207,9 @@ class GraphBuilder:
             f"Brokers:      {stats['num_brokers']}",
             f"Topics:       {stats['num_topics']}",
             f"Nodes:        {stats['num_nodes']}",
-            f"Total Edges:  {stats['num_edges']}",
+            f"Total Relationships:  {stats['num_relationships']}",
             "",
-            "Edges by Type:",
+            "Relationships by Type:",
         ]
         for edge_type, count in stats['edges_by_type'].items():
             lines.append(f"  {edge_type}: {count}")
