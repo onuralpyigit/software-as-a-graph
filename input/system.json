@@ -1,52 +1,91 @@
 {
   "metadata": {
-    "id": "graph_generic_tiny_42",
-    "generated_at": "2025-12-12T20:27:24.974799Z",
+    "id": "graph_iot_small_42",
+    "generated_at": "2025-12-14T12:35:07.390835Z",
     "generator_version": "3.0",
-    "scale": "tiny",
-    "scenario": "generic",
+    "scale": "small",
+    "scenario": "iot",
     "seed": 42,
-    "generation_time_seconds": 9.2e-05,
+    "generation_time_seconds": 0.000527,
     "antipatterns_applied": null
   },
   "applications": [
     {
       "id": "A1",
-      "name": "ServiceHandler",
-      "role": "sub"
+      "name": "SensorCollector",
+      "role": "pubsub"
     },
     {
       "id": "A2",
-      "name": "DataProcessor",
-      "role": "pub"
+      "name": "DeviceManager",
+      "role": "pubsub"
     },
     {
       "id": "A3",
-      "name": "EventRouter",
-      "role": "pubsub"
-    },
-    {
-      "id": "A4",
-      "name": "MessageGateway",
+      "name": "TelemetryAggregator",
       "role": "sub"
     },
     {
+      "id": "A4",
+      "name": "CommandDispatcher",
+      "role": "pub"
+    },
+    {
       "id": "A5",
-      "name": "StateManager",
+      "name": "StatusMonitor",
+      "role": "sub"
+    },
+    {
+      "id": "A6",
+      "name": "AlertProcessor",
+      "role": "pub"
+    },
+    {
+      "id": "A7",
+      "name": "DataForwarder",
       "role": "pubsub"
+    },
+    {
+      "id": "A8",
+      "name": "FirmwareManager",
+      "role": "sub"
+    },
+    {
+      "id": "A9",
+      "name": "DiagnosticsEngine",
+      "role": "pubsub"
+    },
+    {
+      "id": "A10",
+      "name": "EdgeGateway",
+      "role": "sub"
+    },
+    {
+      "id": "A11",
+      "name": "ProtocolBridge",
+      "role": "pubsub"
+    },
+    {
+      "id": "A12",
+      "name": "DataFilter",
+      "role": "pub"
     }
   ],
   "brokers": [
     {
       "id": "B1",
       "name": "Broker1"
+    },
+    {
+      "id": "B2",
+      "name": "Broker2"
     }
   ],
   "topics": [
     {
       "id": "T1",
-      "name": "events/created",
-      "size": 959,
+      "name": "sensors/created/data",
+      "size": 255,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
@@ -55,8 +94,8 @@
     },
     {
       "id": "T2",
-      "name": "data/user",
-      "size": 3984,
+      "name": "devices/0002/status",
+      "size": 1012,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
@@ -65,11 +104,61 @@
     },
     {
       "id": "T3",
-      "name": "commands/service",
-      "size": 1264,
+      "name": "devices/0003/commands",
+      "size": 332,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T4",
+      "name": "telemetry/aggregated",
+      "size": 246,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T5",
+      "name": "alerts/warning",
+      "size": 856,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "URGENT"
+      }
+    },
+    {
+      "id": "T6",
+      "name": "config/gateway",
+      "size": 606,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T7",
+      "name": "sensors/deleted/data",
+      "size": 422,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T8",
+      "name": "devices/0008/status",
+      "size": 966,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       }
     }
@@ -86,55 +175,183 @@
     {
       "id": "N3",
       "name": "Node3"
+    },
+    {
+      "id": "N4",
+      "name": "Node4"
+    },
+    {
+      "id": "N5",
+      "name": "Node5"
     }
   ],
   "relationships": {
     "publishes_to": [
       {
+        "from": "A1",
+        "to": "T5"
+      },
+      {
+        "from": "A1",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T1"
+      },
+      {
         "from": "A2",
         "to": "T2"
       },
       {
-        "from": "A3",
+        "from": "A2",
+        "to": "T6"
+      },
+      {
+        "from": "A4",
         "to": "T2"
       },
       {
-        "from": "A3",
-        "to": "T3"
-      },
-      {
-        "from": "A5",
-        "to": "T3"
-      },
-      {
-        "from": "A5",
+        "from": "A4",
         "to": "T1"
       },
       {
-        "from": "A5",
+        "from": "A6",
+        "to": "T3"
+      },
+      {
+        "from": "A6",
+        "to": "T6"
+      },
+      {
+        "from": "A6",
+        "to": "T5"
+      },
+      {
+        "from": "A6",
+        "to": "T7"
+      },
+      {
+        "from": "A6",
+        "to": "T4"
+      },
+      {
+        "from": "A7",
+        "to": "T8"
+      },
+      {
+        "from": "A7",
+        "to": "T7"
+      },
+      {
+        "from": "A9",
+        "to": "T4"
+      },
+      {
+        "from": "A9",
         "to": "T2"
+      },
+      {
+        "from": "A11",
+        "to": "T1"
+      },
+      {
+        "from": "A11",
+        "to": "T8"
+      },
+      {
+        "from": "A11",
+        "to": "T2"
+      },
+      {
+        "from": "A11",
+        "to": "T6"
+      },
+      {
+        "from": "A11",
+        "to": "T4"
+      },
+      {
+        "from": "A12",
+        "to": "T8"
+      },
+      {
+        "from": "A12",
+        "to": "T3"
+      },
+      {
+        "from": "A12",
+        "to": "T4"
       }
     ],
     "subscribes_to": [
       {
         "from": "A1",
-        "to": "T1"
+        "to": "T4"
+      },
+      {
+        "from": "A1",
+        "to": "T5"
+      },
+      {
+        "from": "A1",
+        "to": "T6"
+      },
+      {
+        "from": "A1",
+        "to": "T2"
       },
       {
         "from": "A1",
         "to": "T3"
       },
       {
-        "from": "A3",
-        "to": "T2"
+        "from": "A1",
+        "to": "T7"
       },
       {
-        "from": "A4",
+        "from": "A1",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T6"
+      },
+      {
+        "from": "A2",
         "to": "T1"
       },
       {
-        "from": "A4",
+        "from": "A3",
+        "to": "T4"
+      },
+      {
+        "from": "A3",
+        "to": "T1"
+      },
+      {
+        "from": "A3",
+        "to": "T7"
+      },
+      {
+        "from": "A3",
+        "to": "T6"
+      },
+      {
+        "from": "A5",
         "to": "T2"
+      },
+      {
+        "from": "A5",
+        "to": "T5"
+      },
+      {
+        "from": "A5",
+        "to": "T8"
       },
       {
         "from": "A5",
@@ -142,11 +359,143 @@
       },
       {
         "from": "A5",
-        "to": "T1"
+        "to": "T4"
       },
       {
         "from": "A5",
+        "to": "T1"
+      },
+      {
+        "from": "A7",
+        "to": "T4"
+      },
+      {
+        "from": "A7",
+        "to": "T1"
+      },
+      {
+        "from": "A7",
+        "to": "T7"
+      },
+      {
+        "from": "A7",
+        "to": "T8"
+      },
+      {
+        "from": "A7",
+        "to": "T3"
+      },
+      {
+        "from": "A7",
         "to": "T2"
+      },
+      {
+        "from": "A7",
+        "to": "T5"
+      },
+      {
+        "from": "A8",
+        "to": "T1"
+      },
+      {
+        "from": "A8",
+        "to": "T6"
+      },
+      {
+        "from": "A8",
+        "to": "T7"
+      },
+      {
+        "from": "A8",
+        "to": "T8"
+      },
+      {
+        "from": "A8",
+        "to": "T5"
+      },
+      {
+        "from": "A8",
+        "to": "T2"
+      },
+      {
+        "from": "A8",
+        "to": "T3"
+      },
+      {
+        "from": "A8",
+        "to": "T4"
+      },
+      {
+        "from": "A9",
+        "to": "T3"
+      },
+      {
+        "from": "A9",
+        "to": "T4"
+      },
+      {
+        "from": "A9",
+        "to": "T2"
+      },
+      {
+        "from": "A9",
+        "to": "T8"
+      },
+      {
+        "from": "A9",
+        "to": "T7"
+      },
+      {
+        "from": "A9",
+        "to": "T1"
+      },
+      {
+        "from": "A9",
+        "to": "T5"
+      },
+      {
+        "from": "A9",
+        "to": "T6"
+      },
+      {
+        "from": "A10",
+        "to": "T1"
+      },
+      {
+        "from": "A10",
+        "to": "T6"
+      },
+      {
+        "from": "A11",
+        "to": "T8"
+      },
+      {
+        "from": "A11",
+        "to": "T2"
+      },
+      {
+        "from": "A11",
+        "to": "T4"
+      },
+      {
+        "from": "A11",
+        "to": "T1"
+      },
+      {
+        "from": "A11",
+        "to": "T7"
+      },
+      {
+        "from": "A11",
+        "to": "T6"
+      },
+      {
+        "from": "A11",
+        "to": "T5"
+      },
+      {
+        "from": "A11",
+        "to": "T3"
       }
     ],
     "routes": [
@@ -155,38 +504,90 @@
         "to": "T1"
       },
       {
-        "from": "B1",
+        "from": "B2",
         "to": "T2"
       },
       {
         "from": "B1",
         "to": "T3"
+      },
+      {
+        "from": "B2",
+        "to": "T4"
+      },
+      {
+        "from": "B1",
+        "to": "T5"
+      },
+      {
+        "from": "B2",
+        "to": "T6"
+      },
+      {
+        "from": "B1",
+        "to": "T7"
+      },
+      {
+        "from": "B2",
+        "to": "T8"
       }
     ],
     "runs_on": [
       {
         "from": "A1",
-        "to": "N3"
+        "to": "N1"
       },
       {
         "from": "A2",
-        "to": "N1"
+        "to": "N2"
       },
       {
         "from": "A3",
-        "to": "N1"
+        "to": "N5"
       },
       {
         "from": "A4",
-        "to": "N3"
+        "to": "N1"
       },
       {
         "from": "A5",
         "to": "N1"
       },
       {
+        "from": "A6",
+        "to": "N4"
+      },
+      {
+        "from": "A7",
+        "to": "N1"
+      },
+      {
+        "from": "A8",
+        "to": "N5"
+      },
+      {
+        "from": "A9",
+        "to": "N2"
+      },
+      {
+        "from": "A10",
+        "to": "N2"
+      },
+      {
+        "from": "A11",
+        "to": "N4"
+      },
+      {
+        "from": "A12",
+        "to": "N5"
+      },
+      {
         "from": "B1",
         "to": "N1"
+      },
+      {
+        "from": "B2",
+        "to": "N2"
       }
     ],
     "connects_to": [
@@ -200,49 +601,59 @@
       },
       {
         "from": "N3",
+        "to": "N4"
+      },
+      {
+        "from": "N4",
+        "to": "N5"
+      },
+      {
+        "from": "N5",
         "to": "N1"
       }
     ]
   },
   "metrics": {
     "vertex_counts": {
-      "applications": 5,
-      "brokers": 1,
-      "topics": 3,
-      "nodes": 3,
-      "total": 12
+      "applications": 12,
+      "brokers": 2,
+      "topics": 8,
+      "nodes": 5,
+      "total": 27
     },
     "edge_counts": {
-      "publishes_to": 6,
-      "subscribes_to": 8,
-      "routes": 3,
-      "runs_on": 6,
-      "connects_to": 3,
-      "total": 26
+      "publishes_to": 25,
+      "subscribes_to": 52,
+      "routes": 8,
+      "runs_on": 14,
+      "connects_to": 5,
+      "total": 104
     },
     "pub_sub": {
-      "unique_publishers": 3,
-      "unique_subscribers": 4,
-      "avg_pubs_per_topic": 2.0,
-      "avg_subs_per_topic": 2.6666666666666665,
-      "max_fanout": 3
+      "unique_publishers": 8,
+      "unique_subscribers": 9,
+      "avg_pubs_per_topic": 3.125,
+      "avg_subs_per_topic": 6.5,
+      "max_fanout": 8
     },
     "role_distribution": {
-      "sub": 2,
-      "pub": 1,
-      "pubsub": 2
+      "pubsub": 5,
+      "sub": 4,
+      "pub": 3
     },
     "qos_distribution": {
       "durability": {
-        "VOLATILE": 2,
-        "TRANSIENT_LOCAL": 1
+        "VOLATILE": 6,
+        "TRANSIENT_LOCAL": 2
       },
       "reliability": {
-        "BEST_EFFORT": 2,
-        "RELIABLE": 1
+        "BEST_EFFORT": 6,
+        "RELIABLE": 2
       },
       "transport_priority": {
-        "MEDIUM": 3
+        "MEDIUM": 6,
+        "HIGH": 1,
+        "URGENT": 1
       }
     }
   }

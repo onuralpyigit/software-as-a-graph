@@ -372,11 +372,7 @@ class GraphImporter:
                     tx.run("""
                         UNWIND $nodes AS node
                         MERGE (n:Node {id: node.id})
-                        SET n.name = coalesce(node.name, node.id),
-                            n.node_type = coalesce(node.node_type, 'compute'),
-                            n.location = node.location,
-                            n.zone = node.zone,
-                            n.updated_at = datetime()
+                        SET n.name = coalesce(node.name, node.id)
                     """, nodes=batch)
                     tx.commit()
 
@@ -419,7 +415,7 @@ class GraphImporter:
             processed_topic = {
                 'id': t.get('id'),
                 'name': t.get('name'),
-                'size': t.get('message_size_bytes'),
+                'size': t.get('size'),
                 'qos_reliability': qos.get('reliability', 'best_effort'),
                 'qos_durability': qos.get('durability', 'volatile'),
                 'qos_transport_priority': qos.get('transport_priority', 'MEDIUM')
@@ -434,16 +430,13 @@ class GraphImporter:
                         UNWIND $topics AS topic
                         MERGE (t:Topic {id: topic.id})
                         SET t.name = coalesce(topic.name, topic.id),
-                            t.message_size_bytes = topic.message_size_bytes,
-                            t.message_rate_hz = topic.message_rate_hz,
-                            t.message_type = topic.message_type,
+                            t.size = topic.size,
                             t.qos_reliability = topic.qos_reliability,
                             t.qos_durability = topic.qos_durability,
                             t.qos_deadline_ms = topic.qos_deadline_ms,
                             t.qos_lifespan_ms = topic.qos_lifespan_ms,
                             t.qos_history_depth = topic.qos_history_depth,
-                            t.qos_transport_priority = topic.qos_transport_priority,
-                            t.updated_at = datetime()
+                            t.qos_transport_priority = topic.qos_transport_priority
                     """, topics=batch)
                     tx.commit()
 
@@ -464,11 +457,7 @@ class GraphImporter:
                     tx.run("""
                         UNWIND $brokers AS broker
                         MERGE (b:Broker {id: broker.id})
-                        SET b.name = coalesce(broker.name, broker.id),
-                            b.broker_type = coalesce(broker.broker_type, 'generic'),
-                            b.capacity = broker.capacity,
-                            b.current_load = broker.current_load,
-                            b.updated_at = datetime()
+                        SET b.name = coalesce(broker.name, broker.id)
                     """, brokers=batch)
                     tx.commit()
 
@@ -506,7 +495,6 @@ class GraphImporter:
                         MATCH (source) WHERE source.id = rel.from
                         MATCH (n:Node {id: rel.to})
                         MERGE (source)-[r:RUNS_ON]->(n)
-                        SET r.updated_at = datetime()
                     """, rels=batch)
                     tx.commit()
 
@@ -536,9 +524,7 @@ class GraphImporter:
                         MATCH (a:Application {id: rel.from})
                         MATCH (t:Topic {id: rel.to})
                         MERGE (a)-[r:PUBLISHES_TO]->(t)
-                        SET r.period_ms = rel.period_ms,
-                            r.message_size_bytes = rel.message_size_bytes,
-                            r.updated_at = datetime()
+                        SET r.message_size_bytes = rel.size
                     """, rels=batch)
                     tx.commit()
 
@@ -563,7 +549,6 @@ class GraphImporter:
                         MATCH (a:Application {id: rel.from})
                         MATCH (t:Topic {id: rel.to})
                         MERGE (a)-[r:SUBSCRIBES_TO]->(t)
-                        SET r.updated_at = datetime()
                     """, rels=batch)
                     tx.commit()
 
@@ -588,7 +573,6 @@ class GraphImporter:
                         MATCH (b:Broker {id: rel.from})
                         MATCH (t:Topic {id: rel.to})
                         MERGE (b)-[r:ROUTES]->(t)
-                        SET r.updated_at = datetime()
                     """, rels=batch)
                     tx.commit()
 
@@ -618,9 +602,6 @@ class GraphImporter:
                         MATCH (n1:Node {id: rel.from})
                         MATCH (n2:Node {id: rel.to})
                         MERGE (n1)-[r:CONNECTS_TO]->(n2)
-                        SET r.bandwidth_mbps = rel.bandwidth_mbps,
-                            r.latency_ms = rel.latency_ms,
-                            r.updated_at = datetime()
                     """, rels=batch)
                     tx.commit()
 
@@ -1178,15 +1159,14 @@ class GraphImporter:
             ("Applications per Infrastructure Node", """
                 MATCH (a:Application)-[:RUNS_ON]->(n:Node)
                 WITH n, count(a) AS app_count
-                RETURN n.name AS node, n.node_type AS type, app_count
+                RETURN n.name AS node, app_count
                 ORDER BY app_count DESC
             """),
             
             ("Broker Load Distribution", """
                 MATCH (b:Broker)-[:ROUTES]->(t:Topic)
                 WITH b, count(t) AS topic_count
-                RETURN b.name AS broker, b.broker_type AS type, 
-                       topic_count, b.current_load AS load
+                RETURN b.name AS broker, topic_count
                 ORDER BY topic_count DESC
             """),
             
@@ -1397,7 +1377,6 @@ class GraphImporter:
                 WITH n, count(component) AS hosted_components
                 RETURN n.id AS id,
                        n.name AS name,
-                       n.node_type AS type,
                        hosted_components
                 ORDER BY hosted_components DESC
             """)
@@ -1488,16 +1467,14 @@ class GraphImporter:
             # Export infrastructure nodes
             nodes_result = session.run("""
                 MATCH (n:Node)
-                RETURN n.id AS id, n.name AS name, n.node_type AS node_type,
-                       n.location AS location, n.zone AS zone
+                RETURN n.id AS id, n.name AS name
             """)
             nodes = [dict(r) for r in nodes_result]
 
             # Export brokers
             brokers_result = session.run("""
                 MATCH (b:Broker)
-                RETURN b.id AS id, b.name AS name, b.broker_type AS broker_type,
-                       b.capacity AS capacity, b.current_load AS current_load
+                RETURN b.id AS id, b.name AS name
             """)
             brokers = [dict(r) for r in brokers_result]
 
@@ -1702,8 +1679,7 @@ LIMIT 10;
 MATCH (n:Node)
 OPTIONAL MATCH (component)-[:RUNS_ON]->(n)
 WITH n, collect(component.name) AS hosted
-RETURN n.name AS node, n.node_type AS type,
-       size(hosted) AS component_count, hosted
+RETURN n.name AS node, size(hosted) AS component_count, hosted
 ORDER BY component_count DESC;
 
 // Cross-node data flow
@@ -1736,8 +1712,7 @@ RETURN t.name AS orphan_topic;
 // Broker load analysis
 MATCH (b:Broker)-[:ROUTES]->(t:Topic)
 WITH b, collect(t.name) AS topics, count(t) AS topic_count
-RETURN b.name AS broker, b.broker_type AS type,
-       topic_count, topics
+RETURN b.name AS broker, topic_count, topics
 ORDER BY topic_count DESC;
 
 // --- Critical Components ---
