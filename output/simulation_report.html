@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simulation Report</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+               max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1, h2, h3 { color: #333; }
+        .metric { display: inline-block; margin: 10px 20px 10px 0; }
+        .metric-value { font-size: 2em; font-weight: bold; }
+        .metric-label { color: #666; font-size: 0.9em; }
+        .critical { color: #dc3545; }
+        .high { color: #fd7e14; }
+        .medium { color: #17a2b8; }
+        .low { color: #28a745; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; }
+        .progress { background: #e9ecef; border-radius: 4px; height: 20px; overflow: hidden; }
+        .progress-bar { height: 100%; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+    <h1>Simulation Report</h1>
+    <p>Generated: 2025-12-14 22:34:36</p>
+
+    <div class="card">
+        <h2>Summary</h2>
+        <div class="metric">
+            <div class="metric-value">99</div>
+            <div class="metric-label">Simulations</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">9.3%</div>
+            <div class="metric-label">Mean Impact</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">2.0%</div>
+            <div class="metric-label">Mean Reach Loss</div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>Component Impact Ranking</h2>
+        <table>
+            <tr><th>Rank</th><th>Component</th><th>Impact Score</th><th>Severity</th></tr>
+
+            <tr>
+                <td>1</td>
+                <td>A21</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar medium" style="width: 36.36363636363637%"></div>
+                    </div>
+                    36.4%
+                </td>
+                <td class="medium">MEDIUM</td>
+            </tr>
+
+            <tr>
+                <td>2</td>
+                <td>A36</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar medium" style="width: 33.33333333333333%"></div>
+                    </div>
+                    33.3%
+                </td>
+                <td class="medium">MEDIUM</td>
+            </tr>
+
+            <tr>
+                <td>3</td>
+                <td>A28</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar medium" style="width: 32.323232323232325%"></div>
+                    </div>
+                    32.3%
+                </td>
+                <td class="medium">MEDIUM</td>
+            </tr>
+
+            <tr>
+                <td>4</td>
+                <td>A20</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar medium" style="width: 30.303030303030305%"></div>
+                    </div>
+                    30.3%
+                </td>
+                <td class="medium">MEDIUM</td>
+            </tr>
+
+            <tr>
+                <td>5</td>
+                <td>A43</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 29.292929292929294%"></div>
+                    </div>
+                    29.3%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>6</td>
+                <td>A26</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 27.27272727272727%"></div>
+                    </div>
+                    27.3%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>7</td>
+                <td>A27</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 27.27272727272727%"></div>
+                    </div>
+                    27.3%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>8</td>
+                <td>A37</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 27.27272727272727%"></div>
+                    </div>
+                    27.3%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>9</td>
+                <td>A1</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 25.252525252525253%"></div>
+                    </div>
+                    25.3%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>10</td>
+                <td>A30</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 24.242424242424242%"></div>
+                    </div>
+                    24.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>11</td>
+                <td>A17</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 23.232323232323232%"></div>
+                    </div>
+                    23.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>12</td>
+                <td>A15</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 22.22222222222222%"></div>
+                    </div>
+                    22.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>13</td>
+                <td>A22</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 22.22222222222222%"></div>
+                    </div>
+                    22.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>14</td>
+                <td>A34</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 21.21212121212121%"></div>
+                    </div>
+                    21.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>15</td>
+                <td>A18</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 20.2020202020202%"></div>
+                    </div>
+                    20.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>16</td>
+                <td>A47</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 20.2020202020202%"></div>
+                    </div>
+                    20.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>17</td>
+                <td>A49</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 20.2020202020202%"></div>
+                    </div>
+                    20.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>18</td>
+                <td>A35</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 19.19191919191919%"></div>
+                    </div>
+                    19.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>19</td>
+                <td>A10</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 18.181818181818183%"></div>
+                    </div>
+                    18.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+            <tr>
+                <td>20</td>
+                <td>A23</td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar low" style="width: 18.181818181818183%"></div>
+                    </div>
+                    18.2%
+                </td>
+                <td class="low">LOW</td>
+            </tr>
+
+        </table>
+    </div>
+
+</body>
+</html>

@@ -1,498 +1,668 @@
 #!/usr/bin/env python3
 """
-Test Suite for Simulation System
+Test Suite for Graph Simulator
+===============================
 
-Comprehensive tests for:
-- Lightweight DDS simulator
-- Failure simulator
-- Integration between components
-- Various failure scenarios
-- Performance validation
+Comprehensive tests for failure simulation in pub-sub systems.
 
-Run with: python test_simulation.py
+Usage:
+    python test_graph_simulator.py
+    python test_graph_simulator.py -v
+
+Author: Software-as-a-Graph Research Project
 """
 
 import sys
 import json
-import asyncio
-import time
+import unittest
 from pathlib import Path
+from datetime import datetime
 from typing import Dict, Any
-import tempfile
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / '..'))
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-try:
-    from src.simulation.lightweight_dds_simulator import (
-        LightweightDDSSimulator, Message, MessagePriority, SimulationStats
-    )
-    from src.simulation.enhanced_failure_simulator import (
-        FailureSimulator, FailureType, ComponentType
-    )
-except ImportError as e:
-    print(f"❌ Error importing modules: {e}")
-    print("Please ensure simulation modules are in src/simulation/")
-    sys.exit(1)
+import networkx as nx
+
+from src.simulation import (
+    GraphSimulator,
+    SimulationResult,
+    BatchSimulationResult,
+    FailureEvent,
+    FailureMode,
+    SimulationMode,
+    simulate_single_failure,
+    simulate_and_rank,
+)
 
 
-class TestResults:
-    """Track test results"""
-    def __init__(self):
-        self.passed = 0
-        self.failed = 0
-        self.tests = []
+# ============================================================================
+# Test Data Generators
+# ============================================================================
+
+def create_simple_graph() -> nx.DiGraph:
+    """Create a simple test graph with DEPENDS_ON edges"""
+    G = nx.DiGraph()
     
-    def add_pass(self, test_name: str, message: str = ""):
-        self.passed += 1
-        self.tests.append({'name': test_name, 'status': 'PASS', 'message': message})
-        print(f"✅ PASS: {test_name}")
-        if message:
-            print(f"   {message}")
+    # Add nodes
+    G.add_node('A1', type='Application', name='Publisher')
+    G.add_node('A2', type='Application', name='Subscriber')
+    G.add_node('B1', type='Broker', name='MainBroker')
+    G.add_node('T1', type='Topic', name='Topic1')
+    G.add_node('N1', type='Node', name='Node1')
+    G.add_node('N2', type='Node', name='Node2')
     
-    def add_fail(self, test_name: str, message: str = ""):
-        self.failed += 1
-        self.tests.append({'name': test_name, 'status': 'FAIL', 'message': message})
-        print(f"❌ FAIL: {test_name}")
-        if message:
-            print(f"   {message}")
+    # Add DEPENDS_ON edges (subscriber depends on publisher)
+    G.add_edge('A2', 'A1', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    G.add_edge('A1', 'B1', type='DEPENDS_ON', dependency_type='app_to_broker', weight=1.0)
+    G.add_edge('A2', 'B1', type='DEPENDS_ON', dependency_type='app_to_broker', weight=1.0)
+    G.add_edge('N2', 'N1', type='DEPENDS_ON', dependency_type='node_to_node', weight=1.0)
     
-    def summary(self):
-        total = self.passed + self.failed
-        print("\n" + "="*70)
-        print("TEST SUMMARY")
-        print("="*70)
-        print(f"Total: {total}")
-        print(f"Passed: {self.passed} ({self.passed/total*100:.1f}%)" if total > 0 else "Passed: 0")
-        print(f"Failed: {self.failed} ({self.failed/total*100:.1f}%)" if total > 0 else "Failed: 0")
-        print("="*70)
-        return self.failed == 0
+    return G
 
 
-def create_test_graph() -> Dict[str, Any]:
-    """Generate a simple connected graph"""
-    return {
-        "nodes": [
-            {"id": "node1", "name": "node1"},
-            {"id": "node2", "name": "node2"}
-        ],
-        "applications": [
-            {"id": "app1", "name": "app1", "type": "PRODUCER"},
-            {"id": "app2", "name": "app2", "type": "PROSUMER"},
-            {"id": "app3", "name": "app3", "type": "CONSUMER"}
-        ],
-        "topics": [
-            {"id": "topic1", "name": "topic1", "message_size_bytes": 512, "message_rate_hz": 10},
-            {"id": "topic2", "name": "topic2", "message_size_bytes": 1024, "message_rate_hz": 1}
-        ],
-        "brokers": [
-            {"id": "broker1", "name": "broker1"}
-        ],
-        "relationships": {
-            "runs_on": [
-                {"from": "app1", "to": "node1"},
-                {"from": "app2", "to": "node1"},
-                {"from": "app3", "to": "node2"},
-                {"from": "broker1", "to": "node1"}
+def create_chain_graph() -> nx.DiGraph:
+    """Create a chain: A1 <- A2 <- A3 <- A4"""
+    G = nx.DiGraph()
+    
+    for i in range(1, 5):
+        G.add_node(f'A{i}', type='Application', name=f'App{i}')
+    
+    # Chain dependencies
+    G.add_edge('A2', 'A1', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    G.add_edge('A3', 'A2', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    G.add_edge('A4', 'A3', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    
+    return G
+
+
+def create_hub_graph() -> nx.DiGraph:
+    """Create a hub-spoke graph with B1 as central hub"""
+    G = nx.DiGraph()
+    
+    # Central hub
+    G.add_node('B1', type='Broker', name='CentralBroker')
+    
+    # Spokes (all depend on hub)
+    for i in range(1, 6):
+        G.add_node(f'A{i}', type='Application', name=f'App{i}')
+        G.add_edge(f'A{i}', 'B1', type='DEPENDS_ON', dependency_type='app_to_broker', weight=1.0)
+    
+    return G
+
+
+def create_redundant_graph() -> nx.DiGraph:
+    """Create a graph with redundant paths"""
+    G = nx.DiGraph()
+    
+    # Nodes
+    G.add_node('A1', type='Application', name='Publisher1')
+    G.add_node('A2', type='Application', name='Publisher2')
+    G.add_node('A3', type='Application', name='Subscriber')
+    G.add_node('B1', type='Broker', name='Broker1')
+    G.add_node('B2', type='Broker', name='Broker2')
+    
+    # A3 depends on both A1 and A2 (redundant publishers)
+    G.add_edge('A3', 'A1', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    G.add_edge('A3', 'A2', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    
+    # A1 uses B1, A2 uses B2
+    G.add_edge('A1', 'B1', type='DEPENDS_ON', dependency_type='app_to_broker', weight=1.0)
+    G.add_edge('A2', 'B2', type='DEPENDS_ON', dependency_type='app_to_broker', weight=1.0)
+    
+    return G
+
+
+def create_complex_graph() -> nx.DiGraph:
+    """Create a more complex test graph"""
+    G = nx.DiGraph()
+    
+    # Infrastructure
+    G.add_node('N1', type='Node', name='ComputeNode1')
+    G.add_node('N2', type='Node', name='ComputeNode2')
+    G.add_node('N3', type='Node', name='EdgeNode')
+    
+    # Brokers
+    G.add_node('B1', type='Broker', name='MainBroker')
+    G.add_node('B2', type='Broker', name='BackupBroker')
+    
+    # Applications
+    for i in range(1, 8):
+        G.add_node(f'A{i}', type='Application', name=f'App{i}')
+    
+    # Topics
+    for i in range(1, 4):
+        G.add_node(f'T{i}', type='Topic', name=f'Topic{i}')
+    
+    # App-to-app dependencies
+    G.add_edge('A2', 'A1', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    G.add_edge('A3', 'A1', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    G.add_edge('A4', 'A2', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    G.add_edge('A5', 'A3', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    G.add_edge('A6', 'A4', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    G.add_edge('A7', 'A5', type='DEPENDS_ON', dependency_type='app_to_app', weight=1.0)
+    
+    # App-to-broker dependencies
+    G.add_edge('A1', 'B1', type='DEPENDS_ON', dependency_type='app_to_broker', weight=1.0)
+    G.add_edge('A2', 'B1', type='DEPENDS_ON', dependency_type='app_to_broker', weight=1.0)
+    G.add_edge('A3', 'B2', type='DEPENDS_ON', dependency_type='app_to_broker', weight=1.0)
+    
+    # Node-to-node dependencies
+    G.add_edge('N2', 'N1', type='DEPENDS_ON', dependency_type='node_to_node', weight=1.0)
+    G.add_edge('N3', 'N2', type='DEPENDS_ON', dependency_type='node_to_node', weight=1.0)
+    
+    return G
+
+
+# ============================================================================
+# Test Classes
+# ============================================================================
+
+class TestSimulatorBasic(unittest.TestCase):
+    """Basic functionality tests"""
+    
+    def test_init_default(self):
+        """Test default initialization"""
+        sim = GraphSimulator()
+        self.assertEqual(sim.cascade_threshold, 0.7)
+        self.assertEqual(sim.cascade_probability, 0.5)
+        self.assertEqual(sim.max_cascade_depth, 5)
+    
+    def test_init_custom(self):
+        """Test custom initialization"""
+        sim = GraphSimulator(
+            cascade_threshold=0.5,
+            cascade_probability=0.3,
+            max_cascade_depth=10,
+            seed=42
+        )
+        self.assertEqual(sim.cascade_threshold, 0.5)
+        self.assertEqual(sim.cascade_probability, 0.3)
+        self.assertEqual(sim.max_cascade_depth, 10)
+    
+    def test_component_not_found(self):
+        """Test error when component not in graph"""
+        G = create_simple_graph()
+        sim = GraphSimulator()
+        
+        with self.assertRaises(ValueError):
+            sim.simulate_failure(G, 'nonexistent')
+
+
+class TestSingleFailure(unittest.TestCase):
+    """Tests for single component failure simulation"""
+    
+    def setUp(self):
+        self.simulator = GraphSimulator(seed=42)
+    
+    def test_single_failure_result_structure(self):
+        """Test that result has correct structure"""
+        G = create_simple_graph()
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        self.assertIsInstance(result, SimulationResult)
+        self.assertEqual(result.failed_components, ['A1'])
+        self.assertEqual(result.simulation_mode, SimulationMode.SINGLE)
+        self.assertIsInstance(result.impact_score, float)
+        self.assertIsInstance(result.resilience_score, float)
+    
+    def test_single_failure_metrics(self):
+        """Test impact metrics are calculated correctly"""
+        G = create_simple_graph()
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        # Impact + Resilience should equal 1
+        self.assertAlmostEqual(result.impact_score + result.resilience_score, 1.0, places=4)
+        
+        # Original reachability should be > 0
+        self.assertGreater(result.original_reachability, 0)
+        
+        # Reachability loss should be >= 0
+        self.assertGreaterEqual(result.reachability_loss, 0)
+    
+    def test_hub_failure_high_impact(self):
+        """Test that hub failure causes high impact"""
+        G = create_hub_graph()
+        result = self.simulator.simulate_failure(G, 'B1')
+        
+        # Hub failure should have significant impact
+        self.assertGreater(result.impact_score, 0.3)
+    
+    def test_leaf_failure_low_impact(self):
+        """Test that leaf node failure causes lower impact"""
+        G = create_hub_graph()
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        # Leaf failure should have lower impact than hub
+        hub_result = self.simulator.simulate_failure(G, 'B1')
+        self.assertLess(result.impact_score, hub_result.impact_score)
+    
+    def test_chain_head_failure(self):
+        """Test failure of head in chain"""
+        G = create_chain_graph()
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        # Failing A1 should affect A2, A3, A4
+        self.assertGreater(len(result.affected_components), 0)
+
+
+class TestMultipleFailures(unittest.TestCase):
+    """Tests for multiple simultaneous failures"""
+    
+    def setUp(self):
+        self.simulator = GraphSimulator(seed=42)
+    
+    def test_multiple_failures_result(self):
+        """Test multiple failures result structure"""
+        G = create_simple_graph()
+        result = self.simulator.simulate_multiple_failures(G, ['A1', 'A2'])
+        
+        self.assertEqual(set(result.failed_components), {'A1', 'A2'})
+        self.assertEqual(result.simulation_mode, SimulationMode.MULTIPLE)
+    
+    def test_multiple_failures_higher_impact(self):
+        """Test that multiple failures have higher impact than single"""
+        G = create_hub_graph()
+        
+        single_result = self.simulator.simulate_failure(G, 'A1')
+        multi_result = self.simulator.simulate_multiple_failures(G, ['A1', 'A2'])
+        
+        self.assertGreater(multi_result.impact_score, single_result.impact_score)
+    
+    def test_redundant_failures(self):
+        """Test failures in redundant system"""
+        G = create_redundant_graph()
+        
+        # Single publisher failure should be survivable
+        single_result = self.simulator.simulate_failure(G, 'A1')
+        
+        # Both publishers failing should be worse
+        both_result = self.simulator.simulate_multiple_failures(G, ['A1', 'A2'])
+        
+        self.assertGreater(both_result.impact_score, single_result.impact_score)
+
+
+class TestCascadeFailures(unittest.TestCase):
+    """Tests for cascading failure simulation"""
+    
+    def setUp(self):
+        # Use low threshold to make cascades more likely
+        self.simulator = GraphSimulator(
+            cascade_threshold=0.3,
+            cascade_probability=0.8,
+            seed=42
+        )
+    
+    def test_cascade_mode(self):
+        """Test cascade simulation mode"""
+        G = create_chain_graph()
+        result = self.simulator.simulate_failure(G, 'A1', enable_cascade=True)
+        
+        self.assertEqual(result.simulation_mode, SimulationMode.CASCADE)
+    
+    def test_cascade_events(self):
+        """Test cascade failure events are recorded"""
+        G = create_chain_graph()
+        result = self.simulator.simulate_failure(G, 'A1', enable_cascade=True)
+        
+        # Check events are recorded
+        self.assertGreater(len(result.failure_events), 0)
+        
+        # First event should be primary failure
+        self.assertEqual(result.failure_events[0].component, 'A1')
+        self.assertFalse(result.failure_events[0].is_cascade)
+    
+    def test_cascade_depth(self):
+        """Test cascade depth tracking"""
+        G = create_chain_graph()
+        result = self.simulator.simulate_failure(G, 'A1', enable_cascade=True)
+        
+        # Check cascade events have increasing depth
+        depths = [e.cascade_depth for e in result.failure_events if e.is_cascade]
+        if depths:
+            self.assertEqual(depths, sorted(depths))
+
+
+class TestBatchSimulation(unittest.TestCase):
+    """Tests for exhaustive batch simulation"""
+    
+    def setUp(self):
+        self.simulator = GraphSimulator(seed=42)
+    
+    def test_exhaustive_simulation(self):
+        """Test exhaustive simulation runs all components"""
+        G = create_simple_graph()
+        result = self.simulator.simulate_all_single_failures(G)
+        
+        self.assertIsInstance(result, BatchSimulationResult)
+        self.assertEqual(result.total_simulations, G.number_of_nodes())
+    
+    def test_exhaustive_with_type_filter(self):
+        """Test exhaustive simulation with type filter"""
+        G = create_complex_graph()
+        
+        result = self.simulator.simulate_all_single_failures(
+            G, component_types=['Application']
+        )
+        
+        # Should only test Application nodes
+        app_count = sum(1 for _, d in G.nodes(data=True) if d.get('type') == 'Application')
+        self.assertEqual(result.total_simulations, app_count)
+    
+    def test_batch_summary(self):
+        """Test batch summary statistics"""
+        G = create_hub_graph()
+        result = self.simulator.simulate_all_single_failures(G)
+        
+        summary = result.summary
+        
+        self.assertIn('impact_score', summary)
+        self.assertIn('reachability_loss', summary)
+        self.assertIn('most_impactful', summary)
+    
+    def test_impact_ranking(self):
+        """Test impact ranking is sorted correctly"""
+        G = create_hub_graph()
+        result = self.simulator.simulate_all_single_failures(G)
+        
+        ranking = result.get_impact_ranking()
+        
+        # Should be sorted descending
+        impacts = [score for _, score in ranking]
+        self.assertEqual(impacts, sorted(impacts, reverse=True))
+        
+        # Hub should be most impactful
+        self.assertEqual(ranking[0][0], 'B1')
+
+
+class TestReachability(unittest.TestCase):
+    """Tests for reachability calculations"""
+    
+    def setUp(self):
+        self.simulator = GraphSimulator(seed=42)
+    
+    def test_reachability_chain(self):
+        """Test reachability in chain graph"""
+        G = create_chain_graph()
+        
+        # Original reachability: (A1->none), (A2->A1), (A3->A1,A2), (A4->A1,A2,A3)
+        # = 0 + 1 + 2 + 3 = 6 pairs
+        
+        result = self.simulator.simulate_failure(G, 'A2')
+        
+        # Failing A2 should reduce reachability
+        self.assertGreater(result.reachability_loss, 0)
+    
+    def test_reachability_loss_percentage(self):
+        """Test reachability loss percentage calculation"""
+        G = create_chain_graph()
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        if result.original_reachability > 0:
+            expected_pct = (result.reachability_loss / result.original_reachability) * 100
+            self.assertAlmostEqual(result.reachability_loss_pct, expected_pct, places=2)
+
+
+class TestConnectivity(unittest.TestCase):
+    """Tests for connectivity analysis"""
+    
+    def setUp(self):
+        self.simulator = GraphSimulator(seed=42)
+    
+    def test_fragmentation(self):
+        """Test fragmentation detection"""
+        G = create_simple_graph()
+        result = self.simulator.simulate_failure(G, 'B1')
+        
+        # Fragmentation should be >= 0
+        self.assertGreaterEqual(result.fragmentation, 0)
+    
+    def test_isolated_components(self):
+        """Test isolated component detection"""
+        G = nx.DiGraph()
+        G.add_node('A1', type='Application')
+        G.add_node('A2', type='Application')
+        G.add_node('A3', type='Application')
+        G.add_edge('A2', 'A1', type='DEPENDS_ON')
+        # A3 is already isolated
+        
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        # A3 should be isolated
+        self.assertIn('A3', result.isolated_components)
+
+
+class TestReporting(unittest.TestCase):
+    """Tests for report generation"""
+    
+    def setUp(self):
+        self.simulator = GraphSimulator(seed=42)
+    
+    def test_generate_report(self):
+        """Test report generation"""
+        G = create_simple_graph()
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        report = self.simulator.generate_report(result)
+        
+        self.assertIn('summary', report)
+        self.assertIn('failures', report)
+        self.assertIn('impact', report)
+        self.assertIn('recommendations', report)
+    
+    def test_severity_classification(self):
+        """Test severity classification"""
+        sim = GraphSimulator()
+        
+        self.assertEqual(sim._classify_severity(0.8), "CRITICAL")
+        self.assertEqual(sim._classify_severity(0.5), "HIGH")
+        self.assertEqual(sim._classify_severity(0.3), "MEDIUM")
+        self.assertEqual(sim._classify_severity(0.1), "LOW")
+
+
+class TestSerialization(unittest.TestCase):
+    """Tests for result serialization"""
+    
+    def setUp(self):
+        self.simulator = GraphSimulator(seed=42)
+    
+    def test_result_to_dict(self):
+        """Test SimulationResult.to_dict()"""
+        G = create_simple_graph()
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        d = result.to_dict()
+        
+        self.assertIn('simulation_id', d)
+        self.assertIn('impact_metrics', d)
+        self.assertIn('reachability', d)
+        self.assertIn('connectivity', d)
+    
+    def test_result_json_serializable(self):
+        """Test result can be serialized to JSON"""
+        G = create_simple_graph()
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        # Should not raise
+        json_str = json.dumps(result.to_dict(), default=str)
+        self.assertIsInstance(json_str, str)
+    
+    def test_batch_result_to_dict(self):
+        """Test BatchSimulationResult.to_dict()"""
+        G = create_simple_graph()
+        result = self.simulator.simulate_all_single_failures(G)
+        
+        d = result.to_dict()
+        
+        self.assertIn('total_simulations', d)
+        self.assertIn('summary', d)
+        self.assertIn('results', d)
+    
+    def test_failure_event_to_dict(self):
+        """Test FailureEvent.to_dict()"""
+        event = FailureEvent(
+            component='A1',
+            component_type='Application',
+            failure_mode=FailureMode.CRASH,
+            timestamp=datetime.now(),
+            is_cascade=False,
+            cascade_depth=0,
+            cause='primary'
+        )
+        
+        d = event.to_dict()
+        
+        self.assertEqual(d['component'], 'A1')
+        self.assertEqual(d['failure_mode'], 'crash')
+
+
+class TestConvenienceFunctions(unittest.TestCase):
+    """Tests for convenience functions"""
+    
+    def test_simulate_single_failure(self):
+        """Test simulate_single_failure function"""
+        G = create_simple_graph()
+        result = simulate_single_failure(G, 'A1')
+        
+        self.assertIsInstance(result, SimulationResult)
+        self.assertEqual(result.failed_components, ['A1'])
+    
+    def test_simulate_and_rank(self):
+        """Test simulate_and_rank function"""
+        G = create_hub_graph()
+        ranking = simulate_and_rank(G)
+        
+        self.assertIsInstance(ranking, list)
+        self.assertGreater(len(ranking), 0)
+        
+        # Should be sorted by impact descending
+        impacts = [score for _, score in ranking]
+        self.assertEqual(impacts, sorted(impacts, reverse=True))
+
+
+class TestEdgeCases(unittest.TestCase):
+    """Tests for edge cases"""
+    
+    def setUp(self):
+        self.simulator = GraphSimulator(seed=42)
+    
+    def test_single_node_graph(self):
+        """Test graph with single node"""
+        G = nx.DiGraph()
+        G.add_node('A1', type='Application')
+        
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        self.assertEqual(result.failed_components, ['A1'])
+        self.assertEqual(result.impact_score, 1.0)
+    
+    def test_disconnected_graph(self):
+        """Test disconnected graph"""
+        G = nx.DiGraph()
+        G.add_node('A1', type='Application')
+        G.add_node('A2', type='Application')
+        # No edges
+        
+        result = self.simulator.simulate_failure(G, 'A1')
+        
+        # A2 should be isolated
+        self.assertIn('A2', result.isolated_components)
+    
+    def test_empty_cascade(self):
+        """Test no cascades when disabled"""
+        G = create_chain_graph()
+        result = self.simulator.simulate_failure(G, 'A1', enable_cascade=False)
+        
+        # Should have no cascade failures
+        self.assertEqual(result.cascade_failures, [])
+
+
+# ============================================================================
+# Integration Tests
+# ============================================================================
+
+class TestIntegrationWithAnalyzer(unittest.TestCase):
+    """Integration tests with GraphAnalyzer"""
+    
+    def test_analyzer_to_simulator(self):
+        """Test using analyzer output with simulator"""
+        from src.analysis import GraphAnalyzer
+        
+        # Create test data
+        data = {
+            'nodes': [
+                {'id': 'N1', 'name': 'Node1', 'type': 'compute'},
+                {'id': 'N2', 'name': 'Node2', 'type': 'edge'}
             ],
-            "publishes_to": [
-                {"from": "app1", "to": "topic1", "period_ms": 100, "msg_size": 512},
-                {"from": "app2", "to": "topic2", "period_ms": 1000, "msg_size": 1024}
+            'brokers': [
+                {'id': 'B1', 'name': 'Broker1', 'node': 'N1'}
             ],
-            "subscribes_to": [
-                {"from": "app2", "to": "topic1"},
-                {"from": "app3", "to": "topic2"}
+            'applications': [
+                {'id': 'A1', 'name': 'Publisher', 'role': 'pub', 'node': 'N1'},
+                {'id': 'A2', 'name': 'Subscriber', 'role': 'sub', 'node': 'N2'}
             ],
-            "routes": [
-                {"from": "broker1", "to": "topic1"},
-                {"from": "broker1", "to": "topic2"}
-            ]
+            'topics': [
+                {'id': 'T1', 'name': 'Topic1', 'broker': 'B1'}
+            ],
+            'relationships': {
+                'publishes_to': [{'from': 'A1', 'to': 'T1'}],
+                'subscribes_to': [{'from': 'A2', 'to': 'T1'}],
+                'runs_on': [
+                    {'from': 'A1', 'to': 'N1'},
+                    {'from': 'A2', 'to': 'N2'},
+                    {'from': 'B1', 'to': 'N1'}
+                ],
+                'routes': [{'from': 'B1', 'to': 'T1'}]
+            }
         }
-    }
+        
+        # Analyze
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(data)
+        analyzer.derive_depends_on()
+        graph = analyzer.build_dependency_graph()
+        
+        # Simulate
+        simulator = GraphSimulator(seed=42)
+        result = simulator.simulate_failure(graph, 'A1')
+        
+        self.assertIsInstance(result, SimulationResult)
+        self.assertEqual(result.failed_components, ['A1'])
 
 
-def test_graph_loading(results: TestResults):
-    """Test loading graph from JSON"""
-    print("\n" + "="*70)
-    print("TEST: Graph Loading")
-    print("="*70)
-    
-    try:
-        graph_data = create_test_graph()
-        
-        # Save to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(graph_data, f)
-            temp_path = f.name
-        
-        # Load into simulator
-        simulator = LightweightDDSSimulator()
-        simulator.load_from_json(temp_path)
-        
-        # Verify components loaded
-        assert len(simulator.nodes) == 2, f"Expected 2 nodes, got {len(simulator.nodes)}"
-        assert len(simulator.applications) == 3, f"Expected 3 apps, got {len(simulator.applications)}"
-        assert len(simulator.brokers) == 1, f"Expected 1 broker, got {len(simulator.brokers)}"
-        assert len(simulator.topics) == 2, f"Expected 2 topic, got {len(simulator.topics)}"
-        
-        results.add_pass(
-            "Graph Loading",
-            f"Loaded 2 nodes, 3 apps, 1 broker, 2 topic"
-        )
-        
-        # Cleanup
-        Path(temp_path).unlink()
-        
-    except Exception as e:
-        results.add_fail("Graph Loading", str(e))
+# ============================================================================
+# Main Entry Point
+# ============================================================================
 
-
-async def test_basic_simulation(results: TestResults):
-    """Test basic message simulation"""
-    print("\n" + "="*70)
-    print("TEST: Basic Message Simulation")
-    print("="*70)
-    
-    try:
-        graph_data = create_test_graph()
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(graph_data, f)
-            temp_path = f.name
-        
-        simulator = LightweightDDSSimulator()
-        simulator.load_from_json(temp_path)
-        
-        # Run short simulation
-        sim_results = await simulator.run_simulation(duration_seconds=10)
-        
-        stats = sim_results['global_stats']
-        
-        # Verify messages were sent and delivered
-        assert stats['messages_sent'] > 0, "No messages sent"
-        assert stats['messages_delivered'] > 0, "No messages delivered"
-        assert stats['delivery_rate'] > 0, "Zero delivery rate"
-        assert stats['avg_latency_ms'] > 0, "Zero latency"
-        
-        results.add_pass(
-            "Basic Simulation",
-            f"Sent: {stats['messages_sent']}, Delivered: {stats['messages_delivered']}, "
-            f"Rate: {stats['delivery_rate']:.2%}, Latency: {stats['avg_latency_ms']:.2f}ms"
-        )
-        
-        Path(temp_path).unlink()
-        
-    except Exception as e:
-        results.add_fail("Basic Simulation", str(e))
-
-
-async def test_application_failure(results: TestResults):
-    """Test application failure simulation"""
-    print("\n" + "="*70)
-    print("TEST: Application Failure")
-    print("="*70)
-    
-    try:
-        graph_data = create_test_graph()
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(graph_data, f)
-            temp_path = f.name
-        
-        simulator = LightweightDDSSimulator()
-        simulator.load_from_json(temp_path)
-        
-        failure_sim = FailureSimulator()
-        
-        # Start simulation
-        sim_task = asyncio.create_task(simulator.run_simulation(duration_seconds=10))
-        
-        # Inject failure after 3 seconds
-        await asyncio.sleep(3)
-        failure_sim.inject_failure(
-            simulator,
-            'app1',  # Fail the publisher
-            ComponentType.APPLICATION,
-            FailureType.COMPLETE,
-            severity=1.0,
-            enable_cascade=False
-        )
-        
-        # Wait for simulation to complete
-        sim_results = await sim_task
-        
-        # Verify failure impact
-        assert len(failure_sim.failure_events) == 1, "Failure not recorded"
-        assert 'app1' in failure_sim.active_failures, "Failure not active"
-        
-        # Verify reduced message delivery after failure
-        stats = sim_results['global_stats']
-        assert stats['messages_dropped'] > 0, "No messages dropped"
-        
-        results.add_pass(
-            "Application Failure",
-            f"Failed app1, Dropped: {stats['messages_dropped']}, "
-            f"Events: {len(failure_sim.failure_events)}"
-        )
-        
-        Path(temp_path).unlink()
-        
-    except Exception as e:
-        results.add_fail("Application Failure", str(e))
-
-
-async def test_cascading_failure(results: TestResults):
-    """Test cascading failure propagation"""
-    print("\n" + "="*70)
-    print("TEST: Cascading Failure")
-    print("="*70)
-    
-    try:
-        graph_data = create_test_graph()
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(graph_data, f)
-            temp_path = f.name
-        
-        simulator = LightweightDDSSimulator()
-        simulator.load_from_json(temp_path)
-        
-        failure_sim = FailureSimulator(
-            cascade_threshold=0.5,  # Lower threshold for easier cascade
-            cascade_probability=0.8  # Higher probability
-        )
-        
-        # Start simulation
-        sim_task = asyncio.create_task(simulator.run_simulation(duration_seconds=15))
-        
-        # Inject failure with cascade
-        await asyncio.sleep(3)
-        failure_sim.inject_failure(
-            simulator,
-            'B1',  # Fail the broker
-            ComponentType.BROKER,
-            FailureType.COMPLETE,
-            severity=1.0,
-            enable_cascade=True
-        )
-        
-        # Wait for simulation
-        sim_results = await sim_task
-        
-        # Analyze impact
-        impact = failure_sim.analyze_impact(simulator)
-        
-        # Verify cascade occurred (may or may not happen depending on load)
-        assert len(failure_sim.failure_events) >= 1, "No failure events"
-        assert 'B1' in impact.failed_components, "Broker not in failed components"
-        
-        results.add_pass(
-            "Cascading Failure",
-            f"Failed components: {len(impact.failed_components)}, "
-            f"Affected: {len(impact.affected_components)}, "
-            f"Cascade depth: {impact.cascade_depth}"
-        )
-        
-        Path(temp_path).unlink()
-        
-    except Exception as e:
-        results.add_fail("Cascading Failure", str(e))
-
-
-async def test_performance_metrics(results: TestResults):
-    """Test performance metric collection"""
-    print("\n" + "="*70)
-    print("TEST: Performance Metrics")
-    print("="*70)
-    
-    try:
-        graph_data = create_test_graph()
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(graph_data, f)
-            temp_path = f.name
-        
-        simulator = LightweightDDSSimulator()
-        simulator.load_from_json(temp_path)
-        
-        sim_results = await simulator.run_simulation(duration_seconds=10)
-        
-        stats = sim_results['global_stats']
-        
-        # Verify all metrics are present and valid
-        assert 'messages_sent' in stats, "Missing messages_sent"
-        assert 'messages_delivered' in stats, "Missing messages_delivered"
-        assert 'avg_latency_ms' in stats, "Missing avg_latency_ms"
-        assert 'delivery_rate' in stats, "Missing delivery_rate"
-        assert 'bytes_transferred' in stats, "Missing bytes_transferred"
-        
-        assert stats['delivery_rate'] >= 0 and stats['delivery_rate'] <= 1, "Invalid delivery rate"
-        assert stats['avg_latency_ms'] >= 0, "Negative latency"
-        assert stats['bytes_transferred'] >= 0, "Negative bytes"
-        
-        results.add_pass(
-            "Performance Metrics",
-            f"All metrics valid: {len(stats)} metrics collected"
-        )
-        
-        Path(temp_path).unlink()
-        
-    except Exception as e:
-        results.add_fail("Performance Metrics", str(e))
-
-
-async def test_baseline_comparison(results: TestResults):
-    """Test baseline vs failure comparison"""
-    print("\n" + "="*70)
-    print("TEST: Baseline Comparison")
-    print("="*70)
-    
-    try:
-        graph_data = create_test_graph()
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(graph_data, f)
-            temp_path = f.name
-        
-        # Run baseline
-        baseline_sim = LightweightDDSSimulator()
-        baseline_sim.load_from_json(temp_path)
-        baseline_results = await baseline_sim.run_simulation(duration_seconds=10)
-        
-        # Run with failure
-        failure_sim_obj = LightweightDDSSimulator()
-        failure_sim_obj.load_from_json(temp_path)
-        
-        failure_mgr = FailureSimulator()
-        
-        sim_task = asyncio.create_task(failure_sim_obj.run_simulation(duration_seconds=10))
-        await asyncio.sleep(3)
-        failure_mgr.inject_failure(
-            failure_sim_obj,
-            'A1',
-            ComponentType.APPLICATION,
-            FailureType.COMPLETE
-        )
-        failure_results = await sim_task
-        
-        # Compare
-        baseline_rate = baseline_results['global_stats']['delivery_rate']
-        failure_rate = failure_results['global_stats']['delivery_rate']
-        
-        assert failure_rate <= baseline_rate, "Failure didn't degrade performance"
-        
-        degradation = (baseline_rate - failure_rate) / baseline_rate * 100
-        
-        results.add_pass(
-            "Baseline Comparison",
-            f"Baseline rate: {baseline_rate:.2%}, Failure rate: {failure_rate:.2%}, "
-            f"Degradation: {degradation:.1f}%"
-        )
-        
-        Path(temp_path).unlink()
-        
-    except Exception as e:
-        results.add_fail("Baseline Comparison", str(e))
-
-
-async def test_qos_policies(results: TestResults):
-    """Test QoS policy enforcement"""
-    print("\n" + "="*70)
-    print("TEST: QoS Policies")
-    print("="*70)
-    
-    try:
-        graph_data = create_test_graph()
-        
-        # Modify topic for stricter deadlines
-        graph_data['topics'][0]['qos']['deadline_ms'] = 100  # Very strict
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(graph_data, f)
-            temp_path = f.name
-        
-        simulator = LightweightDDSSimulator()
-        simulator.load_from_json(temp_path)
-        
-        sim_results = await simulator.run_simulation(duration_seconds=10)
-        
-        stats = sim_results['global_stats']
-        
-        # With strict deadline, we should see some misses
-        # (This depends on timing, so we just check the metric exists)
-        assert 'deadline_misses' in stats, "Missing deadline_misses metric"
-        
-        results.add_pass(
-            "QoS Policies",
-            f"Deadline enforced: {stats['deadline_misses']} misses detected"
-        )
-        
-        Path(temp_path).unlink()
-        
-    except Exception as e:
-        results.add_fail("QoS Policies", str(e))
-
-
-def test_message_creation(results: TestResults):
-    """Test message object creation"""
-    print("\n" + "="*70)
-    print("TEST: Message Creation")
-    print("="*70)
-    
-    try:
-        msg = Message(
-            id="msg_001",
-            topic="test_topic",
-            sender="app_1",
-            payload_size=1024,
-            timestamp=time.time(),
-            priority=MessagePriority.HIGH,
-            deadline_ms=1000,
-            ttl_ms=5000
-        )
-        
-        assert msg.id == "msg_001", "Wrong message ID"
-        assert msg.topic == "test_topic", "Wrong topic"
-        assert msg.payload_size == 1024, "Wrong payload size"
-        assert msg.priority == MessagePriority.HIGH, "Wrong priority"
-        
-        # Test expiration
-        assert not msg.is_expired(msg.timestamp + 1), "Should not be expired"
-        assert msg.is_expired(msg.timestamp + 10), "Should be expired"
-        
-        results.add_pass("Message Creation", "Message object created and validated")
-        
-    except Exception as e:
-        results.add_fail("Message Creation", str(e))
-
-
-async def run_all_tests():
+def main():
     """Run all tests"""
-    results = TestResults()
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
     
-    print("\n" + "="*70)
-    print("SIMULATION SYSTEM TEST SUITE")
-    print("="*70)
-    print()
+    # Add all test classes
+    test_classes = [
+        TestSimulatorBasic,
+        TestSingleFailure,
+        TestMultipleFailures,
+        TestCascadeFailures,
+        TestBatchSimulation,
+        TestReachability,
+        TestConnectivity,
+        TestReporting,
+        TestSerialization,
+        TestConvenienceFunctions,
+        TestEdgeCases,
+        TestIntegrationWithAnalyzer,
+    ]
     
-    # Unit tests
-    test_message_creation(results)
-    test_graph_loading(results)
+    for test_class in test_classes:
+        suite.addTests(loader.loadTestsFromTestCase(test_class))
     
-    # Integration tests
-    await test_basic_simulation(results)
-    await test_application_failure(results)
-    await test_cascading_failure(results)
-    await test_performance_metrics(results)
-    await test_baseline_comparison(results)
-    await test_qos_policies(results)
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
     
-    # Print summary
-    success = results.summary()
-    
-    return 0 if success else 1
+    return 0 if result.wasSuccessful() else 1
 
 
 if __name__ == '__main__':
-    exit_code = asyncio.run(run_all_tests())
-    sys.exit(exit_code)
+    sys.exit(main())
