@@ -1,34 +1,34 @@
 {
   "metadata": {
-    "id": "graph_iot_small_42",
-    "generated_at": "2025-12-14T12:35:07.390835Z",
+    "id": "graph_iot_medium_42",
+    "generated_at": "2025-12-14T19:18:44.359975Z",
     "generator_version": "3.0",
-    "scale": "small",
+    "scale": "medium",
     "scenario": "iot",
     "seed": 42,
-    "generation_time_seconds": 0.000527,
+    "generation_time_seconds": 0.0012,
     "antipatterns_applied": null
   },
   "applications": [
     {
       "id": "A1",
       "name": "SensorCollector",
-      "role": "pubsub"
+      "role": "pub"
     },
     {
       "id": "A2",
       "name": "DeviceManager",
-      "role": "pubsub"
+      "role": "pub"
     },
     {
       "id": "A3",
       "name": "TelemetryAggregator",
-      "role": "sub"
+      "role": "pub"
     },
     {
       "id": "A4",
       "name": "CommandDispatcher",
-      "role": "pub"
+      "role": "sub"
     },
     {
       "id": "A5",
@@ -43,17 +43,17 @@
     {
       "id": "A7",
       "name": "DataForwarder",
-      "role": "pubsub"
+      "role": "sub"
     },
     {
       "id": "A8",
       "name": "FirmwareManager",
-      "role": "sub"
+      "role": "pub"
     },
     {
       "id": "A9",
       "name": "DiagnosticsEngine",
-      "role": "pubsub"
+      "role": "sub"
     },
     {
       "id": "A10",
@@ -63,12 +63,202 @@
     {
       "id": "A11",
       "name": "ProtocolBridge",
-      "role": "pubsub"
+      "role": "pub"
     },
     {
       "id": "A12",
       "name": "DataFilter",
+      "role": "sub"
+    },
+    {
+      "id": "A13",
+      "name": "SensorCollector_13",
       "role": "pub"
+    },
+    {
+      "id": "A14",
+      "name": "DeviceManager_14",
+      "role": "pub"
+    },
+    {
+      "id": "A15",
+      "name": "TelemetryAggregator_15",
+      "role": "pub"
+    },
+    {
+      "id": "A16",
+      "name": "CommandDispatcher_16",
+      "role": "sub"
+    },
+    {
+      "id": "A17",
+      "name": "StatusMonitor_17",
+      "role": "pub"
+    },
+    {
+      "id": "A18",
+      "name": "AlertProcessor_18",
+      "role": "pub"
+    },
+    {
+      "id": "A19",
+      "name": "DataForwarder_19",
+      "role": "pub"
+    },
+    {
+      "id": "A20",
+      "name": "FirmwareManager_20",
+      "role": "pubsub"
+    },
+    {
+      "id": "A21",
+      "name": "DiagnosticsEngine_21",
+      "role": "pubsub"
+    },
+    {
+      "id": "A22",
+      "name": "EdgeGateway_22",
+      "role": "pubsub"
+    },
+    {
+      "id": "A23",
+      "name": "ProtocolBridge_23",
+      "role": "pubsub"
+    },
+    {
+      "id": "A24",
+      "name": "DataFilter_24",
+      "role": "sub"
+    },
+    {
+      "id": "A25",
+      "name": "SensorCollector_25",
+      "role": "sub"
+    },
+    {
+      "id": "A26",
+      "name": "DeviceManager_26",
+      "role": "pubsub"
+    },
+    {
+      "id": "A27",
+      "name": "TelemetryAggregator_27",
+      "role": "pubsub"
+    },
+    {
+      "id": "A28",
+      "name": "CommandDispatcher_28",
+      "role": "pubsub"
+    },
+    {
+      "id": "A29",
+      "name": "StatusMonitor_29",
+      "role": "sub"
+    },
+    {
+      "id": "A30",
+      "name": "AlertProcessor_30",
+      "role": "pubsub"
+    },
+    {
+      "id": "A31",
+      "name": "DataForwarder_31",
+      "role": "sub"
+    },
+    {
+      "id": "A32",
+      "name": "FirmwareManager_32",
+      "role": "sub"
+    },
+    {
+      "id": "A33",
+      "name": "DiagnosticsEngine_33",
+      "role": "pubsub"
+    },
+    {
+      "id": "A34",
+      "name": "EdgeGateway_34",
+      "role": "sub"
+    },
+    {
+      "id": "A35",
+      "name": "ProtocolBridge_35",
+      "role": "pub"
+    },
+    {
+      "id": "A36",
+      "name": "DataFilter_36",
+      "role": "pubsub"
+    },
+    {
+      "id": "A37",
+      "name": "SensorCollector_37",
+      "role": "pubsub"
+    },
+    {
+      "id": "A38",
+      "name": "DeviceManager_38",
+      "role": "sub"
+    },
+    {
+      "id": "A39",
+      "name": "TelemetryAggregator_39",
+      "role": "sub"
+    },
+    {
+      "id": "A40",
+      "name": "CommandDispatcher_40",
+      "role": "sub"
+    },
+    {
+      "id": "A41",
+      "name": "StatusMonitor_41",
+      "role": "sub"
+    },
+    {
+      "id": "A42",
+      "name": "AlertProcessor_42",
+      "role": "pubsub"
+    },
+    {
+      "id": "A43",
+      "name": "DataForwarder_43",
+      "role": "pubsub"
+    },
+    {
+      "id": "A44",
+      "name": "FirmwareManager_44",
+      "role": "sub"
+    },
+    {
+      "id": "A45",
+      "name": "DiagnosticsEngine_45",
+      "role": "pubsub"
+    },
+    {
+      "id": "A46",
+      "name": "EdgeGateway_46",
+      "role": "pubsub"
+    },
+    {
+      "id": "A47",
+      "name": "ProtocolBridge_47",
+      "role": "pub"
+    },
+    {
+      "id": "A48",
+      "name": "DataFilter_48",
+      "role": "sub"
+    },
+    {
+      "id": "A49",
+      "name": "SensorCollector_49",
+      "role": "pub"
+    },
+    {
+      "id": "A50",
+      "name": "DeviceManager_50",
+      "role": "sub"
     }
   ],
   "brokers": [
@@ -79,6 +269,14 @@
     {
       "id": "B2",
       "name": "Broker2"
+    },
+    {
+      "id": "B3",
+      "name": "Broker3"
+    },
+    {
+      "id": "B4",
+      "name": "Broker4"
     }
   ],
   "topics": [
@@ -161,6 +359,226 @@
         "reliability": "BEST_EFFORT",
         "transport_priority": "MEDIUM"
       }
+    },
+    {
+      "id": "T9",
+      "name": "devices/0009/commands",
+      "size": 91,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T10",
+      "name": "telemetry/aggregated",
+      "size": 805,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T11",
+      "name": "alerts/critical",
+      "size": 104,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "URGENT"
+      }
+    },
+    {
+      "id": "T12",
+      "name": "config/sensor",
+      "size": 835,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T13",
+      "name": "sensors/processed/data",
+      "size": 379,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T14",
+      "name": "devices/0014/status",
+      "size": 585,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T15",
+      "name": "devices/0015/commands",
+      "size": 465,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T16",
+      "name": "telemetry/aggregated",
+      "size": 973,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T17",
+      "name": "alerts/info",
+      "size": 705,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "URGENT"
+      }
+    },
+    {
+      "id": "T18",
+      "name": "config/sensor",
+      "size": 608,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T19",
+      "name": "sensors/created/data",
+      "size": 868,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T20",
+      "name": "devices/0020/status",
+      "size": 532,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T21",
+      "name": "devices/0021/commands",
+      "size": 41,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T22",
+      "name": "telemetry/aggregated",
+      "size": 830,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T23",
+      "name": "alerts/critical",
+      "size": 142,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "URGENT"
+      }
+    },
+    {
+      "id": "T24",
+      "name": "config/actuator",
+      "size": 1022,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T25",
+      "name": "sensors/deleted/data",
+      "size": 652,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T26",
+      "name": "devices/0026/status",
+      "size": 1003,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T27",
+      "name": "devices/0027/commands",
+      "size": 614,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T28",
+      "name": "telemetry/aggregated",
+      "size": 205,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T29",
+      "name": "alerts/critical",
+      "size": 939,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "URGENT"
+      }
+    },
+    {
+      "id": "T30",
+      "name": "config/gateway",
+      "size": 602,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "MEDIUM"
+      }
     }
   ],
   "nodes": [
@@ -183,175 +601,411 @@
     {
       "id": "N5",
       "name": "Node5"
+    },
+    {
+      "id": "N6",
+      "name": "Node6"
+    },
+    {
+      "id": "N7",
+      "name": "Node7"
+    },
+    {
+      "id": "N8",
+      "name": "Node8"
+    },
+    {
+      "id": "N9",
+      "name": "Node9"
+    },
+    {
+      "id": "N10",
+      "name": "Node10"
+    },
+    {
+      "id": "N11",
+      "name": "Node11"
+    },
+    {
+      "id": "N12",
+      "name": "Node12"
+    },
+    {
+      "id": "N13",
+      "name": "Node13"
+    },
+    {
+      "id": "N14",
+      "name": "Node14"
+    },
+    {
+      "id": "N15",
+      "name": "Node15"
     }
   ],
   "relationships": {
     "publishes_to": [
       {
         "from": "A1",
-        "to": "T5"
+        "to": "T9"
       },
       {
         "from": "A1",
-        "to": "T8"
+        "to": "T25"
+      },
+      {
+        "from": "A1",
+        "to": "T27"
+      },
+      {
+        "from": "A1",
+        "to": "T14"
       },
       {
         "from": "A2",
-        "to": "T8"
+        "to": "T27"
       },
       {
         "from": "A2",
-        "to": "T1"
-      },
-      {
-        "from": "A2",
-        "to": "T2"
-      },
-      {
-        "from": "A2",
-        "to": "T6"
-      },
-      {
-        "from": "A4",
-        "to": "T2"
-      },
-      {
-        "from": "A4",
-        "to": "T1"
-      },
-      {
-        "from": "A6",
         "to": "T3"
       },
       {
-        "from": "A6",
-        "to": "T6"
+        "from": "A2",
+        "to": "T16"
+      },
+      {
+        "from": "A3",
+        "to": "T24"
       },
       {
         "from": "A6",
+        "to": "T8"
+      },
+      {
+        "from": "A8",
         "to": "T5"
       },
       {
-        "from": "A6",
+        "from": "A8",
+        "to": "T16"
+      },
+      {
+        "from": "A11",
+        "to": "T25"
+      },
+      {
+        "from": "A13",
+        "to": "T30"
+      },
+      {
+        "from": "A14",
+        "to": "T19"
+      },
+      {
+        "from": "A14",
+        "to": "T22"
+      },
+      {
+        "from": "A14",
+        "to": "T30"
+      },
+      {
+        "from": "A15",
+        "to": "T13"
+      },
+      {
+        "from": "A15",
+        "to": "T23"
+      },
+      {
+        "from": "A15",
         "to": "T7"
       },
       {
-        "from": "A6",
-        "to": "T4"
-      },
-      {
-        "from": "A7",
-        "to": "T8"
-      },
-      {
-        "from": "A7",
-        "to": "T7"
-      },
-      {
-        "from": "A9",
-        "to": "T4"
-      },
-      {
-        "from": "A9",
-        "to": "T2"
-      },
-      {
-        "from": "A11",
-        "to": "T1"
-      },
-      {
-        "from": "A11",
-        "to": "T8"
-      },
-      {
-        "from": "A11",
-        "to": "T2"
-      },
-      {
-        "from": "A11",
-        "to": "T6"
-      },
-      {
-        "from": "A11",
-        "to": "T4"
-      },
-      {
-        "from": "A12",
-        "to": "T8"
-      },
-      {
-        "from": "A12",
+        "from": "A15",
         "to": "T3"
       },
       {
-        "from": "A12",
+        "from": "A17",
+        "to": "T26"
+      },
+      {
+        "from": "A17",
         "to": "T4"
+      },
+      {
+        "from": "A17",
+        "to": "T19"
+      },
+      {
+        "from": "A17",
+        "to": "T2"
+      },
+      {
+        "from": "A17",
+        "to": "T12"
+      },
+      {
+        "from": "A18",
+        "to": "T14"
+      },
+      {
+        "from": "A18",
+        "to": "T22"
+      },
+      {
+        "from": "A18",
+        "to": "T12"
+      },
+      {
+        "from": "A18",
+        "to": "T3"
+      },
+      {
+        "from": "A18",
+        "to": "T17"
+      },
+      {
+        "from": "A19",
+        "to": "T1"
+      },
+      {
+        "from": "A19",
+        "to": "T28"
+      },
+      {
+        "from": "A19",
+        "to": "T14"
+      },
+      {
+        "from": "A20",
+        "to": "T4"
+      },
+      {
+        "from": "A20",
+        "to": "T14"
+      },
+      {
+        "from": "A20",
+        "to": "T12"
+      },
+      {
+        "from": "A20",
+        "to": "T21"
+      },
+      {
+        "from": "A21",
+        "to": "T26"
+      },
+      {
+        "from": "A21",
+        "to": "T30"
+      },
+      {
+        "from": "A21",
+        "to": "T18"
+      },
+      {
+        "from": "A21",
+        "to": "T25"
+      },
+      {
+        "from": "A21",
+        "to": "T16"
+      },
+      {
+        "from": "A22",
+        "to": "T29"
+      },
+      {
+        "from": "A22",
+        "to": "T15"
+      },
+      {
+        "from": "A22",
+        "to": "T8"
+      },
+      {
+        "from": "A23",
+        "to": "T16"
+      },
+      {
+        "from": "A23",
+        "to": "T7"
+      },
+      {
+        "from": "A26",
+        "to": "T23"
+      },
+      {
+        "from": "A26",
+        "to": "T16"
+      },
+      {
+        "from": "A27",
+        "to": "T10"
+      },
+      {
+        "from": "A27",
+        "to": "T22"
+      },
+      {
+        "from": "A28",
+        "to": "T11"
+      },
+      {
+        "from": "A28",
+        "to": "T12"
+      },
+      {
+        "from": "A28",
+        "to": "T23"
+      },
+      {
+        "from": "A28",
+        "to": "T15"
+      },
+      {
+        "from": "A28",
+        "to": "T9"
+      },
+      {
+        "from": "A30",
+        "to": "T7"
+      },
+      {
+        "from": "A30",
+        "to": "T24"
+      },
+      {
+        "from": "A33",
+        "to": "T2"
+      },
+      {
+        "from": "A35",
+        "to": "T6"
+      },
+      {
+        "from": "A35",
+        "to": "T2"
+      },
+      {
+        "from": "A35",
+        "to": "T9"
+      },
+      {
+        "from": "A36",
+        "to": "T4"
+      },
+      {
+        "from": "A36",
+        "to": "T27"
+      },
+      {
+        "from": "A36",
+        "to": "T3"
+      },
+      {
+        "from": "A36",
+        "to": "T13"
+      },
+      {
+        "from": "A37",
+        "to": "T3"
+      },
+      {
+        "from": "A37",
+        "to": "T8"
+      },
+      {
+        "from": "A37",
+        "to": "T4"
+      },
+      {
+        "from": "A42",
+        "to": "T6"
+      },
+      {
+        "from": "A42",
+        "to": "T18"
+      },
+      {
+        "from": "A43",
+        "to": "T15"
+      },
+      {
+        "from": "A43",
+        "to": "T23"
+      },
+      {
+        "from": "A43",
+        "to": "T20"
+      },
+      {
+        "from": "A43",
+        "to": "T16"
+      },
+      {
+        "from": "A45",
+        "to": "T14"
+      },
+      {
+        "from": "A45",
+        "to": "T4"
+      },
+      {
+        "from": "A46",
+        "to": "T3"
+      },
+      {
+        "from": "A46",
+        "to": "T2"
+      },
+      {
+        "from": "A47",
+        "to": "T30"
+      },
+      {
+        "from": "A47",
+        "to": "T10"
+      },
+      {
+        "from": "A47",
+        "to": "T15"
+      },
+      {
+        "from": "A47",
+        "to": "T4"
+      },
+      {
+        "from": "A47",
+        "to": "T23"
+      },
+      {
+        "from": "A49",
+        "to": "T15"
+      },
+      {
+        "from": "A49",
+        "to": "T3"
+      },
+      {
+        "from": "A49",
+        "to": "T20"
+      },
+      {
+        "from": "A49",
+        "to": "T2"
       }
     ],
     "subscribes_to": [
       {
-        "from": "A1",
-        "to": "T4"
-      },
-      {
-        "from": "A1",
-        "to": "T5"
-      },
-      {
-        "from": "A1",
-        "to": "T6"
-      },
-      {
-        "from": "A1",
-        "to": "T2"
-      },
-      {
-        "from": "A1",
-        "to": "T3"
-      },
-      {
-        "from": "A1",
-        "to": "T7"
-      },
-      {
-        "from": "A1",
-        "to": "T8"
-      },
-      {
-        "from": "A2",
-        "to": "T6"
-      },
-      {
-        "from": "A2",
-        "to": "T1"
-      },
-      {
-        "from": "A3",
-        "to": "T4"
-      },
-      {
-        "from": "A3",
-        "to": "T1"
-      },
-      {
-        "from": "A3",
-        "to": "T7"
-      },
-      {
-        "from": "A3",
-        "to": "T6"
+        "from": "A4",
+        "to": "T12"
       },
       {
         "from": "A5",
-        "to": "T2"
-      },
-      {
-        "from": "A5",
-        "to": "T5"
-      },
-      {
-        "from": "A5",
-        "to": "T8"
+        "to": "T21"
       },
       {
         "from": "A5",
@@ -359,143 +1013,723 @@
       },
       {
         "from": "A5",
-        "to": "T4"
+        "to": "T25"
       },
       {
         "from": "A5",
-        "to": "T1"
-      },
-      {
-        "from": "A7",
-        "to": "T4"
-      },
-      {
-        "from": "A7",
-        "to": "T1"
-      },
-      {
-        "from": "A7",
-        "to": "T7"
-      },
-      {
-        "from": "A7",
-        "to": "T8"
-      },
-      {
-        "from": "A7",
-        "to": "T3"
-      },
-      {
-        "from": "A7",
         "to": "T2"
+      },
+      {
+        "from": "A7",
+        "to": "T27"
+      },
+      {
+        "from": "A7",
+        "to": "T1"
+      },
+      {
+        "from": "A7",
+        "to": "T20"
       },
       {
         "from": "A7",
         "to": "T5"
       },
       {
-        "from": "A8",
-        "to": "T1"
-      },
-      {
-        "from": "A8",
-        "to": "T6"
-      },
-      {
-        "from": "A8",
-        "to": "T7"
-      },
-      {
-        "from": "A8",
-        "to": "T8"
-      },
-      {
-        "from": "A8",
-        "to": "T5"
-      },
-      {
-        "from": "A8",
-        "to": "T2"
-      },
-      {
-        "from": "A8",
-        "to": "T3"
-      },
-      {
-        "from": "A8",
-        "to": "T4"
-      },
-      {
         "from": "A9",
-        "to": "T3"
-      },
-      {
-        "from": "A9",
-        "to": "T4"
-      },
-      {
-        "from": "A9",
-        "to": "T2"
-      },
-      {
-        "from": "A9",
-        "to": "T8"
+        "to": "T19"
       },
       {
         "from": "A9",
         "to": "T7"
-      },
-      {
-        "from": "A9",
-        "to": "T1"
-      },
-      {
-        "from": "A9",
-        "to": "T5"
-      },
-      {
-        "from": "A9",
-        "to": "T6"
       },
       {
         "from": "A10",
-        "to": "T1"
+        "to": "T23"
+      },
+      {
+        "from": "A10",
+        "to": "T9"
+      },
+      {
+        "from": "A10",
+        "to": "T25"
+      },
+      {
+        "from": "A10",
+        "to": "T12"
       },
       {
         "from": "A10",
         "to": "T6"
       },
       {
-        "from": "A11",
-        "to": "T8"
+        "from": "A10",
+        "to": "T20"
       },
       {
-        "from": "A11",
-        "to": "T2"
+        "from": "A10",
+        "to": "T28"
       },
       {
-        "from": "A11",
+        "from": "A10",
+        "to": "T30"
+      },
+      {
+        "from": "A12",
+        "to": "T10"
+      },
+      {
+        "from": "A12",
         "to": "T4"
       },
       {
-        "from": "A11",
-        "to": "T1"
+        "from": "A12",
+        "to": "T19"
       },
       {
-        "from": "A11",
-        "to": "T7"
+        "from": "A16",
+        "to": "T4"
       },
       {
-        "from": "A11",
-        "to": "T6"
+        "from": "A16",
+        "to": "T23"
       },
       {
-        "from": "A11",
+        "from": "A16",
+        "to": "T25"
+      },
+      {
+        "from": "A16",
+        "to": "T10"
+      },
+      {
+        "from": "A20",
+        "to": "T23"
+      },
+      {
+        "from": "A20",
         "to": "T5"
       },
       {
-        "from": "A11",
+        "from": "A20",
+        "to": "T14"
+      },
+      {
+        "from": "A20",
+        "to": "T6"
+      },
+      {
+        "from": "A20",
+        "to": "T24"
+      },
+      {
+        "from": "A20",
+        "to": "T17"
+      },
+      {
+        "from": "A20",
+        "to": "T21"
+      },
+      {
+        "from": "A20",
+        "to": "T9"
+      },
+      {
+        "from": "A21",
+        "to": "T14"
+      },
+      {
+        "from": "A21",
+        "to": "T27"
+      },
+      {
+        "from": "A21",
+        "to": "T24"
+      },
+      {
+        "from": "A21",
+        "to": "T19"
+      },
+      {
+        "from": "A21",
+        "to": "T9"
+      },
+      {
+        "from": "A21",
+        "to": "T11"
+      },
+      {
+        "from": "A21",
+        "to": "T8"
+      },
+      {
+        "from": "A21",
         "to": "T3"
+      },
+      {
+        "from": "A22",
+        "to": "T19"
+      },
+      {
+        "from": "A22",
+        "to": "T20"
+      },
+      {
+        "from": "A22",
+        "to": "T22"
+      },
+      {
+        "from": "A22",
+        "to": "T13"
+      },
+      {
+        "from": "A22",
+        "to": "T11"
+      },
+      {
+        "from": "A22",
+        "to": "T1"
+      },
+      {
+        "from": "A22",
+        "to": "T16"
+      },
+      {
+        "from": "A22",
+        "to": "T26"
+      },
+      {
+        "from": "A23",
+        "to": "T26"
+      },
+      {
+        "from": "A23",
+        "to": "T9"
+      },
+      {
+        "from": "A23",
+        "to": "T11"
+      },
+      {
+        "from": "A23",
+        "to": "T29"
+      },
+      {
+        "from": "A23",
+        "to": "T20"
+      },
+      {
+        "from": "A23",
+        "to": "T23"
+      },
+      {
+        "from": "A24",
+        "to": "T18"
+      },
+      {
+        "from": "A24",
+        "to": "T1"
+      },
+      {
+        "from": "A24",
+        "to": "T17"
+      },
+      {
+        "from": "A24",
+        "to": "T7"
+      },
+      {
+        "from": "A24",
+        "to": "T3"
+      },
+      {
+        "from": "A25",
+        "to": "T24"
+      },
+      {
+        "from": "A25",
+        "to": "T14"
+      },
+      {
+        "from": "A25",
+        "to": "T16"
+      },
+      {
+        "from": "A25",
+        "to": "T18"
+      },
+      {
+        "from": "A26",
+        "to": "T15"
+      },
+      {
+        "from": "A26",
+        "to": "T26"
+      },
+      {
+        "from": "A26",
+        "to": "T1"
+      },
+      {
+        "from": "A26",
+        "to": "T3"
+      },
+      {
+        "from": "A26",
+        "to": "T10"
+      },
+      {
+        "from": "A26",
+        "to": "T8"
+      },
+      {
+        "from": "A26",
+        "to": "T13"
+      },
+      {
+        "from": "A26",
+        "to": "T23"
+      },
+      {
+        "from": "A27",
+        "to": "T16"
+      },
+      {
+        "from": "A27",
+        "to": "T18"
+      },
+      {
+        "from": "A27",
+        "to": "T17"
+      },
+      {
+        "from": "A27",
+        "to": "T12"
+      },
+      {
+        "from": "A27",
+        "to": "T14"
+      },
+      {
+        "from": "A27",
+        "to": "T24"
+      },
+      {
+        "from": "A28",
+        "to": "T9"
+      },
+      {
+        "from": "A28",
+        "to": "T8"
+      },
+      {
+        "from": "A28",
+        "to": "T4"
+      },
+      {
+        "from": "A28",
+        "to": "T24"
+      },
+      {
+        "from": "A28",
+        "to": "T7"
+      },
+      {
+        "from": "A29",
+        "to": "T4"
+      },
+      {
+        "from": "A29",
+        "to": "T24"
+      },
+      {
+        "from": "A29",
+        "to": "T18"
+      },
+      {
+        "from": "A29",
+        "to": "T25"
+      },
+      {
+        "from": "A29",
+        "to": "T23"
+      },
+      {
+        "from": "A29",
+        "to": "T6"
+      },
+      {
+        "from": "A30",
+        "to": "T9"
+      },
+      {
+        "from": "A30",
+        "to": "T24"
+      },
+      {
+        "from": "A30",
+        "to": "T19"
+      },
+      {
+        "from": "A30",
+        "to": "T25"
+      },
+      {
+        "from": "A30",
+        "to": "T17"
+      },
+      {
+        "from": "A30",
+        "to": "T20"
+      },
+      {
+        "from": "A30",
+        "to": "T10"
+      },
+      {
+        "from": "A30",
+        "to": "T4"
+      },
+      {
+        "from": "A31",
+        "to": "T10"
+      },
+      {
+        "from": "A31",
+        "to": "T8"
+      },
+      {
+        "from": "A31",
+        "to": "T12"
+      },
+      {
+        "from": "A31",
+        "to": "T6"
+      },
+      {
+        "from": "A32",
+        "to": "T1"
+      },
+      {
+        "from": "A32",
+        "to": "T23"
+      },
+      {
+        "from": "A32",
+        "to": "T18"
+      },
+      {
+        "from": "A32",
+        "to": "T5"
+      },
+      {
+        "from": "A32",
+        "to": "T9"
+      },
+      {
+        "from": "A33",
+        "to": "T23"
+      },
+      {
+        "from": "A33",
+        "to": "T5"
+      },
+      {
+        "from": "A33",
+        "to": "T21"
+      },
+      {
+        "from": "A33",
+        "to": "T28"
+      },
+      {
+        "from": "A33",
+        "to": "T25"
+      },
+      {
+        "from": "A34",
+        "to": "T4"
+      },
+      {
+        "from": "A34",
+        "to": "T28"
+      },
+      {
+        "from": "A34",
+        "to": "T1"
+      },
+      {
+        "from": "A34",
+        "to": "T19"
+      },
+      {
+        "from": "A34",
+        "to": "T10"
+      },
+      {
+        "from": "A34",
+        "to": "T16"
+      },
+      {
+        "from": "A34",
+        "to": "T25"
+      },
+      {
+        "from": "A34",
+        "to": "T15"
+      },
+      {
+        "from": "A36",
+        "to": "T3"
+      },
+      {
+        "from": "A36",
+        "to": "T19"
+      },
+      {
+        "from": "A36",
+        "to": "T21"
+      },
+      {
+        "from": "A36",
+        "to": "T22"
+      },
+      {
+        "from": "A36",
+        "to": "T2"
+      },
+      {
+        "from": "A36",
+        "to": "T5"
+      },
+      {
+        "from": "A36",
+        "to": "T25"
+      },
+      {
+        "from": "A36",
+        "to": "T29"
+      },
+      {
+        "from": "A37",
+        "to": "T20"
+      },
+      {
+        "from": "A37",
+        "to": "T30"
+      },
+      {
+        "from": "A37",
+        "to": "T26"
+      },
+      {
+        "from": "A37",
+        "to": "T29"
+      },
+      {
+        "from": "A37",
+        "to": "T8"
+      },
+      {
+        "from": "A37",
+        "to": "T25"
+      },
+      {
+        "from": "A37",
+        "to": "T17"
+      },
+      {
+        "from": "A38",
+        "to": "T15"
+      },
+      {
+        "from": "A38",
+        "to": "T30"
+      },
+      {
+        "from": "A38",
+        "to": "T10"
+      },
+      {
+        "from": "A38",
+        "to": "T19"
+      },
+      {
+        "from": "A38",
+        "to": "T14"
+      },
+      {
+        "from": "A38",
+        "to": "T28"
+      },
+      {
+        "from": "A38",
+        "to": "T27"
+      },
+      {
+        "from": "A39",
+        "to": "T20"
+      },
+      {
+        "from": "A40",
+        "to": "T25"
+      },
+      {
+        "from": "A40",
+        "to": "T7"
+      },
+      {
+        "from": "A41",
+        "to": "T9"
+      },
+      {
+        "from": "A41",
+        "to": "T22"
+      },
+      {
+        "from": "A41",
+        "to": "T3"
+      },
+      {
+        "from": "A41",
+        "to": "T6"
+      },
+      {
+        "from": "A42",
+        "to": "T6"
+      },
+      {
+        "from": "A42",
+        "to": "T1"
+      },
+      {
+        "from": "A43",
+        "to": "T2"
+      },
+      {
+        "from": "A43",
+        "to": "T8"
+      },
+      {
+        "from": "A43",
+        "to": "T10"
+      },
+      {
+        "from": "A43",
+        "to": "T23"
+      },
+      {
+        "from": "A43",
+        "to": "T28"
+      },
+      {
+        "from": "A44",
+        "to": "T3"
+      },
+      {
+        "from": "A44",
+        "to": "T22"
+      },
+      {
+        "from": "A44",
+        "to": "T8"
+      },
+      {
+        "from": "A44",
+        "to": "T9"
+      },
+      {
+        "from": "A44",
+        "to": "T26"
+      },
+      {
+        "from": "A44",
+        "to": "T21"
+      },
+      {
+        "from": "A44",
+        "to": "T19"
+      },
+      {
+        "from": "A44",
+        "to": "T29"
+      },
+      {
+        "from": "A45",
+        "to": "T21"
+      },
+      {
+        "from": "A45",
+        "to": "T5"
+      },
+      {
+        "from": "A45",
+        "to": "T30"
+      },
+      {
+        "from": "A45",
+        "to": "T9"
+      },
+      {
+        "from": "A46",
+        "to": "T26"
+      },
+      {
+        "from": "A46",
+        "to": "T10"
+      },
+      {
+        "from": "A46",
+        "to": "T20"
+      },
+      {
+        "from": "A48",
+        "to": "T23"
+      },
+      {
+        "from": "A48",
+        "to": "T13"
+      },
+      {
+        "from": "A48",
+        "to": "T9"
+      },
+      {
+        "from": "A48",
+        "to": "T17"
+      },
+      {
+        "from": "A48",
+        "to": "T18"
+      },
+      {
+        "from": "A50",
+        "to": "T24"
+      },
+      {
+        "from": "A50",
+        "to": "T11"
+      },
+      {
+        "from": "A50",
+        "to": "T20"
+      },
+      {
+        "from": "A50",
+        "to": "T9"
+      },
+      {
+        "from": "A50",
+        "to": "T1"
+      },
+      {
+        "from": "A50",
+        "to": "T3"
+      },
+      {
+        "from": "A50",
+        "to": "T8"
       }
     ],
     "routes": [
@@ -508,11 +1742,11 @@
         "to": "T2"
       },
       {
-        "from": "B1",
+        "from": "B3",
         "to": "T3"
       },
       {
-        "from": "B2",
+        "from": "B4",
         "to": "T4"
       },
       {
@@ -524,62 +1758,302 @@
         "to": "T6"
       },
       {
-        "from": "B1",
+        "from": "B3",
         "to": "T7"
       },
       {
-        "from": "B2",
+        "from": "B4",
         "to": "T8"
+      },
+      {
+        "from": "B1",
+        "to": "T9"
+      },
+      {
+        "from": "B2",
+        "to": "T10"
+      },
+      {
+        "from": "B3",
+        "to": "T11"
+      },
+      {
+        "from": "B4",
+        "to": "T12"
+      },
+      {
+        "from": "B1",
+        "to": "T13"
+      },
+      {
+        "from": "B2",
+        "to": "T14"
+      },
+      {
+        "from": "B3",
+        "to": "T15"
+      },
+      {
+        "from": "B4",
+        "to": "T16"
+      },
+      {
+        "from": "B1",
+        "to": "T17"
+      },
+      {
+        "from": "B2",
+        "to": "T18"
+      },
+      {
+        "from": "B3",
+        "to": "T19"
+      },
+      {
+        "from": "B4",
+        "to": "T20"
+      },
+      {
+        "from": "B1",
+        "to": "T21"
+      },
+      {
+        "from": "B2",
+        "to": "T22"
+      },
+      {
+        "from": "B3",
+        "to": "T23"
+      },
+      {
+        "from": "B4",
+        "to": "T24"
+      },
+      {
+        "from": "B1",
+        "to": "T25"
+      },
+      {
+        "from": "B2",
+        "to": "T26"
+      },
+      {
+        "from": "B3",
+        "to": "T27"
+      },
+      {
+        "from": "B4",
+        "to": "T28"
+      },
+      {
+        "from": "B1",
+        "to": "T29"
+      },
+      {
+        "from": "B2",
+        "to": "T30"
       }
     ],
     "runs_on": [
       {
         "from": "A1",
-        "to": "N1"
+        "to": "N12"
       },
       {
         "from": "A2",
-        "to": "N2"
+        "to": "N12"
       },
       {
         "from": "A3",
-        "to": "N5"
+        "to": "N9"
       },
       {
         "from": "A4",
-        "to": "N1"
+        "to": "N13"
       },
       {
         "from": "A5",
-        "to": "N1"
+        "to": "N10"
       },
       {
         "from": "A6",
-        "to": "N4"
+        "to": "N15"
       },
       {
         "from": "A7",
-        "to": "N1"
-      },
-      {
-        "from": "A8",
-        "to": "N5"
-      },
-      {
-        "from": "A9",
-        "to": "N2"
-      },
-      {
-        "from": "A10",
-        "to": "N2"
-      },
-      {
-        "from": "A11",
         "to": "N4"
       },
       {
-        "from": "A12",
+        "from": "A8",
+        "to": "N8"
+      },
+      {
+        "from": "A9",
+        "to": "N4"
+      },
+      {
+        "from": "A10",
         "to": "N5"
+      },
+      {
+        "from": "A11",
+        "to": "N7"
+      },
+      {
+        "from": "A12",
+        "to": "N8"
+      },
+      {
+        "from": "A13",
+        "to": "N1"
+      },
+      {
+        "from": "A14",
+        "to": "N7"
+      },
+      {
+        "from": "A15",
+        "to": "N6"
+      },
+      {
+        "from": "A16",
+        "to": "N11"
+      },
+      {
+        "from": "A17",
+        "to": "N11"
+      },
+      {
+        "from": "A18",
+        "to": "N13"
+      },
+      {
+        "from": "A19",
+        "to": "N7"
+      },
+      {
+        "from": "A20",
+        "to": "N12"
+      },
+      {
+        "from": "A21",
+        "to": "N3"
+      },
+      {
+        "from": "A22",
+        "to": "N14"
+      },
+      {
+        "from": "A23",
+        "to": "N8"
+      },
+      {
+        "from": "A24",
+        "to": "N15"
+      },
+      {
+        "from": "A25",
+        "to": "N3"
+      },
+      {
+        "from": "A26",
+        "to": "N10"
+      },
+      {
+        "from": "A27",
+        "to": "N9"
+      },
+      {
+        "from": "A28",
+        "to": "N1"
+      },
+      {
+        "from": "A29",
+        "to": "N15"
+      },
+      {
+        "from": "A30",
+        "to": "N7"
+      },
+      {
+        "from": "A31",
+        "to": "N10"
+      },
+      {
+        "from": "A32",
+        "to": "N10"
+      },
+      {
+        "from": "A33",
+        "to": "N11"
+      },
+      {
+        "from": "A34",
+        "to": "N1"
+      },
+      {
+        "from": "A35",
+        "to": "N2"
+      },
+      {
+        "from": "A36",
+        "to": "N11"
+      },
+      {
+        "from": "A37",
+        "to": "N7"
+      },
+      {
+        "from": "A38",
+        "to": "N3"
+      },
+      {
+        "from": "A39",
+        "to": "N14"
+      },
+      {
+        "from": "A40",
+        "to": "N8"
+      },
+      {
+        "from": "A41",
+        "to": "N3"
+      },
+      {
+        "from": "A42",
+        "to": "N1"
+      },
+      {
+        "from": "A43",
+        "to": "N5"
+      },
+      {
+        "from": "A44",
+        "to": "N7"
+      },
+      {
+        "from": "A45",
+        "to": "N6"
+      },
+      {
+        "from": "A46",
+        "to": "N4"
+      },
+      {
+        "from": "A47",
+        "to": "N8"
+      },
+      {
+        "from": "A48",
+        "to": "N6"
+      },
+      {
+        "from": "A49",
+        "to": "N6"
+      },
+      {
+        "from": "A50",
+        "to": "N13"
       },
       {
         "from": "B1",
@@ -588,6 +2062,14 @@
       {
         "from": "B2",
         "to": "N2"
+      },
+      {
+        "from": "B3",
+        "to": "N3"
+      },
+      {
+        "from": "B4",
+        "to": "N4"
       }
     ],
     "connects_to": [
@@ -608,52 +2090,108 @@
         "to": "N5"
       },
       {
+        "from": "N4",
+        "to": "N7"
+      },
+      {
         "from": "N5",
+        "to": "N6"
+      },
+      {
+        "from": "N6",
+        "to": "N7"
+      },
+      {
+        "from": "N7",
+        "to": "N8"
+      },
+      {
+        "from": "N8",
+        "to": "N9"
+      },
+      {
+        "from": "N8",
+        "to": "N15"
+      },
+      {
+        "from": "N9",
+        "to": "N10"
+      },
+      {
+        "from": "N10",
+        "to": "N11"
+      },
+      {
+        "from": "N11",
+        "to": "N12"
+      },
+      {
+        "from": "N11",
+        "to": "N6"
+      },
+      {
+        "from": "N12",
+        "to": "N13"
+      },
+      {
+        "from": "N12",
+        "to": "N7"
+      },
+      {
+        "from": "N13",
+        "to": "N14"
+      },
+      {
+        "from": "N14",
+        "to": "N15"
+      },
+      {
+        "from": "N15",
         "to": "N1"
       }
     ]
   },
   "metrics": {
     "vertex_counts": {
-      "applications": 12,
-      "brokers": 2,
-      "topics": 8,
-      "nodes": 5,
-      "total": 27
+      "applications": 50,
+      "brokers": 4,
+      "topics": 30,
+      "nodes": 15,
+      "total": 99
     },
     "edge_counts": {
-      "publishes_to": 25,
-      "subscribes_to": 52,
-      "routes": 8,
-      "runs_on": 14,
-      "connects_to": 5,
-      "total": 104
+      "publishes_to": 88,
+      "subscribes_to": 183,
+      "routes": 30,
+      "runs_on": 54,
+      "connects_to": 19,
+      "total": 374
     },
     "pub_sub": {
-      "unique_publishers": 8,
-      "unique_subscribers": 9,
-      "avg_pubs_per_topic": 3.125,
-      "avg_subs_per_topic": 6.5,
-      "max_fanout": 8
+      "unique_publishers": 30,
+      "unique_subscribers": 35,
+      "avg_pubs_per_topic": 2.933333333333333,
+      "avg_subs_per_topic": 6.1,
+      "max_fanout": 12
     },
     "role_distribution": {
-      "pubsub": 5,
-      "sub": 4,
-      "pub": 3
+      "pub": 15,
+      "sub": 20,
+      "pubsub": 15
     },
     "qos_distribution": {
       "durability": {
-        "VOLATILE": 6,
-        "TRANSIENT_LOCAL": 2
+        "VOLATILE": 20,
+        "TRANSIENT_LOCAL": 10
       },
       "reliability": {
-        "BEST_EFFORT": 6,
-        "RELIABLE": 2
+        "BEST_EFFORT": 20,
+        "RELIABLE": 10
       },
       "transport_priority": {
-        "MEDIUM": 6,
-        "HIGH": 1,
-        "URGENT": 1
+        "MEDIUM": 20,
+        "HIGH": 5,
+        "URGENT": 5
       }
     }
   }

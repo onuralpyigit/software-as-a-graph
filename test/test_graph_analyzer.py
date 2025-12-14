@@ -1,484 +1,674 @@
 #!/usr/bin/env python3
 """
-Test Suite for Graph Analysis Scripts
+Test Suite for Graph Analyzer
+=============================
 
-Tests the analyze_graph.py script with various scenarios including:
-- Small test graphs
-- Graphs with articulation points
-- Graphs with bridges
-- Disconnected graphs
-- Various graph topologies
+Comprehensive tests for the DEPENDS_ON relationship derivation
+and graph analysis functionality.
 
 Usage:
+    # Run all tests
     python test_graph_analyzer.py
-    python test_graph_analyzer.py --verbose
-    python test_graph_analyzer.py --test-neo4j
+    
+    # Run specific test class
+    python test_graph_analyzer.py TestDependencyDerivation
+    
+    # Verbose output
+    python test_graph_analyzer.py -v
+
+Author: Software-as-a-Graph Research Project
 """
 
-import argparse
-import json
 import sys
+import json
+import unittest
 import tempfile
-import os
 from pathlib import Path
-import subprocess
+from typing import Dict, Any, List
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / '..'))
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Test graph generators
-def generate_simple_test_graph():
-    """Generate a simple connected graph"""
+from src.analysis import (
+    GraphAnalyzer,
+    DependsOnEdge,
+    CriticalityScore,
+    AnalysisResult,
+    DependencyType,
+    CriticalityLevel,
+    analyze_pubsub_system,
+    derive_dependencies,
+)
+
+
+# ============================================================================
+# Test Data Generators
+# ============================================================================
+
+def create_minimal_system() -> Dict[str, Any]:
+    """Create a minimal pub-sub system for basic tests"""
     return {
         "nodes": [
-            {"id": "node1", "name": "node1"},
-            {"id": "node2", "name": "node2"}
-        ],
-        "applications": [
-            {"id": "app1", "name": "app1", "type": "PRODUCER"},
-            {"id": "app2", "name": "app2", "type": "PROSUMER"},
-            {"id": "app3", "name": "app3", "type": "CONSUMER"}
-        ],
-        "topics": [
-            {"id": "topic1", "name": "topic1"},
-            {"id": "topic2", "name": "topic2"}
+            {"id": "N1", "name": "Node1"},
+            {"id": "N2", "name": "Node2"}
         ],
         "brokers": [
-            {"id": "broker1", "name": "broker1"}
+            {"id": "B1", "name": "Broker1", "node": "N1"}
+        ],
+        "applications": [
+            {"id": "A1", "name": "Publisher", "role": "pub", "node": "N1"},
+            {"id": "A2", "name": "Subscriber", "role": "sub", "node": "N2"}
+        ],
+        "topics": [
+            {"id": "T1", "name": "Topic1", "broker": "B1"}
         ],
         "relationships": {
-            "runs_on": [
-                {"from": "app1", "to": "node1"},
-                {"from": "app2", "to": "node1"},
-                {"from": "app3", "to": "node2"},
-                {"from": "broker1", "to": "node1"}
-            ],
             "publishes_to": [
-                {"from": "app1", "to": "topic1"},
-                {"from": "app2", "to": "topic2"}
+                {"from": "A1", "to": "T1"}
             ],
             "subscribes_to": [
-                {"from": "app2", "to": "topic1"},
-                {"from": "app3", "to": "topic2"}
-            ],
-            "routes": [
-                {"from": "broker1", "to": "topic1"},
-                {"from": "broker1", "to": "topic2"}
+                {"from": "A2", "to": "T1"}
             ]
         }
     }
 
 
-def generate_articulation_point_graph():
-    """Generate a graph with clear articulation points"""
+def create_complex_system() -> Dict[str, Any]:
+    """Create a more complex pub-sub system for comprehensive tests"""
     return {
         "nodes": [
-            {"id": "node1", "name": "node1"},
-            {"id": "node2", "name": "node2"},
-            {"id": "node3", "name": "node3"}
+            {"id": "N1", "name": "Node1"},
+            {"id": "N2", "name": "Node2"},
+            {"id": "N3", "name": "Node3"}
+        ],
+        "brokers": [
+            {"id": "B1", "name": "Broker1", "node": "N1"},
+            {"id": "B2", "name": "Broker2", "node": "N2"}
         ],
         "applications": [
-            {"id": "app1", "name": "app1", "type": "PRODUCER"},
-            {"id": "app2", "name": "app2", "type": "PROSUMER"},
-            {"id": "app3", "name": "app3", "type": "PROSUMER"},
-            {"id": "app4", "name": "app4", "type": "PRODUCER"},
-            {"id": "app5", "name": "app5", "type": "CONSUMER"}
+            {"id": "A1", "name": "Publisher1", "role": "pub", "node": "N1"},
+            {"id": "A2", "name": "Publisher2", "role": "pub", "node": "N1"},
+            {"id": "A3", "name": "Processor", "role": "pubsub", "node": "N2"},
+            {"id": "A4", "name": "Subscriber1", "role": "sub", "node": "N3"},
+            {"id": "A5", "name": "Subscriber2", "role": "sub", "node": "N3"}
         ],
         "topics": [
-            {"id": "topic_central", "name": "topic_central"},
-            {"id": "topic_a", "name": "topic_a"},
-            {"id": "topic_b", "name": "topic_b"}
+            {"id": "T1", "name": "InputTopic", "broker": "B1"},
+            {"id": "T2", "name": "ProcessedTopic", "broker": "B2"},
+            {"id": "T3", "name": "SharedTopic", "broker": "B1"}
         ],
-        "brokers": [],
         "relationships": {
-            "runs_on": [
-                {"from": "app1", "to": "node1"},
-                {"from": "app2", "to": "node1"},
-                {"from": "app3", "to": "node2"},
-                {"from": "app4", "to": "node3"},
-                {"from": "app5", "to": "node3"}
-            ],
             "publishes_to": [
-                {"from": "app1", "to": "topic_a"},
-                {"from": "app2", "to": "topic_central"},
-                {"from": "app3", "to": "topic_central"},
-                {"from": "app4", "to": "topic_b"}
+                {"from": "A1", "to": "T1"},
+                {"from": "A2", "to": "T3"},
+                {"from": "A3", "to": "T2"}
             ],
             "subscribes_to": [
-                {"from": "app2", "to": "topic_a"},
-                {"from": "app3", "to": "topic_a"},
-                {"from": "app3", "to": "topic_b"},
-                {"from": "app5", "to": "topic_b"}
-            ],
-            "routes": []
+                {"from": "A3", "to": "T1"},
+                {"from": "A3", "to": "T3"},
+                {"from": "A4", "to": "T2"},
+                {"from": "A5", "to": "T2"},
+                {"from": "A5", "to": "T3"}
+            ]
         }
     }
 
 
-def generate_bridge_graph():
-    """Generate a graph with bridge edges"""
+def create_spof_system() -> Dict[str, Any]:
+    """Create a system with a clear single point of failure"""
     return {
         "nodes": [
-            {"id": "node1", "name": "node1"},
-            {"id": "node2", "name": "node2"}
+            {"id": "N1", "name": "Node1"},
+            {"id": "N2", "name": "Node2"},
+            {"id": "N3", "name": "Node3"}
+        ],
+        "brokers": [
+            {"id": "B1", "name": "CentralBroker", "node": "N2"}
         ],
         "applications": [
-            {"id": "app_cluster1_a", "name": "app_cluster1_a", "type": "PRODUCER"},
-            {"id": "app_cluster1_b", "name": "app_cluster1_b", "type": "PROSUMER"},
-            {"id": "app_cluster2_a", "name": "app_cluster2_a", "type": "PROSUMER"},
-            {"id": "app_cluster2_b", "name": "app_cluster2_b", "type": "CONSUMER"}
+            {"id": "A1", "name": "App1", "role": "pub", "node": "N1"},
+            {"id": "A2", "name": "App2", "role": "pub", "node": "N1"},
+            {"id": "A3", "name": "App3", "role": "sub", "node": "N3"},
+            {"id": "A4", "name": "App4", "role": "sub", "node": "N3"}
         ],
         "topics": [
-            {"id": "topic_cluster1", "name": "topic_cluster1"},
-            {"id": "topic_bridge", "name": "topic_bridge"},
-            {"id": "topic_cluster2", "name": "topic_cluster2"}
+            {"id": "T1", "name": "Topic1", "broker": "B1"},
+            {"id": "T2", "name": "Topic2", "broker": "B1"}
         ],
-        "brokers": [],
         "relationships": {
-            "runs_on": [
-                {"from": "app_cluster1_a", "to": "node1"},
-                {"from": "app_cluster1_b", "to": "node1"},
-                {"from": "app_cluster2_a", "to": "node2"},
-                {"from": "app_cluster2_b", "to": "node2"}
-            ],
             "publishes_to": [
-                {"from": "app_cluster1_a", "to": "topic_cluster1"},
-                {"from": "app_cluster1_b", "to": "topic_bridge"},
-                {"from": "app_cluster2_a", "to": "topic_cluster2"}
+                {"from": "A1", "to": "T1"},
+                {"from": "A2", "to": "T2"}
             ],
             "subscribes_to": [
-                {"from": "app_cluster1_b", "to": "topic_cluster1"},
-                {"from": "app_cluster2_a", "to": "topic_bridge"},
-                {"from": "app_cluster2_b", "to": "topic_cluster2"}
-            ],
-            "routes": []
+                {"from": "A3", "to": "T1"},
+                {"from": "A4", "to": "T2"}
+            ]
         }
     }
 
 
-def generate_disconnected_graph():
-    """Generate a disconnected graph"""
+def create_circular_dependency_system() -> Dict[str, Any]:
+    """Create a system with circular dependencies"""
     return {
         "nodes": [
-            {"id": "node1", "name": "node1"},
-            {"id": "node2", "name": "node2"}
+            {"id": "N1", "name": "Node1"}
+        ],
+        "brokers": [
+            {"id": "B1", "name": "Broker1", "node": "N1"}
         ],
         "applications": [
-            {"id": "app1", "name": "app1", "type": "PRODUCER"},
-            {"id": "app2", "name": "app2", "type": "CONSUMER"},
-            {"id": "app3", "name": "app3", "type": ""},
+            {"id": "A1", "name": "App1", "role": "pubsub", "node": "N1"},
+            {"id": "A2", "name": "App2", "role": "pubsub", "node": "N1"},
+            {"id": "A3", "name": "App3", "role": "pubsub", "node": "N1"}
         ],
         "topics": [
-            {"id": "topic1", "name": "topic1"},
-            {"id": "topic2", "name": "topic2"}
+            {"id": "T1", "name": "Topic1", "broker": "B1"},
+            {"id": "T2", "name": "Topic2", "broker": "B1"},
+            {"id": "T3", "name": "Topic3", "broker": "B1"}
         ],
-        "brokers": [],
         "relationships": {
-            "runs_on": [
-                {"from": "app1", "to": "node1"},
-                {"from": "app2", "to": "node1"},
-                {"from": "app3", "to": "node2"}
-            ],
             "publishes_to": [
-                {"from": "app1", "to": "topic1"}
+                {"from": "A1", "to": "T1"},  # A1 -> T1
+                {"from": "A2", "to": "T2"},  # A2 -> T2
+                {"from": "A3", "to": "T3"}   # A3 -> T3
             ],
             "subscribes_to": [
-                {"from": "app2", "to": "topic1"}
-            ],
-            "routes": []
+                {"from": "A2", "to": "T1"},  # A2 subscribes to A1's output
+                {"from": "A3", "to": "T2"},  # A3 subscribes to A2's output
+                {"from": "A1", "to": "T3"}   # A1 subscribes to A3's output -> CYCLE
+            ]
         }
     }
 
 
-def generate_star_topology_graph():
-    """Generate a star topology (one central hub)"""
-    return {
-        "nodes": [{"id": f"node{i}", "name": f"node{i}"} for i in range(1, 6)],
-        "applications": [{"id": f"app{i}", "name": f"app{i}", "type": "PROSUMER"} for i in range(1, 11)],
-        "topics": [
-            {"id": "topic_central", "name": "topic_central"}
-        ] + [{"id": f"topic{i}", "name": f"topic{i}"} for i in range(1, 6)],
-        "brokers": [{"id": "broker_central", "name": "broker_central"}],
-        "relationships": {
-            "runs_on": [
-                {"from": f"app{i}", "to": f"node{(i-1)//2+1}"} for i in range(1, 11)
-            ] + [{"from": "broker_central", "to": "node1"}],
-            "publishes_to": [
-                {"from": f"app{i}", "to": "topic_central"} for i in range(1, 6)
+# ============================================================================
+# Test Classes
+# ============================================================================
+
+class TestGraphAnalyzerBasic(unittest.TestCase):
+    """Basic tests for GraphAnalyzer initialization and loading"""
+    
+    def test_initialization(self):
+        """Test analyzer initialization with default weights"""
+        analyzer = GraphAnalyzer()
+        self.assertEqual(analyzer.alpha, 0.4)
+        self.assertEqual(analyzer.beta, 0.3)
+        self.assertEqual(analyzer.gamma, 0.3)
+    
+    def test_custom_weights(self):
+        """Test analyzer initialization with custom weights"""
+        analyzer = GraphAnalyzer(alpha=0.5, beta=0.25, gamma=0.25)
+        self.assertEqual(analyzer.alpha, 0.5)
+        self.assertEqual(analyzer.beta, 0.25)
+        self.assertEqual(analyzer.gamma, 0.25)
+    
+    def test_load_from_dict(self):
+        """Test loading data from dictionary"""
+        analyzer = GraphAnalyzer()
+        data = create_minimal_system()
+        analyzer.load_from_dict(data)
+        
+        self.assertEqual(analyzer.raw_data, data)
+        self.assertIn('A1', analyzer._app_to_node)
+        self.assertIn('B1', analyzer._broker_to_node)
+    
+    def test_load_from_file(self):
+        """Test loading data from JSON file"""
+        data = create_minimal_system()
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(data, f)
+            temp_path = f.name
+        
+        try:
+            analyzer = GraphAnalyzer()
+            analyzer.load_from_file(temp_path)
+            self.assertEqual(analyzer.raw_data, data)
+        finally:
+            Path(temp_path).unlink()
+    
+    def test_load_nonexistent_file(self):
+        """Test loading from non-existent file raises error"""
+        analyzer = GraphAnalyzer()
+        with self.assertRaises(FileNotFoundError):
+            analyzer.load_from_file('/nonexistent/file.json')
+
+
+class TestDependencyDerivation(unittest.TestCase):
+    """Tests for DEPENDS_ON relationship derivation"""
+    
+    def setUp(self):
+        """Set up analyzer with minimal system"""
+        self.analyzer = GraphAnalyzer()
+        self.analyzer.load_from_dict(create_minimal_system())
+    
+    def test_derive_app_to_app(self):
+        """Test APP_TO_APP dependency derivation"""
+        edges = self.analyzer.derive_depends_on()
+        
+        app_to_app = [e for e in edges if e.dep_type == DependencyType.APP_TO_APP]
+        
+        # A2 (subscriber) should depend on A1 (publisher)
+        self.assertEqual(len(app_to_app), 1)
+        self.assertEqual(app_to_app[0].source, 'A2')
+        self.assertEqual(app_to_app[0].target, 'A1')
+        self.assertIn('T1', app_to_app[0].via_topics)
+    
+    def test_derive_app_to_broker(self):
+        """Test APP_TO_BROKER dependency derivation"""
+        edges = self.analyzer.derive_depends_on()
+        
+        app_to_broker = [e for e in edges if e.dep_type == DependencyType.APP_TO_BROKER]
+        
+        # Both A1 and A2 should depend on B1
+        sources = {e.source for e in app_to_broker}
+        self.assertIn('A1', sources)
+        self.assertIn('A2', sources)
+        
+        for edge in app_to_broker:
+            self.assertEqual(edge.target, 'B1')
+    
+    def test_derive_node_to_node(self):
+        """Test NODE_TO_NODE dependency derivation"""
+        edges = self.analyzer.derive_depends_on()
+        
+        node_to_node = [e for e in edges if e.dep_type == DependencyType.NODE_TO_NODE]
+        
+        # N2 should depend on N1 (A2 on N2 depends on A1 on N1)
+        if node_to_node:  # May not exist if apps on same node
+            self.assertEqual(node_to_node[0].source, 'N2')
+            self.assertEqual(node_to_node[0].target, 'N1')
+    
+    def test_derive_node_to_broker(self):
+        """Test NODE_TO_BROKER dependency derivation"""
+        edges = self.analyzer.derive_depends_on()
+        
+        node_to_broker = [e for e in edges if e.dep_type == DependencyType.NODE_TO_BROKER]
+        
+        # N2 should depend on B1 (B1 is on N1)
+        if node_to_broker:
+            n2_to_b1 = [e for e in node_to_broker if e.source == 'N2' and e.target == 'B1']
+            self.assertTrue(len(n2_to_b1) > 0)
+    
+    def test_dependency_weight_increases_with_shared_topics(self):
+        """Test that weight increases with multiple shared topics"""
+        # Create system with multiple shared topics
+        data = {
+            "nodes": [{"id": "N1", "name": "Node1"}],
+            "brokers": [{"id": "B1", "name": "Broker1", "node": "N1"}],
+            "applications": [
+                {"id": "A1", "name": "Pub", "role": "pub", "node": "N1"},
+                {"id": "A2", "name": "Sub", "role": "sub", "node": "N1"}
             ],
-            "subscribes_to": [
-                {"from": f"app{i}", "to": "topic_central"} for i in range(6, 11)
+            "topics": [
+                {"id": "T1", "name": "Topic1", "broker": "B1"},
+                {"id": "T2", "name": "Topic2", "broker": "B1"},
+                {"id": "T3", "name": "Topic3", "broker": "B1"}
             ],
-            "routes": [
-                {"from": "broker_central", "to": "topic_central"}
-            ] + [{"from": "broker_central", "to": f"topic{i}"} for i in range(1, 6)]
-        }
-    }
-
-
-class Colors:
-    """ANSI color codes"""
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-
-
-def print_test_header(test_name):
-    """Print test header"""
-    print(f"\n{Colors.BLUE}{Colors.BOLD}{'='*70}{Colors.ENDC}")
-    print(f"{Colors.BLUE}{Colors.BOLD}TEST: {test_name}{Colors.ENDC}")
-    print(f"{Colors.BLUE}{Colors.BOLD}{'='*70}{Colors.ENDC}")
-
-
-def print_success(message):
-    """Print success message"""
-    print(f"{Colors.GREEN}✓ {message}{Colors.ENDC}")
-
-
-def print_error(message):
-    """Print error message"""
-    print(f"{Colors.RED}✗ {message}{Colors.ENDC}")
-
-
-def print_info(message):
-    """Print info message"""
-    print(f"{Colors.YELLOW}ℹ {message}{Colors.ENDC}")
-
-
-def run_analysis_test(test_name, graph_data, expected_features):
-    """
-    Run a single analysis test
-    
-    Args:
-        test_name: Name of the test
-        graph_data: Graph data dictionary
-        expected_features: Dictionary of expected features to verify
-    
-    Returns:
-        True if test passes, False otherwise
-    """
-    print_test_header(test_name)
-    
-    # Create temporary file
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-        json.dump(graph_data, f, indent=2)
-        temp_file = f.name
-    
-    try:
-        # Run analysis
-        print_info(f"Running analysis on {temp_file}...")
-        result = subprocess.run(
-            ['python3', '../analyze_graph.py', '--input', temp_file, '--export-json', 
-             '--output', temp_file.replace('.json', '_result')],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-        
-        if result.returncode != 0:
-            print_error(f"Analysis failed with return code {result.returncode}")
-            print(result.stderr)
-            return False
-        
-        # Load results
-        result_file = temp_file.replace('.json', '_result.json')
-        if not os.path.exists(result_file):
-            print_error("Result file not created")
-            return False
-        
-        with open(result_file, 'r') as f:
-            results = json.load(f)
-        
-        # Verify expected features
-        all_passed = True
-        
-        if 'min_nodes' in expected_features:
-            actual = results['structure']['nodes']
-            expected = expected_features['min_nodes']
-            if actual >= expected:
-                print_success(f"Node count: {actual} >= {expected}")
-            else:
-                print_error(f"Node count: {actual} < {expected}")
-                all_passed = False
-        
-        if 'has_articulation_points' in expected_features:
-            actual = results['node_analysis']['statistics']['articulation_points_count']
-            if expected_features['has_articulation_points']:
-                if actual > 0:
-                    print_success(f"Found {actual} articulation points (expected)")
-                else:
-                    print_error("No articulation points found (expected some)")
-                    all_passed = False
-            else:
-                if actual == 0:
-                    print_success("No articulation points (as expected)")
-                else:
-                    print_error(f"Found {actual} articulation points (expected 0)")
-                    all_passed = False
-        
-        if 'has_bridges' in expected_features:
-            actual = results['edge_analysis']['statistics']['bridge_count']
-            if expected_features['has_bridges']:
-                if actual > 0:
-                    print_success(f"Found {actual} bridges (expected)")
-                else:
-                    print_error("No bridges found (expected some)")
-                    all_passed = False
-            else:
-                if actual == 0:
-                    print_success("No bridges (as expected)")
-                else:
-                    print_error(f"Found {actual} bridges (expected 0)")
-                    all_passed = False
-        
-        if 'is_connected' in expected_features:
-            actual = results['structure']['is_weakly_connected']
-            expected = expected_features['is_connected']
-            if actual == expected:
-                print_success(f"Connected: {actual} (as expected)")
-            else:
-                print_error(f"Connected: {actual} (expected {expected})")
-                all_passed = False
-        
-        if 'min_recommendations' in expected_features:
-            actual = len(results['recommendations'])
-            expected = expected_features['min_recommendations']
-            if actual >= expected:
-                print_success(f"Recommendations: {actual} >= {expected}")
-            else:
-                print_error(f"Recommendations: {actual} < {expected}")
-                all_passed = False
-        
-        # Cleanup
-        os.unlink(temp_file)
-        os.unlink(result_file)
-        
-        if all_passed:
-            print_success(f"Test '{test_name}' PASSED")
-        else:
-            print_error(f"Test '{test_name}' FAILED")
-        
-        return all_passed
-        
-    except subprocess.TimeoutExpired:
-        print_error("Analysis timed out")
-        os.unlink(temp_file)
-        return False
-    except Exception as e:
-        print_error(f"Test error: {e}")
-        if os.path.exists(temp_file):
-            os.unlink(temp_file)
-        return False
-
-
-def run_all_tests(verbose=False):
-    """Run all tests"""
-    print(f"\n{Colors.BOLD}{'='*70}")
-    print("GRAPH ANALYSIS TEST SUITE")
-    print(f"{'='*70}{Colors.ENDC}\n")
-    
-    tests = [
-        {
-            'name': 'Simple Connected Graph',
-            'generator': generate_simple_test_graph,
-            'expected': {
-                'min_nodes': 6,
-                'is_connected': True,
-                'min_recommendations': 0
-            }
-        },
-        {
-            'name': 'Articulation Point Detection',
-            'generator': generate_articulation_point_graph,
-            'expected': {
-                'min_nodes': 8,
-                'has_articulation_points': True,
-                'is_connected': True,
-                'min_recommendations': 1
-            }
-        },
-        {
-            'name': 'Bridge Edge Detection',
-            'generator': generate_bridge_graph,
-            'expected': {
-                'min_nodes': 7,
-                'has_bridges': True,
-                'is_connected': True,
-                'min_recommendations': 1
-            }
-        },
-        {
-            'name': 'Disconnected Graph',
-            'generator': generate_disconnected_graph,
-            'expected': {
-                'min_nodes': 5,
-                'is_connected': False,
-                'min_recommendations': 1
-            }
-        },
-        {
-            'name': 'Star Topology',
-            'generator': generate_star_topology_graph,
-            'expected': {
-                'min_nodes': 15,
-                'has_articulation_points': True,
-                'is_connected': True,
-                'min_recommendations': 1
+            "relationships": {
+                "publishes_to": [
+                    {"from": "A1", "to": "T1"},
+                    {"from": "A1", "to": "T2"},
+                    {"from": "A1", "to": "T3"}
+                ],
+                "subscribes_to": [
+                    {"from": "A2", "to": "T1"},
+                    {"from": "A2", "to": "T2"},
+                    {"from": "A2", "to": "T3"}
+                ]
             }
         }
-    ]
-    
-    passed = 0
-    failed = 0
-    
-    for test_spec in tests:
-        graph_data = test_spec['generator']()
-        if run_analysis_test(test_spec['name'], graph_data, test_spec['expected']):
-            passed += 1
-        else:
-            failed += 1
-    
-    # Summary
-    print(f"\n{Colors.BOLD}{'='*70}")
-    print("TEST SUMMARY")
-    print(f"{'='*70}{Colors.ENDC}")
-    print(f"Total tests: {passed + failed}")
-    print(f"{Colors.GREEN}Passed: {passed}{Colors.ENDC}")
-    if failed > 0:
-        print(f"{Colors.RED}Failed: {failed}{Colors.ENDC}")
-    else:
-        print(f"Failed: {failed}")
-    
-    success_rate = (passed / (passed + failed) * 100) if (passed + failed) > 0 else 0
-    print(f"Success rate: {success_rate:.1f}%")
-    
-    return failed == 0
+        
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(data)
+        edges = analyzer.derive_depends_on()
+        
+        app_to_app = [e for e in edges if e.dep_type == DependencyType.APP_TO_APP]
+        self.assertEqual(len(app_to_app), 1)
+        self.assertEqual(len(app_to_app[0].via_topics), 3)
+        self.assertGreater(app_to_app[0].weight, 1.0)
 
+
+class TestComplexSystem(unittest.TestCase):
+    """Tests using the complex system"""
+    
+    def setUp(self):
+        """Set up analyzer with complex system"""
+        self.analyzer = GraphAnalyzer()
+        self.analyzer.load_from_dict(create_complex_system())
+    
+    def test_multiple_app_to_app_dependencies(self):
+        """Test multiple APP_TO_APP dependencies are derived correctly"""
+        edges = self.analyzer.derive_depends_on()
+        
+        app_to_app = [e for e in edges if e.dep_type == DependencyType.APP_TO_APP]
+        
+        # A3 depends on A1 (via T1) and A2 (via T3)
+        a3_deps = [e for e in app_to_app if e.source == 'A3']
+        self.assertGreaterEqual(len(a3_deps), 2)
+        
+        targets = {e.target for e in a3_deps}
+        self.assertIn('A1', targets)
+        self.assertIn('A2', targets)
+    
+    def test_chain_dependencies(self):
+        """Test chain dependencies: A4/A5 -> A3 -> A1/A2"""
+        edges = self.analyzer.derive_depends_on()
+        
+        app_to_app = [e for e in edges if e.dep_type == DependencyType.APP_TO_APP]
+        
+        # A4 and A5 depend on A3
+        a4_a5_deps = [e for e in app_to_app if e.source in ('A4', 'A5') and e.target == 'A3']
+        self.assertGreaterEqual(len(a4_a5_deps), 1)
+    
+    def test_multiple_brokers(self):
+        """Test APP_TO_BROKER with multiple brokers"""
+        edges = self.analyzer.derive_depends_on()
+        
+        app_to_broker = [e for e in edges if e.dep_type == DependencyType.APP_TO_BROKER]
+        
+        brokers_used = {e.target for e in app_to_broker}
+        self.assertIn('B1', brokers_used)
+        self.assertIn('B2', brokers_used)
+
+
+class TestGraphBuilding(unittest.TestCase):
+    """Tests for building NetworkX graph"""
+    
+    def test_build_dependency_graph(self):
+        """Test building NetworkX graph from dependencies"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_minimal_system())
+        
+        G = analyzer.build_dependency_graph()
+        
+        # Check nodes
+        self.assertIn('N1', G.nodes())
+        self.assertIn('B1', G.nodes())
+        self.assertIn('A1', G.nodes())
+        self.assertIn('T1', G.nodes())
+        
+        # Check node types
+        self.assertEqual(G.nodes['N1']['type'], 'Node')
+        self.assertEqual(G.nodes['B1']['type'], 'Broker')
+        self.assertEqual(G.nodes['A1']['type'], 'Application')
+        
+        # Check edges exist
+        self.assertGreater(G.number_of_edges(), 0)
+    
+    def test_edge_attributes(self):
+        """Test that edges have correct attributes"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_minimal_system())
+        
+        G = analyzer.build_dependency_graph()
+        
+        # Check edge attributes
+        for u, v, data in G.edges(data=True):
+            self.assertEqual(data['type'], 'DEPENDS_ON')
+            self.assertIn('dependency_type', data)
+            self.assertIn('weight', data)
+
+
+class TestCriticalityScoring(unittest.TestCase):
+    """Tests for criticality scoring"""
+    
+    def test_criticality_scores_computed(self):
+        """Test that criticality scores are computed for all nodes"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_complex_system())
+        
+        result = analyzer.analyze()
+        
+        # All nodes should have scores
+        scored_nodes = {s.node_id for s in result.criticality_scores}
+        all_nodes = set()
+        for n in analyzer.raw_data.get('nodes', []):
+            all_nodes.add(n['id'])
+        for b in analyzer.raw_data.get('brokers', []):
+            all_nodes.add(b['id'])
+        for a in analyzer.raw_data.get('applications', []):
+            all_nodes.add(a['id'])
+        for t in analyzer.raw_data.get('topics', []):
+            all_nodes.add(t['id'])
+        
+        self.assertEqual(scored_nodes, all_nodes)
+    
+    def test_scores_sorted_descending(self):
+        """Test that scores are sorted in descending order"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_complex_system())
+        
+        result = analyzer.analyze()
+        
+        scores = [s.composite_score for s in result.criticality_scores]
+        self.assertEqual(scores, sorted(scores, reverse=True))
+    
+    def test_articulation_points_marked_critical(self):
+        """Test that articulation points are marked appropriately"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_spof_system())
+        
+        result = analyzer.analyze()
+        
+        # Check articulation points
+        ap_scores = [s for s in result.criticality_scores if s.is_articulation_point]
+        
+        for score in ap_scores:
+            self.assertEqual(score.level, CriticalityLevel.CRITICAL)
+    
+    def test_weight_formula(self):
+        """Test the C_score = α·BC + β·AP + γ·I formula"""
+        alpha, beta, gamma = 0.4, 0.3, 0.3
+        analyzer = GraphAnalyzer(alpha=alpha, beta=beta, gamma=gamma)
+        analyzer.load_from_dict(create_minimal_system())
+        
+        result = analyzer.analyze()
+        
+        for score in result.criticality_scores:
+            expected = alpha * score.betweenness + beta * (1.0 if score.is_articulation_point else 0.0) + gamma * score.impact_score
+            self.assertAlmostEqual(score.composite_score, expected, places=4)
+
+
+class TestStructuralAnalysis(unittest.TestCase):
+    """Tests for structural analysis"""
+    
+    def test_articulation_points_detected(self):
+        """Test articulation points are detected"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_spof_system())
+        
+        result = analyzer.analyze()
+        
+        # B1 should be an articulation point (central broker)
+        self.assertGreater(result.structural_analysis['articulation_point_count'], 0)
+    
+    def test_circular_dependencies_detected(self):
+        """Test circular dependencies are detected"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_circular_dependency_system())
+        
+        result = analyzer.analyze()
+        
+        # Should detect the A1 -> A2 -> A3 -> A1 cycle
+        self.assertTrue(result.structural_analysis['has_cycles'])
+        self.assertGreater(len(result.structural_analysis['cycles']), 0)
+    
+    def test_no_false_cycles(self):
+        """Test that simple linear systems don't report cycles"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_minimal_system())
+        
+        result = analyzer.analyze()
+        
+        # Simple pub-sub should not have cycles
+        self.assertFalse(result.structural_analysis['has_cycles'])
+
+
+class TestAnalysisResult(unittest.TestCase):
+    """Tests for AnalysisResult"""
+    
+    def test_to_dict(self):
+        """Test conversion to dictionary"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_minimal_system())
+        
+        result = analyzer.analyze()
+        result_dict = result.to_dict()
+        
+        self.assertIn('graph_summary', result_dict)
+        self.assertIn('depends_on', result_dict)
+        self.assertIn('criticality', result_dict)
+        self.assertIn('structural', result_dict)
+        self.assertIn('recommendations', result_dict)
+    
+    def test_count_by_type(self):
+        """Test counting edges by type"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_complex_system())
+        
+        result = analyzer.analyze()
+        result_dict = result.to_dict()
+        
+        by_type = result_dict['depends_on']['by_type']
+        self.assertIn('app_to_app', by_type)
+        self.assertIn('app_to_broker', by_type)
+    
+    def test_count_by_level(self):
+        """Test counting scores by level"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict(create_complex_system())
+        
+        result = analyzer.analyze()
+        result_dict = result.to_dict()
+        
+        by_level = result_dict['criticality']['by_level']
+        total_by_level = sum(by_level.values())
+        total_scores = len(result_dict['criticality']['scores'])
+        
+        self.assertEqual(total_by_level, total_scores)
+
+
+class TestConvenienceFunctions(unittest.TestCase):
+    """Tests for convenience functions"""
+    
+    def test_analyze_pubsub_system(self):
+        """Test analyze_pubsub_system function"""
+        data = create_minimal_system()
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(data, f)
+            temp_path = f.name
+        
+        try:
+            result = analyze_pubsub_system(temp_path)
+            
+            self.assertIsInstance(result, AnalysisResult)
+            self.assertGreater(len(result.depends_on_edges), 0)
+        finally:
+            Path(temp_path).unlink()
+    
+    def test_derive_dependencies(self):
+        """Test derive_dependencies function"""
+        data = create_minimal_system()
+        
+        deps = derive_dependencies(data)
+        
+        self.assertIsInstance(deps, list)
+        self.assertGreater(len(deps), 0)
+        
+        for dep in deps:
+            self.assertIn('source', dep)
+            self.assertIn('target', dep)
+            self.assertIn('type', dep)
+
+
+class TestEdgeCases(unittest.TestCase):
+    """Tests for edge cases"""
+    
+    def test_empty_system(self):
+        """Test handling of empty system"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict({
+            "nodes": [],
+            "brokers": [],
+            "applications": [],
+            "topics": [],
+            "relationships": {"publishes_to": [], "subscribes_to": []}
+        })
+        
+        result = analyzer.analyze()
+        
+        self.assertEqual(result.graph_summary['total_nodes'], 0)
+        self.assertEqual(len(result.depends_on_edges), 0)
+    
+    def test_no_relationships(self):
+        """Test system with components but no relationships"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict({
+            "nodes": [{"id": "N1", "name": "Node1"}],
+            "brokers": [{"id": "B1", "name": "Broker1", "node": "N1"}],
+            "applications": [{"id": "A1", "name": "App1", "role": "pub", "node": "N1"}],
+            "topics": [{"id": "T1", "name": "Topic1", "broker": "B1"}],
+            "relationships": {"publishes_to": [], "subscribes_to": []}
+        })
+        
+        result = analyzer.analyze()
+        
+        # Should have nodes but no DEPENDS_ON edges
+        self.assertGreater(result.graph_summary['total_nodes'], 0)
+        self.assertEqual(len(result.depends_on_edges), 0)
+    
+    def test_self_loop_prevention(self):
+        """Test that self-loops are not created"""
+        analyzer = GraphAnalyzer()
+        analyzer.load_from_dict({
+            "nodes": [{"id": "N1", "name": "Node1"}],
+            "brokers": [{"id": "B1", "name": "Broker1", "node": "N1"}],
+            "applications": [{"id": "A1", "name": "App1", "role": "pubsub", "node": "N1"}],
+            "topics": [{"id": "T1", "name": "Topic1", "broker": "B1"}],
+            "relationships": {
+                "publishes_to": [{"from": "A1", "to": "T1"}],
+                "subscribes_to": [{"from": "A1", "to": "T1"}]
+            }
+        })
+        
+        edges = analyzer.derive_depends_on()
+        
+        # No self-loops in APP_TO_APP
+        app_to_app = [e for e in edges if e.dep_type == DependencyType.APP_TO_APP]
+        for edge in app_to_app:
+            self.assertNotEqual(edge.source, edge.target)
+
+
+# ============================================================================
+# Main Entry Point
+# ============================================================================
 
 def main():
-    """Main entry point"""
-    parser = argparse.ArgumentParser(description='Test suite for graph analysis')
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Verbose output')
-    parser.add_argument('--test', '-t', type=str,
-                       help='Run specific test only')
+    """Run tests"""
+    # Create test suite
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
     
-    args = parser.parse_args()
+    # Add test classes
+    suite.addTests(loader.loadTestsFromTestCase(TestGraphAnalyzerBasic))
+    suite.addTests(loader.loadTestsFromTestCase(TestDependencyDerivation))
+    suite.addTests(loader.loadTestsFromTestCase(TestComplexSystem))
+    suite.addTests(loader.loadTestsFromTestCase(TestGraphBuilding))
+    suite.addTests(loader.loadTestsFromTestCase(TestCriticalityScoring))
+    suite.addTests(loader.loadTestsFromTestCase(TestStructuralAnalysis))
+    suite.addTests(loader.loadTestsFromTestCase(TestAnalysisResult))
+    suite.addTests(loader.loadTestsFromTestCase(TestConvenienceFunctions))
+    suite.addTests(loader.loadTestsFromTestCase(TestEdgeCases))
     
-    # Check if analyze_graph.py exists
-    if not os.path.exists('../analyze_graph.py'):
-        print_error("analyze_graph.py not found in current directory")
-        return 1
+    # Run tests
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
     
-    try:
-        success = run_all_tests(verbose=args.verbose)
-        return 0 if success else 1
-    except KeyboardInterrupt:
-        print("\n\nTests interrupted by user")
-        return 130
+    # Return exit code
+    return 0 if result.wasSuccessful() else 1
 
 
 if __name__ == '__main__':

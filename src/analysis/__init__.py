@@ -63,6 +63,21 @@ from .path_analyzer import (
     FailurePropagationPath
 )
 
+from .graph_analyzer import (
+    GraphAnalyzer,
+    DependsOnEdge,
+    CriticalityScore,
+    AnalysisResult,
+    DependencyType,
+    CriticalityLevel,
+    analyze_pubsub_system,
+    derive_dependencies
+)
+
+from .neo4j_loader import (
+    NEO4J_AVAILABLE
+)
+
 __all__ = [
     # Criticality Scoring
     'CompositeCriticalityScorer',
@@ -104,4 +119,17 @@ __all__ = [
     'DependencyChain',
     'PathRedundancyInfo',
     'FailurePropagationPath',
+
+    # Graph Analysis
+    'GraphAnalyzer',
+    'DependsOnEdge',
+    'CriticalityScore',
+    'AnalysisResult',
+    'DependencyType',
+    'CriticalityLevel',
+    'analyze_pubsub_system',
+    'derive_dependencies',
+
+    # Neo4j Loader
+    'NEO4J_AVAILABLE'
 ]

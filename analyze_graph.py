@@ -1,979 +1,606 @@
 #!/usr/bin/env python3
 """
-Comprehensive Pub-Sub System Graph Analyzer
-============================================
+Pub-Sub System Graph Analyzer
+=============================
 
-Main entry point for analyzing distributed publish-subscribe systems using
-graph-based methods. This script integrates multiple analysis approaches:
-
-1. DEPENDENCY ANALYSIS - Multi-layer DEPENDS_ON relationship analysis
-2. GRAPH ALGORITHMS - Direct application of centrality, structural algorithms
-3. ANTI-PATTERN DETECTION - Automatic identification of architectural issues
-4. CRITICALITY ASSESSMENT - Multiple perspectives on component importance
+Main entry point for analyzing distributed publish-subscribe systems.
+Derives DEPENDS_ON relationships directly from base pub-sub relationships
+without storing them in input files.
 
 Usage:
-    # Basic analysis with dependency graph
+    # Basic analysis from JSON file
     python analyze_graph.py --input system.json
     
-    # Full analysis with all features
-    python analyze_graph.py --input system.json --full --export-all
+    # Load from Neo4j database
+    python analyze_graph.py --neo4j --neo4j-uri bolt://localhost:7687
     
-    # Specific analysis modes
-    python analyze_graph.py --input system.json --mode dependency
-    python analyze_graph.py --input system.json --mode algorithms
-    python analyze_graph.py --input system.json --mode antipatterns
+    # With custom weights
+    python analyze_graph.py --input system.json --alpha 0.5 --beta 0.25 --gamma 0.25
     
-    # Export options
-    python analyze_graph.py --input system.json --export-json --export-html --export-csv
+    # Export to different formats
+    python analyze_graph.py --input system.json --output-dir results/ --format json html
     
-    # With Neo4j integration
-    python analyze_graph.py --input system.json --neo4j --neo4j-uri bolt://localhost:7687
+    # Verbose output
+    python analyze_graph.py --input system.json --verbose
 
 Author: Software-as-a-Graph Research Project
-Version: 2.0
 """
 
 import argparse
 import json
 import logging
 import sys
-import csv
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
-from enum import Enum
-from collections import defaultdict
+from typing import Dict, Any, List
 
 # Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+script_dir = Path(__file__).parent
+sys.path.insert(0, str(script_dir))
 
-try:
-    import networkx as nx
-    NETWORKX_AVAILABLE = True
-except ImportError:
-    NETWORKX_AVAILABLE = False
-    print("Warning: NetworkX not available. Install with: pip install networkx")
-
-# Import our analysis modules
-from src.analysis.dependency_analyzer import (
-    MultiLayerDependencyAnalyzer,
-    DependencyGraphBuilder,
-    GraphAlgorithmAnalyzer,
-    AntiPatternDetector,
-    CriticalComponentIdentifier,
-    ReportGenerator,
+from src.analysis import (
+    GraphAnalyzer,
     AnalysisResult,
-    CriticalNode,
-    CriticalEdge,
-    AntiPattern,
-    AntiPatternType,
-    CriticalityReason,
-    Layer,
-    DependencyType
-)
-
-from src.analysis.graph_algorithms import (
-    CentralityAnalyzer,
-    StructuralAnalyzer,
-    CommunityDetector,
-    PathFlowAnalyzer,
-    SimilarityCouplingAnalyzer,
-    RobustnessAnalyzer,
-    LayerAwareAnalyzer,
-    ComprehensiveGraphAnalyzer,
-    get_algorithm_recommendations
+    DependencyType,
+    CriticalityLevel,
+    NEO4J_AVAILABLE,
 )
 
 
 # ============================================================================
-# Configuration and Constants
+# Colors for Terminal Output
 # ============================================================================
 
-class AnalysisMode(Enum):
-    """Available analysis modes"""
-    FULL = "full"                    # All analyses
-    DEPENDENCY = "dependency"        # Dependency graph analysis only
-    ALGORITHMS = "algorithms"        # Graph algorithms only
-    ANTIPATTERNS = "antipatterns"   # Anti-pattern detection only
-    CRITICALITY = "criticality"     # Critical component identification
-    QUICK = "quick"                 # Fast basic analysis
-
-
-@dataclass
-class AnalysisConfig:
-    """Configuration for analysis"""
-    # Input/Output
-    input_file: str
-    output_dir: str = "output"
-    output_prefix: str = "analysis"
+class Colors:
+    """ANSI color codes for terminal output"""
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
     
-    # Analysis modes
-    mode: AnalysisMode = AnalysisMode.FULL
-    
-    # Algorithm settings
-    percentile_threshold: int = 90  # For "high" value detection
-    
-    # Anti-pattern thresholds
-    god_topic_threshold: int = 10
-    hub_overload_threshold: int = 15
-    long_chain_threshold: int = 5
-    tight_coupling_min_size: int = 4
-    
-    # Export options
-    export_json: bool = True
-    export_html: bool = True
-    export_csv: bool = False
-    export_text: bool = False
-    
-    # Neo4j integration
-    use_neo4j: bool = False
-    neo4j_uri: str = "bolt://localhost:7687"
-    neo4j_user: str = "neo4j"
-    neo4j_password: str = ""
-    
-    # Logging
-    verbose: bool = False
-    quiet: bool = False
+    @classmethod
+    def disable(cls):
+        """Disable colors (for non-TTY output)"""
+        cls.HEADER = ''
+        cls.BLUE = ''
+        cls.CYAN = ''
+        cls.GREEN = ''
+        cls.WARNING = ''
+        cls.FAIL = ''
+        cls.ENDC = ''
+        cls.BOLD = ''
 
 
 # ============================================================================
-# Main Analyzer Class
+# Output Formatters
 # ============================================================================
 
-class PubSubGraphAnalyzer:
-    """
-    Comprehensive analyzer for pub-sub systems.
+def print_header(text: str):
+    """Print formatted header"""
+    print(f"\n{Colors.HEADER}{'='*70}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}  {text}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{'='*70}{Colors.ENDC}")
+
+
+def print_section(text: str):
+    """Print section header"""
+    print(f"\n{Colors.CYAN}▶ {text}{Colors.ENDC}")
+
+
+def print_metric(name: str, value: Any, indent: int = 2):
+    """Print a metric"""
+    spaces = ' ' * indent
+    print(f"{spaces}{Colors.BLUE}{name}:{Colors.ENDC} {value}")
+
+
+def print_critical(text: str):
+    """Print critical item"""
+    print(f"  {Colors.FAIL}✗ {text}{Colors.ENDC}")
+
+
+def print_warning(text: str):
+    """Print warning"""
+    print(f"  {Colors.WARNING}⚠ {text}{Colors.ENDC}")
+
+
+def print_success(text: str):
+    """Print success"""
+    print(f"  {Colors.GREEN}✓ {text}{Colors.ENDC}")
+
+
+def print_info(text: str):
+    """Print info"""
+    print(f"  {Colors.BLUE}• {text}{Colors.ENDC}")
+
+
+# ============================================================================
+# Export Functions
+# ============================================================================
+
+def export_json(result: AnalysisResult, output_path: Path):
+    """Export results to JSON"""
+    with open(output_path, 'w') as f:
+        json.dump(result.to_dict(), f, indent=2, default=str)
+    print_success(f"Exported JSON: {output_path}")
+
+
+def export_html(result: AnalysisResult, output_path: Path):
+    """Export results to HTML report"""
+    data = result.to_dict()
     
-    Integrates multiple analysis approaches:
-    - Dependency graph construction and analysis
-    - Graph algorithm application
-    - Anti-pattern detection
-    - Critical component identification
-    """
-    
-    def __init__(self, config: AnalysisConfig):
-        self.config = config
-        self.logger = self._setup_logging()
-        
-        # Analysis results
-        self.graph: Optional[nx.DiGraph] = None
-        self.raw_data: Optional[Dict] = None
-        self.dependency_result: Optional[AnalysisResult] = None
-        self.algorithm_results: Optional[Dict] = None
-        
-        # Timing
-        self.start_time: Optional[datetime] = None
-        self.end_time: Optional[datetime] = None
-    
-    def _setup_logging(self) -> logging.Logger:
-        """Setup logging configuration"""
-        logger = logging.getLogger('pub_sub_analyzer')
-        
-        if self.config.quiet:
-            level = logging.WARNING
-        elif self.config.verbose:
-            level = logging.DEBUG
-        else:
-            level = logging.INFO
-        
-        logging.basicConfig(
-            level=level,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            datefmt='%H:%M:%S'
-        )
-        
-        return logger
-    
-    def load_data(self) -> Dict[str, Any]:
-        """Load pub-sub system data from file"""
-        self.logger.info(f"Loading data from: {self.config.input_file}")
-        
-        input_path = Path(self.config.input_file)
-        if not input_path.exists():
-            raise FileNotFoundError(f"Input file not found: {self.config.input_file}")
-        
-        with open(input_path) as f:
-            self.raw_data = json.load(f)
-        
-        # Validate basic structure
-        required_keys = ['applications', 'topics']
-        for key in required_keys:
-            if key not in self.raw_data:
-                self.logger.warning(f"Missing expected key in input: {key}")
-        
-        # Log summary
-        self.logger.info(f"Loaded: {len(self.raw_data.get('nodes', []))} nodes, "
-                        f"{len(self.raw_data.get('brokers', []))} brokers, "
-                        f"{len(self.raw_data.get('topics', []))} topics, "
-                        f"{len(self.raw_data.get('applications', []))} applications")
-        
-        return self.raw_data
-    
-    def analyze(self) -> Dict[str, Any]:
-        """
-        Run comprehensive analysis based on configuration.
-        
-        Returns:
-            Dict containing all analysis results
-        """
-        self.start_time = datetime.now()
-        self.logger.info(f"Starting analysis in {self.config.mode.value} mode...")
-        
-        results = {
-            'metadata': {
-                'analysis_time': self.start_time.isoformat(),
-                'mode': self.config.mode.value,
-                'input_file': self.config.input_file,
-                'version': '2.0'
-            }
-        }
-        
-        # Load data if not already loaded
-        if self.raw_data is None:
-            self.load_data()
-        
-        # Run analyses based on mode
-        if self.config.mode == AnalysisMode.FULL:
-            results.update(self._run_full_analysis())
-        elif self.config.mode == AnalysisMode.DEPENDENCY:
-            results.update(self._run_dependency_analysis())
-        elif self.config.mode == AnalysisMode.ALGORITHMS:
-            results.update(self._run_algorithm_analysis())
-        elif self.config.mode == AnalysisMode.ANTIPATTERNS:
-            results.update(self._run_antipattern_analysis())
-        elif self.config.mode == AnalysisMode.CRITICALITY:
-            results.update(self._run_criticality_analysis())
-        elif self.config.mode == AnalysisMode.QUICK:
-            results.update(self._run_quick_analysis())
-        
-        self.end_time = datetime.now()
-        duration = (self.end_time - self.start_time).total_seconds()
-        results['metadata']['duration_seconds'] = duration
-        
-        self.logger.info(f"Analysis complete in {duration:.2f} seconds")
-        
-        return results
-    
-    def _run_full_analysis(self) -> Dict[str, Any]:
-        """Run complete analysis with all features"""
-        self.logger.info("Running FULL analysis...")
-        
-        results = {}
-        
-        # 1. Dependency Analysis (includes algorithms, anti-patterns, criticality)
-        self.logger.info("[1/4] Running dependency analysis...")
-        dep_analyzer = MultiLayerDependencyAnalyzer()
-        self.dependency_result = dep_analyzer.analyze(self.raw_data)
-        
-        results['dependency_analysis'] = self._serialize_dependency_result(self.dependency_result)
-        
-        # Store graph for further analysis
-        builder = DependencyGraphBuilder()
-        self.graph = builder.build_from_pubsub_data(self.raw_data)
-        
-        # 2. Extended Algorithm Analysis
-        self.logger.info("[2/4] Running extended algorithm analysis...")
-        results['extended_algorithms'] = self._run_extended_algorithms()
-        
-        # 3. Robustness Analysis
-        self.logger.info("[3/4] Running robustness analysis...")
-        results['robustness'] = self._run_robustness_analysis()
-        
-        # 4. Generate Summary
-        self.logger.info("[4/4] Generating summary...")
-        results['summary'] = self._generate_comprehensive_summary(results)
-        
-        return results
-    
-    def _run_dependency_analysis(self) -> Dict[str, Any]:
-        """Run dependency-focused analysis"""
-        self.logger.info("Running DEPENDENCY analysis...")
-        
-        dep_analyzer = MultiLayerDependencyAnalyzer()
-        self.dependency_result = dep_analyzer.analyze(self.raw_data)
-        
-        # Store graph
-        builder = DependencyGraphBuilder()
-        self.graph = builder.build_from_pubsub_data(self.raw_data)
-        
-        return {
-            'dependency_analysis': self._serialize_dependency_result(self.dependency_result)
-        }
-    
-    def _run_algorithm_analysis(self) -> Dict[str, Any]:
-        """Run graph algorithm-focused analysis"""
-        self.logger.info("Running ALGORITHM analysis...")
-        
-        # Build graph
-        builder = DependencyGraphBuilder()
-        self.graph = builder.build_from_pubsub_data(self.raw_data)
-        
-        # Run comprehensive algorithms
-        comprehensive = ComprehensiveGraphAnalyzer(self.graph)
-        self.algorithm_results = comprehensive.run_comprehensive_analysis()
-        
-        return {
-            'algorithm_analysis': self._serialize_algorithm_results(self.algorithm_results)
-        }
-    
-    def _run_antipattern_analysis(self) -> Dict[str, Any]:
-        """Run anti-pattern detection focused analysis"""
-        self.logger.info("Running ANTIPATTERN analysis...")
-        
-        # Build graph and run algorithms (needed for anti-pattern detection)
-        builder = DependencyGraphBuilder()
-        self.graph = builder.build_from_pubsub_data(self.raw_data)
-        
-        algo_analyzer = GraphAlgorithmAnalyzer(self.graph)
-        algo_results = algo_analyzer.run_all_algorithms()
-        
-        # Detect anti-patterns
-        detector = AntiPatternDetector(self.graph, algo_results)
-        detector.config.update({
-            'god_topic_threshold': self.config.god_topic_threshold,
-            'hub_overload_threshold': self.config.hub_overload_threshold,
-            'long_chain_threshold': self.config.long_chain_threshold,
-            'tight_coupling_min_size': self.config.tight_coupling_min_size,
-        })
-        
-        anti_patterns = detector.detect_all()
-        
-        return {
-            'anti_patterns': [self._serialize_antipattern(ap) for ap in anti_patterns],
-            'summary': {
-                'total': len(anti_patterns),
-                'by_severity': self._count_by_severity(anti_patterns),
-                'by_type': self._count_by_type(anti_patterns)
-            }
-        }
-    
-    def _run_criticality_analysis(self) -> Dict[str, Any]:
-        """Run critical component identification focused analysis"""
-        self.logger.info("Running CRITICALITY analysis...")
-        
-        # Build graph and run algorithms
-        builder = DependencyGraphBuilder()
-        self.graph = builder.build_from_pubsub_data(self.raw_data)
-        
-        algo_analyzer = GraphAlgorithmAnalyzer(self.graph)
-        algo_results = algo_analyzer.run_all_algorithms()
-        
-        # Identify critical components
-        identifier = CriticalComponentIdentifier(self.graph, algo_results)
-        critical_nodes = identifier.identify_critical_nodes()
-        critical_edges = identifier.identify_critical_edges()
-        
-        return {
-            'critical_nodes': [self._serialize_critical_node(cn) for cn in critical_nodes],
-            'critical_edges': [self._serialize_critical_edge(ce) for ce in critical_edges],
-            'summary': {
-                'total_critical_nodes': len(critical_nodes),
-                'total_critical_edges': len(critical_edges),
-                'by_layer': self._count_nodes_by_layer(critical_nodes),
-                'by_reason': self._count_nodes_by_reason(critical_nodes)
-            }
-        }
-    
-    def _run_quick_analysis(self) -> Dict[str, Any]:
-        """Run fast basic analysis"""
-        self.logger.info("Running QUICK analysis...")
-        
-        # Build graph
-        builder = DependencyGraphBuilder()
-        self.graph = builder.build_from_pubsub_data(self.raw_data)
-        
-        # Basic metrics only
-        results = {
-            'graph_metrics': {
-                'nodes': len(self.graph.nodes()),
-                'edges': len(self.graph.edges()),
-                'density': nx.density(self.graph),
-                'is_connected': nx.is_weakly_connected(self.graph),
-            },
-            'layer_counts': self._get_layer_counts(),
-            'basic_centrality': self._get_basic_centrality(),
-            'structural_quick': self._get_structural_quick()
-        }
-        
-        return results
-    
-    def _run_extended_algorithms(self) -> Dict[str, Any]:
-        """Run extended algorithm analysis beyond dependency analyzer"""
-        if self.graph is None:
-            return {}
-        
-        results = {}
-        
-        # Community analysis with more detail
-        try:
-            community_detector = CommunityDetector(self.graph)
-            louvain = community_detector.louvain_communities()
-            composition = community_detector.analyze_community_composition(louvain)
-            
-            results['communities'] = {
-                'num_communities': louvain.statistics['num_communities'],
-                'modularity': louvain.modularity,
-                'composition': composition['communities']
-            }
-        except Exception as e:
-            self.logger.warning(f"Community analysis failed: {e}")
-        
-        # Path flow analysis
-        try:
-            path_analyzer = PathFlowAnalyzer(self.graph)
-            results['message_flow'] = path_analyzer.message_flow_analysis()
-            results['bottlenecks'] = path_analyzer.find_bottlenecks()
-        except Exception as e:
-            self.logger.warning(f"Path flow analysis failed: {e}")
-        
-        # Coupling analysis
-        try:
-            coupling_analyzer = SimilarityCouplingAnalyzer(self.graph)
-            results['coupling'] = coupling_analyzer.coupling_analysis()
-        except Exception as e:
-            self.logger.warning(f"Coupling analysis failed: {e}")
-        
-        return results
-    
-    def _run_robustness_analysis(self) -> Dict[str, Any]:
-        """Run robustness/resilience analysis"""
-        if self.graph is None:
-            return {}
-        
-        try:
-            robustness = RobustnessAnalyzer(self.graph)
-            comparison = robustness.compare_robustness()
-            
-            return {
-                'vulnerability_to_targeted_attacks': comparison['vulnerability_to_targeted_attacks'],
-                'comparison': {
-                    name: {
-                        'critical_threshold': r['critical_threshold'],
-                        'auc_robustness': r['auc_robustness']
-                    }
-                    for name, r in comparison['comparison'].items()
-                }
-            }
-        except Exception as e:
-            self.logger.warning(f"Robustness analysis failed: {e}")
-            return {}
-    
-    # ========================================================================
-    # Helper Methods
-    # ========================================================================
-    
-    def _get_layer_counts(self) -> Dict[str, int]:
-        """Get node counts by layer"""
-        counts = defaultdict(int)
-        for node, data in self.graph.nodes(data=True):
-            layer = data.get('layer', 'unknown')
-            counts[layer] += 1
-        return dict(counts)
-    
-    def _get_basic_centrality(self) -> Dict[str, Any]:
-        """Get basic centrality measures"""
-        bc = nx.betweenness_centrality(self.graph)
-        pr = nx.pagerank(self.graph)
-        
-        # Top 5 by each measure
-        top_bc = sorted(bc.items(), key=lambda x: x[1], reverse=True)[:5]
-        top_pr = sorted(pr.items(), key=lambda x: x[1], reverse=True)[:5]
-        
-        return {
-            'top_betweenness': [{'node': n, 'score': round(s, 4)} for n, s in top_bc],
-            'top_pagerank': [{'node': n, 'score': round(s, 4)} for n, s in top_pr]
-        }
-    
-    def _get_structural_quick(self) -> Dict[str, Any]:
-        """Get quick structural analysis"""
-        G_undirected = self.graph.to_undirected()
-        
-        aps = list(nx.articulation_points(G_undirected))
-        bridges = list(nx.bridges(G_undirected))
-        
-        return {
-            'articulation_points': aps,
-            'articulation_point_count': len(aps),
-            'bridge_count': len(bridges),
-            'has_cycles': len(list(nx.simple_cycles(self.graph))) > 0 if len(self.graph) < 100 else 'not_computed'
-        }
-    
-    def _generate_comprehensive_summary(self, results: Dict) -> Dict[str, Any]:
-        """Generate comprehensive summary of all analyses"""
-        summary = {
-            'overall_health': 'unknown',
-            'key_findings': [],
-            'recommendations': [],
-            'metrics': {}
-        }
-        
-        # Extract key metrics
-        if 'dependency_analysis' in results:
-            dep = results['dependency_analysis']
-            summary['metrics']['critical_nodes'] = dep.get('summary', {}).get('total_critical_nodes', 0)
-            summary['metrics']['anti_patterns'] = dep.get('summary', {}).get('total_anti_patterns', 0)
-            
-            # Key findings from anti-patterns
-            for ap in dep.get('anti_patterns', [])[:5]:
-                if ap.get('severity') in ['critical', 'high']:
-                    summary['key_findings'].append({
-                        'type': ap.get('pattern_type'),
-                        'severity': ap.get('severity'),
-                        'description': ap.get('description')
-                    })
-        
-        # Robustness assessment
-        if 'robustness' in results:
-            vuln = results['robustness'].get('vulnerability_to_targeted_attacks', 0)
-            summary['metrics']['vulnerability_score'] = round(vuln, 4)
-            
-            if vuln > 0.5:
-                summary['recommendations'].append(
-                    "High vulnerability to targeted attacks. Add redundancy to critical components."
-                )
-        
-        # Health assessment
-        critical_count = summary['metrics'].get('critical_nodes', 0)
-        antipattern_count = summary['metrics'].get('anti_patterns', 0)
-        
-        if critical_count == 0 and antipattern_count == 0:
-            summary['overall_health'] = 'excellent'
-        elif critical_count <= 3 and antipattern_count <= 5:
-            summary['overall_health'] = 'good'
-        elif critical_count <= 10 and antipattern_count <= 15:
-            summary['overall_health'] = 'fair'
-        else:
-            summary['overall_health'] = 'needs_attention'
-        
-        return summary
-    
-    # ========================================================================
-    # Serialization Methods
-    # ========================================================================
-    
-    def _serialize_dependency_result(self, result: AnalysisResult) -> Dict:
-        """Serialize AnalysisResult to JSON-compatible dict"""
-        return {
-            'graph_metrics': result.graph_metrics,
-            'layer_metrics': result.layer_metrics,
-            'critical_nodes': [self._serialize_critical_node(cn) for cn in result.critical_nodes],
-            'critical_edges': [self._serialize_critical_edge(ce) for ce in result.critical_edges],
-            'anti_patterns': [self._serialize_antipattern(ap) for ap in result.anti_patterns],
-            'summary': result.summary
-        }
-    
-    def _serialize_critical_node(self, node: CriticalNode) -> Dict:
-        """Serialize CriticalNode"""
-        return {
-            'node_id': node.node_id,
-            'layer': node.layer,
-            'node_type': node.node_type,
-            'reasons': [r.value for r in node.reasons],
-            'metrics': {k: round(v, 4) if isinstance(v, float) else v 
-                       for k, v in node.metrics.items()},
-            'impact_description': node.impact_description,
-            'recommendation': node.recommendation
-        }
-    
-    def _serialize_critical_edge(self, edge: CriticalEdge) -> Dict:
-        """Serialize CriticalEdge"""
-        return {
-            'source': edge.source,
-            'target': edge.target,
-            'dependency_type': edge.dependency_type,
-            'reasons': [r.value for r in edge.reasons],
-            'metrics': {k: round(v, 4) if isinstance(v, float) else v 
-                       for k, v in edge.metrics.items()},
-            'impact_description': edge.impact_description,
-            'recommendation': edge.recommendation
-        }
-    
-    def _serialize_antipattern(self, pattern: AntiPattern) -> Dict:
-        """Serialize AntiPattern"""
-        return {
-            'pattern_type': pattern.pattern_type.value,
-            'severity': pattern.severity,
-            'affected_components': pattern.affected_components,
-            'description': pattern.description,
-            'impact': pattern.impact,
-            'recommendation': pattern.recommendation,
-            'metrics': pattern.metrics
-        }
-    
-    def _serialize_algorithm_results(self, results: Dict) -> Dict:
-        """Serialize algorithm results"""
-        serialized = {}
-        
-        for key, value in results.items():
-            if hasattr(value, '__dict__'):
-                serialized[key] = self._serialize_object(value)
-            elif isinstance(value, dict):
-                serialized[key] = {str(k): self._serialize_object(v) 
-                                  for k, v in value.items()}
-            else:
-                serialized[key] = value
-        
-        return serialized
-    
-    def _serialize_object(self, obj) -> Any:
-        """Generic object serialization"""
-        if isinstance(obj, Enum):
-            return obj.value
-        elif hasattr(obj, '__dict__'):
-            return {k: self._serialize_object(v) for k, v in obj.__dict__.items()}
-        elif isinstance(obj, dict):
-            return {str(k): self._serialize_object(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple)):
-            return [self._serialize_object(i) for i in obj]
-        elif isinstance(obj, set):
-            return list(obj)
-        elif isinstance(obj, float):
-            if obj == float('inf'):
-                return "inf"
-            return round(obj, 6)
-        return obj
-    
-    def _count_by_severity(self, patterns: List[AntiPattern]) -> Dict[str, int]:
-        """Count anti-patterns by severity"""
-        counts = defaultdict(int)
-        for p in patterns:
-            counts[p.severity] += 1
-        return dict(counts)
-    
-    def _count_by_type(self, patterns: List[AntiPattern]) -> Dict[str, int]:
-        """Count anti-patterns by type"""
-        counts = defaultdict(int)
-        for p in patterns:
-            counts[p.pattern_type.value] += 1
-        return dict(counts)
-    
-    def _count_nodes_by_layer(self, nodes: List[CriticalNode]) -> Dict[str, int]:
-        """Count critical nodes by layer"""
-        counts = defaultdict(int)
-        for n in nodes:
-            counts[n.layer] += 1
-        return dict(counts)
-    
-    def _count_nodes_by_reason(self, nodes: List[CriticalNode]) -> Dict[str, int]:
-        """Count critical nodes by reason"""
-        counts = defaultdict(int)
-        for n in nodes:
-            for r in n.reasons:
-                counts[r.value] += 1
-        return dict(counts)
-    
-    # ========================================================================
-    # Export Methods
-    # ========================================================================
-    
-    def export_results(self, results: Dict[str, Any]):
-        """Export results in configured formats"""
-        output_dir = Path(self.config.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        prefix = self.config.output_prefix
-        
-        if self.config.export_json:
-            self._export_json(results, output_dir / f"{prefix}_results.json")
-        
-        if self.config.export_html:
-            self._export_html(results, output_dir / f"{prefix}_report.html")
-        
-        if self.config.export_csv:
-            self._export_csv(results, output_dir / f"{prefix}")
-        
-        if self.config.export_text:
-            self._export_text(results, output_dir / f"{prefix}_report.txt")
-        
-        self.logger.info(f"Results exported to: {output_dir}")
-    
-    def _export_json(self, results: Dict, filepath: Path):
-        """Export to JSON"""
-        with open(filepath, 'w') as f:
-            json.dump(results, f, indent=2, default=str)
-        self.logger.info(f"  ✓ JSON: {filepath}")
-    
-    def _export_html(self, results: Dict, filepath: Path):
-        """Export to HTML report"""
-        # Use ReportGenerator if we have dependency results
-        if self.dependency_result:
-            html = ReportGenerator.generate_html_report(self.dependency_result)
-        else:
-            html = self._generate_basic_html(results)
-        
-        with open(filepath, 'w') as f:
-            f.write(html)
-        self.logger.info(f"  ✓ HTML: {filepath}")
-    
-    def _export_csv(self, results: Dict, filepath_prefix: Path):
-        """Export to CSV files"""
-        # Export critical nodes
-        if 'dependency_analysis' in results:
-            dep = results['dependency_analysis']
-            
-            # Critical nodes CSV
-            if 'critical_nodes' in dep:
-                csv_path = Path(f"{filepath_prefix}_critical_nodes.csv")
-                with open(csv_path, 'w', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow(['node_id', 'layer', 'type', 'reasons', 'impact', 'recommendation'])
-                    for node in dep['critical_nodes']:
-                        writer.writerow([
-                            node['node_id'],
-                            node['layer'],
-                            node['node_type'],
-                            ';'.join(node['reasons']),
-                            node['impact_description'],
-                            node['recommendation']
-                        ])
-                self.logger.info(f"  ✓ CSV: {csv_path}")
-            
-            # Anti-patterns CSV
-            if 'anti_patterns' in dep:
-                csv_path = Path(f"{filepath_prefix}_anti_patterns.csv")
-                with open(csv_path, 'w', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow(['type', 'severity', 'components', 'description', 'recommendation'])
-                    for ap in dep['anti_patterns']:
-                        writer.writerow([
-                            ap['pattern_type'],
-                            ap['severity'],
-                            ';'.join(ap['affected_components'][:5]),
-                            ap['description'],
-                            ap['recommendation']
-                        ])
-                self.logger.info(f"  ✓ CSV: {csv_path}")
-    
-    def _export_text(self, results: Dict, filepath: Path):
-        """Export to text report"""
-        if self.dependency_result:
-            text = ReportGenerator.generate_text_report(self.dependency_result)
-        else:
-            text = self._generate_basic_text(results)
-        
-        with open(filepath, 'w') as f:
-            f.write(text)
-        self.logger.info(f"  ✓ Text: {filepath}")
-    
-    def _generate_basic_html(self, results: Dict) -> str:
-        """Generate basic HTML when full dependency result not available"""
-        return f"""<!DOCTYPE html>
-<html>
+    html = f"""<!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Graph Analysis Report</title>
     <style>
-        body {{ font-family: sans-serif; padding: 20px; background: #1a1a2e; color: #eee; }}
-        .container {{ max-width: 1000px; margin: 0 auto; }}
-        pre {{ background: #2d2d44; padding: 15px; border-radius: 5px; overflow-x: auto; }}
+        :root {{
+            --primary: #2563eb;
+            --critical: #dc2626;
+            --high: #ea580c;
+            --medium: #ca8a04;
+            --low: #16a34a;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+        }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: #1e293b;
+        }}
+        .container {{ max-width: 1200px; margin: 0 auto; }}
+        h1 {{ color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 10px; }}
+        h2 {{ color: #475569; margin-top: 30px; }}
+        .card {{
+            background: var(--card);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+        .metrics {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }}
+        .metric {{
+            background: var(--bg);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }}
+        .metric-value {{ font-size: 2em; font-weight: bold; color: var(--primary); }}
+        .metric-label {{ color: #64748b; font-size: 0.9em; }}
+        .badge {{
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }}
+        .badge-critical {{ background: #fef2f2; color: var(--critical); }}
+        .badge-high {{ background: #fff7ed; color: var(--high); }}
+        .badge-medium {{ background: #fefce8; color: var(--medium); }}
+        .badge-low {{ background: #f0fdf4; color: var(--low); }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }}
+        th, td {{
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }}
+        th {{ background: var(--bg); font-weight: 600; }}
+        tr:hover {{ background: var(--bg); }}
+        .recommendation {{
+            background: #f0f9ff;
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            margin: 10px 0;
+        }}
+        .timestamp {{ color: #94a3b8; font-size: 0.9em; }}
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>Graph Analysis Report</h1>
-    <p>Generated: {datetime.now().isoformat()}</p>
-    <h2>Results</h2>
-    <pre>{json.dumps(results, indent=2, default=str)}</pre>
-</div>
+    <div class="container">
+        <h1>📊 Graph Analysis Report</h1>
+        <p class="timestamp">Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        
+        <h2>Graph Summary</h2>
+        <div class="card">
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">{data['graph_summary']['total_nodes']}</div>
+                    <div class="metric-label">Total Nodes</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{data['graph_summary']['total_edges']}</div>
+                    <div class="metric-label">DEPENDS_ON Edges</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{data['graph_summary']['density']}</div>
+                    <div class="metric-label">Density</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{'Connected' if data['graph_summary']['is_connected'] else 'Disconnected'}</div>
+                    <div class="metric-label">Connectivity</div>
+                </div>
+            </div>
+        </div>
+        
+        <h2>DEPENDS_ON Relationships</h2>
+        <div class="card">
+            <div class="metrics">
+                {''.join(f'<div class="metric"><div class="metric-value">{count}</div><div class="metric-label">{dtype}</div></div>' 
+                         for dtype, count in data['depends_on']['by_type'].items())}
+            </div>
+        </div>
+        
+        <h2>Criticality Analysis</h2>
+        <div class="card">
+            <div class="metrics">
+                {''.join(f'<div class="metric"><div class="metric-value">{count}</div><div class="metric-label">{level.upper()}</div></div>' 
+                         for level, count in data['criticality']['by_level'].items())}
+            </div>
+            
+            <h3>Top Critical Components</h3>
+            <table>
+                <tr>
+                    <th>Component</th>
+                    <th>Type</th>
+                    <th>Score</th>
+                    <th>Level</th>
+                    <th>Reasons</th>
+                </tr>
+                {''.join(f'''<tr>
+                    <td>{score['node_id']}</td>
+                    <td>{score['type']}</td>
+                    <td>{score['composite_score']:.4f}</td>
+                    <td><span class="badge badge-{score['level']}">{score['level'].upper()}</span></td>
+                    <td>
+                        Betweenness: {score['betweenness']:.4f}<br>
+                        Articulation Point: {'Yes' if score['is_articulation_point'] else 'No'}<br>
+                        Impact Score: {score['impact_score']:.4f}
+                    </td>
+                </tr>''' for score in data['criticality']['scores'][:10])}
+        </div>
+        
+        <h2>Structural Analysis</h2>
+        <div class="card">
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">{data['structural']['articulation_point_count']}</div>
+                    <div class="metric-label">Articulation Points</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{data['structural']['bridge_count']}</div>
+                    <div class="metric-label">Bridges</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{data['structural']['weakly_connected_components']}</div>
+                    <div class="metric-label">Components</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">{'Yes' if data['structural']['has_cycles'] else 'No'}</div>
+                    <div class="metric-label">Circular Dependencies</div>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Recommendations</h2>
+        <div class="card">
+            {''.join(f'<div class="recommendation">{rec}</div>' for rec in data['recommendations'])}
+        </div>
+    </div>
 </body>
 </html>"""
     
-    def _generate_basic_text(self, results: Dict) -> str:
-        """Generate basic text report"""
-        lines = [
-            "=" * 60,
-            "  GRAPH ANALYSIS REPORT",
-            "=" * 60,
-            f"\nGenerated: {datetime.now().isoformat()}",
-            "\nResults:",
-            json.dumps(results, indent=2, default=str)
-        ]
-        return "\n".join(lines)
+    with open(output_path, 'w') as f:
+        f.write(html)
+    print_success(f"Exported HTML: {output_path}")
+
+
+def export_csv(result: AnalysisResult, output_dir: Path):
+    """Export criticality scores to CSV"""
+    data = result.to_dict()
+    
+    # Criticality scores CSV
+    csv_path = output_dir / 'criticality_scores.csv'
+    with open(csv_path, 'w') as f:
+        f.write('node_id,type,betweenness,is_articulation_point,impact_score,composite_score,level\n')
+        for s in data['criticality']['scores']:
+            f.write(f"{s['node_id']},{s['type']},{s['betweenness']},{s['is_articulation_point']},"
+                    f"{s['impact_score']},{s['composite_score']},{s['level']}\n")
+    print_success(f"Exported CSV: {csv_path}")
+    
+    # Dependencies CSV
+    deps_path = output_dir / 'depends_on_edges.csv'
+    with open(deps_path, 'w') as f:
+        f.write('source,target,type,weight,via_topics,via_apps\n')
+        for e in data['depends_on']['edges']:
+            topics = ';'.join(e['via_topics']) if e['via_topics'] else ''
+            apps = ';'.join(e['via_apps']) if e['via_apps'] else ''
+            f.write(f"{e['source']},{e['target']},{e['type']},{e['weight']},{topics},{apps}\n")
+    print_success(f"Exported CSV: {deps_path}")
 
 
 # ============================================================================
-# CLI Interface
+# Main Analysis Function
 # ============================================================================
 
-def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments"""
-    parser = argparse.ArgumentParser(
-        description="Comprehensive Pub-Sub System Graph Analyzer",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Basic analysis
-  python analyze_graph.py --input system.json
-  
-  # Full analysis with all exports
-  python analyze_graph.py --input system.json --mode full --export-all
-  
-  # Quick analysis
-  python analyze_graph.py --input system.json --mode quick
-  
-  # Anti-pattern detection only
-  python analyze_graph.py --input system.json --mode antipatterns
-  
-  # Custom thresholds
-  python analyze_graph.py --input system.json --god-topic-threshold 5
-        """
+def run_analysis(args) -> int:
+    """Run the analysis pipeline"""
+    
+    # Setup logging
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    if args.quiet:
+        log_level = logging.WARNING
+    
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%H:%M:%S'
     )
+    logger = logging.getLogger('analyze_graph')
     
-    # Input/Output
-    parser.add_argument('--input', '-i', required=True,
-                       help='Input JSON file with pub-sub system definition')
-    parser.add_argument('--output-dir', '-o', default='output',
-                       help='Output directory (default: output)')
-    parser.add_argument('--output-prefix', default='analysis',
-                       help='Prefix for output files (default: analysis)')
+    # Check if output is TTY for colors
+    if not sys.stdout.isatty() or args.no_color:
+        Colors.disable()
     
-    # Analysis Mode
-    parser.add_argument('--mode', '-m', 
-                       choices=['full', 'dependency', 'algorithms', 'antipatterns', 'criticality', 'quick'],
-                       default='full',
-                       help='Analysis mode (default: full)')
+    # Determine data source
+    using_neo4j = args.neo4j
     
-    # Export Options
-    parser.add_argument('--export-json', action='store_true', default=True,
-                       help='Export results as JSON (default: True)')
-    parser.add_argument('--export-html', action='store_true', default=True,
-                       help='Export results as HTML report (default: True)')
-    parser.add_argument('--export-csv', action='store_true',
-                       help='Export results as CSV files')
-    parser.add_argument('--export-text', action='store_true',
-                       help='Export results as text report')
-    parser.add_argument('--export-all', action='store_true',
-                       help='Export in all formats')
-    parser.add_argument('--no-export', action='store_true',
-                       help='Do not export results (print to stdout)')
-    
-    # Anti-pattern Thresholds
-    parser.add_argument('--god-topic-threshold', type=int, default=10,
-                       help='Connections threshold for god topic detection (default: 10)')
-    parser.add_argument('--hub-overload-threshold', type=int, default=15,
-                       help='Out-degree threshold for hub overload (default: 15)')
-    parser.add_argument('--long-chain-threshold', type=int, default=5,
-                       help='Depth threshold for long dependency chains (default: 5)')
-    parser.add_argument('--tight-coupling-size', type=int, default=4,
-                       help='Minimum clique size for tight coupling (default: 4)')
-    
-    # Algorithm Settings
-    parser.add_argument('--percentile-threshold', type=int, default=90,
-                       help='Percentile for "high" value detection (default: 90)')
-    
-    # Neo4j Integration
-    parser.add_argument('--neo4j', action='store_true',
-                       help='Enable Neo4j integration')
-    parser.add_argument('--neo4j-uri', default='bolt://localhost:7687',
-                       help='Neo4j connection URI')
-    parser.add_argument('--neo4j-user', default='neo4j',
-                       help='Neo4j username')
-    parser.add_argument('--neo4j-password', default='',
-                       help='Neo4j password')
-    
-    # Logging
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Verbose output')
-    parser.add_argument('--quiet', '-q', action='store_true',
-                       help='Quiet mode (warnings only)')
-    
-    return parser.parse_args()
-
-
-def main():
-    """Main entry point"""
-    args = parse_arguments()
-    
-    # Build configuration
-    config = AnalysisConfig(
-        input_file=args.input,
-        output_dir=args.output_dir,
-        output_prefix=args.output_prefix,
-        mode=AnalysisMode(args.mode),
-        percentile_threshold=args.percentile_threshold,
-        god_topic_threshold=args.god_topic_threshold,
-        hub_overload_threshold=args.hub_overload_threshold,
-        long_chain_threshold=args.long_chain_threshold,
-        tight_coupling_min_size=args.tight_coupling_size,
-        export_json=args.export_json and not args.no_export,
-        export_html=args.export_html and not args.no_export,
-        export_csv=args.export_csv or args.export_all,
-        export_text=args.export_text or args.export_all,
-        use_neo4j=args.neo4j,
-        neo4j_uri=args.neo4j_uri,
-        neo4j_user=args.neo4j_user,
-        neo4j_password=args.neo4j_password,
-        verbose=args.verbose,
-        quiet=args.quiet
-    )
-    
-    if args.export_all:
-        config.export_json = True
-        config.export_html = True
-        config.export_csv = True
-        config.export_text = True
-    
-    # Print banner
-    if not config.quiet:
-        print("""
-╔══════════════════════════════════════════════════════════════════╗
-║     PUB-SUB SYSTEM GRAPH ANALYZER v2.0                          ║
-║     Graph-Based Analysis of Distributed Systems                  ║
-╚══════════════════════════════════════════════════════════════════╝
-        """)
+    # Print header
+    if not args.quiet:
+        print_header("PUB-SUB SYSTEM GRAPH ANALYZER")
+        if using_neo4j:
+            print(f"\n  Source: Neo4j at {args.neo4j_uri}")
+        else:
+            print(f"\n  Input: {args.input}")
+        print(f"  Weights: α={args.alpha}, β={args.beta}, γ={args.gamma}")
     
     try:
-        # Create analyzer and run
-        analyzer = PubSubGraphAnalyzer(config)
-        results = analyzer.analyze()
+        # Create analyzer
+        analyzer = GraphAnalyzer(
+            alpha=args.alpha,
+            beta=args.beta,
+            gamma=args.gamma
+        )
         
-        # Export results
-        if not args.no_export:
-            analyzer.export_results(results)
+        # Load data
+        if not args.quiet:
+            print_section("Loading Data")
+        
+        if using_neo4j:
+            if not NEO4J_AVAILABLE:
+                logger.error("Neo4j driver not installed. Install with: pip install neo4j")
+                return 1
+            
+            analyzer.load_from_neo4j(
+                uri=args.neo4j_uri,
+                user=args.neo4j_user,
+                password=args.neo4j_password,
+                database=args.neo4j_database
+            )
+            if not args.quiet:
+                print_success(f"Loaded from Neo4j: {args.neo4j_uri}")
         else:
-            # Print to stdout
-            print(json.dumps(results, indent=2, default=str))
+            if not args.input:
+                logger.error("Either --input or --neo4j must be specified")
+                return 1
+            analyzer.load_from_file(args.input)
+            if not args.quiet:
+                print_success(f"Loaded from file: {args.input}")
+        
+        # Run analysis
+        if not args.quiet:
+            print_section("Running Analysis")
+        
+        start_time = datetime.now()
+        result = analyzer.analyze()
+        duration = (datetime.now() - start_time).total_seconds()
+        
+        if not args.quiet:
+            print_success(f"Analysis completed in {duration:.2f}s")
         
         # Print summary
-        if not config.quiet:
-            print("\n" + "=" * 60)
-            print("  ANALYSIS SUMMARY")
-            print("=" * 60)
+        if not args.quiet:
+            print_summary(result)
+        
+        # Export results
+        if args.output_dir:
+            output_dir = Path(args.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
             
-            if 'summary' in results:
-                summary = results['summary']
-                print(f"\n  Overall Health: {summary.get('overall_health', 'unknown').upper()}")
-                
-                metrics = summary.get('metrics', {})
-                print(f"  Critical Nodes: {metrics.get('critical_nodes', 'N/A')}")
-                print(f"  Anti-Patterns: {metrics.get('anti_patterns', 'N/A')}")
-                
-                if 'key_findings' in summary and summary['key_findings']:
-                    print("\n  Key Findings:")
-                    for finding in summary['key_findings'][:3]:
-                        print(f"    • [{finding.get('severity', '').upper()}] {finding.get('type')}")
-                
-                if 'recommendations' in summary and summary['recommendations']:
-                    print("\n  Recommendations:")
-                    for rec in summary['recommendations'][:3]:
-                        print(f"    • {rec}")
+            if not args.quiet:
+                print_section("Exporting Results")
             
-            print("\n" + "=" * 60)
+            for fmt in args.format:
+                if fmt == 'json':
+                    export_json(result, output_dir / 'analysis_results.json')
+                elif fmt == 'html':
+                    export_html(result, output_dir / 'analysis_report.html')
+                elif fmt == 'csv':
+                    export_csv(result, output_dir)
+        else:
+            # Print JSON to stdout if no output dir
+            if args.json_output:
+                print(json.dumps(result.to_dict(), indent=2, default=str))
         
         return 0
         
     except FileNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"File not found: {e}")
         return 1
     except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON in input file: {e}", file=sys.stderr)
+        logger.error(f"Invalid JSON in input file: {e}")
         return 1
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"Analysis failed: {e}")
         if args.verbose:
             import traceback
             traceback.print_exc()
         return 1
+
+
+def print_summary(result: AnalysisResult):
+    """Print analysis summary to terminal"""
+    data = result.to_dict()
+    
+    # Graph Summary
+    print_section("Graph Summary")
+    summary = data['graph_summary']
+    print_metric("Total Nodes", summary['total_nodes'])
+    print_metric("Total DEPENDS_ON Edges", summary['total_edges'])
+    print_metric("Density", f"{summary['density']:.4f}")
+    print_metric("Connected", "Yes" if summary['is_connected'] else "No")
+    
+    print("\n  Nodes by Type:")
+    for ntype, count in summary['nodes_by_type'].items():
+        print_info(f"{ntype}: {count}")
+    
+    # DEPENDS_ON Summary
+    print_section("DEPENDS_ON Relationships")
+    deps = data['depends_on']
+    print_metric("Total Dependencies", deps['total'])
+    for dtype, count in deps['by_type'].items():
+        print_info(f"{dtype}: {count}")
+    
+    # Criticality Summary
+    print_section("Criticality Analysis")
+    crit = data['criticality']
+    for level, count in crit['by_level'].items():
+        if level == 'critical':
+            print_critical(f"{level.upper()}: {count}")
+        elif level == 'high':
+            print_warning(f"{level.upper()}: {count}")
+        else:
+            print_info(f"{level.upper()}: {count}")
+    
+    # Top critical components
+    print("\n  Top 5 Critical Components:")
+    for i, score in enumerate(crit['scores'][:5], 1):
+        level_color = Colors.FAIL if score['level'] == 'critical' else Colors.WARNING
+        print(f"    {i}. {level_color}{score['node_id']}{Colors.ENDC} "
+              f"({score['type']}) - Score: {score['composite_score']:.4f}")
+    
+    # Structural
+    print_section("Structural Analysis")
+    struct = data['structural']
+    
+    if struct['articulation_point_count'] > 0:
+        print_critical(f"Articulation Points (SPOFs): {struct['articulation_point_count']}")
+    else:
+        print_success("No articulation points found")
+    
+    if struct['bridge_count'] > 0:
+        print_warning(f"Bridge Edges: {struct['bridge_count']}")
+    else:
+        print_success("No bridge edges found")
+    
+    if struct['has_cycles']:
+        print_warning(f"Circular dependencies detected: {len(struct['cycles'])} cycles")
+    else:
+        print_success("No circular dependencies")
+    
+    # Recommendations
+    if data['recommendations']:
+        print_section("Recommendations")
+        for rec in data['recommendations']:
+            print_warning(rec)
+
+
+# ============================================================================
+# Main Entry Point
+# ============================================================================
+
+def main():
+    """Main entry point"""
+    parser = argparse.ArgumentParser(
+        description='Analyze pub-sub system graphs using DEPENDS_ON relationships',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    # Basic analysis from JSON file
+    python analyze_graph.py --input system.json
+    
+    # Load from Neo4j database
+    python analyze_graph.py --neo4j --neo4j-uri bolt://localhost:7687
+    
+    # Export to multiple formats
+    python analyze_graph.py --input system.json --output-dir results/ --format json html csv
+    
+    # Custom criticality weights
+    python analyze_graph.py --input system.json --alpha 0.5 --beta 0.25 --gamma 0.25
+    
+    # JSON output to stdout
+    python analyze_graph.py --input system.json --json-output --quiet
+        """
+    )
+    
+    # Input source (file or Neo4j)
+    input_group = parser.add_argument_group('Input Source')
+    input_group.add_argument('--input', '-i',
+                             help='Path to input JSON file')
+    
+    # Neo4j options
+    neo4j_group = parser.add_argument_group('Neo4j Connection')
+    neo4j_group.add_argument('--neo4j', action='store_true',
+                             help='Load data from Neo4j database')
+    neo4j_group.add_argument('--neo4j-uri', default='bolt://localhost:7687',
+                             help='Neo4j URI (default: bolt://localhost:7687)')
+    neo4j_group.add_argument('--neo4j-user', default='neo4j',
+                             help='Neo4j username (default: neo4j)')
+    neo4j_group.add_argument('--neo4j-password', default='password',
+                             help='Neo4j password (default: password)')
+    neo4j_group.add_argument('--neo4j-database', default='neo4j',
+                             help='Neo4j database name (default: neo4j)')
+    
+    # Output options
+    output_group = parser.add_argument_group('Output')
+    output_group.add_argument('--output-dir', '-o',
+                              help='Output directory for exports')
+    output_group.add_argument('--format', '-f', nargs='+', 
+                              choices=['json', 'html', 'csv'],
+                              default=['json', 'html'],
+                              help='Export formats (default: json html)')
+    
+    # Criticality weights
+    weights_group = parser.add_argument_group('Criticality Weights')
+    weights_group.add_argument('--alpha', type=float, default=0.4,
+                               help='Weight for betweenness centrality (default: 0.4)')
+    weights_group.add_argument('--beta', type=float, default=0.3,
+                               help='Weight for articulation point indicator (default: 0.3)')
+    weights_group.add_argument('--gamma', type=float, default=0.3,
+                               help='Weight for impact score (default: 0.3)')
+    
+    # Output options
+    parser.add_argument('--json-output', action='store_true',
+                        help='Print JSON results to stdout')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                        help='Verbose output')
+    parser.add_argument('--quiet', '-q', action='store_true',
+                        help='Minimal output')
+    parser.add_argument('--no-color', action='store_true',
+                        help='Disable colored output')
+    
+    args = parser.parse_args()
+    
+    # Validate input source
+    if not args.input and not args.neo4j:
+        parser.error("Either --input or --neo4j must be specified")
+    
+    # Validate weights
+    if abs(args.alpha + args.beta + args.gamma - 1.0) > 0.001:
+        parser.error("Weights (alpha + beta + gamma) must sum to 1.0")
+    
+    return run_analysis(args)
 
 
 if __name__ == '__main__':

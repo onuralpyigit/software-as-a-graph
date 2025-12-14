@@ -1,1050 +1,5833 @@
 {
-  "metadata": {
-    "analysis_time": "2025-12-12T21:44:05.764058",
-    "mode": "full",
-    "input_file": "input/system.json",
-    "version": "2.0",
-    "duration_seconds": 0.149607
+  "graph_summary": {
+    "total_nodes": 99,
+    "total_edges": 429,
+    "nodes_by_type": {
+      "Node": 15,
+      "Broker": 4,
+      "Application": 50,
+      "Topic": 30
+    },
+    "edges_by_type": {
+      "app_to_app": 429
+    },
+    "density": 0.0442,
+    "is_connected": false
   },
-  "dependency_analysis": {
-    "graph_metrics": {
-      "nodes": 14,
-      "edges": 0,
-      "density": 0,
-      "is_connected": false,
-      "num_components": 14,
-      "avg_clustering": 0.0
+  "depends_on": {
+    "total": 429,
+    "by_type": {
+      "app_to_app": 429
     },
-    "layer_metrics": {
-      "application": {
-        "node_count": 6,
-        "internal_edges": 0,
-        "incoming_cross_layer": 0,
-        "outgoing_cross_layer": 0,
-        "density": 0
+    "edges": [
+      {
+        "source": "A4",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
       },
-      "topic": {
-        "node_count": 4,
-        "internal_edges": 0,
-        "incoming_cross_layer": 0,
-        "outgoing_cross_layer": 0,
-        "density": 0
+      {
+        "source": "A4",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
       },
-      "broker": {
-        "node_count": 1,
-        "internal_edges": 0,
-        "incoming_cross_layer": 0,
-        "outgoing_cross_layer": 0,
-        "density": 0
+      {
+        "source": "A4",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
       },
-      "infrastructure": {
-        "node_count": 3,
-        "internal_edges": 0,
-        "incoming_cross_layer": 0,
-        "outgoing_cross_layer": 0,
-        "density": 0
+      {
+        "source": "A4",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T12",
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T12",
+          "T14",
+          "T17"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T12",
+          "T23",
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T21"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T21"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T21"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T21"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T21"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T17"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T3",
+          "T23",
+          "T13"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T13"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T25",
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A40",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A40",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A40",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T25",
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T25",
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T25",
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T25",
+          "T30",
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T25",
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A33",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A33",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T2",
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A33",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T27",
+          "T9",
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T27",
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T1",
+          "T28"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T1"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T1"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A42",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T1"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T1"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T1"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T1"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T1"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A39",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A39",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T20",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T20",
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A46",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A46",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T20",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T5"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T5"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T5"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T5"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T5"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T5"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A9",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A9",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A9",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A9",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A9",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T7",
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A40",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A40",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A40",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T23",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T23",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T23",
+          "T10",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T23",
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T23",
+          "T10",
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T23",
+          "T13"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T23",
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T23",
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T23",
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T23",
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T23",
+          "T9",
+          "T11"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T23",
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T11"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T11"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A42",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T6",
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T28"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T28"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T28"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T28",
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A13",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A13",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T30",
+          "T10",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A13",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A13",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T10",
+          "T4",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T10",
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T10",
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A46",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A46",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T4",
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T14",
+          "T17"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T17"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T17"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T17"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T11"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T8",
+          "T29"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T8",
+          "T29"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T8",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T13"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T13"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T13"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T16",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T16",
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T16",
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T16",
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A46",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A46",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T29"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T29"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T15"
+        ],
+        "via_apps": []
       }
-    },
-    "critical_nodes": [
+    ]
+  },
+  "criticality": {
+    "scores": [
       {
-        "node_id": "topic_2",
-        "layer": "topic",
-        "node_type": "topic",
+        "node_id": "A21",
+        "type": "Application",
+        "betweenness": 1.0,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.4888,
+        "level": "medium",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_authority_score",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "authority_score": 0.404,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Key data sink; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "High betweenness centrality (1.00) - routing bottleneck"
+        ]
       },
       {
-        "node_id": "topic_3",
-        "layer": "topic",
-        "node_type": "topic",
+        "node_id": "A43",
+        "type": "Application",
+        "betweenness": 0.9815,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.4814,
+        "level": "medium",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_authority_score",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "authority_score": 0.529,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Key data sink; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "High betweenness centrality (0.98) - routing bottleneck"
+        ]
       },
       {
-        "node_id": "edge_0",
-        "layer": "infrastructure",
-        "node_type": "node",
+        "node_id": "A28",
+        "type": "Application",
+        "betweenness": 0.7824,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.4017,
+        "level": "medium",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "High betweenness centrality (0.78) - routing bottleneck"
+        ]
       },
       {
-        "node_id": "compute_1",
-        "layer": "infrastructure",
-        "node_type": "node",
+        "node_id": "A36",
+        "type": "Application",
+        "betweenness": 0.7028,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.3699,
+        "level": "medium",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "High betweenness centrality (0.70) - routing bottleneck"
+        ]
       },
       {
-        "node_id": "compute_2",
-        "layer": "infrastructure",
-        "node_type": "node",
+        "node_id": "A20",
+        "type": "Application",
+        "betweenness": 0.623,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.338,
+        "level": "medium",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "High betweenness centrality (0.62) - routing bottleneck"
+        ]
       },
       {
-        "node_id": "broker_0",
-        "layer": "broker",
-        "node_type": "broker",
+        "node_id": "A27",
+        "type": "Application",
+        "betweenness": 0.6176,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.3358,
+        "level": "medium",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "High betweenness centrality (0.62) - routing bottleneck"
+        ]
       },
       {
-        "node_id": "topic_0",
-        "layer": "topic",
-        "node_type": "topic",
+        "node_id": "A30",
+        "type": "Application",
+        "betweenness": 0.5167,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.2955,
+        "level": "low",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "High betweenness centrality (0.52) - routing bottleneck"
+        ]
       },
       {
-        "node_id": "topic_1",
-        "layer": "topic",
-        "node_type": "topic",
+        "node_id": "A37",
+        "type": "Application",
+        "betweenness": 0.514,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.2944,
+        "level": "low",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "High betweenness centrality (0.51) - routing bottleneck"
+        ]
       },
       {
-        "node_id": "app_0",
-        "layer": "application",
-        "node_type": "application",
+        "node_id": "A26",
+        "type": "Application",
+        "betweenness": 0.3587,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.2322,
+        "level": "low",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "Moderate betweenness (0.36)"
+        ]
       },
       {
-        "node_id": "app_1",
-        "layer": "application",
-        "node_type": "application",
+        "node_id": "A22",
+        "type": "Application",
+        "betweenness": 0.3552,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.2308,
+        "level": "low",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "Moderate betweenness (0.36)"
+        ]
       },
       {
-        "node_id": "app_2",
-        "layer": "application",
-        "node_type": "application",
+        "node_id": "A23",
+        "type": "Application",
+        "betweenness": 0.2094,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.1725,
+        "level": "low",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "Low criticality"
+        ]
       },
       {
-        "node_id": "app_3",
-        "layer": "application",
-        "node_type": "application",
+        "node_id": "A45",
+        "type": "Application",
+        "betweenness": 0.1969,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.1675,
+        "level": "low",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "Low criticality"
+        ]
       },
       {
-        "node_id": "app_4",
-        "layer": "application",
-        "node_type": "application",
+        "node_id": "A33",
+        "type": "Application",
+        "betweenness": 0.0737,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.1183,
+        "level": "low",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "Low criticality"
+        ]
       },
       {
-        "node_id": "app_5",
-        "layer": "application",
-        "node_type": "application",
+        "node_id": "A46",
+        "type": "Application",
+        "betweenness": 0.0662,
+        "is_articulation_point": false,
+        "impact_score": 0.2959,
+        "composite_score": 0.1152,
+        "level": "low",
         "reasons": [
-          "high_betweenness",
-          "high_pagerank",
-          "high_in_degree",
-          "high_out_degree",
-          "inner_core",
-          "high_load"
-        ],
-        "metrics": {
-          "betweenness": 0.0,
-          "pagerank": 0.0714,
-          "in_degree": 0,
-          "out_degree": 0,
-          "core_number": 0,
-          "load": 0.0
-        },
-        "impact_description": "Critical for message routing; Influential in the network; Many components depend on it; Depends on many components; Part of densely connected core",
-        "recommendation": "Consider load balancing or caching; Ensure high availability for this critical dependency; Review coupling; consider interface segregation"
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A4",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A5",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A7",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A9",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A10",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A12",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A16",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A24",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A25",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A29",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A31",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A32",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A34",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A38",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A39",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A40",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A41",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A44",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A48",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A50",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.3061,
+        "composite_score": 0.0918,
+        "level": "low",
+        "reasons": [
+          "Moderate impact (0.31)"
+        ]
+      },
+      {
+        "node_id": "A42",
+        "type": "Application",
+        "betweenness": 0.0183,
+        "is_articulation_point": false,
+        "impact_score": 0.0204,
+        "composite_score": 0.0134,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N1",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N2",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N3",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N4",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N5",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N6",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N7",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N8",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N9",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N10",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N11",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N12",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N13",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N14",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "N15",
+        "type": "Node",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "B1",
+        "type": "Broker",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Broker - critical infrastructure component"
+        ]
+      },
+      {
+        "node_id": "B2",
+        "type": "Broker",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Broker - critical infrastructure component"
+        ]
+      },
+      {
+        "node_id": "B3",
+        "type": "Broker",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Broker - critical infrastructure component"
+        ]
+      },
+      {
+        "node_id": "B4",
+        "type": "Broker",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Broker - critical infrastructure component"
+        ]
+      },
+      {
+        "node_id": "A1",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A2",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A3",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A6",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A8",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A11",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A13",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A14",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A15",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A17",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A18",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A19",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A35",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A47",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "A49",
+        "type": "Application",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T1",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T2",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T3",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T4",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T5",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T6",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T7",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T8",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T9",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T10",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T11",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T12",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T13",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T14",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T15",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T16",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T17",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T18",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T19",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T20",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T21",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T22",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T23",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T24",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T25",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T26",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T27",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T28",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T29",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
+      },
+      {
+        "node_id": "T30",
+        "type": "Topic",
+        "betweenness": 0.0,
+        "is_articulation_point": false,
+        "impact_score": 0.0,
+        "composite_score": 0.0,
+        "level": "low",
+        "reasons": [
+          "Low criticality"
+        ]
       }
     ],
-    "critical_edges": [],
-    "anti_patterns": [
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "edge_0"
-        ],
-        "description": "Component 'edge_0' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "compute_1"
-        ],
-        "description": "Component 'compute_1' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "compute_2"
-        ],
-        "description": "Component 'compute_2' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "broker_0"
-        ],
-        "description": "Component 'broker_0' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "topic_0"
-        ],
-        "description": "Component 'topic_0' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "topic_1"
-        ],
-        "description": "Component 'topic_1' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "topic_2"
-        ],
-        "description": "Component 'topic_2' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "topic_3"
-        ],
-        "description": "Component 'topic_3' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "app_0"
-        ],
-        "description": "Component 'app_0' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "app_1"
-        ],
-        "description": "Component 'app_1' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "app_2"
-        ],
-        "description": "Component 'app_2' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "app_3"
-        ],
-        "description": "Component 'app_3' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "app_4"
-        ],
-        "description": "Component 'app_4' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      },
-      {
-        "pattern_type": "orphan_component",
-        "severity": "low",
-        "affected_components": [
-          "app_5"
-        ],
-        "description": "Component 'app_5' is completely isolated (no connections)",
-        "impact": "Unused component. May indicate incomplete configuration or dead code.",
-        "recommendation": "Verify if component is needed. Connect it or remove it.",
-        "metrics": {
-          "in_degree": 0,
-          "out_degree": 0
-        }
-      }
-    ],
-    "summary": {
-      "total_critical_nodes": 14,
-      "critical_by_layer": {
-        "topic": 4,
-        "infrastructure": 3,
-        "broker": 1,
-        "application": 6
-      },
-      "total_critical_edges": 0,
-      "total_anti_patterns": 14,
-      "anti_patterns_by_severity": {
-        "low": 14
-      },
-      "anti_patterns_by_type": {
-        "orphan_component": 14
-      },
-      "top_critical_nodes": [
-        "topic_2",
-        "topic_3",
-        "edge_0",
-        "compute_1",
-        "compute_2"
-      ],
-      "most_severe_anti_patterns": []
+    "by_level": {
+      "medium": 6,
+      "low": 93
     }
   },
-  "extended_algorithms": {
-    "communities": {
-      "num_communities": 14,
-      "modularity": 0.0,
-      "composition": [
-        {
-          "community_id": 0,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "edge_0"
-          ]
-        },
-        {
-          "community_id": 1,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "compute_1"
-          ]
-        },
-        {
-          "community_id": 2,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "compute_2"
-          ]
-        },
-        {
-          "community_id": 3,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "broker_0"
-          ]
-        },
-        {
-          "community_id": 4,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "topic_0"
-          ]
-        },
-        {
-          "community_id": 5,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "topic_1"
-          ]
-        },
-        {
-          "community_id": 6,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "topic_2"
-          ]
-        },
-        {
-          "community_id": 7,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "topic_3"
-          ]
-        },
-        {
-          "community_id": 8,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "app_0"
-          ]
-        },
-        {
-          "community_id": 9,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "app_1"
-          ]
-        },
-        {
-          "community_id": 10,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "app_2"
-          ]
-        },
-        {
-          "community_id": 11,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "app_3"
-          ]
-        },
-        {
-          "community_id": 12,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "app_4"
-          ]
-        },
-        {
-          "community_id": 13,
-          "size": 1,
-          "types": {
-            "Unknown": 1
-          },
-          "members": [
-            "app_5"
-          ]
-        }
+  "structural": {
+    "articulation_points": [],
+    "articulation_point_count": 0,
+    "bridges": [],
+    "bridge_count": 0,
+    "weakly_connected_components": 50,
+    "strongly_connected_components": 86,
+    "has_cycles": true,
+    "cycles": [
+      [
+        "A45",
+        "A20",
+        "A43",
+        "A33",
+        "A21",
+        "A36",
+        "A37",
+        "A22",
+        "A28",
+        "A30"
+      ],
+      [
+        "A45",
+        "A20",
+        "A43",
+        "A33",
+        "A21",
+        "A36",
+        "A37",
+        "A22",
+        "A28"
+      ],
+      [
+        "A45",
+        "A20",
+        "A43",
+        "A33",
+        "A21",
+        "A36",
+        "A37",
+        "A22",
+        "A27",
+        "A28"
+      ],
+      [
+        "A45",
+        "A20",
+        "A43",
+        "A33",
+        "A21",
+        "A36",
+        "A37",
+        "A22",
+        "A27"
+      ],
+      [
+        "A45",
+        "A20",
+        "A43",
+        "A33",
+        "A21",
+        "A36",
+        "A37",
+        "A22",
+        "A27",
+        "A30"
+      ],
+      [
+        "A45",
+        "A20",
+        "A43",
+        "A33",
+        "A21",
+        "A36",
+        "A37",
+        "A22",
+        "A26",
+        "A28"
+      ],
+      [
+        "A45",
+        "A20",
+        "A43",
+        "A33",
+        "A21",
+        "A36",
+        "A37",
+        "A22",
+        "A26",
+        "A27"
+      ],
+      [
+        "A45",
+        "A20",
+        "A43",
+        "A33",
+        "A21",
+        "A36",
+        "A37",
+        "A22",
+        "A23",
+        "A28"
+      ],
+      [
+        "A45",
+        "A20",
+        "A43",
+        "A33",
+        "A21",
+        "A36",
+        "A46",
+        "A27",
+        "A28",
+        "A30"
+      ],
+      [
+        "A45",
+        "A20",
+        "A43",
+        "A33",
+        "A21",
+        "A36",
+        "A46",
+        "A27",
+        "A28"
       ]
-    },
-    "message_flow": {
-      "flow_chains": [],
-      "total_topics_analyzed": 0,
-      "max_fanout": 0,
-      "max_fanin": 0,
-      "interpretation": "Flow analysis shows how messages distribute from publishers through topics to subscribers. High fanout indicates topics serving many consumers."
-    },
-    "bottlenecks": {
-      "bottleneck_scores": {
-        "edge_0": 0.0,
-        "compute_1": 0.0,
-        "compute_2": 0.0,
-        "broker_0": 0.0,
-        "topic_0": 0.0,
-        "topic_1": 0.0,
-        "topic_2": 0.0,
-        "topic_3": 0.0,
-        "app_0": 0.0,
-        "app_1": 0.0,
-        "app_2": 0.0,
-        "app_3": 0.0,
-        "app_4": 0.0,
-        "app_5": 0.0
-      },
-      "top_bottlenecks": [
-        [
-          "edge_0",
-          0.0
-        ],
-        [
-          "compute_1",
-          0.0
-        ],
-        [
-          "compute_2",
-          0.0
-        ],
-        [
-          "broker_0",
-          0.0
-        ],
-        [
-          "topic_0",
-          0.0
-        ],
-        [
-          "topic_1",
-          0.0
-        ],
-        [
-          "topic_2",
-          0.0
-        ],
-        [
-          "topic_3",
-          0.0
-        ],
-        [
-          "app_0",
-          0.0
-        ],
-        [
-          "app_1",
-          0.0
-        ]
-      ],
-      "interpretation": "Bottlenecks are nodes that handle disproportionate message traffic. They may need scaling, redundancy, or architectural changes."
-    },
-    "coupling": {
-      "coupling_metrics": {
-        "edge_0": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "compute_1": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "compute_2": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "broker_0": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "topic_0": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "topic_1": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "topic_2": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "topic_3": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "app_0": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "app_1": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "app_2": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "app_3": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "app_4": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        },
-        "app_5": {
-          "afferent_coupling": 0,
-          "efferent_coupling": 0,
-          "total_coupling": 0,
-          "instability": 0,
-          "type": "Unknown"
-        }
-      },
-      "highly_coupled": [
-        [
-          "edge_0",
-          {
-            "afferent_coupling": 0,
-            "efferent_coupling": 0,
-            "total_coupling": 0,
-            "instability": 0,
-            "type": "Unknown"
-          }
-        ],
-        [
-          "compute_1",
-          {
-            "afferent_coupling": 0,
-            "efferent_coupling": 0,
-            "total_coupling": 0,
-            "instability": 0,
-            "type": "Unknown"
-          }
-        ],
-        [
-          "compute_2",
-          {
-            "afferent_coupling": 0,
-            "efferent_coupling": 0,
-            "total_coupling": 0,
-            "instability": 0,
-            "type": "Unknown"
-          }
-        ],
-        [
-          "broker_0",
-          {
-            "afferent_coupling": 0,
-            "efferent_coupling": 0,
-            "total_coupling": 0,
-            "instability": 0,
-            "type": "Unknown"
-          }
-        ],
-        [
-          "topic_0",
-          {
-            "afferent_coupling": 0,
-            "efferent_coupling": 0,
-            "total_coupling": 0,
-            "instability": 0,
-            "type": "Unknown"
-          }
-        ],
-        [
-          "topic_1",
-          {
-            "afferent_coupling": 0,
-            "efferent_coupling": 0,
-            "total_coupling": 0,
-            "instability": 0,
-            "type": "Unknown"
-          }
-        ],
-        [
-          "topic_2",
-          {
-            "afferent_coupling": 0,
-            "efferent_coupling": 0,
-            "total_coupling": 0,
-            "instability": 0,
-            "type": "Unknown"
-          }
-        ],
-        [
-          "topic_3",
-          {
-            "afferent_coupling": 0,
-            "efferent_coupling": 0,
-            "total_coupling": 0,
-            "instability": 0,
-            "type": "Unknown"
-          }
-        ],
-        [
-          "app_0",
-          {
-            "afferent_coupling": 0,
-            "efferent_coupling": 0,
-            "total_coupling": 0,
-            "instability": 0,
-            "type": "Unknown"
-          }
-        ],
-        [
-          "app_1",
-          {
-            "afferent_coupling": 0,
-            "efferent_coupling": 0,
-            "total_coupling": 0,
-            "instability": 0,
-            "type": "Unknown"
-          }
-        ]
-      ],
-      "average_instability": 0.0,
-      "interpretation": "Coupling analysis reveals dependencies between components. High coupling indicates tight dependencies; instability > 0.5 suggests the component depends more on others than others depend on it."
+    ],
+    "betweenness_centrality": {
+      "N1": 0.0,
+      "N2": 0.0,
+      "N3": 0.0,
+      "N4": 0.0,
+      "N5": 0.0,
+      "N6": 0.0,
+      "N7": 0.0,
+      "N8": 0.0,
+      "N9": 0.0,
+      "N10": 0.0,
+      "N11": 0.0,
+      "N12": 0.0,
+      "N13": 0.0,
+      "N14": 0.0,
+      "N15": 0.0,
+      "B1": 0.0,
+      "B2": 0.0,
+      "B3": 0.0,
+      "B4": 0.0,
+      "A1": 0.0,
+      "A2": 0.0,
+      "A3": 0.0,
+      "A4": 0.0,
+      "A5": 0.0,
+      "A6": 0.0,
+      "A7": 0.0,
+      "A8": 0.0,
+      "A9": 0.0,
+      "A10": 0.0,
+      "A11": 0.0,
+      "A12": 0.0,
+      "A13": 0.0,
+      "A14": 0.0,
+      "A15": 0.0,
+      "A16": 0.0,
+      "A17": 0.0,
+      "A18": 0.0,
+      "A19": 0.0,
+      "A20": 0.005968995354646522,
+      "A21": 0.009580468506410018,
+      "A22": 0.0034025331916137714,
+      "A23": 0.0020059594775563637,
+      "A24": 0.0,
+      "A25": 0.0,
+      "A26": 0.00343630847260134,
+      "A27": 0.005916856187737736,
+      "A28": 0.007496028937749955,
+      "A29": 0.0,
+      "A30": 0.004950473294150972,
+      "A31": 0.0,
+      "A32": 0.0,
+      "A33": 0.000706491593825909,
+      "A34": 0.0,
+      "A35": 0.0,
+      "A36": 0.006733147804576375,
+      "A37": 0.004924056470448223,
+      "A38": 0.0,
+      "A39": 0.0,
+      "A40": 0.0,
+      "A41": 0.0,
+      "A42": 0.00017545309729193593,
+      "A43": 0.009403550548616824,
+      "A44": 0.0,
+      "A45": 0.0018864443175404674,
+      "A46": 0.0006339354593089076,
+      "A47": 0.0,
+      "A48": 0.0,
+      "A49": 0.0,
+      "A50": 0.0,
+      "T1": 0.0,
+      "T2": 0.0,
+      "T3": 0.0,
+      "T4": 0.0,
+      "T5": 0.0,
+      "T6": 0.0,
+      "T7": 0.0,
+      "T8": 0.0,
+      "T9": 0.0,
+      "T10": 0.0,
+      "T11": 0.0,
+      "T12": 0.0,
+      "T13": 0.0,
+      "T14": 0.0,
+      "T15": 0.0,
+      "T16": 0.0,
+      "T17": 0.0,
+      "T18": 0.0,
+      "T19": 0.0,
+      "T20": 0.0,
+      "T21": 0.0,
+      "T22": 0.0,
+      "T23": 0.0,
+      "T24": 0.0,
+      "T25": 0.0,
+      "T26": 0.0,
+      "T27": 0.0,
+      "T28": 0.0,
+      "T29": 0.0,
+      "T30": 0.0
     }
   },
-  "robustness": {
-    "vulnerability_to_targeted_attacks": 0.0,
-    "comparison": {
-      "random": {
-        "critical_threshold": 0.07142857142857142,
-        "auc_robustness": 0.5357142857142857
-      },
-      "targeted_degree": {
-        "critical_threshold": 0.07142857142857142,
-        "auc_robustness": 0.5357142857142857
-      },
-      "targeted_betweenness": {
-        "critical_threshold": 0.07142857142857142,
-        "auc_robustness": 0.5357142857142857
-      }
-    }
-  },
-  "summary": {
-    "overall_health": "needs_attention",
-    "key_findings": [],
-    "recommendations": [],
-    "metrics": {
-      "critical_nodes": 14,
-      "anti_patterns": 14,
-      "vulnerability_score": 0.0
-    }
-  }
+  "recommendations": [
+    "Circular dependencies detected. Review for potential infinite loops or deadlocks.",
+    "Graph has 50 disconnected components. Some parts of the system are isolated."
+  ]
 }

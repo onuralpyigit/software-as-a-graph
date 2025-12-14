@@ -1,417 +1,457 @@
 #!/usr/bin/env python3
 """
-Quick Example - Graph Analysis Demo
+Example: Graph Analyzer Usage
+=============================
 
-Demonstrates the graph analysis capabilities with a simple IoT smart home system.
-Creates a sample graph, analyzes it, and displays results.
+This script demonstrates how to use the GraphAnalyzer to analyze
+pub-sub systems by deriving DEPENDS_ON relationships.
 
-Usage:
-    python example_graph_analyzer.py
-    python example_graph_analyzer.py --save-graph
-    python example_graph_analyzer.py --verbose
+Examples covered:
+1. Basic analysis
+2. Accessing derived dependencies
+3. Working with criticality scores
+4. Structural analysis
+5. Custom weights
+6. Export to different formats
+
+Author: Software-as-a-Graph Research Project
 """
 
-import argparse
-import json
-import subprocess
 import sys
-import tempfile
+import json
 from pathlib import Path
+from typing import Dict, Any
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / '..'))
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-class Colors:
-    """ANSI color codes"""
-    GREEN = '\033[92m'
-    BLUE = '\033[94m'
-    YELLOW = '\033[93m'
-    CYAN = '\033[96m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
+from src.analysis import (
+    GraphAnalyzer,
+    DependencyType,
+    CriticalityLevel,
+    analyze_pubsub_system,
+    derive_dependencies,
+)
 
 
-def create_smart_home_example():
+# ============================================================================
+# Sample Data
+# ============================================================================
+
+def get_sample_iot_system() -> Dict[str, Any]:
     """
-    Create a sample smart home IoT system graph
+    Sample IoT pub-sub system with sensors, processors, and actuators.
     
     Architecture:
-    - 2 infrastructure nodes (main controller, backup controller)
-    - 1 MQTT broker
-    - 5 sensor applications (temperature, motion, door, window, camera)
-    - 2 actuator applications (HVAC, lights)
-    - 1 dashboard application
-    - 1 cloud sync application
-    - 6 topics for sensor data and commands
+    - 3 infrastructure nodes (edge, processing, cloud)
+    - 2 brokers (edge broker, cloud broker)
+    - 6 applications (sensors, processors, dashboard)
+    - 5 topics for data flow
     """
     return {
         "nodes": [
-            {
-                "id": "controller_main",
-                "name": "controller_main"
-            },
-            {
-                "id": "controller_backup",
-                "name": "controller_backup"
-            }
+            {"id": "edge_node", "name": "Edge Gateway"},
+            {"id": "proc_node", "name": "Processing Server"},
+            {"id": "cloud_node", "name": "Cloud Instance"}
         ],
         "brokers": [
-            {
-                "id": "mqtt_broker",
-                "name": "mqtt_broker"
-            }
+            {"id": "edge_broker", "name": "Edge MQTT Broker"},
+            {"id": "cloud_broker", "name": "Cloud Message Broker"}
         ],
         "applications": [
-            # Sensors
-            {
-                "id": "temp_sensor",
-                "name": "temp_sensor",
-                "app_type": "PRODUCER"
-            },
-            {
-                "id": "motion_sensor",
-                "name": "motion_sensor",
-                "app_type": "PRODUCER"
-            },
-            {
-                "id": "door_sensor",
-                "name": "door_sensor",
-                "app_type": "PRODUCER"
-            },
-            {
-                "id": "window_sensor",
-                "name": "window_sensor",
-                "app_type": "PRODUCER"
-            },
-            {
-                "id": "camera",
-                "name": "camera",
-                "app_type": "PRODUCER"
-            },
-            # Actuators
-            {
-                "id": "hvac_controller",
-                "name": "hvac_controller",
-                "app_type": "PROSUMER"
-            },
-            {
-                "id": "light_controller",
-                "name": "light_controller",
-                "app_type": "PROSUMER"
-            },
-            # Dashboard and Cloud
-            {
-                "id": "dashboard",
-                "name": "dashboard",
-                "app_type": "PROSUMER",
-            },
-            {
-                "id": "cloud_sync",
-                "name": "cloud_sync",
-                "app_type": "CONSUMER",
-            }
+            {"id": "temp_sensor", "name": "Temperature Sensor", "role": "pub"},
+            {"id": "humidity_sensor", "name": "Humidity Sensor", "role": "pub"},
+            {"id": "motion_sensor", "name": "Motion Sensor", "role": "pub"},
+            {"id": "data_processor", "name": "Data Processor", "role": "pubsub"},
+            {"id": "alert_service", "name": "Alert Service", "role": "sub"},
+            {"id": "dashboard", "name": "Dashboard", "role": "sub"}
         ],
         "topics": [
-            {"id": "sensor/temperature", "name": "sensor/temperature"},
-            {"id": "sensor/motion", "name": "sensor/motion"},
-            {"id": "sensor/door", "name": "sensor/door"},
-            {"id": "sensor/window", "name": "sensor/window"},
-            {"id": "sensor/camera", "name": "sensor/camera"},
-            {"id": "command/hvac", "name": "command/hvac"},
-            {"id": "command/lights", "name": "command/lights"},
-            {"id": "alerts", "name": "alerts"}
+            {"id": "raw_temp", "name": "sensor/temperature", "size": 256},
+            {"id": "raw_humidity", "name": "sensor/humidity", "size": 256},
+            {"id": "raw_motion", "name": "sensor/motion", "size": 128},
+            {"id": "processed_data", "name": "processed/environment", "size": 512},
+            {"id": "alerts", "name": "alerts/critical", "size": 128}
         ],
         "relationships": {
-            "runs_on": [
-                # Sensors on main controller
-                {"from": "temp_sensor", "to": "controller_main"},
-                {"from": "motion_sensor", "to": "controller_main"},
-                {"from": "door_sensor", "to": "controller_main"},
-                {"from": "window_sensor", "to": "controller_main"},
-                {"from": "camera", "to": "controller_main"},
-                # Actuators on main controller
-                {"from": "hvac_controller", "to": "controller_main"},
-                {"from": "light_controller", "to": "controller_main"},
-                # Dashboard on backup controller
-                {"from": "dashboard", "to": "controller_backup"},
-                {"from": "cloud_sync", "to": "controller_backup"},
-                # Broker on main controller (critical!)
-                {"from": "mqtt_broker", "to": "controller_main"}
-            ],
             "publishes_to": [
-                # Sensors publish data
-                {"from": "temp_sensor", "to": "sensor/temperature"},
-                {"from": "motion_sensor", "to": "sensor/motion"},
-                {"from": "door_sensor", "to": "sensor/door"},
-                {"from": "window_sensor", "to": "sensor/window"},
-                {"from": "camera", "to": "sensor/camera"},
-                # Actuators publish to alert topic
-                {"from": "hvac_controller", "to": "alerts"},
-                {"from": "light_controller", "to": "alerts"},
-                # Dashboard publishes commands
-                {"from": "dashboard", "to": "command/hvac"},
-                {"from": "dashboard", "to": "command/lights"}
+                {"from": "temp_sensor", "to": "raw_temp"},
+                {"from": "humidity_sensor", "to": "raw_humidity"},
+                {"from": "motion_sensor", "to": "raw_motion"},
+                {"from": "data_processor", "to": "processed_data"},
+                {"from": "data_processor", "to": "alerts"}
             ],
             "subscribes_to": [
-                # HVAC subscribes to temp and commands
-                {"from": "hvac_controller", "to": "sensor/temperature"},
-                {"from": "hvac_controller", "to": "command/hvac"},
-                # Lights subscribe to motion and commands
-                {"from": "light_controller", "to": "sensor/motion"},
-                {"from": "light_controller", "to": "command/lights"},
-                # Dashboard subscribes to all sensors
-                {"from": "dashboard", "to": "sensor/temperature"},
-                {"from": "dashboard", "to": "sensor/motion"},
-                {"from": "dashboard", "to": "sensor/door"},
-                {"from": "dashboard", "to": "sensor/window"},
-                {"from": "dashboard", "to": "sensor/camera"},
-                {"from": "dashboard", "to": "alerts"},
-                # Cloud sync subscribes to everything
-                {"from": "cloud_sync", "to": "sensor/temperature"},
-                {"from": "cloud_sync", "to": "sensor/motion"},
-                {"from": "cloud_sync", "to": "sensor/door"},
-                {"from": "cloud_sync", "to": "sensor/window"},
-                {"from": "cloud_sync", "to": "sensor/camera"},
-                {"from": "cloud_sync", "to": "alerts"}
+                {"from": "data_processor", "to": "raw_temp"},
+                {"from": "data_processor", "to": "raw_humidity"},
+                {"from": "data_processor", "to": "raw_motion"},
+                {"from": "alert_service", "to": "alerts"},
+                {"from": "dashboard", "to": "processed_data"},
+                {"from": "dashboard", "to": "alerts"}
+            ],
+            "runs_on": [
+                {"from": "temp_sensor", "to": "edge_node"},
+                {"from": "humidity_sensor", "to": "edge_node"},
+                {"from": "motion_sensor", "to": "edge_node"},
+                {"from": "data_processor", "to": "proc_node"},
+                {"from": "alert_service", "to": "proc_node"},
+                {"from": "dashboard", "to": "cloud_node"}
             ],
             "routes": [
-                # Broker routes all topics
-                {"from": "mqtt_broker", "to": "sensor/temperature"},
-                {"from": "mqtt_broker", "to": "sensor/motion"},
-                {"from": "mqtt_broker", "to": "sensor/door"},
-                {"from": "mqtt_broker", "to": "sensor/window"},
-                {"from": "mqtt_broker", "to": "sensor/camera"},
-                {"from": "mqtt_broker", "to": "command/hvac"},
-                {"from": "mqtt_broker", "to": "command/lights"},
-                {"from": "mqtt_broker", "to": "alerts"}
+                {"from": "edge_broker", "to": "raw_temp"},
+                {"from": "edge_broker", "to": "raw_humidity"},
+                {"from": "edge_broker", "to": "raw_motion"},
+                {"from": "cloud_broker", "to": "processed_data"},
+                {"from": "cloud_broker", "to": "alerts"}
+            ],
+            "connects_to": [
+                {"from": "edge_node", "to": "proc_node"},
+                {"from": "edge_node", "to": "cloud_node"},
+                {"from": "proc_node", "to": "cloud_node"}
             ]
         }
     }
 
 
-def print_banner():
-    """Print welcome banner"""
-    print(f"\n{Colors.CYAN}{Colors.BOLD}{'='*70}")
-    print("   QUICK EXAMPLE: Pub-Sub Graph Analysis")
-    print("   Smart Home IoT System Demo")
-    print(f"{'='*70}{Colors.ENDC}\n")
+# ============================================================================
+# Example Functions
+# ============================================================================
 
-
-def print_section(title):
-    """Print section header"""
-    print(f"\n{Colors.BLUE}{Colors.BOLD}{'─'*70}")
-    print(f"  {title}")
-    print(f"{'─'*70}{Colors.ENDC}")
-
-
-def print_success(message):
-    """Print success message"""
-    print(f"{Colors.GREEN}✓ {message}{Colors.ENDC}")
-
-
-def print_info(message):
-    """Print info message"""
-    print(f"{Colors.YELLOW}ℹ {message}{Colors.ENDC}")
-
-
-def describe_system(graph_data):
-    """Describe the example system"""
-    print_section("System Overview")
+def example_basic_analysis():
+    """
+    Example 1: Basic Analysis
     
-    print(f"\n📦 Components:")
-    print(f"   • Nodes: {len(graph_data['nodes'])}")
-    print(f"   • Brokers: {len(graph_data['brokers'])}")
-    print(f"   • Applications: {len(graph_data['applications'])}")
-    print(f"   • Topics: {len(graph_data['topics'])}")
+    Shows how to run a complete analysis and access results.
+    """
+    print("\n" + "="*70)
+    print("Example 1: Basic Analysis")
+    print("="*70)
     
-    print(f"\n🔗 Relationships:")
-    for rel_type, relationships in graph_data['relationships'].items():
-        print(f"   • {rel_type}: {len(relationships)}")
+    # Create analyzer
+    analyzer = GraphAnalyzer()
     
-    print(f"\n📝 Application Types:")
-    app_types = {}
-    for app in graph_data['applications']:
-        app_type = app.get('app_type', 'unknown')
-        app_types[app_type] = app_types.get(app_type, 0) + 1
-    for app_type, count in app_types.items():
-        print(f"   • {app_type}: {count}")
+    # Load data
+    data = get_sample_iot_system()
+    analyzer.load_from_dict(data)
+    
+    # Run analysis
+    result = analyzer.analyze()
+    
+    # Print graph summary
+    print("\nGraph Summary:")
+    print(f"  Total Nodes: {result.graph_summary['total_nodes']}")
+    print(f"  Total DEPENDS_ON Edges: {result.graph_summary['total_edges']}")
+    print(f"  Graph Density: {result.graph_summary['density']:.4f}")
+    print(f"  Connected: {result.graph_summary['is_connected']}")
+    
+    print("\n  Nodes by Type:")
+    for ntype, count in result.graph_summary['nodes_by_type'].items():
+        print(f"    - {ntype}: {count}")
+    
+    print("\n  Dependencies by Type:")
+    for dtype, count in result.to_dict()['depends_on']['by_type'].items():
+        print(f"    - {dtype}: {count}")
+    
+    print("\nRecommendations:")
+    for rec in result.recommendations:
+        print(f"  • {rec}")
 
 
-def run_analysis(graph_file):
-    """Run the analysis script"""
-    print_section("Running Analysis")
+def example_derived_dependencies():
+    """
+    Example 2: Working with Derived Dependencies
     
-    try:
-        result = subprocess.run(
-            ['python3', '../analyze_graph.py', 
-             '--input', graph_file,
-             '--export-json', '--output', 'graph_analysis_results'],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-        
-        if result.returncode != 0:
-            print(f"{Colors.BOLD}Error running analysis:{Colors.ENDC}")
-            print(result.stderr)
-            return None
-        
-        print_success("Analysis completed successfully")
-        
-        # Load results
-        with open('graph_analysis_results.json', 'r') as f:
-            results = json.load(f)
-        
-        return results
-        
-    except subprocess.TimeoutExpired:
-        print(f"{Colors.BOLD}Analysis timed out{Colors.ENDC}")
-        return None
-    except Exception as e:
-        print(f"{Colors.BOLD}Error: {e}{Colors.ENDC}")
-        return None
+    Shows how to access and work with the derived DEPENDS_ON relationships.
+    """
+    print("\n" + "="*70)
+    print("Example 2: Working with Derived Dependencies")
+    print("="*70)
+    
+    analyzer = GraphAnalyzer()
+    analyzer.load_from_dict(get_sample_iot_system())
+    
+    # Derive dependencies (without full analysis)
+    edges = analyzer.derive_depends_on()
+    
+    print(f"\nTotal derived dependencies: {len(edges)}")
+    
+    # Group by type
+    by_type: Dict[DependencyType, list] = {}
+    for edge in edges:
+        if edge.dep_type not in by_type:
+            by_type[edge.dep_type] = []
+        by_type[edge.dep_type].append(edge)
+    
+    # APP_TO_APP dependencies
+    print("\n--- APP_TO_APP Dependencies ---")
+    print("(Which applications depend on which other applications)")
+    for edge in by_type.get(DependencyType.APP_TO_APP, []):
+        topics = ', '.join(edge.via_topics)
+        print(f"  {edge.source} → {edge.target}")
+        print(f"    via topics: {topics}")
+        print(f"    weight: {edge.weight:.2f}")
+    
+    # APP_TO_BROKER dependencies
+    print("\n--- APP_TO_BROKER Dependencies ---")
+    print("(Which applications depend on which brokers)")
+    for edge in by_type.get(DependencyType.APP_TO_BROKER, []):
+        topics = ', '.join(edge.via_topics)
+        print(f"  {edge.source} → {edge.target}")
+        print(f"    via topics: {topics}")
+    
+    # NODE_TO_NODE dependencies
+    print("\n--- NODE_TO_NODE Dependencies ---")
+    print("(Infrastructure dependencies between nodes)")
+    for edge in by_type.get(DependencyType.NODE_TO_NODE, []):
+        apps = ', '.join(edge.via_apps)
+        print(f"  {edge.source} → {edge.target}")
+        print(f"    via apps: {apps}")
+    
+    # NODE_TO_BROKER dependencies
+    print("\n--- NODE_TO_BROKER Dependencies ---")
+    print("(Which nodes depend on brokers on other nodes)")
+    for edge in by_type.get(DependencyType.NODE_TO_BROKER, []):
+        print(f"  {edge.source} → {edge.target}")
 
 
-def display_key_findings(results):
-    """Display key findings from the analysis"""
-    print_section("Key Findings")
+def example_criticality_scores():
+    """
+    Example 3: Working with Criticality Scores
     
-    # Structure
-    structure = results['structure']
-    print(f"\n📊 Graph Structure:")
-    print(f"   • Total Components: {structure['nodes']}")
-    print(f"   • Total Connections: {structure['edges']}")
-    print(f"   • Network Density: {structure['density']:.3f}")
-    print(f"   • Connected: {'Yes' if structure['is_weakly_connected'] else 'No'}")
+    Shows how to access and interpret criticality scores.
+    """
+    print("\n" + "="*70)
+    print("Example 3: Criticality Scores")
+    print("="*70)
     
-    # Critical nodes
-    node_analysis = results['node_analysis']
-    print(f"\n🔴 Critical Components:")
-    print(f"   • Articulation Points: {node_analysis['statistics']['articulation_point_count']}")
-    print(f"\n   Top 3 Most Critical Nodes:")
-    for idx, node in enumerate(node_analysis['top_critical_nodes'][:3], 1):
-        ap = "⚠️  (Single Point of Failure)" if node['is_articulation_point'] else ""
-        print(f"   {idx}. {node['node']} (score: {node['score']:.3f}) {ap}")
+    analyzer = GraphAnalyzer()
+    analyzer.load_from_dict(get_sample_iot_system())
+    result = analyzer.analyze()
     
-    # Critical edges
-    if 'edge_analysis' in results and not results['edge_analysis'].get('skipped'):
-        edge_analysis = results['edge_analysis']
-        print(f"\n🔗 Critical Connections:")
-        print(f"   • Bridge Edges: {edge_analysis['statistics']['bridge_count']}")
-        if edge_analysis['top_edge_betweenness']:
-            print(f"\n   Top 3 Most Critical Edges:")
-            for idx, edge in enumerate(edge_analysis['top_edge_betweenness'][:3], 1):
-                print(f"   {idx}. {edge['from']} → {edge['to']} (score: {edge['score']:.3f})")
+    print("\nCriticality Formula: C_score = α·BC + β·AP + γ·I")
+    print(f"  α (betweenness weight): {analyzer.alpha}")
+    print(f"  β (articulation point weight): {analyzer.beta}")
+    print(f"  γ (impact weight): {analyzer.gamma}")
     
-    # Recommendations
-    recommendations = results.get('recommendations', [])
-    if recommendations:
-        print(f"\n💡 Recommendations:")
-        critical_recs = [r for r in recommendations if r['priority'] == 'CRITICAL']
-        high_recs = [r for r in recommendations if r['priority'] == 'HIGH']
-        
-        print(f"   • Critical Issues: {len(critical_recs)}")
-        print(f"   • High Priority Issues: {len(high_recs)}")
-        
-        if critical_recs:
-            print(f"\n   Top Critical Recommendation:")
-            rec = critical_recs[0]
-            print(f"   ⚠️  {rec['type']}: {rec['component']}")
-            print(f"      {rec['issue']}")
-            print(f"      → {rec['recommendation']}")
+    # Group by level
+    by_level: Dict[CriticalityLevel, list] = {}
+    for score in result.criticality_scores:
+        if score.level not in by_level:
+            by_level[score.level] = []
+        by_level[score.level].append(score)
+    
+    print("\n--- Components by Criticality Level ---")
+    for level in [CriticalityLevel.CRITICAL, CriticalityLevel.HIGH, 
+                  CriticalityLevel.MEDIUM, CriticalityLevel.LOW]:
+        scores = by_level.get(level, [])
+        if scores:
+            print(f"\n{level.value.upper()} ({len(scores)} components):")
+            for score in scores[:3]:  # Show top 3 per level
+                print(f"  • {score.node_id} ({score.node_type})")
+                print(f"    Score: {score.composite_score:.4f}")
+                print(f"    Betweenness: {score.betweenness:.4f}")
+                print(f"    Articulation Point: {score.is_articulation_point}")
+                print(f"    Impact: {score.impact_score:.4f}")
+                print(f"    Reasons: {', '.join(score.reasons[:2])}")
+    
+    # Top 5 most critical
+    print("\n--- Top 5 Most Critical Components ---")
+    for i, score in enumerate(result.criticality_scores[:5], 1):
+        print(f"\n  {i}. {score.node_id} ({score.node_type})")
+        print(f"     Composite Score: {score.composite_score:.4f}")
+        print(f"     Level: {score.level.value.upper()}")
 
+
+def example_structural_analysis():
+    """
+    Example 4: Structural Analysis
+    
+    Shows how to interpret structural analysis results.
+    """
+    print("\n" + "="*70)
+    print("Example 4: Structural Analysis")
+    print("="*70)
+    
+    analyzer = GraphAnalyzer()
+    analyzer.load_from_dict(get_sample_iot_system())
+    result = analyzer.analyze()
+    
+    struct = result.structural_analysis
+    
+    print("\n--- Single Points of Failure ---")
+    print(f"Articulation Points: {struct['articulation_point_count']}")
+    if struct['articulation_points']:
+        print("  These components are critical - their failure disconnects the system:")
+        for ap in struct['articulation_points']:
+            print(f"    • {ap}")
+    
+    print(f"\nBridge Edges: {struct['bridge_count']}")
+    if struct['bridges']:
+        print("  These connections are critical - their failure disconnects the system:")
+        for bridge in struct['bridges'][:5]:
+            print(f"    • {bridge[0]} ↔ {bridge[1]}")
+    
+    print("\n--- Connectivity ---")
+    print(f"Weakly Connected Components: {struct['weakly_connected_components']}")
+    print(f"Strongly Connected Components: {struct['strongly_connected_components']}")
+    
+    print("\n--- Circular Dependencies ---")
+    print(f"Has Cycles: {struct['has_cycles']}")
+    if struct['cycles']:
+        print("  Detected cycles (potential issues):")
+        for cycle in struct['cycles'][:3]:
+            print(f"    • {' → '.join(cycle)} → {cycle[0]}")
+
+
+def example_custom_weights():
+    """
+    Example 5: Custom Criticality Weights
+    
+    Shows how to customize the criticality scoring formula.
+    """
+    print("\n" + "="*70)
+    print("Example 5: Custom Criticality Weights")
+    print("="*70)
+    
+    data = get_sample_iot_system()
+    
+    # Default weights
+    print("\n--- Default Weights (α=0.4, β=0.3, γ=0.3) ---")
+    analyzer_default = GraphAnalyzer(alpha=0.4, beta=0.3, gamma=0.3)
+    analyzer_default.load_from_dict(data)
+    result_default = analyzer_default.analyze()
+    
+    print("Top 3 by default weights:")
+    for i, score in enumerate(result_default.criticality_scores[:3], 1):
+        print(f"  {i}. {score.node_id}: {score.composite_score:.4f}")
+    
+    # Emphasize structural importance (articulation points)
+    print("\n--- Emphasize Structure (α=0.2, β=0.6, γ=0.2) ---")
+    analyzer_struct = GraphAnalyzer(alpha=0.2, beta=0.6, gamma=0.2)
+    analyzer_struct.load_from_dict(data)
+    result_struct = analyzer_struct.analyze()
+    
+    print("Top 3 emphasizing articulation points:")
+    for i, score in enumerate(result_struct.criticality_scores[:3], 1):
+        print(f"  {i}. {score.node_id}: {score.composite_score:.4f}")
+    
+    # Emphasize impact
+    print("\n--- Emphasize Impact (α=0.2, β=0.2, γ=0.6) ---")
+    analyzer_impact = GraphAnalyzer(alpha=0.2, beta=0.2, gamma=0.6)
+    analyzer_impact.load_from_dict(data)
+    result_impact = analyzer_impact.analyze()
+    
+    print("Top 3 emphasizing impact:")
+    for i, score in enumerate(result_impact.criticality_scores[:3], 1):
+        print(f"  {i}. {score.node_id}: {score.composite_score:.4f}")
+
+
+def example_export_formats():
+    """
+    Example 6: Export to Different Formats
+    
+    Shows how to export analysis results.
+    """
+    print("\n" + "="*70)
+    print("Example 6: Export Formats")
+    print("="*70)
+    
+    analyzer = GraphAnalyzer()
+    analyzer.load_from_dict(get_sample_iot_system())
+    result = analyzer.analyze()
+    
+    # Convert to dictionary (for JSON export)
+    result_dict = result.to_dict()
+    
+    print("\n--- JSON Structure ---")
+    print("The result.to_dict() method returns a dictionary with:")
+    print("  • graph_summary: Basic graph metrics")
+    print("  • depends_on: All derived dependencies")
+    print("  • criticality: Component criticality scores")
+    print("  • structural: Structural analysis results")
+    print("  • recommendations: Generated recommendations")
+    
+    # Show sample JSON
+    print("\n--- Sample JSON Output (truncated) ---")
+    sample = {
+        'graph_summary': result_dict['graph_summary'],
+        'depends_on': {
+            'total': result_dict['depends_on']['total'],
+            'by_type': result_dict['depends_on']['by_type']
+        },
+        'criticality': {
+            'by_level': result_dict['criticality']['by_level'],
+            'top_component': result_dict['criticality']['scores'][0] if result_dict['criticality']['scores'] else None
+        }
+    }
+    print(json.dumps(sample, indent=2))
+    
+    # Access NetworkX graph
+    print("\n--- NetworkX Graph Access ---")
+    G = analyzer.G
+    print(f"  Graph type: {type(G).__name__}")
+    print(f"  Nodes: {G.number_of_nodes()}")
+    print(f"  Edges: {G.number_of_edges()}")
+    print("  You can use any NetworkX algorithm on this graph!")
+
+
+def example_convenience_functions():
+    """
+    Example 7: Convenience Functions
+    
+    Shows quick one-liner analysis options.
+    """
+    print("\n" + "="*70)
+    print("Example 7: Convenience Functions")
+    print("="*70)
+    
+    data = get_sample_iot_system()
+    
+    # Quick dependency derivation
+    print("\n--- derive_dependencies() ---")
+    print("Quick way to just get dependencies without full analysis:")
+    deps = derive_dependencies(data)
+    print(f"  Derived {len(deps)} dependencies")
+    print(f"  Sample: {deps[0]['source']} → {deps[0]['target']} ({deps[0]['type']})")
+    
+    # Full analysis from file (would need actual file)
+    print("\n--- analyze_pubsub_system() ---")
+    print("One-liner for full analysis from file:")
+    print("  result = analyze_pubsub_system('system.json')")
+    print("  # Returns AnalysisResult with all data")
+
+
+# ============================================================================
+# Main Entry Point
+# ============================================================================
 
 def main():
-    """Main entry point"""
-    parser = argparse.ArgumentParser(
-        description='Quick example demonstration of graph analysis'
-    )
-    parser.add_argument('--save-graph', action='store_true',
-                       help='Save the example graph to smart_home_example.json')
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Verbose output')
+    """Run all examples"""
+    print("\n" + "="*70)
+    print("  GRAPH ANALYZER EXAMPLES")
+    print("  Demonstrating DEPENDS_ON Relationship Analysis")
+    print("="*70)
     
-    args = parser.parse_args()
+    # Run examples
+    example_basic_analysis()
+    example_derived_dependencies()
+    example_criticality_scores()
+    example_structural_analysis()
+    example_custom_weights()
+    example_export_formats()
+    example_convenience_functions()
     
-    # Check if analyze_graph.py exists
-    if not Path('../analyze_graph.py').exists():
-        print(f"{Colors.BOLD}Error: analyze_graph.py not found{Colors.ENDC}")
-        print("Make sure you're in the correct directory")
-        return 1
-    
-    try:
-        print_banner()
-        
-        # Create example system
-        print_info("Creating smart home IoT system example...")
-        graph_data = create_smart_home_example()
-        print_success("Example system created")
-        
-        # Describe system
-        describe_system(graph_data)
-        
-        # Save to temporary file
-        if args.save_graph:
-            output_file = 'smart_home_example.json'
-        else:
-            import tempfile
-            temp_fd, output_file = tempfile.mkstemp(suffix='.json')
-            import os
-            os.close(temp_fd)
-        
-        with open(output_file, 'w') as f:
-            json.dump(graph_data, f, indent=2)
-        
-        if args.save_graph:
-            print_success(f"Graph saved to {output_file}")
-        
-        # Run analysis
-        results = run_analysis(output_file)
-        
-        if results:
-            # Display key findings
-            display_key_findings(results)
-            
-            # Next steps
-            print_section("Next Steps")
-            print("\n📚 To explore further:\n")
-            print("   1. View the detailed HTML report:")
-            print(f"      python3 analyze_graph.py --input {output_file} --export-html")
-            print(f"      # Opens: graph_analysis_results.html\n")
-            
-            print("   2. Export to CSV for spreadsheet analysis:")
-            print(f"      python3 analyze_graph.py --input {output_file} --export-csv")
-            print(f"      # Creates: graph_analysis_results_csv/ directory\n")
-            
-            print("   3. Try with your own graph:")
-            print(f"      python3 analyze_graph.py --input your_system.json\n")
-            
-            print("   4. Connect to Neo4j database:")
-            print(f"      python3 analyze_graph.py --neo4j --uri bolt://localhost:7687 \\")
-            print(f"          --user neo4j --password your_password\n")
-            
-            print(f"{Colors.GREEN}✓ Example completed successfully!{Colors.ENDC}\n")
-        else:
-            print(f"\n{Colors.BOLD}Analysis failed. Check error messages above.{Colors.ENDC}\n")
-            return 1
-        
-        # Cleanup
-        if not args.save_graph:
-            import os
-            os.unlink(output_file)
-        
-        return 0
-        
-    except KeyboardInterrupt:
-        print("\n\nExample interrupted by user")
-        return 130
-    except Exception as e:
-        print(f"\n{Colors.BOLD}Error: {e}{Colors.ENDC}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        return 1
+    print("\n" + "="*70)
+    print("  Examples Complete!")
+    print("="*70)
+    print("\nKey Takeaways:")
+    print("  1. DEPENDS_ON relationships are derived on-the-fly")
+    print("  2. No need to store derived relationships in input files")
+    print("  3. Four dependency types: APP_TO_APP, APP_TO_BROKER, NODE_TO_NODE, NODE_TO_BROKER")
+    print("  4. Criticality scoring uses: C_score = α·BC + β·AP + γ·Impact")
+    print("  5. Results include recommendations for improving system resilience")
+    print()
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main()
