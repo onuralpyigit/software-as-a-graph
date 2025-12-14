@@ -1,12 +1,12 @@
 {
   "metadata": {
     "id": "graph_generic_tiny_42",
-    "generated_at": "2025-12-12T20:18:23.573971Z",
+    "generated_at": "2025-12-12T20:27:24.974799Z",
     "generator_version": "3.0",
     "scale": "tiny",
     "scenario": "generic",
     "seed": 42,
-    "generation_time_seconds": 9.6e-05,
+    "generation_time_seconds": 9.2e-05,
     "antipatterns_applied": null
   },
   "applications": [
@@ -209,7 +209,8 @@
       "applications": 5,
       "brokers": 1,
       "topics": 3,
-      "nodes": 3
+      "nodes": 3,
+      "total": 12
     },
     "edge_counts": {
       "publishes_to": 6,

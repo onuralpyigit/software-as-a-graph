@@ -21,8 +21,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.core.graph_model import (
-    GraphModel, ApplicationNode, TopicNode, BrokerNode, InfrastructureNode,
-    DependsOnEdge, DependencyType, ApplicationType, QoSPolicy
+    GraphModel, Application, Topic, Broker, Node,
+    ApplicationRole, QoSPolicy
 )
 from src.core.graph_builder import GraphBuilder
 
@@ -45,50 +45,46 @@ def create_test_scenario() -> dict:
     """
     return {
         "nodes": [
-            {"id": "edge_node", "name": "Edge Node", "node_type": "edge"},
-            {"id": "compute_node", "name": "Compute Node", "node_type": "compute"},
-            {"id": "cloud_node", "name": "Cloud Node", "node_type": "cloud"}
+            {"id": "edge_node", "name": "Edge Node"},
+            {"id": "compute_node", "name": "Compute Node"},
+            {"id": "cloud_node", "name": "Cloud Node"}
         ],
         "brokers": [
-            {"id": "edge_broker", "name": "Edge DDS Broker", "broker_type": "dds"},
-            {"id": "cloud_broker", "name": "Cloud Kafka Broker", "broker_type": "kafka"}
+            {"id": "edge_broker", "name": "Edge MQTT Broker"},
+            {"id": "cloud_broker", "name": "Cloud Kafka Broker"}
         ],
         "applications": [
-            {"id": "sensor_app", "name": "Sensor Fusion", "app_type": "PRODUCER"},
-            {"id": "perception_app", "name": "Perception", "app_type": "PROSUMER"},
-            {"id": "planning_app", "name": "Planning", "app_type": "PROSUMER"},
-            {"id": "control_app", "name": "Control", "app_type": "CONSUMER"},
-            {"id": "logging_app", "name": "Cloud Logging", "app_type": "CONSUMER"},
-            {"id": "analytics_app", "name": "Analytics", "app_type": "CONSUMER"}
+            {"id": "sensor_app", "name": "Sensor Fusion", "role": "pub"},
+            {"id": "perception_app", "name": "Perception", "role": "pubsub"},
+            {"id": "planning_app", "name": "Planning", "role": "pubsub"},
+            {"id": "control_app", "name": "Control", "role": "sub"},
+            {"id": "logging_app", "name": "Cloud Logging", "role": "sub"},
+            {"id": "analytics_app", "name": "Analytics", "role": "sub"}
         ],
         "topics": [
             {
                 "id": "sensor_data",
                 "name": "/sensor/data",
-                "qos": {"reliability": "reliable", "durability": "volatile", "deadline_ms": 10},
-                "message_size_bytes": 512,
-                "message_rate_hz": 100
+                "qos": {"reliability": "reliable", "durability": "volatile", "transport_priority": "MEDIUM"},
+                "size": 512
             },
             {
                 "id": "perception_output",
                 "name": "/perception/objects",
-                "qos": {"reliability": "reliable", "durability": "transient_local", "deadline_ms": 50},
-                "message_size_bytes": 1024,
-                "message_rate_hz": 10
+                "qos": {"reliability": "reliable", "durability": "transient_local", "transport_priority": "LOW"},
+                "size": 1024
             },
             {
                 "id": "planning_cmd",
                 "name": "/planning/trajectory",
-                "qos": {"reliability": "reliable", "durability": "volatile", "deadline_ms": 20},
-                "message_size_bytes": 256,
-                "message_rate_hz": 5
+                "qos": {"reliability": "reliable", "durability": "volatile", "transport_priority": "HIGH"},
+                "size": 256
             },
             {
                 "id": "telemetry",
                 "name": "/vehicle/telemetry",
-                "qos": {"reliability": "best_effort", "durability": "volatile"},
-                "message_size_bytes": 128,
-                "message_rate_hz": 1
+                "qos": {"reliability": "best_effort", "durability": "volatile", "transport_priority": "URGENT"},
+                "size": 128
             }
         ],
         "edges": {
@@ -103,11 +99,11 @@ def create_test_scenario() -> dict:
                 {"from": "cloud_broker", "to": "cloud_node"}
             ],
             "publishes": [
-                {"from": "sensor_app", "to": "sensor_data", "period_ms": 10},
-                {"from": "sensor_app", "to": "telemetry", "period_ms": 100},
-                {"from": "perception_app", "to": "perception_output", "period_ms": 50},
-                {"from": "planning_app", "to": "planning_cmd", "period_ms": 20},
-                {"from": "planning_app", "to": "telemetry", "period_ms": 100}
+                {"from": "sensor_app", "to": "sensor_data"},
+                {"from": "sensor_app", "to": "telemetry"},
+                {"from": "perception_app", "to": "perception_output"},
+                {"from": "planning_app", "to": "planning_cmd"},
+                {"from": "planning_app", "to": "telemetry"}
             ],
             "subscribes": [
                 {"from": "perception_app", "to": "sensor_data"},
@@ -145,6 +141,7 @@ def test_dependency_derivation():
     
     # Get statistics
     stats = model.get_statistics()
+    print(stats)
     print(f"\nGraph Statistics:")
     print(f"  Vertices: {stats['vertices']}")
     print(f"  Explicit Edges: {stats['explicit_edges']}")
