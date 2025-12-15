@@ -26,9 +26,9 @@
     {
       "simulation_id": "sim_1",
       "simulation_mode": "single",
-      "duration_ms": 4.391,
-      "start_time": "2025-12-14T22:34:35.718250",
-      "end_time": "2025-12-14T22:34:35.722641",
+      "duration_ms": 6.305,
+      "start_time": "2025-12-15T23:45:53.906482",
+      "end_time": "2025-12-15T23:45:53.912787",
       "failed_components": [
         "N1"
       ],
@@ -38,7 +38,7 @@
           "component": "N1",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.718250",
+          "timestamp": "2025-12-15T23:45:53.906482",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -124,9 +124,9 @@
     {
       "simulation_id": "sim_2",
       "simulation_mode": "single",
-      "duration_ms": 1.915,
-      "start_time": "2025-12-14T22:34:35.724607",
-      "end_time": "2025-12-14T22:34:35.726522",
+      "duration_ms": 2.748,
+      "start_time": "2025-12-15T23:45:53.915533",
+      "end_time": "2025-12-15T23:45:53.918281",
       "failed_components": [
         "N2"
       ],
@@ -136,7 +136,7 @@
           "component": "N2",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.724607",
+          "timestamp": "2025-12-15T23:45:53.915533",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -222,9 +222,9 @@
     {
       "simulation_id": "sim_3",
       "simulation_mode": "single",
-      "duration_ms": 1.98,
-      "start_time": "2025-12-14T22:34:35.728257",
-      "end_time": "2025-12-14T22:34:35.730237",
+      "duration_ms": 2.908,
+      "start_time": "2025-12-15T23:45:53.921096",
+      "end_time": "2025-12-15T23:45:53.924004",
       "failed_components": [
         "N3"
       ],
@@ -234,7 +234,7 @@
           "component": "N3",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.728257",
+          "timestamp": "2025-12-15T23:45:53.921096",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -320,9 +320,9 @@
     {
       "simulation_id": "sim_4",
       "simulation_mode": "single",
-      "duration_ms": 1.98,
-      "start_time": "2025-12-14T22:34:35.731996",
-      "end_time": "2025-12-14T22:34:35.733976",
+      "duration_ms": 2.8040000000000003,
+      "start_time": "2025-12-15T23:45:53.926548",
+      "end_time": "2025-12-15T23:45:53.929352",
       "failed_components": [
         "N4"
       ],
@@ -332,7 +332,7 @@
           "component": "N4",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.731996",
+          "timestamp": "2025-12-15T23:45:53.926548",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -418,9 +418,9 @@
     {
       "simulation_id": "sim_5",
       "simulation_mode": "single",
-      "duration_ms": 1.9620000000000002,
-      "start_time": "2025-12-14T22:34:35.735732",
-      "end_time": "2025-12-14T22:34:35.737694",
+      "duration_ms": 3.221,
+      "start_time": "2025-12-15T23:45:53.932366",
+      "end_time": "2025-12-15T23:45:53.935587",
       "failed_components": [
         "N5"
       ],
@@ -430,7 +430,7 @@
           "component": "N5",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.735732",
+          "timestamp": "2025-12-15T23:45:53.932366",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -516,9 +516,9 @@
     {
       "simulation_id": "sim_6",
       "simulation_mode": "single",
-      "duration_ms": 1.976,
-      "start_time": "2025-12-14T22:34:35.739415",
-      "end_time": "2025-12-14T22:34:35.741391",
+      "duration_ms": 2.577,
+      "start_time": "2025-12-15T23:45:53.937906",
+      "end_time": "2025-12-15T23:45:53.940483",
       "failed_components": [
         "N6"
       ],
@@ -528,7 +528,7 @@
           "component": "N6",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.739415",
+          "timestamp": "2025-12-15T23:45:53.937906",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -614,9 +614,9 @@
     {
       "simulation_id": "sim_7",
       "simulation_mode": "single",
-      "duration_ms": 1.926,
-      "start_time": "2025-12-14T22:34:35.743251",
-      "end_time": "2025-12-14T22:34:35.745177",
+      "duration_ms": 2.5730000000000004,
+      "start_time": "2025-12-15T23:45:53.942900",
+      "end_time": "2025-12-15T23:45:53.945473",
       "failed_components": [
         "N7"
       ],
@@ -626,7 +626,7 @@
           "component": "N7",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.743251",
+          "timestamp": "2025-12-15T23:45:53.942900",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -712,9 +712,9 @@
     {
       "simulation_id": "sim_8",
       "simulation_mode": "single",
-      "duration_ms": 2.008,
-      "start_time": "2025-12-14T22:34:35.746914",
-      "end_time": "2025-12-14T22:34:35.748922",
+      "duration_ms": 2.502,
+      "start_time": "2025-12-15T23:45:53.947853",
+      "end_time": "2025-12-15T23:45:53.950355",
       "failed_components": [
         "N8"
       ],
@@ -724,7 +724,7 @@
           "component": "N8",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.746914",
+          "timestamp": "2025-12-15T23:45:53.947853",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -810,9 +810,9 @@
     {
       "simulation_id": "sim_9",
       "simulation_mode": "single",
-      "duration_ms": 1.9929999999999999,
-      "start_time": "2025-12-14T22:34:35.750646",
-      "end_time": "2025-12-14T22:34:35.752639",
+      "duration_ms": 3.005,
+      "start_time": "2025-12-15T23:45:53.952551",
+      "end_time": "2025-12-15T23:45:53.955556",
       "failed_components": [
         "N9"
       ],
@@ -822,7 +822,7 @@
           "component": "N9",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.750646",
+          "timestamp": "2025-12-15T23:45:53.952551",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -908,9 +908,9 @@
     {
       "simulation_id": "sim_10",
       "simulation_mode": "single",
-      "duration_ms": 1.9449999999999998,
-      "start_time": "2025-12-14T22:34:35.754498",
-      "end_time": "2025-12-14T22:34:35.756443",
+      "duration_ms": 2.1229999999999998,
+      "start_time": "2025-12-15T23:45:53.957562",
+      "end_time": "2025-12-15T23:45:53.959685",
       "failed_components": [
         "N10"
       ],
@@ -920,7 +920,7 @@
           "component": "N10",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.754498",
+          "timestamp": "2025-12-15T23:45:53.957562",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -1006,9 +1006,9 @@
     {
       "simulation_id": "sim_11",
       "simulation_mode": "single",
-      "duration_ms": 2.7920000000000003,
-      "start_time": "2025-12-14T22:34:35.758150",
-      "end_time": "2025-12-14T22:34:35.760942",
+      "duration_ms": 2.157,
+      "start_time": "2025-12-15T23:45:53.961647",
+      "end_time": "2025-12-15T23:45:53.963804",
       "failed_components": [
         "N11"
       ],
@@ -1018,7 +1018,7 @@
           "component": "N11",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.758150",
+          "timestamp": "2025-12-15T23:45:53.961647",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -1104,9 +1104,9 @@
     {
       "simulation_id": "sim_12",
       "simulation_mode": "single",
-      "duration_ms": 1.893,
-      "start_time": "2025-12-14T22:34:35.762773",
-      "end_time": "2025-12-14T22:34:35.764666",
+      "duration_ms": 2.106,
+      "start_time": "2025-12-15T23:45:53.965767",
+      "end_time": "2025-12-15T23:45:53.967873",
       "failed_components": [
         "N12"
       ],
@@ -1116,7 +1116,7 @@
           "component": "N12",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.762773",
+          "timestamp": "2025-12-15T23:45:53.965767",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -1202,9 +1202,9 @@
     {
       "simulation_id": "sim_13",
       "simulation_mode": "single",
-      "duration_ms": 1.85,
-      "start_time": "2025-12-14T22:34:35.766365",
-      "end_time": "2025-12-14T22:34:35.768215",
+      "duration_ms": 2.1310000000000002,
+      "start_time": "2025-12-15T23:45:53.969828",
+      "end_time": "2025-12-15T23:45:53.971959",
       "failed_components": [
         "N13"
       ],
@@ -1214,7 +1214,7 @@
           "component": "N13",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.766365",
+          "timestamp": "2025-12-15T23:45:53.969828",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -1300,9 +1300,9 @@
     {
       "simulation_id": "sim_14",
       "simulation_mode": "single",
-      "duration_ms": 1.8940000000000001,
-      "start_time": "2025-12-14T22:34:35.769913",
-      "end_time": "2025-12-14T22:34:35.771807",
+      "duration_ms": 2.1020000000000003,
+      "start_time": "2025-12-15T23:45:53.973800",
+      "end_time": "2025-12-15T23:45:53.975902",
       "failed_components": [
         "N14"
       ],
@@ -1312,7 +1312,7 @@
           "component": "N14",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.769913",
+          "timestamp": "2025-12-15T23:45:53.973800",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -1398,9 +1398,9 @@
     {
       "simulation_id": "sim_15",
       "simulation_mode": "single",
-      "duration_ms": 1.883,
-      "start_time": "2025-12-14T22:34:35.773520",
-      "end_time": "2025-12-14T22:34:35.775403",
+      "duration_ms": 2.2039999999999997,
+      "start_time": "2025-12-15T23:45:53.977780",
+      "end_time": "2025-12-15T23:45:53.979984",
       "failed_components": [
         "N15"
       ],
@@ -1410,7 +1410,7 @@
           "component": "N15",
           "component_type": "Node",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.773520",
+          "timestamp": "2025-12-15T23:45:53.977780",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -1496,9 +1496,9 @@
     {
       "simulation_id": "sim_16",
       "simulation_mode": "single",
-      "duration_ms": 1.861,
-      "start_time": "2025-12-14T22:34:35.777172",
-      "end_time": "2025-12-14T22:34:35.779033",
+      "duration_ms": 2.5,
+      "start_time": "2025-12-15T23:45:53.982288",
+      "end_time": "2025-12-15T23:45:53.984788",
       "failed_components": [
         "B1"
       ],
@@ -1508,7 +1508,7 @@
           "component": "B1",
           "component_type": "Broker",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.777172",
+          "timestamp": "2025-12-15T23:45:53.982288",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -1594,9 +1594,9 @@
     {
       "simulation_id": "sim_17",
       "simulation_mode": "single",
-      "duration_ms": 1.9,
-      "start_time": "2025-12-14T22:34:35.780753",
-      "end_time": "2025-12-14T22:34:35.782653",
+      "duration_ms": 2.195,
+      "start_time": "2025-12-15T23:45:53.986954",
+      "end_time": "2025-12-15T23:45:53.989149",
       "failed_components": [
         "B2"
       ],
@@ -1606,7 +1606,7 @@
           "component": "B2",
           "component_type": "Broker",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.780753",
+          "timestamp": "2025-12-15T23:45:53.986954",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -1692,9 +1692,9 @@
     {
       "simulation_id": "sim_18",
       "simulation_mode": "single",
-      "duration_ms": 1.887,
-      "start_time": "2025-12-14T22:34:35.784372",
-      "end_time": "2025-12-14T22:34:35.786259",
+      "duration_ms": 2.191,
+      "start_time": "2025-12-15T23:45:53.991041",
+      "end_time": "2025-12-15T23:45:53.993232",
       "failed_components": [
         "B3"
       ],
@@ -1704,7 +1704,7 @@
           "component": "B3",
           "component_type": "Broker",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.784372",
+          "timestamp": "2025-12-15T23:45:53.991041",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -1790,9 +1790,9 @@
     {
       "simulation_id": "sim_19",
       "simulation_mode": "single",
-      "duration_ms": 1.831,
-      "start_time": "2025-12-14T22:34:35.787940",
-      "end_time": "2025-12-14T22:34:35.789771",
+      "duration_ms": 2.2070000000000003,
+      "start_time": "2025-12-15T23:45:53.995252",
+      "end_time": "2025-12-15T23:45:53.997459",
       "failed_components": [
         "B4"
       ],
@@ -1802,7 +1802,7 @@
           "component": "B4",
           "component_type": "Broker",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.787940",
+          "timestamp": "2025-12-15T23:45:53.995252",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -1888,9 +1888,9 @@
     {
       "simulation_id": "sim_20",
       "simulation_mode": "single",
-      "duration_ms": 1.913,
-      "start_time": "2025-12-14T22:34:35.791496",
-      "end_time": "2025-12-14T22:34:35.793409",
+      "duration_ms": 1.936,
+      "start_time": "2025-12-15T23:45:53.999292",
+      "end_time": "2025-12-15T23:45:54.001228",
       "failed_components": [
         "A1"
       ],
@@ -1900,7 +1900,7 @@
           "component": "A1",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.791496",
+          "timestamp": "2025-12-15T23:45:53.999292",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -2012,9 +2012,9 @@
     {
       "simulation_id": "sim_21",
       "simulation_mode": "single",
-      "duration_ms": 1.9629999999999999,
-      "start_time": "2025-12-14T22:34:35.795088",
-      "end_time": "2025-12-14T22:34:35.797051",
+      "duration_ms": 2.655,
+      "start_time": "2025-12-15T23:45:54.002910",
+      "end_time": "2025-12-15T23:45:54.005565",
       "failed_components": [
         "A2"
       ],
@@ -2024,7 +2024,7 @@
           "component": "A2",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.795088",
+          "timestamp": "2025-12-15T23:45:54.002910",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -2126,9 +2126,9 @@
     {
       "simulation_id": "sim_22",
       "simulation_mode": "single",
-      "duration_ms": 2.004,
-      "start_time": "2025-12-14T22:34:35.798781",
-      "end_time": "2025-12-14T22:34:35.800785",
+      "duration_ms": 1.924,
+      "start_time": "2025-12-15T23:45:54.007266",
+      "end_time": "2025-12-15T23:45:54.009190",
       "failed_components": [
         "A3"
       ],
@@ -2138,7 +2138,7 @@
           "component": "A3",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.798781",
+          "timestamp": "2025-12-15T23:45:54.007266",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -2234,9 +2234,9 @@
     {
       "simulation_id": "sim_23",
       "simulation_mode": "single",
-      "duration_ms": 2.726,
-      "start_time": "2025-12-14T22:34:35.802485",
-      "end_time": "2025-12-14T22:34:35.805211",
+      "duration_ms": 1.83,
+      "start_time": "2025-12-15T23:45:54.010911",
+      "end_time": "2025-12-15T23:45:54.012741",
       "failed_components": [
         "A4"
       ],
@@ -2246,7 +2246,7 @@
           "component": "A4",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.802485",
+          "timestamp": "2025-12-15T23:45:54.010911",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -2338,9 +2338,9 @@
     {
       "simulation_id": "sim_24",
       "simulation_mode": "single",
-      "duration_ms": 1.863,
-      "start_time": "2025-12-14T22:34:35.806910",
-      "end_time": "2025-12-14T22:34:35.808773",
+      "duration_ms": 1.851,
+      "start_time": "2025-12-15T23:45:54.014391",
+      "end_time": "2025-12-15T23:45:54.016242",
       "failed_components": [
         "A5"
       ],
@@ -2350,7 +2350,7 @@
           "component": "A5",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.806910",
+          "timestamp": "2025-12-15T23:45:54.014391",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -2452,9 +2452,9 @@
     {
       "simulation_id": "sim_25",
       "simulation_mode": "single",
-      "duration_ms": 1.868,
-      "start_time": "2025-12-14T22:34:35.810490",
-      "end_time": "2025-12-14T22:34:35.812358",
+      "duration_ms": 1.835,
+      "start_time": "2025-12-15T23:45:54.017892",
+      "end_time": "2025-12-15T23:45:54.019727",
       "failed_components": [
         "A6"
       ],
@@ -2464,7 +2464,7 @@
           "component": "A6",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.810490",
+          "timestamp": "2025-12-15T23:45:54.017892",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -2560,9 +2560,9 @@
     {
       "simulation_id": "sim_26",
       "simulation_mode": "single",
-      "duration_ms": 1.875,
-      "start_time": "2025-12-14T22:34:35.814005",
-      "end_time": "2025-12-14T22:34:35.815880",
+      "duration_ms": 1.823,
+      "start_time": "2025-12-15T23:45:54.021480",
+      "end_time": "2025-12-15T23:45:54.023303",
       "failed_components": [
         "A7"
       ],
@@ -2572,7 +2572,7 @@
           "component": "A7",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.814005",
+          "timestamp": "2025-12-15T23:45:54.021480",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -2667,9 +2667,9 @@
     {
       "simulation_id": "sim_27",
       "simulation_mode": "single",
-      "duration_ms": 1.879,
-      "start_time": "2025-12-14T22:34:35.817534",
-      "end_time": "2025-12-14T22:34:35.819413",
+      "duration_ms": 1.821,
+      "start_time": "2025-12-15T23:45:54.024942",
+      "end_time": "2025-12-15T23:45:54.026763",
       "failed_components": [
         "A8"
       ],
@@ -2679,7 +2679,7 @@
           "component": "A8",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.817534",
+          "timestamp": "2025-12-15T23:45:54.024942",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -2777,9 +2777,9 @@
     {
       "simulation_id": "sim_28",
       "simulation_mode": "single",
-      "duration_ms": 1.845,
-      "start_time": "2025-12-14T22:34:35.821125",
-      "end_time": "2025-12-14T22:34:35.822970",
+      "duration_ms": 1.8719999999999999,
+      "start_time": "2025-12-15T23:45:54.028439",
+      "end_time": "2025-12-15T23:45:54.030311",
       "failed_components": [
         "A9"
       ],
@@ -2789,7 +2789,7 @@
           "component": "A9",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.821125",
+          "timestamp": "2025-12-15T23:45:54.028439",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -2882,9 +2882,9 @@
     {
       "simulation_id": "sim_29",
       "simulation_mode": "single",
-      "duration_ms": 1.89,
-      "start_time": "2025-12-14T22:34:35.824693",
-      "end_time": "2025-12-14T22:34:35.826583",
+      "duration_ms": 1.82,
+      "start_time": "2025-12-15T23:45:54.031977",
+      "end_time": "2025-12-15T23:45:54.033797",
       "failed_components": [
         "A10"
       ],
@@ -2894,7 +2894,7 @@
           "component": "A10",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.824693",
+          "timestamp": "2025-12-15T23:45:54.031977",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -2999,9 +2999,9 @@
     {
       "simulation_id": "sim_30",
       "simulation_mode": "single",
-      "duration_ms": 1.883,
-      "start_time": "2025-12-14T22:34:35.828231",
-      "end_time": "2025-12-14T22:34:35.830114",
+      "duration_ms": 1.846,
+      "start_time": "2025-12-15T23:45:54.035469",
+      "end_time": "2025-12-15T23:45:54.037315",
       "failed_components": [
         "A11"
       ],
@@ -3011,7 +3011,7 @@
           "component": "A11",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.828231",
+          "timestamp": "2025-12-15T23:45:54.035469",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -3109,9 +3109,9 @@
     {
       "simulation_id": "sim_31",
       "simulation_mode": "single",
-      "duration_ms": 1.847,
-      "start_time": "2025-12-14T22:34:35.831785",
-      "end_time": "2025-12-14T22:34:35.833632",
+      "duration_ms": 1.83,
+      "start_time": "2025-12-15T23:45:54.038993",
+      "end_time": "2025-12-15T23:45:54.040823",
       "failed_components": [
         "A12"
       ],
@@ -3121,7 +3121,7 @@
           "component": "A12",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.831785",
+          "timestamp": "2025-12-15T23:45:54.038993",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -3217,9 +3217,9 @@
     {
       "simulation_id": "sim_32",
       "simulation_mode": "single",
-      "duration_ms": 1.7650000000000001,
-      "start_time": "2025-12-14T22:34:35.835216",
-      "end_time": "2025-12-14T22:34:35.836981",
+      "duration_ms": 2.6510000000000002,
+      "start_time": "2025-12-15T23:45:54.042491",
+      "end_time": "2025-12-15T23:45:54.045142",
       "failed_components": [
         "A13"
       ],
@@ -3229,7 +3229,7 @@
           "component": "A13",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.835216",
+          "timestamp": "2025-12-15T23:45:54.042491",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -3321,9 +3321,9 @@
     {
       "simulation_id": "sim_33",
       "simulation_mode": "single",
-      "duration_ms": 1.77,
-      "start_time": "2025-12-14T22:34:35.838600",
-      "end_time": "2025-12-14T22:34:35.840370",
+      "duration_ms": 1.8619999999999999,
+      "start_time": "2025-12-15T23:45:54.046858",
+      "end_time": "2025-12-15T23:45:54.048720",
       "failed_components": [
         "A14"
       ],
@@ -3333,7 +3333,7 @@
           "component": "A14",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.838600",
+          "timestamp": "2025-12-15T23:45:54.046858",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -3434,9 +3434,9 @@
     {
       "simulation_id": "sim_34",
       "simulation_mode": "single",
-      "duration_ms": 2.574,
-      "start_time": "2025-12-14T22:34:35.841965",
-      "end_time": "2025-12-14T22:34:35.844539",
+      "duration_ms": 1.879,
+      "start_time": "2025-12-15T23:45:54.050415",
+      "end_time": "2025-12-15T23:45:54.052294",
       "failed_components": [
         "A15"
       ],
@@ -3446,7 +3446,7 @@
           "component": "A15",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.841965",
+          "timestamp": "2025-12-15T23:45:54.050415",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -3555,9 +3555,9 @@
     {
       "simulation_id": "sim_35",
       "simulation_mode": "single",
-      "duration_ms": 1.8550000000000002,
-      "start_time": "2025-12-14T22:34:35.846218",
-      "end_time": "2025-12-14T22:34:35.848073",
+      "duration_ms": 1.794,
+      "start_time": "2025-12-15T23:45:54.054000",
+      "end_time": "2025-12-15T23:45:54.055794",
       "failed_components": [
         "A16"
       ],
@@ -3567,7 +3567,7 @@
           "component": "A16",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.846218",
+          "timestamp": "2025-12-15T23:45:54.054000",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -3669,9 +3669,9 @@
     {
       "simulation_id": "sim_36",
       "simulation_mode": "single",
-      "duration_ms": 1.867,
-      "start_time": "2025-12-14T22:34:35.849771",
-      "end_time": "2025-12-14T22:34:35.851638",
+      "duration_ms": 1.802,
+      "start_time": "2025-12-15T23:45:54.057459",
+      "end_time": "2025-12-15T23:45:54.059261",
       "failed_components": [
         "A17"
       ],
@@ -3681,7 +3681,7 @@
           "component": "A17",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.849771",
+          "timestamp": "2025-12-15T23:45:54.057459",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -3791,9 +3791,9 @@
     {
       "simulation_id": "sim_37",
       "simulation_mode": "single",
-      "duration_ms": 1.9,
-      "start_time": "2025-12-14T22:34:35.853326",
-      "end_time": "2025-12-14T22:34:35.855226",
+      "duration_ms": 1.822,
+      "start_time": "2025-12-15T23:45:54.060918",
+      "end_time": "2025-12-15T23:45:54.062740",
       "failed_components": [
         "A18"
       ],
@@ -3803,7 +3803,7 @@
           "component": "A18",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.853326",
+          "timestamp": "2025-12-15T23:45:54.060918",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -3910,9 +3910,9 @@
     {
       "simulation_id": "sim_38",
       "simulation_mode": "single",
-      "duration_ms": 1.879,
-      "start_time": "2025-12-14T22:34:35.856917",
-      "end_time": "2025-12-14T22:34:35.858796",
+      "duration_ms": 1.849,
+      "start_time": "2025-12-15T23:45:54.064398",
+      "end_time": "2025-12-15T23:45:54.066247",
       "failed_components": [
         "A19"
       ],
@@ -3922,7 +3922,7 @@
           "component": "A19",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.856917",
+          "timestamp": "2025-12-15T23:45:54.064398",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -4026,9 +4026,9 @@
     {
       "simulation_id": "sim_39",
       "simulation_mode": "single",
-      "duration_ms": 1.863,
-      "start_time": "2025-12-14T22:34:35.860466",
-      "end_time": "2025-12-14T22:34:35.862329",
+      "duration_ms": 1.839,
+      "start_time": "2025-12-15T23:45:54.067945",
+      "end_time": "2025-12-15T23:45:54.069784",
       "failed_components": [
         "A20"
       ],
@@ -4038,7 +4038,7 @@
           "component": "A20",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.860466",
+          "timestamp": "2025-12-15T23:45:54.067945",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -4155,9 +4155,9 @@
     {
       "simulation_id": "sim_40",
       "simulation_mode": "single",
-      "duration_ms": 1.9009999999999998,
-      "start_time": "2025-12-14T22:34:35.863966",
-      "end_time": "2025-12-14T22:34:35.865867",
+      "duration_ms": 1.857,
+      "start_time": "2025-12-15T23:45:54.071411",
+      "end_time": "2025-12-15T23:45:54.073268",
       "failed_components": [
         "A21"
       ],
@@ -4167,7 +4167,7 @@
           "component": "A21",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.863966",
+          "timestamp": "2025-12-15T23:45:54.071411",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -4290,9 +4290,9 @@
     {
       "simulation_id": "sim_41",
       "simulation_mode": "single",
-      "duration_ms": 1.865,
-      "start_time": "2025-12-14T22:34:35.867488",
-      "end_time": "2025-12-14T22:34:35.869353",
+      "duration_ms": 1.835,
+      "start_time": "2025-12-15T23:45:54.074849",
+      "end_time": "2025-12-15T23:45:54.076684",
       "failed_components": [
         "A22"
       ],
@@ -4302,7 +4302,7 @@
           "component": "A22",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.867488",
+          "timestamp": "2025-12-15T23:45:54.074849",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -4411,9 +4411,9 @@
     {
       "simulation_id": "sim_42",
       "simulation_mode": "single",
-      "duration_ms": 1.896,
-      "start_time": "2025-12-14T22:34:35.870995",
-      "end_time": "2025-12-14T22:34:35.872891",
+      "duration_ms": 1.8699999999999999,
+      "start_time": "2025-12-15T23:45:54.078347",
+      "end_time": "2025-12-15T23:45:54.080217",
       "failed_components": [
         "A23"
       ],
@@ -4423,7 +4423,7 @@
           "component": "A23",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.870995",
+          "timestamp": "2025-12-15T23:45:54.078347",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -4528,9 +4528,9 @@
     {
       "simulation_id": "sim_43",
       "simulation_mode": "single",
-      "duration_ms": 1.877,
-      "start_time": "2025-12-14T22:34:35.874532",
-      "end_time": "2025-12-14T22:34:35.876409",
+      "duration_ms": 1.896,
+      "start_time": "2025-12-15T23:45:54.081868",
+      "end_time": "2025-12-15T23:45:54.083764",
       "failed_components": [
         "A24"
       ],
@@ -4540,7 +4540,7 @@
           "component": "A24",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.874532",
+          "timestamp": "2025-12-15T23:45:54.081868",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -4640,9 +4640,9 @@
     {
       "simulation_id": "sim_44",
       "simulation_mode": "single",
-      "duration_ms": 1.907,
-      "start_time": "2025-12-14T22:34:35.878082",
-      "end_time": "2025-12-14T22:34:35.879989",
+      "duration_ms": 2.7950000000000004,
+      "start_time": "2025-12-15T23:45:54.085445",
+      "end_time": "2025-12-15T23:45:54.088240",
       "failed_components": [
         "A25"
       ],
@@ -4652,7 +4652,7 @@
           "component": "A25",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.878082",
+          "timestamp": "2025-12-15T23:45:54.085445",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -4754,9 +4754,9 @@
     {
       "simulation_id": "sim_45",
       "simulation_mode": "single",
-      "duration_ms": 1.8619999999999999,
-      "start_time": "2025-12-14T22:34:35.881582",
-      "end_time": "2025-12-14T22:34:35.883444",
+      "duration_ms": 1.788,
+      "start_time": "2025-12-15T23:45:54.089932",
+      "end_time": "2025-12-15T23:45:54.091720",
       "failed_components": [
         "A26"
       ],
@@ -4766,7 +4766,7 @@
           "component": "A26",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.881582",
+          "timestamp": "2025-12-15T23:45:54.089932",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -4880,9 +4880,9 @@
     {
       "simulation_id": "sim_46",
       "simulation_mode": "single",
-      "duration_ms": 2.601,
-      "start_time": "2025-12-14T22:34:35.885011",
-      "end_time": "2025-12-14T22:34:35.887612",
+      "duration_ms": 1.8190000000000002,
+      "start_time": "2025-12-15T23:45:54.093325",
+      "end_time": "2025-12-15T23:45:54.095144",
       "failed_components": [
         "A27"
       ],
@@ -4892,7 +4892,7 @@
           "component": "A27",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.885011",
+          "timestamp": "2025-12-15T23:45:54.093325",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -5006,9 +5006,9 @@
     {
       "simulation_id": "sim_47",
       "simulation_mode": "single",
-      "duration_ms": 1.774,
-      "start_time": "2025-12-14T22:34:35.889190",
-      "end_time": "2025-12-14T22:34:35.890964",
+      "duration_ms": 1.8539999999999999,
+      "start_time": "2025-12-15T23:45:54.096775",
+      "end_time": "2025-12-15T23:45:54.098629",
       "failed_components": [
         "A28"
       ],
@@ -5018,7 +5018,7 @@
           "component": "A28",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.889190",
+          "timestamp": "2025-12-15T23:45:54.096775",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -5137,9 +5137,9 @@
     {
       "simulation_id": "sim_48",
       "simulation_mode": "single",
-      "duration_ms": 1.848,
-      "start_time": "2025-12-14T22:34:35.892526",
-      "end_time": "2025-12-14T22:34:35.894374",
+      "duration_ms": 1.799,
+      "start_time": "2025-12-15T23:45:54.100225",
+      "end_time": "2025-12-15T23:45:54.102024",
       "failed_components": [
         "A29"
       ],
@@ -5149,7 +5149,7 @@
           "component": "A29",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.892526",
+          "timestamp": "2025-12-15T23:45:54.100225",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -5254,9 +5254,9 @@
     {
       "simulation_id": "sim_49",
       "simulation_mode": "single",
-      "duration_ms": 1.7550000000000001,
-      "start_time": "2025-12-14T22:34:35.895966",
-      "end_time": "2025-12-14T22:34:35.897721",
+      "duration_ms": 1.8359999999999999,
+      "start_time": "2025-12-15T23:45:54.103728",
+      "end_time": "2025-12-15T23:45:54.105564",
       "failed_components": [
         "A30"
       ],
@@ -5266,7 +5266,7 @@
           "component": "A30",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.895966",
+          "timestamp": "2025-12-15T23:45:54.103728",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -5377,9 +5377,9 @@
     {
       "simulation_id": "sim_50",
       "simulation_mode": "single",
-      "duration_ms": 1.777,
-      "start_time": "2025-12-14T22:34:35.899293",
-      "end_time": "2025-12-14T22:34:35.901070",
+      "duration_ms": 1.815,
+      "start_time": "2025-12-15T23:45:54.107180",
+      "end_time": "2025-12-15T23:45:54.108995",
       "failed_components": [
         "A31"
       ],
@@ -5389,7 +5389,7 @@
           "component": "A31",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.899293",
+          "timestamp": "2025-12-15T23:45:54.107180",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -5488,9 +5488,9 @@
     {
       "simulation_id": "sim_51",
       "simulation_mode": "single",
-      "duration_ms": 1.7730000000000001,
-      "start_time": "2025-12-14T22:34:35.902692",
-      "end_time": "2025-12-14T22:34:35.904465",
+      "duration_ms": 1.8359999999999999,
+      "start_time": "2025-12-15T23:45:54.110671",
+      "end_time": "2025-12-15T23:45:54.112507",
       "failed_components": [
         "A32"
       ],
@@ -5500,7 +5500,7 @@
           "component": "A32",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.902692",
+          "timestamp": "2025-12-15T23:45:54.110671",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -5599,9 +5599,9 @@
     {
       "simulation_id": "sim_52",
       "simulation_mode": "single",
-      "duration_ms": 1.685,
-      "start_time": "2025-12-14T22:34:35.905952",
-      "end_time": "2025-12-14T22:34:35.907637",
+      "duration_ms": 1.817,
+      "start_time": "2025-12-15T23:45:54.114172",
+      "end_time": "2025-12-15T23:45:54.115989",
       "failed_components": [
         "A33"
       ],
@@ -5611,7 +5611,7 @@
           "component": "A33",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.905952",
+          "timestamp": "2025-12-15T23:45:54.114172",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -5712,9 +5712,9 @@
     {
       "simulation_id": "sim_53",
       "simulation_mode": "single",
-      "duration_ms": 1.706,
-      "start_time": "2025-12-14T22:34:35.909115",
-      "end_time": "2025-12-14T22:34:35.910821",
+      "duration_ms": 1.806,
+      "start_time": "2025-12-15T23:45:54.117607",
+      "end_time": "2025-12-15T23:45:54.119413",
       "failed_components": [
         "A34"
       ],
@@ -5724,7 +5724,7 @@
           "component": "A34",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.909115",
+          "timestamp": "2025-12-15T23:45:54.117607",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -5832,9 +5832,9 @@
     {
       "simulation_id": "sim_54",
       "simulation_mode": "single",
-      "duration_ms": 1.6900000000000002,
-      "start_time": "2025-12-14T22:34:35.912345",
-      "end_time": "2025-12-14T22:34:35.914035",
+      "duration_ms": 1.7650000000000001,
+      "start_time": "2025-12-15T23:45:54.121083",
+      "end_time": "2025-12-15T23:45:54.122848",
       "failed_components": [
         "A35"
       ],
@@ -5844,7 +5844,7 @@
           "component": "A35",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.912345",
+          "timestamp": "2025-12-15T23:45:54.121083",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -5950,9 +5950,9 @@
     {
       "simulation_id": "sim_55",
       "simulation_mode": "single",
-      "duration_ms": 1.717,
-      "start_time": "2025-12-14T22:34:35.915578",
-      "end_time": "2025-12-14T22:34:35.917295",
+      "duration_ms": 2.954,
+      "start_time": "2025-12-15T23:45:54.124565",
+      "end_time": "2025-12-15T23:45:54.127519",
       "failed_components": [
         "A36"
       ],
@@ -5962,7 +5962,7 @@
           "component": "A36",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.915578",
+          "timestamp": "2025-12-15T23:45:54.124565",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -6082,9 +6082,9 @@
     {
       "simulation_id": "sim_56",
       "simulation_mode": "single",
-      "duration_ms": 1.717,
-      "start_time": "2025-12-14T22:34:35.918777",
-      "end_time": "2025-12-14T22:34:35.920494",
+      "duration_ms": 19.654,
+      "start_time": "2025-12-15T23:45:54.129170",
+      "end_time": "2025-12-15T23:45:54.148824",
       "failed_components": [
         "A37"
       ],
@@ -6094,7 +6094,7 @@
           "component": "A37",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.918777",
+          "timestamp": "2025-12-15T23:45:54.129170",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -6208,9 +6208,9 @@
     {
       "simulation_id": "sim_57",
       "simulation_mode": "single",
-      "duration_ms": 2.556,
-      "start_time": "2025-12-14T22:34:35.921995",
-      "end_time": "2025-12-14T22:34:35.924551",
+      "duration_ms": 1.91,
+      "start_time": "2025-12-15T23:45:54.150794",
+      "end_time": "2025-12-15T23:45:54.152704",
       "failed_components": [
         "A38"
       ],
@@ -6220,7 +6220,7 @@
           "component": "A38",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.921995",
+          "timestamp": "2025-12-15T23:45:54.150794",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -6325,9 +6325,9 @@
     {
       "simulation_id": "sim_58",
       "simulation_mode": "single",
-      "duration_ms": 20.178,
-      "start_time": "2025-12-14T22:34:35.926069",
-      "end_time": "2025-12-14T22:34:35.946247",
+      "duration_ms": 1.833,
+      "start_time": "2025-12-15T23:45:54.154409",
+      "end_time": "2025-12-15T23:45:54.156242",
       "failed_components": [
         "A39"
       ],
@@ -6337,7 +6337,7 @@
           "component": "A39",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.926069",
+          "timestamp": "2025-12-15T23:45:54.154409",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -6427,9 +6427,9 @@
     {
       "simulation_id": "sim_59",
       "simulation_mode": "single",
-      "duration_ms": 1.881,
-      "start_time": "2025-12-14T22:34:35.948296",
-      "end_time": "2025-12-14T22:34:35.950177",
+      "duration_ms": 1.841,
+      "start_time": "2025-12-15T23:45:54.157939",
+      "end_time": "2025-12-15T23:45:54.159780",
       "failed_components": [
         "A40"
       ],
@@ -6439,7 +6439,7 @@
           "component": "A40",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.948296",
+          "timestamp": "2025-12-15T23:45:54.157939",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -6533,9 +6533,9 @@
     {
       "simulation_id": "sim_60",
       "simulation_mode": "single",
-      "duration_ms": 1.8719999999999999,
-      "start_time": "2025-12-14T22:34:35.951865",
-      "end_time": "2025-12-14T22:34:35.953737",
+      "duration_ms": 1.8639999999999999,
+      "start_time": "2025-12-15T23:45:54.161470",
+      "end_time": "2025-12-15T23:45:54.163334",
       "failed_components": [
         "A41"
       ],
@@ -6545,7 +6545,7 @@
           "component": "A41",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.951865",
+          "timestamp": "2025-12-15T23:45:54.161470",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -6646,9 +6646,9 @@
     {
       "simulation_id": "sim_61",
       "simulation_mode": "single",
-      "duration_ms": 1.873,
-      "start_time": "2025-12-14T22:34:35.955380",
-      "end_time": "2025-12-14T22:34:35.957253",
+      "duration_ms": 1.863,
+      "start_time": "2025-12-15T23:45:54.164997",
+      "end_time": "2025-12-15T23:45:54.166860",
       "failed_components": [
         "A42"
       ],
@@ -6658,7 +6658,7 @@
           "component": "A42",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.955380",
+          "timestamp": "2025-12-15T23:45:54.164997",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -6758,9 +6758,9 @@
     {
       "simulation_id": "sim_62",
       "simulation_mode": "single",
-      "duration_ms": 1.869,
-      "start_time": "2025-12-14T22:34:35.958929",
-      "end_time": "2025-12-14T22:34:35.960798",
+      "duration_ms": 1.8519999999999999,
+      "start_time": "2025-12-15T23:45:54.168533",
+      "end_time": "2025-12-15T23:45:54.170385",
       "failed_components": [
         "A43"
       ],
@@ -6770,7 +6770,7 @@
           "component": "A43",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.958929",
+          "timestamp": "2025-12-15T23:45:54.168533",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -6886,9 +6886,9 @@
     {
       "simulation_id": "sim_63",
       "simulation_mode": "single",
-      "duration_ms": 1.8519999999999999,
-      "start_time": "2025-12-14T22:34:35.962398",
-      "end_time": "2025-12-14T22:34:35.964250",
+      "duration_ms": 1.8639999999999999,
+      "start_time": "2025-12-15T23:45:54.172051",
+      "end_time": "2025-12-15T23:45:54.173915",
       "failed_components": [
         "A44"
       ],
@@ -6898,7 +6898,7 @@
           "component": "A44",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.962398",
+          "timestamp": "2025-12-15T23:45:54.172051",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -7003,9 +7003,9 @@
     {
       "simulation_id": "sim_64",
       "simulation_mode": "single",
-      "duration_ms": 1.871,
-      "start_time": "2025-12-14T22:34:35.965922",
-      "end_time": "2025-12-14T22:34:35.967793",
+      "duration_ms": 1.847,
+      "start_time": "2025-12-15T23:45:54.175602",
+      "end_time": "2025-12-15T23:45:54.177449",
       "failed_components": [
         "A45"
       ],
@@ -7015,7 +7015,7 @@
           "component": "A45",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.965922",
+          "timestamp": "2025-12-15T23:45:54.175602",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -7120,9 +7120,9 @@
     {
       "simulation_id": "sim_65",
       "simulation_mode": "single",
-      "duration_ms": 1.878,
-      "start_time": "2025-12-14T22:34:35.969461",
-      "end_time": "2025-12-14T22:34:35.971339",
+      "duration_ms": 1.931,
+      "start_time": "2025-12-15T23:45:54.179094",
+      "end_time": "2025-12-15T23:45:54.181025",
       "failed_components": [
         "A46"
       ],
@@ -7132,7 +7132,7 @@
           "component": "A46",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.969461",
+          "timestamp": "2025-12-15T23:45:54.179094",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -7233,9 +7233,9 @@
     {
       "simulation_id": "sim_66",
       "simulation_mode": "single",
-      "duration_ms": 1.863,
-      "start_time": "2025-12-14T22:34:35.972975",
-      "end_time": "2025-12-14T22:34:35.974838",
+      "duration_ms": 1.849,
+      "start_time": "2025-12-15T23:45:54.182747",
+      "end_time": "2025-12-15T23:45:54.184596",
       "failed_components": [
         "A47"
       ],
@@ -7245,7 +7245,7 @@
           "component": "A47",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.972975",
+          "timestamp": "2025-12-15T23:45:54.182747",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -7352,9 +7352,9 @@
     {
       "simulation_id": "sim_67",
       "simulation_mode": "single",
-      "duration_ms": 1.871,
-      "start_time": "2025-12-14T22:34:35.976507",
-      "end_time": "2025-12-14T22:34:35.978378",
+      "duration_ms": 1.848,
+      "start_time": "2025-12-15T23:45:54.187264",
+      "end_time": "2025-12-15T23:45:54.189112",
       "failed_components": [
         "A48"
       ],
@@ -7364,7 +7364,7 @@
           "component": "A48",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.976507",
+          "timestamp": "2025-12-15T23:45:54.187264",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -7463,9 +7463,9 @@
     {
       "simulation_id": "sim_68",
       "simulation_mode": "single",
-      "duration_ms": 2.692,
-      "start_time": "2025-12-14T22:34:35.980018",
-      "end_time": "2025-12-14T22:34:35.982710",
+      "duration_ms": 1.8439999999999999,
+      "start_time": "2025-12-15T23:45:54.190791",
+      "end_time": "2025-12-15T23:45:54.192635",
       "failed_components": [
         "A49"
       ],
@@ -7475,7 +7475,7 @@
           "component": "A49",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.980018",
+          "timestamp": "2025-12-15T23:45:54.190791",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -7582,9 +7582,9 @@
     {
       "simulation_id": "sim_69",
       "simulation_mode": "single",
-      "duration_ms": 1.853,
-      "start_time": "2025-12-14T22:34:35.984356",
-      "end_time": "2025-12-14T22:34:35.986209",
+      "duration_ms": 1.861,
+      "start_time": "2025-12-15T23:45:54.194328",
+      "end_time": "2025-12-15T23:45:54.196189",
       "failed_components": [
         "A50"
       ],
@@ -7594,7 +7594,7 @@
           "component": "A50",
           "component_type": "Application",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.984356",
+          "timestamp": "2025-12-15T23:45:54.194328",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -7698,9 +7698,9 @@
     {
       "simulation_id": "sim_70",
       "simulation_mode": "single",
-      "duration_ms": 1.789,
-      "start_time": "2025-12-14T22:34:35.987853",
-      "end_time": "2025-12-14T22:34:35.989642",
+      "duration_ms": 1.8439999999999999,
+      "start_time": "2025-12-15T23:45:54.197873",
+      "end_time": "2025-12-15T23:45:54.199717",
       "failed_components": [
         "T1"
       ],
@@ -7710,7 +7710,7 @@
           "component": "T1",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.987853",
+          "timestamp": "2025-12-15T23:45:54.197873",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -7796,9 +7796,9 @@
     {
       "simulation_id": "sim_71",
       "simulation_mode": "single",
-      "duration_ms": 1.739,
-      "start_time": "2025-12-14T22:34:35.991289",
-      "end_time": "2025-12-14T22:34:35.993028",
+      "duration_ms": 1.903,
+      "start_time": "2025-12-15T23:45:54.201445",
+      "end_time": "2025-12-15T23:45:54.203348",
       "failed_components": [
         "T2"
       ],
@@ -7808,7 +7808,7 @@
           "component": "T2",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.991289",
+          "timestamp": "2025-12-15T23:45:54.201445",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -7894,9 +7894,9 @@
     {
       "simulation_id": "sim_72",
       "simulation_mode": "single",
-      "duration_ms": 1.772,
-      "start_time": "2025-12-14T22:34:35.994649",
-      "end_time": "2025-12-14T22:34:35.996421",
+      "duration_ms": 1.88,
+      "start_time": "2025-12-15T23:45:54.205081",
+      "end_time": "2025-12-15T23:45:54.206961",
       "failed_components": [
         "T3"
       ],
@@ -7906,7 +7906,7 @@
           "component": "T3",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.994649",
+          "timestamp": "2025-12-15T23:45:54.205081",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -7992,9 +7992,9 @@
     {
       "simulation_id": "sim_73",
       "simulation_mode": "single",
-      "duration_ms": 1.776,
-      "start_time": "2025-12-14T22:34:35.998047",
-      "end_time": "2025-12-14T22:34:35.999823",
+      "duration_ms": 1.839,
+      "start_time": "2025-12-15T23:45:54.208688",
+      "end_time": "2025-12-15T23:45:54.210527",
       "failed_components": [
         "T4"
       ],
@@ -8004,7 +8004,7 @@
           "component": "T4",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:35.998047",
+          "timestamp": "2025-12-15T23:45:54.208688",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -8090,9 +8090,9 @@
     {
       "simulation_id": "sim_74",
       "simulation_mode": "single",
-      "duration_ms": 1.761,
-      "start_time": "2025-12-14T22:34:36.001446",
-      "end_time": "2025-12-14T22:34:36.003207",
+      "duration_ms": 1.8539999999999999,
+      "start_time": "2025-12-15T23:45:54.212232",
+      "end_time": "2025-12-15T23:45:54.214086",
       "failed_components": [
         "T5"
       ],
@@ -8102,7 +8102,7 @@
           "component": "T5",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.001446",
+          "timestamp": "2025-12-15T23:45:54.212232",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -8188,9 +8188,9 @@
     {
       "simulation_id": "sim_75",
       "simulation_mode": "single",
-      "duration_ms": 1.8860000000000001,
-      "start_time": "2025-12-14T22:34:36.004888",
-      "end_time": "2025-12-14T22:34:36.006774",
+      "duration_ms": 1.861,
+      "start_time": "2025-12-15T23:45:54.215805",
+      "end_time": "2025-12-15T23:45:54.217666",
       "failed_components": [
         "T6"
       ],
@@ -8200,7 +8200,7 @@
           "component": "T6",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.004888",
+          "timestamp": "2025-12-15T23:45:54.215805",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -8286,9 +8286,9 @@
     {
       "simulation_id": "sim_76",
       "simulation_mode": "single",
-      "duration_ms": 1.8639999999999999,
-      "start_time": "2025-12-14T22:34:36.008498",
-      "end_time": "2025-12-14T22:34:36.010362",
+      "duration_ms": 1.868,
+      "start_time": "2025-12-15T23:45:54.219385",
+      "end_time": "2025-12-15T23:45:54.221253",
       "failed_components": [
         "T7"
       ],
@@ -8298,7 +8298,7 @@
           "component": "T7",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.008498",
+          "timestamp": "2025-12-15T23:45:54.219385",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -8384,9 +8384,9 @@
     {
       "simulation_id": "sim_77",
       "simulation_mode": "single",
-      "duration_ms": 1.949,
-      "start_time": "2025-12-14T22:34:36.012049",
-      "end_time": "2025-12-14T22:34:36.013998",
+      "duration_ms": 1.8259999999999998,
+      "start_time": "2025-12-15T23:45:54.222940",
+      "end_time": "2025-12-15T23:45:54.224766",
       "failed_components": [
         "T8"
       ],
@@ -8396,7 +8396,7 @@
           "component": "T8",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.012049",
+          "timestamp": "2025-12-15T23:45:54.222940",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -8482,9 +8482,9 @@
     {
       "simulation_id": "sim_78",
       "simulation_mode": "single",
-      "duration_ms": 1.91,
-      "start_time": "2025-12-14T22:34:36.015766",
-      "end_time": "2025-12-14T22:34:36.017676",
+      "duration_ms": 2.991,
+      "start_time": "2025-12-15T23:45:54.226460",
+      "end_time": "2025-12-15T23:45:54.229451",
       "failed_components": [
         "T9"
       ],
@@ -8494,7 +8494,7 @@
           "component": "T9",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.015766",
+          "timestamp": "2025-12-15T23:45:54.226460",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -8580,9 +8580,9 @@
     {
       "simulation_id": "sim_79",
       "simulation_mode": "single",
-      "duration_ms": 1.891,
-      "start_time": "2025-12-14T22:34:36.019358",
-      "end_time": "2025-12-14T22:34:36.021249",
+      "duration_ms": 1.831,
+      "start_time": "2025-12-15T23:45:54.231192",
+      "end_time": "2025-12-15T23:45:54.233023",
       "failed_components": [
         "T10"
       ],
@@ -8592,7 +8592,7 @@
           "component": "T10",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.019358",
+          "timestamp": "2025-12-15T23:45:54.231192",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -8678,9 +8678,9 @@
     {
       "simulation_id": "sim_80",
       "simulation_mode": "single",
-      "duration_ms": 2.853,
-      "start_time": "2025-12-14T22:34:36.022976",
-      "end_time": "2025-12-14T22:34:36.025829",
+      "duration_ms": 1.871,
+      "start_time": "2025-12-15T23:45:54.234728",
+      "end_time": "2025-12-15T23:45:54.236599",
       "failed_components": [
         "T11"
       ],
@@ -8690,7 +8690,7 @@
           "component": "T11",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.022976",
+          "timestamp": "2025-12-15T23:45:54.234728",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -8776,9 +8776,9 @@
     {
       "simulation_id": "sim_81",
       "simulation_mode": "single",
-      "duration_ms": 1.867,
-      "start_time": "2025-12-14T22:34:36.027595",
-      "end_time": "2025-12-14T22:34:36.029462",
+      "duration_ms": 1.8539999999999999,
+      "start_time": "2025-12-15T23:45:54.238298",
+      "end_time": "2025-12-15T23:45:54.240152",
       "failed_components": [
         "T12"
       ],
@@ -8788,7 +8788,7 @@
           "component": "T12",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.027595",
+          "timestamp": "2025-12-15T23:45:54.238298",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -8874,9 +8874,9 @@
     {
       "simulation_id": "sim_82",
       "simulation_mode": "single",
-      "duration_ms": 1.868,
-      "start_time": "2025-12-14T22:34:36.031154",
-      "end_time": "2025-12-14T22:34:36.033022",
+      "duration_ms": 1.975,
+      "start_time": "2025-12-15T23:45:54.241840",
+      "end_time": "2025-12-15T23:45:54.243815",
       "failed_components": [
         "T13"
       ],
@@ -8886,7 +8886,7 @@
           "component": "T13",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.031154",
+          "timestamp": "2025-12-15T23:45:54.241840",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -8972,9 +8972,9 @@
     {
       "simulation_id": "sim_83",
       "simulation_mode": "single",
-      "duration_ms": 1.842,
-      "start_time": "2025-12-14T22:34:36.034791",
-      "end_time": "2025-12-14T22:34:36.036633",
+      "duration_ms": 1.853,
+      "start_time": "2025-12-15T23:45:54.245499",
+      "end_time": "2025-12-15T23:45:54.247352",
       "failed_components": [
         "T14"
       ],
@@ -8984,7 +8984,7 @@
           "component": "T14",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.034791",
+          "timestamp": "2025-12-15T23:45:54.245499",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -9070,9 +9070,9 @@
     {
       "simulation_id": "sim_84",
       "simulation_mode": "single",
-      "duration_ms": 1.851,
-      "start_time": "2025-12-14T22:34:36.038315",
-      "end_time": "2025-12-14T22:34:36.040166",
+      "duration_ms": 1.856,
+      "start_time": "2025-12-15T23:45:54.249073",
+      "end_time": "2025-12-15T23:45:54.250929",
       "failed_components": [
         "T15"
       ],
@@ -9082,7 +9082,7 @@
           "component": "T15",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.038315",
+          "timestamp": "2025-12-15T23:45:54.249073",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -9168,9 +9168,9 @@
     {
       "simulation_id": "sim_85",
       "simulation_mode": "single",
-      "duration_ms": 1.857,
-      "start_time": "2025-12-14T22:34:36.041876",
-      "end_time": "2025-12-14T22:34:36.043733",
+      "duration_ms": 1.881,
+      "start_time": "2025-12-15T23:45:54.252628",
+      "end_time": "2025-12-15T23:45:54.254509",
       "failed_components": [
         "T16"
       ],
@@ -9180,7 +9180,7 @@
           "component": "T16",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.041876",
+          "timestamp": "2025-12-15T23:45:54.252628",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -9266,9 +9266,9 @@
     {
       "simulation_id": "sim_86",
       "simulation_mode": "single",
-      "duration_ms": 1.8339999999999999,
-      "start_time": "2025-12-14T22:34:36.045435",
-      "end_time": "2025-12-14T22:34:36.047269",
+      "duration_ms": 1.897,
+      "start_time": "2025-12-15T23:45:54.256257",
+      "end_time": "2025-12-15T23:45:54.258154",
       "failed_components": [
         "T17"
       ],
@@ -9278,7 +9278,7 @@
           "component": "T17",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.045435",
+          "timestamp": "2025-12-15T23:45:54.256257",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -9364,9 +9364,9 @@
     {
       "simulation_id": "sim_87",
       "simulation_mode": "single",
-      "duration_ms": 1.879,
-      "start_time": "2025-12-14T22:34:36.049003",
-      "end_time": "2025-12-14T22:34:36.050882",
+      "duration_ms": 1.871,
+      "start_time": "2025-12-15T23:45:54.259891",
+      "end_time": "2025-12-15T23:45:54.261762",
       "failed_components": [
         "T18"
       ],
@@ -9376,7 +9376,7 @@
           "component": "T18",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.049003",
+          "timestamp": "2025-12-15T23:45:54.259891",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -9462,9 +9462,9 @@
     {
       "simulation_id": "sim_88",
       "simulation_mode": "single",
-      "duration_ms": 1.881,
-      "start_time": "2025-12-14T22:34:36.052582",
-      "end_time": "2025-12-14T22:34:36.054463",
+      "duration_ms": 1.871,
+      "start_time": "2025-12-15T23:45:54.263470",
+      "end_time": "2025-12-15T23:45:54.265341",
       "failed_components": [
         "T19"
       ],
@@ -9474,7 +9474,7 @@
           "component": "T19",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.052582",
+          "timestamp": "2025-12-15T23:45:54.263470",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -9560,9 +9560,9 @@
     {
       "simulation_id": "sim_89",
       "simulation_mode": "single",
-      "duration_ms": 1.916,
-      "start_time": "2025-12-14T22:34:36.056149",
-      "end_time": "2025-12-14T22:34:36.058065",
+      "duration_ms": 2.882,
+      "start_time": "2025-12-15T23:45:54.267023",
+      "end_time": "2025-12-15T23:45:54.269905",
       "failed_components": [
         "T20"
       ],
@@ -9572,7 +9572,7 @@
           "component": "T20",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.056149",
+          "timestamp": "2025-12-15T23:45:54.267023",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -9658,9 +9658,9 @@
     {
       "simulation_id": "sim_90",
       "simulation_mode": "single",
-      "duration_ms": 1.909,
-      "start_time": "2025-12-14T22:34:36.059782",
-      "end_time": "2025-12-14T22:34:36.061691",
+      "duration_ms": 1.833,
+      "start_time": "2025-12-15T23:45:54.271663",
+      "end_time": "2025-12-15T23:45:54.273496",
       "failed_components": [
         "T21"
       ],
@@ -9670,7 +9670,7 @@
           "component": "T21",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.059782",
+          "timestamp": "2025-12-15T23:45:54.271663",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -9756,9 +9756,9 @@
     {
       "simulation_id": "sim_91",
       "simulation_mode": "single",
-      "duration_ms": 2.907,
-      "start_time": "2025-12-14T22:34:36.063413",
-      "end_time": "2025-12-14T22:34:36.066320",
+      "duration_ms": 1.858,
+      "start_time": "2025-12-15T23:45:54.275267",
+      "end_time": "2025-12-15T23:45:54.277125",
       "failed_components": [
         "T22"
       ],
@@ -9768,7 +9768,7 @@
           "component": "T22",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.063413",
+          "timestamp": "2025-12-15T23:45:54.275267",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -9854,9 +9854,9 @@
     {
       "simulation_id": "sim_92",
       "simulation_mode": "single",
-      "duration_ms": 1.843,
-      "start_time": "2025-12-14T22:34:36.068042",
-      "end_time": "2025-12-14T22:34:36.069885",
+      "duration_ms": 1.896,
+      "start_time": "2025-12-15T23:45:54.278827",
+      "end_time": "2025-12-15T23:45:54.280723",
       "failed_components": [
         "T23"
       ],
@@ -9866,7 +9866,7 @@
           "component": "T23",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.068042",
+          "timestamp": "2025-12-15T23:45:54.278827",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -9952,9 +9952,9 @@
     {
       "simulation_id": "sim_93",
       "simulation_mode": "single",
-      "duration_ms": 1.8840000000000001,
-      "start_time": "2025-12-14T22:34:36.071618",
-      "end_time": "2025-12-14T22:34:36.073502",
+      "duration_ms": 1.873,
+      "start_time": "2025-12-15T23:45:54.282453",
+      "end_time": "2025-12-15T23:45:54.284326",
       "failed_components": [
         "T24"
       ],
@@ -9964,7 +9964,7 @@
           "component": "T24",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.071618",
+          "timestamp": "2025-12-15T23:45:54.282453",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -10050,9 +10050,9 @@
     {
       "simulation_id": "sim_94",
       "simulation_mode": "single",
-      "duration_ms": 1.841,
-      "start_time": "2025-12-14T22:34:36.075224",
-      "end_time": "2025-12-14T22:34:36.077065",
+      "duration_ms": 1.848,
+      "start_time": "2025-12-15T23:45:54.286045",
+      "end_time": "2025-12-15T23:45:54.287893",
       "failed_components": [
         "T25"
       ],
@@ -10062,7 +10062,7 @@
           "component": "T25",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.075224",
+          "timestamp": "2025-12-15T23:45:54.286045",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -10148,9 +10148,9 @@
     {
       "simulation_id": "sim_95",
       "simulation_mode": "single",
-      "duration_ms": 1.926,
-      "start_time": "2025-12-14T22:34:36.078758",
-      "end_time": "2025-12-14T22:34:36.080684",
+      "duration_ms": 2.026,
+      "start_time": "2025-12-15T23:45:54.289612",
+      "end_time": "2025-12-15T23:45:54.291638",
       "failed_components": [
         "T26"
       ],
@@ -10160,7 +10160,7 @@
           "component": "T26",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.078758",
+          "timestamp": "2025-12-15T23:45:54.289612",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -10247,8 +10247,8 @@
       "simulation_id": "sim_96",
       "simulation_mode": "single",
       "duration_ms": 1.8719999999999999,
-      "start_time": "2025-12-14T22:34:36.082387",
-      "end_time": "2025-12-14T22:34:36.084259",
+      "start_time": "2025-12-15T23:45:54.293410",
+      "end_time": "2025-12-15T23:45:54.295282",
       "failed_components": [
         "T27"
       ],
@@ -10258,7 +10258,7 @@
           "component": "T27",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.082387",
+          "timestamp": "2025-12-15T23:45:54.293410",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -10344,9 +10344,9 @@
     {
       "simulation_id": "sim_97",
       "simulation_mode": "single",
-      "duration_ms": 1.932,
-      "start_time": "2025-12-14T22:34:36.085948",
-      "end_time": "2025-12-14T22:34:36.087880",
+      "duration_ms": 1.856,
+      "start_time": "2025-12-15T23:45:54.296987",
+      "end_time": "2025-12-15T23:45:54.298843",
       "failed_components": [
         "T28"
       ],
@@ -10356,7 +10356,7 @@
           "component": "T28",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.085948",
+          "timestamp": "2025-12-15T23:45:54.296987",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -10442,9 +10442,9 @@
     {
       "simulation_id": "sim_98",
       "simulation_mode": "single",
-      "duration_ms": 1.887,
-      "start_time": "2025-12-14T22:34:36.089600",
-      "end_time": "2025-12-14T22:34:36.091487",
+      "duration_ms": 1.8550000000000002,
+      "start_time": "2025-12-15T23:45:54.300554",
+      "end_time": "2025-12-15T23:45:54.302409",
       "failed_components": [
         "T29"
       ],
@@ -10454,7 +10454,7 @@
           "component": "T29",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.089600",
+          "timestamp": "2025-12-15T23:45:54.300554",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"
@@ -10540,9 +10540,9 @@
     {
       "simulation_id": "sim_99",
       "simulation_mode": "single",
-      "duration_ms": 1.926,
-      "start_time": "2025-12-14T22:34:36.093300",
-      "end_time": "2025-12-14T22:34:36.095226",
+      "duration_ms": 1.871,
+      "start_time": "2025-12-15T23:45:54.304099",
+      "end_time": "2025-12-15T23:45:54.305970",
       "failed_components": [
         "T30"
       ],
@@ -10552,7 +10552,7 @@
           "component": "T30",
           "component_type": "Topic",
           "failure_mode": "crash",
-          "timestamp": "2025-12-14T22:34:36.093300",
+          "timestamp": "2025-12-15T23:45:54.304099",
           "is_cascade": false,
           "cascade_depth": 0,
           "cause": "primary"

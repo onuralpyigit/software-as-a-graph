@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Validation Report</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+               max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1, h2, h3 { color: #333; }
+        .metric { display: inline-block; margin: 10px 20px 10px 0; text-align: center; }
+        .metric-value { font-size: 2em; font-weight: bold; }
+        .metric-label { color: #666; font-size: 0.9em; }
+        .success { color: #28a745; }
+        .warning { color: #fd7e14; }
+        .danger { color: #dc3545; }
+        .info { color: #17a2b8; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; }
+        .progress { background: #e9ecef; border-radius: 4px; height: 20px; overflow: hidden; }
+        .progress-bar { height: 100%; }
+        .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.85em; }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Graph Analysis Validation Report</h1>
+    <p>Generated: 2025-12-15 23:27:41</p>
+    
+    <div class="card">
+        <h2>Summary</h2>
+        <div class="metric">
+            <div class="metric-value warning">MARGINAL</div>
+            <div class="metric-label">Status</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">27</div>
+            <div class="metric-label">Components</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">0.790</div>
+            <div class="metric-label">Spearman ρ</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">0.000</div>
+            <div class="metric-label">F1-Score</div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>Correlation Analysis</h2>
+        <table>
+            <tr><th>Metric</th><th>Value</th><th>P-Value</th><th>Target</th><th>Status</th></tr>
+            <tr>
+                <td>Spearman Correlation</td>
+                <td>0.7897</td>
+                <td>0.000114</td>
+                <td>≥ 0.70</td>
+                <td><span class="badge badge-success">
+                    PASS</span></td>
+            </tr>
+            <tr>
+                <td>Pearson Correlation</td>
+                <td>0.5952</td>
+                <td>1.000000</td>
+                <td>-</td>
+                <td>-</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="card">
+        <h2>Classification Metrics</h2>
+        <table>
+            <tr><th>Metric</th><th>Value</th><th>Target</th><th>Status</th></tr>
+            <tr>
+                <td>Precision</td>
+                <td>0.0000</td>
+                <td>≥ 0.80</td>
+                <td><span class="badge badge-danger">
+                    FAIL</span></td>
+            </tr>
+            <tr>
+                <td>Recall</td>
+                <td>0.0000</td>
+                <td>≥ 0.80</td>
+                <td><span class="badge badge-danger">
+                    FAIL</span></td>
+            </tr>
+            <tr>
+                <td>F1-Score</td>
+                <td>0.0000</td>
+                <td>≥ 0.90</td>
+                <td><span class="badge badge-danger">
+                    FAIL</span></td>
+            </tr>
+            <tr>
+                <td>Accuracy</td>
+                <td>1.0000</td>
+                <td>-</td>
+                <td>-</td>
+            </tr>
+        </table>
+        
+        <h3>Confusion Matrix</h3>
+        <table style="width: auto;">
+            <tr><th></th><th>Predicted Critical</th><th>Predicted Non-Critical</th></tr>
+            <tr>
+                <th>Actually Critical</th>
+                <td class="success">0 (TP)</td>
+                <td class="danger">0 (FN)</td>
+            </tr>
+            <tr>
+                <th>Actually Non-Critical</th>
+                <td class="warning">0 (FP)</td>
+                <td class="success">27 (TN)</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="card">
+        <h2>Component Comparison</h2>
+        <table>
+            <tr>
+                <th>Component</th>
+                <th>Type</th>
+                <th>Predicted Score</th>
+                <th>Actual Impact</th>
+                <th>Rank Δ</th>
+                <th>Classification</th>
+            </tr>
+
+            <tr>
+                <td>A11</td>
+                <td>Application</td>
+                <td>0.4808</td>
+                <td>44.44%</td>
+                <td>0</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>A2</td>
+                <td>Application</td>
+                <td>0.0808</td>
+                <td>40.74%</td>
+                <td>7</td>
+                <td class="danger">✗ Misclassified</td>
+            </tr>
+
+            <tr>
+                <td>A7</td>
+                <td>Application</td>
+                <td>0.0968</td>
+                <td>40.74%</td>
+                <td>1</td>
+                <td class="danger">✗ Misclassified</td>
+            </tr>
+
+            <tr>
+                <td>A9</td>
+                <td>Application</td>
+                <td>0.0968</td>
+                <td>40.74%</td>
+                <td>1</td>
+                <td class="danger">✗ Misclassified</td>
+            </tr>
+
+            <tr>
+                <td>A6</td>
+                <td>Application</td>
+                <td>0.0000</td>
+                <td>37.04%</td>
+                <td>11</td>
+                <td class="danger">✗ Misclassified</td>
+            </tr>
+
+            <tr>
+                <td>A4</td>
+                <td>Application</td>
+                <td>0.0000</td>
+                <td>37.04%</td>
+                <td>11</td>
+                <td class="danger">✗ Misclassified</td>
+            </tr>
+
+            <tr>
+                <td>A1</td>
+                <td>Application</td>
+                <td>0.0808</td>
+                <td>37.04%</td>
+                <td>3</td>
+                <td class="danger">✗ Misclassified</td>
+            </tr>
+
+            <tr>
+                <td>A5</td>
+                <td>Application</td>
+                <td>0.0923</td>
+                <td>33.33%</td>
+                <td>3</td>
+                <td class="danger">✗ Misclassified</td>
+            </tr>
+
+            <tr>
+                <td>A8</td>
+                <td>Application</td>
+                <td>0.0923</td>
+                <td>33.33%</td>
+                <td>3</td>
+                <td class="danger">✗ Misclassified</td>
+            </tr>
+
+            <tr>
+                <td>A3</td>
+                <td>Application</td>
+                <td>0.0923</td>
+                <td>29.63%</td>
+                <td>6</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>A12</td>
+                <td>Application</td>
+                <td>0.0000</td>
+                <td>29.63%</td>
+                <td>8</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>A10</td>
+                <td>Application</td>
+                <td>0.0923</td>
+                <td>18.52%</td>
+                <td>5</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>B1</td>
+                <td>Broker</td>
+                <td>0.0000</td>
+                <td>3.70%</td>
+                <td>3</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>T3</td>
+                <td>Topic</td>
+                <td>0.0000</td>
+                <td>3.70%</td>
+                <td>0</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>N2</td>
+                <td>Node</td>
+                <td>0.0000</td>
+                <td>3.70%</td>
+                <td>3</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>T4</td>
+                <td>Topic</td>
+                <td>0.0000</td>
+                <td>3.70%</td>
+                <td>0</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>T5</td>
+                <td>Topic</td>
+                <td>0.0000</td>
+                <td>3.70%</td>
+                <td>0</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>T2</td>
+                <td>Topic</td>
+                <td>0.0000</td>
+                <td>3.70%</td>
+                <td>0</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>T6</td>
+                <td>Topic</td>
+                <td>0.0000</td>
+                <td>3.70%</td>
+                <td>0</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+            <tr>
+                <td>N5</td>
+                <td>Node</td>
+                <td>0.0000</td>
+                <td>3.70%</td>
+                <td>3</td>
+                <td class="success">✓ Correct</td>
+            </tr>
+
+        </table>
+    </div>
+    
+    <div class="card">
+        <h2>Recommendations</h2>
+        <ul>
+            <li>Precision (0.000) is below target (0.8). The model may be over-predicting critical components.</li>
+            <li>Recall (0.000) is below target (0.8). The model may be missing some critical components.</li>
+
+        </ul>
+    </div>
+</body>
+</html>

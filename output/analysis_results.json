@@ -21,1279 +21,42 @@
     },
     "edges": [
       {
-        "source": "A4",
-        "target": "A20",
+        "source": "A22",
+        "target": "A19",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A4",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A4",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A4",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A27",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T12",
-          "T14"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A27",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A27",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A27",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.4,
-        "via_topics": [
-          "T12",
-          "T14",
-          "T17"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.4,
-        "via_topics": [
-          "T12",
-          "T23",
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T12"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T21"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A45",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T21"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T21"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T21"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A33",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T21"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A24",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T7"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A24",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T17"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A24",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A24",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A24",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A24",
-        "target": "A46",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A24",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T22"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A46",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T22"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A46",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A46",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A46",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T22"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A46",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.4,
-        "via_topics": [
-          "T3",
-          "T23",
-          "T13"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T13"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A46",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A18",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T14"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T27"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A46",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T3"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T3",
-          "T27"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A11",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T25",
-          "T16"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A11",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A40",
-        "target": "A11",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A40",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A40",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A11",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A11",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A11",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T25",
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A11",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T25",
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T25",
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A33",
-        "target": "A11",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A33",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A33",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A37",
-        "target": "A11",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A37",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A37",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.4,
-        "via_topics": [
-          "T25",
-          "T30",
-          "T26"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A11",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T25"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T25",
-          "T18"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A33",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A46",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A33",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A36",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T2",
-          "T19"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A33",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T2"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A5",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T2"
+          "T1"
         ],
         "via_apps": []
       },
       {
         "source": "A7",
-        "target": "A1",
+        "target": "A19",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T27"
+          "T1"
         ],
         "via_apps": []
       },
       {
-        "source": "A7",
-        "target": "A2",
+        "source": "A32",
+        "target": "A19",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T27"
+          "T1"
         ],
         "via_apps": []
       },
       {
-        "source": "A7",
-        "target": "A36",
+        "source": "A26",
+        "target": "A19",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T27"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.4,
-        "via_topics": [
-          "T27",
-          "T9",
-          "T14"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T27",
-          "T14"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T27"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T27"
+          "T1"
         ],
         "via_apps": []
       },
@@ -1339,230 +102,1060 @@
         "via_apps": []
       },
       {
-        "source": "A32",
-        "target": "A19",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T1"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
-        "target": "A19",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T1"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A19",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T1"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A7",
-        "target": "A19",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T1"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A39",
+        "source": "A36",
         "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A39",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A43",
         "type": "app_to_app",
         "weight": 1.2,
         "via_topics": [
-          "T20",
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T20",
-          "T16"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A37",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A37",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A46",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A46",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A7",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A7",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A23",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T20"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A23",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T20",
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A45",
-        "target": "A8",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T5"
+          "T2",
+          "T3"
         ],
         "via_apps": []
       },
       {
         "source": "A36",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T2",
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A33",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T2",
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T2",
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A33",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T2",
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A33",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T2"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T3",
+          "T13",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T13"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T17"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T3",
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A46",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T3"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T4",
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T4",
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T4",
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T4",
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T4",
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T4",
+          "T10",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T4",
+          "T10",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T4",
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T4",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T4"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
         "target": "A8",
         "type": "app_to_app",
         "weight": 1.0,
@@ -1592,6 +1185,26 @@
         "via_apps": []
       },
       {
+        "source": "A45",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T5"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T5"
+        ],
+        "via_apps": []
+      },
+      {
         "source": "A20",
         "target": "A8",
         "type": "app_to_app",
@@ -1602,247 +1215,122 @@
         "via_apps": []
       },
       {
-        "source": "A7",
-        "target": "A8",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T5"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A14",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T19"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A17",
+        "source": "A10",
+        "target": "A35",
         "type": "app_to_app",
         "weight": 1.2,
         "via_topics": [
-          "T19",
-          "T4"
+          "T6",
+          "T9"
         ],
         "via_apps": []
       },
       {
-        "source": "A44",
-        "target": "A14",
+        "source": "A10",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T6"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A42",
         "type": "app_to_app",
         "weight": 1.2,
         "via_topics": [
-          "T19",
-          "T22"
+          "T6",
+          "T18"
         ],
         "via_apps": []
       },
       {
-        "source": "A44",
-        "target": "A17",
+        "source": "A41",
+        "target": "A35",
         "type": "app_to_app",
         "weight": 1.2,
         "via_topics": [
-          "T19",
-          "T26"
+          "T6",
+          "T9"
         ],
         "via_apps": []
       },
       {
-        "source": "A9",
-        "target": "A14",
+        "source": "A41",
+        "target": "A42",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T19"
+          "T6"
         ],
         "via_apps": []
       },
       {
-        "source": "A9",
-        "target": "A17",
+        "source": "A42",
+        "target": "A35",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T19"
+          "T6"
         ],
         "via_apps": []
       },
       {
-        "source": "A36",
-        "target": "A14",
+        "source": "A20",
+        "target": "A35",
         "type": "app_to_app",
         "weight": 1.2,
         "via_topics": [
-          "T19",
-          "T22"
+          "T6",
+          "T9"
         ],
         "via_apps": []
       },
       {
-        "source": "A12",
-        "target": "A14",
+        "source": "A20",
+        "target": "A42",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T19"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A12",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T19",
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A14",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T19"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T19",
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
-        "target": "A14",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T19",
-          "T22"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T19",
-          "T26"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A14",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T19"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T19"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A14",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T19",
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T19"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A9",
-        "target": "A23",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T7"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A9",
-        "target": "A30",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T7"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A9",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T7"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A24",
-        "target": "A23",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T7"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A24",
-        "target": "A30",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T7"
+          "T6"
         ],
         "via_apps": []
       },
       {
         "source": "A28",
-        "target": "A23",
+        "target": "A15",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
@@ -1863,7 +1351,7 @@
       },
       {
         "source": "A28",
-        "target": "A15",
+        "target": "A23",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
@@ -1873,7 +1361,7 @@
       },
       {
         "source": "A40",
-        "target": "A23",
+        "target": "A15",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
@@ -1893,6 +1381,36 @@
       },
       {
         "source": "A40",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T7"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A9",
         "target": "A15",
         "type": "app_to_app",
         "weight": 1.0,
@@ -1902,1412 +1420,888 @@
         "via_apps": []
       },
       {
-        "source": "A26",
-        "target": "A43",
+        "source": "A9",
+        "target": "A30",
         "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T23",
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T23",
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.4,
-        "via_topics": [
-          "T23",
-          "T10",
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A26",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T23",
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A26",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.4,
-        "via_topics": [
-          "T23",
-          "T10",
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A48",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A48",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T23",
-          "T13"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A48",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T23",
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A48",
-        "target": "A26",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A48",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A26",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T23",
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A32",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A32",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A32",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T23",
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A32",
-        "target": "A26",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A32",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A33",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A33",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A33",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A33",
-        "target": "A26",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A33",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A20",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A20",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A20",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T23",
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A20",
-        "target": "A26",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A20",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A23",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A23",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.4,
-        "via_topics": [
-          "T23",
-          "T9",
-          "T11"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A23",
-        "target": "A26",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A23",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A15",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A26",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T23"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T23",
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A45",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A45",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A45",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T9",
-          "T6"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T9",
-          "T11"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A48",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A48",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T9",
-          "T6"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T9",
-          "T11"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A28",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A28",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A32",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A32",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A20",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T9",
-          "T6"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A20",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T9",
-          "T14"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A23",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A23",
-        "target": "A1",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T9"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A41",
-        "target": "A42",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T6"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A42",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T6"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T6"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A42",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T6"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A42",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T6"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A20",
-        "target": "A42",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T6"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A42",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T6",
-          "T18"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A35",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T6"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A19",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T28"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A19",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T28"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A33",
-        "target": "A19",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T28"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A19",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T28",
-          "T14"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A45",
-        "target": "A14",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A45",
-        "target": "A13",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A45",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A45",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A13",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.4,
-        "via_topics": [
-          "T30",
-          "T10",
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A10",
-        "target": "A14",
-        "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T30"
+          "T7"
         ],
         "via_apps": []
       },
       {
-        "source": "A10",
-        "target": "A13",
+        "source": "A9",
+        "target": "A23",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T30"
+          "T7"
         ],
         "via_apps": []
       },
       {
         "source": "A37",
-        "target": "A14",
+        "target": "A22",
         "type": "app_to_app",
-        "weight": 1.0,
+        "weight": 1.2,
         "via_topics": [
-          "T30"
+          "T8",
+          "T29"
         ],
         "via_apps": []
       },
       {
         "source": "A37",
-        "target": "A13",
+        "target": "A6",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A37",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T30"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.4,
-        "via_topics": [
-          "T10",
-          "T4",
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A27",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A27",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A27",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A12",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T10",
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A12",
-        "target": "A27",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A27",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T10",
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A27",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A26",
-        "target": "A27",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A27",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A46",
-        "target": "A47",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A46",
-        "target": "A27",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T10"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A45",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A45",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A16",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A12",
-        "target": "A45",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A12",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A12",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A12",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A45",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A30",
-        "target": "A20",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A28",
-        "target": "A45",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A28",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A28",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T4",
           "T8"
         ],
         "via_apps": []
       },
       {
         "source": "A28",
-        "target": "A20",
+        "target": "A22",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T4"
+          "T8"
         ],
         "via_apps": []
       },
       {
         "source": "A28",
-        "target": "A47",
+        "target": "A6",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T4"
+          "T8"
         ],
         "via_apps": []
       },
       {
-        "source": "A28",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A45",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T4"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
+        "source": "A31",
         "target": "A37",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T4"
+          "T8"
         ],
         "via_apps": []
       },
       {
-        "source": "A29",
-        "target": "A20",
+        "source": "A31",
+        "target": "A22",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T4"
+          "T8"
         ],
         "via_apps": []
       },
       {
-        "source": "A29",
+        "source": "A31",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T8",
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A37",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A22",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T8",
+          "T29"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A6",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T8"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T9",
+          "T11",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T9",
+          "T12",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T11"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T9",
+          "T14",
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A41",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T11"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A35",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T9"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T9",
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A12",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T10",
+          "T15",
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T10",
+          "T15",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A46",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A46",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A27",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T10"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T10",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T11"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A4",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A4",
         "target": "A17",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T4"
+          "T12"
         ],
         "via_apps": []
       },
       {
-        "source": "A25",
-        "target": "A45",
+        "source": "A4",
+        "target": "A28",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A4",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A31",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T12",
+          "T14",
+          "T17"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T12",
           "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T12"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T13"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T13"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T13"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T13",
+          "T23"
         ],
         "via_apps": []
       },
@@ -3323,7 +2317,7 @@
       },
       {
         "source": "A25",
-        "target": "A19",
+        "target": "A45",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
@@ -3334,6 +2328,16 @@
       {
         "source": "A25",
         "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A19",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
@@ -3363,16 +2367,6 @@
       },
       {
         "source": "A27",
-        "target": "A19",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T14"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A27",
         "target": "A1",
         "type": "app_to_app",
         "weight": 1.0,
@@ -3382,8 +2376,90 @@
         "via_apps": []
       },
       {
-        "source": "A20",
+        "source": "A27",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A18",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
         "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T14",
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T14",
+          "T28"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A45",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T14"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A20",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
@@ -3404,16 +2480,6 @@
       },
       {
         "source": "A20",
-        "target": "A19",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T14"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
         "target": "A45",
         "type": "app_to_app",
         "weight": 1.0,
@@ -3423,7 +2489,7 @@
         "via_apps": []
       },
       {
-        "source": "A21",
+        "source": "A20",
         "target": "A19",
         "type": "app_to_app",
         "weight": 1.0,
@@ -3433,182 +2499,360 @@
         "via_apps": []
       },
       {
-        "source": "A21",
-        "target": "A20",
+        "source": "A34",
+        "target": "A22",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T14"
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T15",
+          "T16"
         ],
         "via_apps": []
       },
       {
         "source": "A38",
-        "target": "A45",
+        "target": "A22",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T14"
+          "T15"
         ],
         "via_apps": []
       },
       {
         "source": "A38",
-        "target": "A18",
+        "target": "A49",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T14"
+          "T15"
         ],
         "via_apps": []
       },
       {
         "source": "A38",
-        "target": "A20",
+        "target": "A28",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T14"
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T15"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T15",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A26",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T15",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T16",
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
         ],
         "via_apps": []
       },
       {
         "source": "A25",
-        "target": "A3",
+        "target": "A23",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T24"
+          "T16"
         ],
         "via_apps": []
       },
       {
         "source": "A25",
-        "target": "A30",
+        "target": "A8",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T24"
+          "T16"
         ],
         "via_apps": []
       },
       {
-        "source": "A50",
-        "target": "A3",
+        "source": "A25",
+        "target": "A26",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T24"
+          "T16"
         ],
         "via_apps": []
       },
       {
-        "source": "A50",
-        "target": "A30",
+        "source": "A25",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T16",
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A43",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T24"
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A23",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A8",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T16",
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T16",
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
         ],
         "via_apps": []
       },
       {
         "source": "A27",
-        "target": "A3",
+        "target": "A23",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T24"
+          "T16"
         ],
         "via_apps": []
       },
       {
         "source": "A27",
-        "target": "A30",
+        "target": "A8",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T24"
+          "T16"
         ],
         "via_apps": []
       },
       {
-        "source": "A28",
-        "target": "A3",
+        "source": "A27",
+        "target": "A26",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T24"
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T16",
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T16"
         ],
         "via_apps": []
       },
       {
         "source": "A30",
-        "target": "A3",
+        "target": "A18",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T24"
+          "T17"
         ],
         "via_apps": []
       },
       {
-        "source": "A20",
-        "target": "A3",
+        "source": "A37",
+        "target": "A18",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T24"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A20",
-        "target": "A30",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T24"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A3",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T24"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A21",
-        "target": "A30",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T24"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A3",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T24"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A29",
-        "target": "A30",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T24"
+          "T17"
         ],
         "via_apps": []
       },
@@ -3623,220 +2867,456 @@
         "via_apps": []
       },
       {
-        "source": "A30",
-        "target": "A18",
+        "source": "A25",
+        "target": "A42",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T17"
+          "T18"
         ],
         "via_apps": []
       },
       {
-        "source": "A37",
-        "target": "A18",
+        "source": "A27",
+        "target": "A42",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T17"
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T18",
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A24",
+        "target": "A42",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T18"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
         ],
         "via_apps": []
       },
       {
         "source": "A22",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T11"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A22",
+        "target": "A14",
         "type": "app_to_app",
         "weight": 1.2,
         "via_topics": [
-          "T8",
-          "T29"
+          "T19",
+          "T22"
         ],
         "via_apps": []
       },
       {
-        "source": "A44",
-        "target": "A6",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A22",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A43",
-        "target": "A6",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A22",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A50",
-        "target": "A6",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A37",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A22",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A31",
-        "target": "A6",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A28",
-        "target": "A22",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A28",
-        "target": "A6",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T8"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A37",
-        "target": "A22",
+        "source": "A22",
+        "target": "A17",
         "type": "app_to_app",
         "weight": 1.2,
         "via_topics": [
-          "T8",
-          "T29"
+          "T19",
+          "T26"
         ],
         "via_apps": []
       },
       {
-        "source": "A37",
-        "target": "A6",
+        "source": "A12",
+        "target": "A14",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T8"
+          "T19"
         ],
         "via_apps": []
       },
       {
-        "source": "A26",
-        "target": "A22",
+        "source": "A38",
+        "target": "A14",
         "type": "app_to_app",
         "weight": 1.2,
         "via_topics": [
-          "T8",
-          "T15"
+          "T19",
+          "T30"
         ],
         "via_apps": []
       },
       {
-        "source": "A26",
-        "target": "A6",
+        "source": "A38",
+        "target": "A17",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T8"
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A34",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
         ],
         "via_apps": []
       },
       {
         "source": "A21",
-        "target": "A22",
+        "target": "A14",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T8"
+          "T19"
         ],
         "via_apps": []
       },
       {
         "source": "A21",
-        "target": "A6",
+        "target": "A17",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T8"
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T22"
         ],
         "via_apps": []
       },
       {
         "source": "A44",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T22"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T19",
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A9",
+        "target": "A14",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A9",
+        "target": "A17",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T19"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A22",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A39",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A39",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T20",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T20",
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A46",
+        "target": "A49",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A46",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T20"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T21"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A5",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T21"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A45",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T21"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T21"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A20",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T21"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A36",
         "target": "A27",
         "type": "app_to_app",
         "weight": 1.0,
@@ -3846,7 +3326,7 @@
         "via_apps": []
       },
       {
-        "source": "A36",
+        "source": "A44",
         "target": "A27",
         "type": "app_to_app",
         "weight": 1.0,
@@ -3877,16 +3357,6 @@
       },
       {
         "source": "A22",
-        "target": "A27",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T22"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
         "target": "A18",
         "type": "app_to_app",
         "weight": 1.0,
@@ -3896,262 +3366,762 @@
         "via_apps": []
       },
       {
-        "source": "A48",
-        "target": "A36",
+        "source": "A22",
+        "target": "A27",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T13"
+          "T22"
         ],
         "via_apps": []
       },
       {
-        "source": "A22",
-        "target": "A36",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T13"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
+        "source": "A23",
         "target": "A15",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T13"
+          "T23"
         ],
         "via_apps": []
       },
       {
-        "source": "A34",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.2,
-        "via_topics": [
-          "T16",
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A8",
+        "source": "A23",
+        "target": "A47",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T16"
+          "T23"
         ],
         "via_apps": []
       },
       {
-        "source": "A34",
+        "source": "A23",
         "target": "A26",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T16"
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T23",
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A32",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A48",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A28",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A15",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A26",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A43",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T23"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A25",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A27",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A28",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A21",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A29",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A50",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A3",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A20",
+        "target": "A30",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T24"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A30",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.2,
+        "via_topics": [
+          "T25",
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.4,
+        "via_topics": [
+          "T25",
+          "T26",
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A16",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
         ],
         "via_apps": []
       },
       {
         "source": "A34",
-        "target": "A23",
+        "target": "A11",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T16"
+          "T25"
         ],
         "via_apps": []
       },
       {
         "source": "A34",
-        "target": "A2",
+        "target": "A1",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T16"
+          "T25"
         ],
         "via_apps": []
       },
       {
-        "source": "A25",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T16"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A25",
-        "target": "A8",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T16"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A25",
+        "source": "A5",
         "target": "A21",
         "type": "app_to_app",
-        "weight": 1.2,
+        "weight": 1.0,
         "via_topics": [
-          "T16",
-          "T18"
+          "T25"
         ],
         "via_apps": []
       },
       {
-        "source": "A25",
-        "target": "A26",
+        "source": "A5",
+        "target": "A11",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T16"
+          "T25"
         ],
         "via_apps": []
       },
       {
-        "source": "A25",
-        "target": "A23",
+        "source": "A5",
+        "target": "A1",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T16"
+          "T25"
         ],
         "via_apps": []
       },
       {
-        "source": "A25",
-        "target": "A2",
+        "source": "A29",
+        "target": "A11",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T16"
+          "T25"
         ],
         "via_apps": []
       },
       {
-        "source": "A27",
-        "target": "A43",
+        "source": "A29",
+        "target": "A1",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T16"
+          "T25"
         ],
         "via_apps": []
       },
       {
-        "source": "A27",
-        "target": "A8",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T16"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A27",
+        "source": "A36",
         "target": "A21",
         "type": "app_to_app",
-        "weight": 1.2,
+        "weight": 1.0,
         "via_topics": [
-          "T16",
-          "T18"
+          "T25"
         ],
         "via_apps": []
       },
       {
-        "source": "A27",
-        "target": "A26",
+        "source": "A36",
+        "target": "A11",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T16"
+          "T25"
         ],
         "via_apps": []
       },
       {
-        "source": "A27",
-        "target": "A23",
+        "source": "A36",
+        "target": "A1",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T16"
+          "T25"
         ],
         "via_apps": []
       },
       {
-        "source": "A27",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T16"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
-        "target": "A8",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T16"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
+        "source": "A40",
         "target": "A21",
         "type": "app_to_app",
-        "weight": 1.2,
+        "weight": 1.0,
         "via_topics": [
-          "T16",
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A40",
+        "target": "A11",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A40",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T25"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A23",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
           "T26"
         ],
         "via_apps": []
       },
       {
-        "source": "A22",
-        "target": "A26",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T16"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
-        "target": "A23",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T16"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A22",
-        "target": "A2",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T16"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A44",
-        "target": "A21",
+        "source": "A23",
+        "target": "A17",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
@@ -4190,26 +4160,6 @@
         "via_apps": []
       },
       {
-        "source": "A23",
-        "target": "A21",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T26"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A23",
-        "target": "A17",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T26"
-        ],
-        "via_apps": []
-      },
-      {
         "source": "A46",
         "target": "A21",
         "type": "app_to_app",
@@ -4226,6 +4176,96 @@
         "weight": 1.0,
         "via_topics": [
           "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A44",
+        "target": "A21",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T26"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A36",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A1",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A7",
+        "target": "A2",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T27"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A10",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T28"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A33",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T28"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A43",
+        "target": "A19",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T28"
         ],
         "via_apps": []
       },
@@ -4250,152 +4290,112 @@
         "via_apps": []
       },
       {
-        "source": "A24",
-        "target": "A42",
+        "source": "A37",
+        "target": "A14",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T18"
+          "T30"
         ],
         "via_apps": []
       },
       {
-        "source": "A24",
+        "source": "A37",
+        "target": "A47",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A37",
+        "target": "A13",
+        "type": "app_to_app",
+        "weight": 1.0,
+        "via_topics": [
+          "T30"
+        ],
+        "via_apps": []
+      },
+      {
+        "source": "A38",
         "target": "A21",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T18"
+          "T30"
         ],
         "via_apps": []
       },
       {
-        "source": "A25",
-        "target": "A42",
+        "source": "A38",
+        "target": "A13",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T18"
+          "T30"
         ],
         "via_apps": []
       },
       {
-        "source": "A48",
-        "target": "A42",
+        "source": "A45",
+        "target": "A14",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T18"
+          "T30"
         ],
         "via_apps": []
       },
       {
-        "source": "A48",
+        "source": "A45",
         "target": "A21",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T18"
+          "T30"
         ],
         "via_apps": []
       },
       {
-        "source": "A27",
-        "target": "A42",
+        "source": "A45",
+        "target": "A47",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T18"
+          "T30"
         ],
         "via_apps": []
       },
       {
-        "source": "A32",
-        "target": "A42",
+        "source": "A45",
+        "target": "A13",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T18"
+          "T30"
         ],
         "via_apps": []
       },
       {
-        "source": "A32",
-        "target": "A21",
+        "source": "A10",
+        "target": "A14",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T18"
+          "T30"
         ],
         "via_apps": []
       },
       {
-        "source": "A34",
-        "target": "A49",
+        "source": "A10",
+        "target": "A13",
         "type": "app_to_app",
         "weight": 1.0,
         "via_topics": [
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A34",
-        "target": "A22",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A43",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A49",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A28",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T15"
-        ],
-        "via_apps": []
-      },
-      {
-        "source": "A38",
-        "target": "A22",
-        "type": "app_to_app",
-        "weight": 1.0,
-        "via_topics": [
-          "T15"
+          "T30"
         ],
         "via_apps": []
       }
@@ -5607,121 +5607,120 @@
     "has_cycles": true,
     "cycles": [
       [
-        "A45",
-        "A20",
-        "A43",
-        "A33",
-        "A21",
-        "A36",
+        "A30",
         "A37",
         "A22",
         "A28",
-        "A30"
-      ],
-      [
         "A45",
         "A20",
-        "A43",
-        "A33",
-        "A21",
-        "A36",
-        "A37",
-        "A22",
-        "A28"
-      ],
-      [
-        "A45",
-        "A20",
-        "A43",
-        "A33",
-        "A21",
-        "A36",
-        "A37",
-        "A22",
-        "A27",
-        "A28"
-      ],
-      [
-        "A45",
-        "A20",
-        "A43",
-        "A33",
-        "A21",
-        "A36",
-        "A37",
-        "A22",
-        "A27"
-      ],
-      [
-        "A45",
-        "A20",
-        "A43",
-        "A33",
-        "A21",
-        "A36",
-        "A37",
-        "A22",
-        "A27",
-        "A30"
-      ],
-      [
-        "A45",
-        "A20",
-        "A43",
-        "A33",
-        "A21",
-        "A36",
-        "A37",
-        "A22",
         "A26",
-        "A28"
-      ],
-      [
-        "A45",
-        "A20",
-        "A43",
-        "A33",
-        "A21",
-        "A36",
-        "A37",
-        "A22",
-        "A26",
-        "A27"
-      ],
-      [
-        "A45",
-        "A20",
-        "A43",
-        "A33",
-        "A21",
-        "A36",
-        "A37",
-        "A22",
-        "A23",
-        "A28"
-      ],
-      [
-        "A45",
-        "A20",
-        "A43",
-        "A33",
-        "A21",
-        "A36",
         "A46",
         "A27",
+        "A21"
+      ],
+      [
+        "A30",
+        "A37",
+        "A22",
         "A28",
-        "A30"
-      ],
-      [
         "A45",
         "A20",
+        "A26",
+        "A46",
+        "A27"
+      ],
+      [
+        "A30",
+        "A37",
+        "A22",
+        "A28",
+        "A45",
+        "A20",
+        "A26",
+        "A46",
         "A43",
+        "A27"
+      ],
+      [
+        "A30",
+        "A37",
+        "A22",
+        "A28",
+        "A45",
+        "A20",
+        "A26",
+        "A46",
+        "A21"
+      ],
+      [
+        "A30",
+        "A37",
+        "A22",
+        "A28",
+        "A45",
+        "A20",
+        "A26",
+        "A36",
         "A33",
-        "A21",
+        "A21"
+      ],
+      [
+        "A30",
+        "A37",
+        "A22",
+        "A28",
+        "A45",
+        "A20",
+        "A26",
         "A36",
         "A46",
+        "A27"
+      ],
+      [
+        "A30",
+        "A37",
+        "A22",
+        "A28",
+        "A45",
+        "A20",
+        "A26",
+        "A36",
+        "A46",
+        "A21"
+      ],
+      [
+        "A30",
+        "A37",
+        "A22",
+        "A28",
+        "A45",
+        "A20",
+        "A26",
+        "A36",
         "A27",
-        "A28"
+        "A21"
+      ],
+      [
+        "A30",
+        "A37",
+        "A22",
+        "A28",
+        "A45",
+        "A20",
+        "A26",
+        "A36",
+        "A27"
+      ],
+      [
+        "A30",
+        "A37",
+        "A22",
+        "A28",
+        "A45",
+        "A20",
+        "A26",
+        "A36",
+        "A21"
       ]
     ],
     "betweenness_centrality": {
@@ -5770,10 +5769,10 @@
       "A24": 0.0,
       "A25": 0.0,
       "A26": 0.00343630847260134,
-      "A27": 0.005916856187737736,
+      "A27": 0.005916856187737735,
       "A28": 0.007496028937749955,
       "A29": 0.0,
-      "A30": 0.004950473294150972,
+      "A30": 0.004950473294150971,
       "A31": 0.0,
       "A32": 0.0,
       "A33": 0.000706491593825909,
