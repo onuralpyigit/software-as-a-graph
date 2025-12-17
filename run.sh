@@ -4,7 +4,7 @@
 python generate_graph.py --scale medium --scenario iot --output input/dataset.json
 
 # Step 2: Import
-python import_graph.py --input input/dataset.json --clear
+python import_graph.py --input input/dataset.json --clear --analytics
 
 # Step 3: Analyze
 python analyze_graph.py --output-dir output/ --format json html csv --alpha 0.7 --beta 0.3 --gamma 0.0

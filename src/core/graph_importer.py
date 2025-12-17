@@ -6,7 +6,6 @@ Imports GraphModel data into Neo4j graph database with:
 - Schema creation with constraints and indexes
 - Unified DEPENDS_ON relationship derivation via Cypher
 - Progress tracking and error handling
-- Advanced graph analytics queries
 - Sample queries for exploration
 - Export capabilities
 - Retry logic for transient errors
@@ -28,7 +27,6 @@ Usage:
 
     importer.import_graph(graph_data)
     stats = importer.get_statistics()
-    importer.run_analytics()
     importer.close()
 
     # Context manager usage (recommended)
@@ -433,9 +431,6 @@ class GraphImporter:
                             t.size = topic.size,
                             t.qos_reliability = topic.qos_reliability,
                             t.qos_durability = topic.qos_durability,
-                            t.qos_deadline_ms = topic.qos_deadline_ms,
-                            t.qos_lifespan_ms = topic.qos_lifespan_ms,
-                            t.qos_history_depth = topic.qos_history_depth,
                             t.qos_transport_priority = topic.qos_transport_priority
                     """, topics=batch)
                     tx.commit()
@@ -511,8 +506,6 @@ class GraphImporter:
         rels = []
         for r in relationships:
             rel = self._normalize_relationship(r)
-            rel['period_ms'] = r.get('period_ms')
-            rel['message_size_bytes'] = r.get('message_size_bytes', r.get('msg_size'))
             rels.append(rel)
 
         with self.driver.session(database=self.database) as session:
@@ -524,7 +517,6 @@ class GraphImporter:
                         MATCH (a:Application {id: rel.from})
                         MATCH (t:Topic {id: rel.to})
                         MERGE (a)-[r:PUBLISHES_TO]->(t)
-                        SET r.message_size_bytes = rel.size
                     """, rels=batch)
                     tx.commit()
 
@@ -589,8 +581,6 @@ class GraphImporter:
         rels = []
         for r in relationships:
             rel = self._normalize_relationship(r)
-            rel['bandwidth_mbps'] = r.get('bandwidth_mbps')
-            rel['latency_ms'] = r.get('latency_ms')
             rels.append(rel)
 
         with self.driver.session(database=self.database) as session:
@@ -662,55 +652,15 @@ class GraphImporter:
                 MATCH (subscriber:Application)-[:SUBSCRIBES_TO]->(t:Topic)
                       <-[:PUBLISHES_TO]-(publisher:Application)
                 WHERE subscriber.id <> publisher.id
-
-                // Calculate QoS criticality score for each topic
-                // Based on: reliability (0.3), durability (0.2), deadline (0.25), priority (0.25)
-                WITH subscriber, publisher, t,
-                     // Reliability score: reliable = 0.3, best_effort = 0.0
-                     CASE t.qos_reliability
-                         WHEN 'reliable' THEN 0.3
-                         ELSE 0.0
-                     END +
-                     // Durability score: persistent = 0.2, transient = 0.1, transient_local = 0.05
-                     CASE t.qos_durability
-                         WHEN 'persistent' THEN 0.2
-                         WHEN 'transient' THEN 0.1
-                         WHEN 'transient_local' THEN 0.05
-                         ELSE 0.0
-                     END +
-                     // Deadline score: <=10ms = 0.25, <=100ms = 0.15, <=1000ms = 0.05
-                     CASE
-                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 10 THEN 0.25
-                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 100 THEN 0.15
-                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 1000 THEN 0.05
-                         ELSE 0.0
-                     END +
-                     // Transport priority score: 3 (urgent) = 0.25, 2 (high) = 0.15, 1 (medium) = 0.05
-                     CASE t.qos_transport_priority
-                         WHEN 3 THEN 0.25
-                         WHEN 2 THEN 0.15
-                         WHEN 1 THEN 0.05
-                         ELSE 0.0
-                     END AS qos_score
-
-                // Collect topics and find max QoS score for each pair
+                                 
+                // Collect topics
                 WITH subscriber, publisher,
-                     collect(t.id) AS topics,
-                     max(qos_score) AS max_qos_score
-
-                // Calculate combined weight: base (topic count) + QoS contribution
-                // Base: 1.0 + (topic_count - 1) * 0.2
-                // QoS: max_qos_score * 0.5 (QoS can add up to 0.5 weight)
-                WITH subscriber, publisher, topics,
-                     1.0 + (size(topics) - 1) * 0.2 + (max_qos_score * 0.5) AS weight,
-                     max_qos_score AS qos_factor
+                     collect(t.id) AS topics
 
                 // Create DEPENDS_ON with aggregated information
                 MERGE (subscriber)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(publisher)
-                SET d.topics = topics,
-                    d.weight = CASE WHEN weight > 2.5 THEN 2.5 ELSE weight END,
-                    d.qos_factor = qos_factor,
-                    d.derived_at = datetime()
+                SET d.via_topics = topics,
+                    d.weight = size(topics)
 
                 RETURN count(*) AS count
             """)
@@ -733,53 +683,14 @@ class GraphImporter:
                 MATCH (app:Application)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
                       <-[:ROUTES]-(broker:Broker)
 
-                // Calculate QoS criticality score for each topic
-                WITH app, broker, t,
-                     // Reliability score: reliable = 0.3, best_effort = 0.0
-                     CASE t.qos_reliability
-                         WHEN 'reliable' THEN 0.3
-                         ELSE 0.0
-                     END +
-                     // Durability score: persistent = 0.2, transient = 0.1, transient_local = 0.05
-                     CASE t.qos_durability
-                         WHEN 'persistent' THEN 0.2
-                         WHEN 'transient' THEN 0.1
-                         WHEN 'transient_local' THEN 0.05
-                         ELSE 0.0
-                     END +
-                     // Deadline score: <=10ms = 0.25, <=100ms = 0.15, <=1000ms = 0.05
-                     CASE
-                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 10 THEN 0.25
-                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 100 THEN 0.15
-                         WHEN t.qos_deadline_ms IS NOT NULL AND t.qos_deadline_ms <= 1000 THEN 0.05
-                         ELSE 0.0
-                     END +
-                     // Transport priority score: 3 (urgent) = 0.25, 2 (high) = 0.15, 1 (medium) = 0.05
-                     CASE t.qos_transport_priority
-                         WHEN 3 THEN 0.25
-                         WHEN 2 THEN 0.15
-                         WHEN 1 THEN 0.05
-                         ELSE 0.0
-                     END AS qos_score
-
-                // Collect unique topics and find max QoS score per app-broker pair
+                // Collect unique topics
                 WITH app, broker,
-                     collect(DISTINCT t.id) AS topics,
-                     max(qos_score) AS max_qos_score
-
-                // Calculate combined weight: base (topic count) + QoS contribution
-                // Base: 1.0 + (topic_count - 1) * 0.15
-                // QoS: max_qos_score * 0.4 (QoS can add up to 0.4 weight for broker deps)
-                WITH app, broker, topics,
-                     1.0 + (size(topics) - 1) * 0.15 + (max_qos_score * 0.4) AS weight,
-                     max_qos_score AS qos_factor
+                     collect(DISTINCT t.id) AS topics
 
                 // Create DEPENDS_ON
                 MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
-                SET d.topics = topics,
-                    d.weight = CASE WHEN weight > 2.2 THEN 2.2 ELSE weight END,
-                    d.qos_factor = qos_factor,
-                    d.derived_at = datetime()
+                SET d.via_topics = topics,
+                    d.weight = size(topics)
 
                 RETURN count(*) AS count
             """)
@@ -803,26 +714,13 @@ class GraphImporter:
                       (a2:Application)-[:RUNS_ON]->(n2:Node)
                 WHERE n1.id <> n2.id
 
-                // Aggregate all app pairs for each node pair, including QoS factor
-                WITH n1, n2,
-                     collect({source: a1.id, target: a2.id, weight: dep.weight,
-                              qos_factor: coalesce(dep.qos_factor, 0.0)}) AS app_deps
-
-                // Calculate aggregated weight (app weights now include QoS factors)
-                WITH n1, n2, app_deps,
-                     reduce(s = 0.0, d IN app_deps | s + d.weight) AS total_weight,
-                     reduce(m = 0.0, d IN app_deps | CASE WHEN d.qos_factor > m THEN d.qos_factor ELSE m END) AS max_qos
-                WITH n1, n2, app_deps,
-                     1.0 + (total_weight - 1) * 0.3 AS weight,
-                     max_qos AS qos_factor
+                // Aggregate all app pairs for each node pair
+                WITH n1, n2, collect(DISTINCT a1.id + '->' + a2.id) AS app_pairs
 
                 // Create NODE_TO_NODE DEPENDS_ON
                 MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
-                SET d.app_dependency_count = size(app_deps),
-                    d.underlying_apps = [dep IN app_deps | dep.source + '->' + dep.target],
-                    d.weight = CASE WHEN weight > 3.5 THEN 3.5 ELSE weight END,
-                    d.qos_factor = qos_factor,
-                    d.derived_at = datetime()
+                SET d.via_apps = app_pairs,
+                    d.weight = size(app_pairs)
 
                 RETURN count(*) AS count
             """)
@@ -845,22 +743,12 @@ class GraphImporter:
 
                 // Aggregate dependent apps and their QoS factors per node-broker pair
                 WITH n, broker,
-                     collect(DISTINCT app.id) AS dependent_apps,
-                     avg(dep.weight) AS avg_app_weight,
-                     max(coalesce(dep.qos_factor, 0.0)) AS max_qos
-
-                // Calculate weight incorporating QoS-aware app-broker weights
-                // Base: 1.0 + (app_count - 1) * 0.25
-                // Scale by ratio of avg app-broker weight to base (1.0)
-                WITH n, broker, dependent_apps, max_qos,
-                     (1.0 + (size(dependent_apps) - 1) * 0.25) * avg_app_weight AS weight
+                     collect(DISTINCT app.id) AS dependent_apps
 
                 // Create NODE_TO_BROKER DEPENDS_ON
                 MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(broker)
-                SET d.dependent_apps = dependent_apps,
-                    d.weight = CASE WHEN weight > 3.0 THEN 3.0 ELSE weight END,
-                    d.qos_factor = max_qos,
-                    d.derived_at = datetime()
+                SET d.via_apps = dependent_apps,
+                    d.weight = size(dependent_apps)
 
                 RETURN count(*) AS count
             """)
@@ -1214,240 +1102,6 @@ class GraphImporter:
                         print("  No results")
                 except Exception as e:
                     print(f"  Error: {e}")
-    
-    # =========================================================================
-    # Advanced Analytics
-    # =========================================================================
-    
-    def run_analytics(self) -> Dict[str, Any]:
-        """
-        Run comprehensive graph analytics.
-        
-        Returns:
-            Dictionary containing all analytics results
-        """
-        self.logger.info("Running advanced analytics...")
-        
-        results = {}
-        
-        # Centrality analysis
-        results['centrality'] = self._analyze_centrality()
-        
-        # Dependency analysis
-        results['dependencies'] = self._analyze_dependencies()
-        
-        # Single Points of Failure
-        results['spof_candidates'] = self._find_spof_candidates()
-        
-        # Topic analysis
-        results['topic_analysis'] = self._analyze_topics()
-        
-        # Infrastructure analysis
-        results['infrastructure'] = self._analyze_infrastructure()
-        
-        # Print summary
-        self._print_analytics_summary(results)
-        
-        return results
-    
-    def _analyze_centrality(self) -> Dict[str, Any]:
-        """Analyze node centrality metrics"""
-        with self.driver.session(database=self.database) as session:
-            # Degree centrality for applications
-            degree_result = session.run("""
-                MATCH (a:Application)
-                OPTIONAL MATCH (a)-[out:PUBLISHES_TO|SUBSCRIBES_TO|DEPENDS_ON]->()
-                OPTIONAL MATCH ()-[in:DEPENDS_ON]->(a)
-                WITH a, count(DISTINCT out) AS out_degree, count(DISTINCT in) AS in_degree
-                RETURN a.id AS id, a.name AS name, 
-                       out_degree, in_degree, 
-                       out_degree + in_degree AS total_degree
-                ORDER BY total_degree DESC
-                LIMIT 20
-            """)
-            
-            return {
-                'top_by_degree': [dict(r) for r in degree_result]
-            }
-    
-    def _analyze_dependencies(self) -> Dict[str, Any]:
-        """Analyze dependency patterns"""
-        with self.driver.session(database=self.database) as session:
-            # Dependency depth analysis
-            depth_result = session.run("""
-                MATCH path = (a:Application)-[:DEPENDS_ON*]->(b:Application)
-                WHERE a <> b
-                WITH a, b, length(path) AS depth
-                RETURN max(depth) AS max_depth,
-                       avg(depth) AS avg_depth,
-                       count(*) AS total_paths
-            """)
-            
-            depth_record = depth_result.single()
-            
-            # Circular dependency detection
-            circular_result = session.run("""
-                MATCH path = (a:Application)-[:DEPENDS_ON*2..5]->(a)
-                RETURN [n IN nodes(path) | n.name] AS cycle
-                LIMIT 10
-            """)
-            
-            cycles = [dict(r) for r in circular_result]
-            
-            return {
-                'max_dependency_depth': depth_record['max_depth'] if depth_record else 0,
-                'avg_dependency_depth': round(depth_record['avg_depth'], 2) if depth_record and depth_record['avg_depth'] else 0,
-                'total_dependency_paths': depth_record['total_paths'] if depth_record else 0,
-                'circular_dependencies': cycles,
-                'has_cycles': len(cycles) > 0
-            }
-    
-    def _find_spof_candidates(self) -> List[Dict]:
-        """Find Single Point of Failure candidates"""
-        with self.driver.session(database=self.database) as session:
-            # Find components that many others depend on
-            result = session.run("""
-                MATCH (component)-[:DEPENDS_ON]->(target)
-                WITH target, count(DISTINCT component) AS dependent_count
-                WHERE dependent_count >= 3
-                MATCH (target)
-                RETURN target.id AS id,
-                       target.name AS name,
-                       labels(target)[0] AS type,
-                       dependent_count
-                ORDER BY dependent_count DESC
-                LIMIT 20
-            """)
-            
-            return [dict(r) for r in result]
-    
-    def _analyze_topics(self) -> Dict[str, Any]:
-        """Analyze topic usage patterns"""
-        with self.driver.session(database=self.database) as session:
-            # Topic statistics
-            stats_result = session.run("""
-                MATCH (t:Topic)
-                OPTIONAL MATCH (pub:Application)-[:PUBLISHES_TO]->(t)
-                OPTIONAL MATCH (sub:Application)-[:SUBSCRIBES_TO]->(t)
-                WITH t, 
-                     count(DISTINCT pub) AS publishers,
-                     count(DISTINCT sub) AS subscribers
-                RETURN avg(publishers) AS avg_publishers,
-                       avg(subscribers) AS avg_subscribers,
-                       max(publishers) AS max_publishers,
-                       max(subscribers) AS max_subscribers,
-                       sum(CASE WHEN publishers = 0 THEN 1 ELSE 0 END) AS orphan_topics,
-                       count(t) AS total_topics
-            """)
-            
-            stats = stats_result.single()
-            
-            # God topics (high fan-out)
-            god_topics_result = session.run("""
-                MATCH (t:Topic)
-                OPTIONAL MATCH (pub:Application)-[:PUBLISHES_TO]->(t)
-                OPTIONAL MATCH (sub:Application)-[:SUBSCRIBES_TO]->(t)
-                WITH t, 
-                     count(DISTINCT pub) AS publishers,
-                     count(DISTINCT sub) AS subscribers
-                WHERE publishers + subscribers > 10
-                RETURN t.name AS topic, publishers, subscribers,
-                       publishers + subscribers AS total_connections
-                ORDER BY total_connections DESC
-                LIMIT 10
-            """)
-            
-            return {
-                'total_topics': stats['total_topics'] if stats else 0,
-                'avg_publishers_per_topic': round(stats['avg_publishers'], 2) if stats and stats['avg_publishers'] else 0,
-                'avg_subscribers_per_topic': round(stats['avg_subscribers'], 2) if stats and stats['avg_subscribers'] else 0,
-                'max_publishers': stats['max_publishers'] if stats else 0,
-                'max_subscribers': stats['max_subscribers'] if stats else 0,
-                'orphan_topics': stats['orphan_topics'] if stats else 0,
-                'god_topics': [dict(r) for r in god_topics_result]
-            }
-    
-    def _analyze_infrastructure(self) -> Dict[str, Any]:
-        """Analyze infrastructure utilization"""
-        with self.driver.session(database=self.database) as session:
-            # Node utilization
-            node_result = session.run("""
-                MATCH (n:Node)
-                OPTIONAL MATCH (component)-[:RUNS_ON]->(n)
-                WITH n, count(component) AS hosted_components
-                RETURN n.id AS id,
-                       n.name AS name,
-                       hosted_components
-                ORDER BY hosted_components DESC
-            """)
-            
-            nodes = [dict(r) for r in node_result]
-            
-            # Identify overloaded nodes
-            overloaded = [n for n in nodes if n['hosted_components'] > 10]
-            
-            # Cross-node dependencies
-            cross_node_result = session.run("""
-                MATCH (n1:Node)<-[:RUNS_ON]-(a1)-[:DEPENDS_ON]->(a2)-[:RUNS_ON]->(n2:Node)
-                WHERE n1 <> n2
-                WITH n1, n2, count(*) AS dependency_count
-                RETURN n1.name AS from_node, n2.name AS to_node, dependency_count
-                ORDER BY dependency_count DESC
-                LIMIT 10
-            """)
-            
-            return {
-                'nodes': nodes,
-                'overloaded_nodes': overloaded,
-                'cross_node_dependencies': [dict(r) for r in cross_node_result]
-            }
-    
-    def _print_analytics_summary(self, results: Dict[str, Any]):
-        """Print formatted analytics summary"""
-        print("\n" + "=" * 70)
-        print("GRAPH ANALYTICS SUMMARY")
-        print("=" * 70)
-        
-        # Centrality
-        print("\n📊 Top Applications by Degree Centrality:")
-        for app in results['centrality']['top_by_degree'][:5]:
-            print(f"   {app['name']}: {app['total_degree']} connections "
-                  f"(out: {app['out_degree']}, in: {app['in_degree']})")
-        
-        # Dependencies
-        deps = results['dependencies']
-        print(f"\n🔗 Dependency Analysis:")
-        print(f"   Max Dependency Depth: {deps['max_dependency_depth']}")
-        print(f"   Avg Dependency Depth: {deps['avg_dependency_depth']}")
-        print(f"   Total Dependency Paths: {deps['total_dependency_paths']}")
-        if deps['has_cycles']:
-            print(f"   ⚠️  Circular Dependencies Found: {len(deps['circular_dependencies'])}")
-        else:
-            print(f"   ✓ No Circular Dependencies")
-        
-        # SPOF
-        spof = results['spof_candidates']
-        print(f"\n⚠️  Single Point of Failure Candidates ({len(spof)}):")
-        for s in spof[:5]:
-            print(f"   {s['name']} ({s['type']}): {s['dependent_count']} dependents")
-        
-        # Topics
-        topics = results['topic_analysis']
-        print(f"\n📨 Topic Analysis:")
-        print(f"   Total Topics: {topics['total_topics']}")
-        print(f"   Avg Publishers/Topic: {topics['avg_publishers_per_topic']}")
-        print(f"   Avg Subscribers/Topic: {topics['avg_subscribers_per_topic']}")
-        print(f"   Orphan Topics: {topics['orphan_topics']}")
-        if topics['god_topics']:
-            print(f"   God Topics (high connectivity): {len(topics['god_topics'])}")
-        
-        # Infrastructure
-        infra = results['infrastructure']
-        print(f"\n🖥️  Infrastructure Analysis:")
-        print(f"   Total Nodes: {len(infra['nodes'])}")
-        if infra['overloaded_nodes']:
-            print(f"   ⚠️  Overloaded Nodes: {len(infra['overloaded_nodes'])}")
-        print(f"   Cross-Node Dependencies: {len(infra['cross_node_dependencies'])}")
     
     # =========================================================================
     # Export Methods

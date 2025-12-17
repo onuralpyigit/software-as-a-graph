@@ -4,11 +4,9 @@ Neo4j Graph Importer CLI
 
 Imports generated pub-sub system graphs into Neo4j database with:
 - Batch processing for large graphs
-- Comprehensive validation
 - Progress reporting
 - Schema management
 - Unified DEPENDS_ON relationship derivation
-- Advanced analytics queries
 - Export capabilities
 
 Usage Examples:
@@ -16,15 +14,10 @@ Usage Examples:
     python import_graph.py --uri bolt://localhost:7687 \\
         --user neo4j --password password --input system.json
     
-    # Import with validation and progress
+    # Clear database and import data
     python import_graph.py --uri bolt://localhost:7687 \\
         --user neo4j --password password --input system.json \\
-        --validate --progress
-    
-    # Clear database and import with analytics
-    python import_graph.py --uri bolt://localhost:7687 \\
-        --user neo4j --password password --input system.json \\
-        --clear --analytics
+        --clear
     
     # Import large graph with custom batch size
     python import_graph.py --uri bolt://localhost:7687 \\
@@ -57,12 +50,7 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-try:
-    from src.core.graph_importer import GraphImporter
-    HAS_IMPORTER = True
-except ImportError as e:
-    HAS_IMPORTER = False
-    IMPORT_ERROR = str(e)
+from src.core.graph_importer import GraphImporter
 
 
 # =============================================================================
@@ -134,164 +122,6 @@ def print_kv(key: str, value: Any, indent: int = 2):
     spaces = ' ' * indent
     print(f"{spaces}{Colors.DIM}{key}:{Colors.ENDC} {value}")
 
-
-# =============================================================================
-# Validation
-# =============================================================================
-
-def validate_graph_data(data: Dict[str, Any]) -> Tuple[bool, List[str], List[str]]:
-    """
-    Validate graph data structure before import.
-    
-    Args:
-        data: Graph dictionary to validate
-    
-    Returns:
-        Tuple of (is_valid, errors, warnings)
-    """
-    errors = []
-    warnings = []
-    
-    # Check required sections
-    required_sections = ['applications', 'topics']
-    for section in required_sections:
-        if section not in data:
-            errors.append(f"Missing required section: {section}")
-        elif not isinstance(data[section], list):
-            errors.append(f"Section '{section}' must be a list")
-        elif len(data[section]) == 0:
-            warnings.append(f"Section '{section}' is empty")
-    
-    if errors:
-        return False, errors, warnings
-    
-    # Build ID sets for reference checking
-    node_ids = {n['id'] for n in data.get('nodes', [])}
-    broker_ids = {b['id'] for b in data.get('brokers', [])}
-    app_ids = {a['id'] for a in data.get('applications', [])}
-    topic_ids = {t['id'] for t in data.get('topics', [])}
-    
-    # Check for duplicate IDs
-    all_items = (
-        data.get('nodes', []) + 
-        data.get('brokers', []) + 
-        data.get('applications', []) + 
-        data.get('topics', [])
-    )
-    seen_ids = set()
-    for item in all_items:
-        item_id = item.get('id')
-        if item_id in seen_ids:
-            errors.append(f"Duplicate ID: {item_id}")
-        seen_ids.add(item_id)
-    
-    # Validate required fields in each item
-    for app in data.get('applications', []):
-        if 'id' not in app:
-            errors.append("Application missing 'id' field")
-        if 'name' not in app:
-            warnings.append(f"Application {app.get('id', 'unknown')} missing 'name' field")
-    
-    for topic in data.get('topics', []):
-        if 'id' not in topic:
-            errors.append("Topic missing 'id' field")
-        if 'name' not in topic:
-            warnings.append(f"Topic {topic.get('id', 'unknown')} missing 'name' field")
-    
-    # Validate relationships
-    relationships = data.get('relationships', {})
-    
-    # RUNS_ON validation
-    for rel in relationships.get('runs_on', []):
-        source = rel.get('from', rel.get('source'))
-        target = rel.get('to', rel.get('target'))
-        
-        if source and source not in app_ids and source not in broker_ids:
-            # Allow anti-pattern IDs
-            if not any(p in str(source) for p in ['spof_', 'coupling_', 'cycle_']):
-                warnings.append(f"RUNS_ON source not found: {source}")
-        if target and target not in node_ids:
-            errors.append(f"RUNS_ON target not found: {target}")
-    
-    # PUBLISHES_TO validation
-    for rel in relationships.get('publishes_to', []):
-        source = rel.get('from', rel.get('source'))
-        target = rel.get('to', rel.get('target'))
-        
-        if source and source not in app_ids:
-            if not any(p in str(source) for p in ['spof_', 'coupling_', 'cycle_']):
-                warnings.append(f"PUBLISHES_TO source not in apps: {source}")
-        if target and target not in topic_ids:
-            if not any(p in str(target) for p in ['spof_', 'coupling_', 'god_', 'hidden_']):
-                errors.append(f"PUBLISHES_TO target not found: {target}")
-    
-    # SUBSCRIBES_TO validation
-    for rel in relationships.get('subscribes_to', []):
-        source = rel.get('from', rel.get('source'))
-        target = rel.get('to', rel.get('target'))
-        
-        if source and source not in app_ids:
-            if not any(p in str(source) for p in ['spof_', 'coupling_', 'cycle_']):
-                warnings.append(f"SUBSCRIBES_TO source not in apps: {source}")
-        if target and target not in topic_ids:
-            if not any(p in str(target) for p in ['spof_', 'coupling_', 'god_', 'hidden_']):
-                errors.append(f"SUBSCRIBES_TO target not found: {target}")
-    
-    # ROUTES validation
-    for rel in relationships.get('routes', []):
-        source = rel.get('from', rel.get('source'))
-        target = rel.get('to', rel.get('target'))
-        
-        if source and source not in broker_ids:
-            errors.append(f"ROUTES source not a broker: {source}")
-        if target and target not in topic_ids:
-            if not any(p in str(target) for p in ['spof_', 'coupling_', 'god_', 'hidden_']):
-                warnings.append(f"ROUTES target not in topics: {target}")
-    
-    is_valid = len(errors) == 0
-    return is_valid, errors, warnings
-
-
-def print_validation_report(data: Dict[str, Any]):
-    """Print a validation report for the graph data"""
-    print_section("Graph Data Summary")
-    
-    # Count components
-    nodes = data.get('nodes', [])
-    brokers = data.get('brokers', [])
-    apps = data.get('applications', [])
-    topics = data.get('topics', [])
-    
-    print_kv("Infrastructure Nodes", len(nodes))
-    print_kv("Brokers", len(brokers))
-    print_kv("Applications", len(apps))
-    print_kv("Topics", len(topics))
-    
-    # Count relationships
-    relationships = data.get('relationships', {})
-    print_kv("RUNS_ON", len(relationships.get('runs_on', [])))
-    print_kv("PUBLISHES_TO", len(relationships.get('publishes_to', [])))
-    print_kv("SUBSCRIBES_TO", len(relationships.get('subscribes_to', [])))
-    print_kv("ROUTES", len(relationships.get('routes', [])))
-    
-    # Check for anti-patterns
-    antipatterns = data.get('injected_antipatterns', [])
-    if antipatterns:
-        print_section("Injected Anti-Patterns")
-        for ap in antipatterns:
-            print(f"  {Colors.WARNING}•{Colors.ENDC} {ap.get('type', 'unknown')}: "
-                  f"{ap.get('description', 'N/A')}")
-    
-    # Metadata
-    metadata = data.get('metadata', {})
-    if metadata:
-        print_section("Metadata")
-        config = metadata.get('config', {})
-        print_kv("Scale", config.get('scale', 'N/A'))
-        print_kv("Scenario", config.get('scenario', 'N/A'))
-        print_kv("Generated", metadata.get('generated_at', 'N/A'))
-
-
 def print_import_progress(phase: str, current: int, total: int, start_time: float):
     """Print progress bar for import operations"""
     if total == 0:
@@ -334,7 +164,7 @@ def print_quick_start():
 {Colors.BOLD}3. Import to Neo4j:{Colors.ENDC}
    python import_graph.py --uri bolt://localhost:7687 \\
        --user neo4j --password password \\
-       --input system.json --validate
+       --input system.json
 
 {Colors.BOLD}4. Access Neo4j Browser:{Colors.ENDC}
    Open http://localhost:7474 in your browser
@@ -394,7 +224,7 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   %(prog)s --uri bolt://localhost:7687 --user neo4j --password pass --input system.json
-  %(prog)s --uri bolt://localhost:7687 --user neo4j --password pass --input system.json --clear --analytics
+  %(prog)s --uri bolt://localhost:7687 --user neo4j --password pass --input system.json --clear
   %(prog)s --quick-start
         """
     )
@@ -428,11 +258,6 @@ Examples:
         '--input', '-i',
         help='Input JSON file containing graph data'
     )
-    input_group.add_argument(
-        '--validate',
-        action='store_true',
-        help='Validate graph data before import'
-    )
     
     # Import options
     import_group = parser.add_argument_group('Import Options')
@@ -457,17 +282,12 @@ Examples:
         help='Skip DEPENDS_ON derivation'
     )
     
-    # Query and analytics options
-    analytics_group = parser.add_argument_group('Analytics')
-    analytics_group.add_argument(
-        '--queries', '-q',
-        action='store_true',
-        help='Run sample queries after import'
-    )
-    analytics_group.add_argument(
+    # Analysis options
+    analysis_group = parser.add_argument_group('Analytics')
+    analysis_group.add_argument(
         '--analytics', '-a',
         action='store_true',
-        help='Run advanced analytics after import'
+        help='Run sample queries after import'
     )
     
     # Export options
@@ -554,13 +374,6 @@ def main() -> int:
         print_connection_help()
         return 0
     
-    # Check for importer availability
-    if not HAS_IMPORTER:
-        print_error(f"Failed to import GraphImporter: {IMPORT_ERROR}")
-        print_info("Make sure the src/core/graph_importer.py exists and neo4j is installed")
-        print_info("Install neo4j driver: pip install neo4j")
-        return 1
-    
     # Require input file for most operations
     if not args.input and not args.export_graph:
         print_error("Input file required. Use --input to specify graph JSON file.")
@@ -595,37 +408,6 @@ def main() -> int:
             print_error(f"Failed to load graph: {e}")
             return 1
         
-        # Validate if requested
-        if args.validate:
-            if not args.quiet:
-                print_info("Validating graph data...")
-            
-            is_valid, errors, warnings = validate_graph_data(graph_data)
-            
-            if errors:
-                print_section("Validation Errors")
-                for err in errors[:20]:
-                    print_error(err)
-                if len(errors) > 20:
-                    print_error(f"... and {len(errors)-20} more errors")
-            
-            if warnings and args.verbose:
-                print_section("Validation Warnings")
-                for warn in warnings[:20]:
-                    print_warning(warn)
-                if len(warnings) > 20:
-                    print_warning(f"... and {len(warnings)-20} more warnings")
-            
-            if not is_valid:
-                print_error("Validation failed. Fix errors and retry.")
-                return 1
-            else:
-                print_success(f"Validation passed ({len(warnings)} warnings)")
-        
-        # Print validation report
-        if not args.quiet:
-            print_validation_report(graph_data)
-    
     # Connect to Neo4j
     if not args.quiet:
         print_info(f"Connecting to Neo4j at {args.uri}...")
@@ -724,14 +506,9 @@ def main() -> int:
                         print_success(f"Statistics exported to {args.export_stats}")
 
             # Run sample queries
-            if args.queries:
+            if args.analytics:
                 print_section("Sample Queries")
                 importer.run_sample_queries()
-
-            # Run analytics
-            if args.analytics:
-                print_section("Advanced Analytics")
-                importer.run_analytics()
 
             # Export Cypher queries
             if args.export_queries:
@@ -769,8 +546,6 @@ def main() -> int:
   WITH target, count(*) AS dependents
   WHERE dependents >= 3
   RETURN target.name, dependents ORDER BY dependents DESC
-
-{Colors.DIM}Use --queries or --analytics for more analysis{Colors.ENDC}
 """)
 
     except KeyboardInterrupt:
