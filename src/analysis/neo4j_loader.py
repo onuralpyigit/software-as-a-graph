@@ -157,7 +157,8 @@ class Neo4jGraphLoader:
                 'publishes_to': self._load_publishes_to(),
                 'subscribes_to': self._load_subscribes_to(),
                 'runs_on': self._load_runs_on(),
-                'routes': self._load_routes()
+                'routes': self._load_routes(),
+                'connects_to': self._load_connects_to()
             }
         }
         
@@ -170,7 +171,8 @@ class Neo4jGraphLoader:
             f"Relationships: {len(data['relationships']['publishes_to'])} publishes_to, "
             f"{len(data['relationships']['subscribes_to'])} subscribes_to, "
             f"{len(data['relationships']['runs_on'])} runs_on, "
-            f"{len(data['relationships']['routes'])} routes"
+            f"{len(data['relationships']['routes'])} routes, "
+            f"{len(data['relationships']['connects_to'])} connects_to"
         )
         
         return data
@@ -320,6 +322,16 @@ class Neo4jGraphLoader:
             result = session.run("""
                 MATCH (b:Broker)-[:ROUTES]->(t:Topic)
                 RETURN b.id AS from, t.id AS to
+            """)
+            
+            return [{'from': r['from'], 'to': r['to']} for r in result]
+        
+    def _load_connects_to(self) -> List[Dict[str, str]]:
+        """Load CONNECTS_TO relationships (nodes to nodes)"""
+        with self.driver.session(database=self.database) as session:
+            result = session.run("""
+                MATCH (n1:Node)-[:CONNECTS_TO]->(n2:Node)
+                RETURN n1.id AS from, n2.id AS to
             """)
             
             return [{'from': r['from'], 'to': r['to']} for r in result]

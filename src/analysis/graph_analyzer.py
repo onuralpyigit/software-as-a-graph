@@ -292,6 +292,10 @@ class GraphAnalyzer:
         self._derive_node_to_broker()
         
         self.logger.info(f"Derived {len(self.depends_on_edges)} DEPENDS_ON relationships")
+        self.logger.info(f" - APP_TO_APP: {len([e for e in self.depends_on_edges if e.dep_type == DependencyType.APP_TO_APP])}")
+        self.logger.info(f" - APP_TO_BROKER: {len([e for e in self.depends_on_edges if e.dep_type == DependencyType.APP_TO_BROKER])}")
+        self.logger.info(f" - NODE_TO_NODE: {len([e for e in self.depends_on_edges if e.dep_type == DependencyType.NODE_TO_NODE])}")
+        self.logger.info(f" - NODE_TO_BROKER: {len([e for e in self.depends_on_edges if e.dep_type == DependencyType.NODE_TO_BROKER])}")
         return self.depends_on_edges
     
     def _derive_app_to_app(self):
