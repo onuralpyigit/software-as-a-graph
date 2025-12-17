@@ -8,20 +8,17 @@ Derives DEPENDS_ON relationships directly from base pub-sub relationships
 without storing them in input files.
 
 Usage:
-    # Basic analysis from JSON file
-    python analyze_graph.py --input system.json
-    
     # Load from Neo4j database
-    python analyze_graph.py --neo4j --neo4j-uri bolt://localhost:7687
+    python analyze_graph.py --neo4j-uri bolt://localhost:7687
     
     # With custom weights
-    python analyze_graph.py --input system.json --alpha 0.5 --beta 0.25 --gamma 0.25
+    python analyze_graph.py --alpha 0.5 --beta 0.25 --gamma 0.25
     
     # Export to different formats
-    python analyze_graph.py --input system.json --output-dir results/ --format json html
+    python analyze_graph.py --output-dir results/ --format json html
     
     # Verbose output
-    python analyze_graph.py --input system.json --verbose
+    python analyze_graph.py --verbose
 
 Author: Software-as-a-Graph Research Project
 """
@@ -353,16 +350,10 @@ def run_analysis(args) -> int:
     if not sys.stdout.isatty() or args.no_color:
         Colors.disable()
     
-    # Determine data source
-    using_neo4j = args.neo4j
-    
     # Print header
     if not args.quiet:
         print_header("PUB-SUB SYSTEM GRAPH ANALYZER")
-        if using_neo4j:
-            print(f"\n  Source: Neo4j at {args.neo4j_uri}")
-        else:
-            print(f"\n  Input: {args.input}")
+        print(f"\n  Source: Neo4j at {args.neo4j_uri}")
         print(f"  Weights: α={args.alpha}, β={args.beta}, γ={args.gamma}")
     
     try:
@@ -377,26 +368,18 @@ def run_analysis(args) -> int:
         if not args.quiet:
             print_section("Loading Data")
         
-        if using_neo4j:
-            if not NEO4J_AVAILABLE:
-                logger.error("Neo4j driver not installed. Install with: pip install neo4j")
-                return 1
-            
-            analyzer.load_from_neo4j(
-                uri=args.neo4j_uri,
-                user=args.neo4j_user,
-                password=args.neo4j_password,
-                database=args.neo4j_database
-            )
-            if not args.quiet:
-                print_success(f"Loaded from Neo4j: {args.neo4j_uri}")
-        else:
-            if not args.input:
-                logger.error("Either --input or --neo4j must be specified")
-                return 1
-            analyzer.load_from_file(args.input)
-            if not args.quiet:
-                print_success(f"Loaded from file: {args.input}")
+        if not NEO4J_AVAILABLE:
+            logger.error("Neo4j driver not installed. Install with: pip install neo4j")
+            return 1
+        
+        analyzer.load_from_neo4j(
+            uri=args.neo4j_uri,
+            user=args.neo4j_user,
+            password=args.neo4j_password,
+            database=args.neo4j_database
+        )
+        if not args.quiet:
+            print_success(f"Loaded from Neo4j: {args.neo4j_uri}")
         
         # Run analysis
         if not args.quiet:
@@ -527,32 +510,22 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Basic analysis from JSON file
-    python analyze_graph.py --input system.json
-    
     # Load from Neo4j database
-    python analyze_graph.py --neo4j --neo4j-uri bolt://localhost:7687
+    python analyze_graph.py --neo4j-uri bolt://localhost:7687
     
     # Export to multiple formats
-    python analyze_graph.py --input system.json --output-dir results/ --format json html csv
+    python analyze_graph.py --output-dir results/ --format json html csv
     
     # Custom criticality weights
-    python analyze_graph.py --input system.json --alpha 0.5 --beta 0.25 --gamma 0.25
+    python analyze_graph.py --alpha 0.5 --beta 0.25 --gamma 0.25
     
     # JSON output to stdout
-    python analyze_graph.py --input system.json --json-output --quiet
+    python analyze_graph.py --json-output --quiet
         """
     )
     
-    # Input source (file or Neo4j)
-    input_group = parser.add_argument_group('Input Source')
-    input_group.add_argument('--input', '-i',
-                             help='Path to input JSON file')
-    
     # Neo4j options
     neo4j_group = parser.add_argument_group('Neo4j Connection')
-    neo4j_group.add_argument('--neo4j', action='store_true',
-                             help='Load data from Neo4j database')
     neo4j_group.add_argument('--neo4j-uri', default='bolt://localhost:7687',
                              help='Neo4j URI (default: bolt://localhost:7687)')
     neo4j_group.add_argument('--neo4j-user', default='neo4j',
@@ -591,10 +564,6 @@ Examples:
                         help='Disable colored output')
     
     args = parser.parse_args()
-    
-    # Validate input source
-    if not args.input and not args.neo4j:
-        parser.error("Either --input or --neo4j must be specified")
     
     # Validate weights
     if abs(args.alpha + args.beta + args.gamma - 1.0) > 0.001:
