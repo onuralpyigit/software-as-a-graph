@@ -8,19 +8,19 @@ impact using DEPENDS_ON relationships.
 
 Usage:
     # Simulate single component failure
-    python simulate_graph.py --input system.json --component app_1
+    python simulate_graph.py --component app_1
     
     # Simulate with cascade propagation
-    python simulate_graph.py --input system.json --component app_1 --cascade
+    python simulate_graph.py --component app_1 --cascade
     
     # Simulate multiple failures
-    python simulate_graph.py --input system.json --components app_1 app_2 app_3
+    python simulate_graph.py --components app_1 app_2 app_3
     
     # Run exhaustive simulation (all components)
-    python simulate_graph.py --input system.json --exhaustive
+    python simulate_graph.py --exhaustive
     
     # Load from Neo4j
-    python simulate_graph.py --neo4j --component broker_1
+    python simulate_graph.py --neo4j-uri bolt://localhost:7687 --component broker_1
 
 Author: Software-as-a-Graph Research Project
 """
@@ -397,26 +397,18 @@ def run_simulation(args) -> int:
         
         analyzer = GraphAnalyzer()
         
-        if args.neo4j:
-            if not NEO4J_AVAILABLE:
-                print_error("Neo4j driver not installed. Install with: pip install neo4j")
-                return 1
-            
-            analyzer.load_from_neo4j(
-                uri=args.neo4j_uri,
-                user=args.neo4j_user,
-                password=args.neo4j_password,
-                database=args.neo4j_database
-            )
-            if not args.quiet:
-                print_success(f"Loaded from Neo4j: {args.neo4j_uri}")
-        else:
-            if not args.input:
-                print_error("Either --input or --neo4j must be specified")
-                return 1
-            analyzer.load_from_file(args.input)
-            if not args.quiet:
-                print_success(f"Loaded from file: {args.input}")
+        if not NEO4J_AVAILABLE:
+            print_error("Neo4j driver not installed. Install with: pip install neo4j")
+            return 1
+        
+        analyzer.load_from_neo4j(
+            uri=args.neo4j_uri,
+            user=args.neo4j_user,
+            password=args.neo4j_password,
+            database=args.neo4j_database
+        )
+        if not args.quiet:
+            print_success(f"Loaded from Neo4j: {args.neo4j_uri}")
         
         # Build dependency graph
         if not args.quiet:
@@ -523,37 +515,30 @@ def main():
         epilog="""
 Examples:
     # Single component failure
-    python simulate_graph.py --input system.json --component app_1
+    python simulate_graph.py --component app_1
     
     # With cascade propagation
-    python simulate_graph.py --input system.json --component broker_1 --cascade
+    python simulate_graph.py --component broker_1 --cascade
     
     # Multiple simultaneous failures
-    python simulate_graph.py --input system.json --components app_1 app_2 broker_1
+    python simulate_graph.py --components app_1 app_2 broker_1
     
     # Exhaustive simulation (all components)
-    python simulate_graph.py --input system.json --exhaustive
+    python simulate_graph.py --exhaustive
     
     # Filter by component type
-    python simulate_graph.py --input system.json --exhaustive --component-types Application Broker
+    python simulate_graph.py --exhaustive --component-types Application Broker
     
     # Export results
-    python simulate_graph.py --input system.json --exhaustive --output-dir results/ --format json html csv
+    python simulate_graph.py --exhaustive --output-dir results/ --format json html csv
     
     # Load from Neo4j
-    python simulate_graph.py --neo4j --component app_1
+    python simulate_graph.py --neo4j-uri bolt://localhost:7687 --component app_1
         """
     )
     
-    # Input source
-    input_group = parser.add_argument_group('Input Source')
-    input_group.add_argument('--input', '-i',
-                             help='Path to input JSON file')
-    
     # Neo4j options
     neo4j_group = parser.add_argument_group('Neo4j Connection')
-    neo4j_group.add_argument('--neo4j', action='store_true',
-                             help='Load data from Neo4j database')
     neo4j_group.add_argument('--neo4j-uri', default='bolt://localhost:7687',
                              help='Neo4j URI (default: bolt://localhost:7687)')
     neo4j_group.add_argument('--neo4j-user', default='neo4j',
@@ -609,10 +594,6 @@ Examples:
                         help='Disable colored output')
     
     args = parser.parse_args()
-    
-    # Validate input source
-    if not args.input and not args.neo4j:
-        parser.error("Either --input or --neo4j must be specified")
     
     return run_simulation(args)
 

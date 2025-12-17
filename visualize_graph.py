@@ -7,20 +7,20 @@ Visualizes distributed pub-sub systems with analysis, simulation,
 and validation results.
 
 Usage:
-    # Basic visualization from JSON file
-    python visualize_graph.py --input system.json --output-dir visuals/
+    # Basic visualization
+    python visualize_graph.py --output-dir visuals/
     
     # With full analysis, simulation, and validation
-    python visualize_graph.py --input system.json --output-dir visuals/ --full
+    python visualize_graph.py --output-dir visuals/ --full
     
     # Generate only HTML report
-    python visualize_graph.py --input system.json --output-dir visuals/ --html-only
+    python visualize_graph.py --output-dir visuals/ --html-only
     
     # Custom layout and styling
-    python visualize_graph.py --input system.json --output-dir visuals/ --layout circular
+    python visualize_graph.py --output-dir visuals/ --layout circular
     
     # Export graph data for external tools
-    python visualize_graph.py --input system.json --export-format json --output graph.json
+    python visualize_graph.py --export-format json --output-dir visuals/
 
 Author: Software-as-a-Graph Research Project
 """
@@ -154,26 +154,18 @@ def run_visualization(args) -> int:
             gamma=args.gamma
         )
         
-        if args.neo4j:
-            if not NEO4J_AVAILABLE:
-                print_error("Neo4j driver not installed. Install with: pip install neo4j")
-                return 1
-            
-            analyzer.load_from_neo4j(
-                uri=args.neo4j_uri,
-                user=args.neo4j_user,
-                password=args.neo4j_password,
-                database=args.neo4j_database
-            )
-            if not args.quiet:
-                print_success(f"Loaded from Neo4j: {args.neo4j_uri}")
-        else:
-            if not args.input:
-                print_error("Either --input or --neo4j must be specified")
-                return 1
-            analyzer.load_from_file(args.input)
-            if not args.quiet:
-                print_success(f"Loaded from file: {args.input}")
+        if not NEO4J_AVAILABLE:
+            print_error("Neo4j driver not installed. Install with: pip install neo4j")
+            return 1
+        
+        analyzer.load_from_neo4j(
+            uri=args.neo4j_uri,
+            user=args.neo4j_user,
+            password=args.neo4j_password,
+            database=args.neo4j_database
+        )
+        if not args.quiet:
+            print_success(f"Loaded from Neo4j: {args.neo4j_uri}")
         
         # Run analysis
         if not args.quiet:
@@ -335,25 +327,25 @@ def main():
         epilog="""
 Examples:
     # Basic visualization
-    python visualize_graph.py --input system.json --output-dir visuals/
+    python visualize_graph.py --output-dir visuals/
     
     # Full analysis with simulation and validation
-    python visualize_graph.py --input system.json --output-dir visuals/ --full
+    python visualize_graph.py --output-dir visuals/ --full
     
     # Custom layout
-    python visualize_graph.py --input system.json --output-dir visuals/ --layout circular
+    python visualize_graph.py --output-dir visuals/ --layout circular
     
     # Color by criticality
-    python visualize_graph.py --input system.json --output-dir visuals/ --color-by criticality
+    python visualize_graph.py --output-dir visuals/ --color-by criticality
     
     # HTML report only (no matplotlib required)
-    python visualize_graph.py --input system.json --output-dir visuals/ --html-only
+    python visualize_graph.py --output-dir visuals/ --html-only
     
     # Export for external tools (D3.js, Gephi)
-    python visualize_graph.py --input system.json --output-dir visuals/ --export-format json
+    python visualize_graph.py --output-dir visuals/ --export-format json
     
     # Load from Neo4j
-    python visualize_graph.py --neo4j --output-dir visuals/
+    python visualize_graph.py --output-dir visuals/
 
 Layout Options:
     spring       - Force-directed layout (default)
@@ -363,15 +355,8 @@ Layout Options:
         """
     )
     
-    # Input source
-    input_group = parser.add_argument_group('Input Source')
-    input_group.add_argument('--input', '-i',
-                             help='Path to input JSON file')
-    
     # Neo4j options
     neo4j_group = parser.add_argument_group('Neo4j Connection')
-    neo4j_group.add_argument('--neo4j', action='store_true',
-                             help='Load data from Neo4j database')
     neo4j_group.add_argument('--neo4j-uri', default='bolt://localhost:7687',
                              help='Neo4j URI (default: bolt://localhost:7687)')
     neo4j_group.add_argument('--neo4j-user', default='neo4j',
@@ -455,10 +440,6 @@ Layout Options:
                         help='Disable colored output')
     
     args = parser.parse_args()
-    
-    # Validate input source
-    if not args.input and not args.neo4j:
-        parser.error("Either --input or --neo4j must be specified")
     
     # Validate implies simulate
     if args.validate:

@@ -7,20 +7,17 @@ Validates the graph-based modeling and analysis approach by comparing
 predicted criticality scores with actual impact from failure simulation.
 
 Usage:
-    # Basic validation from JSON file
-    python validate_graph.py --input system.json
+    # Basic validation
+    python validate_graph.py
     
     # With custom scoring weights
-    python validate_graph.py --input system.json --alpha 0.5 --beta 0.25 --gamma 0.25
+    python validate_graph.py --alpha 0.5 --beta 0.25 --gamma 0.25
     
     # Custom target thresholds
-    python validate_graph.py --input system.json --target-spearman 0.8 --target-f1 0.85
+    python validate_graph.py --target-spearman 0.8 --target-f1 0.85
     
     # Export detailed results
-    python validate_graph.py --input system.json --output-dir results/ --format json html csv
-    
-    # Load from Neo4j
-    python validate_graph.py --neo4j
+    python validate_graph.py --output-dir results/ --format json html csv
 
 Author: Software-as-a-Graph Research Project
 """
@@ -469,26 +466,18 @@ def run_validation(args) -> int:
             gamma=args.gamma
         )
         
-        if args.neo4j:
-            if not NEO4J_AVAILABLE:
-                print_error("Neo4j driver not installed. Install with: pip install neo4j")
-                return 1
-            
-            analyzer.load_from_neo4j(
-                uri=args.neo4j_uri,
-                user=args.neo4j_user,
-                password=args.neo4j_password,
-                database=args.neo4j_database
-            )
-            if not args.quiet:
-                print_success(f"Loaded from Neo4j: {args.neo4j_uri}")
-        else:
-            if not args.input:
-                print_error("Either --input or --neo4j must be specified")
-                return 1
-            analyzer.load_from_file(args.input)
-            if not args.quiet:
-                print_success(f"Loaded from file: {args.input}")
+        if not NEO4J_AVAILABLE:
+            print_error("Neo4j driver not installed. Install with: pip install neo4j")
+            return 1
+        
+        analyzer.load_from_neo4j(
+            uri=args.neo4j_uri,
+            user=args.neo4j_user,
+            password=args.neo4j_password,
+            database=args.neo4j_database
+        )
+        if not args.quiet:
+            print_success(f"Loaded from Neo4j: {args.neo4j_uri}")
         
         # Build target thresholds
         targets = {
@@ -583,22 +572,19 @@ def main():
         epilog="""
 Examples:
     # Basic validation
-    python validate_graph.py --input system.json
+    python validate_graph.py
     
     # With custom scoring weights
-    python validate_graph.py --input system.json --alpha 0.5 --beta 0.25 --gamma 0.25
+    python validate_graph.py --alpha 0.5 --beta 0.25 --gamma 0.25
     
     # Custom target thresholds
-    python validate_graph.py --input system.json --target-spearman 0.8 --target-f1 0.85
+    python validate_graph.py --target-spearman 0.8 --target-f1 0.85
     
     # Filter by component type
-    python validate_graph.py --input system.json --component-types Application Broker
+    python validate_graph.py --component-types Application Broker
     
     # Export results
-    python validate_graph.py --input system.json --output-dir results/ --format json html csv
-    
-    # Load from Neo4j
-    python validate_graph.py --neo4j --neo4j-uri bolt://localhost:7687
+    python validate_graph.py --output-dir results/ --format json html csv
 
 Target Metrics (defaults):
     - Spearman Correlation: ≥ 0.70
@@ -610,15 +596,8 @@ Target Metrics (defaults):
         """
     )
     
-    # Input source
-    input_group = parser.add_argument_group('Input Source')
-    input_group.add_argument('--input', '-i',
-                             help='Path to input JSON file')
-    
     # Neo4j options
     neo4j_group = parser.add_argument_group('Neo4j Connection')
-    neo4j_group.add_argument('--neo4j', action='store_true',
-                             help='Load data from Neo4j database')
     neo4j_group.add_argument('--neo4j-uri', default='bolt://localhost:7687',
                              help='Neo4j URI (default: bolt://localhost:7687)')
     neo4j_group.add_argument('--neo4j-user', default='neo4j',
@@ -683,10 +662,6 @@ Target Metrics (defaults):
                         help='Disable colored output')
     
     args = parser.parse_args()
-    
-    # Validate input source
-    if not args.input and not args.neo4j:
-        parser.error("Either --input or --neo4j must be specified")
     
     return run_validation(args)
 
