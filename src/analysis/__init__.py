@@ -78,6 +78,35 @@ from .neo4j_loader import (
     NEO4J_AVAILABLE
 )
 
+from .relationship_analyzer import (
+    # Enums
+    RelationshipType,
+    MotifType,
+    ComponentRole,
+    
+    # Data Classes
+    EdgeCriticalityResult,
+    HITSRoleResult,
+    MotifInstance,
+    DependencyChainResult,
+    LayerCorrelationResult,
+    EnsembleCriticalityResult,
+    RelationshipAnalysisResult,
+    
+    # Analyzers
+    EdgeCriticalityAnalyzer,
+    HITSRoleAnalyzer,
+    MotifDetector,
+    DependencyChainAnalyzer,
+    LayerCorrelationAnalyzer,
+    EnsembleCriticalityScorer,
+    RelationshipAnalyzer,
+    
+    # Convenience Functions
+    analyze_relationships,
+    get_algorithm_recommendations,
+)
+
 __all__ = [
     # Criticality Scoring
     'CompositeCriticalityScorer',
@@ -131,5 +160,26 @@ __all__ = [
     'derive_dependencies',
 
     # Neo4j Loader
-    'NEO4J_AVAILABLE'
+    'NEO4J_AVAILABLE',
+
+        # Relationship Analysis
+    'RelationshipType',
+    'MotifType',
+    'ComponentRole',
+    'EdgeCriticalityResult',
+    'HITSRoleResult',
+    'MotifInstance',
+    'DependencyChainResult',
+    'LayerCorrelationResult',
+    'EnsembleCriticalityResult',
+    'RelationshipAnalysisResult',
+    'EdgeCriticalityAnalyzer',
+    'HITSRoleAnalyzer',
+    'MotifDetector',
+    'DependencyChainAnalyzer',
+    'LayerCorrelationAnalyzer',
+    'EnsembleCriticalityScorer',
+    'RelationshipAnalyzer',
+    'analyze_relationships',
+    'get_algorithm_recommendations'
 ]

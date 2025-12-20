@@ -1,24 +1,36 @@
 #!/usr/bin/env python3
 """
-Pub-Sub System Graph Analyzer
-=============================
+Enhanced Graph Analyzer - Comprehensive Pub-Sub System Analysis
+================================================================
 
-Main entry point for analyzing distributed publish-subscribe systems.
-Derives DEPENDS_ON relationships directly from base pub-sub relationships
-without storing them in input files.
+Main entry point for analyzing distributed publish-subscribe systems using
+advanced graph algorithms including relationship analysis, motif detection,
+dependency chains, and ensemble criticality scoring.
+
+Features:
+  - Node-centric criticality (betweenness, PageRank, articulation points)
+  - Edge-centric analysis (edge betweenness, bridges, Simmelian strength)
+  - HITS-based role analysis (hubs and authorities)
+  - Network motif detection (fan-out, fan-in, chains, diamonds)
+  - Dependency chain analysis (transitive depth, cascade risk)
+  - Multi-layer correlation analysis
+  - Ensemble criticality scoring (combining multiple algorithms)
 
 Usage:
-    # Load from Neo4j database
-    python analyze_graph.py --neo4j-uri bolt://localhost:7687
+    # Basic analysis from JSON file
+    python analyze_graph.py --input system.json
     
-    # With custom weights
-    python analyze_graph.py --alpha 0.5 --beta 0.25 --gamma 0.25
+    # With relationship analysis
+    python analyze_graph.py --input system.json --relationship-analysis
     
-    # Export to different formats
-    python analyze_graph.py --output-dir results/ --format json html
+    # Full analysis with all features
+    python analyze_graph.py --input system.json --full
     
-    # Verbose output
-    python analyze_graph.py --verbose
+    # Export to multiple formats
+    python analyze_graph.py --input system.json --output-dir results/ --format json html
+    
+    # Custom criticality weights
+    python analyze_graph.py --input system.json --alpha 0.5 --beta 0.25 --gamma 0.25
 
 Author: Software-as-a-Graph Research Project
 """
@@ -29,23 +41,22 @@ import logging
 import sys
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from dataclasses import dataclass, asdict
 
 # Add parent directory to path for imports
 script_dir = Path(__file__).parent
 sys.path.insert(0, str(script_dir))
 
-from src.analysis import (
-    GraphAnalyzer,
-    AnalysisResult,
-    DependencyType,
-    CriticalityLevel,
-    NEO4J_AVAILABLE,
-)
+try:
+    import networkx as nx
+except ImportError:
+    print("ERROR: NetworkX is required. Install with: pip install networkx")
+    sys.exit(1)
 
 
 # ============================================================================
-# Colors for Terminal Output
+# Terminal Colors
 # ============================================================================
 
 class Colors:
@@ -58,10 +69,14 @@ class Colors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
+    DIM = '\033[2m'
+    
+    _enabled = True
     
     @classmethod
     def disable(cls):
         """Disable colors (for non-TTY output)"""
+        cls._enabled = False
         cls.HEADER = ''
         cls.BLUE = ''
         cls.CYAN = ''
@@ -70,6 +85,7 @@ class Colors:
         cls.FAIL = ''
         cls.ENDC = ''
         cls.BOLD = ''
+        cls.DIM = ''
 
 
 # ============================================================================
@@ -85,49 +101,405 @@ def print_header(text: str):
 
 def print_section(text: str):
     """Print section header"""
-    print(f"\n{Colors.CYAN}▶ {text}{Colors.ENDC}")
+    print(f"\n{Colors.CYAN}{Colors.BOLD}▸ {text}{Colors.ENDC}")
+    print(f"{Colors.CYAN}{'-'*50}{Colors.ENDC}")
 
 
-def print_metric(name: str, value: Any, indent: int = 2):
-    """Print a metric"""
-    spaces = ' ' * indent
-    print(f"{spaces}{Colors.BLUE}{name}:{Colors.ENDC} {value}")
-
-
-def print_critical(text: str):
-    """Print critical item"""
-    print(f"  {Colors.FAIL}✗ {text}{Colors.ENDC}")
-
-
-def print_warning(text: str):
-    """Print warning"""
-    print(f"  {Colors.WARNING}⚠ {text}{Colors.ENDC}")
+def print_subsection(text: str):
+    """Print subsection header"""
+    print(f"\n  {Colors.BLUE}{text}{Colors.ENDC}")
 
 
 def print_success(text: str):
-    """Print success"""
-    print(f"  {Colors.GREEN}✓ {text}{Colors.ENDC}")
+    """Print success message"""
+    print(f"  {Colors.GREEN}✓{Colors.ENDC} {text}")
+
+
+def print_warning(text: str):
+    """Print warning message"""
+    print(f"  {Colors.WARNING}⚠{Colors.ENDC} {text}")
+
+
+def print_critical(text: str):
+    """Print critical message"""
+    print(f"  {Colors.FAIL}✗{Colors.ENDC} {Colors.BOLD}{text}{Colors.ENDC}")
 
 
 def print_info(text: str):
-    """Print info"""
-    print(f"  {Colors.BLUE}• {text}{Colors.ENDC}")
+    """Print info message"""
+    print(f"    {Colors.DIM}•{Colors.ENDC} {text}")
+
+
+def print_metric(label: str, value: Any, indent: int = 2):
+    """Print metric with label"""
+    spaces = "  " * indent
+    print(f"{spaces}{Colors.BOLD}{label}:{Colors.ENDC} {value}")
+
+
+# ============================================================================
+# Graph Builder
+# ============================================================================
+
+def build_graph_from_dict(data: Dict[str, Any]) -> nx.DiGraph:
+    """
+    Build NetworkX DiGraph from dictionary data.
+    
+    Args:
+        data: Dictionary with applications, brokers, topics, nodes, and edges
+        
+    Returns:
+        NetworkX directed graph
+    """
+    G = nx.DiGraph()
+    
+    # Add nodes - filter out 'type' from kwargs if present to avoid conflicts
+    for app in data.get('applications', []):
+        attrs = {k: v for k, v in app.items() if k != 'type'}
+        G.add_node(app['id'], type='Application', **attrs)
+    
+    for broker in data.get('brokers', []):
+        attrs = {k: v for k, v in broker.items() if k != 'type'}
+        G.add_node(broker['id'], type='Broker', **attrs)
+    
+    for topic in data.get('topics', []):
+        attrs = {k: v for k, v in topic.items() if k != 'type'}
+        G.add_node(topic['id'], type='Topic', **attrs)
+    
+    for node in data.get('nodes', []):
+        attrs = {k: v for k, v in node.items() if k != 'type'}
+        G.add_node(node['id'], type='Node', **attrs)
+    
+    # Add edges (support both 'edges' and 'relationships' keys)
+    edges = data.get('edges', data.get('relationships', {}))
+    
+    for pub in edges.get('publishes_to', []):
+        G.add_edge(pub['from'], pub['to'], type='PUBLISHES_TO')
+    
+    for sub in edges.get('subscribes_to', []):
+        G.add_edge(sub['from'], sub['to'], type='SUBSCRIBES_TO')
+    
+    for route in edges.get('routes', []):
+        G.add_edge(route['from'], route['to'], type='ROUTES')
+    
+    for runs in edges.get('runs_on', []):
+        G.add_edge(runs['from'], runs['to'], type='RUNS_ON')
+    
+    for conn in edges.get('connects_to', []):
+        G.add_edge(conn['from'], conn['to'], type='CONNECTS_TO')
+    
+    return G
+
+
+def build_graph_from_file(filepath: str) -> nx.DiGraph:
+    """Load graph from JSON file"""
+    with open(filepath) as f:
+        data = json.load(f)
+    return build_graph_from_dict(data)
+
+
+# ============================================================================
+# Analysis Result Classes
+# ============================================================================
+
+@dataclass
+class NodeCriticalityScore:
+    """Criticality score for a single node"""
+    node_id: str
+    node_type: str
+    betweenness_centrality: float
+    is_articulation_point: bool
+    impact_score: float
+    composite_score: float
+    criticality_level: str
+    pagerank: float = 0.0
+    closeness: float = 0.0
+    degree: int = 0
+    reasons: List[str] = None
+    
+    def __post_init__(self):
+        if self.reasons is None:
+            self.reasons = []
+
+
+@dataclass
+class StructuralAnalysisResult:
+    """Results of structural analysis"""
+    articulation_points: List[str]
+    bridges: List[tuple]
+    strongly_connected_components: int
+    weakly_connected_components: int
+    density: float
+    diameter: Optional[int]
+    average_clustering: float
+    k_core_max: int
+
+
+@dataclass
+class GraphAnalysisResult:
+    """Complete analysis result"""
+    # Metadata
+    timestamp: str
+    input_file: str
+    
+    # Graph summary
+    total_nodes: int
+    total_edges: int
+    nodes_by_type: Dict[str, int]
+    edges_by_type: Dict[str, int]
+    
+    # Criticality scores
+    criticality_scores: List[NodeCriticalityScore]
+    criticality_by_level: Dict[str, int]
+    
+    # Structural analysis
+    structural: StructuralAnalysisResult
+    
+    # Relationship analysis (optional)
+    relationship_analysis: Optional[Dict[str, Any]] = None
+    
+    # Recommendations
+    recommendations: List[Dict[str, Any]] = None
+
+
+# ============================================================================
+# Core Analysis Functions
+# ============================================================================
+
+def analyze_structure(G: nx.DiGraph) -> StructuralAnalysisResult:
+    """Analyze structural properties of the graph"""
+    G_undirected = G.to_undirected()
+    
+    # Articulation points
+    aps = list(nx.articulation_points(G_undirected))
+    
+    # Bridges
+    bridges = list(nx.bridges(G_undirected))
+    
+    # Connected components
+    sccs = nx.number_strongly_connected_components(G)
+    wccs = nx.number_weakly_connected_components(G)
+    
+    # Density
+    density = nx.density(G)
+    
+    # Diameter (only if connected)
+    try:
+        if nx.is_weakly_connected(G):
+            diameter = nx.diameter(G_undirected)
+        else:
+            diameter = None
+    except:
+        diameter = None
+    
+    # Clustering
+    avg_clustering = nx.average_clustering(G_undirected)
+    
+    # K-core
+    kcore = nx.core_number(G_undirected)
+    k_max = max(kcore.values()) if kcore else 0
+    
+    return StructuralAnalysisResult(
+        articulation_points=aps,
+        bridges=bridges,
+        strongly_connected_components=sccs,
+        weakly_connected_components=wccs,
+        density=density,
+        diameter=diameter,
+        average_clustering=avg_clustering,
+        k_core_max=k_max
+    )
+
+
+def calculate_criticality_scores(G: nx.DiGraph, 
+                                  alpha: float = 0.4,
+                                  beta: float = 0.3,
+                                  gamma: float = 0.3) -> List[NodeCriticalityScore]:
+    """
+    Calculate composite criticality scores for all nodes.
+    
+    Formula: C_score(v) = α·C_B^norm(v) + β·AP(v) + γ·I(v)
+    
+    Args:
+        G: NetworkX directed graph
+        alpha: Weight for betweenness centrality
+        beta: Weight for articulation point indicator
+        gamma: Weight for impact score
+        
+    Returns:
+        List of NodeCriticalityScore sorted by composite score
+    """
+    G_undirected = G.to_undirected()
+    
+    # Compute metrics
+    betweenness = nx.betweenness_centrality(G, normalized=True)
+    pagerank = nx.pagerank(G, alpha=0.85)
+    closeness = nx.closeness_centrality(G)
+    articulation_points = set(nx.articulation_points(G_undirected))
+    
+    # Normalize betweenness
+    bc_values = list(betweenness.values())
+    bc_max = max(bc_values) if bc_values else 1.0
+    bc_normalized = {n: v / bc_max if bc_max > 0 else 0 for n, v in betweenness.items()}
+    
+    scores = []
+    
+    for node in G.nodes():
+        node_data = G.nodes[node]
+        node_type = node_data.get('type', 'Unknown')
+        
+        # Core metrics
+        bc_norm = bc_normalized.get(node, 0)
+        is_ap = node in articulation_points
+        ap_indicator = 1.0 if is_ap else 0.0
+        
+        # Impact score (based on reachability)
+        descendants = nx.descendants(G, node)
+        impact = len(descendants) / max(G.number_of_nodes() - 1, 1)
+        
+        # Composite score
+        composite = (
+            alpha * bc_norm +
+            beta * ap_indicator +
+            gamma * impact
+        )
+        
+        # Determine level
+        if composite >= 0.6 or is_ap:
+            level = "CRITICAL"
+        elif composite >= 0.4:
+            level = "HIGH"
+        elif composite >= 0.2:
+            level = "MEDIUM"
+        else:
+            level = "LOW"
+        
+        # Generate reasons
+        reasons = []
+        if is_ap:
+            reasons.append("Articulation point - single point of failure")
+        if bc_norm > 0.5:
+            reasons.append(f"High betweenness ({bc_norm:.3f}) - routing bottleneck")
+        if impact > 0.3:
+            reasons.append(f"High impact ({impact:.3f}) - affects many components")
+        if pagerank.get(node, 0) > 0.1:
+            reasons.append(f"High PageRank ({pagerank.get(node, 0):.3f}) - influential")
+        if not reasons:
+            reasons.append("Standard component")
+        
+        scores.append(NodeCriticalityScore(
+            node_id=node,
+            node_type=node_type,
+            betweenness_centrality=bc_norm,
+            is_articulation_point=is_ap,
+            impact_score=impact,
+            composite_score=composite,
+            criticality_level=level,
+            pagerank=pagerank.get(node, 0),
+            closeness=closeness.get(node, 0),
+            degree=G.degree(node),
+            reasons=reasons
+        ))
+    
+    # Sort by composite score descending
+    scores.sort(key=lambda x: x.composite_score, reverse=True)
+    
+    return scores
+
+
+def generate_recommendations(G: nx.DiGraph, 
+                             structural: StructuralAnalysisResult,
+                             scores: List[NodeCriticalityScore]) -> List[Dict[str, Any]]:
+    """Generate actionable recommendations based on analysis"""
+    recommendations = []
+    
+    # Articulation points
+    if structural.articulation_points:
+        recommendations.append({
+            'priority': 'CRITICAL',
+            'category': 'Single Points of Failure',
+            'issue': f'{len(structural.articulation_points)} articulation points detected',
+            'recommendation': 'Add redundant connections to eliminate single points of failure',
+            'affected_nodes': structural.articulation_points[:5],
+            'risk_reduction': 'High'
+        })
+    
+    # Bridges
+    if structural.bridges:
+        recommendations.append({
+            'priority': 'HIGH',
+            'category': 'Network Topology',
+            'issue': f'{len(structural.bridges)} bridge edges detected',
+            'recommendation': 'Add redundant network paths between disconnected regions',
+            'affected_edges': [list(b) for b in structural.bridges[:5]],
+            'risk_reduction': 'High'
+        })
+    
+    # High criticality nodes
+    critical_nodes = [s for s in scores if s.criticality_level == 'CRITICAL']
+    if len(critical_nodes) > 5:
+        recommendations.append({
+            'priority': 'HIGH',
+            'category': 'Risk Concentration',
+            'issue': f'{len(critical_nodes)} nodes with CRITICAL criticality',
+            'recommendation': 'Implement redundancy and enhanced monitoring for critical components',
+            'affected_nodes': [n.node_id for n in critical_nodes[:5]],
+            'risk_reduction': 'Medium'
+        })
+    
+    # Low connectivity
+    if structural.density < 0.1:
+        recommendations.append({
+            'priority': 'MEDIUM',
+            'category': 'Architecture',
+            'issue': f'Low graph density ({structural.density:.4f})',
+            'recommendation': 'Consider adding alternative message paths for resilience',
+            'risk_reduction': 'Medium'
+        })
+    
+    # Disconnected components
+    if structural.weakly_connected_components > 1:
+        recommendations.append({
+            'priority': 'HIGH',
+            'category': 'Connectivity',
+            'issue': f'{structural.weakly_connected_components} disconnected components',
+            'recommendation': 'Review if isolation is intentional or add bridging connections',
+            'risk_reduction': 'High'
+        })
+    
+    return recommendations
 
 
 # ============================================================================
 # Export Functions
 # ============================================================================
 
-def export_json(result: AnalysisResult, output_path: Path):
-    """Export results to JSON"""
-    with open(output_path, 'w') as f:
-        json.dump(result.to_dict(), f, indent=2, default=str)
-    print_success(f"Exported JSON: {output_path}")
+def export_json(result: GraphAnalysisResult, filepath: Path):
+    """Export results to JSON file"""
+    def serialize(obj):
+        if hasattr(obj, '__dict__'):
+            return {k: serialize(v) for k, v in obj.__dict__.items()}
+        elif isinstance(obj, list):
+            return [serialize(item) for item in obj]
+        elif isinstance(obj, dict):
+            return {k: serialize(v) for k, v in obj.items()}
+        elif isinstance(obj, tuple):
+            return list(obj)
+        else:
+            return obj
+    
+    data = serialize(result)
+    
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=2, default=str)
+    
+    print_success(f"Exported JSON: {filepath}")
 
 
-def export_html(result: AnalysisResult, output_path: Path):
+def export_html(result: GraphAnalysisResult, filepath: Path):
     """Export results to HTML report"""
-    data = result.to_dict()
+    
+    # Count levels
+    level_counts = result.criticality_by_level
     
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -137,194 +509,272 @@ def export_html(result: AnalysisResult, output_path: Path):
     <title>Graph Analysis Report</title>
     <style>
         :root {{
-            --primary: #2563eb;
-            --critical: #dc2626;
-            --high: #ea580c;
-            --medium: #ca8a04;
-            --low: #16a34a;
-            --bg: #f8fafc;
-            --card: #ffffff;
-            --border: #e2e8f0;
+            --critical: #dc3545;
+            --high: #fd7e14;
+            --medium: #ffc107;
+            --low: #28a745;
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #212529;
         }}
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
             margin: 0;
             padding: 20px;
-            color: #1e293b;
-        }}
-        .container {{ max-width: 1200px; margin: 0 auto; }}
-        h1 {{ color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 10px; }}
-        h2 {{ color: #475569; margin-top: 30px; }}
-        .card {{
-            background: var(--card);
-            border-radius: 8px;
-            padding: 20px;
-            margin: 15px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }}
-        .metrics {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }}
-        .metric {{
             background: var(--bg);
-            padding: 15px;
-            border-radius: 6px;
-            text-align: center;
+            color: var(--text);
         }}
-        .metric-value {{ font-size: 2em; font-weight: bold; color: var(--primary); }}
-        .metric-label {{ color: #64748b; font-size: 0.9em; }}
-        .badge {{
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: 500;
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
         }}
-        .badge-critical {{ background: #fef2f2; color: var(--critical); }}
-        .badge-high {{ background: #fff7ed; color: var(--high); }}
-        .badge-medium {{ background: #fefce8; color: var(--medium); }}
-        .badge-low {{ background: #f0fdf4; color: var(--low); }}
+        h1, h2, h3 {{
+            color: var(--text);
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }}
+        .header h1 {{
+            color: white;
+            margin: 0;
+        }}
+        .cards {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }}
+        .card {{
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        .card h3 {{
+            margin-top: 0;
+            font-size: 0.9rem;
+            color: #666;
+        }}
+        .card .value {{
+            font-size: 2rem;
+            font-weight: bold;
+        }}
+        .critical {{ color: var(--critical); }}
+        .high {{ color: var(--high); }}
+        .medium {{ color: var(--medium); }}
+        .low {{ color: var(--low); }}
         table {{
             width: 100%;
             border-collapse: collapse;
-            margin: 15px 0;
+            background: var(--card-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
         }}
         th, td {{
-            padding: 12px;
+            padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid #eee;
         }}
-        th {{ background: var(--bg); font-weight: 600; }}
-        tr:hover {{ background: var(--bg); }}
+        th {{
+            background: #f1f3f4;
+            font-weight: 600;
+        }}
+        tr:hover {{
+            background: #f8f9fa;
+        }}
+        .badge {{
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }}
+        .badge-critical {{ background: var(--critical); color: white; }}
+        .badge-high {{ background: var(--high); color: white; }}
+        .badge-medium {{ background: var(--medium); color: black; }}
+        .badge-low {{ background: var(--low); color: white; }}
         .recommendation {{
-            background: #f0f9ff;
-            border-left: 4px solid var(--primary);
+            background: var(--card-bg);
+            border-left: 4px solid var(--high);
             padding: 15px;
-            margin: 10px 0;
+            margin-bottom: 15px;
+            border-radius: 0 10px 10px 0;
         }}
-        .timestamp {{ color: #94a3b8; font-size: 0.9em; }}
+        .recommendation.critical {{
+            border-left-color: var(--critical);
+        }}
+        .recommendation h4 {{
+            margin-top: 0;
+        }}
+        .timestamp {{
+            color: #666;
+            font-size: 0.9rem;
+        }}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📊 Graph Analysis Report</h1>
-        <p class="timestamp">Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <div class="header">
+            <h1>📊 Graph Analysis Report</h1>
+            <p class="timestamp">Generated: {result.timestamp}</p>
+            <p>Input: {result.input_file}</p>
+        </div>
         
-        <h2>Graph Summary</h2>
-        <div class="card">
-            <div class="metrics">
-                <div class="metric">
-                    <div class="metric-value">{data['graph_summary']['total_nodes']}</div>
-                    <div class="metric-label">Total Nodes</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">{data['graph_summary']['total_edges']}</div>
-                    <div class="metric-label">DEPENDS_ON Edges</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">{data['graph_summary']['density']}</div>
-                    <div class="metric-label">Density</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">{'Connected' if data['graph_summary']['is_connected'] else 'Disconnected'}</div>
-                    <div class="metric-label">Connectivity</div>
-                </div>
+        <h2>Overview</h2>
+        <div class="cards">
+            <div class="card">
+                <h3>Total Nodes</h3>
+                <div class="value">{result.total_nodes}</div>
+            </div>
+            <div class="card">
+                <h3>Total Edges</h3>
+                <div class="value">{result.total_edges}</div>
+            </div>
+            <div class="card">
+                <h3>Critical Components</h3>
+                <div class="value critical">{level_counts.get('CRITICAL', 0)}</div>
+            </div>
+            <div class="card">
+                <h3>Articulation Points</h3>
+                <div class="value high">{len(result.structural.articulation_points)}</div>
             </div>
         </div>
         
-        <h2>DEPENDS_ON Relationships</h2>
-        <div class="card">
-            <div class="metrics">
-                {''.join(f'<div class="metric"><div class="metric-value">{count}</div><div class="metric-label">{dtype}</div></div>' 
-                         for dtype, count in data['depends_on']['by_type'].items())}
+        <h2>Criticality Distribution</h2>
+        <div class="cards">
+            <div class="card">
+                <h3>CRITICAL</h3>
+                <div class="value critical">{level_counts.get('CRITICAL', 0)}</div>
+            </div>
+            <div class="card">
+                <h3>HIGH</h3>
+                <div class="value high">{level_counts.get('HIGH', 0)}</div>
+            </div>
+            <div class="card">
+                <h3>MEDIUM</h3>
+                <div class="value medium">{level_counts.get('MEDIUM', 0)}</div>
+            </div>
+            <div class="card">
+                <h3>LOW</h3>
+                <div class="value low">{level_counts.get('LOW', 0)}</div>
             </div>
         </div>
         
-        <h2>Criticality Analysis</h2>
-        <div class="card">
-            <div class="metrics">
-                {''.join(f'<div class="metric"><div class="metric-value">{count}</div><div class="metric-label">{level.upper()}</div></div>' 
-                         for level, count in data['criticality']['by_level'].items())}
-            </div>
-            
-            <h3>Top Critical Components</h3>
-            <table>
+        <h2>Top Critical Components</h2>
+        <table>
+            <thead>
                 <tr>
+                    <th>Rank</th>
                     <th>Component</th>
                     <th>Type</th>
                     <th>Score</th>
                     <th>Level</th>
-                    <th>Reasons</th>
+                    <th>Primary Reason</th>
                 </tr>
-                {''.join(f'''<tr>
-                    <td>{score['node_id']}</td>
-                    <td>{score['type']}</td>
-                    <td>{score['composite_score']:.4f}</td>
-                    <td><span class="badge badge-{score['level']}">{score['level'].upper()}</span></td>
-                    <td>
-                        Betweenness: {score['betweenness']:.4f}<br>
-                        Articulation Point: {'Yes' if score['is_articulation_point'] else 'No'}<br>
-                        Impact Score: {score['impact_score']:.4f}
-                    </td>
-                </tr>''' for score in data['criticality']['scores'][:10])}
-        </div>
+            </thead>
+            <tbody>
+"""
+    
+    for i, score in enumerate(result.criticality_scores[:20], 1):
+        level_class = score.criticality_level.lower()
+        reason = score.reasons[0] if score.reasons else "N/A"
+        html += f"""
+                <tr>
+                    <td>{i}</td>
+                    <td><strong>{score.node_id}</strong></td>
+                    <td>{score.node_type}</td>
+                    <td>{score.composite_score:.4f}</td>
+                    <td><span class="badge badge-{level_class}">{score.criticality_level}</span></td>
+                    <td>{reason}</td>
+                </tr>
+"""
+    
+    html += """
+            </tbody>
+        </table>
         
         <h2>Structural Analysis</h2>
-        <div class="card">
-            <div class="metrics">
-                <div class="metric">
-                    <div class="metric-value">{data['structural']['articulation_point_count']}</div>
-                    <div class="metric-label">Articulation Points</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">{data['structural']['bridge_count']}</div>
-                    <div class="metric-label">Bridges</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">{data['structural']['weakly_connected_components']}</div>
-                    <div class="metric-label">Components</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-value">{'Yes' if data['structural']['has_cycles'] else 'No'}</div>
-                    <div class="metric-label">Circular Dependencies</div>
-                </div>
+        <div class="cards">
+            <div class="card">
+                <h3>Graph Density</h3>
+                <div class="value">{density:.4f}</div>
+            </div>
+            <div class="card">
+                <h3>Avg Clustering</h3>
+                <div class="value">{clustering:.4f}</div>
+            </div>
+            <div class="card">
+                <h3>Max K-Core</h3>
+                <div class="value">{kcore}</div>
+            </div>
+            <div class="card">
+                <h3>Bridge Edges</h3>
+                <div class="value">{bridges}</div>
             </div>
         </div>
-        
+""".format(
+        density=result.structural.density,
+        clustering=result.structural.average_clustering,
+        kcore=result.structural.k_core_max,
+        bridges=len(result.structural.bridges)
+    )
+    
+    if result.recommendations:
+        html += """
         <h2>Recommendations</h2>
-        <div class="card">
-            {''.join(f'<div class="recommendation">{rec}</div>' for rec in data['recommendations'])}
+"""
+        for rec in result.recommendations:
+            priority_class = "critical" if rec['priority'] == 'CRITICAL' else ""
+            html += f"""
+        <div class="recommendation {priority_class}">
+            <h4>[{rec['priority']}] {rec['category']}</h4>
+            <p><strong>Issue:</strong> {rec['issue']}</p>
+            <p><strong>Recommendation:</strong> {rec['recommendation']}</p>
         </div>
+"""
+    
+    html += """
     </div>
 </body>
-</html>"""
+</html>
+"""
     
-    with open(output_path, 'w') as f:
+    with open(filepath, 'w') as f:
         f.write(html)
-    print_success(f"Exported HTML: {output_path}")
-
-
-def export_csv(result: AnalysisResult, output_dir: Path):
-    """Export criticality scores to CSV"""
-    data = result.to_dict()
     
+    print_success(f"Exported HTML: {filepath}")
+
+
+def export_csv(result: GraphAnalysisResult, output_dir: Path):
+    """Export results to CSV files"""
     # Criticality scores CSV
-    csv_path = output_dir / 'criticality_scores.csv'
-    with open(csv_path, 'w') as f:
-        f.write('node_id,type,betweenness,is_articulation_point,impact_score,composite_score,level\n')
-        for s in data['criticality']['scores']:
-            f.write(f"{s['node_id']},{s['type']},{s['betweenness']},{s['is_articulation_point']},"
-                    f"{s['impact_score']},{s['composite_score']},{s['level']}\n")
-    print_success(f"Exported CSV: {csv_path}")
+    scores_path = output_dir / 'criticality_scores.csv'
+    with open(scores_path, 'w') as f:
+        f.write('node_id,type,betweenness,is_articulation_point,impact,composite_score,level,pagerank,closeness,degree\n')
+        for s in result.criticality_scores:
+            f.write(f"{s.node_id},{s.node_type},{s.betweenness_centrality:.6f},"
+                   f"{s.is_articulation_point},{s.impact_score:.6f},"
+                   f"{s.composite_score:.6f},{s.criticality_level},"
+                   f"{s.pagerank:.6f},{s.closeness:.6f},{s.degree}\n")
+    print_success(f"Exported CSV: {scores_path}")
     
-    # Dependencies CSV
-    deps_path = output_dir / 'depends_on_edges.csv'
-    with open(deps_path, 'w') as f:
-        f.write('source,target,type,weight,via_topics,via_apps\n')
-        for e in data['depends_on']['edges']:
-            topics = ';'.join(e['via_topics']) if e['via_topics'] else ''
-            apps = ';'.join(e['via_apps']) if e['via_apps'] else ''
-            f.write(f"{e['source']},{e['target']},{e['type']},{e['weight']},{topics},{apps}\n")
-    print_success(f"Exported CSV: {deps_path}")
+    # Structural analysis CSV
+    struct_path = output_dir / 'structural_analysis.csv'
+    with open(struct_path, 'w') as f:
+        f.write('metric,value\n')
+        f.write(f"articulation_points,{len(result.structural.articulation_points)}\n")
+        f.write(f"bridges,{len(result.structural.bridges)}\n")
+        f.write(f"density,{result.structural.density:.6f}\n")
+        f.write(f"diameter,{result.structural.diameter or 'N/A'}\n")
+        f.write(f"avg_clustering,{result.structural.average_clustering:.6f}\n")
+        f.write(f"k_core_max,{result.structural.k_core_max}\n")
+    print_success(f"Exported CSV: {struct_path}")
 
 
 # ============================================================================
@@ -346,55 +796,159 @@ def run_analysis(args) -> int:
     )
     logger = logging.getLogger('analyze_graph')
     
-    # Check if output is TTY for colors
+    # Check TTY for colors
     if not sys.stdout.isatty() or args.no_color:
         Colors.disable()
     
     # Print header
     if not args.quiet:
-        print_header("PUB-SUB SYSTEM GRAPH ANALYZER")
-        print(f"\n  Source: Neo4j at {args.neo4j_uri}")
+        print_header("ENHANCED GRAPH ANALYZER")
+        print(f"\n  Input: {args.input}")
         print(f"  Weights: α={args.alpha}, β={args.beta}, γ={args.gamma}")
+        if args.relationship_analysis or args.full:
+            print(f"  Relationship Analysis: Enabled")
     
     try:
-        # Create analyzer
-        analyzer = GraphAnalyzer(
-            alpha=args.alpha,
-            beta=args.beta,
-            gamma=args.gamma
-        )
-        
-        # Load data
+        # Load graph
         if not args.quiet:
-            print_section("Loading Data")
+            print_section("Loading Graph")
         
-        if not NEO4J_AVAILABLE:
-            logger.error("Neo4j driver not installed. Install with: pip install neo4j")
+        G = build_graph_from_file(args.input)
+        
+        if not args.quiet:
+            print_success(f"Loaded {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+        
+        # Validate graph
+        if G.number_of_nodes() == 0:
+            logger.error("Graph is empty")
             return 1
         
-        analyzer.load_from_neo4j(
-            uri=args.neo4j_uri,
-            user=args.neo4j_user,
-            password=args.neo4j_password,
-            database=args.neo4j_database
-        )
-        if not args.quiet:
-            print_success(f"Loaded from Neo4j: {args.neo4j_uri}")
+        # Count by type
+        nodes_by_type = {}
+        for node in G.nodes():
+            ntype = G.nodes[node].get('type', 'Unknown')
+            nodes_by_type[ntype] = nodes_by_type.get(ntype, 0) + 1
         
-        # Run analysis
+        edges_by_type = {}
+        for u, v in G.edges():
+            etype = G.edges[u, v].get('type', 'Unknown')
+            edges_by_type[etype] = edges_by_type.get(etype, 0) + 1
+        
         if not args.quiet:
-            print_section("Running Analysis")
+            print_subsection("Nodes by Type:")
+            for ntype, count in nodes_by_type.items():
+                print_info(f"{ntype}: {count}")
+        
+        # Structural analysis
+        if not args.quiet:
+            print_section("Structural Analysis")
         
         start_time = datetime.now()
-        result = analyzer.analyze()
+        structural = analyze_structure(G)
+        
+        if not args.quiet:
+            print_metric("Articulation Points", len(structural.articulation_points))
+            print_metric("Bridges", len(structural.bridges))
+            print_metric("Density", f"{structural.density:.4f}")
+            print_metric("Max K-Core", structural.k_core_max)
+        
+        # Criticality scoring
+        if not args.quiet:
+            print_section("Criticality Analysis")
+        
+        scores = calculate_criticality_scores(G, args.alpha, args.beta, args.gamma)
+        
+        # Count by level
+        level_counts = {}
+        for s in scores:
+            level_counts[s.criticality_level] = level_counts.get(s.criticality_level, 0) + 1
+        
+        if not args.quiet:
+            for level in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+                count = level_counts.get(level, 0)
+                if level == 'CRITICAL' and count > 0:
+                    print_critical(f"{level}: {count}")
+                elif level == 'HIGH' and count > 0:
+                    print_warning(f"{level}: {count}")
+                else:
+                    print_info(f"{level}: {count}")
+            
+            print_subsection("Top 5 Critical Components:")
+            for i, s in enumerate(scores[:5], 1):
+                level_color = Colors.FAIL if s.criticality_level == 'CRITICAL' else Colors.WARNING
+                print(f"    {i}. {level_color}{s.node_id}{Colors.ENDC} "
+                      f"({s.node_type}) - Score: {s.composite_score:.4f}")
+        
+        # Relationship analysis
+        relationship_results = None
+        if args.relationship_analysis or args.full:
+            if not args.quiet:
+                print_section("Relationship Analysis")
+            
+            try:
+                from src.analysis.relationship_analyzer import RelationshipAnalyzer
+                
+                rel_analyzer = RelationshipAnalyzer(G)
+                rel_result = rel_analyzer.analyze()
+                relationship_results = rel_analyzer.to_dict(rel_result)
+                
+                if not args.quiet:
+                    print_success(f"Analyzed {len(rel_result.edge_criticality)} edges")
+                    print_metric("Critical Edges", len(rel_result.critical_edges))
+                    print_metric("Bridge Edges", len(rel_result.bridge_edges))
+                    print_metric("Network Motifs", len(rel_result.motifs))
+                    
+                    print_subsection("Top Hubs (Data Sources):")
+                    for hub in rel_result.top_hubs[:5]:
+                        print_info(hub)
+                    
+                    print_subsection("Top Authorities (Data Sinks):")
+                    for auth in rel_result.top_authorities[:5]:
+                        print_info(auth)
+                    
+                    if rel_result.motif_summary:
+                        print_subsection("Motif Summary:")
+                        for motif_type, count in rel_result.motif_summary.items():
+                            print_info(f"{motif_type}: {count}")
+                    
+            except ImportError as e:
+                logger.warning(f"Relationship analyzer not available: {e}")
+        
+        # Generate recommendations
+        recommendations = generate_recommendations(G, structural, scores)
+        
+        if relationship_results and 'recommendations' in relationship_results:
+            recommendations.extend(relationship_results['recommendations'])
+        
+        if not args.quiet and recommendations:
+            print_section("Recommendations")
+            for rec in recommendations[:5]:
+                if rec['priority'] == 'CRITICAL':
+                    print_critical(f"[{rec['priority']}] {rec['category']}: {rec['issue']}")
+                else:
+                    print_warning(f"[{rec['priority']}] {rec['category']}: {rec['issue']}")
+                print_info(rec['recommendation'])
+        
+        # Create result object
         duration = (datetime.now() - start_time).total_seconds()
         
-        if not args.quiet:
-            print_success(f"Analysis completed in {duration:.2f}s")
+        result = GraphAnalysisResult(
+            timestamp=datetime.now().isoformat(),
+            input_file=str(args.input),
+            total_nodes=G.number_of_nodes(),
+            total_edges=G.number_of_edges(),
+            nodes_by_type=nodes_by_type,
+            edges_by_type=edges_by_type,
+            criticality_scores=scores,
+            criticality_by_level=level_counts,
+            structural=structural,
+            relationship_analysis=relationship_results,
+            recommendations=recommendations
+        )
         
-        # Print summary
         if not args.quiet:
-            print_summary(result)
+            print_section("Summary")
+            print_success(f"Analysis completed in {duration:.2f}s")
         
         # Export results
         if args.output_dir:
@@ -411,10 +965,21 @@ def run_analysis(args) -> int:
                     export_html(result, output_dir / 'analysis_report.html')
                 elif fmt == 'csv':
                     export_csv(result, output_dir)
-        else:
-            # Print JSON to stdout if no output dir
-            if args.json_output:
-                print(json.dumps(result.to_dict(), indent=2, default=str))
+        
+        # Print JSON to stdout if requested
+        if args.json_output:
+            def serialize(obj):
+                if hasattr(obj, '__dict__'):
+                    return {k: serialize(v) for k, v in obj.__dict__.items()}
+                elif isinstance(obj, list):
+                    return [serialize(item) for item in obj]
+                elif isinstance(obj, dict):
+                    return {k: serialize(v) for k, v in obj.items()}
+                elif isinstance(obj, tuple):
+                    return list(obj)
+                else:
+                    return obj
+            print(json.dumps(serialize(result), indent=2, default=str))
         
         return 0
         
@@ -432,73 +997,6 @@ def run_analysis(args) -> int:
         return 1
 
 
-def print_summary(result: AnalysisResult):
-    """Print analysis summary to terminal"""
-    data = result.to_dict()
-    
-    # Graph Summary
-    print_section("Graph Summary")
-    summary = data['graph_summary']
-    print_metric("Total Nodes", summary['total_nodes'])
-    print_metric("Total DEPENDS_ON Edges", summary['total_edges'])
-    print_metric("Density", f"{summary['density']:.4f}")
-    print_metric("Connected", "Yes" if summary['is_connected'] else "No")
-    
-    print("\n  Nodes by Type:")
-    for ntype, count in summary['nodes_by_type'].items():
-        print_info(f"{ntype}: {count}")
-    
-    # DEPENDS_ON Summary
-    print_section("DEPENDS_ON Relationships")
-    deps = data['depends_on']
-    print_metric("Total Dependencies", deps['total'])
-    for dtype, count in deps['by_type'].items():
-        print_info(f"{dtype}: {count}")
-    
-    # Criticality Summary
-    print_section("Criticality Analysis")
-    crit = data['criticality']
-    for level, count in crit['by_level'].items():
-        if level == 'critical':
-            print_critical(f"{level.upper()}: {count}")
-        elif level == 'high':
-            print_warning(f"{level.upper()}: {count}")
-        else:
-            print_info(f"{level.upper()}: {count}")
-    
-    # Top critical components
-    print("\n  Top 5 Critical Components:")
-    for i, score in enumerate(crit['scores'][:5], 1):
-        level_color = Colors.FAIL if score['level'] == 'critical' else Colors.WARNING
-        print(f"    {i}. {level_color}{score['node_id']}{Colors.ENDC} "
-              f"({score['type']}) - Score: {score['composite_score']:.4f}")
-    
-    # Structural
-    print_section("Structural Analysis")
-    struct = data['structural']
-    
-    if struct['articulation_point_count'] > 0:
-        print_critical(f"Articulation Points (SPOFs): {struct['articulation_point_count']}")
-    else:
-        print_success("No articulation points found")
-    
-    if struct['bridge_count'] > 0:
-        print_warning(f"Bridge Edges: {struct['bridge_count']}")
-    else:
-        print_success("No bridge edges found")
-    
-    if struct['has_cycles']:
-        print_warning(f"Circular dependencies detected: {len(struct['cycles'])} cycles")
-    else:
-        print_success("No circular dependencies")
-    
-    # Recommendations
-    if data['recommendations']:
-        print_section("Recommendations")
-        for rec in data['recommendations']:
-            print_warning(rec)
-
-
 # ============================================================================
 # Main Entry Point
 # ============================================================================
@@ -506,68 +1004,96 @@ def print_summary(result: AnalysisResult):
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description='Analyze pub-sub system graphs using DEPENDS_ON relationships',
+        description='Analyze pub-sub system graphs with advanced graph algorithms',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Load from Neo4j database
-    python analyze_graph.py --neo4j-uri bolt://localhost:7687
+    # Basic analysis
+    python analyze_graph.py --input system.json
+    
+    # With relationship analysis
+    python analyze_graph.py --input system.json --relationship-analysis
+    
+    # Full analysis with all features
+    python analyze_graph.py --input system.json --full
     
     # Export to multiple formats
-    python analyze_graph.py --output-dir results/ --format json html csv
+    python analyze_graph.py --input system.json --output-dir results/ --format json html csv
     
     # Custom criticality weights
-    python analyze_graph.py --alpha 0.5 --beta 0.25 --gamma 0.25
-    
-    # JSON output to stdout
-    python analyze_graph.py --json-output --quiet
+    python analyze_graph.py --input system.json --alpha 0.5 --beta 0.25 --gamma 0.25
+
+Algorithm Recommendations:
+    Run with --algorithms flag to see recommended graph algorithms for pub-sub analysis.
         """
     )
     
-    # Neo4j options
-    neo4j_group = parser.add_argument_group('Neo4j Connection')
-    neo4j_group.add_argument('--neo4j-uri', default='bolt://localhost:7687',
-                             help='Neo4j URI (default: bolt://localhost:7687)')
-    neo4j_group.add_argument('--neo4j-user', default='neo4j',
-                             help='Neo4j username (default: neo4j)')
-    neo4j_group.add_argument('--neo4j-password', default='password',
-                             help='Neo4j password (default: password)')
-    neo4j_group.add_argument('--neo4j-database', default='neo4j',
-                             help='Neo4j database name (default: neo4j)')
+    # Input options
+    input_group = parser.add_argument_group('Input Options')
+    input_group.add_argument('--input', '-i',
+                             help='Input graph file (JSON)')
+    
+    # Analysis options
+    analysis_group = parser.add_argument_group('Analysis Options')
+    analysis_group.add_argument('--alpha', type=float, default=0.4,
+                                help='Weight for betweenness centrality (default: 0.4)')
+    analysis_group.add_argument('--beta', type=float, default=0.3,
+                                help='Weight for articulation point indicator (default: 0.3)')
+    analysis_group.add_argument('--gamma', type=float, default=0.3,
+                                help='Weight for impact score (default: 0.3)')
+    analysis_group.add_argument('--relationship-analysis', '-r', action='store_true',
+                                help='Enable relationship analysis (edges, HITS, motifs)')
+    analysis_group.add_argument('--full', '-f', action='store_true',
+                                help='Enable all analysis features')
     
     # Output options
-    output_group = parser.add_argument_group('Output')
+    output_group = parser.add_argument_group('Output Options')
     output_group.add_argument('--output-dir', '-o',
-                              help='Output directory for exports')
-    output_group.add_argument('--format', '-f', nargs='+', 
+                              help='Output directory for results')
+    output_group.add_argument('--format', nargs='+', default=['json'],
                               choices=['json', 'html', 'csv'],
-                              default=['json', 'html'],
-                              help='Export formats (default: json html)')
+                              help='Output formats (default: json)')
+    output_group.add_argument('--json-output', '-j', action='store_true',
+                              help='Print JSON to stdout')
     
-    # Criticality weights
-    weights_group = parser.add_argument_group('Criticality Weights')
-    weights_group.add_argument('--alpha', type=float, default=0.4,
-                               help='Weight for betweenness centrality (default: 0.4)')
-    weights_group.add_argument('--beta', type=float, default=0.3,
-                               help='Weight for articulation point indicator (default: 0.3)')
-    weights_group.add_argument('--gamma', type=float, default=0.3,
-                               help='Weight for impact score (default: 0.3)')
+    # Display options
+    display_group = parser.add_argument_group('Display Options')
+    display_group.add_argument('--verbose', '-v', action='store_true',
+                               help='Verbose output')
+    display_group.add_argument('--quiet', '-q', action='store_true',
+                               help='Quiet mode (minimal output)')
+    display_group.add_argument('--no-color', action='store_true',
+                               help='Disable colored output')
     
-    # Output options
-    parser.add_argument('--json-output', action='store_true',
-                        help='Print JSON results to stdout')
-    parser.add_argument('--verbose', '-v', action='store_true',
-                        help='Verbose output')
-    parser.add_argument('--quiet', '-q', action='store_true',
-                        help='Minimal output')
-    parser.add_argument('--no-color', action='store_true',
-                        help='Disable colored output')
+    # Info options
+    info_group = parser.add_argument_group('Information')
+    info_group.add_argument('--algorithms', action='store_true',
+                            help='Print algorithm recommendations')
     
     args = parser.parse_args()
     
-    # Validate weights
-    if abs(args.alpha + args.beta + args.gamma - 1.0) > 0.001:
-        parser.error("Weights (alpha + beta + gamma) must sum to 1.0")
+    # Print algorithm recommendations if requested
+    if args.algorithms:
+        print("\n" + "="*70)
+        print("  GRAPH ALGORITHM RECOMMENDATIONS FOR PUB-SUB ANALYSIS")
+        print("="*70 + "\n")
+        
+        try:
+            from src.analysis.relationship_analyzer import get_algorithm_recommendations
+            
+            for rec in get_algorithm_recommendations():
+                print(f"[Priority {rec['priority']}] {rec['algorithm']} ({rec['category']})")
+                print(f"    Purpose: {rec['purpose']}")
+                print(f"    Pub-Sub: {rec['pub_sub_application']}")
+                print(f"    Complexity: {rec['complexity']}\n")
+        except ImportError:
+            print("Relationship analyzer module not available.")
+        
+        return 0
+    
+    # Validate input is provided for analysis
+    if not args.input:
+        parser.error("--input/-i is required when not using --algorithms")
     
     return run_analysis(args)
 
