@@ -1,185 +1,147 @@
 """
-Analysis Module for Software-as-a-Graph
+Quality Attribute Analysis Module
+=================================
 
-This module provides comprehensive analysis capabilities for distributed
-publish-subscribe systems modeled as graphs.
+Provides comprehensive analysis capabilities for distributed pub-sub systems:
 
-Components:
-- criticality_scorer: Composite criticality scoring (C_score formula)
-- fuzzy_criticality_scorer: Fuzzy logic-based criticality assessment
-- boxplot_classifier: Statistical box plot classification
-- centrality_analyzer: Multiple centrality metrics (13 types)
-- edge_criticality_analyzer: Edge-centric criticality analysis
-- structural_analyzer: Structural graph properties
-- qos_analyzer: QoS-aware analysis
-- reachability_analyzer: Connectivity impact analysis
-- path_analyzer: Comprehensive path analysis (dependency chains, message flows, redundancy)
+Quality Attribute Analyzers:
+- ReliabilityAnalyzer: SPOFs, cascade risks, redundancy gaps
+- MaintainabilityAnalyzer: Coupling metrics, anti-patterns, modularity
+- AvailabilityAnalyzer: k-connectivity, fault tolerance, recovery paths
+
+Supporting Components:
+- AntiPatternDetector: Architectural anti-pattern detection
+- BoxPlotCriticalityClassifier: Statistical box-plot classification
+- GraphAnalysisUtils: Common graph analysis utilities
+- Issue/Component/Edge data classes for results
+
+Usage:
+    from src.analysis import (
+        ReliabilityAnalyzer,
+        MaintainabilityAnalyzer, 
+        AvailabilityAnalyzer,
+        AntiPatternDetector,
+        BoxPlotCriticalityClassifier
+    )
+    
+    # Analyze a graph
+    reliability = ReliabilityAnalyzer()
+    result = reliability.analyze(graph)
+    
+    # Classify using box-plot method
+    classifier = BoxPlotCriticalityClassifier()
+    classification = classifier.classify_graph(graph)
 """
 
-from .criticality_scorer import (
-    CompositeCriticalityScorer,
-    CompositeCriticalityScore,
-    CriticalityLevel
-)
-
-from .fuzzy_criticality_scorer import (
-    FuzzyCriticalityScorer,
-    FuzzyNodeCriticalityScore,
-    FuzzyEdgeCriticalityScore,
-    FuzzyCriticalityLevel,
-    DefuzzificationMethod,
-    compare_with_composite_score
-)
-
-from .boxplot_classifier import (
-    BoxPlotClassifier,
-    BoxPlotCriticalityLevel,
-    BoxPlotStatistics,
-    BoxPlotClassificationResult,
-    BoxPlotClassificationSummary,
-    classify_criticality_with_boxplot,
-    classify_edges_with_boxplot
-)
-
-from .edge_criticality_analyzer import (
-    EdgeCriticalityAnalyzer,
-    EdgeCriticalityScore,
-    EdgeCriticalityLevel
-)
-
-from .qos_analyzer import (
-    QoSAnalyzer,
-    QoSAnalysisResult
-)
-
-from .path_analyzer import (
-    PathAnalyzer,
-    PathAnalysisResult,
-    PathCriticalityLevel,
-    PathInfo,
-    MessageFlowPath,
-    DependencyChain,
-    PathRedundancyInfo,
-    FailurePropagationPath
-)
-
-from .graph_analyzer import (
-    GraphAnalyzer,
-    DependsOnEdge,
-    CriticalityScore,
-    AnalysisResult,
-    DependencyType,
-    CriticalityLevel,
-    analyze_pubsub_system,
-    derive_dependencies
-)
-
-from .neo4j_loader import (
-    NEO4J_AVAILABLE
-)
-
-from .relationship_analyzer import (
+from .quality_attribute_analyzer import (
     # Enums
-    RelationshipType,
-    MotifType,
-    ComponentRole,
+    QualityAttribute,
+    Severity,
+    IssueCategory,
+    ComponentType,
+    DependencyType,
     
     # Data Classes
-    EdgeCriticalityResult,
-    HITSRoleResult,
-    MotifInstance,
-    DependencyChainResult,
-    LayerCorrelationResult,
-    EnsembleCriticalityResult,
-    RelationshipAnalysisResult,
+    QualityIssue,
+    CriticalComponent,
+    CriticalEdge,
+    QualityAttributeResult,
+    ComprehensiveAnalysisResult,
     
-    # Analyzers
-    EdgeCriticalityAnalyzer,
-    HITSRoleAnalyzer,
-    MotifDetector,
-    DependencyChainAnalyzer,
-    LayerCorrelationAnalyzer,
-    EnsembleCriticalityScorer,
-    RelationshipAnalyzer,
+    # Base Classes
+    BaseQualityAnalyzer,
+    GraphAnalysisUtils,
     
-    # Convenience Functions
-    analyze_relationships,
-    get_algorithm_recommendations,
+    # Utilities
+    IssueFormatter
+)
+
+from .reliability_analyzer import (
+    ReliabilityAnalyzer,
+    DEFAULT_RELIABILITY_CONFIG
+)
+
+from .maintainability_analyzer import (
+    MaintainabilityAnalyzer,
+    DEFAULT_MAINTAINABILITY_CONFIG,
+    CouplingMetrics
+)
+
+from .availability_analyzer import (
+    AvailabilityAnalyzer,
+    DEFAULT_AVAILABILITY_CONFIG,
+    AvailabilityMetrics
+)
+
+from .antipattern_detector import (
+    AntiPatternDetector,
+    AntiPatternType,
+    AntiPatternSeverity,
+    AntiPattern,
+    AntiPatternAnalysisResult,
+    DEFAULT_ANTIPATTERN_CONFIG
+)
+
+from .criticality_classifier import (
+    BoxPlotCriticalityClassifier,
+    CriticalityLevel,
+    BoxPlotStatistics,
+    ClassifiedComponent,
+    ClassifiedEdge,
+    ClassificationResult,
+    classify_quality_results
 )
 
 __all__ = [
-    # Criticality Scoring
-    'CompositeCriticalityScorer',
-    'CompositeCriticalityScore',
-    'CriticalityLevel',
-
-    # Fuzzy Logic
-    'FuzzyCriticalityScorer',
-    'FuzzyNodeCriticalityScore',
-    'FuzzyEdgeCriticalityScore',
-    'FuzzyCriticalityLevel',
-    'DefuzzificationMethod',
-    'compare_with_composite_score',
-
-    # Box Plot Classification
-    'BoxPlotClassifier',
-    'BoxPlotCriticalityLevel',
-    'BoxPlotStatistics',
-    'BoxPlotClassificationResult',
-    'BoxPlotClassificationSummary',
-    'classify_criticality_with_boxplot',
-    'classify_edges_with_boxplot',
-
-    # Edge Criticality
-    'EdgeCriticalityAnalyzer',
-    'EdgeCriticalityScore',
-    'EdgeCriticalityLevel',
-
-    # QoS Analysis
-    'QoSAnalyzer',
-    'QoSAnalysisResult',
-
-    # Path Analysis
-    'PathAnalyzer',
-    'PathAnalysisResult',
-    'PathCriticalityLevel',
-    'PathInfo',
-    'MessageFlowPath',
-    'DependencyChain',
-    'PathRedundancyInfo',
-    'FailurePropagationPath',
-
-    # Graph Analysis
-    'GraphAnalyzer',
-    'DependsOnEdge',
-    'CriticalityScore',
-    'AnalysisResult',
+    # Quality Attributes
+    'QualityAttribute',
+    'Severity',
+    'IssueCategory',
+    'ComponentType',
     'DependencyType',
+    
+    # Results
+    'QualityIssue',
+    'CriticalComponent',
+    'CriticalEdge',
+    'QualityAttributeResult',
+    'ComprehensiveAnalysisResult',
+    
+    # Analyzers
+    'ReliabilityAnalyzer',
+    'MaintainabilityAnalyzer',
+    'AvailabilityAnalyzer',
+    'AntiPatternDetector',
+    
+    # Box-Plot Classification
+    'BoxPlotCriticalityClassifier',
     'CriticalityLevel',
-    'analyze_pubsub_system',
-    'derive_dependencies',
-
-    # Neo4j Loader
-    'NEO4J_AVAILABLE',
-
-        # Relationship Analysis
-    'RelationshipType',
-    'MotifType',
-    'ComponentRole',
-    'EdgeCriticalityResult',
-    'HITSRoleResult',
-    'MotifInstance',
-    'DependencyChainResult',
-    'LayerCorrelationResult',
-    'EnsembleCriticalityResult',
-    'RelationshipAnalysisResult',
-    'EdgeCriticalityAnalyzer',
-    'HITSRoleAnalyzer',
-    'MotifDetector',
-    'DependencyChainAnalyzer',
-    'LayerCorrelationAnalyzer',
-    'EnsembleCriticalityScorer',
-    'RelationshipAnalyzer',
-    'analyze_relationships',
-    'get_algorithm_recommendations'
+    'BoxPlotStatistics',
+    'ClassifiedComponent',
+    'ClassifiedEdge',
+    'ClassificationResult',
+    'classify_quality_results',
+    
+    # Base/Utilities
+    'BaseQualityAnalyzer',
+    'GraphAnalysisUtils',
+    'IssueFormatter',
+    
+    # Anti-Pattern Types
+    'AntiPatternType',
+    'AntiPatternSeverity',
+    'AntiPattern',
+    'AntiPatternAnalysisResult',
+    
+    # Metrics
+    'CouplingMetrics',
+    'AvailabilityMetrics',
+    
+    # Configs
+    'DEFAULT_RELIABILITY_CONFIG',
+    'DEFAULT_MAINTAINABILITY_CONFIG',
+    'DEFAULT_AVAILABILITY_CONFIG',
+    'DEFAULT_ANTIPATTERN_CONFIG'
 ]
+
+__version__ = '1.1.0'

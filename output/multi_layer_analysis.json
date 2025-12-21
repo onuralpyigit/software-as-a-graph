@@ -1,0 +1,616 @@
+{
+  "metadata": {
+    "timestamp": "2025-12-21T18:15:07.744436",
+    "source": "neo4j"
+  },
+  "summary": {
+    "total_nodes": 27,
+    "total_edges": 190,
+    "total_depends_on": 102,
+    "nodes_by_type": {
+      "Application": 12,
+      "Broker": 2,
+      "Topic": 8,
+      "Node": 5
+    },
+    "global_spof_count": 0
+  },
+  "quality_scores": {
+    "reliability": 0.9,
+    "maintainability": 0.4,
+    "availability": 1.0
+  },
+  "layer_results": {
+    "app_to_app": {
+      "layer_type": "app_to_app",
+      "total_edges": 58,
+      "total_nodes": 12,
+      "density": 0.4394,
+      "avg_degree": 4.83,
+      "max_in_degree": 9,
+      "max_out_degree": 8,
+      "articulation_points": [],
+      "bridges": [],
+      "critical_nodes": [
+        {
+          "node_id": "A11",
+          "node_type": "Application",
+          "betweenness": 0.0758,
+          "is_articulation_point": false,
+          "downstream_count": 7,
+          "composite_score": 0.2053,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "A8",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 8,
+          "composite_score": 0.2,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "A10",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 8,
+          "composite_score": 0.2,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "A3",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 8,
+          "composite_score": 0.2,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "A5",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 8,
+          "composite_score": 0.2,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "A9",
+          "node_type": "Application",
+          "betweenness": 0.003,
+          "is_articulation_point": false,
+          "downstream_count": 7,
+          "composite_score": 0.1762,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "A7",
+          "node_type": "Application",
+          "betweenness": 0.003,
+          "is_articulation_point": false,
+          "downstream_count": 7,
+          "composite_score": 0.1762,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "A2",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 7,
+          "composite_score": 0.175,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "A1",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 7,
+          "composite_score": 0.175,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "A4",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 0,
+          "composite_score": 0.0,
+          "criticality_level": "low"
+        }
+      ],
+      "has_cycles": true,
+      "cycle_count": 1
+    },
+    "app_to_broker": {
+      "layer_type": "app_to_broker",
+      "total_edges": 24,
+      "total_nodes": 14,
+      "density": 0.1319,
+      "avg_degree": 1.71,
+      "max_in_degree": 12,
+      "max_out_degree": 2,
+      "articulation_points": [],
+      "bridges": [],
+      "critical_nodes": [
+        {
+          "node_id": "A11",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.0429,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "A8",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.0429,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "A5",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.0429,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "A1",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.0429,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "A7",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.0429,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "A9",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.0429,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "A6",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.0429,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "A12",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.0429,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "A3",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.0429,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "A2",
+          "node_type": "Application",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.0429,
+          "criticality_level": "low"
+        }
+      ],
+      "has_cycles": false,
+      "cycle_count": 0
+    },
+    "node_to_node": {
+      "layer_type": "node_to_node",
+      "total_edges": 12,
+      "total_nodes": 4,
+      "density": 1.0,
+      "avg_degree": 3.0,
+      "max_in_degree": 3,
+      "max_out_degree": 3,
+      "articulation_points": [],
+      "bridges": [],
+      "critical_nodes": [
+        {
+          "node_id": "N1",
+          "node_type": "Node",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 3,
+          "composite_score": 0.225,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "N2",
+          "node_type": "Node",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 3,
+          "composite_score": 0.225,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "N5",
+          "node_type": "Node",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 3,
+          "composite_score": 0.225,
+          "criticality_level": "medium"
+        },
+        {
+          "node_id": "N4",
+          "node_type": "Node",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 3,
+          "composite_score": 0.225,
+          "criticality_level": "medium"
+        }
+      ],
+      "has_cycles": true,
+      "cycle_count": 1
+    },
+    "node_to_broker": {
+      "layer_type": "node_to_broker",
+      "total_edges": 8,
+      "total_nodes": 6,
+      "density": 0.2667,
+      "avg_degree": 1.33,
+      "max_in_degree": 4,
+      "max_out_degree": 2,
+      "articulation_points": [],
+      "bridges": [],
+      "critical_nodes": [
+        {
+          "node_id": "N5",
+          "node_type": "Node",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.1,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "N1",
+          "node_type": "Node",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.1,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "N2",
+          "node_type": "Node",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.1,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "N4",
+          "node_type": "Node",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 2,
+          "composite_score": 0.1,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "B1",
+          "node_type": "Broker",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 0,
+          "composite_score": 0.0,
+          "criticality_level": "low"
+        },
+        {
+          "node_id": "B2",
+          "node_type": "Broker",
+          "betweenness": 0.0,
+          "is_articulation_point": false,
+          "downstream_count": 0,
+          "composite_score": 0.0,
+          "criticality_level": "low"
+        }
+      ],
+      "has_cycles": false,
+      "cycle_count": 0
+    }
+  },
+  "cross_layer_correlations": [
+    {
+      "layer1": "app_to_app",
+      "layer2": "app_to_broker",
+      "shared_critical_nodes": [],
+      "correlation_score": 0,
+      "correlation_type": "low",
+      "implications": []
+    },
+    {
+      "layer1": "app_to_app",
+      "layer2": "node_to_node",
+      "shared_critical_nodes": [],
+      "correlation_score": 0,
+      "correlation_type": "low",
+      "implications": []
+    },
+    {
+      "layer1": "app_to_app",
+      "layer2": "node_to_broker",
+      "shared_critical_nodes": [],
+      "correlation_score": 0,
+      "correlation_type": "low",
+      "implications": []
+    },
+    {
+      "layer1": "app_to_broker",
+      "layer2": "node_to_node",
+      "shared_critical_nodes": [],
+      "correlation_score": 0,
+      "correlation_type": "low",
+      "implications": []
+    },
+    {
+      "layer1": "app_to_broker",
+      "layer2": "node_to_broker",
+      "shared_critical_nodes": [],
+      "correlation_score": 0,
+      "correlation_type": "low",
+      "implications": []
+    },
+    {
+      "layer1": "node_to_node",
+      "layer2": "node_to_broker",
+      "shared_critical_nodes": [],
+      "correlation_score": 0,
+      "correlation_type": "low",
+      "implications": []
+    }
+  ],
+  "global_critical_nodes": [
+    {
+      "node_id": "N1",
+      "node_type": "Node",
+      "layers_critical_in": [
+        "node_to_node",
+        "node_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.325,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "N2",
+      "node_type": "Node",
+      "layers_critical_in": [
+        "node_to_node",
+        "node_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.325,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "N5",
+      "node_type": "Node",
+      "layers_critical_in": [
+        "node_to_node",
+        "node_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.325,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "N4",
+      "node_type": "Node",
+      "layers_critical_in": [
+        "node_to_node",
+        "node_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.325,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A11",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_app",
+        "app_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.2482,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A8",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_app",
+        "app_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.2429,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A3",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_app",
+        "app_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.2429,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A5",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_app",
+        "app_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.2429,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A9",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_app",
+        "app_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.2191,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A7",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_app",
+        "app_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.2191,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A2",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_app",
+        "app_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.2179,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A1",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_app",
+        "app_to_broker"
+      ],
+      "layer_count": 2,
+      "aggregated_score": 0.2179,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A10",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_app"
+      ],
+      "layer_count": 1,
+      "aggregated_score": 0.2,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A6",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_broker"
+      ],
+      "layer_count": 1,
+      "aggregated_score": 0.0429,
+      "is_spof_in_any_layer": false
+    },
+    {
+      "node_id": "A12",
+      "node_type": "Application",
+      "layers_critical_in": [
+        "app_to_broker"
+      ],
+      "layer_count": 1,
+      "aggregated_score": 0.0429,
+      "is_spof_in_any_layer": false
+    }
+  ],
+  "issues": [
+    {
+      "id": "ISSUE-001",
+      "type": "CIRCULAR_DEPENDENCY",
+      "severity": "high",
+      "layer": "app_to_app",
+      "component": null,
+      "title": "Circular Dependencies in app_to_app",
+      "description": "1 circular dependency cycles detected"
+    },
+    {
+      "id": "ISSUE-002",
+      "type": "CIRCULAR_DEPENDENCY",
+      "severity": "high",
+      "layer": "node_to_node",
+      "component": null,
+      "title": "Circular Dependencies in node_to_node",
+      "description": "1 circular dependency cycles detected"
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "REC-001",
+      "priority": "HIGH",
+      "category": "Architecture",
+      "issue": "Circular dependencies detected",
+      "recommendation": "Break cycles using dependency inversion or async communication",
+      "affected_layers": [
+        "app_to_app",
+        "node_to_node"
+      ]
+    },
+    {
+      "id": "REC-002",
+      "priority": "MEDIUM",
+      "category": "Coupling",
+      "issue": "High coupling density in app_to_app layer (0.44)",
+      "recommendation": "Review dependencies and consider introducing abstraction layers"
+    },
+    {
+      "id": "REC-003",
+      "priority": "MEDIUM",
+      "category": "Coupling",
+      "issue": "High coupling density in node_to_node layer (1.00)",
+      "recommendation": "Review dependencies and consider introducing abstraction layers"
+    }
+  ]
+}
