@@ -1,387 +1,652 @@
 #!/usr/bin/env python3
 """
-Graph Simulator Examples
-========================
+Simulation Examples for Pub-Sub Systems
+=========================================
 
-Demonstrates how to use the GraphSimulator to simulate failures
-in pub-sub systems and measure impact using DEPENDS_ON relationships.
+Quick examples demonstrating simulation capabilities:
+1. Failure Simulation Examples
+2. Event-Driven Simulation Examples
+3. Combined Analysis Examples
 
-Examples:
-1. Basic single failure simulation
-2. Multiple component failures
-3. Cascade failure propagation
-4. Exhaustive simulation for impact ranking
-5. Using with GraphAnalyzer
-6. Comparing component criticality
-7. Generating reports
-
-Usage:
-    python example_graph_simulator.py
+Run with:
+    python examples/simulation_examples.py
+    
+Or individual examples:
+    python examples/simulation_examples.py --example failure
+    python examples/simulation_examples.py --example event
+    python examples/simulation_examples.py --example all
 
 Author: Software-as-a-Graph Research Project
 """
 
 import sys
 import json
+import argparse
 from pathlib import Path
+from datetime import datetime
 
-# Add parent directory to path for imports
+# Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import networkx as nx
 
 from src.simulation import (
-    GraphSimulator,
-    SimulationResult,
-    BatchSimulationResult,
-    FailureMode,
-    simulate_single_failure,
-    simulate_and_rank,
+    FailureSimulator,
+    EventDrivenSimulator,
+    AttackStrategy,
+    FailureType,
+    FailureMode
 )
-from src.analysis import GraphAnalyzer
 
 
 # ============================================================================
-# Sample Data
+# Terminal Formatting
 # ============================================================================
 
-SAMPLE_PUBSUB_DATA = {
-    "nodes": [
-        {"id": "N1", "name": "ComputeNode1", "type": "compute"},
-        {"id": "N2", "name": "ComputeNode2", "type": "compute"},
-        {"id": "N3", "name": "EdgeNode", "type": "edge"}
-    ],
-    "brokers": [
-        {"id": "B1", "name": "MainBroker", "node": "N1"},
-        {"id": "B2", "name": "BackupBroker", "node": "N2"}
-    ],
-    "applications": [
-        {"id": "A1", "name": "SensorReader", "role": "pub", "node": "N3"},
-        {"id": "A2", "name": "DataProcessor", "role": "both", "node": "N1"},
-        {"id": "A3", "name": "Analytics", "role": "sub", "node": "N1"},
-        {"id": "A4", "name": "Dashboard", "role": "sub", "node": "N2"},
-        {"id": "A5", "name": "Alerting", "role": "sub", "node": "N2"},
-        {"id": "A6", "name": "Logger", "role": "sub", "node": "N1"}
-    ],
-    "topics": [
-        {"id": "T1", "name": "sensor/data", "broker": "B1"},
-        {"id": "T2", "name": "processed/data", "broker": "B1"},
-        {"id": "T3", "name": "alerts", "broker": "B2"}
-    ],
-    "relationships": {
-        "publishes_to": [
-            {"from": "A1", "to": "T1"},
-            {"from": "A2", "to": "T2"},
-            {"from": "A2", "to": "T3"}
-        ],
-        "subscribes_to": [
-            {"from": "A2", "to": "T1"},
-            {"from": "A3", "to": "T2"},
-            {"from": "A4", "to": "T2"},
-            {"from": "A5", "to": "T3"},
-            {"from": "A6", "to": "T1"},
-            {"from": "A6", "to": "T2"}
-        ],
-        "runs_on": [
-            {"from": "A1", "to": "N3"},
-            {"from": "A2", "to": "N1"},
-            {"from": "A3", "to": "N1"},
-            {"from": "A4", "to": "N2"},
-            {"from": "A5", "to": "N2"},
-            {"from": "A6", "to": "N1"},
-            {"from": "B1", "to": "N1"},
-            {"from": "B2", "to": "N2"}
-        ],
-        "routes": [
-            {"from": "B1", "to": "T1"},
-            {"from": "B1", "to": "T2"},
-            {"from": "B2", "to": "T3"}
-        ]
-    }
-}
+class Colors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    WARNING = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
 
 
 def print_header(title: str):
-    """Print a formatted header"""
-    print(f"\n{'='*60}")
-    print(f" {title}")
-    print('='*60)
+    """Print section header"""
+    print(f"\n{Colors.BOLD}{Colors.HEADER}{'='*70}{Colors.ENDC}")
+    print(f"{Colors.BOLD}{Colors.HEADER}{title.center(70)}{Colors.ENDC}")
+    print(f"{Colors.BOLD}{Colors.HEADER}{'='*70}{Colors.ENDC}\n")
 
 
-def print_subheader(title: str):
-    """Print a formatted subheader"""
-    print(f"\n── {title} ──")
+def print_section(title: str):
+    """Print subsection header"""
+    print(f"\n{Colors.BOLD}{Colors.CYAN}{title}{Colors.ENDC}")
+    print(f"{Colors.DIM}{'-'*50}{Colors.ENDC}" if hasattr(Colors, 'DIM') else '-'*50)
+
+
+def print_result(label: str, value, color=None):
+    """Print a result line"""
+    color = color or ''
+    end_color = Colors.ENDC if color else ''
+    print(f"  {label}: {color}{value}{end_color}")
+
+
+# ============================================================================
+# Graph Generation
+# ============================================================================
+
+def create_financial_trading_system() -> nx.DiGraph:
+    """
+    Create a realistic financial trading pub-sub system.
+    
+    Components:
+    - Market data feed handlers
+    - Order management systems
+    - Risk management services
+    - Trade execution engines
+    - Reporting services
+    """
+    G = nx.DiGraph()
+    
+    # Infrastructure nodes
+    infra = [
+        ('datacenter_east', 'Node'),
+        ('datacenter_west', 'Node'),
+    ]
+    
+    # Brokers (message brokers)
+    brokers = [
+        ('broker_primary', 'Broker'),
+        ('broker_backup', 'Broker'),
+        ('broker_regional', 'Broker'),
+    ]
+    
+    # Topics (message channels)
+    topics = [
+        ('market_data', 'Topic'),
+        ('orders', 'Topic'),
+        ('executions', 'Topic'),
+        ('risk_alerts', 'Topic'),
+        ('audit_log', 'Topic'),
+    ]
+    
+    # Applications
+    apps = [
+        ('market_feed_nyse', 'Application'),
+        ('market_feed_nasdaq', 'Application'),
+        ('order_gateway', 'Application'),
+        ('matching_engine', 'Application'),
+        ('risk_manager', 'Application'),
+        ('position_keeper', 'Application'),
+        ('trade_reporter', 'Application'),
+        ('compliance_monitor', 'Application'),
+    ]
+    
+    # Add all nodes
+    for node_id, node_type in infra + brokers + topics + apps:
+        G.add_node(node_id, type=node_type)
+    
+    # Infrastructure connections
+    G.add_edge('datacenter_east', 'broker_primary')
+    G.add_edge('datacenter_west', 'broker_backup')
+    G.add_edge('datacenter_east', 'broker_regional')
+    G.add_edge('broker_primary', 'broker_backup')  # Replication
+    
+    # Broker to topic routing
+    G.add_edge('broker_primary', 'market_data')
+    G.add_edge('broker_primary', 'orders')
+    G.add_edge('broker_primary', 'executions')
+    G.add_edge('broker_backup', 'risk_alerts')
+    G.add_edge('broker_regional', 'audit_log')
+    
+    # Publishers
+    G.add_edge('market_feed_nyse', 'market_data')
+    G.add_edge('market_feed_nasdaq', 'market_data')
+    G.add_edge('order_gateway', 'orders')
+    G.add_edge('matching_engine', 'executions')
+    G.add_edge('risk_manager', 'risk_alerts')
+    
+    # Subscribers
+    G.add_edge('market_data', 'matching_engine')
+    G.add_edge('market_data', 'risk_manager')
+    G.add_edge('orders', 'matching_engine')
+    G.add_edge('orders', 'risk_manager')
+    G.add_edge('executions', 'position_keeper')
+    G.add_edge('executions', 'trade_reporter')
+    G.add_edge('risk_alerts', 'order_gateway')
+    G.add_edge('risk_alerts', 'compliance_monitor')
+    
+    # Audit trail
+    G.add_edge('order_gateway', 'audit_log')
+    G.add_edge('matching_engine', 'audit_log')
+    G.add_edge('audit_log', 'compliance_monitor')
+    
+    return G
+
+
+def create_iot_smart_city() -> nx.DiGraph:
+    """
+    Create an IoT smart city pub-sub system.
+    
+    Components:
+    - Sensor gateways
+    - Data aggregators
+    - Analytics services
+    - Alert systems
+    """
+    G = nx.DiGraph()
+    
+    # Edge nodes
+    nodes = [
+        ('edge_north', 'Node'),
+        ('edge_south', 'Node'),
+        ('edge_central', 'Node'),
+    ]
+    
+    # Message brokers
+    brokers = [
+        ('mqtt_broker_1', 'Broker'),
+        ('mqtt_broker_2', 'Broker'),
+        ('kafka_cluster', 'Broker'),
+    ]
+    
+    # Topics
+    topics = [
+        ('traffic_sensors', 'Topic'),
+        ('weather_data', 'Topic'),
+        ('air_quality', 'Topic'),
+        ('emergency_alerts', 'Topic'),
+        ('aggregated_metrics', 'Topic'),
+    ]
+    
+    # Applications
+    apps = [
+        ('traffic_gateway_1', 'Application'),
+        ('traffic_gateway_2', 'Application'),
+        ('weather_station', 'Application'),
+        ('air_monitor_1', 'Application'),
+        ('air_monitor_2', 'Application'),
+        ('data_aggregator', 'Application'),
+        ('ml_predictor', 'Application'),
+        ('alert_service', 'Application'),
+        ('dashboard_api', 'Application'),
+        ('mobile_notifier', 'Application'),
+    ]
+    
+    for node_id, node_type in nodes + brokers + topics + apps:
+        G.add_node(node_id, type=node_type)
+    
+    # Infrastructure
+    G.add_edge('edge_north', 'mqtt_broker_1')
+    G.add_edge('edge_south', 'mqtt_broker_2')
+    G.add_edge('edge_central', 'kafka_cluster')
+    G.add_edge('mqtt_broker_1', 'kafka_cluster')
+    G.add_edge('mqtt_broker_2', 'kafka_cluster')
+    
+    # Broker routing
+    G.add_edge('mqtt_broker_1', 'traffic_sensors')
+    G.add_edge('mqtt_broker_1', 'weather_data')
+    G.add_edge('mqtt_broker_2', 'air_quality')
+    G.add_edge('kafka_cluster', 'aggregated_metrics')
+    G.add_edge('kafka_cluster', 'emergency_alerts')
+    
+    # Publishers
+    G.add_edge('traffic_gateway_1', 'traffic_sensors')
+    G.add_edge('traffic_gateway_2', 'traffic_sensors')
+    G.add_edge('weather_station', 'weather_data')
+    G.add_edge('air_monitor_1', 'air_quality')
+    G.add_edge('air_monitor_2', 'air_quality')
+    G.add_edge('data_aggregator', 'aggregated_metrics')
+    G.add_edge('ml_predictor', 'emergency_alerts')
+    
+    # Subscribers
+    G.add_edge('traffic_sensors', 'data_aggregator')
+    G.add_edge('traffic_sensors', 'ml_predictor')
+    G.add_edge('weather_data', 'data_aggregator')
+    G.add_edge('weather_data', 'ml_predictor')
+    G.add_edge('air_quality', 'data_aggregator')
+    G.add_edge('air_quality', 'alert_service')
+    G.add_edge('aggregated_metrics', 'dashboard_api')
+    G.add_edge('emergency_alerts', 'alert_service')
+    G.add_edge('emergency_alerts', 'mobile_notifier')
+    
+    return G
+
+
+def create_microservices_system() -> nx.DiGraph:
+    """
+    Create a microservices e-commerce pub-sub system.
+    """
+    G = nx.DiGraph()
+    
+    # Infrastructure
+    G.add_node('k8s_cluster', type='Node')
+    G.add_node('rabbitmq', type='Broker')
+    G.add_node('redis_pubsub', type='Broker')
+    
+    # Topics/Queues
+    topics = ['user_events', 'order_events', 'inventory_events', 
+              'payment_events', 'notification_queue']
+    for t in topics:
+        G.add_node(t, type='Topic')
+    
+    # Services
+    services = ['api_gateway', 'user_service', 'order_service', 
+                'inventory_service', 'payment_service', 'notification_service',
+                'analytics_service', 'recommendation_engine']
+    for s in services:
+        G.add_node(s, type='Application')
+    
+    # Infrastructure connections
+    G.add_edge('k8s_cluster', 'rabbitmq')
+    G.add_edge('k8s_cluster', 'redis_pubsub')
+    
+    # Broker routing
+    G.add_edge('rabbitmq', 'user_events')
+    G.add_edge('rabbitmq', 'order_events')
+    G.add_edge('rabbitmq', 'inventory_events')
+    G.add_edge('rabbitmq', 'payment_events')
+    G.add_edge('redis_pubsub', 'notification_queue')
+    
+    # Publishers
+    G.add_edge('api_gateway', 'user_events')
+    G.add_edge('user_service', 'user_events')
+    G.add_edge('order_service', 'order_events')
+    G.add_edge('inventory_service', 'inventory_events')
+    G.add_edge('payment_service', 'payment_events')
+    
+    # Subscribers
+    G.add_edge('user_events', 'analytics_service')
+    G.add_edge('user_events', 'recommendation_engine')
+    G.add_edge('order_events', 'inventory_service')
+    G.add_edge('order_events', 'payment_service')
+    G.add_edge('order_events', 'notification_service')
+    G.add_edge('inventory_events', 'order_service')
+    G.add_edge('payment_events', 'order_service')
+    G.add_edge('payment_events', 'notification_service')
+    G.add_edge('notification_queue', 'notification_service')
+    
+    return G
 
 
 # ============================================================================
 # Example Functions
 # ============================================================================
 
-def example_1_basic_simulation():
-    """Example 1: Basic single failure simulation"""
-    print_header("Example 1: Basic Single Failure Simulation")
+def example_single_failure():
+    """Example: Single component failure simulation"""
+    print_header("EXAMPLE: Single Component Failure")
     
-    # Build dependency graph using analyzer
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    analyzer.derive_depends_on()
-    graph = analyzer.build_dependency_graph()
+    graph = create_financial_trading_system()
+    print(f"System: Financial Trading ({graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges)")
     
-    print(f"\nGraph: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
+    simulator = FailureSimulator(seed=42)
     
-    # Create simulator
-    simulator = GraphSimulator(seed=42)
+    # Fail the primary broker
+    result = simulator.simulate_single_failure(
+        graph, 
+        'broker_primary',
+        failure_type=FailureType.COMPLETE,
+        enable_cascade=True
+    )
     
-    # Simulate failure of DataProcessor (A2)
-    print_subheader("Simulating failure of A2 (DataProcessor)")
-    result = simulator.simulate_failure(graph, 'A2')
+    print_section("Results")
+    print_result("Simulation ID", result.simulation_id)
+    print_result("Component Failed", 'broker_primary')
+    print_result("Cascade Failures", len(result.cascade_failures))
+    print_result("Reachability Loss", f"{result.impact.reachability_loss*100:.1f}%", Colors.WARNING)
+    print_result("Impact Score", f"{result.impact_score:.4f}", Colors.RED if result.impact_score > 0.5 else Colors.GREEN)
+    print_result("Resilience Score", f"{result.resilience_score:.4f}")
     
-    # Print results
-    print(f"\nImpact Score: {result.impact_score:.1%}")
-    print(f"Resilience Score: {result.resilience_score:.1%}")
-    print(f"Reachability Loss: {result.reachability_loss_pct:.1f}%")
-    print(f"Affected Components: {len(result.affected_components)}")
+    if result.cascade_failures:
+        print(f"\n  Cascade chain: broker_primary → {' → '.join(result.cascade_failures[:5])}")
     
     return result
 
 
-def example_2_multiple_failures():
-    """Example 2: Multiple simultaneous failures"""
-    print_header("Example 2: Multiple Simultaneous Failures")
+def example_multiple_failures():
+    """Example: Multiple simultaneous failures"""
+    print_header("EXAMPLE: Multiple Component Failures")
     
-    # Build graph
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    graph = analyzer.build_dependency_graph()
+    graph = create_iot_smart_city()
+    print(f"System: IoT Smart City ({graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges)")
     
-    simulator = GraphSimulator(seed=42)
+    simulator = FailureSimulator(seed=42)
     
-    # Compare single vs multiple failures
-    print_subheader("Single failure (A1)")
-    single_result = simulator.simulate_failure(graph, 'A1')
-    print(f"Impact: {single_result.impact_score:.1%}")
+    # Fail multiple edge nodes (simulating regional outage)
+    components = ['edge_north', 'mqtt_broker_1']
     
-    print_subheader("Multiple failures (A1, A2)")
-    multi_result = simulator.simulate_multiple_failures(graph, ['A1', 'A2'])
-    print(f"Impact: {multi_result.impact_score:.1%}")
-    
-    print_subheader("Comparison")
-    print(f"Impact increase: {multi_result.impact_score - single_result.impact_score:.1%}")
-    
-    return single_result, multi_result
-
-
-def example_3_cascade_failures():
-    """Example 3: Cascade failure propagation"""
-    print_header("Example 3: Cascade Failure Propagation")
-    
-    # Build graph
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    graph = analyzer.build_dependency_graph()
-    
-    # Use low threshold to encourage cascades
-    simulator = GraphSimulator(
-        cascade_threshold=0.3,
-        cascade_probability=0.8,
-        max_cascade_depth=5,
-        seed=42
+    result = simulator.simulate_multiple_failures(
+        graph,
+        components,
+        enable_cascade=True
     )
     
-    # Compare with and without cascade
-    print_subheader("Without cascade propagation")
-    no_cascade = simulator.simulate_failure(graph, 'A2', enable_cascade=False)
-    print(f"Failed: {len(no_cascade.failed_components)}")
-    print(f"Impact: {no_cascade.impact_score:.1%}")
+    print_section("Results")
+    print_result("Components Failed", ', '.join(components))
+    print_result("Total Failures", len(result.all_failures))
+    print_result("Cascade Failures", len(result.cascade_failures))
+    print_result("Fragmentation", f"{result.impact.fragmentation} new components")
+    print_result("Impact Score", f"{result.impact_score:.4f}")
     
-    print_subheader("With cascade propagation")
-    with_cascade = simulator.simulate_failure(graph, 'A2', enable_cascade=True)
-    print(f"Primary failures: {len(with_cascade.failed_components) - len(with_cascade.cascade_failures)}")
-    print(f"Cascade failures: {len(with_cascade.cascade_failures)}")
-    print(f"Total failed: {len(with_cascade.failed_components)}")
-    print(f"Impact: {with_cascade.impact_score:.1%}")
+    if result.impact.isolated_nodes:
+        print(f"\n  Isolated nodes: {', '.join(result.impact.isolated_nodes[:5])}")
     
-    if with_cascade.cascade_failures:
-        print(f"\nCascade chain: {' → '.join(with_cascade.cascade_failures)}")
-    
-    return no_cascade, with_cascade
+    return result
 
 
-def example_4_exhaustive_simulation():
-    """Example 4: Exhaustive simulation for impact ranking"""
-    print_header("Example 4: Exhaustive Simulation")
+def example_targeted_attack():
+    """Example: Targeted attack on critical components"""
+    print_header("EXAMPLE: Targeted Attack Simulation")
     
-    # Build graph
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    graph = analyzer.build_dependency_graph()
+    graph = create_microservices_system()
+    print(f"System: E-commerce Microservices ({graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges)")
     
-    simulator = GraphSimulator(seed=42)
+    simulator = FailureSimulator(seed=42)
     
-    print_subheader("Testing all components individually")
-    batch_result = simulator.simulate_all_single_failures(graph)
+    # Attack using different strategies
+    strategies = [
+        (AttackStrategy.CRITICALITY, "Criticality-based"),
+        (AttackStrategy.BETWEENNESS, "Betweenness-based"),
+        (AttackStrategy.DEGREE, "Degree-based"),
+    ]
     
-    print(f"\nTotal simulations: {batch_result.total_simulations}")
+    print_section("Attack Comparison (3 targets each)")
     
-    # Summary statistics
-    summary = batch_result.summary
-    print(f"\nImpact Score Range:")
-    print(f"  Min: {summary['impact_score']['min']:.1%}")
-    print(f"  Max: {summary['impact_score']['max']:.1%}")
-    print(f"  Mean: {summary['impact_score']['mean']:.1%}")
+    for strategy, name in strategies:
+        result = simulator.simulate_targeted_attack(
+            graph,
+            strategy=strategy,
+            target_count=3,
+            enable_cascade=False
+        )
+        
+        targets = ', '.join(result.primary_failures)
+        print(f"\n  {Colors.BOLD}{name}:{Colors.ENDC}")
+        print(f"    Targets: {targets}")
+        print(f"    Impact: {result.impact_score:.4f}")
     
-    print_subheader("Impact Ranking (Top 5)")
-    ranking = batch_result.get_impact_ranking()
-    for i, (comp, impact) in enumerate(ranking[:5], 1):
-        # Classify severity
-        if impact >= 0.7:
-            sev = "CRITICAL"
-        elif impact >= 0.5:
-            sev = "HIGH"
-        elif impact >= 0.3:
-            sev = "MEDIUM"
-        else:
-            sev = "LOW"
-        print(f"  {i}. {comp:20s} {impact:.1%} [{sev}]")
-    
-    return batch_result
+    return result
 
 
-def example_5_with_analyzer():
-    """Example 5: Full workflow with GraphAnalyzer"""
-    print_header("Example 5: Full Workflow with GraphAnalyzer")
+def example_exhaustive_campaign():
+    """Example: Exhaustive failure campaign"""
+    print_header("EXAMPLE: Exhaustive Failure Campaign")
     
-    # Step 1: Analyze the system
-    print_subheader("Step 1: Analyze System")
+    graph = create_financial_trading_system()
+    print(f"System: Financial Trading ({graph.number_of_nodes()} nodes)")
     
-    analyzer = GraphAnalyzer(alpha=0.4, beta=0.3, gamma=0.3)
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    analysis = analyzer.analyze()
+    simulator = FailureSimulator(seed=42)
     
-    print(f"Total DEPENDS_ON edges: {len(analysis.depends_on_edges)}")
-    print(f"By type: {analysis.to_dict()['depends_on']['by_type']}")
+    # Test all components
+    result = simulator.simulate_exhaustive(
+        graph,
+        enable_cascade=False
+    )
     
-    # Step 2: Get predicted critical components
-    print_subheader("Step 2: Predicted Critical Components")
+    print_section("Campaign Results")
+    print_result("Total Tests", result.total_simulations)
+    print_result("Completed", result.completed_simulations)
+    print_result("Avg Impact", f"{result.avg_impact_score:.4f}")
+    print_result("Max Impact", f"{result.max_impact_score:.4f}", Colors.RED)
+    print_result("Min Impact", f"{result.min_impact_score:.4f}", Colors.GREEN)
+    print_result("Duration", f"{result.total_duration_ms:.0f}ms")
     
-    critical = [s for s in analysis.criticality_scores 
-                if s.level.value in ('critical', 'high')]
+    print_section("Most Critical Components")
+    for i, (comp, score) in enumerate(result.most_critical[:5], 1):
+        color = Colors.RED if score > 0.5 else Colors.WARNING if score > 0.3 else Colors.GREEN
+        print(f"  {i}. {comp:25s} {color}{score:.4f}{Colors.ENDC}")
     
-    print(f"Critical/High components: {len(critical)}")
-    for score in critical[:3]:
-        print(f"  - {score.node_id}: {score.composite_score:.2f} ({score.level.value})")
+    print_section("Least Critical Components")
+    for i, (comp, score) in enumerate(result.least_critical[:3], 1):
+        print(f"  {i}. {comp:25s} {score:.4f}")
     
-    # Step 3: Simulate failures
-    print_subheader("Step 3: Simulate Failures")
-    
-    simulator = GraphSimulator(seed=42)
-    graph = analyzer.G  # Use the built graph
-    
-    # Test the predicted critical components
-    for score in critical[:3]:
-        result = simulator.simulate_failure(graph, score.node_id)
-        print(f"  {score.node_id}: predicted={score.composite_score:.2f}, "
-              f"actual_impact={result.impact_score:.2%}")
-    
-    return analysis, critical
+    return result
 
 
-def example_6_compare_criticality():
-    """Example 6: Compare predicted vs actual criticality"""
-    print_header("Example 6: Compare Predicted vs Actual Criticality")
+def example_event_simulation():
+    """Example: Event-driven message simulation"""
+    print_header("EXAMPLE: Event-Driven Simulation")
     
-    # Analyze
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    analysis = analyzer.analyze()
-    graph = analyzer.G
+    graph = create_iot_smart_city()
+    print(f"System: IoT Smart City ({graph.number_of_nodes()} nodes)")
     
-    # Simulate all
-    simulator = GraphSimulator(seed=42)
-    batch = simulator.simulate_all_single_failures(graph)
+    simulator = EventDrivenSimulator(seed=42)
     
-    # Build comparison
-    print_subheader("Criticality Comparison")
+    # Run simulation
+    result = simulator.simulate(
+        graph,
+        duration_ms=5000,  # 5 seconds simulated
+        message_rate=100   # 100 messages/second
+    )
     
-    # Create lookup for predicted scores
-    predicted = {s.node_id: s.composite_score for s in analysis.criticality_scores}
+    print_section("Simulation Results")
+    print_result("Duration (simulated)", f"{result.duration_ms:.0f}ms")
+    print_result("Duration (real)", f"{result.real_time_ms:.0f}ms")
+    print_result("Speedup", f"{result.speedup:.0f}x real-time", Colors.CYAN)
     
-    # Create lookup for actual impact
-    actual = {r.failed_components[0]: r.impact_score 
-              for r in batch.results if len(r.failed_components) == 1}
+    print_section("Message Statistics")
+    m = result.metrics
+    delivery_color = Colors.GREEN if m.delivery_rate > 0.95 else Colors.WARNING
+    print_result("Total Messages", m.total_messages)
+    print_result("Delivered", f"{m.delivered_messages} ({m.delivery_rate*100:.1f}%)", delivery_color)
+    print_result("Dropped", m.dropped_messages)
+    print_result("Throughput", f"{m.messages_per_second:.0f} msg/sec")
     
-    # Compare for applications
-    print(f"\n{'Component':<20} {'Predicted':>10} {'Actual':>10} {'Match':>8}")
-    print("-" * 50)
+    print_section("Latency Metrics")
+    print_result("Average", f"{m.avg_latency:.2f}ms")
+    print_result("P50", f"{m.p50_latency:.2f}ms")
+    print_result("P95", f"{m.p95_latency:.2f}ms")
+    print_result("P99", f"{m.p99_latency:.2f}ms")
     
-    for comp in sorted(predicted.keys()):
-        if comp in actual:
-            pred = predicted[comp]
-            act = actual[comp]
-            # Simple match check
-            match = "✓" if abs(pred - act) < 0.3 else "○"
-            print(f"{comp:<20} {pred:>10.2f} {act:>10.2%} {match:>8}")
-    
-    return predicted, actual
+    return result
 
 
-def example_7_generate_report():
-    """Example 7: Generate detailed report"""
-    print_header("Example 7: Generate Report")
+def example_failure_injection():
+    """Example: Event simulation with failure injection"""
+    print_header("EXAMPLE: Event Simulation with Failure Injection")
     
-    # Build graph and simulate
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    graph = analyzer.build_dependency_graph()
+    graph = create_financial_trading_system()
+    print(f"System: Financial Trading ({graph.number_of_nodes()} nodes)")
     
-    simulator = GraphSimulator(seed=42)
-    result = simulator.simulate_failure(graph, 'A2', enable_cascade=True)
+    simulator = EventDrivenSimulator(seed=42)
     
-    # Generate report
-    report = simulator.generate_report(result)
+    # Schedule failures
+    failure_schedule = [
+        {'time_ms': 2000, 'component': 'broker_primary', 'duration_ms': 1000},
+        {'time_ms': 4000, 'component': 'matching_engine', 'duration_ms': 500},
+    ]
     
-    print_subheader("Summary")
-    for key, value in report['summary'].items():
-        print(f"  {key}: {value}")
+    print(f"Scheduled failures:")
+    for f in failure_schedule:
+        print(f"  - {f['component']} at t={f['time_ms']}ms for {f['duration_ms']}ms")
     
-    print_subheader("Failures")
-    for key, value in report['failures'].items():
-        if key != 'components':
-            print(f"  {key}: {value}")
+    # Run simulation
+    result = simulator.simulate(
+        graph,
+        duration_ms=6000,
+        message_rate=200,
+        failure_schedule=failure_schedule
+    )
     
-    print_subheader("Impact")
-    for key, value in report['impact'].items():
-        print(f"  {key}: {value}")
+    print_section("Results with Failures")
+    m = result.metrics
+    print_result("Total Messages", m.total_messages)
+    print_result("Delivery Rate", f"{m.delivery_rate*100:.1f}%", 
+                Colors.GREEN if m.delivery_rate > 0.9 else Colors.WARNING)
+    print_result("Component Failures", m.component_failures, Colors.RED)
+    print_result("Avg Latency", f"{m.avg_latency:.2f}ms")
+    print_result("P99 Latency", f"{m.p99_latency:.2f}ms")
     
-    print_subheader("Recommendations")
-    for rec in report['recommendations']:
-        print(f"  • {rec}")
-    
-    return report
+    return result
 
 
-def example_convenience_functions():
-    """Example: Using convenience functions"""
-    print_header("Bonus: Convenience Functions")
+def example_load_test():
+    """Example: Load testing with ramping rate"""
+    print_header("EXAMPLE: Load Testing")
     
-    # Build graph
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    graph = analyzer.build_dependency_graph()
+    graph = create_microservices_system()
+    print(f"System: E-commerce ({graph.number_of_nodes()} nodes)")
     
-    # One-liner simulation
-    print_subheader("simulate_single_failure()")
-    result = simulate_single_failure(graph, 'B1')
-    print(f"Broker failure impact: {result.impact_score:.1%}")
+    simulator = EventDrivenSimulator(seed=42)
     
-    # One-liner ranking
-    print_subheader("simulate_and_rank()")
-    ranking = simulate_and_rank(graph, component_types=['Application'])
-    print("Application ranking by impact:")
-    for comp, impact in ranking[:3]:
-        print(f"  {comp}: {impact:.1%}")
+    print("Load profile: 10 → 500 msg/sec over 3 seconds, sustain for 2 seconds")
     
-    return result, ranking
+    result = simulator.simulate_with_load_test(
+        graph,
+        duration_ms=5000,
+        initial_rate=10,
+        peak_rate=500,
+        ramp_time_ms=3000
+    )
+    
+    print_section("Load Test Results")
+    m = result.metrics
+    print_result("Peak Throughput", f"{m.messages_per_second:.0f} msg/sec")
+    print_result("Total Messages", m.total_messages)
+    print_result("Delivery Rate", f"{m.delivery_rate*100:.1f}%")
+    print_result("P99 Latency", f"{m.p99_latency:.2f}ms")
+    print_result("Speedup", f"{result.speedup:.0f}x")
+    
+    return result
+
+
+def example_chaos_engineering():
+    """Example: Chaos engineering simulation"""
+    print_header("EXAMPLE: Chaos Engineering")
+    
+    graph = create_iot_smart_city()
+    print(f"System: IoT Smart City ({graph.number_of_nodes()} nodes)")
+    
+    simulator = EventDrivenSimulator(seed=42)
+    
+    print("Chaos parameters:")
+    print("  - Failure probability: 5% per check")
+    print("  - Recovery probability: 50% per check")
+    print("  - Check interval: 500ms")
+    
+    result = simulator.simulate_chaos(
+        graph,
+        duration_ms=5000,
+        message_rate=100,
+        failure_probability=0.05,
+        recovery_probability=0.5,
+        check_interval_ms=500
+    )
+    
+    print_section("Chaos Test Results")
+    m = result.metrics
+    print_result("Total Messages", m.total_messages)
+    print_result("Delivery Rate", f"{m.delivery_rate*100:.1f}%")
+    print_result("Component Failures", m.component_failures, Colors.RED if m.component_failures > 5 else Colors.WARNING)
+    print_result("P99 Latency", f"{m.p99_latency:.2f}ms")
+    
+    # Show component availability
+    print_section("Component Availability (sample)")
+    sorted_stats = sorted(
+        result.component_stats.values(),
+        key=lambda s: s.availability
+    )[:5]  # Show lowest availability
+    
+    for stats in sorted_stats:
+        avail_color = Colors.RED if stats.availability < 0.9 else Colors.WARNING if stats.availability < 0.95 else Colors.GREEN
+        print(f"  {stats.component_id:25s} {avail_color}{stats.availability*100:.1f}%{Colors.ENDC}")
+    
+    return result
+
+
+def example_combined_analysis():
+    """Example: Combined failure analysis with impact validation"""
+    print_header("EXAMPLE: Combined Analysis")
+    
+    graph = create_financial_trading_system()
+    print(f"System: Financial Trading")
+    print(f"Nodes: {graph.number_of_nodes()}, Edges: {graph.number_of_edges()}")
+    
+    # Step 1: Find critical components via exhaustive simulation
+    print_section("Step 1: Identify Critical Components")
+    
+    failure_sim = FailureSimulator(seed=42)
+    campaign = failure_sim.simulate_exhaustive(graph, enable_cascade=False)
+    
+    top_critical = campaign.most_critical[:3]
+    print("Top 3 critical components:")
+    for comp, score in top_critical:
+        print(f"  - {comp}: impact={score:.4f}")
+    
+    # Step 2: Validate with event-driven simulation
+    print_section("Step 2: Validate with Event Simulation")
+    
+    event_sim = EventDrivenSimulator(seed=42)
+    
+    # Baseline (no failures)
+    baseline = event_sim.simulate(graph, duration_ms=3000, message_rate=200)
+    print(f"\nBaseline: {baseline.metrics.delivery_rate*100:.1f}% delivery, "
+          f"P99={baseline.metrics.p99_latency:.2f}ms")
+    
+    # With critical component failure
+    most_critical = top_critical[0][0]
+    failure_schedule = [{'time_ms': 1000, 'component': most_critical, 'duration_ms': 1000}]
+    
+    with_failure = event_sim.simulate(
+        graph, duration_ms=3000, message_rate=200,
+        failure_schedule=failure_schedule
+    )
+    
+    print(f"\nWith {most_critical} failure:")
+    print(f"  Delivery: {with_failure.metrics.delivery_rate*100:.1f}% "
+          f"(Δ{(with_failure.metrics.delivery_rate - baseline.metrics.delivery_rate)*100:+.1f}%)")
+    print(f"  P99 Latency: {with_failure.metrics.p99_latency:.2f}ms "
+          f"(Δ{with_failure.metrics.p99_latency - baseline.metrics.p99_latency:+.2f}ms)")
+    
+    # Step 3: Summary
+    print_section("Summary")
+    print(f"Most critical component: {Colors.RED}{most_critical}{Colors.ENDC}")
+    print(f"Static impact score: {top_critical[0][1]:.4f}")
+    print(f"Actual delivery impact: {(baseline.metrics.delivery_rate - with_failure.metrics.delivery_rate)*100:.1f}%")
 
 
 # ============================================================================
@@ -389,25 +654,44 @@ def example_convenience_functions():
 # ============================================================================
 
 def main():
-    """Run all examples"""
-    print("\n" + "=" * 60)
-    print(" GRAPH SIMULATOR EXAMPLES")
-    print("=" * 60)
+    parser = argparse.ArgumentParser(description='Simulation examples')
+    parser.add_argument('--example', choices=['failure', 'event', 'all'], 
+                       default='all', help='Which examples to run')
+    parser.add_argument('--export', help='Export results to JSON file')
+    args = parser.parse_args()
     
-    # Run examples
-    example_1_basic_simulation()
-    example_2_multiple_failures()
-    example_3_cascade_failures()
-    example_4_exhaustive_simulation()
-    example_5_with_analyzer()
-    example_6_compare_criticality()
-    example_7_generate_report()
-    example_convenience_functions()
+    print(f"\n{Colors.BOLD}Pub-Sub System Simulation Examples{Colors.ENDC}")
+    print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     
-    print("\n" + "=" * 60)
-    print(" ALL EXAMPLES COMPLETED")
-    print("=" * 60)
-    print()
+    results = {}
+    
+    if args.example in ['failure', 'all']:
+        results['single_failure'] = example_single_failure()
+        results['multiple_failures'] = example_multiple_failures()
+        results['targeted_attack'] = example_targeted_attack()
+        results['exhaustive'] = example_exhaustive_campaign()
+    
+    if args.example in ['event', 'all']:
+        results['event_sim'] = example_event_simulation()
+        results['failure_injection'] = example_failure_injection()
+        results['load_test'] = example_load_test()
+        results['chaos'] = example_chaos_engineering()
+    
+    if args.example == 'all':
+        example_combined_analysis()
+    
+    # Export if requested
+    if args.export:
+        export_data = {}
+        for name, result in results.items():
+            if hasattr(result, 'to_dict'):
+                export_data[name] = result.to_dict()
+        
+        with open(args.export, 'w') as f:
+            json.dump(export_data, f, indent=2, default=str)
+        print(f"\n{Colors.GREEN}✓{Colors.ENDC} Results exported to {args.export}")
+    
+    print(f"\n{Colors.GREEN}All examples completed successfully!{Colors.ENDC}\n")
 
 
 if __name__ == '__main__':
