@@ -9,21 +9,20 @@ Comprehensive analysis of distributed pub-sub systems for:
 - Availability (connectivity, fault tolerance, recovery)
 
 Supports loading from:
-- JSON files
 - Neo4j database
 
 Usage:
-    # From JSON file
-    python analyze_graph.py --input system.json
+    # Basic analysis
+    python analyze_graph.py
     
-    # From Neo4j
-    python analyze_graph.py --neo4j --uri bolt://localhost:7687
+    # Load from Neo4j database
+    python analyze_graph.py --uri bolt://localhost:7687
     
     # Full analysis with all exports
-    python analyze_graph.py --input system.json --full --output results/
+    python analyze_graph.py --full --output results/
     
     # Specific quality attributes
-    python analyze_graph.py --input system.json --reliability --maintainability
+    python analyze_graph.py --reliability --maintainability
 
 Author: Software-as-a-Graph Research Project
 """
@@ -1031,26 +1030,22 @@ def create_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Basic analysis from JSON
-    python analyze_graph.py --input system.json
+    # Basic analysis
+    python analyze_graph.py
     
     # Full analysis with Neo4j
-    python analyze_graph.py --neo4j --uri bolt://localhost:7687 --full
+    python analyze_graph.py --uri bolt://localhost:7687 --full
     
     # Export to multiple formats
-    python analyze_graph.py --input system.json --output results/ --format json html csv
+    python analyze_graph.py --output results/ --format json html csv
     
     # Specific quality attributes only
-    python analyze_graph.py --input system.json --reliability --availability
+    python analyze_graph.py --reliability --availability
         """
     )
     
     # Input options
     input_group = parser.add_argument_group('Input Options')
-    input_group.add_argument('--input', '-i',
-                            help='Input JSON file with pub-sub system data')
-    input_group.add_argument('--neo4j', action='store_true',
-                            help='Load from Neo4j database')
     input_group.add_argument('--uri', default='bolt://localhost:7687',
                             help='Neo4j URI (default: bolt://localhost:7687)')
     input_group.add_argument('--user', '-u', default='neo4j',
@@ -1123,12 +1118,6 @@ def main():
     if not sys.stdout.isatty() or args.no_color:
         Colors.disable()
     
-    # Validate input
-    if not args.input and not args.neo4j:
-        print_error("No input specified. Use --input FILE or --neo4j")
-        parser.print_help()
-        return 1
-    
     # Determine which analyses to run
     analyze_reliability = args.full or args.reliability or (
         not args.reliability and not args.maintainability and not args.availability and not args.antipatterns
@@ -1144,12 +1133,9 @@ def main():
     
     # Print header
     if not args.quiet:
-        print_header("QUALITY ATTRIBUTE ANALYZER")
+        print_header("GRAPH MODEL ANALYZER")
         print(f"\n  Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        if args.input:
-            print(f"  Input: {args.input}")
-        else:
-            print(f"  Neo4j: {args.uri}")
+        print(f"  Neo4j: {args.uri}")
         print(f"  Analyzing: ", end="")
         analyses = []
         if analyze_reliability:
@@ -1169,15 +1155,11 @@ def main():
         
         builder = DependsOnGraphBuilder()
         
-        if args.neo4j:
-            graph = builder.build_from_neo4j(
+        graph = builder.build_from_neo4j(
                 uri=args.uri,
                 user=args.user,
                 password=args.password,
-                database=args.database
-            )
-        else:
-            graph = builder.build_from_json(args.input)
+                database=args.database)
         
         print_success(f"Graph loaded: {graph.number_of_nodes()} nodes, "
                      f"{graph.number_of_edges()} edges")
