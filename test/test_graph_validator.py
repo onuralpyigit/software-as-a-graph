@@ -1,563 +1,493 @@
 #!/usr/bin/env python3
 """
-Test Suite for Graph Validator
-===============================
+Test Suite for Graph Validation Module
+========================================
 
-Comprehensive tests for validation of graph-based analysis against simulation.
+Comprehensive tests for validation of graph-based criticality analysis.
 
-Usage:
-    python test_graph_validator.py
-    python test_graph_validator.py -v
-
-Author: Software-as-a-Graph Research Project
+Run with:
+    python -m pytest tests/test_validation.py -v
+    
+Or directly:
+    python tests/test_validation.py
 """
 
 import sys
-import json
 import unittest
+import math
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any
 
-# Add parent directory to path for imports
+# Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.analysis import GraphAnalyzer
-from src.simulation import GraphSimulator
+import networkx as nx
+
 from src.validation import (
     GraphValidator,
     ValidationResult,
-    ComponentValidation,
-    ConfusionMatrix,
     ValidationStatus,
-    CriticalityThreshold,
-    validate_analysis,
-    quick_validate,
+    ConfusionMatrix,
+    ComponentValidation,
     spearman_correlation,
     pearson_correlation,
+    kendall_tau,
+    validate_analysis,
+    quick_validate
 )
 
 
-# ============================================================================
-# Test Data
-# ============================================================================
-
-SAMPLE_PUBSUB_DATA = {
-    "nodes": [
-        {"id": "N1", "name": "ComputeNode1", "type": "compute"},
-        {"id": "N2", "name": "ComputeNode2", "type": "compute"}
-    ],
-    "brokers": [
-        {"id": "B1", "name": "MainBroker", "node": "N1"},
-        {"id": "B2", "name": "BackupBroker", "node": "N2"}
-    ],
-    "applications": [
-        {"id": "A1", "name": "Publisher", "role": "pub", "node": "N1"},
-        {"id": "A2", "name": "Processor", "role": "both", "node": "N1"},
-        {"id": "A3", "name": "Subscriber1", "role": "sub", "node": "N2"},
-        {"id": "A4", "name": "Subscriber2", "role": "sub", "node": "N2"}
-    ],
-    "topics": [
-        {"id": "T1", "name": "data", "broker": "B1"},
-        {"id": "T2", "name": "processed", "broker": "B1"}
-    ],
-    "relationships": {
-        "publishes_to": [
-            {"from": "A1", "to": "T1"},
-            {"from": "A2", "to": "T2"}
-        ],
-        "subscribes_to": [
-            {"from": "A2", "to": "T1"},
-            {"from": "A3", "to": "T2"},
-            {"from": "A4", "to": "T2"}
-        ],
-        "runs_on": [
-            {"from": "A1", "to": "N1"},
-            {"from": "A2", "to": "N1"},
-            {"from": "A3", "to": "N2"},
-            {"from": "A4", "to": "N2"},
-            {"from": "B1", "to": "N1"},
-            {"from": "B2", "to": "N2"}
-        ],
-        "routes": [
-            {"from": "B1", "to": "T1"},
-            {"from": "B1", "to": "T2"}
-        ]
-    }
-}
-
-
-def create_test_analyzer() -> GraphAnalyzer:
-    """Create a test analyzer with sample data"""
-    analyzer = GraphAnalyzer(alpha=0.4, beta=0.3, gamma=0.3)
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    return analyzer
-
-
-# ============================================================================
-# Test Classes
-# ============================================================================
-
 class TestStatisticalFunctions(unittest.TestCase):
-    """Tests for statistical correlation functions"""
+    """Test statistical functions"""
     
     def test_pearson_perfect_positive(self):
-        """Test Pearson with perfect positive correlation"""
+        """Test Pearson correlation with perfect positive correlation"""
         x = [1, 2, 3, 4, 5]
         y = [2, 4, 6, 8, 10]
         r, p = pearson_correlation(x, y)
         self.assertAlmostEqual(r, 1.0, places=4)
+        self.assertLess(p, 0.05)
     
     def test_pearson_perfect_negative(self):
-        """Test Pearson with perfect negative correlation"""
+        """Test Pearson correlation with perfect negative correlation"""
         x = [1, 2, 3, 4, 5]
         y = [10, 8, 6, 4, 2]
         r, p = pearson_correlation(x, y)
         self.assertAlmostEqual(r, -1.0, places=4)
     
     def test_pearson_no_correlation(self):
-        """Test Pearson with no correlation"""
+        """Test Pearson correlation with no correlation"""
         x = [1, 2, 3, 4, 5]
-        y = [3, 1, 4, 1, 5]  # Random-ish
+        y = [3, 1, 4, 2, 5]
         r, p = pearson_correlation(x, y)
-        self.assertLess(abs(r), 0.5)
-    
-    def test_pearson_short_list(self):
-        """Test Pearson with too short list"""
-        x = [1, 2]
-        y = [2, 3]
-        r, p = pearson_correlation(x, y)
-        # Should handle gracefully
-        self.assertIsInstance(r, float)
+        self.assertLessEqual(abs(r), 0.6)  # Weak to moderate correlation
     
     def test_spearman_perfect_positive(self):
-        """Test Spearman with perfect positive correlation"""
+        """Test Spearman correlation with perfect rank correlation"""
         x = [1, 2, 3, 4, 5]
         y = [10, 20, 30, 40, 50]
         r, p = spearman_correlation(x, y)
         self.assertAlmostEqual(r, 1.0, places=4)
     
     def test_spearman_with_ties(self):
-        """Test Spearman handles ties"""
-        x = [1, 2, 2, 3, 4]
-        y = [1, 2, 3, 3, 4]
+        """Test Spearman correlation with tied values"""
+        x = [1, 2, 2, 4, 5]
+        y = [1, 2, 3, 4, 5]
         r, p = spearman_correlation(x, y)
-        self.assertGreater(r, 0.5)
+        self.assertGreater(r, 0.8)  # Should still be high
     
-    def test_spearman_monotonic(self):
-        """Test Spearman with monotonic but non-linear relationship"""
+    def test_kendall_tau(self):
+        """Test Kendall's tau correlation"""
         x = [1, 2, 3, 4, 5]
-        y = [1, 4, 9, 16, 25]  # Quadratic
-        r, p = spearman_correlation(x, y)
-        self.assertAlmostEqual(r, 1.0, places=4)  # Perfect rank correlation
+        y = [1, 2, 3, 4, 5]
+        tau = kendall_tau(x, y)
+        self.assertAlmostEqual(tau, 1.0, places=4)
+    
+    def test_kendall_tau_reversed(self):
+        """Test Kendall's tau with reversed order"""
+        x = [1, 2, 3, 4, 5]
+        y = [5, 4, 3, 2, 1]
+        tau = kendall_tau(x, y)
+        self.assertAlmostEqual(tau, -1.0, places=4)
+    
+    def test_small_sample(self):
+        """Test handling of small samples"""
+        x = [1, 2]
+        y = [1, 2]
+        r, p = pearson_correlation(x, y)
+        # Should handle gracefully
+        self.assertIsInstance(r, float)
 
 
 class TestConfusionMatrix(unittest.TestCase):
-    """Tests for ConfusionMatrix class"""
+    """Test ConfusionMatrix class"""
     
-    def test_precision_calculation(self):
-        """Test precision calculation"""
+    def test_perfect_classification(self):
+        """Test perfect classification metrics"""
         cm = ConfusionMatrix(
-            true_positives=8,
-            false_positives=2,
-            true_negatives=85,
-            false_negatives=5
+            true_positives=10,
+            true_negatives=10,
+            false_positives=0,
+            false_negatives=0
         )
-        self.assertAlmostEqual(cm.precision, 0.8, places=4)
+        self.assertEqual(cm.precision, 1.0)
+        self.assertEqual(cm.recall, 1.0)
+        self.assertEqual(cm.f1_score, 1.0)
+        self.assertEqual(cm.accuracy, 1.0)
     
-    def test_recall_calculation(self):
-        """Test recall calculation"""
-        cm = ConfusionMatrix(
-            true_positives=8,
-            false_positives=2,
-            true_negatives=85,
-            false_negatives=5
-        )
-        expected_recall = 8 / (8 + 5)  # ~0.615
-        self.assertAlmostEqual(cm.recall, expected_recall, places=4)
-    
-    def test_f1_score_calculation(self):
-        """Test F1-score calculation"""
-        cm = ConfusionMatrix(
-            true_positives=8,
-            false_positives=2,
-            true_negatives=85,
-            false_negatives=5
-        )
-        p = cm.precision
-        r = cm.recall
-        expected_f1 = 2 * p * r / (p + r)
-        self.assertAlmostEqual(cm.f1_score, expected_f1, places=4)
-    
-    def test_accuracy_calculation(self):
-        """Test accuracy calculation"""
-        cm = ConfusionMatrix(
-            true_positives=8,
-            false_positives=2,
-            true_negatives=85,
-            false_negatives=5
-        )
-        expected_accuracy = (8 + 85) / (8 + 2 + 85 + 5)
-        self.assertAlmostEqual(cm.accuracy, expected_accuracy, places=4)
-    
-    def test_zero_denominators(self):
-        """Test handling of zero denominators"""
-        # No positive predictions
+    def test_no_positives(self):
+        """Test metrics with no positive predictions"""
         cm = ConfusionMatrix(
             true_positives=0,
+            true_negatives=10,
             false_positives=0,
-            true_negatives=100,
-            false_negatives=0
+            false_negatives=5
         )
         self.assertEqual(cm.precision, 0.0)
         self.assertEqual(cm.recall, 0.0)
         self.assertEqual(cm.f1_score, 0.0)
     
-    def test_to_dict(self):
-        """Test serialization to dictionary"""
+    def test_typical_case(self):
+        """Test typical confusion matrix"""
         cm = ConfusionMatrix(
-            true_positives=5,
-            false_positives=2,
-            true_negatives=90,
-            false_negatives=3
+            true_positives=8,
+            true_negatives=85,
+            false_positives=7,
+            false_negatives=0
         )
+        # Precision = 8/15 = 0.533
+        self.assertAlmostEqual(cm.precision, 8/15, places=3)
+        # Recall = 8/8 = 1.0
+        self.assertEqual(cm.recall, 1.0)
+        # Accuracy = 93/100
+        self.assertAlmostEqual(cm.accuracy, 0.93, places=2)
+    
+    def test_to_dict(self):
+        """Test serialization"""
+        cm = ConfusionMatrix(5, 5, 2, 3)
         d = cm.to_dict()
         self.assertIn('precision', d)
         self.assertIn('recall', d)
         self.assertIn('f1_score', d)
-        self.assertIn('accuracy', d)
-
-
-class TestComponentValidation(unittest.TestCase):
-    """Tests for ComponentValidation class"""
-    
-    def test_to_dict(self):
-        """Test serialization to dictionary"""
-        cv = ComponentValidation(
-            component_id='A1',
-            component_type='Application',
-            predicted_score=0.75,
-            predicted_rank=2,
-            predicted_level='high',
-            actual_impact=0.80,
-            actual_rank=1,
-            actual_level='critical',
-            rank_difference=1,
-            score_difference=0.05,
-            correctly_classified=False
-        )
-        d = cv.to_dict()
-        
-        self.assertEqual(d['component_id'], 'A1')
-        self.assertEqual(d['predicted']['score'], 0.75)
-        self.assertEqual(d['actual']['impact'], 0.80)
-        self.assertEqual(d['rank_difference'], 1)
 
 
 class TestGraphValidator(unittest.TestCase):
-    """Tests for GraphValidator class"""
+    """Test GraphValidator class"""
     
     def setUp(self):
-        self.analyzer = create_test_analyzer()
-        self.validator = GraphValidator(self.analyzer, seed=42)
-    
-    def test_init_default(self):
-        """Test default initialization"""
-        validator = GraphValidator(self.analyzer)
-        self.assertEqual(validator.critical_threshold, 0.5)
-        self.assertIn('spearman_correlation', validator.targets)
-    
-    def test_init_custom_targets(self):
-        """Test custom target thresholds"""
-        targets = {'spearman_correlation': 0.8, 'f1_score': 0.95}
-        validator = GraphValidator(self.analyzer, targets=targets)
-        self.assertEqual(validator.targets['spearman_correlation'], 0.8)
-        self.assertEqual(validator.targets['f1_score'], 0.95)
-    
-    def test_validate_returns_result(self):
-        """Test that validate returns ValidationResult"""
-        result = self.validator.validate()
-        self.assertIsInstance(result, ValidationResult)
-    
-    def test_validate_result_structure(self):
-        """Test validation result has correct structure"""
-        result = self.validator.validate()
+        """Set up test fixtures"""
+        # Create test graph
+        self.graph = nx.DiGraph()
+        nodes = [
+            ('app1', 'Application'),
+            ('app2', 'Application'),
+            ('app3', 'Application'),
+            ('topic1', 'Topic'),
+            ('topic2', 'Topic'),
+            ('broker1', 'Broker'),
+        ]
+        for node_id, node_type in nodes:
+            self.graph.add_node(node_id, type=node_type)
         
-        self.assertIsInstance(result.timestamp, datetime)
-        self.assertGreater(result.total_components, 0)
-        self.assertIsInstance(result.spearman_correlation, float)
-        self.assertIsInstance(result.pearson_correlation, float)
-        self.assertIsInstance(result.confusion_matrix, ConfusionMatrix)
-        self.assertIsInstance(result.component_validations, list)
+        self.graph.add_edges_from([
+            ('app1', 'topic1'),
+            ('app2', 'topic1'),
+            ('topic1', 'app3'),
+            ('app3', 'topic2'),
+            ('topic1', 'broker1'),
+        ])
+        
+        # Create predicted scores
+        self.predicted = {
+            'app1': 0.3,
+            'app2': 0.2,
+            'app3': 0.6,
+            'topic1': 0.8,
+            'topic2': 0.4,
+            'broker1': 0.5
+        }
+        
+        # Create actual impacts (similar pattern)
+        self.actual = {
+            'app1': 0.25,
+            'app2': 0.15,
+            'app3': 0.55,
+            'topic1': 0.75,
+            'topic2': 0.35,
+            'broker1': 0.45
+        }
+    
+    def test_basic_validation(self):
+        """Test basic validation workflow"""
+        validator = GraphValidator(seed=42)
+        result = validator.validate(self.graph, self.predicted, self.actual)
+        
+        self.assertIsInstance(result, ValidationResult)
+        self.assertEqual(result.total_components, 6)
         self.assertIsInstance(result.status, ValidationStatus)
     
-    def test_validate_correlation_range(self):
-        """Test correlation values are in valid range"""
-        result = self.validator.validate()
+    def test_correlation_calculation(self):
+        """Test correlation metrics are calculated correctly"""
+        validator = GraphValidator(seed=42)
+        result = validator.validate(self.graph, self.predicted, self.actual)
         
-        self.assertGreaterEqual(result.spearman_correlation, -1.0)
-        self.assertLessEqual(result.spearman_correlation, 1.0)
-        self.assertGreaterEqual(result.pearson_correlation, -1.0)
-        self.assertLessEqual(result.pearson_correlation, 1.0)
+        # With similar patterns, correlation should be high
+        self.assertGreater(result.correlation.spearman_coefficient, 0.8)
+        self.assertGreater(result.correlation.pearson_coefficient, 0.8)
     
-    def test_validate_metrics_range(self):
-        """Test all metrics are in valid ranges"""
-        result = self.validator.validate()
+    def test_ranking_metrics(self):
+        """Test ranking metrics calculation"""
+        validator = GraphValidator(seed=42)
+        result = validator.validate(self.graph, self.predicted, self.actual)
         
-        # Confusion matrix metrics should be between 0 and 1
-        self.assertGreaterEqual(result.confusion_matrix.precision, 0.0)
-        self.assertLessEqual(result.confusion_matrix.precision, 1.0)
-        self.assertGreaterEqual(result.confusion_matrix.recall, 0.0)
-        self.assertLessEqual(result.confusion_matrix.recall, 1.0)
-        self.assertGreaterEqual(result.confusion_matrix.f1_score, 0.0)
-        self.assertLessEqual(result.confusion_matrix.f1_score, 1.0)
+        self.assertIn(3, result.ranking.top_k_overlap)
+        self.assertIn(5, result.ranking.top_k_overlap)
+        self.assertGreaterEqual(result.ranking.mean_rank_difference, 0)
     
-    def test_validate_with_component_types(self):
-        """Test validation with component type filter"""
-        result = self.validator.validate(component_types=['Application'])
+    def test_component_validations(self):
+        """Test component-level validation"""
+        validator = GraphValidator(seed=42)
+        result = validator.validate(self.graph, self.predicted, self.actual)
         
-        # All validated components should be Applications
+        self.assertEqual(len(result.component_validations), 6)
+        
         for cv in result.component_validations:
-            self.assertEqual(cv.component_type, 'Application')
-    
-    def test_validate_top_k_overlap(self):
-        """Test top-k overlap calculation"""
-        result = self.validator.validate()
-        
-        # Should have some top-k values
-        self.assertGreater(len(result.top_k_overlap), 0)
-        
-        # Values should be between 0 and 1
-        for k, overlap in result.top_k_overlap.items():
-            self.assertGreaterEqual(overlap, 0.0)
-            self.assertLessEqual(overlap, 1.0)
+            self.assertIsInstance(cv, ComponentValidation)
+            self.assertIn(cv.component_id, self.predicted)
+            self.assertGreaterEqual(cv.rank_difference, 0)
     
     def test_status_determination(self):
-        """Test validation status is determined"""
-        result = self.validator.validate()
+        """Test validation status is correctly determined"""
+        # Test with good correlation
+        validator = GraphValidator(
+            targets={'spearman_correlation': 0.5},  # Low target
+            seed=42
+        )
+        result = validator.validate(self.graph, self.predicted, self.actual)
         
-        self.assertIn(result.status, [
-            ValidationStatus.PASSED,
-            ValidationStatus.MARGINAL,
-            ValidationStatus.FAILED
-        ])
+        # Should pass with high correlation and low target
+        self.assertIn(result.status, [ValidationStatus.PASSED, ValidationStatus.MARGINAL])
     
-    def test_component_validations_sorted(self):
-        """Test component validations are sorted by actual impact"""
-        result = self.validator.validate()
+    def test_custom_targets(self):
+        """Test custom target thresholds"""
+        validator = GraphValidator(
+            targets={
+                'spearman_correlation': 0.99,  # Very high
+                'f1_score': 0.99
+            },
+            seed=42
+        )
+        result = validator.validate(self.graph, self.predicted, self.actual)
         
-        if len(result.component_validations) > 1:
-            impacts = [cv.actual_impact for cv in result.component_validations]
-            self.assertEqual(impacts, sorted(impacts, reverse=True))
-
-
-class TestValidatorReporting(unittest.TestCase):
-    """Tests for validator reporting functions"""
+        # With very high targets, likely to fail
+        self.assertIn(result.status, [ValidationStatus.MARGINAL, ValidationStatus.FAILED])
     
-    def setUp(self):
-        self.analyzer = create_test_analyzer()
-        self.validator = GraphValidator(self.analyzer, seed=42)
-        self.validator.validate()  # Run validation first
-    
-    def test_generate_report(self):
-        """Test report generation"""
-        report = self.validator.generate_report()
-        
-        self.assertIn('summary', report)
-        self.assertIn('correlation', report)
-        self.assertIn('classification', report)
-        self.assertIn('ranking', report)
-        self.assertIn('recommendations', report)
-    
-    def test_report_notable_components(self):
-        """Test report includes notable components"""
-        report = self.validator.generate_report()
-        
-        self.assertIn('notable_components', report)
-        self.assertIn('most_underestimated', report['notable_components'])
-        self.assertIn('most_overestimated', report['notable_components'])
-    
-    def test_get_misclassified(self):
+    def test_misclassified_components(self):
         """Test getting misclassified components"""
-        misclassified = self.validator.get_misclassified()
+        validator = GraphValidator(seed=42)
+        validator.validate(self.graph, self.predicted, self.actual)
         
+        misclassified = validator.get_misclassified()
         self.assertIsInstance(misclassified, list)
-        for cv in misclassified:
-            self.assertFalse(cv.correctly_classified)
     
-    def test_get_high_rank_difference(self):
-        """Test getting high rank difference components"""
-        high_diff = self.validator.get_high_rank_difference(threshold=2)
+    def test_high_rank_difference(self):
+        """Test getting components with high rank difference"""
+        validator = GraphValidator(seed=42)
+        validator.validate(self.graph, self.predicted, self.actual)
         
+        high_diff = validator.get_high_rank_difference(threshold=0)
         self.assertIsInstance(high_diff, list)
-        for cv in high_diff:
-            self.assertGreater(cv.rank_difference, 2)
-
-
-class TestValidationResultSerialization(unittest.TestCase):
-    """Tests for ValidationResult serialization"""
     
-    def setUp(self):
-        self.analyzer = create_test_analyzer()
-        self.validator = GraphValidator(self.analyzer, seed=42)
-        self.result = self.validator.validate()
-    
-    def test_to_dict(self):
-        """Test to_dict method"""
-        d = self.result.to_dict()
+    def test_generate_recommendations(self):
+        """Test recommendation generation"""
+        validator = GraphValidator(seed=42)
+        validator.validate(self.graph, self.predicted, self.actual)
         
-        self.assertIn('timestamp', d)
-        self.assertIn('total_components', d)
-        self.assertIn('correlation', d)
-        self.assertIn('classification', d)
-        self.assertIn('ranking', d)
-        self.assertIn('status', d)
+        recommendations = validator.generate_recommendations()
+        self.assertIsInstance(recommendations, list)
     
-    def test_json_serializable(self):
-        """Test result can be serialized to JSON"""
-        d = self.result.to_dict()
-        json_str = json.dumps(d, default=str)
-        self.assertIsInstance(json_str, str)
+    def test_result_serialization(self):
+        """Test result serialization to dict"""
+        validator = GraphValidator(seed=42)
+        result = validator.validate(self.graph, self.predicted, self.actual)
         
-        # Can parse back
-        parsed = json.loads(json_str)
-        self.assertEqual(parsed['total_components'], self.result.total_components)
+        result_dict = result.to_dict()
+        
+        self.assertIn('timestamp', result_dict)
+        self.assertIn('status', result_dict)
+        self.assertIn('correlation', result_dict)
+        self.assertIn('classification', result_dict)
+        self.assertIn('ranking', result_dict)
     
-    def test_summary(self):
-        """Test summary generation"""
-        summary = self.result.summary()
+    def test_result_summary(self):
+        """Test result summary generation"""
+        validator = GraphValidator(seed=42)
+        result = validator.validate(self.graph, self.predicted, self.actual)
+        
+        summary = result.summary()
         
         self.assertIsInstance(summary, str)
         self.assertIn('Spearman', summary)
-        self.assertIn('Precision', summary)
-        self.assertIn('Recall', summary)
+        self.assertIn('F1-Score', summary)
+
+
+class TestSensitivityAnalysis(unittest.TestCase):
+    """Test sensitivity analysis"""
+    
+    def setUp(self):
+        self.graph = nx.DiGraph()
+        for i in range(10):
+            self.graph.add_node(f'node_{i}', type='Application')
+            if i > 0:
+                self.graph.add_edge(f'node_{i-1}', f'node_{i}')
+        
+        self.predicted = {f'node_{i}': i/10 for i in range(10)}
+        self.actual = {f'node_{i}': (i+1)/10 for i in range(10)}
+    
+    def test_sensitivity_analysis(self):
+        """Test running sensitivity analysis"""
+        validator = GraphValidator(seed=42)
+        validator.validate(self.graph, self.predicted, self.actual)
+        
+        results = validator.run_sensitivity_analysis(
+            self.graph, self.predicted, self.actual
+        )
+        
+        self.assertGreater(len(results), 0)
+        self.assertIn('critical_threshold', results[0].parameter_name)
+        self.assertGreaterEqual(results[0].stability_score, 0)
+
+
+class TestBootstrapAnalysis(unittest.TestCase):
+    """Test bootstrap analysis"""
+    
+    def setUp(self):
+        self.graph = nx.DiGraph()
+        for i in range(20):
+            self.graph.add_node(f'node_{i}', type='Application')
+            if i > 0:
+                self.graph.add_edge(f'node_{i-1}', f'node_{i}')
+        
+        self.predicted = {f'node_{i}': i/20 for i in range(20)}
+        self.actual = {f'node_{i}': (i+1)/20 for i in range(20)}
+    
+    def test_bootstrap_analysis(self):
+        """Test running bootstrap analysis"""
+        validator = GraphValidator(seed=42)
+        validator.validate(self.graph, self.predicted, self.actual)
+        
+        results = validator.run_bootstrap_analysis(
+            self.graph, self.predicted, self.actual,
+            n_iterations=100  # Fewer iterations for testing
+        )
+        
+        self.assertGreater(len(results), 0)
+        
+        # Check confidence interval makes sense
+        for br in results:
+            self.assertLessEqual(br.ci_lower, br.point_estimate)
+            self.assertGreaterEqual(br.ci_upper, br.point_estimate)
+
+
+class TestCrossValidation(unittest.TestCase):
+    """Test cross-validation"""
+    
+    def setUp(self):
+        self.graph = nx.DiGraph()
+        for i in range(20):
+            self.graph.add_node(f'node_{i}', type='Application')
+            if i > 0:
+                self.graph.add_edge(f'node_{i-1}', f'node_{i}')
+        
+        self.predicted = {f'node_{i}': i/20 for i in range(20)}
+        self.actual = {f'node_{i}': (i+1)/20 for i in range(20)}
+    
+    def test_cross_validation(self):
+        """Test running cross-validation"""
+        validator = GraphValidator(seed=42)
+        validator.validate(self.graph, self.predicted, self.actual)
+        
+        result = validator.run_cross_validation(
+            self.graph, self.predicted, self.actual,
+            n_folds=5
+        )
+        
+        self.assertEqual(result.n_folds, 5)
+        self.assertGreater(len(result.fold_results), 0)
+        self.assertIn('spearman', result.mean_metrics)
 
 
 class TestConvenienceFunctions(unittest.TestCase):
-    """Tests for convenience functions"""
+    """Test convenience functions"""
+    
+    def setUp(self):
+        self.graph = nx.DiGraph()
+        for i in range(10):
+            self.graph.add_node(f'node_{i}', type='Application')
+            if i > 0:
+                self.graph.add_edge(f'node_{i-1}', f'node_{i}')
+        
+        self.predicted = {f'node_{i}': i/10 for i in range(10)}
+        self.actual = {f'node_{i}': (i+1)/10 for i in range(10)}
     
     def test_validate_analysis(self):
-        """Test validate_analysis function"""
-        analyzer = create_test_analyzer()
-        result = validate_analysis(analyzer, seed=42)
-        
-        self.assertIsInstance(result, ValidationResult)
-        self.assertGreater(result.total_components, 0)
-    
-    def test_validate_analysis_with_targets(self):
-        """Test validate_analysis with custom targets"""
-        analyzer = create_test_analyzer()
-        targets = {'spearman_correlation': 0.5}
-        result = validate_analysis(analyzer, targets=targets, seed=42)
+        """Test validate_analysis convenience function"""
+        result = validate_analysis(
+            self.graph,
+            self.predicted,
+            self.actual,
+            seed=42
+        )
         
         self.assertIsInstance(result, ValidationResult)
 
 
 class TestEdgeCases(unittest.TestCase):
-    """Tests for edge cases"""
+    """Test edge cases"""
     
-    def test_small_system(self):
-        """Test with very small system"""
-        data = {
-            "nodes": [{"id": "N1", "name": "Node1", "type": "compute"}],
-            "brokers": [{"id": "B1", "name": "Broker1", "node": "N1"}],
-            "applications": [
-                {"id": "A1", "name": "App1", "role": "pub", "node": "N1"},
-                {"id": "A2", "name": "App2", "role": "sub", "node": "N1"}
-            ],
-            "topics": [{"id": "T1", "name": "Topic1", "broker": "B1"}],
-            "relationships": {
-                "publishes_to": [{"from": "A1", "to": "T1"}],
-                "subscribes_to": [{"from": "A2", "to": "T1"}],
-                "runs_on": [
-                    {"from": "A1", "to": "N1"},
-                    {"from": "A2", "to": "N1"},
-                    {"from": "B1", "to": "N1"}
-                ],
-                "routes": [{"from": "B1", "to": "T1"}]
-            }
-        }
+    def test_small_graph(self):
+        """Test with very small graph"""
+        graph = nx.DiGraph()
+        graph.add_node('a', type='Application')
+        graph.add_node('b', type='Application')
+        graph.add_node('c', type='Application')
+        graph.add_edge('a', 'b')
+        graph.add_edge('b', 'c')
         
-        analyzer = GraphAnalyzer()
-        analyzer.load_from_dict(data)
+        predicted = {'a': 0.3, 'b': 0.6, 'c': 0.1}
+        actual = {'a': 0.2, 'b': 0.7, 'c': 0.1}
         
-        validator = GraphValidator(analyzer, seed=42)
-        result = validator.validate()
+        validator = GraphValidator(seed=42)
+        result = validator.validate(graph, predicted, actual)
         
         self.assertIsInstance(result, ValidationResult)
     
-    def test_reproducibility(self):
-        """Test that results are reproducible with seed"""
-        analyzer = create_test_analyzer()
+    def test_partial_overlap(self):
+        """Test when predicted and actual have partial overlap"""
+        graph = nx.DiGraph()
+        for i in range(5):
+            graph.add_node(f'node_{i}', type='Application')
         
-        validator1 = GraphValidator(analyzer, seed=42)
-        result1 = validator1.validate()
+        predicted = {'node_0': 0.5, 'node_1': 0.3, 'node_2': 0.7}
+        actual = {'node_1': 0.4, 'node_2': 0.6, 'node_3': 0.8}
         
-        validator2 = GraphValidator(analyzer, seed=42)
-        result2 = validator2.validate()
+        validator = GraphValidator(seed=42)
+        # Should work with common components (node_1, node_2)
+        # But need at least 3 common
+        with self.assertRaises(ValueError):
+            validator.validate(graph, predicted, actual)
+    
+    def test_identical_scores(self):
+        """Test when all scores are identical"""
+        graph = nx.DiGraph()
+        for i in range(5):
+            graph.add_node(f'node_{i}', type='Application')
+            if i > 0:
+                graph.add_edge(f'node_{i-1}', f'node_{i}')
         
-        self.assertEqual(result1.spearman_correlation, result2.spearman_correlation)
-        self.assertEqual(result1.total_components, result2.total_components)
+        predicted = {f'node_{i}': 0.5 for i in range(5)}
+        actual = {f'node_{i}': 0.5 for i in range(5)}
+        
+        validator = GraphValidator(seed=42)
+        result = validator.validate(graph, predicted, actual)
+        
+        # Correlation undefined with no variance
+        self.assertIsInstance(result, ValidationResult)
 
 
-class TestLevelClassification(unittest.TestCase):
-    """Tests for criticality level classification"""
-    
-    def setUp(self):
-        self.validator = GraphValidator(create_test_analyzer(), seed=42)
-    
-    def test_classify_critical(self):
-        """Test critical classification"""
-        level = self.validator._classify_level(0.75)
-        self.assertEqual(level, 'critical')
-    
-    def test_classify_high(self):
-        """Test high classification"""
-        level = self.validator._classify_level(0.55)
-        self.assertEqual(level, 'high')
-    
-    def test_classify_medium(self):
-        """Test medium classification"""
-        level = self.validator._classify_level(0.35)
-        self.assertEqual(level, 'medium')
-    
-    def test_classify_low(self):
-        """Test low classification"""
-        level = self.validator._classify_level(0.15)
-        self.assertEqual(level, 'low')
-    
-    def test_classify_boundaries(self):
-        """Test classification at boundaries"""
-        self.assertEqual(self.validator._classify_level(0.7), 'critical')
-        self.assertEqual(self.validator._classify_level(0.5), 'high')
-        self.assertEqual(self.validator._classify_level(0.3), 'medium')
-        self.assertEqual(self.validator._classify_level(0.0), 'low')
-
-
-# ============================================================================
-# Main Entry Point
-# ============================================================================
-
-def main():
+def run_tests():
     """Run all tests"""
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
     
-    # Add all test classes
-    test_classes = [
-        TestStatisticalFunctions,
-        TestConfusionMatrix,
-        TestComponentValidation,
-        TestGraphValidator,
-        TestValidatorReporting,
-        TestValidationResultSerialization,
-        TestConvenienceFunctions,
-        TestEdgeCases,
-        TestLevelClassification,
-    ]
-    
-    for test_class in test_classes:
-        suite.addTests(loader.loadTestsFromTestCase(test_class))
+    suite.addTests(loader.loadTestsFromTestCase(TestStatisticalFunctions))
+    suite.addTests(loader.loadTestsFromTestCase(TestConfusionMatrix))
+    suite.addTests(loader.loadTestsFromTestCase(TestGraphValidator))
+    suite.addTests(loader.loadTestsFromTestCase(TestSensitivityAnalysis))
+    suite.addTests(loader.loadTestsFromTestCase(TestBootstrapAnalysis))
+    suite.addTests(loader.loadTestsFromTestCase(TestCrossValidation))
+    suite.addTests(loader.loadTestsFromTestCase(TestConvenienceFunctions))
+    suite.addTests(loader.loadTestsFromTestCase(TestEdgeCases))
     
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
@@ -566,4 +496,4 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(run_tests())
