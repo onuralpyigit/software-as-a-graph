@@ -316,6 +316,14 @@ with open('$INPUT_FILE') as f:
         print_error "Graph generation failed"
         exit 1
     fi
+
+    # Import graph to Neo4j
+    print_info "Importing graph into Neo4j database..."
+    python import_graph.py \
+        --input "$INPUT_FILE" \
+        --clear \
+        --analytics \
+        $VERBOSE
 else
     print_step "1/5" "GENERATE - Using Existing Graph"
     print_info "Input file: $INPUT_FILE"

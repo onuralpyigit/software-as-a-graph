@@ -424,16 +424,7 @@ def main() -> int:
 
             # Clear database if requested
             if args.clear:
-                if not args.quiet:
-                    response = input(f"\n{Colors.WARNING}Clear ALL data from database? [y/N]: {Colors.ENDC}")
-                    if response.lower() != 'y':
-                        print_info("Skipping clear")
-                    else:
-                        print_info("Clearing database...")
-                        importer.clear_database()
-                        print_success("Database cleared")
-                else:
-                    importer.clear_database()
+                importer.clear_database()
 
             # Import graph data
             if graph_data:
