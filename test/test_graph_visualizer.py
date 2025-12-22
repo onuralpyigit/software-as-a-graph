@@ -1,546 +1,508 @@
 #!/usr/bin/env python3
 """
-Test Suite for Graph Visualizer
-================================
+Test Suite for Graph Visualization Module
+===========================================
 
-Comprehensive tests for pub-sub system visualization.
+Comprehensive tests for multi-layer graph visualization.
 
-Usage:
-    python test_graph_visualizer.py
-    python test_graph_visualizer.py -v
-
-Author: Software-as-a-Graph Research Project
+Run with:
+    python -m pytest tests/test_visualization.py -v
 """
 
 import sys
-import json
 import unittest
+import json
 import tempfile
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any
 
-# Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import networkx as nx
 
-from src.analysis import GraphAnalyzer
-from src.simulation import GraphSimulator
-from src.validation import GraphValidator
 from src.visualization import (
     GraphVisualizer,
+    DashboardGenerator,
     VisualizationConfig,
+    DashboardConfig,
+    Layer,
+    LayoutAlgorithm,
     ColorScheme,
-    visualize_system,
-    MATPLOTLIB_AVAILABLE,
+    Colors,
+    MATPLOTLIB_AVAILABLE
 )
 
 
-# ============================================================================
-# Test Data
-# ============================================================================
-
-SAMPLE_PUBSUB_DATA = {
-    "nodes": [
-        {"id": "N1", "name": "ComputeNode1", "type": "compute"},
-        {"id": "N2", "name": "ComputeNode2", "type": "compute"}
-    ],
-    "brokers": [
-        {"id": "B1", "name": "MainBroker", "node": "N1"},
-        {"id": "B2", "name": "BackupBroker", "node": "N2"}
-    ],
-    "applications": [
-        {"id": "A1", "name": "Publisher", "role": "pub", "node": "N1"},
-        {"id": "A2", "name": "Processor", "role": "both", "node": "N1"},
-        {"id": "A3", "name": "Subscriber1", "role": "sub", "node": "N2"},
-        {"id": "A4", "name": "Subscriber2", "role": "sub", "node": "N2"}
-    ],
-    "topics": [
-        {"id": "T1", "name": "data", "broker": "B1"},
-        {"id": "T2", "name": "processed", "broker": "B1"}
-    ],
-    "relationships": {
-        "publishes_to": [
-            {"from": "A1", "to": "T1"},
-            {"from": "A2", "to": "T2"}
-        ],
-        "subscribes_to": [
-            {"from": "A2", "to": "T1"},
-            {"from": "A3", "to": "T2"},
-            {"from": "A4", "to": "T2"}
-        ],
-        "runs_on": [
-            {"from": "A1", "to": "N1"},
-            {"from": "A2", "to": "N1"},
-            {"from": "A3", "to": "N2"},
-            {"from": "A4", "to": "N2"},
-            {"from": "B1", "to": "N1"},
-            {"from": "B2", "to": "N2"}
-        ],
-        "routes": [
-            {"from": "B1", "to": "T1"},
-            {"from": "B1", "to": "T2"}
-        ]
-    }
-}
-
-
-def create_test_analyzer() -> GraphAnalyzer:
-    """Create a test analyzer with sample data"""
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    return analyzer
-
-
-def create_test_results(analyzer: GraphAnalyzer):
-    """Create test analysis, simulation, and validation results"""
-    analysis = analyzer.analyze()
+class TestGraphBuilder:
+    """Helper to build test graphs"""
     
-    simulator = GraphSimulator(seed=42)
-    simulation = simulator.simulate_all_single_failures(analyzer.G)
+    @staticmethod
+    def create_simple_graph():
+        """Create simple test graph"""
+        G = nx.DiGraph()
+        G.add_node('app1', type='Application', name='App 1')
+        G.add_node('app2', type='Application', name='App 2')
+        G.add_node('topic1', type='Topic', name='Topic 1')
+        G.add_node('broker1', type='Broker', name='Broker 1')
+        
+        G.add_edge('app1', 'topic1', type='PUBLISHES_TO')
+        G.add_edge('topic1', 'app2', type='SUBSCRIBES_TO')
+        G.add_edge('broker1', 'topic1', type='RUNS_ON')
+        
+        return G
     
-    validator = GraphValidator(analyzer, seed=42)
-    validation = validator.validate()
-    
-    return analysis, simulation, validation
+    @staticmethod
+    def create_multi_layer_graph():
+        """Create multi-layer test graph"""
+        G = nx.DiGraph()
+        
+        # Infrastructure layer
+        G.add_node('node1', type='Node', name='Server 1')
+        G.add_node('node2', type='Node', name='Server 2')
+        
+        # Broker layer
+        G.add_node('broker1', type='Broker', name='MQTT Broker')
+        G.add_node('broker2', type='Broker', name='Kafka Broker')
+        
+        # Topic layer
+        G.add_node('topic1', type='Topic', name='Temperature')
+        G.add_node('topic2', type='Topic', name='Humidity')
+        G.add_node('topic3', type='Topic', name='Alerts')
+        
+        # Application layer
+        G.add_node('sensor1', type='Application', name='Sensor 1')
+        G.add_node('sensor2', type='Application', name='Sensor 2')
+        G.add_node('aggregator', type='Application', name='Aggregator')
+        G.add_node('dashboard', type='Application', name='Dashboard')
+        
+        # Cross-layer edges
+        G.add_edge('broker1', 'node1', type='RUNS_ON')
+        G.add_edge('broker2', 'node2', type='RUNS_ON')
+        G.add_edge('topic1', 'broker1', type='DEPENDS_ON')
+        G.add_edge('topic2', 'broker1', type='DEPENDS_ON')
+        G.add_edge('topic3', 'broker2', type='DEPENDS_ON')
+        G.add_edge('sensor1', 'topic1', type='PUBLISHES_TO')
+        G.add_edge('sensor2', 'topic2', type='PUBLISHES_TO')
+        G.add_edge('topic1', 'aggregator', type='SUBSCRIBES_TO')
+        G.add_edge('topic2', 'aggregator', type='SUBSCRIBES_TO')
+        G.add_edge('aggregator', 'topic3', type='PUBLISHES_TO')
+        G.add_edge('topic3', 'dashboard', type='SUBSCRIBES_TO')
+        
+        return G
 
 
-# ============================================================================
-# Test Classes
-# ============================================================================
-
-class TestColorScheme(unittest.TestCase):
-    """Tests for ColorScheme class"""
+class TestGraphVisualizer(unittest.TestCase):
+    """Test GraphVisualizer class"""
     
-    def test_type_colors(self):
-        """Test type color lookup"""
-        self.assertEqual(ColorScheme.get_type_color('Application'), '#4CAF50')
-        self.assertEqual(ColorScheme.get_type_color('Broker'), '#2196F3')
-        self.assertEqual(ColorScheme.get_type_color('Node'), '#FF9800')
-        self.assertEqual(ColorScheme.get_type_color('Topic'), '#9C27B0')
+    def setUp(self):
+        self.graph = TestGraphBuilder.create_simple_graph()
+        self.multi_layer_graph = TestGraphBuilder.create_multi_layer_graph()
+        self.visualizer = GraphVisualizer()
     
-    def test_type_color_unknown(self):
-        """Test unknown type returns default"""
-        color = ColorScheme.get_type_color('UnknownType')
-        self.assertEqual(color, ColorScheme.TYPE_COLORS['Unknown'])
+    def test_classify_layers(self):
+        """Test layer classification"""
+        layers = self.visualizer.classify_layers(self.multi_layer_graph)
+        
+        self.assertIn(Layer.APPLICATION, layers)
+        self.assertIn(Layer.TOPIC, layers)
+        self.assertIn(Layer.BROKER, layers)
+        self.assertIn(Layer.INFRASTRUCTURE, layers)
+        
+        self.assertEqual(len(layers[Layer.APPLICATION]), 4)
+        self.assertEqual(len(layers[Layer.TOPIC]), 3)
+        self.assertEqual(len(layers[Layer.BROKER]), 2)
+        self.assertEqual(len(layers[Layer.INFRASTRUCTURE]), 2)
     
-    def test_criticality_colors(self):
-        """Test criticality color lookup"""
-        self.assertEqual(ColorScheme.get_criticality_color('critical'), '#D32F2F')
-        self.assertEqual(ColorScheme.get_criticality_color('high'), '#FF5722')
-        self.assertEqual(ColorScheme.get_criticality_color('medium'), '#FFC107')
-        self.assertEqual(ColorScheme.get_criticality_color('low'), '#4CAF50')
+    def test_get_node_style(self):
+        """Test node style generation"""
+        node_data = {'type': 'Application'}
+        style = self.visualizer.get_node_style('test', node_data)
+        
+        self.assertEqual(style.color, Colors.NODE_TYPES['Application'])
+        self.assertIsInstance(style.size, int)
     
-    def test_impact_color(self):
-        """Test impact-based color"""
-        self.assertEqual(ColorScheme.get_impact_color(0.8), '#D32F2F')  # Critical
-        self.assertEqual(ColorScheme.get_impact_color(0.6), '#FF5722')  # High
-        self.assertEqual(ColorScheme.get_impact_color(0.4), '#FFC107')  # Medium
-        self.assertEqual(ColorScheme.get_impact_color(0.2), '#4CAF50')  # Low
+    def test_get_node_style_with_criticality(self):
+        """Test node style with criticality"""
+        node_data = {'type': 'Application'}
+        crit = {'score': 0.8, 'level': 'critical', 'is_articulation_point': True}
+        
+        self.visualizer.config.color_scheme = ColorScheme.CRITICALITY
+        style = self.visualizer.get_node_style('test', node_data, crit)
+        
+        self.assertEqual(style.color, Colors.CRITICALITY['critical'])
+        self.assertGreater(style.size, 25)
+        self.assertEqual(style.border_width, 4)
+    
+    def test_get_edge_style(self):
+        """Test edge style generation"""
+        edge_data = {'type': 'PUBLISHES_TO'}
+        style = self.visualizer.get_edge_style('app1', 'topic1', edge_data, self.graph)
+        
+        self.assertEqual(style.color, Colors.EDGES['PUBLISHES_TO'])
+    
+    def test_calculate_layout_spring(self):
+        """Test spring layout calculation"""
+        self.visualizer.classify_layers(self.graph)
+        positions = self.visualizer.calculate_layout(
+            self.graph, LayoutAlgorithm.SPRING
+        )
+        
+        self.assertEqual(len(positions), self.graph.number_of_nodes())
+        for node, (x, y) in positions.items():
+            self.assertIsInstance(x, float)
+            self.assertIsInstance(y, float)
+    
+    def test_calculate_layout_hierarchical(self):
+        """Test hierarchical layout calculation"""
+        self.visualizer.classify_layers(self.multi_layer_graph)
+        positions = self.visualizer.calculate_layout(
+            self.multi_layer_graph, LayoutAlgorithm.HIERARCHICAL
+        )
+        
+        self.assertEqual(len(positions), self.multi_layer_graph.number_of_nodes())
+    
+    def test_render_html(self):
+        """Test HTML rendering"""
+        html = self.visualizer.render_html(self.graph)
+        
+        self.assertIn('<!DOCTYPE html>', html)
+        self.assertIn('vis.Network', html)
+        self.assertIn('vis.DataSet', html)
+        
+        # Check nodes are present
+        for node in self.graph.nodes():
+            self.assertIn(node, html)
+    
+    def test_render_html_with_criticality(self):
+        """Test HTML rendering with criticality"""
+        criticality = {
+            'app1': {'score': 0.8, 'level': 'critical'},
+            'app2': {'score': 0.3, 'level': 'low'},
+            'topic1': {'score': 0.6, 'level': 'high'},
+            'broker1': {'score': 0.5, 'level': 'medium'}
+        }
+        
+        html = self.visualizer.render_html(self.graph, criticality)
+        
+        self.assertIn('critical', html)
+        self.assertIn('Criticality', html)
+    
+    def test_render_html_layer_filter(self):
+        """Test HTML rendering with layer filter"""
+        html = self.visualizer.render_html(
+            self.multi_layer_graph,
+            layer=Layer.APPLICATION
+        )
+        
+        self.assertIn('sensor1', html)
+        self.assertIn('dashboard', html)
+        # Broker should not be in application layer view
+        self.assertNotIn('"id": "broker1"', html)
+    
+    def test_render_multi_layer_html(self):
+        """Test multi-layer HTML rendering"""
+        html = self.visualizer.render_multi_layer_html(self.multi_layer_graph)
+        
+        self.assertIn('Multi-Layer', html)
+        self.assertIn('APPLICATION', html)
+        self.assertIn('TOPIC', html)
+        self.assertIn('BROKER', html)
+        self.assertIn('INFRASTRUCTURE', html)
+    
+    def test_get_layer_statistics(self):
+        """Test layer statistics"""
+        self.visualizer.classify_layers(self.multi_layer_graph)
+        stats = self.visualizer.get_layer_statistics(self.multi_layer_graph)
+        
+        self.assertIn('total_nodes', stats)
+        self.assertIn('total_edges', stats)
+        self.assertIn('layers', stats)
+        
+        for layer_name, layer_stats in stats['layers'].items():
+            self.assertIn('node_count', layer_stats)
+            self.assertIn('internal_edges', layer_stats)
+            self.assertIn('cross_layer_edges', layer_stats)
+            self.assertIn('density', layer_stats)
+    
+    def test_export_for_d3(self):
+        """Test D3.js export"""
+        with tempfile.NamedTemporaryFile(suffix='.json', delete=False) as f:
+            output_path = f.name
+        
+        try:
+            self.visualizer.classify_layers(self.graph)
+            self.visualizer.export_for_d3(self.graph, output_path)
+            
+            with open(output_path, 'r') as f:
+                data = json.load(f)
+            
+            self.assertIn('nodes', data)
+            self.assertIn('links', data)
+            self.assertEqual(len(data['nodes']), self.graph.number_of_nodes())
+            self.assertEqual(len(data['links']), self.graph.number_of_edges())
+        finally:
+            Path(output_path).unlink(missing_ok=True)
 
 
 class TestVisualizationConfig(unittest.TestCase):
-    """Tests for VisualizationConfig class"""
+    """Test VisualizationConfig"""
     
     def test_default_config(self):
-        """Test default configuration values"""
+        """Test default configuration"""
         config = VisualizationConfig()
-        self.assertEqual(config.figsize, (12, 8))
-        self.assertEqual(config.dpi, 150)
-        self.assertEqual(config.node_size, 800)
-        self.assertTrue(config.show_labels)
-        self.assertTrue(config.show_legend)
+        
+        self.assertEqual(config.layout, LayoutAlgorithm.SPRING)
+        self.assertEqual(config.color_scheme, ColorScheme.TYPE)
+        self.assertTrue(config.physics_enabled)
     
     def test_custom_config(self):
         """Test custom configuration"""
         config = VisualizationConfig(
-            figsize=(16, 12),
-            dpi=300,
-            node_size=1000,
-            show_labels=False
+            title="Custom Title",
+            layout=LayoutAlgorithm.HIERARCHICAL,
+            color_scheme=ColorScheme.CRITICALITY,
+            physics_enabled=False
         )
-        self.assertEqual(config.figsize, (16, 12))
-        self.assertEqual(config.dpi, 300)
-        self.assertEqual(config.node_size, 1000)
-        self.assertFalse(config.show_labels)
-    
-    def test_to_dict(self):
-        """Test config serialization"""
-        config = VisualizationConfig()
-        d = config.to_dict()
-        self.assertIn('figsize', d)
-        self.assertIn('dpi', d)
-        self.assertIn('node_size', d)
+        
+        self.assertEqual(config.title, "Custom Title")
+        self.assertEqual(config.layout, LayoutAlgorithm.HIERARCHICAL)
+        self.assertFalse(config.physics_enabled)
 
 
-class TestGraphVisualizerInit(unittest.TestCase):
-    """Tests for GraphVisualizer initialization"""
-    
-    def test_init_default(self):
-        """Test default initialization"""
-        viz = GraphVisualizer()
-        self.assertIsNone(viz.analyzer)
-        self.assertIsNotNone(viz.config)
-    
-    def test_init_with_analyzer(self):
-        """Test initialization with analyzer"""
-        analyzer = create_test_analyzer()
-        viz = GraphVisualizer(analyzer)
-        self.assertEqual(viz.analyzer, analyzer)
-    
-    def test_init_with_config(self):
-        """Test initialization with custom config"""
-        config = VisualizationConfig(dpi=300)
-        viz = GraphVisualizer(config=config)
-        self.assertEqual(viz.config.dpi, 300)
-
-
-class TestGraphVisualizerSetters(unittest.TestCase):
-    """Tests for GraphVisualizer result setters"""
+class TestDashboardGenerator(unittest.TestCase):
+    """Test DashboardGenerator class"""
     
     def setUp(self):
-        self.analyzer = create_test_analyzer()
-        self.viz = GraphVisualizer(self.analyzer)
+        self.graph = TestGraphBuilder.create_multi_layer_graph()
+        self.generator = DashboardGenerator()
+        
+        self.criticality = {
+            node: {
+                'score': 0.5,
+                'level': 'medium',
+                'is_articulation_point': False
+            }
+            for node in self.graph.nodes()
+        }
     
-    def test_set_analysis_result(self):
-        """Test setting analysis result"""
-        result = self.analyzer.analyze()
-        self.viz.set_analysis_result(result)
-        self.assertEqual(self.viz._analysis_result, result)
+    def test_generate_dashboard(self):
+        """Test dashboard generation"""
+        html = self.generator.generate(
+            graph=self.graph,
+            criticality=self.criticality
+        )
+        
+        self.assertIn('<!DOCTYPE html>', html)
+        self.assertIn('Dashboard', html)
+        self.assertIn('System Overview', html)
     
-    def test_set_simulation_result(self):
-        """Test setting simulation result"""
-        self.analyzer.analyze()
-        simulator = GraphSimulator(seed=42)
-        result = simulator.simulate_all_single_failures(self.analyzer.G)
-        self.viz.set_simulation_result(result)
-        self.assertEqual(self.viz._simulation_result, result)
-    
-    def test_set_validation_result(self):
-        """Test setting validation result"""
-        validator = GraphValidator(self.analyzer, seed=42)
-        result = validator.validate()
-        self.viz.set_validation_result(result)
-        self.assertEqual(self.viz._validation_result, result)
-
-
-@unittest.skipUnless(MATPLOTLIB_AVAILABLE, "Matplotlib not available")
-class TestGraphVisualizerPlots(unittest.TestCase):
-    """Tests for GraphVisualizer plotting functions"""
-    
-    def setUp(self):
-        self.analyzer = create_test_analyzer()
-        self.analysis, self.simulation, self.validation = create_test_results(self.analyzer)
-        
-        self.viz = GraphVisualizer(self.analyzer)
-        self.viz.set_analysis_result(self.analysis)
-        self.viz.set_simulation_result(self.simulation)
-        self.viz.set_validation_result(self.validation)
-        
-        self.temp_dir = tempfile.mkdtemp()
-    
-    def test_plot_topology(self):
-        """Test topology plot generation"""
-        output_path = Path(self.temp_dir) / 'topology.png'
-        result = self.viz.plot_topology(str(output_path))
-        
-        self.assertIsNotNone(result)
-        self.assertTrue(output_path.exists())
-    
-    def test_plot_topology_layouts(self):
-        """Test different layout algorithms"""
-        for layout in ['spring', 'circular', 'shell', 'kamada_kawai']:
-            output_path = Path(self.temp_dir) / f'topology_{layout}.png'
-            result = self.viz.plot_topology(str(output_path), layout=layout)
-            self.assertIsNotNone(result)
-    
-    def test_plot_topology_color_by_type(self):
-        """Test coloring by type"""
-        output_path = Path(self.temp_dir) / 'topology_type.png'
-        result = self.viz.plot_topology(str(output_path), color_by='type')
-        self.assertIsNotNone(result)
-    
-    def test_plot_topology_color_by_criticality(self):
-        """Test coloring by criticality"""
-        output_path = Path(self.temp_dir) / 'topology_crit.png'
-        result = self.viz.plot_topology(str(output_path), color_by='criticality')
-        self.assertIsNotNone(result)
-    
-    def test_plot_criticality_heatmap(self):
-        """Test criticality heatmap generation"""
-        output_path = Path(self.temp_dir) / 'criticality.png'
-        result = self.viz.plot_criticality_heatmap(str(output_path))
-        
-        self.assertIsNotNone(result)
-        self.assertTrue(output_path.exists())
-    
-    def test_plot_criticality_heatmap_top_n(self):
-        """Test criticality heatmap with custom top_n"""
-        output_path = Path(self.temp_dir) / 'criticality_top5.png'
-        result = self.viz.plot_criticality_heatmap(str(output_path), top_n=5)
-        self.assertIsNotNone(result)
-    
-    def test_plot_impact_comparison(self):
-        """Test impact comparison chart generation"""
-        output_path = Path(self.temp_dir) / 'comparison.png'
-        result = self.viz.plot_impact_comparison(str(output_path))
-        
-        self.assertIsNotNone(result)
-        self.assertTrue(output_path.exists())
-    
-    def test_plot_validation_scatter(self):
-        """Test validation scatter plot generation"""
-        output_path = Path(self.temp_dir) / 'scatter.png'
-        result = self.viz.plot_validation_scatter(str(output_path))
-        
-        self.assertIsNotNone(result)
-        self.assertTrue(output_path.exists())
-    
-    def test_plot_impact_distribution(self):
-        """Test impact distribution histogram generation"""
-        output_path = Path(self.temp_dir) / 'distribution.png'
-        result = self.viz.plot_impact_distribution(str(output_path))
-        
-        self.assertIsNotNone(result)
-        self.assertTrue(output_path.exists())
-    
-    def test_plot_without_output_path(self):
-        """Test plotting without saving"""
-        result = self.viz.plot_topology()
-        self.assertIsNone(result)  # No path returned if not saved
-
-
-class TestHTMLReportGeneration(unittest.TestCase):
-    """Tests for HTML report generation"""
-    
-    def setUp(self):
-        self.analyzer = create_test_analyzer()
-        self.analysis, self.simulation, self.validation = create_test_results(self.analyzer)
-        
-        self.viz = GraphVisualizer(self.analyzer)
-        self.viz.set_analysis_result(self.analysis)
-        self.viz.set_simulation_result(self.simulation)
-        self.viz.set_validation_result(self.validation)
-        
-        self.temp_dir = tempfile.mkdtemp()
-    
-    def test_generate_html_report(self):
-        """Test HTML report generation"""
-        output_path = Path(self.temp_dir) / 'report.html'
-        result = self.viz.generate_html_report(str(output_path))
-        
-        self.assertEqual(result, str(output_path))
-        self.assertTrue(output_path.exists())
-    
-    def test_html_report_content(self):
-        """Test HTML report contains expected sections"""
-        output_path = Path(self.temp_dir) / 'report.html'
-        self.viz.generate_html_report(str(output_path))
-        
-        with open(output_path) as f:
-            content = f.read()
-        
-        # Check for key sections
-        self.assertIn('Summary', content)
-        self.assertIn('Criticality', content)
-        self.assertIn('Validation', content)
-        self.assertIn('Simulation', content)
-    
-    def test_html_report_custom_title(self):
-        """Test HTML report with custom title"""
-        output_path = Path(self.temp_dir) / 'report.html'
-        custom_title = "My Custom Report Title"
-        self.viz.generate_html_report(str(output_path), title=custom_title)
-        
-        with open(output_path) as f:
-            content = f.read()
-        
-        self.assertIn(custom_title, content)
-    
-    def test_html_report_without_images(self):
-        """Test HTML report without embedded images"""
-        output_path = Path(self.temp_dir) / 'report_no_img.html'
-        self.viz.generate_html_report(str(output_path), include_images=False)
-        
-        with open(output_path) as f:
-            content = f.read()
-        
-        # Should still be valid HTML
-        self.assertIn('<html>', content)
-        self.assertIn('</html>', content)
-
-
-class TestGraphDataExport(unittest.TestCase):
-    """Tests for graph data export"""
-    
-    def setUp(self):
-        self.analyzer = create_test_analyzer()
-        analysis_result = self.analyzer.analyze()
-        
-        self.viz = GraphVisualizer(self.analyzer)
-        self.viz.set_analysis_result(analysis_result)
-        
-        self.temp_dir = tempfile.mkdtemp()
-    
-    def test_export_json(self):
-        """Test JSON export"""
-        output_path = Path(self.temp_dir) / 'graph.json'
-        result = self.viz.export_graph_data(str(output_path), format='json')
-        
-        self.assertTrue(output_path.exists())
-        
-        with open(output_path) as f:
-            data = json.load(f)
-        
-        self.assertIn('nodes', data)
-        self.assertIn('links', data)
-        self.assertGreater(len(data['nodes']), 0)
-    
-    def test_export_json_includes_criticality(self):
-        """Test JSON export includes criticality scores"""
-        output_path = Path(self.temp_dir) / 'graph.json'
-        self.viz.export_graph_data(str(output_path), format='json')
-        
-        with open(output_path) as f:
-            data = json.load(f)
-        
-        # Some nodes should have criticality
-        nodes_with_crit = [n for n in data['nodes'] if 'criticality' in n]
-        self.assertGreater(len(nodes_with_crit), 0)
-    
-    # Note: GraphML and GEXF exports are skipped due to NetworkX serialization issues
-    # with complex node attributes (lists). JSON export is the recommended format.
-
-
-class TestConvenienceFunctions(unittest.TestCase):
-    """Tests for convenience functions"""
-    
-    def test_visualize_system(self):
-        """Test visualize_system function"""
-        analyzer = create_test_analyzer()
-        analysis = analyzer.analyze()
-        
-        temp_dir = tempfile.mkdtemp()
-        files = visualize_system(analyzer, temp_dir)
-        
-        self.assertIsInstance(files, list)
-        self.assertGreater(len(files), 0)
-        
-        # Should have HTML report at minimum
-        html_files = [f for f in files if f.endswith('.html')]
-        self.assertGreater(len(html_files), 0)
-    
-    def test_visualize_system_with_simulation(self):
-        """Test visualize_system with simulation results"""
-        analyzer = create_test_analyzer()
-        analysis = analyzer.analyze()
-        
-        simulator = GraphSimulator(seed=42)
-        simulation = simulator.simulate_all_single_failures(analyzer.G)
-        
-        temp_dir = tempfile.mkdtemp()
-        files = visualize_system(analyzer, temp_dir, simulation_result=simulation)
-        
-        self.assertGreater(len(files), 0)
-    
-    def test_visualize_system_with_validation(self):
-        """Test visualize_system with validation results"""
-        analyzer = create_test_analyzer()
-        analysis = analyzer.analyze()
-        
-        validator = GraphValidator(analyzer, seed=42)
-        validation = validator.validate()
-        
-        temp_dir = tempfile.mkdtemp()
-        files = visualize_system(analyzer, temp_dir, validation_result=validation)
-        
-        self.assertGreater(len(files), 0)
-
-
-class TestEdgeCases(unittest.TestCase):
-    """Tests for edge cases"""
-    
-    def test_visualizer_no_analyzer(self):
-        """Test visualizer without analyzer"""
-        viz = GraphVisualizer()
-        
-        temp_dir = tempfile.mkdtemp()
-        output_path = Path(temp_dir) / 'topology.png'
-        
-        if MATPLOTLIB_AVAILABLE:
-            result = viz.plot_topology(str(output_path))
-            self.assertIsNone(result)
-    
-    def test_visualizer_no_analysis_result(self):
-        """Test visualizer without analysis result"""
-        analyzer = create_test_analyzer()
-        analyzer.analyze()  # Build graph but don't store result
-        
-        viz = GraphVisualizer(analyzer)
-        # No analysis result set
-        
-        temp_dir = tempfile.mkdtemp()
-        output_path = Path(temp_dir) / 'criticality.png'
-        
-        if MATPLOTLIB_AVAILABLE:
-            result = viz.plot_criticality_heatmap(str(output_path))
-            self.assertIsNone(result)
-    
-    def test_visualizer_empty_graph(self):
-        """Test visualizer with minimal graph"""
-        data = {
-            "nodes": [{"id": "N1", "name": "Node1", "type": "compute"}],
-            "brokers": [],
-            "applications": [],
-            "topics": [],
-            "relationships": {
-                "publishes_to": [],
-                "subscribes_to": [],
-                "runs_on": [],
-                "routes": []
+    def test_generate_with_validation(self):
+        """Test dashboard with validation results"""
+        validation = {
+            'status': 'passed',
+            'correlation': {
+                'spearman': {'coefficient': 0.85}
+            },
+            'classification': {
+                'overall': {
+                    'f1_score': 0.92,
+                    'precision': 0.88,
+                    'recall': 0.95
+                }
             }
         }
         
-        analyzer = GraphAnalyzer()
-        analyzer.load_from_dict(data)
-        analyzer.analyze()
+        html = self.generator.generate(
+            graph=self.graph,
+            criticality=self.criticality,
+            validation=validation
+        )
         
-        viz = GraphVisualizer(analyzer)
+        self.assertIn('Validation', html)
+        self.assertIn('PASSED', html)
+        self.assertIn('Spearman', html)
+    
+    def test_generate_with_simulation(self):
+        """Test dashboard with simulation results"""
+        simulation = {
+            'total_simulations': 10,
+            'results': [
+                {'primary_failures': ['broker1'], 'impact_score': 0.8, 'affected_nodes': 5},
+                {'primary_failures': ['topic1'], 'impact_score': 0.6, 'affected_nodes': 3}
+            ]
+        }
         
-        temp_dir = tempfile.mkdtemp()
-        output_path = Path(temp_dir) / 'topology.png'
+        html = self.generator.generate(
+            graph=self.graph,
+            criticality=self.criticality,
+            simulation=simulation
+        )
         
-        if MATPLOTLIB_AVAILABLE:
-            result = viz.plot_topology(str(output_path))
-            # Should still work with minimal graph
-            self.assertIsNotNone(result)
+        self.assertIn('Simulation', html)
+        self.assertIn('broker1', html)
+    
+    def test_dashboard_config(self):
+        """Test dashboard configuration"""
+        config = DashboardConfig(
+            title="Custom Dashboard",
+            theme="light",
+            include_network=False
+        )
+        generator = DashboardGenerator(config)
+        
+        html = generator.generate(
+            graph=self.graph,
+            criticality=self.criticality
+        )
+        
+        self.assertIn('Custom Dashboard', html)
+        # Network section should not be present
+        self.assertNotIn('network-graph', html)
 
 
-# ============================================================================
-# Main Entry Point
-# ============================================================================
+class TestColorSchemes(unittest.TestCase):
+    """Test color scheme functionality"""
+    
+    def setUp(self):
+        self.graph = TestGraphBuilder.create_simple_graph()
+    
+    def test_type_color_scheme(self):
+        """Test type-based coloring"""
+        config = VisualizationConfig(color_scheme=ColorScheme.TYPE)
+        visualizer = GraphVisualizer(config)
+        
+        app_style = visualizer.get_node_style('app1', {'type': 'Application'})
+        topic_style = visualizer.get_node_style('topic1', {'type': 'Topic'})
+        
+        self.assertEqual(app_style.color, Colors.NODE_TYPES['Application'])
+        self.assertEqual(topic_style.color, Colors.NODE_TYPES['Topic'])
+    
+    def test_criticality_color_scheme(self):
+        """Test criticality-based coloring"""
+        config = VisualizationConfig(color_scheme=ColorScheme.CRITICALITY)
+        visualizer = GraphVisualizer(config)
+        
+        crit_style = visualizer.get_node_style(
+            'app1', {'type': 'Application'},
+            {'level': 'critical', 'score': 0.9}
+        )
+        low_style = visualizer.get_node_style(
+            'app2', {'type': 'Application'},
+            {'level': 'low', 'score': 0.2}
+        )
+        
+        self.assertEqual(crit_style.color, Colors.CRITICALITY['critical'])
+        self.assertEqual(low_style.color, Colors.CRITICALITY['low'])
 
-def main():
+
+class TestLayoutAlgorithms(unittest.TestCase):
+    """Test layout algorithms"""
+    
+    def setUp(self):
+        self.graph = TestGraphBuilder.create_multi_layer_graph()
+        self.visualizer = GraphVisualizer()
+        self.visualizer.classify_layers(self.graph)
+    
+    def test_all_layouts(self):
+        """Test all layout algorithms work"""
+        layouts = [
+            LayoutAlgorithm.SPRING,
+            LayoutAlgorithm.CIRCULAR,
+            LayoutAlgorithm.SHELL,
+            LayoutAlgorithm.HIERARCHICAL,
+            LayoutAlgorithm.LAYERED
+        ]
+        
+        for layout in layouts:
+            with self.subTest(layout=layout):
+                positions = self.visualizer.calculate_layout(self.graph, layout)
+                self.assertEqual(len(positions), self.graph.number_of_nodes())
+
+
+class TestEdgeCases(unittest.TestCase):
+    """Test edge cases"""
+    
+    def test_empty_graph(self):
+        """Test with empty graph"""
+        G = nx.DiGraph()
+        visualizer = GraphVisualizer()
+        
+        html = visualizer.render_html(G)
+        self.assertIn('<!DOCTYPE html>', html)
+    
+    def test_single_node(self):
+        """Test with single node"""
+        G = nx.DiGraph()
+        G.add_node('single', type='Application')
+        
+        visualizer = GraphVisualizer()
+        html = visualizer.render_html(G)
+        
+        self.assertIn('single', html)
+    
+    def test_disconnected_graph(self):
+        """Test with disconnected components"""
+        G = nx.DiGraph()
+        G.add_node('a', type='Application')
+        G.add_node('b', type='Application')
+        G.add_node('c', type='Topic')
+        G.add_edge('a', 'c')
+        # b is disconnected
+        
+        visualizer = GraphVisualizer()
+        html = visualizer.render_html(G)
+        
+        self.assertIn('a', html)
+        self.assertIn('b', html)
+        self.assertIn('c', html)
+    
+    def test_unknown_node_type(self):
+        """Test with unknown node type"""
+        G = nx.DiGraph()
+        G.add_node('unknown', type='CustomType')
+        
+        visualizer = GraphVisualizer()
+        style = visualizer.get_node_style('unknown', {'type': 'CustomType'})
+        
+        self.assertEqual(style.color, Colors.NODE_TYPES['Unknown'])
+
+
+@unittest.skipUnless(MATPLOTLIB_AVAILABLE, "Matplotlib not available")
+class TestImageExport(unittest.TestCase):
+    """Test image export (requires matplotlib)"""
+    
+    def setUp(self):
+        self.graph = TestGraphBuilder.create_simple_graph()
+        self.visualizer = GraphVisualizer()
+    
+    def test_png_export(self):
+        """Test PNG export"""
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+            output_path = f.name
+        
+        try:
+            result = self.visualizer.render_image(
+                self.graph, output_path, format='png'
+            )
+            self.assertEqual(result, output_path)
+            self.assertTrue(Path(output_path).exists())
+        finally:
+            Path(output_path).unlink(missing_ok=True)
+
+
+def run_tests():
     """Run all tests"""
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
     
-    # Add all test classes
-    test_classes = [
-        TestColorScheme,
-        TestVisualizationConfig,
-        TestGraphVisualizerInit,
-        TestGraphVisualizerSetters,
-        TestGraphVisualizerPlots,
-        TestHTMLReportGeneration,
-        TestGraphDataExport,
-        TestConvenienceFunctions,
-        TestEdgeCases,
-    ]
+    suite.addTests(loader.loadTestsFromTestCase(TestGraphVisualizer))
+    suite.addTests(loader.loadTestsFromTestCase(TestVisualizationConfig))
+    suite.addTests(loader.loadTestsFromTestCase(TestDashboardGenerator))
+    suite.addTests(loader.loadTestsFromTestCase(TestColorSchemes))
+    suite.addTests(loader.loadTestsFromTestCase(TestLayoutAlgorithms))
+    suite.addTests(loader.loadTestsFromTestCase(TestEdgeCases))
     
-    for test_class in test_classes:
-        suite.addTests(loader.loadTestsFromTestCase(test_class))
+    if MATPLOTLIB_AVAILABLE:
+        suite.addTests(loader.loadTestsFromTestCase(TestImageExport))
     
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
@@ -549,4 +511,4 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(run_tests())

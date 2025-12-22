@@ -1,53 +1,42 @@
 #!/usr/bin/env python3
 """
-Graph Visualizer - Visualization of Pub-Sub Systems
-====================================================
+Multi-Layer Graph Visualizer
+==============================
 
-Visualizes distributed pub-sub systems including graph topology,
-analysis results, simulation impact, and validation comparisons.
+Comprehensive visualization for pub-sub system graphs with multi-layer support.
+Renders graphs at both application and infrastructure levels with interactive
+HTML output and static image export.
 
-Visualization Types:
-  - Graph topology with DEPENDS_ON relationships
-  - Criticality heatmap showing component importance
-  - Impact comparison charts (predicted vs actual)
-  - Validation scatter plots with correlation
-  - Component ranking bar charts
-  - Interactive HTML reports
-
-Usage:
-    from src.visualization import GraphVisualizer
-    from src.analysis import GraphAnalyzer
-    
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_file('system.json')
-    analyzer.analyze()
-    
-    visualizer = GraphVisualizer(analyzer)
-    visualizer.plot_topology('topology.png')
-    visualizer.plot_criticality_heatmap('criticality.png')
-    visualizer.generate_html_report('report.html')
+Features:
+- Multi-layer visualization (Application, Topic, Broker, Infrastructure)
+- Interactive HTML with vis.js
+- Static image export (PNG, SVG, PDF)
+- Criticality-based coloring
+- Cross-layer dependency highlighting
+- Dashboard generation
+- Multiple layout algorithms
 
 Author: Software-as-a-Graph Research Project
 """
 
-import logging
-from typing import Dict, List, Any, Optional, Tuple, Union
-from dataclasses import dataclass, field
-from pathlib import Path
-from datetime import datetime
-from collections import defaultdict
 import json
 import math
+import logging
+from typing import Dict, List, Any, Optional, Tuple, Set
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from datetime import datetime
 
 try:
     import networkx as nx
 except ImportError:
     raise ImportError("NetworkX is required: pip install networkx")
 
-# Optional imports for visualization
+# Optional matplotlib for static images
 try:
     import matplotlib
-    matplotlib.use('Agg')  # Non-interactive backend
+    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
     from matplotlib.colors import LinearSegmentedColormap
@@ -55,72 +44,88 @@ try:
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
 
-# Check for numpy (used by matplotlib)
-try:
-    import numpy as np
-    NUMPY_AVAILABLE = True
-except ImportError:
-    NUMPY_AVAILABLE = False
-
 
 # ============================================================================
-# Color Schemes
+# Enums and Constants
 # ============================================================================
 
-class ColorScheme:
-    """Color schemes for visualization"""
+class Layer(Enum):
+    """System layers for multi-layer visualization"""
+    INFRASTRUCTURE = "infrastructure"
+    BROKER = "broker"
+    TOPIC = "topic"
+    APPLICATION = "application"
+    ALL = "all"
+
+
+class LayoutAlgorithm(Enum):
+    """Available layout algorithms"""
+    SPRING = "spring"
+    HIERARCHICAL = "hierarchical"
+    CIRCULAR = "circular"
+    SHELL = "shell"
+    KAMADA_KAWAI = "kamada_kawai"
+    LAYERED = "layered"
+    SPECTRAL = "spectral"
+
+
+class ColorScheme(Enum):
+    """Color schemes for nodes"""
+    TYPE = "type"              # Color by component type
+    CRITICALITY = "criticality"  # Color by criticality level
+    LAYER = "layer"            # Color by system layer
+    QOS = "qos"                # Color by QoS policy
+    IMPACT = "impact"          # Color by impact score
+
+
+# Color palettes
+class Colors:
+    """Color definitions for visualization"""
     
-    # Component type colors
-    TYPE_COLORS = {
-        'Application': '#4CAF50',  # Green
-        'Broker': '#2196F3',       # Blue
-        'Node': '#FF9800',         # Orange
-        'Topic': '#9C27B0',        # Purple
-        'Unknown': '#9E9E9E',      # Gray
+    # Node type colors
+    NODE_TYPES = {
+        'Application': '#3498db',  # Blue
+        'Topic': '#2ecc71',        # Green
+        'Broker': '#e74c3c',       # Red
+        'Node': '#9b59b6',         # Purple
+        'Unknown': '#95a5a6'       # Gray
     }
     
-    # Criticality level colors
-    CRITICALITY_COLORS = {
-        'critical': '#D32F2F',     # Red
-        'high': '#FF5722',         # Deep Orange
-        'medium': '#FFC107',       # Amber
-        'low': '#4CAF50',          # Green
+    # Layer colors
+    LAYERS = {
+        Layer.APPLICATION: '#3498db',
+        Layer.TOPIC: '#2ecc71',
+        Layer.BROKER: '#e74c3c',
+        Layer.INFRASTRUCTURE: '#9b59b6',
+        Layer.ALL: '#667eea'
     }
     
-    # Dependency type colors
-    DEPENDENCY_COLORS = {
-        'app_to_app': '#1976D2',       # Blue
-        'app_to_broker': '#388E3C',    # Green
-        'node_to_node': '#F57C00',     # Orange
-        'node_to_broker': '#7B1FA2',   # Purple
+    # Edge type colors
+    EDGES = {
+        'PUBLISHES_TO': '#27ae60',
+        'SUBSCRIBES_TO': '#3498db',
+        'DEPENDS_ON': '#e74c3c',
+        'RUNS_ON': '#9b59b6',
+        'CONNECTS_TO': '#f39c12',
+        'Unknown': '#95a5a6'
     }
     
-    # Validation status colors
-    STATUS_COLORS = {
-        'passed': '#4CAF50',
-        'marginal': '#FFC107',
-        'failed': '#F44336',
+    # Criticality colors (gradient from low to critical)
+    CRITICALITY = {
+        'critical': '#c0392b',
+        'high': '#e74c3c',
+        'medium': '#f39c12',
+        'low': '#27ae60',
+        'minimal': '#95a5a6'
     }
     
-    @classmethod
-    def get_type_color(cls, node_type: str) -> str:
-        return cls.TYPE_COLORS.get(node_type, cls.TYPE_COLORS['Unknown'])
-    
-    @classmethod
-    def get_criticality_color(cls, level: str) -> str:
-        return cls.CRITICALITY_COLORS.get(level.lower(), '#9E9E9E')
-    
-    @classmethod
-    def get_impact_color(cls, impact: float) -> str:
-        """Get color based on impact score (0-1)"""
-        if impact >= 0.7:
-            return cls.CRITICALITY_COLORS['critical']
-        elif impact >= 0.5:
-            return cls.CRITICALITY_COLORS['high']
-        elif impact >= 0.3:
-            return cls.CRITICALITY_COLORS['medium']
-        else:
-            return cls.CRITICALITY_COLORS['low']
+    # Cross-layer dependency colors
+    CROSS_LAYER = {
+        'publishes': '#27ae60',
+        'subscribes': '#3498db',
+        'dependency': '#e74c3c',
+        'infrastructure': '#9b59b6'
+    }
 
 
 # ============================================================================
@@ -128,1252 +133,1181 @@ class ColorScheme:
 # ============================================================================
 
 @dataclass
-class VisualizationConfig:
-    """Configuration for visualizations"""
-    figsize: Tuple[int, int] = (12, 8)
-    dpi: int = 150
-    node_size: int = 800
-    font_size: int = 10
-    edge_width: float = 1.5
-    show_labels: bool = True
-    show_legend: bool = True
-    title_fontsize: int = 14
-    colormap: str = 'RdYlGn_r'  # Red-Yellow-Green reversed
+class NodeStyle:
+    """Style configuration for a node"""
+    color: str
+    size: int = 25
+    shape: str = 'dot'
+    border_width: int = 2
+    border_color: Optional[str] = None
+    font_size: int = 12
+    font_color: str = '#333333'
+    opacity: float = 1.0
+    shadow: bool = True
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_vis_dict(self) -> Dict[str, Any]:
+        """Convert to vis.js node options"""
         return {
-            'figsize': self.figsize,
-            'dpi': self.dpi,
-            'node_size': self.node_size,
-            'font_size': self.font_size,
-            'edge_width': self.edge_width,
-            'show_labels': self.show_labels,
-            'show_legend': self.show_legend,
+            'color': {
+                'background': self.color,
+                'border': self.border_color or self.color,
+                'highlight': {'background': self.color, 'border': '#ffffff'}
+            },
+            'size': self.size,
+            'shape': self.shape,
+            'borderWidth': self.border_width,
+            'font': {'size': self.font_size, 'color': self.font_color},
+            'shadow': self.shadow
         }
 
 
+@dataclass
+class EdgeStyle:
+    """Style configuration for an edge"""
+    color: str
+    width: int = 2
+    dashes: bool = False
+    arrows: str = 'to'
+    smooth_type: str = 'continuous'
+    opacity: float = 0.7
+    
+    def to_vis_dict(self) -> Dict[str, Any]:
+        """Convert to vis.js edge options"""
+        return {
+            'color': {'color': self.color, 'opacity': self.opacity},
+            'width': self.width,
+            'dashes': self.dashes,
+            'arrows': self.arrows,
+            'smooth': {'type': self.smooth_type}
+        }
+
+
+@dataclass 
+class VisualizationConfig:
+    """Configuration for visualization"""
+    title: str = "Pub-Sub System Visualization"
+    width: int = 1200
+    height: int = 800
+    background_color: str = '#1a1a2e'
+    color_scheme: ColorScheme = ColorScheme.TYPE
+    layout: LayoutAlgorithm = LayoutAlgorithm.SPRING
+    show_labels: bool = True
+    show_legend: bool = True
+    physics_enabled: bool = True
+    node_spacing: int = 100
+    layer_spacing: int = 150
+    dpi: int = 150
+    font_family: str = "'Segoe UI', Tahoma, sans-serif"
+
+
 # ============================================================================
-# Graph Visualizer
+# Main Visualizer Class
 # ============================================================================
 
 class GraphVisualizer:
     """
-    Visualizes pub-sub system graphs with analysis and simulation results.
+    Multi-layer graph visualizer for pub-sub systems.
     
-    Generates static images (PNG/SVG) and interactive HTML reports
-    showing graph topology, criticality scores, and validation results.
+    Supports both interactive HTML (vis.js) and static image (matplotlib) output.
     """
     
-    def __init__(self,
-                 analyzer: Optional['GraphAnalyzer'] = None,
-                 config: Optional[VisualizationConfig] = None):
+    def __init__(self, config: Optional[VisualizationConfig] = None):
         """
-        Initialize the visualizer.
+        Initialize visualizer.
         
         Args:
-            analyzer: GraphAnalyzer instance with analysis results
             config: Visualization configuration
         """
-        self.analyzer = analyzer
         self.config = config or VisualizationConfig()
-        self.logger = logging.getLogger('graph_visualizer')
+        self.logger = logging.getLogger('GraphVisualizer')
         
-        # Cache for results
-        self._analysis_result = None
-        self._simulation_result = None
-        self._validation_result = None
-        
-        # Check matplotlib availability
-        if not MATPLOTLIB_AVAILABLE:
-            self.logger.warning("Matplotlib not available. Image generation disabled.")
+        # Cache for processed data
+        self._layers: Dict[Layer, Set[str]] = {}
+        self._criticality: Dict[str, Dict] = {}
+        self._positions: Dict[str, Tuple[float, float]] = {}
     
-    def set_analysis_result(self, result: 'AnalysisResult'):
-        """Set analysis result for visualization"""
-        self._analysis_result = result
-    
-    def set_simulation_result(self, result: 'BatchSimulationResult'):
-        """Set simulation result for visualization"""
-        self._simulation_result = result
-    
-    def set_validation_result(self, result: 'ValidationResult'):
-        """Set validation result for visualization"""
-        self._validation_result = result
-    
-    # =========================================================================
-    # Graph Topology Visualization
-    # =========================================================================
-    
-    def plot_topology(self,
-                     output_path: Optional[str] = None,
-                     layout: str = 'spring',
-                     color_by: str = 'type',
-                     highlight_critical: bool = True) -> Optional[str]:
+    def classify_layers(self, graph: nx.DiGraph) -> Dict[Layer, Set[str]]:
         """
-        Plot graph topology with DEPENDS_ON relationships.
+        Classify nodes into layers based on type.
         
         Args:
-            output_path: Path to save image (PNG/SVG)
-            layout: Layout algorithm ('spring', 'circular', 'shell', 'kamada_kawai')
-            color_by: Color nodes by 'type' or 'criticality'
-            highlight_critical: Highlight critical components
-        
+            graph: NetworkX graph
+            
         Returns:
-            Path to saved image or None
+            Dict mapping Layer -> set of node IDs
         """
-        if not MATPLOTLIB_AVAILABLE:
-            self.logger.error("Matplotlib not available")
-            return None
+        layers = {
+            Layer.INFRASTRUCTURE: set(),
+            Layer.BROKER: set(),
+            Layer.TOPIC: set(),
+            Layer.APPLICATION: set()
+        }
         
-        if self.analyzer is None or self.analyzer.G is None:
-            self.logger.error("No graph data available")
-            return None
+        type_to_layer = {
+            'Application': Layer.APPLICATION,
+            'Topic': Layer.TOPIC,
+            'Broker': Layer.BROKER,
+            'Node': Layer.INFRASTRUCTURE,
+            'Server': Layer.INFRASTRUCTURE,
+            'Gateway': Layer.INFRASTRUCTURE
+        }
         
-        G = self.analyzer.G
+        for node in graph.nodes():
+            node_type = graph.nodes[node].get('type', 'Unknown')
+            layer = type_to_layer.get(node_type, Layer.APPLICATION)
+            layers[layer].add(node)
         
-        # Create figure
-        fig, ax = plt.subplots(figsize=self.config.figsize)
-        
-        # Get layout
-        pos = self._get_layout(G, layout)
-        
-        # Get node colors
-        node_colors = self._get_node_colors(G, color_by)
-        
-        # Get node sizes (larger for critical)
-        node_sizes = self._get_node_sizes(G, highlight_critical)
-        
-        # Draw edges by dependency type
-        self._draw_edges(G, pos, ax)
-        
-        # Draw nodes
-        nx.draw_networkx_nodes(
-            G, pos, ax=ax,
-            node_color=node_colors,
-            node_size=node_sizes,
-            alpha=0.9
-        )
-        
-        # Draw labels
-        if self.config.show_labels:
-            labels = {n: n for n in G.nodes()}
-            nx.draw_networkx_labels(
-                G, pos, labels, ax=ax,
-                font_size=self.config.font_size,
-                font_weight='bold'
-            )
-        
-        # Add legend
-        if self.config.show_legend:
-            self._add_topology_legend(ax, color_by)
-        
-        # Title
-        ax.set_title(
-            f"Pub-Sub System Topology ({G.number_of_nodes()} nodes, {G.number_of_edges()} edges)",
-            fontsize=self.config.title_fontsize,
-            fontweight='bold'
-        )
-        
-        ax.axis('off')
-        plt.tight_layout()
-        
-        # Save or return
-        if output_path:
-            plt.savefig(output_path, dpi=self.config.dpi, bbox_inches='tight')
-            plt.close(fig)
-            return output_path
-        else:
-            plt.close(fig)
-            return None
+        self._layers = layers
+        return layers
     
-    def _get_layout(self, G: nx.DiGraph, layout: str) -> Dict:
-        """Get node positions using specified layout"""
-        if layout == 'spring':
-            return nx.spring_layout(G, k=2, iterations=50, seed=42)
-        elif layout == 'circular':
-            return nx.circular_layout(G)
-        elif layout == 'shell':
-            # Group by type
-            shells = self._get_shells_by_type(G)
-            return nx.shell_layout(G, shells) if shells else nx.spring_layout(G)
-        elif layout == 'kamada_kawai':
+    def get_node_style(self, 
+                       node: str,
+                       node_data: Dict,
+                       criticality: Optional[Dict] = None) -> NodeStyle:
+        """
+        Get style for a node based on configuration.
+        
+        Args:
+            node: Node ID
+            node_data: Node attributes
+            criticality: Optional criticality data
+            
+        Returns:
+            NodeStyle object
+        """
+        node_type = node_data.get('type', 'Unknown')
+        
+        if self.config.color_scheme == ColorScheme.TYPE:
+            color = Colors.NODE_TYPES.get(node_type, Colors.NODE_TYPES['Unknown'])
+        elif self.config.color_scheme == ColorScheme.CRITICALITY and criticality:
+            level = criticality.get('level', 'minimal')
+            color = Colors.CRITICALITY.get(level, Colors.CRITICALITY['minimal'])
+        elif self.config.color_scheme == ColorScheme.LAYER:
+            for layer, nodes in self._layers.items():
+                if node in nodes:
+                    color = Colors.LAYERS.get(layer, '#95a5a6')
+                    break
+            else:
+                color = '#95a5a6'
+        else:
+            color = Colors.NODE_TYPES.get(node_type, '#95a5a6')
+        
+        # Adjust size based on criticality
+        size = 25
+        if criticality:
+            score = criticality.get('score', 0)
+            size = int(20 + score * 30)  # 20-50 range
+        
+        # Add border for articulation points
+        border_color = None
+        border_width = 2
+        if criticality and criticality.get('is_articulation_point'):
+            border_color = '#ffffff'
+            border_width = 4
+        
+        return NodeStyle(
+            color=color,
+            size=size,
+            border_width=border_width,
+            border_color=border_color
+        )
+    
+    def get_edge_style(self, 
+                       source: str,
+                       target: str,
+                       edge_data: Dict,
+                       graph: nx.DiGraph) -> EdgeStyle:
+        """
+        Get style for an edge.
+        
+        Args:
+            source: Source node
+            target: Target node
+            edge_data: Edge attributes
+            graph: Full graph for context
+            
+        Returns:
+            EdgeStyle object
+        """
+        edge_type = edge_data.get('type', 'Unknown')
+        color = Colors.EDGES.get(edge_type, Colors.EDGES['Unknown'])
+        
+        # Check if cross-layer
+        source_type = graph.nodes[source].get('type')
+        target_type = graph.nodes[target].get('type')
+        is_cross_layer = source_type != target_type
+        
+        return EdgeStyle(
+            color=color,
+            width=3 if is_cross_layer else 2,
+            dashes=is_cross_layer
+        )
+    
+    def calculate_layout(self,
+                        graph: nx.DiGraph,
+                        algorithm: Optional[LayoutAlgorithm] = None) -> Dict[str, Tuple[float, float]]:
+        """
+        Calculate node positions using specified algorithm.
+        
+        Args:
+            graph: NetworkX graph
+            algorithm: Layout algorithm (uses config default if None)
+            
+        Returns:
+            Dict of node -> (x, y) positions
+        """
+        algorithm = algorithm or self.config.layout
+        
+        if algorithm == LayoutAlgorithm.SPRING:
+            pos = nx.spring_layout(graph, k=2, iterations=50, seed=42)
+        elif algorithm == LayoutAlgorithm.CIRCULAR:
+            pos = nx.circular_layout(graph)
+        elif algorithm == LayoutAlgorithm.SHELL:
+            # Group by type for shell layout
+            shells = []
+            for layer in [Layer.INFRASTRUCTURE, Layer.BROKER, Layer.TOPIC, Layer.APPLICATION]:
+                nodes = list(self._layers.get(layer, []))
+                if nodes:
+                    shells.append(nodes)
+            pos = nx.shell_layout(graph, nlist=shells if shells else None)
+        elif algorithm == LayoutAlgorithm.KAMADA_KAWAI:
+            pos = nx.kamada_kawai_layout(graph)
+        elif algorithm == LayoutAlgorithm.SPECTRAL:
             try:
-                return nx.kamada_kawai_layout(G)
+                pos = nx.spectral_layout(graph)
             except:
-                return nx.spring_layout(G, seed=42)
+                pos = nx.spring_layout(graph, seed=42)
+        elif algorithm == LayoutAlgorithm.HIERARCHICAL or algorithm == LayoutAlgorithm.LAYERED:
+            pos = self._hierarchical_layout(graph)
         else:
-            return nx.spring_layout(G, seed=42)
+            pos = nx.spring_layout(graph, seed=42)
+        
+        # Scale positions
+        scale = self.config.width / 4
+        self._positions = {
+            node: (x * scale, y * scale) 
+            for node, (x, y) in pos.items()
+        }
+        
+        return self._positions
     
-    def _get_shells_by_type(self, G: nx.DiGraph) -> List[List]:
-        """Group nodes by type for shell layout"""
-        type_groups = defaultdict(list)
-        for node, data in G.nodes(data=True):
-            node_type = data.get('type', 'Unknown')
-            type_groups[node_type].append(node)
-        
-        # Order: Node -> Broker -> Application -> Topic
-        order = ['Node', 'Broker', 'Application', 'Topic', 'Unknown']
-        shells = []
-        for t in order:
-            if t in type_groups and type_groups[t]:
-                shells.append(type_groups[t])
-        
-        return shells if shells else None
-    
-    def _get_node_colors(self, G: nx.DiGraph, color_by: str) -> List[str]:
-        """Get node colors based on coloring scheme"""
-        colors = []
-        
-        if color_by == 'criticality' and self._analysis_result:
-            # Build criticality lookup
-            crit_lookup = {}
-            for score in self._analysis_result.criticality_scores:
-                crit_lookup[score.node_id] = score.level.value
-            
-            for node in G.nodes():
-                level = crit_lookup.get(node, 'low')
-                colors.append(ColorScheme.get_criticality_color(level))
-        else:
-            # Color by type
-            for node, data in G.nodes(data=True):
-                node_type = data.get('type', 'Unknown')
-                colors.append(ColorScheme.get_type_color(node_type))
-        
-        return colors
-    
-    def _get_node_sizes(self, G: nx.DiGraph, highlight_critical: bool) -> List[int]:
-        """Get node sizes, optionally larger for critical nodes"""
-        base_size = self.config.node_size
-        
-        if not highlight_critical or not self._analysis_result:
-            return [base_size] * G.number_of_nodes()
-        
-        # Build criticality lookup
-        crit_lookup = {}
-        for score in self._analysis_result.criticality_scores:
-            crit_lookup[score.node_id] = score.level.value
-        
-        sizes = []
-        for node in G.nodes():
-            level = crit_lookup.get(node, 'low')
-            if level == 'critical':
-                sizes.append(base_size * 1.8)
-            elif level == 'high':
-                sizes.append(base_size * 1.4)
-            else:
-                sizes.append(base_size)
-        
-        return sizes
-    
-    def _draw_edges(self, G: nx.DiGraph, pos: Dict, ax):
-        """Draw edges colored by dependency type"""
-        edge_colors = []
-        for u, v, data in G.edges(data=True):
-            dep_type = data.get('dependency_type', 'unknown')
-            color = ColorScheme.DEPENDENCY_COLORS.get(dep_type, '#999999')
-            edge_colors.append(color)
-        
-        nx.draw_networkx_edges(
-            G, pos, ax=ax,
-            edge_color=edge_colors,
-            width=self.config.edge_width,
-            alpha=0.6,
-            arrows=True,
-            arrowsize=15,
-            connectionstyle="arc3,rad=0.1"
-        )
-    
-    def _add_topology_legend(self, ax, color_by: str):
-        """Add legend to topology plot"""
-        patches = []
-        
-        if color_by == 'criticality':
-            for level, color in ColorScheme.CRITICALITY_COLORS.items():
-                patches.append(mpatches.Patch(color=color, label=level.capitalize()))
-        else:
-            for node_type, color in ColorScheme.TYPE_COLORS.items():
-                if node_type != 'Unknown':
-                    patches.append(mpatches.Patch(color=color, label=node_type))
-        
-        ax.legend(handles=patches, loc='upper left', fontsize=9)
-    
-    # =========================================================================
-    # Criticality Heatmap
-    # =========================================================================
-    
-    def plot_criticality_heatmap(self,
-                                 output_path: Optional[str] = None,
-                                 top_n: int = 20) -> Optional[str]:
-        """
-        Plot criticality scores as a horizontal bar chart.
-        
-        Args:
-            output_path: Path to save image
-            top_n: Number of top components to show
-        
-        Returns:
-            Path to saved image or None
-        """
-        if not MATPLOTLIB_AVAILABLE:
-            return None
-        
-        if not self._analysis_result:
-            self.logger.error("No analysis result available")
-            return None
-        
-        # Sort by composite score
-        scores = sorted(
-            self._analysis_result.criticality_scores,
-            key=lambda x: x.composite_score,
-            reverse=True
-        )[:top_n]
-        
-        if not scores:
-            return None
-        
-        # Prepare data
-        components = [s.node_id for s in scores]
-        values = [s.composite_score for s in scores]
-        colors = [ColorScheme.get_criticality_color(s.level.value) for s in scores]
-        
-        # Create figure
-        fig, ax = plt.subplots(figsize=(10, max(6, len(components) * 0.4)))
-        
-        # Create horizontal bar chart
-        y_pos = range(len(components))
-        bars = ax.barh(y_pos, values, color=colors, alpha=0.8)
-        
-        # Add value labels
-        for i, (bar, val) in enumerate(zip(bars, values)):
-            ax.text(val + 0.01, i, f'{val:.3f}', va='center', fontsize=9)
-        
-        # Customize
-        ax.set_yticks(y_pos)
-        ax.set_yticklabels(components)
-        ax.invert_yaxis()
-        ax.set_xlabel('Criticality Score')
-        ax.set_title(
-            f'Component Criticality Ranking (Top {len(components)})',
-            fontsize=self.config.title_fontsize,
-            fontweight='bold'
-        )
-        
-        # Add legend
-        patches = [
-            mpatches.Patch(color=ColorScheme.CRITICALITY_COLORS[level], label=level.capitalize())
-            for level in ['critical', 'high', 'medium', 'low']
-        ]
-        ax.legend(handles=patches, loc='lower right', fontsize=9)
-        
-        plt.tight_layout()
-        
-        if output_path:
-            plt.savefig(output_path, dpi=self.config.dpi, bbox_inches='tight')
-            plt.close(fig)
-            return output_path
-        else:
-            plt.close(fig)
-            return None
-    
-    # =========================================================================
-    # Impact Comparison Chart
-    # =========================================================================
-    
-    def plot_impact_comparison(self,
-                               output_path: Optional[str] = None,
-                               top_n: int = 15) -> Optional[str]:
-        """
-        Plot comparison of predicted criticality vs actual impact.
-        
-        Args:
-            output_path: Path to save image
-            top_n: Number of components to show
-        
-        Returns:
-            Path to saved image or None
-        """
-        if not MATPLOTLIB_AVAILABLE:
-            return None
-        
-        if not self._validation_result:
-            self.logger.error("No validation result available")
-            return None
-        
-        # Get top components by actual impact
-        cv_list = sorted(
-            self._validation_result.component_validations,
-            key=lambda x: x.actual_impact,
-            reverse=True
-        )[:top_n]
-        
-        if not cv_list:
-            return None
-        
-        # Prepare data
-        components = [cv.component_id for cv in cv_list]
-        predicted = [cv.predicted_score for cv in cv_list]
-        actual = [cv.actual_impact for cv in cv_list]
-        
-        # Create figure
-        fig, ax = plt.subplots(figsize=(12, 6))
-        
-        x = range(len(components))
-        width = 0.35
-        
-        # Create grouped bar chart
-        bars1 = ax.bar([i - width/2 for i in x], predicted, width, 
-                       label='Predicted', color='#2196F3', alpha=0.8)
-        bars2 = ax.bar([i + width/2 for i in x], actual, width,
-                       label='Actual Impact', color='#FF5722', alpha=0.8)
-        
-        # Customize
-        ax.set_xlabel('Component')
-        ax.set_ylabel('Score / Impact')
-        ax.set_title(
-            f'Predicted Criticality vs Actual Impact (Top {len(components)})',
-            fontsize=self.config.title_fontsize,
-            fontweight='bold'
-        )
-        ax.set_xticks(x)
-        ax.set_xticklabels(components, rotation=45, ha='right')
-        ax.legend()
-        ax.set_ylim(0, 1.1)
-        
-        # Add correlation annotation
-        spearman = self._validation_result.spearman_correlation
-        ax.annotate(
-            f'Spearman ρ = {spearman:.3f}',
-            xy=(0.98, 0.98), xycoords='axes fraction',
-            ha='right', va='top',
-            fontsize=11, fontweight='bold',
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
-        )
-        
-        plt.tight_layout()
-        
-        if output_path:
-            plt.savefig(output_path, dpi=self.config.dpi, bbox_inches='tight')
-            plt.close(fig)
-            return output_path
-        else:
-            plt.close(fig)
-            return None
-    
-    # =========================================================================
-    # Validation Scatter Plot
-    # =========================================================================
-    
-    def plot_validation_scatter(self,
-                                output_path: Optional[str] = None) -> Optional[str]:
-        """
-        Plot scatter plot of predicted vs actual with regression line.
-        
-        Args:
-            output_path: Path to save image
-        
-        Returns:
-            Path to saved image or None
-        """
-        if not MATPLOTLIB_AVAILABLE:
-            return None
-        
-        if not self._validation_result:
-            self.logger.error("No validation result available")
-            return None
-        
-        cv_list = self._validation_result.component_validations
-        if not cv_list:
-            return None
-        
-        # Prepare data
-        predicted = [cv.predicted_score for cv in cv_list]
-        actual = [cv.actual_impact for cv in cv_list]
-        correct = [cv.correctly_classified for cv in cv_list]
-        
-        # Create figure
-        fig, ax = plt.subplots(figsize=(8, 8))
-        
-        # Scatter plot with different colors for correct/incorrect
-        colors = ['#4CAF50' if c else '#F44336' for c in correct]
-        ax.scatter(predicted, actual, c=colors, s=100, alpha=0.7, edgecolors='white')
-        
-        # Add diagonal line (perfect prediction)
-        ax.plot([0, 1], [0, 1], 'k--', alpha=0.3, label='Perfect Prediction')
-        
-        # Add trend line
-        if len(predicted) > 1 and NUMPY_AVAILABLE:
-            z = np.polyfit(predicted, actual, 1)
-            p = np.poly1d(z)
-            x_line = np.linspace(0, max(predicted) * 1.1, 100)
-            ax.plot(x_line, p(x_line), 'b-', alpha=0.5, label='Trend Line')
-        
-        # Customize
-        ax.set_xlabel('Predicted Criticality Score', fontsize=12)
-        ax.set_ylabel('Actual Impact Score', fontsize=12)
-        ax.set_title(
-            'Validation: Predicted vs Actual',
-            fontsize=self.config.title_fontsize,
-            fontweight='bold'
-        )
-        
-        # Set limits
-        max_val = max(max(predicted, default=1), max(actual, default=1)) * 1.1
-        ax.set_xlim(0, max_val)
-        ax.set_ylim(0, max_val)
-        
-        # Add metrics annotation
-        vr = self._validation_result
-        metrics_text = (
-            f"Spearman ρ = {vr.spearman_correlation:.3f}\n"
-            f"Pearson r = {vr.pearson_correlation:.3f}\n"
-            f"F1-Score = {vr.confusion_matrix.f1_score:.3f}"
-        )
-        ax.annotate(
-            metrics_text,
-            xy=(0.02, 0.98), xycoords='axes fraction',
-            ha='left', va='top',
-            fontsize=10,
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
-        )
-        
-        # Legend
-        legend_elements = [
-            mpatches.Patch(color='#4CAF50', label='Correctly Classified'),
-            mpatches.Patch(color='#F44336', label='Misclassified'),
-        ]
-        ax.legend(handles=legend_elements, loc='lower right')
-        
-        ax.set_aspect('equal')
-        plt.tight_layout()
-        
-        if output_path:
-            plt.savefig(output_path, dpi=self.config.dpi, bbox_inches='tight')
-            plt.close(fig)
-            return output_path
-        else:
-            plt.close(fig)
-            return None
-    
-    # =========================================================================
-    # Simulation Impact Distribution
-    # =========================================================================
-    
-    def plot_impact_distribution(self,
-                                 output_path: Optional[str] = None) -> Optional[str]:
-        """
-        Plot distribution of impact scores from simulation.
-        
-        Args:
-            output_path: Path to save image
-        
-        Returns:
-            Path to saved image or None
-        """
-        if not MATPLOTLIB_AVAILABLE:
-            return None
-        
-        if not self._simulation_result:
-            self.logger.error("No simulation result available")
-            return None
-        
-        # Get impact scores
-        impacts = [r.impact_score for r in self._simulation_result.results
-                   if len(r.failed_components) == 1]
-        
-        if not impacts:
-            return None
-        
-        # Create figure
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        # Histogram
-        n, bins, patches = ax.hist(impacts, bins=20, edgecolor='white', alpha=0.7)
-        
-        # Color bars by severity
-        for patch, left_edge in zip(patches, bins[:-1]):
-            if left_edge >= 0.7:
-                patch.set_facecolor(ColorScheme.CRITICALITY_COLORS['critical'])
-            elif left_edge >= 0.5:
-                patch.set_facecolor(ColorScheme.CRITICALITY_COLORS['high'])
-            elif left_edge >= 0.3:
-                patch.set_facecolor(ColorScheme.CRITICALITY_COLORS['medium'])
-            else:
-                patch.set_facecolor(ColorScheme.CRITICALITY_COLORS['low'])
-        
-        # Add statistics
-        mean_impact = sum(impacts) / len(impacts)
-        max_impact = max(impacts)
-        
-        ax.axvline(mean_impact, color='blue', linestyle='--', linewidth=2, 
-                   label=f'Mean: {mean_impact:.3f}')
-        ax.axvline(max_impact, color='red', linestyle='--', linewidth=2,
-                   label=f'Max: {max_impact:.3f}')
-        
-        # Customize
-        ax.set_xlabel('Impact Score', fontsize=12)
-        ax.set_ylabel('Number of Components', fontsize=12)
-        ax.set_title(
-            f'Distribution of Failure Impact Scores ({len(impacts)} simulations)',
-            fontsize=self.config.title_fontsize,
-            fontweight='bold'
-        )
-        ax.legend()
-        
-        plt.tight_layout()
-        
-        if output_path:
-            plt.savefig(output_path, dpi=self.config.dpi, bbox_inches='tight')
-            plt.close(fig)
-            return output_path
-        else:
-            plt.close(fig)
-            return None
-    
-    # =========================================================================
-    # HTML Report Generation
-    # =========================================================================
-    
-    def generate_html_report(self,
-                            output_path: str,
-                            title: str = "Pub-Sub System Analysis Report",
-                            include_images: bool = True) -> str:
-        """
-        Generate comprehensive HTML report with all visualizations.
-        
-        Args:
-            output_path: Path to save HTML file
-            title: Report title
-            include_images: Include embedded images (base64)
-        
-        Returns:
-            Path to saved HTML file
-        """
-        output_path = Path(output_path)
-        
-        # Generate images if matplotlib available
-        images = {}
-        if include_images and MATPLOTLIB_AVAILABLE:
-            import tempfile
-            import base64
-            
-            temp_dir = Path(tempfile.mkdtemp())
-            
-            # Generate each visualization
-            if self.analyzer and self.analyzer.G:
-                img_path = temp_dir / 'topology.png'
-                if self.plot_topology(str(img_path)):
-                    images['topology'] = self._image_to_base64(img_path)
-            
-            if self._analysis_result:
-                img_path = temp_dir / 'criticality.png'
-                if self.plot_criticality_heatmap(str(img_path)):
-                    images['criticality'] = self._image_to_base64(img_path)
-            
-            if self._validation_result:
-                img_path = temp_dir / 'comparison.png'
-                if self.plot_impact_comparison(str(img_path)):
-                    images['comparison'] = self._image_to_base64(img_path)
+    def _hierarchical_layout(self, graph: nx.DiGraph) -> Dict[str, Tuple[float, float]]:
+        """Calculate hierarchical layout by layer"""
+        positions = {}
+        
+        layer_y = {
+            Layer.INFRASTRUCTURE: 0,
+            Layer.BROKER: 1,
+            Layer.TOPIC: 2,
+            Layer.APPLICATION: 3
+        }
+        
+        for layer, nodes in self._layers.items():
+            if not nodes:
+                continue
                 
-                img_path = temp_dir / 'scatter.png'
-                if self.plot_validation_scatter(str(img_path)):
-                    images['scatter'] = self._image_to_base64(img_path)
+            y = layer_y.get(layer, 0)
+            sorted_nodes = sorted(nodes)
+            n = len(sorted_nodes)
             
-            if self._simulation_result:
-                img_path = temp_dir / 'distribution.png'
-                if self.plot_impact_distribution(str(img_path)):
-                    images['distribution'] = self._image_to_base64(img_path)
+            for i, node in enumerate(sorted_nodes):
+                x = (i - (n - 1) / 2) * 2 / max(n, 1)
+                positions[node] = (x, -y)  # Negative y for top-down
         
-        # Build HTML
-        html = self._build_html_report(title, images)
-        
-        # Save
-        with open(output_path, 'w') as f:
-            f.write(html)
-        
-        return str(output_path)
+        return positions
     
-    def _image_to_base64(self, path: Path) -> str:
-        """Convert image file to base64 string"""
-        import base64
-        with open(path, 'rb') as f:
-            return base64.b64encode(f.read()).decode('utf-8')
+    # =========================================================================
+    # HTML Generation
+    # =========================================================================
     
-    def _build_html_report(self, title: str, images: Dict[str, str]) -> str:
-        """Build HTML report content"""
+    def render_html(self,
+                   graph: nx.DiGraph,
+                   criticality: Optional[Dict[str, Dict]] = None,
+                   title: Optional[str] = None,
+                   layer: Layer = Layer.ALL) -> str:
+        """
+        Render graph as interactive HTML using vis.js.
         
+        Args:
+            graph: NetworkX graph
+            criticality: Optional criticality scores
+            title: Optional title
+            layer: Layer to render (ALL for complete graph)
+            
+        Returns:
+            HTML string
+        """
+        title = title or self.config.title
+        self._criticality = criticality or {}
+        
+        # Classify layers
+        self.classify_layers(graph)
+        
+        # Filter graph by layer if needed
+        if layer != Layer.ALL:
+            nodes = self._layers.get(layer, set())
+            graph = graph.subgraph(nodes).copy()
+        
+        # Prepare node data
+        nodes_data = []
+        for node in graph.nodes():
+            node_data = graph.nodes[node]
+            crit = self._criticality.get(node, {})
+            style = self.get_node_style(node, node_data, crit)
+            
+            tooltip = self._create_tooltip(node, node_data, crit)
+            
+            nodes_data.append({
+                'id': node,
+                'label': self._truncate_label(node_data.get('name', node)),
+                'title': tooltip,
+                **style.to_vis_dict()
+            })
+        
+        # Prepare edge data
+        edges_data = []
+        for source, target, data in graph.edges(data=True):
+            style = self.get_edge_style(source, target, data, graph)
+            
+            edges_data.append({
+                'from': source,
+                'to': target,
+                'title': data.get('type', 'Unknown'),
+                **style.to_vis_dict()
+            })
+        
+        return self._generate_html(nodes_data, edges_data, title, layer)
+    
+    def render_multi_layer_html(self,
+                               graph: nx.DiGraph,
+                               criticality: Optional[Dict[str, Dict]] = None,
+                               title: str = "Multi-Layer System Architecture") -> str:
+        """
+        Render multi-layer visualization with layer separation.
+        
+        Args:
+            graph: NetworkX graph
+            criticality: Optional criticality scores
+            title: Visualization title
+            
+        Returns:
+            HTML string
+        """
+        self._criticality = criticality or {}
+        self.classify_layers(graph)
+        
+        # Calculate layered positions
+        layer_y = {
+            Layer.INFRASTRUCTURE: 0,
+            Layer.BROKER: 150,
+            Layer.TOPIC: 300,
+            Layer.APPLICATION: 450
+        }
+        
+        nodes_data = []
+        for layer, nodes in self._layers.items():
+            if layer == Layer.ALL:
+                continue
+                
+            base_y = layer_y.get(layer, 0)
+            sorted_nodes = sorted(nodes)
+            n = len(sorted_nodes)
+            
+            for i, node in enumerate(sorted_nodes):
+                node_data = graph.nodes[node]
+                crit = self._criticality.get(node, {})
+                style = self.get_node_style(node, node_data, crit)
+                
+                # Calculate x position
+                x = (i - (n - 1) / 2) * 120 if n > 1 else 0
+                
+                tooltip = self._create_tooltip(node, node_data, crit)
+                tooltip += f"<br><b>Layer:</b> {layer.value}"
+                
+                nodes_data.append({
+                    'id': node,
+                    'label': self._truncate_label(node_data.get('name', node), 20),
+                    'title': tooltip,
+                    'x': x,
+                    'y': base_y,
+                    'fixed': {'y': True},
+                    'group': layer.value,
+                    **style.to_vis_dict()
+                })
+        
+        # Prepare edges
+        edges_data = []
+        for source, target, data in graph.edges(data=True):
+            style = self.get_edge_style(source, target, data, graph)
+            
+            edges_data.append({
+                'from': source,
+                'to': target,
+                'title': data.get('type', 'Unknown'),
+                **style.to_vis_dict()
+            })
+        
+        return self._generate_multi_layer_html(nodes_data, edges_data, title)
+    
+    def _create_tooltip(self, node: str, node_data: Dict, crit: Dict) -> str:
+        """Create HTML tooltip for node"""
+        tooltip = f"<b>{node}</b><br>"
+        tooltip += f"Type: {node_data.get('type', 'Unknown')}<br>"
+        
+        if crit:
+            tooltip += f"<br><b>Criticality:</b><br>"
+            tooltip += f"Level: {crit.get('level', 'N/A')}<br>"
+            tooltip += f"Score: {crit.get('score', 0):.4f}<br>"
+            
+            if crit.get('is_articulation_point'):
+                tooltip += "<span style='color:#e74c3c'><b>⚠ Articulation Point</b></span><br>"
+        
+        return tooltip
+    
+    def _truncate_label(self, label: str, max_len: int = 25) -> str:
+        """Truncate label for display"""
+        if len(label) > max_len:
+            return label[:max_len-2] + '..'
+        return label
+    
+    def _generate_html(self,
+                      nodes_data: List[Dict],
+                      edges_data: List[Dict],
+                      title: str,
+                      layer: Layer) -> str:
+        """Generate complete HTML document"""
+        
+        layer_color = Colors.LAYERS.get(layer, '#667eea')
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # Start HTML
         html = f"""<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
-    <meta charset="utf-8">
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
-        :root {{
-            --primary: #2196F3;
-            --success: #4CAF50;
-            --warning: #FFC107;
-            --danger: #F44336;
-            --text: #333;
-            --bg: #f5f5f5;
-            --card-bg: white;
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        
+        body {{
+            font-family: {self.config.font_family};
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #ecf0f1;
         }}
-        * {{ box-sizing: border-box; }}
-        body {{ 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0; padding: 20px;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
+        
+        #header {{
+            background: linear-gradient(135deg, {layer_color} 0%, {layer_color}cc 100%);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }}
-        .container {{ max-width: 1400px; margin: 0 auto; }}
-        h1, h2, h3 {{ color: var(--text); margin-top: 0; }}
-        .header {{
-            background: linear-gradient(135deg, var(--primary), #1976D2);
-            color: white;
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        
+        #header h1 {{
+            font-size: 1.5em;
+            font-weight: 600;
         }}
-        .header h1 {{ margin: 0 0 10px 0; font-size: 2em; }}
-        .header p {{ margin: 0; opacity: 0.9; }}
-        .card {{
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        
+        #stats {{
+            display: flex;
+            gap: 30px;
         }}
-        .card h2 {{ 
-            margin: 0 0 20px 0;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--bg);
-        }}
-        .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }}
-        .metric {{
+        
+        .stat {{
             text-align: center;
-            padding: 20px;
-            background: var(--bg);
-            border-radius: 8px;
         }}
-        .metric-value {{
-            font-size: 2.5em;
+        
+        .stat-value {{
+            font-size: 1.8em;
             font-weight: bold;
-            margin-bottom: 5px;
         }}
-        .metric-label {{ color: #666; font-size: 0.9em; }}
-        .success {{ color: var(--success); }}
-        .warning {{ color: var(--warning); }}
-        .danger {{ color: var(--danger); }}
-        table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
-        th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
-        th {{ background: var(--bg); font-weight: 600; }}
-        tr:hover {{ background: #f9f9f9; }}
-        .badge {{
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
+        
+        .stat-label {{
             font-size: 0.85em;
-            font-weight: 500;
+            opacity: 0.9;
         }}
-        .badge-success {{ background: #e8f5e9; color: #2e7d32; }}
-        .badge-warning {{ background: #fff8e1; color: #f57f17; }}
-        .badge-danger {{ background: #ffebee; color: #c62828; }}
-        .image-container {{
-            text-align: center;
-            margin: 20px 0;
+        
+        #network {{
+            width: 100%;
+            height: calc(100vh - 80px);
+            background: #0f0f23;
         }}
-        .image-container img {{
-            max-width: 100%;
+        
+        #legend {{
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.85);
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            max-width: 200px;
+        }}
+        
+        #legend h4 {{
+            margin-bottom: 10px;
+            color: #fff;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }}
+        
+        .legend-item {{
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }}
+        
+        .legend-color {{
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            margin-right: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }}
+        
+        #controls {{
+            position: fixed;
+            top: 100px;
+            left: 20px;
+            background: rgba(0,0,0,0.85);
+            padding: 15px;
+            border-radius: 10px;
+        }}
+        
+        #controls button {{
+            display: block;
+            width: 100%;
+            padding: 8px 15px;
+            margin: 5px 0;
+            background: {layer_color};
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85em;
+        }}
+        
+        #controls button:hover {{
+            opacity: 0.9;
+        }}
+        
+        #info {{
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.85);
+            padding: 10px 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 0.8em;
+            color: #888;
         }}
-        .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }}
-        @media (max-width: 768px) {{ .two-col {{ grid-template-columns: 1fr; }} }}
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="header">
-        <h1>{title}</h1>
-        <p>Generated: {timestamp}</p>
-    </div>
-"""
-        
-        # Summary section
-        html += self._build_summary_section()
-        
-        # Topology visualization
-        if 'topology' in images:
-            html += f"""
-    <div class="card">
-        <h2>📊 System Topology</h2>
-        <div class="image-container">
-            <img src="data:image/png;base64,{images['topology']}" alt="System Topology">
+    <div id="header">
+        <h1>📊 {title}</h1>
+        <div id="stats">
+            <div class="stat">
+                <div class="stat-value">{len(nodes_data)}</div>
+                <div class="stat-label">Nodes</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value">{len(edges_data)}</div>
+                <div class="stat-label">Edges</div>
+            </div>
         </div>
     </div>
-"""
+    
+    <div id="network"></div>
+    
+    <div id="controls">
+        <button onclick="network.fit()">Fit View</button>
+        <button onclick="togglePhysics()">Toggle Physics</button>
+        <button onclick="resetLayout()">Reset Layout</button>
+    </div>
+    
+    <div id="legend">
+        <h4>Node Types</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {Colors.NODE_TYPES['Application']}"></div>
+            <span>Application</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {Colors.NODE_TYPES['Topic']}"></div>
+            <span>Topic</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {Colors.NODE_TYPES['Broker']}"></div>
+            <span>Broker</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: {Colors.NODE_TYPES['Node']}"></div>
+            <span>Infrastructure</span>
+        </div>
+    </div>
+    
+    <div id="info">
+        Generated: {timestamp}
+    </div>
+    
+    <script>
+        var nodes = new vis.DataSet({json.dumps(nodes_data)});
+        var edges = new vis.DataSet({json.dumps(edges_data)});
         
-        # Analysis section
-        if self._analysis_result:
-            html += self._build_analysis_section(images.get('criticality'))
+        var container = document.getElementById('network');
+        var data = {{ nodes: nodes, edges: edges }};
         
-        # Simulation section
-        if self._simulation_result:
-            html += self._build_simulation_section(images.get('distribution'))
+        var options = {{
+            nodes: {{
+                shape: 'dot',
+                font: {{ size: 12, color: '#ecf0f1' }},
+                borderWidth: 2,
+                shadow: true
+            }},
+            edges: {{
+                smooth: {{ type: 'continuous' }},
+                shadow: true
+            }},
+            physics: {{
+                enabled: {str(self.config.physics_enabled).lower()},
+                barnesHut: {{
+                    gravitationalConstant: -4000,
+                    springLength: {self.config.node_spacing},
+                    springConstant: 0.04,
+                    damping: 0.09
+                }},
+                stabilization: {{
+                    iterations: 150,
+                    fit: true
+                }}
+            }},
+            interaction: {{
+                hover: true,
+                tooltipDelay: 100,
+                navigationButtons: true,
+                keyboard: true
+            }}
+        }};
         
-        # Validation section
-        if self._validation_result:
-            html += self._build_validation_section(
-                images.get('comparison'),
-                images.get('scatter')
-            )
+        var network = new vis.Network(container, data, options);
+        var physicsEnabled = {str(self.config.physics_enabled).lower()};
         
-        # Close HTML
-        html += """
-</div>
+        function togglePhysics() {{
+            physicsEnabled = !physicsEnabled;
+            network.setOptions({{ physics: {{ enabled: physicsEnabled }} }});
+        }}
+        
+        function resetLayout() {{
+            network.stabilize(100);
+        }}
+        
+        // Fit on load
+        network.once('stabilized', function() {{
+            network.fit();
+        }});
+    </script>
 </body>
-</html>
-"""
+</html>"""
         
         return html
     
-    def _build_summary_section(self) -> str:
-        """Build summary metrics section"""
-        html = '<div class="card"><h2>📈 Summary</h2><div class="grid">'
+    def _generate_multi_layer_html(self,
+                                   nodes_data: List[Dict],
+                                   edges_data: List[Dict],
+                                   title: str) -> str:
+        """Generate HTML for multi-layer view"""
         
-        # Graph metrics
-        if self.analyzer and self.analyzer.G:
-            G = self.analyzer.G
-            html += f"""
-        <div class="metric">
-            <div class="metric-value">{G.number_of_nodes()}</div>
-            <div class="metric-label">Components</div>
-        </div>
-        <div class="metric">
-            <div class="metric-value">{G.number_of_edges()}</div>
-            <div class="metric-label">Dependencies</div>
-        </div>
-"""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # Validation metrics
-        if self._validation_result:
-            vr = self._validation_result
-            status_class = {
-                'passed': 'success',
-                'marginal': 'warning',
-                'failed': 'danger'
-            }.get(vr.status.value, '')
-            
-            html += f"""
-        <div class="metric">
-            <div class="metric-value {status_class}">{vr.spearman_correlation:.3f}</div>
-            <div class="metric-label">Spearman Correlation</div>
-        </div>
-        <div class="metric">
-            <div class="metric-value">{vr.confusion_matrix.f1_score:.3f}</div>
-            <div class="metric-label">F1-Score</div>
-        </div>
-"""
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         
-        html += '</div></div>'
+        body {{
+            font-family: {self.config.font_family};
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #ecf0f1;
+        }}
+        
+        #header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 30px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }}
+        
+        #header h1 {{
+            font-size: 1.6em;
+            margin-bottom: 5px;
+        }}
+        
+        #header p {{
+            opacity: 0.9;
+            font-size: 0.9em;
+        }}
+        
+        #network {{
+            width: 100%;
+            height: calc(100vh - 100px);
+            background: #0f0f23;
+        }}
+        
+        #layer-labels {{
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 100px;
+        }}
+        
+        .layer-label {{
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            padding: 10px 5px;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 0.85em;
+            text-align: center;
+        }}
+        
+        .layer-app {{ background: {Colors.LAYERS[Layer.APPLICATION]}; }}
+        .layer-topic {{ background: {Colors.LAYERS[Layer.TOPIC]}; }}
+        .layer-broker {{ background: {Colors.LAYERS[Layer.BROKER]}; }}
+        .layer-infra {{ background: {Colors.LAYERS[Layer.INFRASTRUCTURE]}; }}
+        
+        #legend {{
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.9);
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 0.85em;
+        }}
+        
+        .legend-section {{
+            margin-bottom: 15px;
+        }}
+        
+        .legend-section h4 {{
+            margin-bottom: 8px;
+            color: #fff;
+            font-size: 0.9em;
+        }}
+        
+        .legend-item {{
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }}
+        
+        .legend-color {{
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            margin-right: 8px;
+        }}
+        
+        #controls {{
+            position: fixed;
+            top: 120px;
+            right: 20px;
+            background: rgba(0,0,0,0.85);
+            padding: 15px;
+            border-radius: 10px;
+        }}
+        
+        #controls button {{
+            display: block;
+            width: 100%;
+            padding: 8px 15px;
+            margin: 5px 0;
+            background: #667eea;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85em;
+        }}
+        
+        #controls button:hover {{
+            background: #5a6fd6;
+        }}
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>🔄 {title}</h1>
+        <p>Multi-layer architecture visualization • {len(nodes_data)} components</p>
+    </div>
+    
+    <div id="network"></div>
+    
+    <div id="layer-labels">
+        <div class="layer-label layer-app">APPLICATION</div>
+        <div class="layer-label layer-topic">TOPIC</div>
+        <div class="layer-label layer-broker">BROKER</div>
+        <div class="layer-label layer-infra">INFRASTRUCTURE</div>
+    </div>
+    
+    <div id="controls">
+        <button onclick="network.fit()">Fit View</button>
+        <button onclick="togglePhysics()">Toggle Physics</button>
+        <button onclick="toggleLabels()">Toggle Labels</button>
+    </div>
+    
+    <div id="legend">
+        <div class="legend-section">
+            <h4>Layers</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background: {Colors.LAYERS[Layer.APPLICATION]}"></div>
+                <span>Application</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: {Colors.LAYERS[Layer.TOPIC]}"></div>
+                <span>Topic</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: {Colors.LAYERS[Layer.BROKER]}"></div>
+                <span>Broker</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: {Colors.LAYERS[Layer.INFRASTRUCTURE]}"></div>
+                <span>Infrastructure</span>
+            </div>
+        </div>
+        <div class="legend-section">
+            <h4>Edges</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background: {Colors.EDGES['PUBLISHES_TO']}"></div>
+                <span>Publishes</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: {Colors.EDGES['SUBSCRIBES_TO']}"></div>
+                <span>Subscribes</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: {Colors.EDGES['DEPENDS_ON']}"></div>
+                <span>Depends On</span>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        var nodes = new vis.DataSet({json.dumps(nodes_data)});
+        var edges = new vis.DataSet({json.dumps(edges_data)});
+        
+        var container = document.getElementById('network');
+        var data = {{ nodes: nodes, edges: edges }};
+        
+        var options = {{
+            nodes: {{
+                shape: 'dot',
+                font: {{ size: 11, color: '#ecf0f1' }},
+                borderWidth: 2,
+                shadow: true
+            }},
+            edges: {{
+                smooth: {{ type: 'cubicBezier', roundness: 0.5 }},
+                shadow: true
+            }},
+            physics: {{
+                enabled: true,
+                barnesHut: {{
+                    gravitationalConstant: -2000,
+                    springLength: 80,
+                    springConstant: 0.04
+                }},
+                stabilization: {{ iterations: 100 }}
+            }},
+            interaction: {{
+                hover: true,
+                tooltipDelay: 100,
+                navigationButtons: true
+            }},
+            groups: {{
+                application: {{ color: '{Colors.LAYERS[Layer.APPLICATION]}' }},
+                topic: {{ color: '{Colors.LAYERS[Layer.TOPIC]}' }},
+                broker: {{ color: '{Colors.LAYERS[Layer.BROKER]}' }},
+                infrastructure: {{ color: '{Colors.LAYERS[Layer.INFRASTRUCTURE]}' }}
+            }}
+        }};
+        
+        var network = new vis.Network(container, data, options);
+        var physicsEnabled = true;
+        var labelsVisible = true;
+        
+        function togglePhysics() {{
+            physicsEnabled = !physicsEnabled;
+            network.setOptions({{ physics: {{ enabled: physicsEnabled }} }});
+        }}
+        
+        function toggleLabels() {{
+            labelsVisible = !labelsVisible;
+            var fontSize = labelsVisible ? 11 : 0;
+            network.setOptions({{ nodes: {{ font: {{ size: fontSize }} }} }});
+        }}
+    </script>
+</body>
+</html>"""
+        
         return html
     
-    def _build_analysis_section(self, criticality_img: Optional[str]) -> str:
-        """Build analysis results section"""
-        ar = self._analysis_result
-        
-        html = '<div class="card"><h2>🔍 Criticality Analysis</h2>'
-        
-        # Criticality chart
-        if criticality_img:
-            html += f"""
-        <div class="image-container">
-            <img src="data:image/png;base64,{criticality_img}" alt="Criticality Ranking">
-        </div>
-"""
-        
-        # Top critical components table
-        top_critical = sorted(
-            ar.criticality_scores,
-            key=lambda x: x.composite_score,
-            reverse=True
-        )[:10]
-        
-        html += """
-        <h3>Top Critical Components</h3>
-        <table>
-            <tr>
-                <th>Component</th>
-                <th>Type</th>
-                <th>Score</th>
-                <th>Level</th>
-                <th>Articulation Point</th>
-            </tr>
-"""
-        
-        for score in top_critical:
-            level_class = {
-                'critical': 'badge-danger',
-                'high': 'badge-warning',
-                'medium': 'badge-warning',
-                'low': 'badge-success'
-            }.get(score.level.value, '')
-            
-            ap = '✓' if score.is_articulation_point else ''
-            
-            html += f"""
-            <tr>
-                <td><strong>{score.node_id}</strong></td>
-                <td>{score.node_type}</td>
-                <td>{score.composite_score:.4f}</td>
-                <td><span class="badge {level_class}">{score.level.value}</span></td>
-                <td>{ap}</td>
-            </tr>
-"""
-        
-        html += '</table></div>'
-        return html
+    # =========================================================================
+    # Static Image Generation (Matplotlib)
+    # =========================================================================
     
-    def _build_simulation_section(self, distribution_img: Optional[str]) -> str:
-        """Build simulation results section"""
-        sr = self._simulation_result
+    def render_image(self,
+                    graph: nx.DiGraph,
+                    output_path: str,
+                    criticality: Optional[Dict[str, Dict]] = None,
+                    title: Optional[str] = None,
+                    format: str = 'png') -> Optional[str]:
+        """
+        Render graph as static image using matplotlib.
         
-        html = '<div class="card"><h2>⚡ Failure Simulation Results</h2>'
-        
-        # Distribution chart
-        if distribution_img:
-            html += f"""
-        <div class="image-container">
-            <img src="data:image/png;base64,{distribution_img}" alt="Impact Distribution">
-        </div>
-"""
-        
-        # Summary stats
-        summary = sr.summary
-        html += f"""
-        <div class="grid">
-            <div class="metric">
-                <div class="metric-value">{sr.total_simulations}</div>
-                <div class="metric-label">Simulations Run</div>
-            </div>
-            <div class="metric">
-                <div class="metric-value">{summary['impact_score']['mean']:.1%}</div>
-                <div class="metric-label">Mean Impact</div>
-            </div>
-            <div class="metric">
-                <div class="metric-value">{summary['impact_score']['max']:.1%}</div>
-                <div class="metric-label">Max Impact</div>
-            </div>
-        </div>
-"""
-        
-        # Top impactful components
-        ranking = sr.get_impact_ranking()[:10]
-        
-        html += """
-        <h3>Highest Impact Components</h3>
-        <table>
-            <tr><th>Rank</th><th>Component</th><th>Impact Score</th><th>Severity</th></tr>
-"""
-        
-        for i, (comp, impact) in enumerate(ranking, 1):
-            if impact >= 0.7:
-                level, level_class = 'Critical', 'badge-danger'
-            elif impact >= 0.5:
-                level, level_class = 'High', 'badge-warning'
-            elif impact >= 0.3:
-                level, level_class = 'Medium', 'badge-warning'
-            else:
-                level, level_class = 'Low', 'badge-success'
+        Args:
+            graph: NetworkX graph
+            output_path: Output file path
+            criticality: Optional criticality scores
+            title: Optional title
+            format: Output format (png, svg, pdf)
             
-            html += f"""
-            <tr>
-                <td>{i}</td>
-                <td><strong>{comp}</strong></td>
-                <td>{impact:.1%}</td>
-                <td><span class="badge {level_class}">{level}</span></td>
-            </tr>
-"""
+        Returns:
+            Output path or None if matplotlib unavailable
+        """
+        if not MATPLOTLIB_AVAILABLE:
+            self.logger.warning("Matplotlib not available for image rendering")
+            return None
         
-        html += '</table></div>'
-        return html
-    
-    def _build_validation_section(self,
-                                  comparison_img: Optional[str],
-                                  scatter_img: Optional[str]) -> str:
-        """Build validation results section"""
-        vr = self._validation_result
+        title = title or self.config.title
+        self._criticality = criticality or {}
+        self.classify_layers(graph)
         
-        status_class = {
-            'passed': 'success',
-            'marginal': 'warning',
-            'failed': 'danger'
-        }.get(vr.status.value, '')
+        # Calculate layout
+        pos = self.calculate_layout(graph)
         
-        html = f"""
-    <div class="card">
-        <h2>✅ Validation Results</h2>
-        <div class="metric" style="display: inline-block; margin-bottom: 20px;">
-            <div class="metric-value {status_class}">{vr.status.value.upper()}</div>
-            <div class="metric-label">Validation Status</div>
-        </div>
-"""
+        # Create figure
+        fig, ax = plt.subplots(figsize=(14, 10), facecolor=self.config.background_color)
+        ax.set_facecolor(self.config.background_color)
         
-        # Charts
-        if comparison_img or scatter_img:
-            html += '<div class="two-col">'
-            if comparison_img:
-                html += f"""
-            <div class="image-container">
-                <img src="data:image/png;base64,{comparison_img}" alt="Impact Comparison">
-            </div>
-"""
-            if scatter_img:
-                html += f"""
-            <div class="image-container">
-                <img src="data:image/png;base64,{scatter_img}" alt="Validation Scatter">
-            </div>
-"""
-            html += '</div>'
+        # Draw edges
+        for source, target, data in graph.edges(data=True):
+            if source in pos and target in pos:
+                x1, y1 = pos[source]
+                x2, y2 = pos[target]
+                
+                style = self.get_edge_style(source, target, data, graph)
+                linestyle = '--' if style.dashes else '-'
+                
+                ax.annotate('',
+                           xy=(x2, y2), xytext=(x1, y1),
+                           arrowprops=dict(
+                               arrowstyle='-|>',
+                               color=style.color,
+                               alpha=style.opacity,
+                               linewidth=style.width,
+                               linestyle=linestyle
+                           ))
         
-        # Metrics table
-        cm = vr.confusion_matrix
-        html += f"""
-        <h3>Validation Metrics</h3>
-        <div class="grid">
-            <div>
-                <table>
-                    <tr><th>Correlation Metric</th><th>Value</th><th>Target</th></tr>
-                    <tr>
-                        <td>Spearman Correlation</td>
-                        <td><strong>{vr.spearman_correlation:.4f}</strong></td>
-                        <td>≥ 0.70</td>
-                    </tr>
-                    <tr>
-                        <td>Pearson Correlation</td>
-                        <td>{vr.pearson_correlation:.4f}</td>
-                        <td>-</td>
-                    </tr>
-                </table>
-            </div>
-            <div>
-                <table>
-                    <tr><th>Classification Metric</th><th>Value</th><th>Target</th></tr>
-                    <tr>
-                        <td>Precision</td>
-                        <td>{cm.precision:.4f}</td>
-                        <td>≥ 0.80</td>
-                    </tr>
-                    <tr>
-                        <td>Recall</td>
-                        <td>{cm.recall:.4f}</td>
-                        <td>≥ 0.80</td>
-                    </tr>
-                    <tr>
-                        <td>F1-Score</td>
-                        <td><strong>{cm.f1_score:.4f}</strong></td>
-                        <td>≥ 0.90</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-"""
-        
-        # Component comparison table
-        html += """
-        <h3>Component Comparison</h3>
-        <table>
-            <tr>
-                <th>Component</th>
-                <th>Predicted</th>
-                <th>Actual</th>
-                <th>Rank Δ</th>
-                <th>Classification</th>
-            </tr>
-"""
-        
-        for cv in vr.component_validations[:15]:
-            match_class = 'badge-success' if cv.correctly_classified else 'badge-danger'
-            match_text = 'Correct' if cv.correctly_classified else 'Misclassified'
+        # Draw nodes
+        for node in graph.nodes():
+            if node not in pos:
+                continue
+                
+            x, y = pos[node]
+            node_data = graph.nodes[node]
+            crit = self._criticality.get(node, {})
+            style = self.get_node_style(node, node_data, crit)
             
-            html += f"""
-            <tr>
-                <td><strong>{cv.component_id}</strong></td>
-                <td>{cv.predicted_score:.4f}</td>
-                <td>{cv.actual_impact:.2%}</td>
-                <td>{cv.rank_difference}</td>
-                <td><span class="badge {match_class}">{match_text}</span></td>
-            </tr>
-"""
+            circle = plt.Circle(
+                (x, y), 
+                style.size / 100,
+                color=style.color,
+                ec=style.border_color or 'white',
+                linewidth=style.border_width,
+                zorder=2
+            )
+            ax.add_patch(circle)
+            
+            # Add label
+            if self.config.show_labels:
+                ax.annotate(
+                    self._truncate_label(node_data.get('name', node), 15),
+                    (x, y - style.size/80),
+                    ha='center', va='top',
+                    fontsize=8, color='white',
+                    zorder=3
+                )
         
-        html += '</table></div>'
-        return html
+        # Add legend
+        if self.config.show_legend:
+            legend_elements = [
+                mpatches.Patch(color=Colors.NODE_TYPES['Application'], label='Application'),
+                mpatches.Patch(color=Colors.NODE_TYPES['Topic'], label='Topic'),
+                mpatches.Patch(color=Colors.NODE_TYPES['Broker'], label='Broker'),
+                mpatches.Patch(color=Colors.NODE_TYPES['Node'], label='Infrastructure'),
+            ]
+            ax.legend(handles=legend_elements, loc='upper left', 
+                     facecolor='#2c3e50', edgecolor='none',
+                     labelcolor='white', fontsize=9)
+        
+        # Title
+        ax.set_title(title, color='white', fontsize=14, fontweight='bold', pad=20)
+        
+        # Remove axes
+        ax.set_xlim(ax.get_xlim()[0] - 0.5, ax.get_xlim()[1] + 0.5)
+        ax.set_ylim(ax.get_ylim()[0] - 0.5, ax.get_ylim()[1] + 0.5)
+        ax.axis('off')
+        
+        # Save
+        plt.tight_layout()
+        plt.savefig(output_path, format=format, dpi=self.config.dpi,
+                   facecolor=self.config.background_color, 
+                   edgecolor='none', bbox_inches='tight')
+        plt.close()
+        
+        return output_path
     
     # =========================================================================
     # Export Functions
     # =========================================================================
     
-    def export_graph_data(self, output_path: str, format: str = 'json') -> str:
+    def export_for_gephi(self,
+                        graph: nx.DiGraph,
+                        output_path: str,
+                        criticality: Optional[Dict[str, Dict]] = None) -> str:
         """
-        Export graph data for external visualization tools.
+        Export graph in GEXF format for Gephi.
         
         Args:
-            output_path: Path to save file
-            format: Export format ('json', 'graphml', 'gexf')
-        
+            graph: NetworkX graph
+            output_path: Output file path
+            criticality: Optional criticality scores
+            
         Returns:
-            Path to saved file
+            Output path
         """
-        if self.analyzer is None or self.analyzer.G is None:
-            raise ValueError("No graph data available")
+        # Add criticality as node attributes
+        if criticality:
+            for node, crit in criticality.items():
+                if node in graph.nodes():
+                    graph.nodes[node]['criticality_score'] = crit.get('score', 0)
+                    graph.nodes[node]['criticality_level'] = crit.get('level', 'unknown')
         
-        G = self.analyzer.G
-        output_path = Path(output_path)
+        nx.write_gexf(graph, output_path)
+        return output_path
+    
+    def export_for_d3(self,
+                     graph: nx.DiGraph,
+                     output_path: str,
+                     criticality: Optional[Dict[str, Dict]] = None) -> str:
+        """
+        Export graph in JSON format for D3.js.
         
-        if format == 'json':
-            # Export as D3.js compatible JSON
-            data = {
-                'nodes': [],
-                'links': []
+        Args:
+            graph: NetworkX graph
+            output_path: Output file path
+            criticality: Optional criticality scores
+            
+        Returns:
+            Output path
+        """
+        self.classify_layers(graph)
+        
+        nodes = []
+        for node in graph.nodes():
+            node_data = graph.nodes[node]
+            crit = criticality.get(node, {}) if criticality else {}
+            
+            # Determine layer
+            layer = 'application'
+            for l, node_set in self._layers.items():
+                if node in node_set:
+                    layer = l.value
+                    break
+            
+            nodes.append({
+                'id': node,
+                'name': node_data.get('name', node),
+                'type': node_data.get('type', 'Unknown'),
+                'layer': layer,
+                'criticality': crit.get('score', 0),
+                'level': crit.get('level', 'minimal')
+            })
+        
+        links = []
+        for source, target, data in graph.edges(data=True):
+            links.append({
+                'source': source,
+                'target': target,
+                'type': data.get('type', 'Unknown')
+            })
+        
+        d3_data = {'nodes': nodes, 'links': links}
+        
+        with open(output_path, 'w') as f:
+            json.dump(d3_data, f, indent=2)
+        
+        return output_path
+    
+    def get_layer_statistics(self, graph: nx.DiGraph) -> Dict[str, Any]:
+        """
+        Get statistics for each layer.
+        
+        Args:
+            graph: NetworkX graph
+            
+        Returns:
+            Layer statistics
+        """
+        self.classify_layers(graph)
+        
+        stats = {
+            'total_nodes': graph.number_of_nodes(),
+            'total_edges': graph.number_of_edges(),
+            'layers': {}
+        }
+        
+        for layer, nodes in self._layers.items():
+            if layer == Layer.ALL:
+                continue
+                
+            subgraph = graph.subgraph(nodes)
+            
+            # Count cross-layer edges
+            cross_edges = 0
+            for source, target in graph.edges():
+                source_layer = self._get_node_layer(source)
+                target_layer = self._get_node_layer(target)
+                if source_layer == layer and target_layer != layer:
+                    cross_edges += 1
+            
+            stats['layers'][layer.value] = {
+                'node_count': len(nodes),
+                'internal_edges': subgraph.number_of_edges(),
+                'cross_layer_edges': cross_edges,
+                'density': nx.density(subgraph) if len(nodes) > 1 else 0
             }
-            
-            # Add criticality scores if available
-            crit_lookup = {}
-            if self._analysis_result:
-                for score in self._analysis_result.criticality_scores:
-                    crit_lookup[score.node_id] = {
-                        'score': score.composite_score,
-                        'level': score.level.value
-                    }
-            
-            for node, attrs in G.nodes(data=True):
-                node_data = {
-                    'id': node,
-                    'type': attrs.get('type', 'Unknown'),
-                    'name': attrs.get('name', node),
-                }
-                if node in crit_lookup:
-                    node_data['criticality'] = crit_lookup[node]
-                data['nodes'].append(node_data)
-            
-            for source, target, attrs in G.edges(data=True):
-                data['links'].append({
-                    'source': source,
-                    'target': target,
-                    'type': attrs.get('dependency_type', 'unknown'),
-                    'weight': attrs.get('weight', 1.0)
-                })
-            
-            with open(output_path, 'w') as f:
-                json.dump(data, f, indent=2)
         
-        elif format == 'graphml':
-            nx.write_graphml(G, output_path)
-        
-        elif format == 'gexf':
-            nx.write_gexf(G, output_path)
-        
-        else:
-            raise ValueError(f"Unsupported format: {format}")
-        
-        return str(output_path)
-
-
-# ============================================================================
-# Convenience Functions
-# ============================================================================
-
-def visualize_system(analyzer: 'GraphAnalyzer',
-                    output_dir: str,
-                    simulation_result: Optional['BatchSimulationResult'] = None,
-                    validation_result: Optional['ValidationResult'] = None) -> List[str]:
-    """
-    Generate all visualizations for a system.
+        return stats
     
-    Args:
-        analyzer: GraphAnalyzer with analysis complete
-        output_dir: Directory to save visualizations
-        simulation_result: Optional simulation results
-        validation_result: Optional validation results
-    
-    Returns:
-        List of generated file paths
-    """
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    visualizer = GraphVisualizer(analyzer)
-    
-    # Get analysis result - run analysis if needed
-    if analyzer.G is None:
-        analyzer.analyze()
-    
-    # Try to get existing criticality scores
-    if analyzer.depends_on_edges and hasattr(analyzer, 'G'):
-        # Re-run analysis to get result object
-        from src.analysis import AnalysisResult
-        analysis_result = analyzer.analyze()
-        visualizer.set_analysis_result(analysis_result)
-    
-    if simulation_result:
-        visualizer.set_simulation_result(simulation_result)
-    
-    if validation_result:
-        visualizer.set_validation_result(validation_result)
-    
-    files = []
-    
-    # Generate visualizations
-    if MATPLOTLIB_AVAILABLE:
-        path = visualizer.plot_topology(str(output_dir / 'topology.png'))
-        if path:
-            files.append(path)
-        
-        path = visualizer.plot_criticality_heatmap(str(output_dir / 'criticality.png'))
-        if path:
-            files.append(path)
-        
-        if validation_result:
-            path = visualizer.plot_impact_comparison(str(output_dir / 'comparison.png'))
-            if path:
-                files.append(path)
-            
-            path = visualizer.plot_validation_scatter(str(output_dir / 'scatter.png'))
-            if path:
-                files.append(path)
-        
-        if simulation_result:
-            path = visualizer.plot_impact_distribution(str(output_dir / 'distribution.png'))
-            if path:
-                files.append(path)
-    
-    # Generate HTML report
-    html_path = visualizer.generate_html_report(str(output_dir / 'report.html'))
-    files.append(html_path)
-    
-    return files
-
-
-def quick_visualize(filepath: str, output_dir: str) -> List[str]:
-    """
-    Quick visualization from a JSON file.
-    
-    Args:
-        filepath: Path to input JSON file
-        output_dir: Directory to save visualizations
-    
-    Returns:
-        List of generated file paths
-    """
-    from src.analysis import GraphAnalyzer
-    
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_file(filepath)
-    result = analyzer.analyze()
-    
-    visualizer = GraphVisualizer(analyzer)
-    visualizer.set_analysis_result(result)
-    
-    return visualize_system(analyzer, output_dir)
+    def _get_node_layer(self, node: str) -> Optional[Layer]:
+        """Get layer for a node"""
+        for layer, nodes in self._layers.items():
+            if node in nodes:
+                return layer
+        return None

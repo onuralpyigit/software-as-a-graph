@@ -1,446 +1,494 @@
 #!/usr/bin/env python3
 """
-Graph Visualizer Examples
-=========================
+Visualization Examples for Pub-Sub System Analysis
+====================================================
 
-Demonstrates how to use the GraphVisualizer to create visualizations
-of distributed pub-sub systems, including topology, analysis results,
-simulation impact, and validation comparisons.
-
-Examples:
-1. Basic topology visualization
-2. Criticality heatmap
-3. Full workflow with all results
-4. Custom styling options
-5. HTML report generation
-6. Exporting for external tools
+Demonstrates comprehensive visualization capabilities:
+1. Basic HTML visualization
+2. Multi-layer architecture view
+3. Criticality-based coloring
+4. Dashboard generation
+5. Export for external tools
 
 Usage:
-    python example_graph_visualizer.py
+    python examples/visualization_examples.py
+    python examples/visualization_examples.py --example basic
+    python examples/visualization_examples.py --output-dir ./output
 
 Author: Software-as-a-Graph Research Project
 """
 
 import sys
-import tempfile
+import json
+import argparse
 from pathlib import Path
+from datetime import datetime
 
-# Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.analysis import GraphAnalyzer
-from src.simulation import GraphSimulator
-from src.validation import GraphValidator
+import networkx as nx
+
 from src.visualization import (
     GraphVisualizer,
+    DashboardGenerator,
     VisualizationConfig,
+    DashboardConfig,
+    Layer,
+    LayoutAlgorithm,
     ColorScheme,
-    visualize_system,
-    MATPLOTLIB_AVAILABLE,
+    MATPLOTLIB_AVAILABLE
 )
 
 
 # ============================================================================
-# Sample Data
+# Terminal Formatting
 # ============================================================================
 
-SAMPLE_PUBSUB_DATA = {
-    "nodes": [
-        {"id": "N1", "name": "ComputeNode1", "type": "compute"},
-        {"id": "N2", "name": "ComputeNode2", "type": "compute"},
-        {"id": "N3", "name": "EdgeNode", "type": "edge"}
-    ],
-    "brokers": [
-        {"id": "B1", "name": "MainBroker", "node": "N1"},
-        {"id": "B2", "name": "BackupBroker", "node": "N2"}
-    ],
-    "applications": [
-        {"id": "A1", "name": "SensorReader", "role": "pub", "node": "N3"},
-        {"id": "A2", "name": "DataProcessor", "role": "both", "node": "N1"},
-        {"id": "A3", "name": "Analytics", "role": "sub", "node": "N1"},
-        {"id": "A4", "name": "Dashboard", "role": "sub", "node": "N2"},
-        {"id": "A5", "name": "Alerting", "role": "sub", "node": "N2"},
-        {"id": "A6", "name": "Logger", "role": "sub", "node": "N1"}
-    ],
-    "topics": [
-        {"id": "T1", "name": "sensor/data", "broker": "B1"},
-        {"id": "T2", "name": "processed/data", "broker": "B1"},
-        {"id": "T3", "name": "alerts", "broker": "B2"}
-    ],
-    "relationships": {
-        "publishes_to": [
-            {"from": "A1", "to": "T1"},
-            {"from": "A2", "to": "T2"},
-            {"from": "A2", "to": "T3"}
-        ],
-        "subscribes_to": [
-            {"from": "A2", "to": "T1"},
-            {"from": "A3", "to": "T2"},
-            {"from": "A4", "to": "T2"},
-            {"from": "A5", "to": "T3"},
-            {"from": "A6", "to": "T1"},
-            {"from": "A6", "to": "T2"}
-        ],
-        "runs_on": [
-            {"from": "A1", "to": "N3"},
-            {"from": "A2", "to": "N1"},
-            {"from": "A3", "to": "N1"},
-            {"from": "A4", "to": "N2"},
-            {"from": "A5", "to": "N2"},
-            {"from": "A6", "to": "N1"},
-            {"from": "B1", "to": "N1"},
-            {"from": "B2", "to": "N2"}
-        ],
-        "routes": [
-            {"from": "B1", "to": "T1"},
-            {"from": "B1", "to": "T2"},
-            {"from": "B2", "to": "T3"}
-        ]
-    }
-}
+class Colors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    WARNING = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
 
 
 def print_header(title: str):
-    """Print a formatted header"""
-    print(f"\n{'='*60}")
-    print(f" {title}")
-    print('='*60)
+    print(f"\n{Colors.BOLD}{Colors.HEADER}{'='*70}{Colors.ENDC}")
+    print(f"{Colors.BOLD}{Colors.HEADER}{title.center(70)}{Colors.ENDC}")
+    print(f"{Colors.BOLD}{Colors.HEADER}{'='*70}{Colors.ENDC}\n")
 
 
-def print_subheader(title: str):
-    """Print a formatted subheader"""
-    print(f"\n── {title} ──")
+def print_section(title: str):
+    print(f"\n{Colors.BOLD}{Colors.CYAN}{title}{Colors.ENDC}")
+    print("-" * 50)
+
+
+def print_success(msg: str):
+    print(f"{Colors.GREEN}✓{Colors.ENDC} {msg}")
+
+
+# ============================================================================
+# Test System Generation
+# ============================================================================
+
+def create_iot_smart_city():
+    """Create IoT smart city pub-sub system"""
+    G = nx.DiGraph()
+    
+    # Infrastructure layer - Edge nodes and gateways
+    infra = [
+        ('edge_north', 'Node', 'Edge Node North'),
+        ('edge_south', 'Node', 'Edge Node South'),
+        ('edge_east', 'Node', 'Edge Node East'),
+        ('gateway_main', 'Node', 'Main Gateway'),
+        ('cloud_server', 'Node', 'Cloud Server'),
+    ]
+    
+    # Broker layer
+    brokers = [
+        ('mqtt_broker', 'Broker', 'MQTT Broker'),
+        ('kafka_cluster', 'Broker', 'Kafka Cluster'),
+        ('redis_pubsub', 'Broker', 'Redis PubSub'),
+    ]
+    
+    # Topic layer
+    topics = [
+        ('traffic/sensors', 'Topic', 'Traffic Sensors'),
+        ('traffic/lights', 'Topic', 'Traffic Lights'),
+        ('environment/air', 'Topic', 'Air Quality'),
+        ('environment/noise', 'Topic', 'Noise Levels'),
+        ('parking/status', 'Topic', 'Parking Status'),
+        ('alerts/emergency', 'Topic', 'Emergency Alerts'),
+        ('analytics/realtime', 'Topic', 'Real-time Analytics'),
+    ]
+    
+    # Application layer
+    apps = [
+        ('traffic_sensor_1', 'Application', 'Traffic Sensor 1'),
+        ('traffic_sensor_2', 'Application', 'Traffic Sensor 2'),
+        ('air_monitor', 'Application', 'Air Quality Monitor'),
+        ('noise_monitor', 'Application', 'Noise Monitor'),
+        ('parking_sensor', 'Application', 'Parking Sensor'),
+        ('traffic_controller', 'Application', 'Traffic Controller'),
+        ('env_aggregator', 'Application', 'Environment Aggregator'),
+        ('alert_service', 'Application', 'Alert Service'),
+        ('analytics_engine', 'Application', 'Analytics Engine'),
+        ('city_dashboard', 'Application', 'City Dashboard'),
+        ('mobile_app', 'Application', 'Mobile App'),
+    ]
+    
+    # Add all nodes
+    for node_id, node_type, name in infra + brokers + topics + apps:
+        G.add_node(node_id, type=node_type, name=name)
+    
+    # Infrastructure connections
+    edges = [
+        # Brokers on infrastructure
+        ('mqtt_broker', 'edge_north', 'RUNS_ON'),
+        ('mqtt_broker', 'edge_south', 'RUNS_ON'),
+        ('kafka_cluster', 'gateway_main', 'RUNS_ON'),
+        ('redis_pubsub', 'cloud_server', 'RUNS_ON'),
+        
+        # Gateway connections
+        ('edge_north', 'gateway_main', 'CONNECTS_TO'),
+        ('edge_south', 'gateway_main', 'CONNECTS_TO'),
+        ('edge_east', 'gateway_main', 'CONNECTS_TO'),
+        ('gateway_main', 'cloud_server', 'CONNECTS_TO'),
+        
+        # Topics on brokers
+        ('traffic/sensors', 'mqtt_broker', 'DEPENDS_ON'),
+        ('traffic/lights', 'mqtt_broker', 'DEPENDS_ON'),
+        ('environment/air', 'mqtt_broker', 'DEPENDS_ON'),
+        ('environment/noise', 'mqtt_broker', 'DEPENDS_ON'),
+        ('parking/status', 'mqtt_broker', 'DEPENDS_ON'),
+        ('alerts/emergency', 'kafka_cluster', 'DEPENDS_ON'),
+        ('analytics/realtime', 'kafka_cluster', 'DEPENDS_ON'),
+        
+        # Publishers
+        ('traffic_sensor_1', 'traffic/sensors', 'PUBLISHES_TO'),
+        ('traffic_sensor_2', 'traffic/sensors', 'PUBLISHES_TO'),
+        ('air_monitor', 'environment/air', 'PUBLISHES_TO'),
+        ('noise_monitor', 'environment/noise', 'PUBLISHES_TO'),
+        ('parking_sensor', 'parking/status', 'PUBLISHES_TO'),
+        ('alert_service', 'alerts/emergency', 'PUBLISHES_TO'),
+        ('analytics_engine', 'analytics/realtime', 'PUBLISHES_TO'),
+        
+        # Subscribers
+        ('traffic/sensors', 'traffic_controller', 'SUBSCRIBES_TO'),
+        ('traffic/sensors', 'analytics_engine', 'SUBSCRIBES_TO'),
+        ('traffic/lights', 'city_dashboard', 'SUBSCRIBES_TO'),
+        ('environment/air', 'env_aggregator', 'SUBSCRIBES_TO'),
+        ('environment/noise', 'env_aggregator', 'SUBSCRIBES_TO'),
+        ('parking/status', 'city_dashboard', 'SUBSCRIBES_TO'),
+        ('parking/status', 'mobile_app', 'SUBSCRIBES_TO'),
+        ('alerts/emergency', 'city_dashboard', 'SUBSCRIBES_TO'),
+        ('alerts/emergency', 'mobile_app', 'SUBSCRIBES_TO'),
+        ('analytics/realtime', 'city_dashboard', 'SUBSCRIBES_TO'),
+        
+        # Controller outputs
+        ('traffic_controller', 'traffic/lights', 'PUBLISHES_TO'),
+        ('env_aggregator', 'alerts/emergency', 'PUBLISHES_TO'),
+    ]
+    
+    for source, target, edge_type in edges:
+        G.add_edge(source, target, type=edge_type)
+    
+    return G
+
+
+def calculate_criticality(graph: nx.DiGraph) -> dict:
+    """Calculate criticality scores"""
+    criticality = {}
+    
+    bc = nx.betweenness_centrality(graph)
+    max_bc = max(bc.values()) if bc.values() else 1
+    
+    try:
+        aps = set(nx.articulation_points(graph.to_undirected()))
+    except:
+        aps = set()
+    
+    degrees = dict(graph.degree())
+    max_deg = max(degrees.values()) if degrees.values() else 1
+    
+    for node in graph.nodes():
+        bc_score = bc.get(node, 0) / max_bc if max_bc > 0 else 0
+        ap_score = 1.0 if node in aps else 0.0
+        
+        try:
+            descendants = len(nx.descendants(graph, node))
+            ancestors = len(nx.ancestors(graph, node))
+            impact = (descendants + ancestors) / (2 * graph.number_of_nodes())
+        except:
+            impact = 0
+        
+        degree_score = degrees.get(node, 0) / max_deg
+        
+        score = 0.25 * bc_score + 0.30 * ap_score + 0.25 * impact + 0.20 * degree_score
+        score = min(1.0, score)
+        
+        if score >= 0.7:
+            level = 'critical'
+        elif score >= 0.5:
+            level = 'high'
+        elif score >= 0.3:
+            level = 'medium'
+        elif score >= 0.1:
+            level = 'low'
+        else:
+            level = 'minimal'
+        
+        criticality[node] = {
+            'score': score,
+            'level': level,
+            'is_articulation_point': node in aps,
+            'betweenness': bc_score,
+            'degree': degrees.get(node, 0)
+        }
+    
+    return criticality
 
 
 # ============================================================================
 # Example Functions
 # ============================================================================
 
-def example_1_basic_topology():
-    """Example 1: Basic topology visualization"""
-    print_header("Example 1: Basic Topology Visualization")
+def example_basic_html(output_dir: Path):
+    """Generate basic HTML visualization"""
+    print_header("EXAMPLE: Basic HTML Visualization")
     
-    # Setup
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    analysis_result = analyzer.analyze()
+    graph = create_iot_smart_city()
+    print(f"System: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
     
-    # Create visualizer
-    visualizer = GraphVisualizer(analyzer)
-    visualizer.set_analysis_result(analysis_result)
+    visualizer = GraphVisualizer()
+    html = visualizer.render_html(graph, title="IoT Smart City System")
     
-    # Create output directory
-    output_dir = Path(tempfile.mkdtemp())
+    output_path = output_dir / "basic_visualization.html"
+    with open(output_path, 'w') as f:
+        f.write(html)
     
-    if MATPLOTLIB_AVAILABLE:
-        print_subheader("Generating Topology Visualization")
-        
-        # Default topology
-        path = visualizer.plot_topology(
-            str(output_dir / 'topology_default.png'),
-            layout='spring',
-            color_by='type'
-        )
-        print(f"Generated: {path}")
-        
-        # Colored by criticality
-        path = visualizer.plot_topology(
-            str(output_dir / 'topology_criticality.png'),
-            layout='spring',
-            color_by='criticality',
-            highlight_critical=True
-        )
-        print(f"Generated: {path}")
-        
-        print(f"\nOutput directory: {output_dir}")
-    else:
-        print("Matplotlib not available - skipping image generation")
-    
-    return output_dir
+    print_success(f"Saved to {output_path}")
+    return output_path
 
 
-def example_2_criticality_heatmap():
-    """Example 2: Criticality heatmap visualization"""
-    print_header("Example 2: Criticality Heatmap")
+def example_multi_layer(output_dir: Path):
+    """Generate multi-layer visualization"""
+    print_header("EXAMPLE: Multi-Layer Visualization")
     
-    # Setup
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    analysis_result = analyzer.analyze()
+    graph = create_iot_smart_city()
+    criticality = calculate_criticality(graph)
     
-    # Create visualizer
-    visualizer = GraphVisualizer(analyzer)
-    visualizer.set_analysis_result(analysis_result)
+    print_section("Layer Statistics")
+    visualizer = GraphVisualizer()
+    visualizer.classify_layers(graph)
+    stats = visualizer.get_layer_statistics(graph)
     
-    # Create output directory
-    output_dir = Path(tempfile.mkdtemp())
+    for layer_name, layer_stats in stats.get('layers', {}).items():
+        print(f"\n  {layer_name.title()}:")
+        print(f"    Nodes: {layer_stats.get('node_count', 0)}")
+        print(f"    Internal edges: {layer_stats.get('internal_edges', 0)}")
+        print(f"    Cross-layer: {layer_stats.get('cross_layer_edges', 0)}")
     
-    if MATPLOTLIB_AVAILABLE:
-        print_subheader("Generating Criticality Heatmap")
-        
-        path = visualizer.plot_criticality_heatmap(
-            str(output_dir / 'criticality.png'),
-            top_n=10
-        )
-        print(f"Generated: {path}")
-        
-        # Show top critical components
-        print_subheader("Top Critical Components")
-        top_critical = sorted(
-            analysis_result.criticality_scores,
-            key=lambda x: x.composite_score,
-            reverse=True
-        )[:5]
-        
-        for score in top_critical:
-            print(f"  {score.node_id}: {score.composite_score:.4f} ({score.level.value})")
-    else:
-        print("Matplotlib not available - skipping image generation")
+    html = visualizer.render_multi_layer_html(
+        graph, criticality,
+        title="IoT Smart City - Multi-Layer Architecture"
+    )
     
-    return output_dir
+    output_path = output_dir / "multi_layer.html"
+    with open(output_path, 'w') as f:
+        f.write(html)
+    
+    print_success(f"Saved to {output_path}")
+    return output_path
 
 
-def example_3_full_workflow():
-    """Example 3: Full workflow with analysis, simulation, and validation"""
-    print_header("Example 3: Full Workflow")
+def example_criticality_view(output_dir: Path):
+    """Generate criticality-colored visualization"""
+    print_header("EXAMPLE: Criticality-Based Coloring")
     
-    # Step 1: Analysis
-    print_subheader("Step 1: Run Analysis")
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    analysis_result = analyzer.analyze()
-    print(f"Analyzed {analyzer.G.number_of_nodes()} components")
+    graph = create_iot_smart_city()
+    criticality = calculate_criticality(graph)
     
-    # Step 2: Simulation
-    print_subheader("Step 2: Run Simulation")
-    simulator = GraphSimulator(seed=42)
-    simulation_result = simulator.simulate_all_single_failures(analyzer.G)
-    print(f"Ran {simulation_result.total_simulations} simulations")
+    # Count by level
+    level_counts = {}
+    for crit in criticality.values():
+        level = crit.get('level', 'minimal')
+        level_counts[level] = level_counts.get(level, 0) + 1
     
-    # Step 3: Validation
-    print_subheader("Step 3: Run Validation")
-    validator = GraphValidator(analyzer, seed=42)
-    validation_result = validator.validate()
-    print(f"Validation status: {validation_result.status.value}")
+    print_section("Criticality Distribution")
+    for level in ['critical', 'high', 'medium', 'low', 'minimal']:
+        count = level_counts.get(level, 0)
+        print(f"  {level.title():10s}: {count}")
     
-    # Step 4: Visualize
-    print_subheader("Step 4: Generate Visualizations")
-    
-    visualizer = GraphVisualizer(analyzer)
-    visualizer.set_analysis_result(analysis_result)
-    visualizer.set_simulation_result(simulation_result)
-    visualizer.set_validation_result(validation_result)
-    
-    output_dir = Path(tempfile.mkdtemp())
-    
-    if MATPLOTLIB_AVAILABLE:
-        # Topology
-        path = visualizer.plot_topology(str(output_dir / 'topology.png'))
-        print(f"Generated: topology.png")
-        
-        # Criticality
-        path = visualizer.plot_criticality_heatmap(str(output_dir / 'criticality.png'))
-        print(f"Generated: criticality.png")
-        
-        # Impact comparison
-        path = visualizer.plot_impact_comparison(str(output_dir / 'comparison.png'))
-        print(f"Generated: comparison.png")
-        
-        # Validation scatter
-        path = visualizer.plot_validation_scatter(str(output_dir / 'scatter.png'))
-        print(f"Generated: scatter.png")
-        
-        # Impact distribution
-        path = visualizer.plot_impact_distribution(str(output_dir / 'distribution.png'))
-        print(f"Generated: distribution.png")
-    
-    # HTML report (always available)
-    path = visualizer.generate_html_report(str(output_dir / 'report.html'))
-    print(f"Generated: report.html")
-    
-    print(f"\nOutput directory: {output_dir}")
-    
-    return output_dir
-
-
-def example_4_custom_styling():
-    """Example 4: Custom styling options"""
-    print_header("Example 4: Custom Styling")
-    
-    # Setup
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    analysis_result = analyzer.analyze()
-    
-    # Custom configuration
     config = VisualizationConfig(
-        figsize=(16, 12),
-        dpi=200,
-        node_size=1200,
-        font_size=12,
-        edge_width=2.0,
-        show_labels=True,
-        show_legend=True
+        title="IoT Smart City - Criticality View",
+        color_scheme=ColorScheme.CRITICALITY
     )
+    visualizer = GraphVisualizer(config)
     
-    # Create visualizer with custom config
-    visualizer = GraphVisualizer(analyzer, config)
-    visualizer.set_analysis_result(analysis_result)
+    html = visualizer.render_html(graph, criticality)
     
-    output_dir = Path(tempfile.mkdtemp())
+    output_path = output_dir / "criticality_view.html"
+    with open(output_path, 'w') as f:
+        f.write(html)
     
-    if MATPLOTLIB_AVAILABLE:
-        print_subheader("Different Layout Algorithms")
+    print_success(f"Saved to {output_path}")
+    return output_path
+
+
+def example_layer_views(output_dir: Path):
+    """Generate individual layer views"""
+    print_header("EXAMPLE: Individual Layer Views")
+    
+    graph = create_iot_smart_city()
+    criticality = calculate_criticality(graph)
+    
+    visualizer = GraphVisualizer()
+    
+    layers = [
+        (Layer.APPLICATION, "Application Layer"),
+        (Layer.TOPIC, "Topic Layer"),
+        (Layer.BROKER, "Broker Layer"),
+        (Layer.INFRASTRUCTURE, "Infrastructure Layer")
+    ]
+    
+    outputs = []
+    for layer, title in layers:
+        html = visualizer.render_html(
+            graph, criticality,
+            title=f"IoT Smart City - {title}",
+            layer=layer
+        )
         
-        layouts = ['spring', 'circular', 'shell', 'kamada_kawai']
-        for layout in layouts:
-            path = visualizer.plot_topology(
-                str(output_dir / f'topology_{layout}.png'),
-                layout=layout
-            )
-            print(f"Generated: topology_{layout}.png")
-    else:
-        print("Matplotlib not available - skipping image generation")
+        output_path = output_dir / f"layer_{layer.value}.html"
+        with open(output_path, 'w') as f:
+            f.write(html)
+        
+        print_success(f"{title} saved to {output_path}")
+        outputs.append(output_path)
     
-    return output_dir
+    return outputs
 
 
-def example_5_html_report():
-    """Example 5: HTML report generation"""
-    print_header("Example 5: HTML Report Generation")
+def example_layouts(output_dir: Path):
+    """Generate visualizations with different layouts"""
+    print_header("EXAMPLE: Different Layout Algorithms")
     
-    # Setup
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    analysis_result = analyzer.analyze()
+    graph = create_iot_smart_city()
     
-    simulator = GraphSimulator(seed=42)
-    simulation_result = simulator.simulate_all_single_failures(analyzer.G)
+    layouts = [
+        (LayoutAlgorithm.SPRING, "Force-Directed (Spring)"),
+        (LayoutAlgorithm.CIRCULAR, "Circular"),
+        (LayoutAlgorithm.SHELL, "Shell (by Type)"),
+        (LayoutAlgorithm.HIERARCHICAL, "Hierarchical")
+    ]
     
-    validator = GraphValidator(analyzer, seed=42)
-    validation_result = validator.validate()
+    outputs = []
+    for layout, name in layouts:
+        config = VisualizationConfig(
+            title=f"IoT Smart City - {name} Layout",
+            layout=layout
+        )
+        visualizer = GraphVisualizer(config)
+        
+        html = visualizer.render_html(graph)
+        
+        output_path = output_dir / f"layout_{layout.value}.html"
+        with open(output_path, 'w') as f:
+            f.write(html)
+        
+        print_success(f"{name} layout saved to {output_path}")
+        outputs.append(output_path)
     
-    # Create visualizer
-    visualizer = GraphVisualizer(analyzer)
-    visualizer.set_analysis_result(analysis_result)
-    visualizer.set_simulation_result(simulation_result)
-    visualizer.set_validation_result(validation_result)
+    return outputs
+
+
+def example_dashboard(output_dir: Path):
+    """Generate comprehensive dashboard"""
+    print_header("EXAMPLE: Comprehensive Dashboard")
     
-    output_dir = Path(tempfile.mkdtemp())
+    graph = create_iot_smart_city()
+    criticality = calculate_criticality(graph)
     
-    print_subheader("Generating HTML Report")
+    # Mock validation results
+    validation = {
+        'status': 'passed',
+        'correlation': {
+            'spearman': {'coefficient': 0.85}
+        },
+        'classification': {
+            'overall': {
+                'f1_score': 0.92,
+                'precision': 0.88,
+                'recall': 0.95
+            }
+        }
+    }
     
-    # With embedded images (if matplotlib available)
-    path = visualizer.generate_html_report(
-        str(output_dir / 'report_full.html'),
-        title="IoT System Analysis Report",
-        include_images=True
+    # Mock simulation results
+    simulation = {
+        'total_simulations': 25,
+        'results': [
+            {'primary_failures': ['kafka_cluster'], 'impact_score': 0.85, 'affected_nodes': 8},
+            {'primary_failures': ['mqtt_broker'], 'impact_score': 0.72, 'affected_nodes': 12},
+            {'primary_failures': ['gateway_main'], 'impact_score': 0.65, 'affected_nodes': 6},
+            {'primary_failures': ['analytics_engine'], 'impact_score': 0.45, 'affected_nodes': 4},
+            {'primary_failures': ['traffic_controller'], 'impact_score': 0.38, 'affected_nodes': 3},
+        ]
+    }
+    
+    config = DashboardConfig(
+        title="IoT Smart City Analysis Dashboard",
+        subtitle="Comprehensive System Analysis Report",
+        theme="dark"
     )
-    print(f"Generated: report_full.html (with images)")
+    generator = DashboardGenerator(config)
     
-    # Without embedded images (smaller file)
-    path = visualizer.generate_html_report(
-        str(output_dir / 'report_minimal.html'),
-        title="IoT System Analysis Report",
-        include_images=False
-    )
-    print(f"Generated: report_minimal.html (no images)")
-    
-    print(f"\nOutput directory: {output_dir}")
-    print("\nOpen report_full.html in a browser to view the interactive report!")
-    
-    return output_dir
-
-
-def example_6_export_for_tools():
-    """Example 6: Exporting graph data for external tools"""
-    print_header("Example 6: Export for External Tools")
-    
-    # Setup
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    analysis_result = analyzer.analyze()
-    
-    visualizer = GraphVisualizer(analyzer)
-    visualizer.set_analysis_result(analysis_result)
-    
-    output_dir = Path(tempfile.mkdtemp())
-    
-    print_subheader("Exporting Graph Data")
-    
-    # JSON (for D3.js, web visualization)
-    path = visualizer.export_graph_data(
-        str(output_dir / 'graph.json'),
-        format='json'
-    )
-    print(f"Generated: graph.json (for D3.js)")
-    
-    print(f"\nOutput directory: {output_dir}")
-    
-    # Show JSON structure
-    print_subheader("JSON Export Structure")
-    import json
-    with open(output_dir / 'graph.json') as f:
-        data = json.load(f)
-    
-    print(f"  Nodes: {len(data['nodes'])}")
-    print(f"  Links: {len(data['links'])}")
-    print(f"\n  Sample node: {json.dumps(data['nodes'][0], indent=4)}")
-    
-    return output_dir
-
-
-def example_7_convenience_function():
-    """Example 7: Using the visualize_system convenience function"""
-    print_header("Example 7: Convenience Function")
-    
-    # Setup
-    analyzer = GraphAnalyzer()
-    analyzer.load_from_dict(SAMPLE_PUBSUB_DATA)
-    analysis_result = analyzer.analyze()
-    
-    simulator = GraphSimulator(seed=42)
-    simulation_result = simulator.simulate_all_single_failures(analyzer.G)
-    
-    validator = GraphValidator(analyzer, seed=42)
-    validation_result = validator.validate()
-    
-    output_dir = Path(tempfile.mkdtemp())
-    
-    print_subheader("Using visualize_system()")
-    
-    # One function call generates all visualizations
-    files = visualize_system(
-        analyzer,
-        str(output_dir),
-        simulation_result=simulation_result,
-        validation_result=validation_result
+    html = generator.generate(
+        graph=graph,
+        criticality=criticality,
+        validation=validation,
+        simulation=simulation
     )
     
-    print(f"\nGenerated {len(files)} files:")
-    for f in files:
-        print(f"  - {Path(f).name}")
+    output_path = output_dir / "dashboard.html"
+    with open(output_path, 'w') as f:
+        f.write(html)
     
-    print(f"\nOutput directory: {output_dir}")
-    
-    return output_dir
+    print_success(f"Dashboard saved to {output_path}")
+    return output_path
 
 
-def example_color_scheme():
-    """Bonus: Demonstrate color scheme"""
-    print_header("Bonus: Color Scheme Reference")
+def example_export(output_dir: Path):
+    """Export for external tools"""
+    print_header("EXAMPLE: Export for External Tools")
     
-    print_subheader("Component Type Colors")
-    for type_name, color in ColorScheme.TYPE_COLORS.items():
-        print(f"  {type_name}: {color}")
+    graph = create_iot_smart_city()
+    criticality = calculate_criticality(graph)
     
-    print_subheader("Criticality Level Colors")
-    for level, color in ColorScheme.CRITICALITY_COLORS.items():
-        print(f"  {level}: {color}")
+    visualizer = GraphVisualizer()
+    visualizer.classify_layers(graph)
     
-    print_subheader("Dependency Type Colors")
-    for dep_type, color in ColorScheme.DEPENDENCY_COLORS.items():
-        print(f"  {dep_type}: {color}")
+    # Export for D3.js
+    d3_path = output_dir / "graph_d3.json"
+    visualizer.export_for_d3(graph, str(d3_path), criticality)
+    print_success(f"D3.js format saved to {d3_path}")
+    
+    # Export for Gephi
+    gephi_path = output_dir / "graph_gephi.gexf"
+    visualizer.export_for_gephi(graph, str(gephi_path), criticality)
+    print_success(f"Gephi format saved to {gephi_path}")
+    
+    return [d3_path, gephi_path]
+
+
+def example_static_image(output_dir: Path):
+    """Generate static images"""
+    print_header("EXAMPLE: Static Image Export")
+    
+    if not MATPLOTLIB_AVAILABLE:
+        print(f"{Colors.WARNING}⚠ Matplotlib not available. Skipping image export.{Colors.ENDC}")
+        print("  Install with: pip install matplotlib")
+        return None
+    
+    graph = create_iot_smart_city()
+    criticality = calculate_criticality(graph)
+    
+    config = VisualizationConfig(
+        title="IoT Smart City System",
+        dpi=150
+    )
+    visualizer = GraphVisualizer(config)
+    
+    # PNG export
+    png_path = output_dir / "graph.png"
+    visualizer.render_image(graph, str(png_path), criticality, format='png')
+    print_success(f"PNG image saved to {png_path}")
+    
+    return png_path
 
 
 # ============================================================================
@@ -448,29 +496,50 @@ def example_color_scheme():
 # ============================================================================
 
 def main():
-    """Run all examples"""
-    print("\n" + "=" * 60)
-    print(" GRAPH VISUALIZER EXAMPLES")
-    print("=" * 60)
+    parser = argparse.ArgumentParser(description='Visualization examples')
+    parser.add_argument('--example',
+                       choices=['basic', 'multi-layer', 'criticality', 'layers',
+                               'layouts', 'dashboard', 'export', 'image', 'all'],
+                       default='all',
+                       help='Which example to run')
+    parser.add_argument('--output-dir', '-o',
+                       default='./visualization_output',
+                       help='Output directory')
+    args = parser.parse_args()
     
-    print(f"\nMatplotlib available: {MATPLOTLIB_AVAILABLE}")
-    if not MATPLOTLIB_AVAILABLE:
-        print("Install matplotlib for full visualization support: pip install matplotlib")
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Run examples
-    example_1_basic_topology()
-    example_2_criticality_heatmap()
-    example_3_full_workflow()
-    example_4_custom_styling()
-    example_5_html_report()
-    example_6_export_for_tools()
-    example_7_convenience_function()
-    example_color_scheme()
+    print(f"\n{Colors.BOLD}Graph Visualization Examples{Colors.ENDC}")
+    print(f"Output directory: {output_dir}")
+    print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     
-    print("\n" + "=" * 60)
-    print(" ALL EXAMPLES COMPLETED")
-    print("=" * 60)
-    print()
+    if args.example in ['basic', 'all']:
+        example_basic_html(output_dir)
+    
+    if args.example in ['multi-layer', 'all']:
+        example_multi_layer(output_dir)
+    
+    if args.example in ['criticality', 'all']:
+        example_criticality_view(output_dir)
+    
+    if args.example in ['layers', 'all']:
+        example_layer_views(output_dir)
+    
+    if args.example in ['layouts', 'all']:
+        example_layouts(output_dir)
+    
+    if args.example in ['dashboard', 'all']:
+        example_dashboard(output_dir)
+    
+    if args.example in ['export', 'all']:
+        example_export(output_dir)
+    
+    if args.example in ['image', 'all']:
+        example_static_image(output_dir)
+    
+    print(f"\n{Colors.GREEN}All examples completed!{Colors.ENDC}")
+    print(f"Open files in {output_dir} to view visualizations.\n")
 
 
 if __name__ == '__main__':

@@ -1,15 +1,25 @@
 from .graph_visualizer import (
     GraphVisualizer,
     VisualizationConfig,
+    Layer,
+    LayoutAlgorithm,
     ColorScheme,
-    visualize_system,
-    MATPLOTLIB_AVAILABLE,
+    Colors,
+    MATPLOTLIB_AVAILABLE
 )
 
+from .dashboard_generator import (
+    DashboardGenerator,
+    DashboardConfig
+)
 __all__ = [
     "GraphVisualizer",
+    "DashboardGenerator",
+    "DashboardConfig",
+    "Layer",
+    "LayoutAlgorithm",
     "VisualizationConfig",
     "ColorScheme",
-    "visualize_system",
+    "Colors",
     "MATPLOTLIB_AVAILABLE",
 ]
