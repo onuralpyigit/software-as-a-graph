@@ -353,7 +353,6 @@ print_detail "  Where: α=$ALPHA, β=$BETA, γ=$GAMMA, δ=$DELTA, ε=$EPSILON"
 echo ""
 
 python analyze_graph.py \
-    --input "$INPUT_FILE" \
     --output "$OUTPUT_DIR" \
     --format json html csv \
     --full \
