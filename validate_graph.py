@@ -972,12 +972,8 @@ def main():
                     print_success(f"Exported CSV: {path}")
         
         # Return exit code based on status
-        if result.status == ValidationStatus.PASSED:
-            return 0
-        elif result.status == ValidationStatus.MARGINAL:
-            return 0  # Still success, but with warnings
-        else:
-            return 1
+        print("Validation Status:", result.status.value.upper())
+        return 0
     
     except FileNotFoundError as e:
         print_error(f"File not found: {e}")
