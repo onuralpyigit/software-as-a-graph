@@ -653,14 +653,40 @@ class GraphImporter:
                       <-[:PUBLISHES_TO]-(publisher:Application)
                 WHERE subscriber.id <> publisher.id
                                  
+                // Calculate QoS criticality score for each topic
+                // Based on: durability (0.4), reliability (0.3), transport priority (0.3)
+                WITH subscriber, publisher, t,                                 
+                     // Durability score: persistent = 0.4, transient = 0.25, transient_local = 0.2, volatile = 0.0
+                     CASE t.qos_durability
+                         WHEN 'PERSISTENT' THEN 0.40
+                         WHEN 'TRANSIENT' THEN 0.25
+                         WHEN 'TRANSIENT_LOCAL' THEN 0.20
+                         ELSE 0.00
+                     END +
+                                 
+                    // Reliability score: reliable = 0.3, best_effort = 0.0
+                     CASE t.qos_reliability
+                         WHEN 'RELIABLE' THEN 0.30
+                         ELSE 0.00
+                     END +
+
+                     // Transport priority score: urgent = 0.3, high = 0.2, medium = 0.1, low = 0.0
+                     CASE t.qos_transport_priority
+                         WHEN 'URGENT' THEN 0.30
+                         WHEN 'HIGH' THEN 0.20
+                         WHEN 'MEDIUM' THEN 0.10
+                         ELSE 0.00
+                     END AS qos_score
+                                 
                 // Collect topics
                 WITH subscriber, publisher,
-                     collect(t.id) AS topics
+                     collect(t.id) AS topics,
+                     sum(qos_score) AS total_qos_score
 
                 // Create DEPENDS_ON with aggregated information
                 MERGE (subscriber)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(publisher)
                 SET d.via_topics = topics,
-                    d.weight = size(topics)
+                    d.weight = size(topics) + total_qos_score
 
                 RETURN count(*) AS count
             """)
@@ -682,15 +708,38 @@ class GraphImporter:
                 // Find apps and the brokers routing their topics
                 MATCH (app:Application)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
                       <-[:ROUTES]-(broker:Broker)
+                                 
+                // Calculate QoS criticality score for each topic
+                WITH app, broker, t,
+                        // Durability score
+                        CASE t.qos_durability
+                            WHEN 'PERSISTENT' THEN 0.40
+                            WHEN 'TRANSIENT' THEN 0.25
+                            WHEN 'TRANSIENT_LOCAL' THEN 0.20
+                            ELSE 0.00
+                        END +
+                        // Reliability score
+                        CASE t.qos_reliability
+                            WHEN 'RELIABLE' THEN 0.30
+                            ELSE 0.00
+                        END +
+                        // Transport priority score
+                        CASE t.qos_transport_priority
+                            WHEN 'URGENT' THEN 0.30 
+                            WHEN 'HIGH' THEN 0.20
+                            WHEN 'MEDIUM' THEN 0.10
+                            ELSE 0.00
+                        END AS qos_score
 
                 // Collect unique topics
                 WITH app, broker,
-                     collect(DISTINCT t.id) AS topics
+                     collect(DISTINCT t.id) AS topics,
+                     sum(qos_score) AS total_qos_score
 
                 // Create DEPENDS_ON
                 MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
                 SET d.via_topics = topics,
-                    d.weight = size(topics)
+                    d.weight = size(topics) + total_qos_score
 
                 RETURN count(*) AS count
             """)
@@ -714,13 +763,17 @@ class GraphImporter:
                       (a2:Application)-[:RUNS_ON]->(n2:Node)
                 WHERE n1.id <> n2.id
 
-                // Aggregate all app pairs for each node pair
-                WITH n1, n2, collect(DISTINCT a1.id + '->' + a2.id) AS app_pairs
+                // Aggregate all app pairs for each node pair with their weights
+                WITH n1, n2, collect(DISTINCT a1.id + '->' + a2.id) AS app_pairs, collect(dep.weight) AS weights
+                                 
+                WITH n1, n2, weights, app_pairs
+                        // Sum weights from underlying app dependencies
+                        , reduce(total = 0, w IN weights | total + w) AS total_weight
 
                 // Create NODE_TO_NODE DEPENDS_ON
                 MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
                 SET d.via_apps = app_pairs,
-                    d.weight = size(app_pairs)
+                    d.weight = size(app_pairs) + total_weight
 
                 RETURN count(*) AS count
             """)
@@ -743,12 +796,15 @@ class GraphImporter:
 
                 // Aggregate dependent apps and their QoS factors per node-broker pair
                 WITH n, broker,
-                     collect(DISTINCT app.id) AS dependent_apps
+                     collect(DISTINCT app.id) AS dependent_apps,
+                     collect(dep.weight) AS weights
+
+                WITH n, broker, dependent_apps, weights, reduce(total = 0, w IN weights | total + w) AS total_weight
 
                 // Create NODE_TO_BROKER DEPENDS_ON
                 MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(broker)
                 SET d.via_apps = dependent_apps,
-                    d.weight = size(dependent_apps)
+                    d.weight = size(dependent_apps) + total_weight
 
                 RETURN count(*) AS count
             """)

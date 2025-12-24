@@ -1,0 +1,658 @@
+{
+  "metadata": {
+    "id": "graph_healthcare_small_42",
+    "generated_at": "2025-12-24T21:44:43.004833Z",
+    "generator_version": "3.0",
+    "scale": "small",
+    "scenario": "healthcare",
+    "seed": 42,
+    "generation_time_seconds": 0.000507,
+    "antipatterns_applied": null
+  },
+  "applications": [
+    {
+      "id": "A1",
+      "name": "PatientMonitor",
+      "role": "pubsub"
+    },
+    {
+      "id": "A2",
+      "name": "VitalSignsCollector",
+      "role": "pubsub"
+    },
+    {
+      "id": "A3",
+      "name": "MedicationDispenser",
+      "role": "sub"
+    },
+    {
+      "id": "A4",
+      "name": "AppointmentScheduler",
+      "role": "pub"
+    },
+    {
+      "id": "A5",
+      "name": "LabResultProcessor",
+      "role": "sub"
+    },
+    {
+      "id": "A6",
+      "name": "DiagnosisEngine",
+      "role": "pub"
+    },
+    {
+      "id": "A7",
+      "name": "ClinicalDecisionSupport",
+      "role": "pubsub"
+    },
+    {
+      "id": "A8",
+      "name": "EMRIntegration",
+      "role": "sub"
+    },
+    {
+      "id": "A9",
+      "name": "BillingProcessor",
+      "role": "pubsub"
+    },
+    {
+      "id": "A10",
+      "name": "InsuranceVerifier",
+      "role": "sub"
+    },
+    {
+      "id": "A11",
+      "name": "PharmacyInterface",
+      "role": "pubsub"
+    },
+    {
+      "id": "A12",
+      "name": "ImagingService",
+      "role": "pub"
+    }
+  ],
+  "brokers": [
+    {
+      "id": "B1",
+      "name": "Broker1"
+    },
+    {
+      "id": "B2",
+      "name": "Broker2"
+    }
+  ],
+  "topics": [
+    {
+      "id": "T1",
+      "name": "patient/0001/vitals",
+      "size": 3710,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T2",
+      "name": "patient/alerts",
+      "size": 15810,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "URGENT"
+      }
+    },
+    {
+      "id": "T3",
+      "name": "medication/dispensed",
+      "size": 4931,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T4",
+      "name": "lab/results",
+      "size": 3560,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T5",
+      "name": "imaging/status",
+      "size": 13317,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T6",
+      "name": "scheduling/updates",
+      "size": 9325,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T7",
+      "name": "patient/0007/vitals",
+      "size": 6380,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T8",
+      "name": "patient/alerts",
+      "size": 15080,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "URGENT"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "N1",
+      "name": "Node1"
+    },
+    {
+      "id": "N2",
+      "name": "Node2"
+    },
+    {
+      "id": "N3",
+      "name": "Node3"
+    },
+    {
+      "id": "N4",
+      "name": "Node4"
+    },
+    {
+      "id": "N5",
+      "name": "Node5"
+    }
+  ],
+  "relationships": {
+    "publishes_to": [
+      {
+        "from": "A1",
+        "to": "T5"
+      },
+      {
+        "from": "A1",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T1"
+      },
+      {
+        "from": "A2",
+        "to": "T2"
+      },
+      {
+        "from": "A2",
+        "to": "T6"
+      },
+      {
+        "from": "A4",
+        "to": "T2"
+      },
+      {
+        "from": "A4",
+        "to": "T1"
+      },
+      {
+        "from": "A6",
+        "to": "T3"
+      },
+      {
+        "from": "A6",
+        "to": "T6"
+      },
+      {
+        "from": "A6",
+        "to": "T5"
+      },
+      {
+        "from": "A6",
+        "to": "T7"
+      },
+      {
+        "from": "A6",
+        "to": "T4"
+      },
+      {
+        "from": "A7",
+        "to": "T8"
+      },
+      {
+        "from": "A7",
+        "to": "T7"
+      },
+      {
+        "from": "A9",
+        "to": "T4"
+      },
+      {
+        "from": "A9",
+        "to": "T2"
+      },
+      {
+        "from": "A11",
+        "to": "T1"
+      },
+      {
+        "from": "A11",
+        "to": "T8"
+      },
+      {
+        "from": "A11",
+        "to": "T2"
+      },
+      {
+        "from": "A11",
+        "to": "T6"
+      },
+      {
+        "from": "A11",
+        "to": "T4"
+      },
+      {
+        "from": "A12",
+        "to": "T8"
+      },
+      {
+        "from": "A12",
+        "to": "T3"
+      },
+      {
+        "from": "A12",
+        "to": "T4"
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "A1",
+        "to": "T4"
+      },
+      {
+        "from": "A1",
+        "to": "T5"
+      },
+      {
+        "from": "A1",
+        "to": "T6"
+      },
+      {
+        "from": "A1",
+        "to": "T2"
+      },
+      {
+        "from": "A1",
+        "to": "T3"
+      },
+      {
+        "from": "A1",
+        "to": "T7"
+      },
+      {
+        "from": "A1",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T6"
+      },
+      {
+        "from": "A2",
+        "to": "T1"
+      },
+      {
+        "from": "A3",
+        "to": "T4"
+      },
+      {
+        "from": "A3",
+        "to": "T1"
+      },
+      {
+        "from": "A3",
+        "to": "T7"
+      },
+      {
+        "from": "A3",
+        "to": "T6"
+      },
+      {
+        "from": "A5",
+        "to": "T2"
+      },
+      {
+        "from": "A5",
+        "to": "T5"
+      },
+      {
+        "from": "A5",
+        "to": "T8"
+      },
+      {
+        "from": "A5",
+        "to": "T3"
+      },
+      {
+        "from": "A5",
+        "to": "T4"
+      },
+      {
+        "from": "A5",
+        "to": "T1"
+      },
+      {
+        "from": "A7",
+        "to": "T4"
+      },
+      {
+        "from": "A7",
+        "to": "T1"
+      },
+      {
+        "from": "A7",
+        "to": "T7"
+      },
+      {
+        "from": "A7",
+        "to": "T8"
+      },
+      {
+        "from": "A7",
+        "to": "T3"
+      },
+      {
+        "from": "A7",
+        "to": "T2"
+      },
+      {
+        "from": "A7",
+        "to": "T5"
+      },
+      {
+        "from": "A8",
+        "to": "T1"
+      },
+      {
+        "from": "A8",
+        "to": "T6"
+      },
+      {
+        "from": "A8",
+        "to": "T7"
+      },
+      {
+        "from": "A8",
+        "to": "T8"
+      },
+      {
+        "from": "A8",
+        "to": "T5"
+      },
+      {
+        "from": "A8",
+        "to": "T2"
+      },
+      {
+        "from": "A8",
+        "to": "T3"
+      },
+      {
+        "from": "A8",
+        "to": "T4"
+      },
+      {
+        "from": "A9",
+        "to": "T3"
+      },
+      {
+        "from": "A9",
+        "to": "T4"
+      },
+      {
+        "from": "A9",
+        "to": "T2"
+      },
+      {
+        "from": "A9",
+        "to": "T8"
+      },
+      {
+        "from": "A9",
+        "to": "T7"
+      },
+      {
+        "from": "A9",
+        "to": "T1"
+      },
+      {
+        "from": "A9",
+        "to": "T5"
+      },
+      {
+        "from": "A9",
+        "to": "T6"
+      },
+      {
+        "from": "A10",
+        "to": "T1"
+      },
+      {
+        "from": "A10",
+        "to": "T6"
+      },
+      {
+        "from": "A11",
+        "to": "T8"
+      },
+      {
+        "from": "A11",
+        "to": "T2"
+      },
+      {
+        "from": "A11",
+        "to": "T4"
+      },
+      {
+        "from": "A11",
+        "to": "T1"
+      },
+      {
+        "from": "A11",
+        "to": "T7"
+      },
+      {
+        "from": "A11",
+        "to": "T6"
+      },
+      {
+        "from": "A11",
+        "to": "T5"
+      },
+      {
+        "from": "A11",
+        "to": "T3"
+      }
+    ],
+    "routes": [
+      {
+        "from": "B1",
+        "to": "T1"
+      },
+      {
+        "from": "B2",
+        "to": "T2"
+      },
+      {
+        "from": "B1",
+        "to": "T3"
+      },
+      {
+        "from": "B2",
+        "to": "T4"
+      },
+      {
+        "from": "B1",
+        "to": "T5"
+      },
+      {
+        "from": "B2",
+        "to": "T6"
+      },
+      {
+        "from": "B1",
+        "to": "T7"
+      },
+      {
+        "from": "B2",
+        "to": "T8"
+      }
+    ],
+    "runs_on": [
+      {
+        "from": "A1",
+        "to": "N1"
+      },
+      {
+        "from": "A2",
+        "to": "N2"
+      },
+      {
+        "from": "A3",
+        "to": "N5"
+      },
+      {
+        "from": "A4",
+        "to": "N1"
+      },
+      {
+        "from": "A5",
+        "to": "N1"
+      },
+      {
+        "from": "A6",
+        "to": "N4"
+      },
+      {
+        "from": "A7",
+        "to": "N1"
+      },
+      {
+        "from": "A8",
+        "to": "N5"
+      },
+      {
+        "from": "A9",
+        "to": "N2"
+      },
+      {
+        "from": "A10",
+        "to": "N2"
+      },
+      {
+        "from": "A11",
+        "to": "N4"
+      },
+      {
+        "from": "A12",
+        "to": "N5"
+      },
+      {
+        "from": "B1",
+        "to": "N1"
+      },
+      {
+        "from": "B2",
+        "to": "N2"
+      }
+    ],
+    "connects_to": [
+      {
+        "from": "N1",
+        "to": "N2"
+      },
+      {
+        "from": "N2",
+        "to": "N3"
+      },
+      {
+        "from": "N3",
+        "to": "N4"
+      },
+      {
+        "from": "N4",
+        "to": "N5"
+      },
+      {
+        "from": "N5",
+        "to": "N1"
+      }
+    ]
+  },
+  "metrics": {
+    "vertex_counts": {
+      "applications": 12,
+      "brokers": 2,
+      "topics": 8,
+      "nodes": 5,
+      "total": 27
+    },
+    "edge_counts": {
+      "publishes_to": 25,
+      "subscribes_to": 52,
+      "routes": 8,
+      "runs_on": 14,
+      "connects_to": 5,
+      "total": 104
+    },
+    "pub_sub": {
+      "unique_publishers": 8,
+      "unique_subscribers": 9,
+      "avg_pubs_per_topic": 3.125,
+      "avg_subs_per_topic": 6.5,
+      "max_fanout": 8
+    },
+    "role_distribution": {
+      "pubsub": 5,
+      "sub": 4,
+      "pub": 3
+    },
+    "qos_distribution": {
+      "durability": {
+        "TRANSIENT_LOCAL": 6,
+        "PERSISTENT": 2
+      },
+      "reliability": {
+        "RELIABLE": 8
+      },
+      "transport_priority": {
+        "HIGH": 6,
+        "URGENT": 2
+      }
+    }
+  }
+}
