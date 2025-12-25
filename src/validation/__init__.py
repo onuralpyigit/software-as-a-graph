@@ -2,29 +2,37 @@
 Validation Module for Graph-Based Analysis
 ============================================
 
-Comprehensive validation of graph-based criticality analysis by comparing
-predicted scores from topological analysis against actual impact scores
-from failure simulation.
+Validates graph-based criticality analysis by comparing predicted scores
+from topological analysis against actual impact scores from failure simulation.
 
-Key Validation Metrics:
-- Spearman Correlation: Target ≥ 0.70
-- F1-Score: Target ≥ 0.90
-- Precision/Recall: Target ≥ 0.80
-- Top-k Overlap: Top-5 ≥ 60%, Top-10 ≥ 70%
+Target Validation Metrics:
+- Spearman Correlation: ≥ 0.70
+- F1-Score: ≥ 0.90
+- Precision/Recall: ≥ 0.80
+- Top-5 Overlap: ≥ 60%
+- Top-10 Overlap: ≥ 70%
 
 Usage:
-    from src.validation import GraphValidator, validate_analysis
+    from src.validation import IntegratedValidator
+    
+    # Run complete validation pipeline
+    validator = IntegratedValidator(
+        uri="bolt://localhost:7687",
+        user="neo4j",
+        password="password"
+    )
+    result = validator.run_validation()
+    result.print_summary()
     
     # Quick validation
-    result = validate_analysis(graph, predicted_scores, actual_impacts)
-    print(f"Status: {result.status}")
-    print(f"Spearman: {result.correlation.spearman_coefficient:.3f}")
+    from src.validation import run_quick_validation
+    metrics = run_quick_validation()
+    print(f"Spearman: {metrics['spearman']}")
     
-    # Full validation with advanced analysis
+    # Manual validation
+    from src.validation import GraphValidator
     validator = GraphValidator()
-    result = validator.validate(graph, predicted_scores, actual_impacts)
-    validator.run_sensitivity_analysis(graph, predicted_scores, actual_impacts)
-    validator.run_bootstrap_analysis(graph, predicted_scores, actual_impacts)
+    result = validator.validate(predicted_scores, actual_impacts)
 """
 
 from .graph_validator import (
@@ -33,58 +41,63 @@ from .graph_validator import (
     
     # Enums
     ValidationStatus,
-    CriticalityLevel,
+    MetricStatus,
     
     # Data classes
+    CorrelationMetrics,
     ConfusionMatrix,
-    ComponentValidation,
-    CorrelationResult,
     RankingMetrics,
-    SensitivityResult,
+    ComponentValidation,
     BootstrapResult,
-    CrossValidationResult,
+    ValidationTargets,
     ValidationResult,
     
     # Statistical functions
     spearman_correlation,
     pearson_correlation,
     kendall_tau,
-    calculate_percentile,
+    percentile,
     
     # Convenience functions
-    validate_analysis,
-    quick_validate,
-    compare_methods
+    validate_predictions,
+    quick_validate
+)
+
+from .integrated_validator import (
+    IntegratedValidator,
+    IntegratedValidationResult,
+    run_quick_validation
 )
 
 __all__ = [
-    # Main class
+    # Main classes
     'GraphValidator',
+    'IntegratedValidator',
     
     # Enums
     'ValidationStatus',
-    'CriticalityLevel',
+    'MetricStatus',
     
     # Data classes
+    'CorrelationMetrics',
     'ConfusionMatrix',
-    'ComponentValidation',
-    'CorrelationResult',
     'RankingMetrics',
-    'SensitivityResult',
+    'ComponentValidation',
     'BootstrapResult',
-    'CrossValidationResult',
+    'ValidationTargets',
     'ValidationResult',
+    'IntegratedValidationResult',
     
     # Statistical functions
     'spearman_correlation',
     'pearson_correlation',
     'kendall_tau',
-    'calculate_percentile',
+    'percentile',
     
     # Convenience functions
-    'validate_analysis',
+    'validate_predictions',
     'quick_validate',
-    'compare_methods'
+    'run_quick_validation'
 ]
 
-__version__ = '1.0.0'
+__version__ = '2.0.0'
