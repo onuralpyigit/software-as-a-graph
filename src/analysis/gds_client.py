@@ -75,6 +75,15 @@ class GDSClient:
     - Detect communities and clusters
     - Find articulation points and bridges
     - Analyze connectivity and paths
+    
+    Weight Property:
+        The DEPENDS_ON relationships can have a 'weight' property that reflects
+        the importance or criticality of the dependency. Higher weights indicate
+        more critical dependencies. Weights are used in:
+        - Weighted centrality calculations
+        - Path cost computations
+        - Community detection
+        - Criticality scoring
     """
     
     # Dependency types for projection
@@ -84,6 +93,9 @@ class GDSClient:
         'app_to_broker',
         'node_to_broker'
     ]
+    
+    # Default weight for relationships without explicit weight
+    DEFAULT_WEIGHT = 1.0
     
     def __init__(self, uri: str, user: str, password: str, database: str = 'neo4j'):
         """
@@ -134,7 +146,8 @@ class GDSClient:
     def create_depends_on_projection(self, 
                                       projection_name: str = 'depends_on_graph',
                                       dependency_types: Optional[List[str]] = None,
-                                      include_weights: bool = True) -> GDSProjection:
+                                      include_weights: bool = True,
+                                      weight_property: str = 'weight') -> GDSProjection:
         """
         Create a GDS graph projection for DEPENDS_ON relationships.
         
@@ -142,14 +155,22 @@ class GDSClient:
             projection_name: Name for the projection
             dependency_types: List of dependency types to include (default: all)
             include_weights: Whether to include edge weights
+            weight_property: Name of the weight property on relationships
             
         Returns:
             GDSProjection with projection details
+            
+        Note:
+            The weight property represents dependency criticality:
+            - Higher weight = more critical dependency
+            - Default weight is 1.0 if not specified
+            - Weights influence centrality, paths, and community detection
         """
         if dependency_types is None:
             dependency_types = self.DEPENDS_ON_TYPES
         
-        self.logger.info(f"Creating GDS projection '{projection_name}'...")
+        self.logger.info(f"Creating GDS projection '{projection_name}' "
+                        f"(weighted={include_weights})...")
         
         # Build type filter
         type_filter = ' OR '.join([f"r.dependency_type = \"{t}\"" for t in dependency_types])
@@ -158,14 +179,18 @@ class GDSClient:
             # Drop existing projection if exists
             self._drop_projection_if_exists(session, projection_name)
             
+            # Weight expression - use property if exists, otherwise default
+            weight_expr = f"coalesce(r.{weight_property}, {self.DEFAULT_WEIGHT})" if include_weights else "1.0"
+            
             # Create native projection with Cypher
             query = f"""
             CALL gds.graph.project.cypher(
                 '{projection_name}',
-                'MATCH (n) WHERE n:Application OR n:Node OR n:Broker OR n:Topic RETURN id(n) AS id',
+                'MATCH (n) WHERE n:Application OR n:Node OR n:Broker OR n:Topic 
+                 RETURN id(n) AS id',
                 'MATCH (a)-[r:DEPENDS_ON]->(b) WHERE {type_filter} 
                  RETURN id(a) AS source, id(b) AS target, 
-                        coalesce(r.weight, 1.0) AS weight,
+                        {weight_expr} AS weight,
                         r.dependency_type AS dependency_type'
             )
             YIELD graphName, nodeCount, relationshipCount
@@ -187,7 +212,33 @@ class GDSClient:
             self.logger.info(f"Created projection: {projection.node_count} nodes, "
                            f"{projection.relationship_count} relationships")
             
+            # Log weight statistics
+            self._log_weight_statistics(session, type_filter)
+            
             return projection
+    
+    def _log_weight_statistics(self, session, type_filter: str):
+        """Log statistics about edge weights"""
+        try:
+            query = f"""
+            MATCH ()-[r:DEPENDS_ON]->()
+            WHERE {type_filter}
+            RETURN 
+                count(r) AS total,
+                count(r.weight) AS with_weight,
+                avg(coalesce(r.weight, 1.0)) AS avg_weight,
+                min(coalesce(r.weight, 1.0)) AS min_weight,
+                max(coalesce(r.weight, 1.0)) AS max_weight
+            """
+            result = session.run(query)
+            record = result.single()
+            if record:
+                self.logger.info(f"Weight stats: total={record['total']}, "
+                               f"with_weight={record['with_weight']}, "
+                               f"avg={record['avg_weight']:.2f}, "
+                               f"range=[{record['min_weight']:.2f}, {record['max_weight']:.2f}]")
+        except Exception as e:
+            self.logger.debug(f"Could not get weight stats: {e}")
     
     def create_layer_projection(self, 
                                  layer: str,
@@ -280,6 +331,7 @@ class GDSClient:
     
     def betweenness_centrality(self, 
                                 projection_name: str,
+                                weighted: bool = True,
                                 top_k: Optional[int] = None) -> List[CentralityResult]:
         """
         Calculate betweenness centrality using GDS.
@@ -289,16 +341,30 @@ class GDSClient:
         
         Args:
             projection_name: Name of the graph projection
+            weighted: Use relationship weights (default: True)
             top_k: Return only top K results (None for all)
             
         Returns:
             List of CentralityResult sorted by score descending
+            
+        Note:
+            When weighted=True, uses relationship weights to find shortest paths.
+            Higher weight = higher cost path, so heavily weighted dependencies
+            are avoided in shortest paths, making nodes on lighter-weight paths
+            more central.
         """
-        self.logger.info(f"Running betweenness centrality on '{projection_name}'...")
+        mode = "weighted" if weighted else "unweighted"
+        self.logger.info(f"Running {mode} betweenness centrality on '{projection_name}'...")
         
         with self.session() as session:
+            # Use relationshipWeightProperty for weighted analysis
+            weight_config = "relationshipWeightProperty: 'weight'," if weighted else ""
+            
             query = f"""
-            CALL gds.betweenness.stream('{projection_name}')
+            CALL gds.betweenness.stream('{projection_name}', {{
+                {weight_config}
+                concurrency: 4
+            }})
             YIELD nodeId, score
             WITH gds.util.asNode(nodeId) AS node, score
             RETURN node.id AS nodeId, labels(node)[0] AS nodeType, score
@@ -319,6 +385,7 @@ class GDSClient:
     
     def pagerank(self,
                   projection_name: str,
+                  weighted: bool = True,
                   damping_factor: float = 0.85,
                   max_iterations: int = 20,
                   top_k: Optional[int] = None) -> List[CentralityResult]:
@@ -330,18 +397,28 @@ class GDSClient:
         
         Args:
             projection_name: Name of the graph projection
+            weighted: Use relationship weights (default: True)
             damping_factor: PageRank damping factor
             max_iterations: Maximum iterations
             top_k: Return only top K results
             
         Returns:
             List of CentralityResult sorted by score descending
+            
+        Note:
+            When weighted=True, weights influence rank distribution.
+            Higher weight dependencies transfer more rank, making
+            nodes with high-weight incoming dependencies more important.
         """
-        self.logger.info(f"Running PageRank on '{projection_name}'...")
+        mode = "weighted" if weighted else "unweighted"
+        self.logger.info(f"Running {mode} PageRank on '{projection_name}'...")
         
         with self.session() as session:
+            weight_config = "relationshipWeightProperty: 'weight'," if weighted else ""
+            
             query = f"""
             CALL gds.pageRank.stream('{projection_name}', {{
+                {weight_config}
                 dampingFactor: {damping_factor},
                 maxIterations: {max_iterations}
             }})
@@ -365,6 +442,7 @@ class GDSClient:
     
     def degree_centrality(self,
                            projection_name: str,
+                           weighted: bool = True,
                            orientation: str = 'NATURAL',
                            top_k: Optional[int] = None) -> List[CentralityResult]:
         """
@@ -375,17 +453,27 @@ class GDSClient:
         
         Args:
             projection_name: Name of the graph projection
-            orientation: NATURAL, REVERSE, or UNDIRECTED
+            weighted: Use relationship weights (default: True)
+            orientation: NATURAL (out-degree), REVERSE (in-degree), or UNDIRECTED
             top_k: Return only top K results
             
         Returns:
             List of CentralityResult sorted by score descending
+            
+        Note:
+            When weighted=True, returns sum of weights rather than count.
+            This captures total dependency strength, not just count.
+            High weighted degree = many high-importance dependencies.
         """
-        self.logger.info(f"Running degree centrality on '{projection_name}'...")
+        mode = "weighted" if weighted else "unweighted"
+        self.logger.info(f"Running {mode} degree centrality ({orientation}) on '{projection_name}'...")
         
         with self.session() as session:
+            weight_config = "relationshipWeightProperty: 'weight'," if weighted else ""
+            
             query = f"""
             CALL gds.degree.stream('{projection_name}', {{
+                {weight_config}
                 orientation: '{orientation}'
             }})
             YIELD nodeId, score
@@ -408,6 +496,7 @@ class GDSClient:
     
     def closeness_centrality(self,
                               projection_name: str,
+                              weighted: bool = True,
                               top_k: Optional[int] = None) -> List[CentralityResult]:
         """
         Calculate closeness centrality using GDS.
@@ -417,16 +506,28 @@ class GDSClient:
         
         Args:
             projection_name: Name of the graph projection
+            weighted: Use relationship weights (default: True)
             top_k: Return only top K results
             
         Returns:
             List of CentralityResult sorted by score descending
+            
+        Note:
+            When weighted=True, path length = sum of weights.
+            Lower total weight = shorter path = higher closeness.
+            Nodes reachable via low-weight paths have higher closeness.
         """
-        self.logger.info(f"Running closeness centrality on '{projection_name}'...")
+        mode = "weighted" if weighted else "unweighted"
+        self.logger.info(f"Running {mode} closeness centrality on '{projection_name}'...")
         
         with self.session() as session:
+            # Note: GDS closeness uses 'useWassermanFaust' for disconnected graphs
+            weight_config = "relationshipWeightProperty: 'weight'," if weighted else ""
+            
             query = f"""
-            CALL gds.closeness.stream('{projection_name}')
+            CALL gds.closeness.stream('{projection_name}', {{
+                useWassermanFaust: true
+            }})
             YIELD nodeId, score
             WITH gds.util.asNode(nodeId) AS node, score
             WHERE score > 0
@@ -452,6 +553,7 @@ class GDSClient:
     
     def louvain_communities(self,
                             projection_name: str,
+                            weighted: bool = True,
                             include_intermediate: bool = False) -> Tuple[List[CommunityResult], Dict[str, Any]]:
         """
         Detect communities using Louvain algorithm.
@@ -461,16 +563,26 @@ class GDSClient:
         
         Args:
             projection_name: Name of the graph projection
+            weighted: Use relationship weights (default: True)
             include_intermediate: Include intermediate community levels
             
         Returns:
             Tuple of (community assignments, summary stats)
+            
+        Note:
+            When weighted=True, strongly connected components (high total weight)
+            are more likely to be grouped together. This captures logical
+            coupling based on dependency importance, not just connection count.
         """
-        self.logger.info(f"Running Louvain community detection on '{projection_name}'...")
+        mode = "weighted" if weighted else "unweighted"
+        self.logger.info(f"Running {mode} Louvain community detection on '{projection_name}'...")
         
         with self.session() as session:
+            weight_config = "relationshipWeightProperty: 'weight'," if weighted else ""
+            
             query = f"""
             CALL gds.louvain.stream('{projection_name}', {{
+                {weight_config}
                 includeIntermediateCommunities: {str(include_intermediate).lower()}
             }})
             YIELD nodeId, communityId
@@ -493,7 +605,7 @@ class GDSClient:
             stats = {
                 'community_count': len(community_counts),
                 'community_sizes': community_counts,
-                'modularity': self._calculate_modularity_stats(projection_name)
+                'modularity': self._calculate_modularity_stats(projection_name, weighted)
             }
             
             return results, stats
@@ -543,12 +655,15 @@ class GDSClient:
             
             return results, stats
     
-    def _calculate_modularity_stats(self, projection_name: str) -> float:
+    def _calculate_modularity_stats(self, projection_name: str, weighted: bool = True) -> float:
         """Calculate modularity score for the projection"""
         try:
+            weight_config = "relationshipWeightProperty: 'weight'," if weighted else ""
             with self.session() as session:
                 result = session.run(f"""
-                CALL gds.louvain.stats('{projection_name}')
+                CALL gds.louvain.stats('{projection_name}', {{
+                    {weight_config}
+                }})
                 YIELD modularity
                 RETURN modularity
                 """)
@@ -720,10 +835,11 @@ class GDSClient:
             query = """
             MATCH (a)-[r:DEPENDS_ON]->(b)
             WITH a, b, r
-            OPTIONAL MATCH path = (a)-[:DEPENDS_ON*2..5]->(b)
-            WHERE NOT r IN relationships(path)
-            WITH a, b, r, count(path) AS altPaths
-            WHERE altPaths = 0
+            WHERE NOT EXISTS {
+                MATCH (a)-[:DEPENDS_ON*2..5]->(b)
+                WHERE id(r) <> id(r)
+                RETURN r
+            }
             RETURN a.id AS source, 
                    b.id AS target,
                    r.dependency_type AS depType,
@@ -786,7 +902,7 @@ class GDSClient:
         Get comprehensive statistics about the DEPENDS_ON graph.
         
         Returns:
-            Dictionary with graph statistics
+            Dictionary with graph statistics including weight info
         """
         self.logger.info("Gathering graph statistics...")
         
@@ -812,6 +928,52 @@ class GDSClient:
             for record in session.run(edge_query):
                 edge_counts[record['depType']] = record['count']
             
+            # Weight statistics
+            weight_query = """
+            MATCH ()-[r:DEPENDS_ON]->()
+            WITH r.weight AS weight
+            WHERE weight IS NOT NULL
+            RETURN 
+                count(weight) AS count,
+                avg(weight) AS avg,
+                min(weight) AS min,
+                max(weight) AS max,
+                stDev(weight) AS std_dev,
+                percentileCont(weight, 0.5) AS median,
+                percentileCont(weight, 0.9) AS p90
+            """
+            
+            weight_stats = {}
+            weight_result = session.run(weight_query).single()
+            if weight_result and weight_result['count'] > 0:
+                weight_stats = {
+                    'count': weight_result['count'],
+                    'avg': round(weight_result['avg'], 4),
+                    'min': weight_result['min'],
+                    'max': weight_result['max'],
+                    'std_dev': round(weight_result['std_dev'], 4) if weight_result['std_dev'] else 0,
+                    'median': round(weight_result['median'], 4),
+                    'p90': round(weight_result['p90'], 4)
+                }
+            
+            # Weight distribution by dependency type
+            weight_by_type_query = """
+            MATCH ()-[r:DEPENDS_ON]->()
+            WHERE r.weight IS NOT NULL
+            RETURN r.dependency_type AS depType,
+                   count(*) AS count,
+                   avg(r.weight) AS avg_weight,
+                   max(r.weight) AS max_weight
+            """
+            
+            weight_by_type = {}
+            for record in session.run(weight_by_type_query):
+                weight_by_type[record['depType']] = {
+                    'count': record['count'],
+                    'avg_weight': round(record['avg_weight'], 4),
+                    'max_weight': record['max_weight']
+                }
+            
             # Density and connectivity
             stats_query = """
             MATCH (n)
@@ -834,5 +996,105 @@ class GDSClient:
                 'total_edges': sum(edge_counts.values()),
                 'density': stats['density'] if stats else 0,
                 'node_count': stats['nodeCount'] if stats else 0,
-                'edge_count': stats['edgeCount'] if stats else 0
+                'edge_count': stats['edgeCount'] if stats else 0,
+                'weight_statistics': weight_stats,
+                'weight_by_dependency_type': weight_by_type
             }
+    
+    def get_high_weight_dependencies(self, 
+                                      percentile: float = 90,
+                                      top_k: Optional[int] = 20) -> List[Dict[str, Any]]:
+        """
+        Get high-weight DEPENDS_ON relationships.
+        
+        High-weight dependencies are critical and should be prioritized
+        in reliability and availability analysis.
+        
+        Args:
+            percentile: Return dependencies above this percentile (default: 90)
+            top_k: Maximum number to return (default: 20)
+            
+        Returns:
+            List of high-weight dependencies with details
+        """
+        self.logger.info(f"Finding dependencies above {percentile}th percentile...")
+        
+        with self.session() as session:
+            query = f"""
+            MATCH ()-[r:DEPENDS_ON]->()
+            WHERE r.weight IS NOT NULL
+            WITH percentileCont(r.weight, {percentile/100}) AS threshold
+            MATCH (a)-[r:DEPENDS_ON]->(b)
+            WHERE r.weight >= threshold
+            RETURN a.id AS source,
+                   b.id AS target,
+                   labels(a)[0] AS sourceType,
+                   labels(b)[0] AS targetType,
+                   r.dependency_type AS depType,
+                   r.weight AS weight
+            ORDER BY r.weight DESC
+            {'LIMIT ' + str(top_k) if top_k else ''}
+            """
+            
+            results = []
+            for record in session.run(query):
+                results.append({
+                    'source': record['source'],
+                    'target': record['target'],
+                    'source_type': record['sourceType'],
+                    'target_type': record['targetType'],
+                    'dependency_type': record['depType'],
+                    'weight': record['weight']
+                })
+            
+            return results
+    
+    def get_weighted_node_importance(self, top_k: Optional[int] = 20) -> List[Dict[str, Any]]:
+        """
+        Calculate node importance based on weighted incoming dependencies.
+        
+        A node is important if it has many high-weight incoming dependencies
+        (i.e., many critical components depend on it).
+        
+        Args:
+            top_k: Maximum number to return (default: 20)
+            
+        Returns:
+            List of nodes with their weighted importance scores
+        """
+        self.logger.info("Calculating weighted node importance...")
+        
+        with self.session() as session:
+            query = f"""
+            MATCH (n)<-[r:DEPENDS_ON]-(dependent)
+            WHERE n:Application OR n:Node OR n:Broker
+            WITH n, 
+                 count(r) AS dependency_count,
+                 sum(coalesce(r.weight, 1.0)) AS total_weight,
+                 avg(coalesce(r.weight, 1.0)) AS avg_weight,
+                 max(coalesce(r.weight, 1.0)) AS max_weight,
+                 collect(DISTINCT dependent.id) AS dependents
+            RETURN n.id AS nodeId,
+                   labels(n)[0] AS nodeType,
+                   dependency_count AS dependencyCount,
+                   total_weight AS totalWeight,
+                   avg_weight AS avgWeight,
+                   max_weight AS maxWeight,
+                   size(dependents) AS uniqueDependents
+            ORDER BY total_weight DESC
+            {'LIMIT ' + str(top_k) if top_k else ''}
+            """
+            
+            results = []
+            for record in session.run(query):
+                results.append({
+                    'node_id': record['nodeId'],
+                    'node_type': record['nodeType'],
+                    'dependency_count': record['dependencyCount'],
+                    'total_weight': round(record['totalWeight'], 4),
+                    'avg_weight': round(record['avgWeight'], 4),
+                    'max_weight': record['maxWeight'],
+                    'unique_dependents': record['uniqueDependents']
+                })
+            
+            return results

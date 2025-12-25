@@ -159,15 +159,18 @@ class ComprehensiveResult:
 class GDSAnalysisOrchestrator:
     """Orchestrates GDS-based quality analysis"""
     
-    def __init__(self, gds_client: GDSClient):
+    def __init__(self, gds_client: GDSClient, config: Optional[Dict[str, Any]] = None):
         self.gds = gds_client
+        self.config = config or {}
         self.logger = logging.getLogger('GDSOrchestrator')
     
     def analyze(self,
                 analyze_reliability: bool = True,
                 analyze_maintainability: bool = True,
                 analyze_availability: bool = True,
-                dependency_types: Optional[List[str]] = None) -> ComprehensiveResult:
+                dependency_types: Optional[List[str]] = None,
+                use_weights: bool = True,
+                weight_property: str = 'weight') -> ComprehensiveResult:
         """
         Run comprehensive analysis using GDS.
         
@@ -176,11 +179,13 @@ class GDSAnalysisOrchestrator:
             analyze_maintainability: Include maintainability analysis
             analyze_availability: Include availability analysis
             dependency_types: DEPENDS_ON types to include (default: all)
+            use_weights: Use weighted algorithms (default: True)
+            weight_property: Name of the weight property (default: 'weight')
             
         Returns:
             ComprehensiveResult with all findings
         """
-        self.logger.info("Starting GDS-based analysis...")
+        self.logger.info(f"Starting GDS-based analysis (weighted={use_weights})...")
         
         result = ComprehensiveResult()
         
@@ -188,16 +193,27 @@ class GDSAnalysisOrchestrator:
         self.logger.info("Gathering graph statistics...")
         result.graph_stats = self.gds.get_graph_statistics()
         
+        # Log weight information
+        weight_stats = result.graph_stats.get('weight_statistics', {})
+        if weight_stats:
+            self.logger.info(f"Weight stats: avg={weight_stats.get('avg', 'N/A')}, "
+                           f"range=[{weight_stats.get('min', 'N/A')}, {weight_stats.get('max', 'N/A')}]")
+        
         # Create projection
         projection_name = 'analysis_projection'
         self.logger.info("Creating GDS projection...")
         projection = self.gds.create_depends_on_projection(
             projection_name=projection_name,
-            dependency_types=dependency_types
+            dependency_types=dependency_types,
+            include_weights=use_weights,
+            weight_property=weight_property
         )
         
         self.logger.info(f"Projection created: {projection.node_count} nodes, "
                         f"{projection.relationship_count} relationships")
+        
+        # Analyzer config with weighted setting
+        analyzer_config = {'use_weights': use_weights}
         
         try:
             # Run analyses
@@ -205,19 +221,19 @@ class GDSAnalysisOrchestrator:
             
             if analyze_reliability:
                 self.logger.info("Running reliability analysis...")
-                analyzer = ReliabilityAnalyzer(self.gds)
+                analyzer = ReliabilityAnalyzer(self.gds, config=analyzer_config)
                 result.reliability = analyzer.analyze(projection_name)
                 scores.append(result.reliability.score * 1.2)  # Weight higher
             
             if analyze_maintainability:
                 self.logger.info("Running maintainability analysis...")
-                analyzer = MaintainabilityAnalyzer(self.gds)
+                analyzer = MaintainabilityAnalyzer(self.gds, config=analyzer_config)
                 result.maintainability = analyzer.analyze(projection_name)
                 scores.append(result.maintainability.score)
             
             if analyze_availability:
                 self.logger.info("Running availability analysis...")
-                analyzer = AvailabilityAnalyzer(self.gds)
+                analyzer = AvailabilityAnalyzer(self.gds, config=analyzer_config)
                 result.availability = analyzer.analyze(projection_name)
                 scores.append(result.availability.score * 1.1)  # Weight higher
             
@@ -253,6 +269,23 @@ def print_graph_summary(stats: Dict[str, Any]):
     print("\n  DEPENDS_ON by Type:")
     for dep_type, count in stats.get('edge_counts', {}).items():
         print(f"    {dep_type}: {count}")
+    
+    # Weight statistics
+    weight_stats = stats.get('weight_statistics', {})
+    if weight_stats:
+        print(f"\n  {Colors.CYAN}Weight Statistics:{Colors.ENDC}")
+        print(f"    Edges with weight: {weight_stats.get('count', 0)}")
+        print(f"    Average weight:    {weight_stats.get('avg', 0):.4f}")
+        print(f"    Weight range:      [{weight_stats.get('min', 0):.2f}, {weight_stats.get('max', 0):.2f}]")
+        print(f"    Median:            {weight_stats.get('median', 0):.4f}")
+        print(f"    90th percentile:   {weight_stats.get('p90', 0):.4f}")
+    
+    # Weight by dependency type
+    weight_by_type = stats.get('weight_by_dependency_type', {})
+    if weight_by_type:
+        print("\n  Weight by Dependency Type:")
+        for dep_type, info in weight_by_type.items():
+            print(f"    {dep_type}: avg={info.get('avg_weight', 0):.2f}, max={info.get('max_weight', 0):.2f}")
 
 
 def print_analysis_result(result: AnalysisResult, verbose: bool = False):
@@ -433,6 +466,12 @@ Examples:
                                choices=['app_to_app', 'node_to_node', 
                                        'app_to_broker', 'node_to_broker'],
                                help='DEPENDS_ON types to analyze')
+    analysis_group.add_argument('--weighted', '-W', action='store_true', default=True,
+                               help='Use weighted analysis (default: True)')
+    analysis_group.add_argument('--no-weighted', action='store_true',
+                               help='Disable weighted analysis (use unweighted)')
+    analysis_group.add_argument('--weight-property', default='weight',
+                               help='Name of the weight property on DEPENDS_ON (default: weight)')
     
     # Output options
     output_group = parser.add_argument_group('Output Options')
@@ -489,11 +528,17 @@ def main():
         analyze_maintainability = args.maintainability
         analyze_availability = args.availability
     
+    # Determine weighted mode
+    use_weights = not args.no_weighted
+    
     # Print header
     if not args.quiet:
         print_header("GRAPH ANALYZER (GDS)")
         print(f"\n  Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"  Neo4j: {args.uri}")
+        print(f"  Weighted: {'Yes' if use_weights else 'No'}")
+        if use_weights:
+            print(f"  Weight Property: {args.weight_property}")
         analyses = []
         if analyze_reliability:
             analyses.append("Reliability")
@@ -523,7 +568,9 @@ def main():
             analyze_reliability=analyze_reliability,
             analyze_maintainability=analyze_maintainability,
             analyze_availability=analyze_availability,
-            dependency_types=args.dep_types
+            dependency_types=args.dep_types,
+            use_weights=use_weights,
+            weight_property=args.weight_property
         )
         
         # Output results

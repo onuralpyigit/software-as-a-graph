@@ -159,11 +159,19 @@ class ReliabilityAnalyzer(BaseGDSAnalyzer):
     - Cascade failure risks via betweenness centrality
     - Missing redundancy via connectivity analysis
     - Critical dependency chains via path analysis
+    - High-weight critical dependencies
+    
+    Weight Consideration:
+        Higher weight = more critical dependency. Weighted analysis
+        prioritizes paths through high-weight dependencies and identifies
+        nodes that handle critical (high-weight) traffic.
     """
     
     DEFAULT_CONFIG = {
         'betweenness_threshold_percentile': 90,
         'spof_min_connections': 2,
+        'use_weights': True,  # Use weighted algorithms
+        'high_weight_percentile': 90,  # Percentile for high-weight detection
         'severity_thresholds': {
             'critical': 0.8,
             'high': 0.6,
@@ -187,9 +195,11 @@ class ReliabilityAnalyzer(BaseGDSAnalyzer):
         critical_components = []
         metrics = {}
         
+        use_weights = self.config.get('use_weights', True)
+        
         # 1. Analyze betweenness centrality for bottlenecks
-        self.logger.info("Analyzing betweenness centrality...")
-        bc_results = self.gds.betweenness_centrality(projection_name)
+        self.logger.info(f"Analyzing {'weighted ' if use_weights else ''}betweenness centrality...")
+        bc_results = self.gds.betweenness_centrality(projection_name, weighted=use_weights)
         bc_findings, bc_critical = self._analyze_betweenness(bc_results)
         findings.extend(bc_findings)
         critical_components.extend(bc_critical)
@@ -199,7 +209,8 @@ class ReliabilityAnalyzer(BaseGDSAnalyzer):
             metrics['betweenness'] = {
                 'max': max(scores),
                 'avg': sum(scores) / len(scores),
-                'high_centrality_count': len([s for s in scores if s > 0.1])
+                'high_centrality_count': len([s for s in scores if s > 0.1]),
+                'weighted': use_weights
             }
         
         # 2. Find articulation points (SPOFs)
@@ -234,6 +245,20 @@ class ReliabilityAnalyzer(BaseGDSAnalyzer):
         metrics['component_count'] = comp_stats['component_count']
         metrics['is_connected'] = comp_stats['is_connected']
         
+        # 5. Analyze high-weight dependencies (critical paths)
+        self.logger.info("Analyzing high-weight dependencies...")
+        hw_findings, hw_critical = self._analyze_high_weight_dependencies()
+        findings.extend(hw_findings)
+        critical_components.extend(hw_critical)
+        
+        # 6. Analyze weighted node importance
+        importance_results = self.gds.get_weighted_node_importance(top_k=10)
+        if importance_results:
+            metrics['weighted_importance'] = {
+                'top_nodes': [r['node_id'] for r in importance_results[:5]],
+                'max_total_weight': importance_results[0]['total_weight'] if importance_results else 0
+            }
+        
         # Calculate reliability score
         score = self._calculate_score(findings, metrics)
         
@@ -254,6 +279,70 @@ class ReliabilityAnalyzer(BaseGDSAnalyzer):
             metrics=metrics,
             recommendations=recommendations
         )
+    
+    def _analyze_high_weight_dependencies(self) -> Tuple[List[Finding], List[CriticalComponent]]:
+        """Analyze high-weight dependencies as critical paths"""
+        findings = []
+        critical = []
+        
+        percentile = self.config.get('high_weight_percentile', 90)
+        high_weight_deps = self.gds.get_high_weight_dependencies(percentile=percentile, top_k=15)
+        
+        if not high_weight_deps:
+            return findings, critical
+        
+        # Group by target to find heavily depended-on nodes
+        target_weights = {}
+        for dep in high_weight_deps:
+            target = dep['target']
+            if target not in target_weights:
+                target_weights[target] = {
+                    'total_weight': 0,
+                    'count': 0,
+                    'type': dep['target_type'],
+                    'sources': []
+                }
+            target_weights[target]['total_weight'] += dep['weight']
+            target_weights[target]['count'] += 1
+            target_weights[target]['sources'].append(dep['source'])
+        
+        # Create findings for nodes with multiple high-weight incoming deps
+        for target, info in target_weights.items():
+            if info['count'] >= 2:
+                severity = Severity.HIGH if info['count'] >= 3 else Severity.MEDIUM
+                
+                findings.append(Finding(
+                    severity=severity,
+                    category='high_weight_dependency_target',
+                    component_id=target,
+                    component_type=info['type'],
+                    description=f"Target of {info['count']} high-weight dependencies (total: {info['total_weight']:.2f})",
+                    impact="Critical component - failure affects multiple high-priority dependents",
+                    recommendation="Ensure high availability and redundancy",
+                    metrics={
+                        'high_weight_incoming': info['count'],
+                        'total_incoming_weight': info['total_weight'],
+                        'dependent_sources': info['sources'][:5]
+                    }
+                ))
+                
+                # Normalize score based on weight
+                max_weight = max(t['total_weight'] for t in target_weights.values())
+                norm_score = info['total_weight'] / max_weight if max_weight > 0 else 0
+                
+                critical.append(CriticalComponent(
+                    component_id=target,
+                    component_type=info['type'],
+                    criticality_score=norm_score,
+                    quality_attribute=QualityAttribute.RELIABILITY,
+                    reasons=['high_weight_target', 'critical_dependency'],
+                    metrics={
+                        'total_weight': info['total_weight'],
+                        'incoming_count': info['count']
+                    }
+                ))
+        
+        return findings, critical
     
     def _analyze_betweenness(self, results: List[CentralityResult]) -> Tuple[List[Finding], List[CriticalComponent]]:
         """Analyze betweenness centrality results"""
@@ -409,12 +498,20 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
     - God components via combined metrics
     - Circular dependencies via cycle detection
     - Poor modularity via community detection
+    - High-weight coupling clusters
+    
+    Weight Consideration:
+        Weighted degree centrality captures total dependency strength,
+        not just connection count. A component with few but critical
+        (high-weight) dependencies may be harder to maintain than one
+        with many low-weight dependencies.
     """
     
     DEFAULT_CONFIG = {
         'coupling_threshold': 10,
         'god_component_threshold': 15,
         'modularity_threshold': 0.3,
+        'use_weights': True,  # Use weighted algorithms
         'severity_thresholds': {
             'critical': 0.8,
             'high': 0.6,
@@ -438,12 +535,14 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
         critical_components = []
         metrics = {}
         
-        # 1. Analyze degree centrality for coupling
-        self.logger.info("Analyzing coupling (degree centrality)...")
-        in_degree = self.gds.degree_centrality(projection_name, orientation='REVERSE')
-        out_degree = self.gds.degree_centrality(projection_name, orientation='NATURAL')
+        use_weights = self.config.get('use_weights', True)
         
-        coupling_findings, coupling_critical = self._analyze_coupling(in_degree, out_degree)
+        # 1. Analyze degree centrality for coupling (weighted = total weight, not count)
+        self.logger.info(f"Analyzing {'weighted ' if use_weights else ''}coupling (degree centrality)...")
+        in_degree = self.gds.degree_centrality(projection_name, weighted=use_weights, orientation='REVERSE')
+        out_degree = self.gds.degree_centrality(projection_name, weighted=use_weights, orientation='NATURAL')
+        
+        coupling_findings, coupling_critical = self._analyze_coupling(in_degree, out_degree, use_weights)
         findings.extend(coupling_findings)
         critical_components.extend(coupling_critical)
         
@@ -451,12 +550,13 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
             metrics['coupling'] = {
                 'max_in_degree': max(r.score for r in in_degree),
                 'max_out_degree': max(r.score for r in out_degree) if out_degree else 0,
-                'high_coupling_count': len([r for r in in_degree if r.score > self.config['coupling_threshold']])
+                'high_coupling_count': len([r for r in in_degree if r.score > self.config['coupling_threshold']]),
+                'weighted': use_weights
             }
         
-        # 2. Detect communities for modularity
-        self.logger.info("Detecting communities...")
-        communities, comm_stats = self.gds.louvain_communities(projection_name)
+        # 2. Detect communities for modularity (weighted clusters)
+        self.logger.info(f"Detecting {'weighted ' if use_weights else ''}communities...")
+        communities, comm_stats = self.gds.louvain_communities(projection_name, weighted=use_weights)
         modularity_findings = self._analyze_modularity(communities, comm_stats)
         findings.extend(modularity_findings)
         metrics['modularity'] = comm_stats.get('modularity', 0)
@@ -469,10 +569,15 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
         findings.extend(cycle_findings)
         metrics['cycle_count'] = len(cycles)
         
-        # 4. Detect god components
-        god_findings, god_critical = self._detect_god_components(in_degree, out_degree)
+        # 4. Detect god components (using weighted metrics)
+        god_findings, god_critical = self._detect_god_components(in_degree, out_degree, use_weights)
         findings.extend(god_findings)
         critical_components.extend(god_critical)
+        
+        # 5. Analyze weighted coupling clusters
+        if use_weights:
+            cluster_findings = self._analyze_weighted_coupling_clusters(communities, in_degree, out_degree)
+            findings.extend(cluster_findings)
         
         # Calculate maintainability score
         score = self._calculate_score(findings, metrics)
@@ -496,7 +601,8 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
         )
     
     def _analyze_coupling(self, in_degree: List[CentralityResult], 
-                          out_degree: List[CentralityResult]) -> Tuple[List[Finding], List[CriticalComponent]]:
+                          out_degree: List[CentralityResult],
+                          weighted: bool = True) -> Tuple[List[Finding], List[CriticalComponent]]:
         """Analyze coupling via degree metrics"""
         findings = []
         critical = []
@@ -504,7 +610,14 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
         # Create lookup for out-degree
         out_lookup = {r.node_id: r.score for r in out_degree}
         
+        # Adjust threshold for weighted analysis (weights can sum higher)
         threshold = self.config['coupling_threshold']
+        if weighted:
+            # For weighted, use statistical approach
+            all_scores = [r.score + out_lookup.get(r.node_id, 0) for r in in_degree]
+            if all_scores:
+                avg_score = sum(all_scores) / len(all_scores)
+                threshold = max(threshold, avg_score * 2)  # 2x average is high coupling
         
         for result in in_degree:
             total_coupling = result.score + out_lookup.get(result.node_id, 0)
@@ -513,18 +626,21 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
                 norm_score = min(1.0, total_coupling / (threshold * 2))
                 severity = self._severity_from_score(norm_score, self.config['severity_thresholds'])
                 
+                desc = f"High {'weighted ' if weighted else ''}coupling: {result.score:.1f} in, {out_lookup.get(result.node_id, 0):.1f} out"
+                
                 findings.append(Finding(
                     severity=severity,
                     category='high_coupling',
                     component_id=result.node_id,
                     component_type=result.node_type,
-                    description=f"High coupling: {result.score:.0f} in, {out_lookup.get(result.node_id, 0):.0f} out",
-                    impact="Changes affect many components; hard to modify",
-                    recommendation="Reduce dependencies; introduce abstraction layers",
+                    description=desc,
+                    impact="Changes affect many components; hard to modify independently",
+                    recommendation="Reduce dependencies; introduce abstraction layers or interfaces",
                     metrics={
                         'in_degree': result.score,
                         'out_degree': out_lookup.get(result.node_id, 0),
-                        'total_coupling': total_coupling
+                        'total_coupling': total_coupling,
+                        'weighted': weighted
                     }
                 ))
                 
@@ -534,10 +650,55 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
                     criticality_score=norm_score,
                     quality_attribute=QualityAttribute.MAINTAINABILITY,
                     reasons=['high_coupling', 'many_dependencies'],
-                    metrics={'total_coupling': total_coupling}
+                    metrics={'total_coupling': total_coupling, 'weighted': weighted}
                 ))
         
         return findings, critical
+    
+    def _analyze_weighted_coupling_clusters(self, 
+                                             communities: List[CommunityResult],
+                                             in_degree: List[CentralityResult],
+                                             out_degree: List[CentralityResult]) -> List[Finding]:
+        """Identify tightly coupled clusters based on weighted connections"""
+        findings = []
+        
+        # Group nodes by community
+        community_nodes = {}
+        for c in communities:
+            if c.community_id not in community_nodes:
+                community_nodes[c.community_id] = []
+            community_nodes[c.community_id].append(c.node_id)
+        
+        # Calculate total coupling per community
+        in_lookup = {r.node_id: r.score for r in in_degree}
+        out_lookup = {r.node_id: r.score for r in out_degree}
+        
+        for comm_id, nodes in community_nodes.items():
+            if len(nodes) < 3:
+                continue
+            
+            total_coupling = sum(in_lookup.get(n, 0) + out_lookup.get(n, 0) for n in nodes)
+            avg_coupling = total_coupling / len(nodes)
+            
+            # High average coupling in a community = tight coupling cluster
+            if avg_coupling > self.config['coupling_threshold'] * 1.5:
+                findings.append(Finding(
+                    severity=Severity.MEDIUM,
+                    category='tight_coupling_cluster',
+                    component_id=f'community_{comm_id}',
+                    component_type='Community',
+                    description=f"Tightly coupled cluster: {len(nodes)} nodes, avg coupling {avg_coupling:.1f}",
+                    impact="Changes in cluster tend to cascade; hard to modify one component",
+                    recommendation="Consider splitting cluster or introducing interfaces between components",
+                    metrics={
+                        'node_count': len(nodes),
+                        'avg_coupling': avg_coupling,
+                        'total_coupling': total_coupling,
+                        'sample_nodes': nodes[:5]
+                    }
+                ))
+        
+        return findings
     
     def _analyze_modularity(self, communities: List[CommunityResult], 
                             stats: Dict[str, Any]) -> List[Finding]:
@@ -604,7 +765,8 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
         return findings
     
     def _detect_god_components(self, in_degree: List[CentralityResult],
-                                out_degree: List[CentralityResult]) -> Tuple[List[Finding], List[CriticalComponent]]:
+                                out_degree: List[CentralityResult],
+                                weighted: bool = True) -> Tuple[List[Finding], List[CriticalComponent]]:
         """Detect god components with excessive responsibility"""
         findings = []
         critical = []
@@ -612,21 +774,30 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
         out_lookup = {r.node_id: r.score for r in out_degree}
         threshold = self.config['god_component_threshold']
         
+        # Adjust threshold for weighted analysis
+        if weighted:
+            all_scores = [r.score + out_lookup.get(r.node_id, 0) for r in in_degree]
+            if all_scores:
+                avg_score = sum(all_scores) / len(all_scores)
+                threshold = max(threshold, avg_score * 2.5)
+        
         for result in in_degree:
             total = result.score + out_lookup.get(result.node_id, 0)
             
             if total > threshold:
                 norm_score = min(1.0, total / (threshold * 2))
                 
+                desc = f"God component: {total:.1f} total {'weighted ' if weighted else ''}connections"
+                
                 findings.append(Finding(
                     severity=Severity.HIGH,
                     category='god_component',
                     component_id=result.node_id,
                     component_type=result.node_type,
-                    description=f"God component: {total:.0f} total connections",
-                    impact="Knows too much; changes are risky; hard to test",
-                    recommendation="Split into smaller, focused components",
-                    metrics={'total_connections': total}
+                    description=desc,
+                    impact="Knows too much; changes are risky; hard to test in isolation",
+                    recommendation="Split into smaller, focused components with single responsibility",
+                    metrics={'total_connections': total, 'weighted': weighted}
                 ))
                 
                 critical.append(CriticalComponent(
@@ -635,7 +806,7 @@ class MaintainabilityAnalyzer(BaseGDSAnalyzer):
                     criticality_score=norm_score,
                     quality_attribute=QualityAttribute.MAINTAINABILITY,
                     reasons=['god_component', 'excessive_responsibility'],
-                    metrics={'total_connections': total}
+                    metrics={'total_connections': total, 'weighted': weighted}
                 ))
         
         return findings, critical
@@ -700,12 +871,19 @@ class AvailabilityAnalyzer(BaseGDSAnalyzer):
     - Fault tolerance gaps via redundancy check
     - Recovery path issues via path analysis
     - Uptime threats via PageRank importance
+    - Critical weighted dependencies
+    
+    Weight Consideration:
+        Weighted PageRank identifies nodes that receive high-weight 
+        dependencies (critical business dependencies). Weighted closeness
+        identifies nodes with short weighted paths to critical components.
     """
     
     DEFAULT_CONFIG = {
         'min_connectivity': 2,
         'min_path_redundancy': 2,
         'pagerank_threshold_percentile': 90,
+        'use_weights': True,  # Use weighted algorithms
         'severity_thresholds': {
             'critical': 0.8,
             'high': 0.6,
@@ -729,6 +907,8 @@ class AvailabilityAnalyzer(BaseGDSAnalyzer):
         critical_components = []
         metrics = {}
         
+        use_weights = self.config.get('use_weights', True)
+        
         # 1. Check connectivity
         self.logger.info("Analyzing connectivity...")
         components, comp_stats = self.gds.weakly_connected_components(projection_name)
@@ -738,10 +918,10 @@ class AvailabilityAnalyzer(BaseGDSAnalyzer):
         metrics['largest_component'] = comp_stats['largest_component']
         metrics['is_connected'] = comp_stats['is_connected']
         
-        # 2. Analyze PageRank for importance
-        self.logger.info("Analyzing component importance (PageRank)...")
-        pr_results = self.gds.pagerank(projection_name)
-        pr_findings, pr_critical = self._analyze_importance(pr_results)
+        # 2. Analyze PageRank for importance (weighted)
+        self.logger.info(f"Analyzing {'weighted ' if use_weights else ''}component importance (PageRank)...")
+        pr_results = self.gds.pagerank(projection_name, weighted=use_weights)
+        pr_findings, pr_critical = self._analyze_importance(pr_results, use_weights)
         findings.extend(pr_findings)
         critical_components.extend(pr_critical)
         
@@ -750,12 +930,13 @@ class AvailabilityAnalyzer(BaseGDSAnalyzer):
             metrics['pagerank'] = {
                 'max': max(scores),
                 'avg': sum(scores) / len(scores),
-                'high_importance_count': len([s for s in scores if s > 0.1])
+                'high_importance_count': len([s for s in scores if s > 0.1]),
+                'weighted': use_weights
             }
         
-        # 3. Analyze closeness for recovery
-        self.logger.info("Analyzing recovery paths (closeness)...")
-        closeness = self.gds.closeness_centrality(projection_name)
+        # 3. Analyze closeness for recovery (weighted)
+        self.logger.info(f"Analyzing {'weighted ' if use_weights else ''}recovery paths (closeness)...")
+        closeness = self.gds.closeness_centrality(projection_name, weighted=use_weights)
         recovery_findings = self._analyze_recovery_paths(closeness)
         findings.extend(recovery_findings)
         
@@ -765,14 +946,27 @@ class AvailabilityAnalyzer(BaseGDSAnalyzer):
                 metrics['closeness'] = {
                     'avg': sum(scores) / len(scores),
                     'min': min(scores),
-                    'isolated_count': len([r for r in closeness if r.score == 0])
+                    'isolated_count': len([r for r in closeness if r.score == 0]),
+                    'weighted': use_weights
                 }
         
-        # 4. Identify uptime threats
+        # 4. Identify uptime threats (combine SPOF with weighted importance)
         spofs = self.gds.find_articulation_points()
         uptime_findings, uptime_critical = self._analyze_uptime_threats(spofs, pr_results)
         findings.extend(uptime_findings)
         critical_components.extend(uptime_critical)
+        
+        # 5. Analyze weighted dependency importance for availability
+        if use_weights:
+            importance_results = self.gds.get_weighted_node_importance(top_k=10)
+            importance_findings = self._analyze_weighted_importance(importance_results)
+            findings.extend(importance_findings)
+            
+            if importance_results:
+                metrics['weighted_importance'] = {
+                    'top_node': importance_results[0]['node_id'] if importance_results else None,
+                    'max_total_weight': importance_results[0]['total_weight'] if importance_results else 0
+                }
         
         # Calculate availability score
         score = self._calculate_score(findings, metrics)
@@ -829,7 +1023,8 @@ class AvailabilityAnalyzer(BaseGDSAnalyzer):
         
         return findings
     
-    def _analyze_importance(self, results: List[CentralityResult]) -> Tuple[List[Finding], List[CriticalComponent]]:
+    def _analyze_importance(self, results: List[CentralityResult],
+                             weighted: bool = True) -> Tuple[List[Finding], List[CriticalComponent]]:
         """Analyze component importance via PageRank"""
         findings = []
         critical = []
@@ -849,15 +1044,17 @@ class AvailabilityAnalyzer(BaseGDSAnalyzer):
                     self.config['severity_thresholds']
                 )
                 
+                desc = f"High {'weighted ' if weighted else ''}importance (PageRank: {result.score:.4f})"
+                
                 findings.append(Finding(
                     severity=severity,
                     category='high_importance_component',
                     component_id=result.node_id,
                     component_type=result.node_type,
-                    description=f"High importance (PageRank: {result.score:.4f})",
+                    description=desc,
                     impact="Critical for system operation; downtime has wide impact",
                     recommendation="Ensure high availability with redundancy/failover",
-                    metrics={'pagerank': result.score, 'rank': result.rank}
+                    metrics={'pagerank': result.score, 'rank': result.rank, 'weighted': weighted}
                 ))
                 
                 critical.append(CriticalComponent(
@@ -866,10 +1063,29 @@ class AvailabilityAnalyzer(BaseGDSAnalyzer):
                     criticality_score=result.score,
                     quality_attribute=QualityAttribute.AVAILABILITY,
                     reasons=['high_pagerank', 'critical_for_operation'],
-                    metrics={'pagerank': result.score}
+                    metrics={'pagerank': result.score, 'weighted': weighted}
                 ))
         
         return findings, critical
+    
+    def _analyze_weighted_importance(self, results: List[Dict[str, Any]]) -> List[Finding]:
+        """Analyze nodes with high total incoming weight"""
+        findings = []
+        
+        for result in results[:5]:  # Top 5
+            if result['total_weight'] > 10:  # Threshold for high importance
+                findings.append(Finding(
+                    severity=Severity.MEDIUM,
+                    category='high_weight_importance',
+                    component_id=result['node_id'],
+                    component_type=result['node_type'],
+                    description=f"High weighted dependency importance: {result['total_weight']:.1f} total weight from {result['unique_dependents']} dependents",
+                    impact="Many critical dependencies; failure affects high-priority workflows",
+                    recommendation="Implement redundancy and monitoring for this component",
+                    metrics=result
+                ))
+        
+        return findings
     
     def _analyze_recovery_paths(self, results: List[CentralityResult]) -> List[Finding]:
         """Analyze recovery path availability via closeness"""
