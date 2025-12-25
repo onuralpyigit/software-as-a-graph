@@ -6,8 +6,15 @@ Comprehensive simulation capabilities including:
 - FailureSimulator: Component failure and cascade simulation
 - EventDrivenSimulator: Message flow and performance simulation
 
+Data is loaded directly from Neo4j using Neo4jGraphLoader.
+
 Usage:
-    from src.simulation import FailureSimulator, EventDrivenSimulator
+    from src.simulation import Neo4jGraphLoader, FailureSimulator, EventDrivenSimulator
+    
+    # Load graph from Neo4j
+    loader = Neo4jGraphLoader(uri="bolt://localhost:7687", user="neo4j", password="password")
+    graph = loader.load_graph()
+    loader.close()
     
     # Failure simulation
     simulator = FailureSimulator(cascade_threshold=0.7)
@@ -18,6 +25,18 @@ Usage:
     result = event_sim.simulate(graph, duration_ms=10000, message_rate=100)
 """
 
+from .neo4j_loader import (
+    # Main classes
+    Neo4jGraphLoader,
+    SimulationGraph,
+    Component,
+    Dependency,
+    
+    # Enums
+    ComponentType,
+    DependencyType
+)
+
 from .failure_simulator import (
     # Main class
     FailureSimulator,
@@ -25,7 +44,6 @@ from .failure_simulator import (
     # Enums
     FailureType,
     FailureMode,
-    RecoveryStrategy,
     AttackStrategy,
     
     # Data classes
@@ -42,7 +60,6 @@ from .event_simulator import (
     # Enums
     EventType,
     MessageState,
-    ComponentState,
     QoSLevel,
     
     # Data classes
@@ -54,11 +71,18 @@ from .event_simulator import (
 )
 
 __all__ = [
+    # Graph Loading
+    'Neo4jGraphLoader',
+    'SimulationGraph',
+    'Component',
+    'Dependency',
+    'ComponentType',
+    'DependencyType',
+    
     # Failure Simulator
     'FailureSimulator',
     'FailureType',
     'FailureMode',
-    'RecoveryStrategy',
     'AttackStrategy',
     'FailureEvent',
     'ImpactMetrics',
@@ -69,7 +93,6 @@ __all__ = [
     'EventDrivenSimulator',
     'EventType',
     'MessageState',
-    'ComponentState',
     'QoSLevel',
     'SimEvent',
     'Message',
@@ -78,4 +101,4 @@ __all__ = [
     'EventSimulationResult'
 ]
 
-__version__ = '1.0.0'
+__version__ = '2.0.0'

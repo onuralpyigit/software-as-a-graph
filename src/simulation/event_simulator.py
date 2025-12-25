@@ -1,298 +1,205 @@
 #!/usr/bin/env python3
 """
-Event-Driven Simulator for Pub-Sub Systems
-============================================
+Event-Driven Simulator
+=======================
 
-Lightweight discrete event simulation engine for pub-sub systems.
-Simulates message flow, latency, throughput, and system behavior
-under various conditions.
+Simulates message flow through a distributed pub-sub system using
+discrete event simulation.
 
 Features:
-- Message flow simulation
-- Baseline traffic generation
+- Message publishing and delivery
+- Processing delays and queuing
 - Failure injection during simulation
-- Performance metrics collection
-- QoS policy enforcement
-- Load testing capabilities
-- Achieves 100-1000x real-time speedup
+- QoS level enforcement
+- Load testing and chaos engineering
+- Real-time metrics collection
 
 Author: Software-as-a-Graph Research Project
 """
 
 import heapq
-import random
-import math
-from typing import Dict, List, Set, Tuple, Optional, Any, Callable
-from dataclasses import dataclass, field
-from enum import Enum
-from datetime import datetime, timedelta
-from collections import defaultdict
 import logging
+import random
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Any, Optional, Set, Callable
+from collections import defaultdict
 
-try:
-    import networkx as nx
-except ImportError:
-    nx = None
+from .neo4j_loader import SimulationGraph, Component, ComponentType
 
-
-# ============================================================================
-# Enums
-# ============================================================================
 
 class EventType(Enum):
     """Types of simulation events"""
     MESSAGE_PUBLISH = "message_publish"
-    MESSAGE_ROUTE = "message_route"
+    MESSAGE_ARRIVE = "message_arrive"
+    MESSAGE_PROCESS = "message_process"
     MESSAGE_DELIVER = "message_deliver"
-    MESSAGE_DROP = "message_drop"
     MESSAGE_TIMEOUT = "message_timeout"
     COMPONENT_FAIL = "component_fail"
     COMPONENT_RECOVER = "component_recover"
-    LOAD_SPIKE = "load_spike"
-    HEARTBEAT = "heartbeat"
     SIMULATION_END = "simulation_end"
 
 
 class MessageState(Enum):
     """Message lifecycle states"""
-    CREATED = "created"
-    PUBLISHED = "published"
-    ROUTING = "routing"
+    PENDING = "pending"
+    IN_TRANSIT = "in_transit"
+    PROCESSING = "processing"
     DELIVERED = "delivered"
-    DROPPED = "dropped"
-    EXPIRED = "expired"
-
-
-class ComponentState(Enum):
-    """Component health states"""
-    HEALTHY = "healthy"
-    DEGRADED = "degraded"
     FAILED = "failed"
-    RECOVERING = "recovering"
+    TIMEOUT = "timeout"
 
 
 class QoSLevel(Enum):
     """Quality of Service levels"""
-    BEST_EFFORT = 0      # Fire and forget
-    AT_LEAST_ONCE = 1    # Guaranteed delivery, possible duplicates
-    EXACTLY_ONCE = 2     # Guaranteed single delivery
+    AT_MOST_ONCE = 0   # Fire and forget
+    AT_LEAST_ONCE = 1  # With retry
+    EXACTLY_ONCE = 2   # With dedup
 
-
-# ============================================================================
-# Data Classes
-# ============================================================================
 
 @dataclass(order=True)
 class SimEvent:
-    """A single simulation event (priority queue compatible)"""
-    timestamp: float  # Simulation time in milliseconds
+    """A discrete simulation event"""
+    time: float
     event_type: EventType = field(compare=False)
-    source: str = field(compare=False)
-    target: str = field(compare=False, default="")
-    payload: Dict[str, Any] = field(default_factory=dict, compare=False)
+    data: Dict[str, Any] = field(compare=False, default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'timestamp_ms': round(self.timestamp, 3),
-            'event_type': self.event_type.value,
-            'source': self.source,
-            'target': self.target,
-            'payload': self.payload
+            'time': round(self.time, 3),
+            'type': self.event_type.value,
+            'data': self.data
         }
 
 
 @dataclass
 class Message:
-    """A message in the pub-sub system"""
-    message_id: str
-    topic: str
-    publisher: str
-    publish_time: float
-    size_bytes: int = 1024
-    qos: QoSLevel = QoSLevel.AT_LEAST_ONCE
-    ttl_ms: float = 30000  # Time to live
-    priority: int = 0
+    """A message in the system"""
+    id: str
+    source: str
+    target: str
+    payload_size: int  # bytes
+    qos: QoSLevel
+    created_at: float
+    deadline: Optional[float] = None
     
-    # Tracking
-    state: MessageState = MessageState.CREATED
-    delivery_time: Optional[float] = None
-    hops: int = 0
-    route: List[str] = field(default_factory=list)
+    # Runtime state
+    state: MessageState = MessageState.PENDING
+    current_location: Optional[str] = None
+    hops: List[str] = field(default_factory=list)
+    delivered_at: Optional[float] = None
+    failed_at: Optional[float] = None
+    retries: int = 0
     
     def latency(self) -> Optional[float]:
         """Calculate end-to-end latency"""
-        if self.delivery_time is not None:
-            return self.delivery_time - self.publish_time
+        if self.delivered_at:
+            return self.delivered_at - self.created_at
         return None
-    
-    def is_expired(self, current_time: float) -> bool:
-        """Check if message has expired"""
-        return current_time - self.publish_time > self.ttl_ms
     
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'message_id': self.message_id,
-            'topic': self.topic,
-            'publisher': self.publisher,
-            'publish_time': self.publish_time,
-            'size_bytes': self.size_bytes,
+            'id': self.id,
+            'source': self.source,
+            'target': self.target,
+            'size': self.payload_size,
             'qos': self.qos.value,
             'state': self.state.value,
-            'latency_ms': self.latency(),
+            'created_at': round(self.created_at, 3),
+            'latency': round(self.latency(), 3) if self.latency() else None,
             'hops': self.hops,
-            'route': self.route
+            'retries': self.retries
         }
 
 
 @dataclass
 class ComponentStats:
-    """Statistics for a single component"""
+    """Statistics for a component during simulation"""
     component_id: str
-    component_type: str
-    
-    # Message counts
     messages_received: int = 0
     messages_sent: int = 0
     messages_dropped: int = 0
-    messages_queued: int = 0
-    
-    # Performance
+    bytes_processed: int = 0
     total_processing_time: float = 0.0
-    max_queue_depth: int = 0
-    
-    # State tracking
-    uptime_ms: float = 0.0
-    downtime_ms: float = 0.0
-    failure_count: int = 0
-    
-    @property
-    def throughput(self) -> float:
-        """Messages per second"""
-        if self.uptime_ms > 0:
-            return (self.messages_sent / self.uptime_ms) * 1000
-        return 0.0
-    
-    @property
-    def avg_processing_time(self) -> float:
-        """Average processing time per message"""
-        if self.messages_sent > 0:
-            return self.total_processing_time / self.messages_sent
-        return 0.0
-    
-    @property
-    def availability(self) -> float:
-        """Component availability percentage"""
-        total = self.uptime_ms + self.downtime_ms
-        if total > 0:
-            return self.uptime_ms / total
-        return 1.0
+    queue_max: int = 0
+    failures: int = 0
+    recovery_time: float = 0.0
     
     def to_dict(self) -> Dict[str, Any]:
         return {
             'component_id': self.component_id,
-            'component_type': self.component_type,
-            'messages': {
-                'received': self.messages_received,
-                'sent': self.messages_sent,
-                'dropped': self.messages_dropped,
-                'queued': self.messages_queued
-            },
-            'performance': {
-                'throughput_per_sec': round(self.throughput, 2),
-                'avg_processing_ms': round(self.avg_processing_time, 3),
-                'max_queue_depth': self.max_queue_depth
-            },
-            'availability': {
-                'uptime_ms': round(self.uptime_ms, 2),
-                'downtime_ms': round(self.downtime_ms, 2),
-                'availability_pct': round(self.availability * 100, 2),
-                'failure_count': self.failure_count
-            }
+            'messages_received': self.messages_received,
+            'messages_sent': self.messages_sent,
+            'messages_dropped': self.messages_dropped,
+            'bytes_processed': self.bytes_processed,
+            'avg_processing_time': (
+                round(self.total_processing_time / self.messages_received, 3)
+                if self.messages_received > 0 else 0
+            ),
+            'queue_max': self.queue_max,
+            'failures': self.failures
         }
 
 
 @dataclass
 class SimulationMetrics:
-    """Overall simulation metrics"""
-    # Message statistics
-    total_messages: int = 0
-    delivered_messages: int = 0
-    dropped_messages: int = 0
-    expired_messages: int = 0
-    in_flight_messages: int = 0
+    """Aggregated simulation metrics"""
+    # Message metrics
+    messages_published: int = 0
+    messages_delivered: int = 0
+    messages_failed: int = 0
+    messages_timeout: int = 0
     
-    # Latency (in ms)
-    total_latency: float = 0.0
-    min_latency: float = float('inf')
-    max_latency: float = 0.0
-    latency_samples: List[float] = field(default_factory=list)
+    # Latency metrics
+    latencies: List[float] = field(default_factory=list)
     
     # Throughput
-    messages_per_second: float = 0.0
-    bytes_per_second: float = 0.0
+    bytes_total: int = 0
     
-    # System health
+    # Failures
     component_failures: int = 0
     cascade_failures: int = 0
     
-    @property
     def delivery_rate(self) -> float:
-        """Percentage of messages successfully delivered"""
-        if self.total_messages > 0:
-            return self.delivered_messages / self.total_messages
-        return 0.0
-    
-    @property
-    def avg_latency(self) -> float:
-        """Average message latency"""
-        if self.delivered_messages > 0:
-            return self.total_latency / self.delivered_messages
-        return 0.0
-    
-    @property
-    def p50_latency(self) -> float:
-        """50th percentile latency"""
-        return self._percentile(50)
-    
-    @property
-    def p95_latency(self) -> float:
-        """95th percentile latency"""
-        return self._percentile(95)
-    
-    @property
-    def p99_latency(self) -> float:
-        """99th percentile latency"""
-        return self._percentile(99)
-    
-    def _percentile(self, p: float) -> float:
-        """Calculate percentile from samples"""
-        if not self.latency_samples:
+        """Calculate delivery success rate"""
+        total = self.messages_published
+        if total == 0:
             return 0.0
-        sorted_samples = sorted(self.latency_samples)
-        idx = int(len(sorted_samples) * p / 100)
-        return sorted_samples[min(idx, len(sorted_samples) - 1)]
+        return self.messages_delivered / total
+    
+    def avg_latency(self) -> float:
+        """Calculate average latency"""
+        if not self.latencies:
+            return 0.0
+        return sum(self.latencies) / len(self.latencies)
+    
+    def p99_latency(self) -> float:
+        """Calculate 99th percentile latency"""
+        if not self.latencies:
+            return 0.0
+        sorted_lat = sorted(self.latencies)
+        idx = int(len(sorted_lat) * 0.99)
+        return sorted_lat[min(idx, len(sorted_lat) - 1)]
     
     def to_dict(self) -> Dict[str, Any]:
         return {
             'messages': {
-                'total': self.total_messages,
-                'delivered': self.delivered_messages,
-                'dropped': self.dropped_messages,
-                'expired': self.expired_messages,
-                'in_flight': self.in_flight_messages,
-                'delivery_rate_pct': round(self.delivery_rate * 100, 2)
+                'published': self.messages_published,
+                'delivered': self.messages_delivered,
+                'failed': self.messages_failed,
+                'timeout': self.messages_timeout,
+                'delivery_rate': round(self.delivery_rate(), 4)
             },
-            'latency_ms': {
-                'avg': round(self.avg_latency, 3),
-                'min': round(self.min_latency, 3) if self.min_latency != float('inf') else 0,
-                'max': round(self.max_latency, 3),
-                'p50': round(self.p50_latency, 3),
-                'p95': round(self.p95_latency, 3),
-                'p99': round(self.p99_latency, 3)
+            'latency': {
+                'avg': round(self.avg_latency(), 3),
+                'p99': round(self.p99_latency(), 3),
+                'min': round(min(self.latencies), 3) if self.latencies else 0,
+                'max': round(max(self.latencies), 3) if self.latencies else 0
             },
             'throughput': {
-                'messages_per_sec': round(self.messages_per_second, 2),
-                'bytes_per_sec': round(self.bytes_per_second, 2)
+                'bytes_total': self.bytes_total,
+                'messages_per_sec': 0  # Calculated in result
             },
             'failures': {
                 'component_failures': self.component_failures,
@@ -303,286 +210,314 @@ class SimulationMetrics:
 
 @dataclass
 class EventSimulationResult:
-    """Complete results from event-driven simulation"""
+    """Result of event-driven simulation"""
     simulation_id: str
     duration_ms: float
     real_time_ms: float
-    speedup: float  # Simulation time / real time
+    speedup: float
     
-    # Metrics
     metrics: SimulationMetrics
     component_stats: Dict[str, ComponentStats]
     
-    # Events
-    total_events: int
+    # Event log (summary)
+    events_processed: int
     events_by_type: Dict[str, int]
     
-    # Messages
-    messages: List[Message]
-    
-    # Failures injected
+    # Failure injection results
     failures_injected: List[Dict[str, Any]]
     
     def to_dict(self) -> Dict[str, Any]:
+        metrics_dict = self.metrics.to_dict()
+        
+        # Add throughput rate
+        if self.duration_ms > 0:
+            metrics_dict['throughput']['messages_per_sec'] = round(
+                self.metrics.messages_published / (self.duration_ms / 1000), 2
+            )
+        
         return {
             'simulation_id': self.simulation_id,
             'timing': {
-                'simulation_duration_ms': round(self.duration_ms, 2),
+                'simulated_duration_ms': round(self.duration_ms, 2),
                 'real_time_ms': round(self.real_time_ms, 2),
                 'speedup': round(self.speedup, 1)
             },
-            'metrics': self.metrics.to_dict(),
-            'component_stats': {k: v.to_dict() for k, v in self.component_stats.items()},
-            'events': {
-                'total': self.total_events,
-                'by_type': self.events_by_type
+            'metrics': metrics_dict,
+            'component_stats': {
+                k: v.to_dict() for k, v in self.component_stats.items()
             },
-            'messages': {
-                'total': len(self.messages),
-                'samples': [m.to_dict() for m in self.messages[:100]]  # First 100
+            'events': {
+                'total_processed': self.events_processed,
+                'by_type': self.events_by_type
             },
             'failures_injected': self.failures_injected
         }
-    
-    def summary(self) -> str:
-        """Generate human-readable summary"""
-        m = self.metrics
-        lines = [
-            f"Event Simulation: {self.simulation_id}",
-            f"Duration: {self.duration_ms:.0f}ms (simulated), {self.real_time_ms:.0f}ms (real)",
-            f"Speedup: {self.speedup:.0f}x real-time",
-            f"",
-            f"Messages:",
-            f"  Total: {m.total_messages}",
-            f"  Delivered: {m.delivered_messages} ({m.delivery_rate*100:.1f}%)",
-            f"  Dropped: {m.dropped_messages}",
-            f"",
-            f"Latency:",
-            f"  Avg: {m.avg_latency:.2f}ms",
-            f"  P95: {m.p95_latency:.2f}ms",
-            f"  P99: {m.p99_latency:.2f}ms",
-            f"",
-            f"Throughput: {m.messages_per_second:.0f} msg/sec"
-        ]
-        return "\n".join(lines)
 
-
-# ============================================================================
-# Event-Driven Simulator
-# ============================================================================
 
 class EventDrivenSimulator:
     """
-    Discrete event simulation engine for pub-sub systems.
+    Discrete event simulator for pub-sub message flow.
     
-    Simulates message flow through the system with configurable:
-    - Message rates and patterns
-    - Processing delays
-    - Failure injection
-    - QoS enforcement
+    Simulates:
+    - Message publishing and delivery
+    - Processing delays and queuing
+    - Component failures and recovery
+    - Load patterns and chaos scenarios
     """
     
     def __init__(self,
                  base_latency_ms: float = 1.0,
-                 latency_variance: float = 0.5,
+                 latency_variance: float = 0.3,
                  queue_capacity: int = 1000,
+                 timeout_ms: float = 5000,
                  seed: Optional[int] = None):
         """
-        Initialize event simulator.
+        Initialize the event simulator.
         
         Args:
             base_latency_ms: Base processing latency per hop
             latency_variance: Variance in latency (0-1)
-            queue_capacity: Max queue size per component
+            queue_capacity: Maximum queue size per component
+            timeout_ms: Message timeout threshold
             seed: Random seed for reproducibility
         """
         self.base_latency_ms = base_latency_ms
         self.latency_variance = latency_variance
         self.queue_capacity = queue_capacity
+        self.timeout_ms = timeout_ms
         
-        if seed is not None:
-            random.seed(seed)
-        
+        self._rng = random.Random(seed)
         self._simulation_counter = 0
         self.logger = logging.getLogger('EventSimulator')
         
-        # Simulation state
+        # Simulation state (reset per simulation)
         self._event_queue: List[SimEvent] = []
         self._current_time: float = 0.0
         self._messages: Dict[str, Message] = {}
-        self._component_states: Dict[str, ComponentState] = {}
         self._component_queues: Dict[str, List[str]] = {}
         self._metrics: SimulationMetrics = SimulationMetrics()
         self._component_stats: Dict[str, ComponentStats] = {}
         self._events_processed: int = 0
         self._events_by_type: Dict[str, int] = defaultdict(int)
         self._failures_injected: List[Dict[str, Any]] = []
+        self._graph: Optional[SimulationGraph] = None
     
     def simulate(self,
-                graph: nx.DiGraph,
-                duration_ms: float = 10000,
-                message_rate: float = 100,
-                failure_schedule: Optional[List[Dict[str, Any]]] = None) -> EventSimulationResult:
+                 graph: SimulationGraph,
+                 duration_ms: float = 10000,
+                 message_rate: float = 100,
+                 qos: QoSLevel = QoSLevel.AT_LEAST_ONCE,
+                 failure_schedule: Optional[List[Dict[str, Any]]] = None) -> EventSimulationResult:
         """
         Run event-driven simulation.
         
         Args:
-            graph: NetworkX graph of the pub-sub system
+            graph: SimulationGraph to simulate
             duration_ms: Simulation duration in milliseconds
             message_rate: Messages per second to generate
-            failure_schedule: List of failures to inject [{time_ms, component, duration_ms}]
+            qos: Default QoS level for messages
+            failure_schedule: Scheduled failures [{time_ms, component, duration_ms}]
             
         Returns:
-            EventSimulationResult with comprehensive metrics
+            EventSimulationResult with metrics
         """
         self._simulation_counter += 1
-        sim_id = f"event_sim_{self._simulation_counter:05d}"
+        sim_id = f"event_{self._simulation_counter:05d}"
         
-        self.logger.info(f"[{sim_id}] Starting event simulation: "
-                        f"duration={duration_ms}ms, rate={message_rate}/sec")
+        self.logger.info(f"[{sim_id}] Starting simulation: {duration_ms}ms, {message_rate} msg/s")
         
-        real_start = datetime.now()
+        start_real_time = datetime.now()
         
-        # Initialize
-        self._initialize_simulation(graph)
+        # Initialize state
+        self._reset_state(graph)
         
-        # Schedule initial events
-        self._schedule_message_generation(graph, duration_ms, message_rate)
-        self._schedule_failures(failure_schedule or [])
-        self._schedule_end(duration_ms)
+        # Schedule message generation
+        self._schedule_messages(duration_ms, message_rate, qos)
+        
+        # Schedule failures if provided
+        if failure_schedule:
+            self._schedule_failures(failure_schedule)
+        
+        # Schedule simulation end
+        heapq.heappush(self._event_queue, SimEvent(
+            time=duration_ms,
+            event_type=EventType.SIMULATION_END,
+            data={}
+        ))
         
         # Run simulation loop
         while self._event_queue:
             event = heapq.heappop(self._event_queue)
             
-            if event.timestamp > duration_ms:
+            if event.event_type == EventType.SIMULATION_END:
                 break
             
-            self._current_time = event.timestamp
-            self._process_event(graph, event)
-            self._events_processed += 1
-            self._events_by_type[event.event_type.value] += 1
+            self._current_time = event.time
+            self._process_event(event)
         
-        real_end = datetime.now()
-        real_time_ms = (real_end - real_start).total_seconds() * 1000
+        end_real_time = datetime.now()
+        real_time_ms = (end_real_time - start_real_time).total_seconds() * 1000
+        speedup = duration_ms / real_time_ms if real_time_ms > 0 else 0
         
-        # Calculate final metrics
-        self._finalize_metrics(duration_ms)
+        self.logger.info(f"[{sim_id}] Complete: {self._events_processed} events, "
+                        f"{real_time_ms:.0f}ms real time ({speedup:.0f}x speedup)")
         
         return EventSimulationResult(
             simulation_id=sim_id,
             duration_ms=duration_ms,
             real_time_ms=real_time_ms,
-            speedup=duration_ms / real_time_ms if real_time_ms > 0 else 0,
+            speedup=speedup,
             metrics=self._metrics,
             component_stats=dict(self._component_stats),
-            total_events=self._events_processed,
+            events_processed=self._events_processed,
             events_by_type=dict(self._events_by_type),
-            messages=list(self._messages.values()),
             failures_injected=self._failures_injected
         )
     
     def simulate_with_load_test(self,
-                               graph: nx.DiGraph,
-                               duration_ms: float = 60000,
-                               initial_rate: float = 10,
-                               peak_rate: float = 1000,
-                               ramp_time_ms: float = 10000) -> EventSimulationResult:
+                                 graph: SimulationGraph,
+                                 duration_ms: float = 30000,
+                                 initial_rate: float = 10,
+                                 peak_rate: float = 500,
+                                 ramp_time_ms: float = 10000) -> EventSimulationResult:
         """
-        Run load test with ramping message rate.
+        Simulate with ramping load pattern.
         
         Args:
-            graph: NetworkX graph of the pub-sub system
-            duration_ms: Total simulation duration
-            initial_rate: Starting message rate (msg/sec)
-            peak_rate: Peak message rate (msg/sec)
-            ramp_time_ms: Time to ramp from initial to peak
+            graph: SimulationGraph to simulate
+            duration_ms: Total duration
+            initial_rate: Starting message rate
+            peak_rate: Peak message rate
+            ramp_time_ms: Time to ramp up to peak
             
         Returns:
-            EventSimulationResult with load test metrics
+            EventSimulationResult with metrics
         """
         self._simulation_counter += 1
-        sim_id = f"load_test_{self._simulation_counter:05d}"
+        sim_id = f"load_{self._simulation_counter:05d}"
         
-        self.logger.info(f"[{sim_id}] Starting load test: "
-                        f"initial={initial_rate}/sec, peak={peak_rate}/sec")
+        self.logger.info(f"[{sim_id}] Load test: {initial_rate} -> {peak_rate} msg/s")
         
-        real_start = datetime.now()
+        start_real_time = datetime.now()
         
-        # Initialize
-        self._initialize_simulation(graph)
+        # Initialize state
+        self._reset_state(graph)
         
-        # Schedule ramping message generation
-        self._schedule_ramping_messages(graph, duration_ms, initial_rate, peak_rate, ramp_time_ms)
-        self._schedule_end(duration_ms)
+        # Generate messages with ramping rate
+        time = 0.0
+        msg_id = 0
         
-        # Run simulation loop
+        while time < duration_ms:
+            # Calculate current rate
+            if time < ramp_time_ms:
+                rate = initial_rate + (peak_rate - initial_rate) * (time / ramp_time_ms)
+            elif time < duration_ms - ramp_time_ms:
+                rate = peak_rate
+            else:
+                remaining = duration_ms - time
+                rate = initial_rate + (peak_rate - initial_rate) * (remaining / ramp_time_ms)
+            
+            # Schedule next message
+            interval = 1000 / rate if rate > 0 else 1000
+            interval *= (0.5 + self._rng.random())  # Add variance
+            
+            # Create message
+            apps = graph.get_by_type(ComponentType.APPLICATION)
+            if len(apps) >= 2:
+                src, dst = self._rng.sample(apps, 2)
+                msg_id += 1
+                self._schedule_single_message(
+                    f"msg_{msg_id:06d}", src, dst, time, QoSLevel.AT_LEAST_ONCE
+                )
+            
+            time += interval
+        
+        # Schedule end
+        heapq.heappush(self._event_queue, SimEvent(
+            time=duration_ms,
+            event_type=EventType.SIMULATION_END
+        ))
+        
+        # Run simulation
         while self._event_queue:
             event = heapq.heappop(self._event_queue)
-            
-            if event.timestamp > duration_ms:
+            if event.event_type == EventType.SIMULATION_END:
                 break
-            
-            self._current_time = event.timestamp
-            self._process_event(graph, event)
-            self._events_processed += 1
-            self._events_by_type[event.event_type.value] += 1
+            self._current_time = event.time
+            self._process_event(event)
         
-        real_end = datetime.now()
-        real_time_ms = (real_end - real_start).total_seconds() * 1000
-        
-        self._finalize_metrics(duration_ms)
+        end_real_time = datetime.now()
+        real_time_ms = (end_real_time - start_real_time).total_seconds() * 1000
+        speedup = duration_ms / real_time_ms if real_time_ms > 0 else 0
         
         return EventSimulationResult(
             simulation_id=sim_id,
             duration_ms=duration_ms,
             real_time_ms=real_time_ms,
-            speedup=duration_ms / real_time_ms if real_time_ms > 0 else 0,
+            speedup=speedup,
             metrics=self._metrics,
             component_stats=dict(self._component_stats),
-            total_events=self._events_processed,
+            events_processed=self._events_processed,
             events_by_type=dict(self._events_by_type),
-            messages=list(self._messages.values()),
             failures_injected=self._failures_injected
         )
     
     def simulate_chaos(self,
-                      graph: nx.DiGraph,
-                      duration_ms: float = 30000,
-                      message_rate: float = 100,
-                      failure_probability: float = 0.1,
-                      recovery_probability: float = 0.3,
-                      check_interval_ms: float = 1000) -> EventSimulationResult:
+                       graph: SimulationGraph,
+                       duration_ms: float = 30000,
+                       message_rate: float = 100,
+                       failure_probability: float = 0.01,
+                       recovery_probability: float = 0.1,
+                       check_interval_ms: float = 1000) -> EventSimulationResult:
         """
-        Run chaos engineering simulation with random failures.
+        Simulate with random failures (chaos engineering).
         
         Args:
-            graph: NetworkX graph
-            duration_ms: Simulation duration
-            message_rate: Message generation rate
+            graph: SimulationGraph to simulate
+            duration_ms: Total duration
+            message_rate: Message rate
             failure_probability: Probability of failure per check
             recovery_probability: Probability of recovery per check
             check_interval_ms: Interval between failure checks
             
         Returns:
-            EventSimulationResult with chaos test results
+            EventSimulationResult with metrics
         """
+        self._simulation_counter += 1
+        sim_id = f"chaos_{self._simulation_counter:05d}"
+        
+        self.logger.info(f"[{sim_id}] Chaos simulation: fail={failure_probability}, "
+                        f"recover={recovery_probability}")
+        
         # Build failure schedule with random failures
         failure_schedule = []
-        current_time = 0.0
+        failed_components: Set[str] = set()
         
-        while current_time < duration_ms:
-            current_time += check_interval_ms
+        time = check_interval_ms
+        while time < duration_ms:
+            components = list(graph.components.keys())
             
-            # Random component failures
-            for node in graph.nodes():
-                if random.random() < failure_probability:
-                    recovery_time = check_interval_ms * random.randint(1, 5)
-                    failure_schedule.append({
-                        'time_ms': current_time,
-                        'component': node,
-                        'duration_ms': recovery_time
-                    })
+            for comp in components:
+                if comp in failed_components:
+                    # Check for recovery
+                    if self._rng.random() < recovery_probability:
+                        failure_schedule.append({
+                            'time_ms': time,
+                            'component': comp,
+                            'action': 'recover'
+                        })
+                        failed_components.discard(comp)
+                else:
+                    # Check for failure
+                    if self._rng.random() < failure_probability:
+                        failure_schedule.append({
+                            'time_ms': time,
+                            'component': comp,
+                            'duration_ms': 0  # Permanent until recovery
+                        })
+                        failed_components.add(comp)
+            
+            time += check_interval_ms
         
         return self.simulate(
             graph,
@@ -591,380 +526,379 @@ class EventDrivenSimulator:
             failure_schedule=failure_schedule
         )
     
-    # =========================================================================
-    # Initialization
-    # =========================================================================
-    
-    def _initialize_simulation(self, graph: nx.DiGraph):
-        """Initialize simulation state"""
+    def _reset_state(self, graph: SimulationGraph):
+        """Reset simulation state"""
+        self._graph = graph.copy()
         self._event_queue = []
         self._current_time = 0.0
         self._messages = {}
-        self._component_states = {}
-        self._component_queues = {}
+        self._component_queues = {c: [] for c in graph.components}
         self._metrics = SimulationMetrics()
-        self._component_stats = {}
+        self._component_stats = {
+            c: ComponentStats(component_id=c) for c in graph.components
+        }
         self._events_processed = 0
         self._events_by_type = defaultdict(int)
         self._failures_injected = []
-        
-        # Initialize component states
-        for node in graph.nodes():
-            self._component_states[node] = ComponentState.HEALTHY
-            self._component_queues[node] = []
-            
-            node_type = graph.nodes[node].get('type', 'Unknown')
-            self._component_stats[node] = ComponentStats(
-                component_id=node,
-                component_type=node_type
-            )
     
-    # =========================================================================
-    # Event Scheduling
-    # =========================================================================
-    
-    def _schedule_event(self, event: SimEvent):
-        """Add event to priority queue"""
-        heapq.heappush(self._event_queue, event)
-    
-    def _schedule_message_generation(self, graph: nx.DiGraph,
-                                    duration_ms: float, rate: float):
+    def _schedule_messages(self, duration_ms: float, rate: float, qos: QoSLevel):
         """Schedule message generation events"""
-        # Handle zero or negative rate
         if rate <= 0:
-            self.logger.info("Message rate is 0, no messages will be generated")
             return
         
-        # Find publishers (applications that publish to topics)
-        publishers = []
-        topics = []
-        
-        for node in graph.nodes():
-            node_type = graph.nodes[node].get('type', '')
-            if node_type == 'Application':
-                # Check if it publishes to any topic
-                for succ in graph.successors(node):
-                    if graph.nodes[succ].get('type') == 'Topic':
-                        publishers.append(node)
-                        break
-            elif node_type == 'Topic':
-                topics.append(node)
-        
-        if not publishers or not topics:
-            self.logger.warning("No publishers or topics found")
+        apps = self._graph.get_by_type(ComponentType.APPLICATION)
+        if len(apps) < 2:
+            self.logger.warning("Not enough applications to simulate messages")
             return
         
-        # Schedule messages
-        interval_ms = 1000.0 / rate
-        current_time = 0.0
+        interval = 1000 / rate
+        time = 0.0
         msg_id = 0
         
-        while current_time < duration_ms:
-            publisher = random.choice(publishers)
-            topic = random.choice(topics)
-            
-            self._schedule_event(SimEvent(
-                timestamp=current_time,
-                event_type=EventType.MESSAGE_PUBLISH,
-                source=publisher,
-                target=topic,
-                payload={'message_id': f"msg_{msg_id:06d}"}
-            ))
-            
-            # Add some jitter
-            jitter = random.uniform(-0.1, 0.1) * interval_ms
-            current_time += interval_ms + jitter
+        while time < duration_ms:
             msg_id += 1
+            src, dst = self._rng.sample(apps, 2)
+            self._schedule_single_message(f"msg_{msg_id:06d}", src, dst, time, qos)
+            
+            # Add variance to interval
+            time += interval * (0.5 + self._rng.random())
     
-    def _schedule_ramping_messages(self, graph: nx.DiGraph,
-                                  duration_ms: float,
-                                  initial_rate: float,
-                                  peak_rate: float,
-                                  ramp_time_ms: float):
-        """Schedule messages with ramping rate"""
-        publishers = []
-        topics = []
+    def _schedule_single_message(self, msg_id: str, src: str, dst: str,
+                                   time: float, qos: QoSLevel):
+        """Schedule a single message publication"""
+        message = Message(
+            id=msg_id,
+            source=src,
+            target=dst,
+            payload_size=self._rng.randint(100, 10000),
+            qos=qos,
+            created_at=time,
+            deadline=time + self.timeout_ms
+        )
+        self._messages[msg_id] = message
         
-        for node in graph.nodes():
-            node_type = graph.nodes[node].get('type', '')
-            if node_type == 'Application':
-                for succ in graph.successors(node):
-                    if graph.nodes[succ].get('type') == 'Topic':
-                        publishers.append(node)
-                        break
-            elif node_type == 'Topic':
-                topics.append(node)
-        
-        if not publishers or not topics:
-            return
-        
-        current_time = 0.0
-        msg_id = 0
-        
-        while current_time < duration_ms:
-            # Calculate current rate based on ramp
-            if current_time < ramp_time_ms:
-                progress = current_time / ramp_time_ms
-                rate = initial_rate + (peak_rate - initial_rate) * progress
-            else:
-                rate = peak_rate
-            
-            interval_ms = 1000.0 / rate if rate > 0 else 1000.0
-            
-            publisher = random.choice(publishers)
-            topic = random.choice(topics)
-            
-            self._schedule_event(SimEvent(
-                timestamp=current_time,
-                event_type=EventType.MESSAGE_PUBLISH,
-                source=publisher,
-                target=topic,
-                payload={'message_id': f"msg_{msg_id:06d}"}
-            ))
-            
-            current_time += interval_ms
-            msg_id += 1
-    
-    def _schedule_failures(self, schedule: List[Dict[str, Any]]):
-        """Schedule failure injection events"""
-        for failure in schedule:
-            # Failure event
-            self._schedule_event(SimEvent(
-                timestamp=failure['time_ms'],
-                event_type=EventType.COMPONENT_FAIL,
-                source=failure['component'],
-                payload={'duration_ms': failure.get('duration_ms', 5000)}
-            ))
-            
-            # Recovery event
-            recovery_time = failure['time_ms'] + failure.get('duration_ms', 5000)
-            self._schedule_event(SimEvent(
-                timestamp=recovery_time,
-                event_type=EventType.COMPONENT_RECOVER,
-                source=failure['component']
-            ))
-            
-            self._failures_injected.append(failure)
-    
-    def _schedule_end(self, duration_ms: float):
-        """Schedule simulation end event"""
-        self._schedule_event(SimEvent(
-            timestamp=duration_ms + 1,
-            event_type=EventType.SIMULATION_END,
-            source="simulator"
+        heapq.heappush(self._event_queue, SimEvent(
+            time=time,
+            event_type=EventType.MESSAGE_PUBLISH,
+            data={'message_id': msg_id}
         ))
     
-    # =========================================================================
-    # Event Processing
-    # =========================================================================
+    def _schedule_failures(self, schedule: List[Dict[str, Any]]):
+        """Schedule failure events"""
+        for failure in schedule:
+            heapq.heappush(self._event_queue, SimEvent(
+                time=failure['time_ms'],
+                event_type=EventType.COMPONENT_FAIL,
+                data={
+                    'component': failure['component'],
+                    'duration_ms': failure.get('duration_ms', 0)
+                }
+            ))
+            
+            # Schedule recovery if duration specified
+            if failure.get('duration_ms', 0) > 0:
+                heapq.heappush(self._event_queue, SimEvent(
+                    time=failure['time_ms'] + failure['duration_ms'],
+                    event_type=EventType.COMPONENT_RECOVER,
+                    data={'component': failure['component']}
+                ))
     
-    def _process_event(self, graph: nx.DiGraph, event: SimEvent):
-        """Process a single event"""
+    def _process_event(self, event: SimEvent):
+        """Process a single simulation event"""
+        self._events_processed += 1
+        self._events_by_type[event.event_type.value] += 1
+        
         handlers = {
             EventType.MESSAGE_PUBLISH: self._handle_publish,
-            EventType.MESSAGE_ROUTE: self._handle_route,
+            EventType.MESSAGE_ARRIVE: self._handle_arrive,
+            EventType.MESSAGE_PROCESS: self._handle_process,
             EventType.MESSAGE_DELIVER: self._handle_deliver,
-            EventType.MESSAGE_DROP: self._handle_drop,
-            EventType.COMPONENT_FAIL: self._handle_failure,
-            EventType.COMPONENT_RECOVER: self._handle_recovery,
+            EventType.MESSAGE_TIMEOUT: self._handle_timeout,
+            EventType.COMPONENT_FAIL: self._handle_fail,
+            EventType.COMPONENT_RECOVER: self._handle_recover,
         }
         
         handler = handlers.get(event.event_type)
         if handler:
-            handler(graph, event)
+            handler(event)
     
-    def _handle_publish(self, graph: nx.DiGraph, event: SimEvent):
-        """Handle message publish event"""
-        source = event.source
-        topic = event.target
-        msg_id = event.payload.get('message_id', f"msg_{self._metrics.total_messages}")
-        
-        # Check if publisher is healthy
-        if self._component_states.get(source) != ComponentState.HEALTHY:
-            self._metrics.dropped_messages += 1
+    def _handle_publish(self, event: SimEvent):
+        """Handle message publication"""
+        msg_id = event.data['message_id']
+        message = self._messages.get(msg_id)
+        if not message:
             return
         
-        # Create message
-        message = Message(
-            message_id=msg_id,
-            topic=topic,
-            publisher=source,
-            publish_time=self._current_time,
-            state=MessageState.PUBLISHED,
-            route=[source]
-        )
+        self._metrics.messages_published += 1
+        self._metrics.bytes_total += message.payload_size
         
-        self._messages[msg_id] = message
-        self._metrics.total_messages += 1
-        self._metrics.in_flight_messages += 1
+        # Check if source is active
+        src_comp = self._graph.components.get(message.source)
+        if not src_comp or not src_comp.is_active:
+            message.state = MessageState.FAILED
+            message.failed_at = self._current_time
+            self._metrics.messages_failed += 1
+            return
         
         # Update stats
-        stats = self._component_stats.get(source)
+        stats = self._component_stats.get(message.source)
         if stats:
             stats.messages_sent += 1
         
-        # Schedule routing to topic
-        latency = self._calculate_latency()
-        self._schedule_event(SimEvent(
-            timestamp=self._current_time + latency,
-            event_type=EventType.MESSAGE_ROUTE,
-            source=source,
-            target=topic,
-            payload={'message_id': msg_id}
+        # Find path to target (via brokers)
+        next_hop = self._find_next_hop(message.source, message.target)
+        
+        if next_hop:
+            message.state = MessageState.IN_TRANSIT
+            message.hops.append(message.source)
+            
+            # Schedule arrival at next hop
+            latency = self._calculate_latency()
+            heapq.heappush(self._event_queue, SimEvent(
+                time=self._current_time + latency,
+                event_type=EventType.MESSAGE_ARRIVE,
+                data={'message_id': msg_id, 'location': next_hop}
+            ))
+            
+            # Schedule timeout
+            heapq.heappush(self._event_queue, SimEvent(
+                time=message.deadline,
+                event_type=EventType.MESSAGE_TIMEOUT,
+                data={'message_id': msg_id}
+            ))
+        else:
+            # No path to target
+            message.state = MessageState.FAILED
+            message.failed_at = self._current_time
+            self._metrics.messages_failed += 1
+    
+    def _handle_arrive(self, event: SimEvent):
+        """Handle message arrival at a component"""
+        msg_id = event.data['message_id']
+        location = event.data['location']
+        
+        message = self._messages.get(msg_id)
+        if not message or message.state not in [MessageState.IN_TRANSIT, MessageState.PROCESSING]:
+            return
+        
+        # Check if component is active
+        comp = self._graph.components.get(location)
+        if not comp or not comp.is_active:
+            message.state = MessageState.FAILED
+            message.failed_at = self._current_time
+            self._metrics.messages_failed += 1
+            return
+        
+        message.current_location = location
+        message.hops.append(location)
+        
+        # Update stats
+        stats = self._component_stats.get(location)
+        if stats:
+            stats.messages_received += 1
+        
+        # Add to queue
+        queue = self._component_queues.get(location, [])
+        if len(queue) >= self.queue_capacity:
+            # Queue full - drop message
+            message.state = MessageState.FAILED
+            message.failed_at = self._current_time
+            self._metrics.messages_failed += 1
+            if stats:
+                stats.messages_dropped += 1
+            return
+        
+        queue.append(msg_id)
+        if stats:
+            stats.queue_max = max(stats.queue_max, len(queue))
+        
+        # Schedule processing
+        process_time = self._calculate_latency() * (1 + 0.1 * len(queue))
+        heapq.heappush(self._event_queue, SimEvent(
+            time=self._current_time + process_time,
+            event_type=EventType.MESSAGE_PROCESS,
+            data={'message_id': msg_id, 'location': location}
         ))
     
-    def _handle_route(self, graph: nx.DiGraph, event: SimEvent):
-        """Handle message routing event"""
-        msg_id = event.payload.get('message_id')
-        target = event.target
+    def _handle_process(self, event: SimEvent):
+        """Handle message processing completion"""
+        msg_id = event.data['message_id']
+        location = event.data['location']
         
         message = self._messages.get(msg_id)
-        if not message:
+        if not message or message.state == MessageState.TIMEOUT:
             return
         
-        # Check if target component is healthy
-        if self._component_states.get(target) != ComponentState.HEALTHY:
-            message.state = MessageState.DROPPED
-            self._metrics.dropped_messages += 1
-            self._metrics.in_flight_messages -= 1
-            return
-        
-        # Check for expiration
-        if message.is_expired(self._current_time):
-            message.state = MessageState.EXPIRED
-            self._metrics.expired_messages += 1
-            self._metrics.in_flight_messages -= 1
-            return
-        
-        message.state = MessageState.ROUTING
-        message.route.append(target)
-        message.hops += 1
+        # Remove from queue
+        queue = self._component_queues.get(location, [])
+        if msg_id in queue:
+            queue.remove(msg_id)
         
         # Update stats
-        stats = self._component_stats.get(target)
+        stats = self._component_stats.get(location)
         if stats:
-            stats.messages_received += 1
+            stats.bytes_processed += message.payload_size
+            stats.total_processing_time += self._calculate_latency()
         
-        # Find subscribers
-        subscribers = self._find_subscribers(graph, target)
-        
-        if not subscribers:
-            # No subscribers - message delivered to topic
-            message.state = MessageState.DELIVERED
-            message.delivery_time = self._current_time
-            self._record_delivery(message)
+        # Check if this is the destination
+        if location == message.target:
+            heapq.heappush(self._event_queue, SimEvent(
+                time=self._current_time,
+                event_type=EventType.MESSAGE_DELIVER,
+                data={'message_id': msg_id}
+            ))
         else:
-            # Schedule delivery to each subscriber
-            for subscriber in subscribers:
+            # Forward to next hop
+            next_hop = self._find_next_hop(location, message.target)
+            
+            if next_hop:
                 latency = self._calculate_latency()
-                self._schedule_event(SimEvent(
-                    timestamp=self._current_time + latency,
-                    event_type=EventType.MESSAGE_DELIVER,
-                    source=target,
-                    target=subscriber,
-                    payload={'message_id': msg_id}
+                heapq.heappush(self._event_queue, SimEvent(
+                    time=self._current_time + latency,
+                    event_type=EventType.MESSAGE_ARRIVE,
+                    data={'message_id': msg_id, 'location': next_hop}
                 ))
+            else:
+                message.state = MessageState.FAILED
+                message.failed_at = self._current_time
+                self._metrics.messages_failed += 1
     
-    def _handle_deliver(self, graph: nx.DiGraph, event: SimEvent):
-        """Handle message delivery event"""
-        msg_id = event.payload.get('message_id')
-        target = event.target
-        
-        message = self._messages.get(msg_id)
-        if not message:
-            return
-        
-        # Check if subscriber is healthy
-        if self._component_states.get(target) != ComponentState.HEALTHY:
-            # Don't count as dropped - just this delivery failed
-            return
-        
-        # Record successful delivery
-        if message.state != MessageState.DELIVERED:
-            message.state = MessageState.DELIVERED
-            message.delivery_time = self._current_time
-            message.route.append(target)
-            self._record_delivery(message)
-        
-        # Update stats
-        stats = self._component_stats.get(target)
-        if stats:
-            stats.messages_received += 1
-    
-    def _handle_drop(self, graph: nx.DiGraph, event: SimEvent):
-        """Handle message drop event"""
-        msg_id = event.payload.get('message_id')
+    def _handle_deliver(self, event: SimEvent):
+        """Handle successful message delivery"""
+        msg_id = event.data['message_id']
         message = self._messages.get(msg_id)
         
-        if message and message.state != MessageState.DROPPED:
-            message.state = MessageState.DROPPED
-            self._metrics.dropped_messages += 1
-            self._metrics.in_flight_messages -= 1
-    
-    def _handle_failure(self, graph: nx.DiGraph, event: SimEvent):
-        """Handle component failure event"""
-        component = event.source
+        if not message or message.state in [MessageState.DELIVERED, MessageState.TIMEOUT]:
+            return
         
-        self._component_states[component] = ComponentState.FAILED
-        self._metrics.component_failures += 1
-        
-        stats = self._component_stats.get(component)
-        if stats:
-            stats.failure_count += 1
-        
-        self.logger.debug(f"Component failed: {component} at t={self._current_time}")
-    
-    def _handle_recovery(self, graph: nx.DiGraph, event: SimEvent):
-        """Handle component recovery event"""
-        component = event.source
-        
-        self._component_states[component] = ComponentState.HEALTHY
-        
-        self.logger.debug(f"Component recovered: {component} at t={self._current_time}")
-    
-    # =========================================================================
-    # Helper Methods
-    # =========================================================================
-    
-    def _calculate_latency(self) -> float:
-        """Calculate processing/network latency with variance"""
-        variance = random.uniform(-self.latency_variance, self.latency_variance)
-        return max(0.1, self.base_latency_ms * (1 + variance))
-    
-    def _find_subscribers(self, graph: nx.DiGraph, topic: str) -> List[str]:
-        """Find subscribers to a topic"""
-        subscribers = []
-        
-        # Subscribers are components that have edges FROM the topic
-        for succ in graph.successors(topic):
-            node_type = graph.nodes[succ].get('type', '')
-            if node_type == 'Application':
-                subscribers.append(succ)
-        
-        return subscribers
-    
-    def _record_delivery(self, message: Message):
-        """Record successful message delivery"""
-        self._metrics.delivered_messages += 1
-        self._metrics.in_flight_messages -= 1
+        message.state = MessageState.DELIVERED
+        message.delivered_at = self._current_time
         
         latency = message.latency()
-        if latency is not None:
-            self._metrics.total_latency += latency
-            self._metrics.min_latency = min(self._metrics.min_latency, latency)
-            self._metrics.max_latency = max(self._metrics.max_latency, latency)
-            self._metrics.latency_samples.append(latency)
-    
-    def _finalize_metrics(self, duration_ms: float):
-        """Calculate final metrics"""
-        if duration_ms > 0:
-            self._metrics.messages_per_second = (
-                self._metrics.total_messages / duration_ms * 1000
-            )
+        if latency:
+            self._metrics.latencies.append(latency)
         
-        # Update component uptimes
-        for comp_id, stats in self._component_stats.items():
-            if self._component_states.get(comp_id) == ComponentState.HEALTHY:
-                stats.uptime_ms = duration_ms
-            else:
-                stats.uptime_ms = duration_ms * 0.9  # Approximate
+        self._metrics.messages_delivered += 1
+    
+    def _handle_timeout(self, event: SimEvent):
+        """Handle message timeout"""
+        msg_id = event.data['message_id']
+        message = self._messages.get(msg_id)
+        
+        if not message:
+            return
+        
+        if message.state not in [MessageState.DELIVERED, MessageState.FAILED]:
+            message.state = MessageState.TIMEOUT
+            message.failed_at = self._current_time
+            self._metrics.messages_timeout += 1
+    
+    def _handle_fail(self, event: SimEvent):
+        """Handle component failure"""
+        comp_id = event.data['component']
+        
+        comp = self._graph.components.get(comp_id)
+        if comp:
+            comp.is_active = False
+            
+            # Deactivate dependencies
+            for dep in self._graph.get_outgoing(comp_id):
+                dep.is_active = False
+            for dep in self._graph.get_incoming(comp_id):
+                dep.is_active = False
+        
+        self._metrics.component_failures += 1
+        
+        stats = self._component_stats.get(comp_id)
+        if stats:
+            stats.failures += 1
+        
+        self._failures_injected.append({
+            'time': self._current_time,
+            'component': comp_id,
+            'action': 'fail'
+        })
+        
+        self.logger.debug(f"Component failed: {comp_id} at t={self._current_time:.0f}ms")
+    
+    def _handle_recover(self, event: SimEvent):
+        """Handle component recovery"""
+        comp_id = event.data['component']
+        
+        comp = self._graph.components.get(comp_id)
+        if comp:
+            comp.is_active = True
+            
+            # Reactivate dependencies
+            for dep in self._graph.get_outgoing(comp_id):
+                target = self._graph.components.get(dep.target)
+                if target and target.is_active:
+                    dep.is_active = True
+            for dep in self._graph.get_incoming(comp_id):
+                source = self._graph.components.get(dep.source)
+                if source and source.is_active:
+                    dep.is_active = True
+        
+        self._failures_injected.append({
+            'time': self._current_time,
+            'component': comp_id,
+            'action': 'recover'
+        })
+        
+        self.logger.debug(f"Component recovered: {comp_id} at t={self._current_time:.0f}ms")
+    
+    def _find_next_hop(self, current: str, target: str) -> Optional[str]:
+        """Find the next hop toward target"""
+        # Direct connection?
+        for dep in self._graph.get_outgoing(current):
+            if dep.is_active and dep.target == target:
+                target_comp = self._graph.components.get(target)
+                if target_comp and target_comp.is_active:
+                    return target
+        
+        # Via broker?
+        for dep in self._graph.get_outgoing(current):
+            if not dep.is_active:
+                continue
+            next_comp = self._graph.components.get(dep.target)
+            if not next_comp or not next_comp.is_active:
+                continue
+            
+            # If next is a broker, check if it can reach target
+            if next_comp.type == ComponentType.BROKER:
+                for broker_dep in self._graph.get_outgoing(dep.target):
+                    if broker_dep.is_active and broker_dep.target == target:
+                        return dep.target
+        
+        # BFS for any path
+        visited = {current}
+        queue = [(current, None)]
+        
+        while queue:
+            node, first_hop = queue.pop(0)
+            
+            for dep in self._graph.get_outgoing(node):
+                if not dep.is_active:
+                    continue
+                next_node = dep.target
+                if next_node in visited:
+                    continue
+                
+                next_comp = self._graph.components.get(next_node)
+                if not next_comp or not next_comp.is_active:
+                    continue
+                
+                next_first_hop = first_hop if first_hop else next_node
+                
+                if next_node == target:
+                    return next_first_hop
+                
+                visited.add(next_node)
+                queue.append((next_node, next_first_hop))
+        
+        return None
+    
+    def _calculate_latency(self) -> float:
+        """Calculate random latency with variance"""
+        variance = self.base_latency_ms * self.latency_variance
+        return max(0.1, self.base_latency_ms + self._rng.uniform(-variance, variance))
