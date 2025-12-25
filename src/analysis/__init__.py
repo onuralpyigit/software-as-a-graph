@@ -10,6 +10,11 @@ GDS-Based Analyzers (recommended):
 - MaintainabilityAnalyzer: Coupling, cycles, modularity (via GDS)
 - AvailabilityAnalyzer: Connectivity, fault tolerance (via GDS)
 
+Box-Plot Classification:
+- BoxPlotClassifier: Statistical criticality classification
+- GDSCriticalityClassifier: GDS-integrated classification
+- Avoids sharp boundary problem with data-driven thresholds
+
 GDS algorithms used:
 - Betweenness centrality
 - PageRank
@@ -27,6 +32,10 @@ Usage (GDS - Recommended):
         MaintainabilityAnalyzer,
         AvailabilityAnalyzer
     )
+    from src.analysis.criticality_classifier import (
+        GDSCriticalityClassifier,
+        BoxPlotClassifier
+    )
     
     # Connect to Neo4j with GDS
     gds = GDSClient(uri="bolt://localhost:7687", user="neo4j", password="password")
@@ -38,14 +47,18 @@ Usage (GDS - Recommended):
     reliability = ReliabilityAnalyzer(gds)
     result = reliability.analyze("my_graph")
     
+    # Classify components using box-plot method
+    classifier = GDSCriticalityClassifier(gds, k_factor=1.5, use_fuzzy=True)
+    classification = classifier.classify_by_composite_score("my_graph")
+    
     # Cleanup
     gds.close()
 
 Usage (Legacy NetworkX):
     from src.analysis import (
-        ReliabilityAnalyzer as LegacyReliabilityAnalyzer,
-        MaintainabilityAnalyzer as LegacyMaintainabilityAnalyzer,
-        AvailabilityAnalyzer as LegacyAvailabilityAnalyzer
+        LegacyReliabilityAnalyzer,
+        LegacyMaintainabilityAnalyzer,
+        LegacyAvailabilityAnalyzer
     )
 """
 
@@ -75,6 +88,18 @@ from .gds_analyzers import (
     # Enums
     Severity,
     QualityAttribute
+)
+
+# Box-plot classification (always available)
+from .criticality_classifier import (
+    BoxPlotClassifier,
+    GDSCriticalityClassifier,
+    CriticalityLevel,
+    BoxPlotStatistics,
+    ClassifiedItem,
+    ClassificationResult,
+    FuzzyMembership,
+    merge_classifications
 )
 
 # Try to import legacy components for backwards compatibility
@@ -121,16 +146,6 @@ try:
         DEFAULT_ANTIPATTERN_CONFIG
     )
     
-    from .criticality_classifier import (
-        BoxPlotCriticalityClassifier,
-        CriticalityLevel,
-        BoxPlotStatistics,
-        ClassifiedComponent,
-        ClassifiedEdge,
-        ClassificationResult,
-        classify_quality_results
-    )
-    
     _LEGACY_AVAILABLE = True
 except ImportError:
     _LEGACY_AVAILABLE = False
@@ -157,6 +172,16 @@ __all__ = [
     # GDS Enums
     'Severity',
     'QualityAttribute',
+    
+    # Box-Plot Classification
+    'BoxPlotClassifier',
+    'GDSCriticalityClassifier',
+    'CriticalityLevel',
+    'BoxPlotStatistics',
+    'ClassifiedItem',
+    'ClassificationResult',
+    'FuzzyMembership',
+    'merge_classifications',
 ]
 
 # Add legacy exports if available
@@ -182,15 +207,6 @@ if _LEGACY_AVAILABLE:
         'LegacyAvailabilityAnalyzer',
         'AntiPatternDetector',
         
-        # Box-Plot Classification
-        'BoxPlotCriticalityClassifier',
-        'CriticalityLevel',
-        'BoxPlotStatistics',
-        'ClassifiedComponent',
-        'ClassifiedEdge',
-        'ClassificationResult',
-        'classify_quality_results',
-        
         # Base/Utilities
         'BaseQualityAnalyzer',
         'GraphAnalysisUtils',
@@ -213,4 +229,4 @@ if _LEGACY_AVAILABLE:
         'DEFAULT_ANTIPATTERN_CONFIG'
     ])
 
-__version__ = '2.0.0'
+__version__ = '2.1.0'

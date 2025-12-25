@@ -52,6 +52,13 @@ from src.analysis.gds_analyzers import (
     QualityAttribute,
     Severity
 )
+from src.analysis.criticality_classifier import (
+    GDSCriticalityClassifier,
+    BoxPlotClassifier,
+    CriticalityLevel,
+    ClassificationResult,
+    merge_classifications
+)
 
 
 # ============================================================================
@@ -288,6 +295,113 @@ def print_graph_summary(stats: Dict[str, Any]):
             print(f"    {dep_type}: avg={info.get('avg_weight', 0):.2f}, max={info.get('max_weight', 0):.2f}")
 
 
+def level_color(level: CriticalityLevel) -> str:
+    """Get color for criticality level"""
+    colors = {
+        CriticalityLevel.CRITICAL: Colors.RED,
+        CriticalityLevel.HIGH: Colors.YELLOW,
+        CriticalityLevel.MEDIUM: Colors.CYAN,
+        CriticalityLevel.LOW: Colors.GREEN,
+        CriticalityLevel.MINIMAL: Colors.DIM
+    }
+    return colors.get(level, '')
+
+
+def print_classification_result(result: ClassificationResult, 
+                                 show_all_levels: bool = False,
+                                 verbose: bool = False):
+    """Print classification result"""
+    print_section(f"CLASSIFICATION: {result.metric_name.upper()}")
+    
+    stats = result.statistics
+    
+    # Print box-plot statistics
+    print(f"\n  {Colors.CYAN}Box-Plot Statistics:{Colors.ENDC}")
+    print(f"    Min:          {stats.min_val:.4f}")
+    print(f"    Q1 (25%):     {stats.q1:.4f}")
+    print(f"    Median (50%): {stats.median:.4f}")
+    print(f"    Q3 (75%):     {stats.q3:.4f}")
+    print(f"    Max:          {stats.max_val:.4f}")
+    print(f"    IQR:          {stats.iqr:.4f}")
+    print(f"    Upper Fence:  {stats.upper_fence:.4f} (k={stats.k_factor})")
+    
+    # Print classification thresholds
+    print(f"\n  {Colors.CYAN}Classification Thresholds:{Colors.ENDC}")
+    thresholds = stats.get_thresholds()
+    print(f"    {Colors.RED}CRITICAL{Colors.ENDC}:  > {thresholds['critical']:.4f}")
+    print(f"    {Colors.YELLOW}HIGH{Colors.ENDC}:      > {thresholds['high']:.4f}")
+    print(f"    {Colors.CYAN}MEDIUM{Colors.ENDC}:    > {thresholds['medium']:.4f}")
+    print(f"    {Colors.GREEN}LOW{Colors.ENDC}:       > {thresholds['low']:.4f}")
+    print(f"    {Colors.DIM}MINIMAL{Colors.ENDC}:   ≤ {thresholds['low']:.4f}")
+    
+    # Print distribution
+    print(f"\n  {Colors.CYAN}Distribution:{Colors.ENDC}")
+    for level in CriticalityLevel:
+        items = result.by_level.get(level, [])
+        count = len(items)
+        bar_len = min(count, 40)
+        bar = '█' * bar_len
+        lcolor = level_color(level)
+        print(f"    {lcolor}{level.value:8}{Colors.ENDC}: {count:4} {lcolor}{bar}{Colors.ENDC}")
+    
+    # Print items by level
+    levels_to_show = list(CriticalityLevel) if show_all_levels else [
+        CriticalityLevel.CRITICAL, CriticalityLevel.HIGH
+    ]
+    
+    for level in levels_to_show:
+        items = result.by_level.get(level, [])
+        if not items:
+            continue
+        
+        lcolor = level_color(level)
+        print(f"\n  {lcolor}{Colors.BOLD}{level.value.upper()} Items ({len(items)}):{Colors.ENDC}")
+        
+        max_display = 10 if verbose else 5
+        for item in items[:max_display]:
+            print(f"    • {item.item_id} ({item.item_type})")
+            print(f"      Score: {item.score:.4f} | Percentile: {item.percentile:.1f}% | Z-score: {item.z_score:.2f}")
+            
+            if item.fuzzy_membership and verbose:
+                fm = item.fuzzy_membership
+                print(f"      Fuzzy: C={fm.critical:.2f} H={fm.high:.2f} M={fm.medium:.2f} L={fm.low:.2f}")
+        
+        if len(items) > max_display:
+            print(f"    ... and {len(items) - max_display} more")
+
+
+def print_merged_classification(merged: List[Dict[str, Any]], 
+                                 show_all_levels: bool = False):
+    """Print merged classification results"""
+    print_section("MERGED CRITICALITY RANKING")
+    
+    print(f"\n  {Colors.CYAN}Top Critical Items (Combined Analysis):{Colors.ENDC}\n")
+    
+    # Filter by level if not showing all
+    if not show_all_levels:
+        merged = [m for m in merged if m['dominant_level'] in ['critical', 'high']]
+    
+    for i, item in enumerate(merged[:20], 1):
+        level = item['dominant_level']
+        lcolor = {
+            'critical': Colors.RED,
+            'high': Colors.YELLOW,
+            'medium': Colors.CYAN,
+            'low': Colors.GREEN,
+            'minimal': Colors.DIM
+        }.get(level, '')
+        
+        print(f"  {i:2}. {lcolor}{item['id']}{Colors.ENDC}")
+        print(f"      Merged Score: {item['merged_score']:.4f} | Level: {lcolor}{level.upper()}{Colors.ENDC}")
+        
+        # Show per-metric breakdown
+        scores = item.get('scores_by_metric', {})
+        if scores:
+            parts = [f"{k}={v:.3f}" for k, v in list(scores.items())[:4]]
+            print(f"      Metrics: {', '.join(parts)}")
+        print()
+
+
 def print_analysis_result(result: AnalysisResult, verbose: bool = False):
     """Print single analysis result"""
     attr = result.quality_attribute.value.upper()
@@ -413,6 +527,68 @@ def export_results(result: ComprehensiveResult, output_dir: str, formats: List[s
         print_success(f"Summary exported: {summary_file}")
 
 
+def export_results_with_classification(data: Dict[str, Any], output_dir: str, formats: List[str]):
+    """Export results including classification to files"""
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    if 'json' in formats:
+        json_file = output_path / f"analysis_{timestamp}.json"
+        with open(json_file, 'w') as f:
+            json.dump(data, f, indent=2)
+        print_success(f"JSON exported: {json_file}")
+    
+    if 'summary' in formats:
+        summary_file = output_path / f"summary_{timestamp}.txt"
+        with open(summary_file, 'w') as f:
+            f.write(f"Graph Analysis Summary\n")
+            f.write(f"{'='*50}\n")
+            f.write(f"Timestamp: {data.get('timestamp', 'N/A')}\n")
+            f.write(f"Overall Score: {data.get('overall_score', 0):.1f}/100\n\n")
+            
+            # Quality attribute results
+            for attr in ['reliability', 'maintainability', 'availability']:
+                if attr in data and data[attr]:
+                    result = data[attr]
+                    f.write(f"{attr.capitalize()}: {result.get('score', 0):.1f}/100\n")
+                    f.write(f"  - {len(result.get('findings', []))} findings\n")
+                    f.write(f"  - {len(result.get('critical_components', []))} critical components\n\n")
+            
+            # Classification results
+            if 'classification' in data:
+                f.write(f"\n{'='*50}\n")
+                f.write(f"CLASSIFICATION RESULTS (Box-Plot Method)\n")
+                f.write(f"{'='*50}\n\n")
+                
+                for metric_name, class_data in data['classification'].items():
+                    f.write(f"\n{metric_name.upper()}\n")
+                    f.write(f"{'-'*40}\n")
+                    
+                    stats = class_data.get('statistics', {})
+                    f.write(f"  Q1: {stats.get('q1', 0):.4f}\n")
+                    f.write(f"  Median: {stats.get('median', 0):.4f}\n")
+                    f.write(f"  Q3: {stats.get('q3', 0):.4f}\n")
+                    f.write(f"  IQR: {stats.get('iqr', 0):.4f}\n")
+                    f.write(f"  Upper Fence: {stats.get('upper_fence', 0):.4f}\n\n")
+                    
+                    dist = class_data.get('distribution', {})
+                    f.write(f"  Distribution:\n")
+                    for level, count in dist.items():
+                        f.write(f"    {level}: {count}\n")
+                    
+                    # List critical/high items
+                    items = class_data.get('items', [])
+                    critical_items = [i for i in items if i.get('level') in ['critical', 'high']]
+                    if critical_items:
+                        f.write(f"\n  Critical/High Items:\n")
+                        for item in critical_items[:10]:
+                            f.write(f"    - {item['id']} ({item['level']}): {item['score']:.4f}\n")
+        
+        print_success(f"Summary exported: {summary_file}")
+
+
 # ============================================================================
 # CLI
 # ============================================================================
@@ -472,6 +648,24 @@ Examples:
                                help='Disable weighted analysis (use unweighted)')
     analysis_group.add_argument('--weight-property', default='weight',
                                help='Name of the weight property on DEPENDS_ON (default: weight)')
+    
+    # Classification options
+    classify_group = parser.add_argument_group('Classification Options')
+    classify_group.add_argument('--classify', '-C', action='store_true',
+                               help='Classify components/edges using box-plot method')
+    classify_group.add_argument('--classify-metric', nargs='+',
+                               choices=['betweenness', 'pagerank', 'degree', 
+                                       'composite', 'edge_weight', 'all'],
+                               default=['composite'],
+                               help='Metrics to classify by (default: composite)')
+    classify_group.add_argument('--k-factor', type=float, default=1.5,
+                               help='IQR multiplier for outlier detection (default: 1.5)')
+    classify_group.add_argument('--fuzzy', action='store_true',
+                               help='Use fuzzy membership for smooth transitions')
+    classify_group.add_argument('--fuzzy-width', type=float, default=0.1,
+                               help='Fuzzy transition zone width (default: 0.1)')
+    classify_group.add_argument('--show-all-levels', action='store_true',
+                               help='Show items at all criticality levels (not just high/critical)')
     
     # Output options
     output_group = parser.add_argument_group('Output Options')
@@ -547,6 +741,10 @@ def main():
         if analyze_availability:
             analyses.append("Availability")
         print(f"  Analyzing: {', '.join(analyses)}")
+        if args.classify:
+            metrics = args.classify_metric if 'all' not in args.classify_metric else ['all metrics']
+            fuzzy_str = ', fuzzy' if args.fuzzy else ''
+            print(f"  Classification: {', '.join(metrics)} (k={args.k_factor}{fuzzy_str})")
     
     try:
         # Connect to Neo4j
@@ -593,11 +791,92 @@ def main():
             # Print overall summary
             print_overall_summary(result)
         
+        # Run classification if requested
+        classification_results = {}
+        if args.classify:
+            if not args.quiet:
+                print_section("RUNNING BOX-PLOT CLASSIFICATION")
+                print(f"  K-factor: {args.k_factor}")
+                print(f"  Fuzzy: {'Yes' if args.fuzzy else 'No'}")
+            
+            # Create classifier
+            classifier = GDSCriticalityClassifier(
+                gds,
+                k_factor=args.k_factor,
+                use_fuzzy=args.fuzzy,
+                fuzzy_width=args.fuzzy_width
+            )
+            
+            # Create projection for classification
+            projection_name = 'classification_projection'
+            gds.create_depends_on_projection(
+                projection_name=projection_name,
+                dependency_types=args.dep_types,
+                include_weights=use_weights,
+                weight_property=args.weight_property
+            )
+            
+            try:
+                # Determine which metrics to classify
+                metrics = args.classify_metric
+                if 'all' in metrics:
+                    metrics = ['betweenness', 'pagerank', 'degree', 'composite', 'edge_weight']
+                
+                # Run classifications
+                for metric in metrics:
+                    if metric == 'betweenness':
+                        classification_results['betweenness'] = classifier.classify_by_betweenness(
+                            projection_name, weighted=use_weights
+                        )
+                    elif metric == 'pagerank':
+                        classification_results['pagerank'] = classifier.classify_by_pagerank(
+                            projection_name, weighted=use_weights
+                        )
+                    elif metric == 'degree':
+                        classification_results['degree'] = classifier.classify_by_degree(
+                            projection_name, weighted=use_weights
+                        )
+                    elif metric == 'composite':
+                        classification_results['composite'] = classifier.classify_by_composite_score(
+                            projection_name, weighted=use_weights
+                        )
+                    elif metric == 'edge_weight':
+                        classification_results['edge_weight'] = classifier.classify_edges_by_weight()
+                
+                # Print classification results
+                if not args.json_stdout:
+                    for metric_name, class_result in classification_results.items():
+                        print_classification_result(
+                            class_result,
+                            show_all_levels=args.show_all_levels,
+                            verbose=args.verbose
+                        )
+                    
+                    # Print merged ranking if multiple metrics
+                    if len(classification_results) > 1:
+                        # Exclude edge_weight from merging (different item type)
+                        component_results = {k: v for k, v in classification_results.items() 
+                                           if k != 'edge_weight'}
+                        if len(component_results) > 1:
+                            merged = merge_classifications(component_results)
+                            print_merged_classification(merged, show_all_levels=args.show_all_levels)
+            
+            finally:
+                gds.cleanup_projections()
+        
         # Export if requested
         if args.output:
             if not args.quiet:
                 print_section("EXPORTING RESULTS")
-            export_results(result, args.output, args.format)
+            
+            # Add classification to result for export
+            export_data = result.to_dict()
+            if classification_results:
+                export_data['classification'] = {
+                    name: res.to_dict() for name, res in classification_results.items()
+                }
+            
+            export_results_with_classification(export_data, args.output, args.format)
         
         # Close connection
         gds.close()
