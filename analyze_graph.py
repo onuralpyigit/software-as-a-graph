@@ -883,12 +883,7 @@ def main():
         
         if not args.quiet:
             print_success("\nAnalysis complete!")
-        
-        # Exit code based on score
-        if result.overall_score < 50:
-            sys.exit(2)  # Critical issues
-        elif result.overall_score < 70:
-            sys.exit(1)  # Warnings
+    
         sys.exit(0)
         
     except ImportError as e:

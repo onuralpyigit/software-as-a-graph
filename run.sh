@@ -354,9 +354,8 @@ echo ""
 
 python analyze_graph.py \
     --output "$OUTPUT_DIR" \
-    --format json html csv \
+    --format json summary \
     --full \
-    --antipatterns \
     --classify \
     $VERBOSE
 
@@ -384,9 +383,8 @@ echo ""
 SIMULATION_OUTPUT="${OUTPUT_DIR}/simulation_results.json"
 
 python simulate_graph.py \
-    --input "$INPUT_FILE" \
     --campaign \
-    --export-json "$SIMULATION_OUTPUT" \
+    --output "$SIMULATION_OUTPUT" \
     --seed "$SEED" \
     $ENABLE_CASCADE \
     $VERBOSE
@@ -429,16 +427,9 @@ if [ "$SKIP_VALIDATE" = false ]; then
     echo ""
     
     python validate_graph.py \
-        --input "$INPUT_FILE" \
         --output "$OUTPUT_DIR" \
-        --format json html csv \
-        --alpha "$ALPHA" \
-        --beta "$BETA" \
-        --gamma "$GAMMA" \
-        --delta "$DELTA" \
-        --epsilon "$EPSILON" \
+        --format json csv \
         --seed "$SEED" \
-        $ENABLE_CASCADE \
         $FULL_VALIDATION \
         $VERBOSE
     
