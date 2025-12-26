@@ -2,94 +2,336 @@
 
 ## Graph-Based Modeling and Analysis of Distributed Publish-Subscribe Systems
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![IEEE RASSE 2025](https://img.shields.io/badge/IEEE-RASSE%202025-green.svg)](https://rasse2025.ieee.org/)
+A comprehensive framework for modeling distributed publish-subscribe systems as multi-layer graphs and analyzing their structural vulnerabilities using graph theory and centrality metrics.
 
-A comprehensive framework for modeling distributed publish-subscribe systems as graphs and analyzing them to identify critical components, single points of failure, and architectural anti-patterns.
-
-**Author:** Ibrahim Onuralp Yigit  
-**Publication:** IEEE RASSE 2025 - *Graph-Based Modeling and Analysis of Distributed Publish-Subscribe Systems*
+**Author**: Ibrahim Onuralp Yigit  
+**Research**: PhD Thesis - Graph-Based Modeling and Analysis of Distributed Pub-Sub Systems  
+**Publication**: IEEE RASSE 2025
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Research Methodology](#research-methodology)
-3. [Installation](#installation)
-4. [Quick Start](#quick-start)
-5. [Pipeline Steps](#pipeline-steps)
-   - [Step 1: Graph Generation](#step-1-graph-generation)
-   - [Step 2: Graph Analysis](#step-2-graph-analysis)
-   - [Step 3: Failure Simulation](#step-3-failure-simulation)
-   - [Step 4: Validation](#step-4-validation)
-   - [Step 5: Visualization](#step-5-visualization)
-6. [Multi-Layer Graph Model](#multi-layer-graph-model)
-7. [Criticality Scoring](#criticality-scoring)
-8. [Validation Metrics](#validation-metrics)
+2. [Research Motivation](#research-motivation)
+3. [Multi-Layer Graph Model](#multi-layer-graph-model)
+4. [Methodology](#methodology)
+5. [Quick Start](#quick-start)
+6. [Installation](#installation)
+7. [Pipeline Steps](#pipeline-steps)
+8. [Validation Approach](#validation-approach)
 9. [Project Structure](#project-structure)
 10. [API Reference](#api-reference)
-11. [Examples](#examples)
-12. [Contributing](#contributing)
-13. [License](#license)
+11. [Publications](#publications)
 
 ---
 
 ## Overview
 
-Modern distributed systems built on publish-subscribe (pub-sub) patterns—such as IoT platforms, financial trading systems, autonomous vehicles (ROS 2), and microservices architectures—are complex networks of interconnected components. Understanding which components are critical to system reliability is essential for:
+This project provides a **six-step methodology** for identifying critical components in complex distributed publish-subscribe systems using graph-based analysis:
 
-- **Reliability Engineering**: Identifying single points of failure (SPOFs)
-- **Risk Assessment**: Prioritizing components for redundancy and monitoring
-- **Architecture Optimization**: Detecting anti-patterns and bottlenecks
-- **Maintenance Planning**: Focusing testing and maintenance efforts
-
-This framework models pub-sub systems as **multi-layer directed graphs** and applies **graph algorithms** to systematically identify critical components.
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  1. MODEL   │───▶│  2. ANALYZE │───▶│ 3. SIMULATE │
+│  Build Graph│    │  Centrality │    │   Failures  │
+└─────────────┘    └─────────────┘    └─────────────┘
+                                              │
+┌─────────────┐    ┌─────────────┐    ┌───────▼─────┐
+│ 6. DEPLOY   │◀───│ 5. VISUALIZE│◀───│ 4. VALIDATE │
+│ Digital Twin│    │  Dashboard  │    │ Correlation │
+└─────────────┘    └─────────────┘    └─────────────┘
+```
 
 ### Key Features
 
-- **Multi-layer graph modeling** (Infrastructure → Broker → Topic → Application)
-- **Composite criticality scoring** using multiple graph metrics
-- **Failure simulation** with cascading effects
-- **Statistical validation** (Spearman ρ ≥ 0.70, F1 ≥ 0.90)
-- **Anti-pattern detection** (God Topics, SPOFs, circular dependencies)
-- **Interactive visualizations** with vis.js and dashboards
+- **Multi-Layer Graph Modeling**: Represents systems across Application, Topic, Broker, and Infrastructure layers
+- **Composite Criticality Scoring**: Combines betweenness centrality, articulation points, PageRank, and degree metrics
+- **Failure Simulation**: Measures actual impact through exhaustive failure campaigns with cascade propagation
+- **Statistical Validation**: Validates predictions using Spearman correlation (≥0.70) and F1-score (≥0.90)
+- **Interactive Visualization**: Generates multi-layer dashboards with Chart.js and vis.js
+
+### Target Metrics
+
+| Metric | Target | Description |
+|--------|--------|-------------|
+| Spearman ρ | ≥ 0.70 | Rank correlation between predicted and actual criticality |
+| F1-Score | ≥ 0.90 | Classification accuracy for critical component identification |
+| Precision | ≥ 0.80 | Fraction of predicted critical that are actually critical |
+| Recall | ≥ 0.80 | Fraction of actual critical components correctly identified |
+| Top-5 Overlap | ≥ 60% | Agreement on most critical components |
 
 ---
 
-## Research Methodology
+## Research Motivation
 
-Our six-step methodology provides a rigorous approach to identifying critical components:
+### The Challenge
+
+Modern distributed systems (autonomous vehicles, IoT deployments, financial trading platforms) rely on publish-subscribe messaging for communication. These systems present unique challenges:
+
+1. **Complex Dependencies**: Hundreds of applications, topics, and brokers with intricate relationships
+2. **Hidden Bottlenecks**: Critical components not obvious from architecture diagrams
+3. **Cascade Failures**: Single component failures can propagate through the system
+4. **Qualitative Assessment**: Traditional approaches rely on expert judgment
+
+### Our Solution
+
+We model these systems as **directed multi-layer graphs** where:
+- **Nodes** represent system components (applications, topics, brokers, infrastructure)
+- **Edges** represent dependencies (publishes, subscribes, runs-on, connects-to)
+- **Weights** capture dependency strength (message frequency, QoS requirements)
+
+Graph algorithms then **quantify** what was previously qualitative:
+- *"This broker seems important"* → **Betweenness Centrality: 0.847**
+- *"Failure here would be bad"* → **Impact Score: 0.92**
+- *"We should add redundancy"* → **Articulation Point: Yes**
+
+---
+
+## Multi-Layer Graph Model
+
+### Layer Architecture
+
+Our model represents pub-sub systems as four interconnected layers:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     GRAPH-BASED ANALYSIS METHODOLOGY                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                    │
-│   │   STEP 1    │    │   STEP 2    │    │   STEP 3    │                    │
-│   │  GENERATE   │───▶│   ANALYZE   │───▶│  SIMULATE   │                    │
-│   │ Graph Model │    │ Criticality │    │  Failures   │                    │
-│   └─────────────┘    └─────────────┘    └──────┬──────┘                    │
-│                                                │                            │
-│   ┌─────────────┐    ┌─────────────┐    ┌──────▼──────┐                    │
-│   │   STEP 6    │    │   STEP 5    │    │   STEP 4    │                    │
-│   │   DEPLOY    │◀───│  VISUALIZE  │◀───│  VALIDATE   │                    │
-│   │ Digital Twin│    │   Results   │    │   Results   │                    │
-│   └─────────────┘    └─────────────┘    └─────────────┘                    │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         APPLICATION LAYER                               │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │
+│  │ Sensor  │  │  Data   │  │Dashboard│  │ Alert   │  │ Logger  │        │
+│  │   App   │  │Processor│  │   App   │  │ Service │  │   App   │        │
+│  └────┬────┘  └────┬────┘  └────▲────┘  └────▲────┘  └────▲────┘        │
+│       │            │            │            │            │             │
+│       │ publishes  │ pub/sub    │ subscribes │            │             │
+├───────▼────────────▼────────────┴────────────┴────────────┴─────────────┤
+│                          TOPIC LAYER                                    │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
+│  │ /sensors/   │  │ /processed/ │  │  /alerts/   │  │   /logs/    │     │
+│  │ temperature │  │    data     │  │  critical   │  │   system    │     │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘     │
+│         │                │                │                │            │
+│         │ routes         │                │                │            │
+├─────────▼────────────────▼────────────────▼────────────────▼────────────┤
+│                          BROKER LAYER                                   │
+│         ┌────────────────────┐       ┌────────────────────┐             │
+│         │     Broker 0       │       │     Broker 1       │             │
+│         │  (Primary, QoS-2)  │       │  (Secondary, QoS-1)│             │
+│         └─────────┬──────────┘       └─────────┬──────────┘             │
+│                   │ runs_on                    │ runs_on                │
+├───────────────────▼────────────────────────────▼────────────────────────┤
+│                      INFRASTRUCTURE LAYER                               │
+│    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐         │
+│    │  Node 0  │───▶│  Node 1  │───▶│  Node 2  │───▶│  Node 3  │         │
+│    │ (Master) │    │ (Worker) │    │ (Worker) │    │ (Backup) │         │
+│    └──────────┘    └──────────┘    └──────────┘    └──────────┘         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Step | Purpose | Output |
-|------|---------|--------|
-| 1. Generate | Create graph model from system topology | JSON graph file |
-| 2. Analyze | Calculate criticality using graph algorithms | Criticality scores |
-| 3. Simulate | Run failure scenarios to measure actual impact | Impact scores |
-| 4. Validate | Compare predictions with simulation results | Correlation metrics |
-| 5. Visualize | Generate interactive multi-layer visualizations | HTML dashboards |
-| 6. Deploy | Implement as digital twin (future work) | Real-time monitoring |
+### Node Types
+
+| Type | Description | Example Properties |
+|------|-------------|-------------------|
+| **Application** | Software components that publish/subscribe to messages | criticality, qos_requirements |
+| **Topic** | Message channels for pub/sub communication | message_rate, qos_level |
+| **Broker** | Message routing infrastructure | max_connections, throughput |
+| **Node** | Physical/virtual infrastructure | cpu, memory, availability_zone |
+
+### Edge Types (Dependencies)
+
+| Type | From | To | Description |
+|------|------|-----|-------------|
+| `publishes` | Application | Topic | App publishes messages to topic |
+| `subscribes` | Application | Topic | App subscribes to topic |
+| `app_to_app` | Application | Application | Direct application dependency |
+| `app_to_broker` | Application | Broker | App connected to broker |
+| `node_to_broker` | Broker | Node | Broker runs on infrastructure |
+| `node_to_node` | Node | Node | Infrastructure dependency |
+
+### Automatic DEPENDS_ON Derivation
+
+Cross-layer dependencies are automatically derived during analysis:
+
+```
+If App_A publishes to Topic_T AND App_B subscribes to Topic_T
+Then: App_A → DEPENDS_ON → App_B (weight based on QoS)
+```
+
+---
+
+## Methodology
+
+### Step 1: Graph Model Construction
+
+Transform system architecture into a directed weighted multi-layer graph:
+
+```python
+# Input: System configuration (YAML, JSON, or live discovery)
+# Output: G = (V, E) where V = nodes, E = weighted edges
+
+graph = build_graph(system_config)
+# Nodes: Applications, Topics, Brokers, Infrastructure
+# Edges: Dependencies with weights based on QoS, frequency, criticality
+```
+
+### Step 2: Structural Analysis
+
+Calculate criticality using multiple graph algorithms:
+
+```python
+# Betweenness Centrality - Information flow bottlenecks
+bc = nx.betweenness_centrality(G, weight='weight')
+
+# Articulation Points - Single points of failure
+aps = nx.articulation_points(G.to_undirected())
+
+# PageRank - Overall importance via incoming dependencies
+pr = nx.pagerank(G, weight='weight')
+
+# Degree Centrality - Direct connectivity
+dc = nx.degree_centrality(G)
+```
+
+### Step 3: Composite Criticality Scoring
+
+Combine metrics into a single criticality score:
+
+```
+C_score(v) = α·BC_norm(v) + β·AP(v) + γ·I(v) + δ·DC_norm(v) + ε·PR_norm(v)
+```
+
+Where:
+- **BC_norm** = Normalized betweenness centrality
+- **AP** = 1 if articulation point, 0 otherwise
+- **I** = Downstream impact score (reachability-based)
+- **DC_norm** = Normalized degree centrality
+- **PR_norm** = Normalized PageRank
+
+**Default Weights**:
+
+| Parameter | Weight | Rationale |
+|-----------|--------|-----------|
+| α (BC) | 0.25 | Information flow bottlenecks |
+| β (AP) | 0.30 | Single points of failure (highest weight) |
+| γ (I) | 0.25 | Downstream cascade impact |
+| δ (DC) | 0.10 | Direct connectivity |
+| ε (PR) | 0.10 | Overall system importance |
+
+### Step 4: Failure Simulation
+
+Validate predictions through exhaustive failure simulation:
+
+```python
+# For each component:
+#   1. Remove component from graph
+#   2. Calculate reachability loss
+#   3. Simulate cascade propagation
+#   4. Measure total system impact
+
+for component in graph.nodes:
+    result = simulate_failure(graph, component, enable_cascade=True)
+    actual_impact[component] = result.impact_score
+```
+
+**Impact Score Formula**:
+```
+Impact = 0.5 × (reachability_loss%) + 0.3 × (fragmentation) + 0.2 × (cascade_extent)
+```
+
+### Step 5: Statistical Validation
+
+Compare predicted criticality against actual impact:
+
+```python
+# Correlation Analysis
+spearman_rho = spearman_correlation(predicted_scores, actual_impacts)
+# Target: ρ ≥ 0.70
+
+# Classification Metrics (using 80th percentile threshold)
+precision, recall, f1 = calculate_classification_metrics(
+    predicted_critical, actual_critical
+)
+# Targets: F1 ≥ 0.90, Precision ≥ 0.80, Recall ≥ 0.80
+
+# Ranking Analysis
+top_k_overlap = calculate_top_k_overlap(predicted_ranking, actual_ranking, k=5)
+# Target: Top-5 ≥ 60%
+```
+
+### Step 6: Visualization & Reporting
+
+Generate interactive dashboards and multi-layer architecture views:
+
+- **Dashboard**: Metrics, charts, sortable component tables
+- **Multi-Layer View**: Vertical layer separation with dependency lines
+- **Criticality Heatmap**: Color-coded by criticality level
+
+---
+
+## Quick Start
+
+### Option 1: End-to-End Demo Script
+
+```bash
+# Clone repository
+git clone https://github.com/onuralpyigit/software-as-a-graph.git
+cd software-as-a-graph
+
+# Make script executable
+chmod +x run.sh
+
+# Run full demo (requires Neo4j)
+./run.sh
+
+# Or quick demo without Neo4j
+./run.sh --skip-neo4j --quick
+
+# View results
+open demo_output/dashboard.html
+```
+
+### Option 2: Step-by-Step Python
+
+```python
+from src.analysis import GDSClient
+from src.analysis.criticality_classifier import GDSCriticalityClassifier
+from src.simulation import Neo4jGraphLoader, FailureSimulator
+from src.validation import GraphValidator
+from src.visualization import Neo4jVisualizer
+
+# 1. Connect to Neo4j
+gds = GDSClient(uri="bolt://localhost:7687", user="neo4j", password="password")
+
+# 2. Analyze criticality
+projection = gds.create_depends_on_projection("analysis")
+classifier = GDSCriticalityClassifier(gds)
+analysis = classifier.classify_by_composite_score("analysis")
+
+# 3. Simulate failures
+loader = Neo4jGraphLoader(uri="bolt://localhost:7687", user="neo4j", password="password")
+graph = loader.load_graph()
+simulator = FailureSimulator()
+simulation = simulator.simulate_all_single_failures(graph)
+
+# 4. Validate
+predicted = {item.item_id: item.score for item in analysis.items}
+actual = {r.simulation_id.split('_fail_')[0]: r.impact.impact_score 
+          for r in simulation.results}
+
+validator = GraphValidator()
+result = validator.validate(predicted, actual)
+print(f"Spearman: {result.correlation.spearman_coefficient:.3f}")
+print(f"F1-Score: {result.classification.f1_score:.3f}")
+
+# 5. Visualize
+visualizer = Neo4jVisualizer(uri="bolt://localhost:7687", user="neo4j", password="password")
+html = visualizer.generate_dashboard(validation_results=result.to_dict())
+with open('dashboard.html', 'w') as f:
+    f.write(html)
+
+# Cleanup
+gds.close()
+loader.close()
+visualizer.close()
+```
 
 ---
 
@@ -97,433 +339,176 @@ Our six-step methodology provides a rigorous approach to identifying critical co
 
 ### Prerequisites
 
-- Python 3.10 or higher
-- pip package manager
+- Python 3.10+
+- Neo4j 5.x with Graph Data Science (GDS) plugin (optional but recommended)
 
 ### Install Dependencies
 
 ```bash
-# Clone the repository
-git clone https://github.com/onuralpyigit/software-as-a-graph.git
-cd software-as-a-graph
+# Core dependencies
+pip install networkx
 
-# Install required packages
-pip install networkx scipy matplotlib
-
-# Optional: Install Neo4j driver for database storage
+# Neo4j integration (recommended)
 pip install neo4j
+
+# All dependencies
+pip install networkx neo4j
 ```
 
-### Verify Installation
+### Neo4j Setup (Optional)
 
 ```bash
-# Check available scenarios
-python generate_graph.py --list-scenarios
+# Using Docker
+docker run -d \
+  --name neo4j \
+  -p 7474:7474 -p 7687:7687 \
+  -e NEO4J_AUTH=neo4j/password \
+  -e NEO4J_PLUGINS='["graph-data-science"]' \
+  neo4j:5.15.0-enterprise
 
-# Check available scales
-python generate_graph.py --list-scales
-```
+# Wait for startup
+sleep 30
 
----
-
-## Quick Start
-
-### Option 1: Run the Complete Demo
-
-```bash
-# Make the script executable
-chmod +x run.sh
-
-# Run the full end-to-end demo
-./run.sh
-
-# Quick demo (small scale for fast testing)
-./run.sh --quick
-
-# Specific scenario
-./run.sh --scenario financial --scale large
-```
-
-### Option 2: Step-by-Step Commands
-
-```bash
-# Step 1: Generate graph
-python generate_graph.py --scenario iot --scale medium --output system.json
-
-# Step 2: Analyze graph
-python analyze_graph.py --input system.json --output results/ --format json html --full
-
-# Step 3: Simulate failures
-python simulate_graph.py --input system.json --campaign --export-json simulation.json
-
-# Step 4: Validate results
-python validate_graph.py --input system.json --output results/ --format json html
-
-# Step 5: Visualize
-python visualize_graph.py --input system.json --output dashboard.html --dashboard
-```
-
-### Option 3: Python API
-
-```python
-import networkx as nx
-from src.analysis import GraphAnalyzer
-from src.simulation import FailureSimulator
-from src.validation import GraphValidator
-from src.visualization import GraphVisualizer
-
-# Load or create graph
-graph = nx.DiGraph()
-# ... add nodes and edges ...
-
-# Analyze
-analyzer = GraphAnalyzer()
-criticality = analyzer.analyze(graph)
-
-# Simulate
-simulator = FailureSimulator()
-impacts = simulator.simulate_all_single_failures(graph)
-
-# Validate
-validator = GraphValidator()
-result = validator.validate(graph, criticality, impacts)
-print(f"Spearman: {result.correlation.spearman_coefficient:.3f}")
-
-# Visualize
-visualizer = GraphVisualizer()
-html = visualizer.render_html(graph, criticality)
+# Verify connection
+python -c "from neo4j import GraphDatabase; GraphDatabase.driver('bolt://localhost:7687', auth=('neo4j', 'password')).verify_connectivity()"
 ```
 
 ---
 
 ## Pipeline Steps
 
-### Step 1: Graph Generation
+### Step 1: Generate Graph
 
-Generate realistic pub-sub system topologies for analysis and testing.
-
-```bash
-python generate_graph.py --scenario iot --scale medium --output system.json
-```
-
-#### Supported Scenarios
-
-| Scenario | Description | Example Components |
-|----------|-------------|-------------------|
-| `iot` | IoT Smart City | Sensors, gateways, MQTT brokers, analytics |
-| `financial` | Financial Trading | Order routers, market data, risk engines |
-| `microservices` | Microservices | Services, RabbitMQ, Kafka, event queues |
-| `ros2` | Autonomous Vehicles | Perception, planning, control, DDS |
-
-#### Scale Parameters
-
-| Scale | Applications | Topics | Brokers | Infrastructure |
-|-------|-------------|--------|---------|----------------|
-| `small` | ~8 | ~6 | 1 | 2 |
-| `medium` | ~20 | ~15 | 3 | 4 |
-| `large` | ~50 | ~40 | 5 | 8 |
-
-#### Graph JSON Format
-
-```json
-{
-  "metadata": {
-    "scenario": "iot",
-    "scale": "medium",
-    "generated_at": "2025-01-15T10:30:00"
-  },
-  "nodes": [
-    {"id": "sensor_0", "name": "Temperature Sensor", "type": "Application", "layer": "application"},
-    {"id": "topic_temp", "name": "temperature/readings", "type": "Topic", "layer": "topic"},
-    {"id": "mqtt_broker", "name": "MQTT Broker", "type": "Broker", "layer": "broker"},
-    {"id": "edge_node_0", "name": "Edge Node", "type": "Node", "layer": "infrastructure"}
-  ],
-  "edges": [
-    {"source": "sensor_0", "target": "topic_temp", "type": "PUBLISHES_TO"},
-    {"source": "topic_temp", "target": "aggregator_0", "type": "SUBSCRIBES_TO"},
-    {"source": "topic_temp", "target": "mqtt_broker", "type": "DEPENDS_ON"},
-    {"source": "mqtt_broker", "target": "edge_node_0", "type": "RUNS_ON"}
-  ]
-}
-```
-
----
-
-### Step 2: Graph Analysis
-
-Calculate criticality scores using structural graph algorithms.
+Create a realistic pub-sub system topology:
 
 ```bash
-python analyze_graph.py --input system.json --output results/ --format json html --full
+# Using run.sh (generates and loads into Neo4j)
+./run.sh --scenario iot --scale medium
 ```
 
-#### Quality Attributes Analyzed
+Supported scenarios:
+- `iot`: IoT sensor network (temperature, humidity, alerts)
+- `financial`: Financial trading platform (market data, orders, risk)
+- `microservices`: Cloud microservices architecture
+- `ros2`: ROS 2 robotic system with DDS
 
-**Reliability Analysis:**
-- Single Points of Failure (SPOFs) via articulation point detection
-- Redundancy assessment via k-connectivity
-- Fault tolerance via component reachability
+Supported scales:
+- `small`: 10 apps, 2 brokers, 4 nodes
+- `medium`: 30 apps, 4 brokers, 8 nodes
+- `large`: 100 apps, 8 brokers, 20 nodes
 
-**Maintainability Analysis:**
-- Coupling metrics (afferent/efferent coupling)
-- Cohesion analysis
-- Modularity detection via community algorithms
+### Step 2: Analyze Graph
 
-**Availability Analysis:**
-- Network connectivity
-- Reachability analysis
-- Service dependency chains
-
-#### Anti-Pattern Detection
-
-| Anti-Pattern | Detection Method | Impact |
-|--------------|------------------|--------|
-| God Topic | High fan-in/fan-out (>10 connections) | Bottleneck, SPOF |
-| Single Point of Failure | Articulation point detection | Reliability risk |
-| Circular Dependency | Cycle detection in dependency graph | Maintainability issue |
-| Chatty Communication | High message frequency analysis | Performance degradation |
-| Broker Bottleneck | Betweenness centrality analysis | Scalability limit |
-
----
-
-### Step 3: Failure Simulation
-
-Simulate component failures to measure actual system impact.
+Calculate criticality scores using GDS algorithms:
 
 ```bash
-# Test all components
-python simulate_graph.py --input system.json --campaign --export-json simulation.json
-
-# Single component failure
-python simulate_graph.py --input system.json --component broker_0
-
-# With cascading failures
-python simulate_graph.py --input system.json --campaign --cascade
+python analyze_graph.py \
+  --uri bolt://localhost:7687 \
+  --user neo4j \
+  --password password \
+  --method composite \
+  --output results/
 ```
 
-#### Simulation Modes
+Analysis methods:
+- `composite`: Combined BC + AP + PR + DC (recommended)
+- `betweenness`: Betweenness centrality only
+- `pagerank`: PageRank only
+- `degree`: Degree centrality only
 
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `--component` | Single failure | Targeted analysis |
-| `--campaign` | Test all components | Exhaustive analysis |
-| `--attack` | Targeted attack simulation | Security assessment |
-| `--chaos` | Random failure injection | Chaos engineering |
-| `--event-sim` | Event-driven simulation | Performance testing |
+### Step 3: Simulate Failures
 
-#### Impact Metrics
-
-The simulation calculates:
-- **Reachability Loss**: % of nodes no longer reachable
-- **Service Disruption**: Number of applications affected
-- **Cascade Depth**: How far failures propagate
-- **Impact Score**: Normalized 0-1 severity measure
-
----
-
-### Step 4: Validation
-
-Compare predicted criticality with actual simulation impact.
+Run exhaustive failure campaign:
 
 ```bash
-python validate_graph.py --input system.json --output results/ --format json html
+python simulate_graph.py \
+  --uri bolt://localhost:7687 \
+  --user neo4j \
+  --password password \
+  --campaign \
+  --cascade \
+  --output results/
 ```
 
-#### Validation Approach
+Simulation modes:
+- `--component ID`: Single component failure
+- `--campaign`: All components (exhaustive)
+- `--attack --strategy highest_betweenness`: Targeted attack
 
-1. **Calculate Predicted Scores**: Use composite criticality formula
-2. **Run Failure Simulation**: Get actual impact for each component
-3. **Compare Rankings**: Correlate predicted vs actual rankings
-4. **Classify Accuracy**: Measure critical/non-critical classification
+### Step 4: Validate Results
 
-#### Target Metrics
-
-| Metric | Target | Description |
-|--------|--------|-------------|
-| Spearman ρ | ≥ 0.70 | Rank correlation between predicted and actual |
-| F1-Score | ≥ 0.90 | Classification accuracy for critical components |
-| Precision | ≥ 0.80 | True Positives / (True Positives + False Positives) |
-| Recall | ≥ 0.80 | True Positives / (True Positives + False Negatives) |
-| Top-5 Overlap | ≥ 60% | Overlap of top-5 predicted vs actual |
-| Top-10 Overlap | ≥ 70% | Overlap of top-10 predicted vs actual |
-
-#### Advanced Validation
+Compare predictions with actuals:
 
 ```bash
-# Full analysis with sensitivity, bootstrap, and cross-validation
-python validate_graph.py --input system.json --full-analysis
-
-# Custom thresholds
-python validate_graph.py --input system.json --target-spearman 0.8 --target-f1 0.85
+python validate_graph.py \
+  --uri bolt://localhost:7687 \
+  --user neo4j \
+  --password password \
+  --method composite \
+  --output results/
 ```
 
----
+Options:
+- `--compare`: Compare all analysis methods
+- `--bootstrap`: Calculate confidence intervals
+- `--spearman-target 0.75`: Custom target
 
-### Step 5: Visualization
+### Step 5: Visualize
 
-Generate interactive multi-layer visualizations.
+Generate interactive dashboards:
 
 ```bash
-# Interactive network graph
-python visualize_graph.py --input system.json --output graph.html
-
-# Multi-layer view
-python visualize_graph.py --input system.json --output layers.html --multi-layer
-
-# Criticality coloring
-python visualize_graph.py --input system.json --output crit.html --color-by criticality
-
-# Comprehensive dashboard
-python visualize_graph.py --input system.json --output dashboard.html --dashboard
+python visualize_graph.py \
+  --uri bolt://localhost:7687 \
+  --user neo4j \
+  --password password \
+  --dashboard \
+  --output dashboard.html
 ```
 
-#### Visualization Features
-
-- **Interactive Network**: Vis.js-based with physics simulation
-- **Multi-Layer View**: Separated by system layer
-- **Criticality Heatmap**: Color-coded by severity
-- **Dashboard**: Metrics, charts, and component tables
-
-#### Layout Algorithms
-
-| Layout | Description | Best For |
-|--------|-------------|----------|
-| `spring` | Force-directed | General graphs |
-| `hierarchical` | Layer-based tree | Dependency chains |
-| `circular` | Circular arrangement | Small graphs |
-| `shell` | Concentric by type | Clustered systems |
+Visualization modes:
+- `--dashboard`: Full dashboard with charts
+- `--multi-layer`: Layer-separated architecture view
+- `--layer application`: Single layer view
 
 ---
 
-## Multi-Layer Graph Model
+## Validation Approach
 
-Our approach models pub-sub systems as **four-layer directed graphs**:
+### Why Validation Matters
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     APPLICATION LAYER                           │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐          │
-│   │ Sensor  │  │Aggregator│  │Dashboard│  │ Alert   │          │
-│   │   App   │  │   App   │  │   App   │  │ Service │          │
-│   └────┬────┘  └────┬────┘  └────▲────┘  └────▲────┘          │
-│        │            │            │            │                 │
-│        │ PUBLISHES  │ SUBSCRIBES │            │                 │
-├────────▼────────────▼────────────┴────────────┴─────────────────┤
-│                       TOPIC LAYER                               │
-│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
-│   │ temperature │  │  humidity   │  │   alerts    │            │
-│   │   /readings │  │  /readings  │  │  /critical  │            │
-│   └──────┬──────┘  └──────┬──────┘  └──────┬──────┘            │
-│          │ DEPENDS_ON     │                │                    │
-├──────────▼────────────────▼────────────────▼────────────────────┤
-│                      BROKER LAYER                               │
-│   ┌─────────────────────────────────────────────────┐          │
-│   │              MQTT / Kafka Broker                │          │
-│   └────────────────────────┬────────────────────────┘          │
-│                            │ RUNS_ON                            │
-├────────────────────────────▼────────────────────────────────────┤
-│                   INFRASTRUCTURE LAYER                          │
-│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
-│   │ Edge Node 1 │  │ Edge Node 2 │  │   Gateway   │            │
-│   └─────────────┘  └─────────────┘  └─────────────┘            │
-└─────────────────────────────────────────────────────────────────┘
-```
+Graph metrics (betweenness, PageRank) measure **structural** importance. But do they predict **actual** system impact? Validation answers this by:
 
-### Node Types
+1. **Predicting** criticality using topological metrics
+2. **Measuring** actual impact through failure simulation
+3. **Comparing** predictions vs actuals using statistical methods
 
-| Type | Layer | Description |
-|------|-------|-------------|
-| Application | Application | Publishers, subscribers, services |
-| Topic | Topic | Message channels, queues |
-| Broker | Broker | Message brokers (MQTT, Kafka, RabbitMQ) |
-| Node | Infrastructure | Servers, gateways, edge devices |
-
-### Edge Types
-
-| Type | Direction | Meaning |
-|------|-----------|---------|
-| PUBLISHES_TO | App → Topic | Application publishes to topic |
-| SUBSCRIBES_TO | Topic → App | Application subscribes to topic |
-| DEPENDS_ON | Topic → Broker | Topic managed by broker |
-| RUNS_ON | Broker → Node | Broker runs on infrastructure |
-| CONNECTS_TO | Node → Node | Infrastructure connectivity |
-
----
-
-## Criticality Scoring
-
-### Composite Criticality Score Formula
-
-```
-C_score = α × BC + β × AP + γ × I + δ × DC + ε × PR
-```
-
-Where:
-- **BC** = Betweenness Centrality (normalized)
-- **AP** = Articulation Point (1.0 if SPOF, 0.0 otherwise)
-- **I** = Impact Score (based on reachability)
-- **DC** = Degree Centrality (normalized)
-- **PR** = PageRank (normalized)
-
-### Default Weights
-
-| Parameter | Weight | Rationale |
-|-----------|--------|-----------|
-| α (BC) | 0.25 | Information flow bottlenecks |
-| β (AP) | 0.30 | Single points of failure (highest weight) |
-| γ (I) | 0.25 | Downstream impact |
-| δ (DC) | 0.10 | Direct connectivity |
-| ε (PR) | 0.10 | Overall importance |
-
-### Criticality Levels
-
-| Level | Score Range | Description |
-|-------|-------------|-------------|
-| Critical | ≥ 0.70 | Immediate attention required |
-| High | 0.50 - 0.69 | High priority for redundancy |
-| Medium | 0.30 - 0.49 | Moderate risk |
-| Low | 0.10 - 0.29 | Low risk |
-| Minimal | < 0.10 | Negligible impact |
-
----
-
-## Validation Metrics
-
-### Correlation Analysis
+### Metrics Explained
 
 **Spearman Rank Correlation (ρ)**
-- Measures monotonic relationship between predicted and actual rankings
-- Target: ρ ≥ 0.70
-- Range: -1 to +1 (1 = perfect positive correlation)
+- Measures if predicted ranking matches actual ranking
+- ρ = 1: Perfect agreement
+- ρ = 0: No correlation
+- ρ = -1: Perfect disagreement
+- **Target: ρ ≥ 0.70** (strong positive correlation)
 
-**Pearson Correlation (r)**
-- Measures linear relationship between scores
-- Useful for assessing score magnitude accuracy
+**F1-Score**
+- Harmonic mean of precision and recall
+- Measures classification accuracy for critical vs non-critical
+- **Target: F1 ≥ 0.90**
 
-**Kendall's Tau (τ)**
-- Alternative rank correlation, more robust to ties
+**Top-k Overlap**
+- Fraction of predicted top-k that appear in actual top-k
+- Critical for prioritizing remediation
+- **Target: Top-5 ≥ 60%**
 
-### Classification Metrics
+### Interpretation
 
-**Confusion Matrix:**
-```
-                    Predicted
-                Critical  Non-Critical
-Actual  Critical    TP         FN
-        Non-Crit    FP         TN
-```
-
-**Derived Metrics:**
-- Precision = TP / (TP + FP)
-- Recall = TP / (TP + FN)
-- F1-Score = 2 × (Precision × Recall) / (Precision + Recall)
-- Accuracy = (TP + TN) / Total
-
-### Ranking Metrics
-
-- **Top-k Overlap**: Intersection of top-k predicted vs actual
-- **Mean Rank Difference**: Average difference in rankings
-- **Max Rank Difference**: Worst-case ranking error
+| Spearman | F1 | Status | Interpretation |
+|----------|-----|--------|----------------|
+| ≥ 0.70 | ≥ 0.90 | ✅ PASSED | Predictions highly reliable |
+| 0.50-0.70 | 0.70-0.90 | ⚠️ PARTIAL | Useful but verify critical cases |
+| < 0.50 | < 0.70 | ❌ FAILED | Consider different methodology |
 
 ---
 
@@ -531,197 +516,132 @@ Actual  Critical    TP         FN
 
 ```
 software-as-a-graph/
-├── run.sh                      # End-to-end demo script
-├── generate_graph.py           # Step 1: Graph generation CLI
-├── analyze_graph.py            # Step 2: Analysis CLI
-├── simulate_graph.py           # Step 3: Simulation CLI
-├── validate_graph.py           # Step 4: Validation CLI
-├── visualize_graph.py          # Step 5: Visualization CLI
+├── run.sh                          # End-to-end demo script
+├── README.md                       # This file
 │
-├── src/
-│   ├── analysis/               # Graph analysis modules
-│   │   ├── graph_analyzer.py   # Main analyzer class
-│   │   ├── quality_analyzer.py # Quality attribute analysis
-│   │   └── antipattern_detector.py
-│   │
-│   ├── simulation/             # Failure simulation
-│   │   ├── graph_simulator.py  # Failure simulator
-│   │   └── event_simulator.py  # Event-driven simulation
-│   │
-│   ├── validation/             # Validation module
-│   │   └── graph_validator.py  # Statistical validation
-│   │
-│   └── visualization/          # Visualization
-│       ├── graph_visualizer.py # Vis.js renderer
-│       └── dashboard_generator.py
+├── analyze_graph.py                # Analysis CLI
+├── simulate_graph.py               # Simulation CLI
+├── validate_graph.py               # Validation CLI
+├── visualize_graph.py              # Visualization CLI
 │
-├── tests/                      # Test suites
-│   ├── test_simulation.py
-│   ├── test_validation.py
-│   └── test_visualization.py
-│
-├── examples/                   # Example scripts
-│   ├── quick_start.py
-│   ├── simulation_examples.py
-│   ├── validation_examples.py
-│   └── visualization_examples.py
-│
-└── output/                     # Generated outputs (gitignored)
+└── src/
+    ├── __init__.py
+    │
+    ├── analysis/                   # Graph analysis module
+    │   ├── __init__.py
+    │   ├── gds_client.py           # Neo4j GDS integration
+    │   ├── criticality_classifier.py  # Box-plot classification
+    │   └── README.md
+    │
+    ├── simulation/                 # Failure simulation module
+    │   ├── __init__.py
+    │   ├── neo4j_loader.py         # Graph loading from Neo4j
+    │   ├── failure_simulator.py    # Failure impact simulation
+    │   ├── event_simulator.py      # Event-driven simulation
+    │   └── README.md
+    │
+    ├── validation/                 # Validation module
+    │   ├── __init__.py
+    │   ├── graph_validator.py      # Statistical validation
+    │   ├── integrated_validator.py # End-to-end pipeline
+    │   └── README.md
+    │
+    └── visualization/              # Visualization module
+        ├── __init__.py
+        ├── graph_visualizer.py     # Multi-layer vis.js rendering
+        ├── dashboard_generator.py  # Chart.js dashboards
+        ├── neo4j_visualizer.py     # Neo4j integration
+        └── README.md
 ```
 
 ---
 
 ## API Reference
 
-### GraphAnalyzer
+### Analysis Module
 
 ```python
-from src.analysis import GraphAnalyzer
+from src.analysis import GDSClient
+from src.analysis.criticality_classifier import GDSCriticalityClassifier
 
-analyzer = GraphAnalyzer()
+# GDS Client
+gds = GDSClient(uri, user, password, database)
+projection = gds.create_depends_on_projection("name", include_weights=True)
+bc_results = gds.betweenness_centrality("name", weighted=True)
+pr_results = gds.pagerank("name", weighted=True)
+gds.cleanup_projections()
+gds.close()
 
-# Full analysis
-results = analyzer.analyze(graph)
-
-# Specific analysis
-reliability = analyzer.analyze_reliability(graph)
-maintainability = analyzer.analyze_maintainability(graph)
-availability = analyzer.analyze_availability(graph)
-antipatterns = analyzer.detect_antipatterns(graph)
+# Criticality Classifier
+classifier = GDSCriticalityClassifier(gds)
+result = classifier.classify_by_composite_score("projection_name")
+result = classifier.classify_by_betweenness("projection_name")
+# result.items: List[ClassifiedItem] with score, level, metrics
 ```
 
-### FailureSimulator
+### Simulation Module
 
 ```python
-from src.simulation import FailureSimulator
+from src.simulation import Neo4jGraphLoader, FailureSimulator
 
-simulator = FailureSimulator(seed=42)
+# Load graph
+loader = Neo4jGraphLoader(uri, user, password, database)
+graph = loader.load_graph()  # Returns SimulationGraph
+loader.close()
 
-# Single failure
-result = simulator.simulate_single_failure(graph, "broker_0")
-
-# All components
-batch_result = simulator.simulate_all_single_failures(graph)
-
-# With cascade
-result = simulator.simulate_single_failure(graph, "broker_0", enable_cascade=True)
+# Simulate failures
+simulator = FailureSimulator(cascade_threshold=0.5, cascade_probability=0.7)
+result = simulator.simulate_single_failure(graph, "component_id")
+batch = simulator.simulate_all_single_failures(graph, enable_cascade=True)
+# result.impact.impact_score, batch.critical_components
 ```
 
-### GraphValidator
+### Validation Module
 
 ```python
-from src.validation import GraphValidator
+from src.validation import GraphValidator, IntegratedValidator
 
-validator = GraphValidator(seed=42)
+# Manual validation
+validator = GraphValidator(targets=ValidationTargets(spearman_correlation=0.70))
+result = validator.validate(predicted_scores, actual_impacts)
+result = validator.validate_with_bootstrap(predicted, actual, n_iterations=1000)
+# result.correlation.spearman_coefficient, result.classification.f1_score
 
-# Basic validation
-result = validator.validate(graph, predicted_scores, actual_impacts)
-
-# With simulation
-result = validator.validate_with_simulation(graph, predicted_scores)
-
-# Advanced analysis
-sensitivity = validator.run_sensitivity_analysis(graph, scores, impacts)
-bootstrap = validator.run_bootstrap_analysis(graph, scores, impacts, n_iterations=1000)
-cv_result = validator.run_cross_validation(graph, scores, impacts, n_folds=5)
+# Integrated pipeline
+integrated = IntegratedValidator(uri, user, password)
+result = integrated.run_validation(analysis_method='composite', enable_cascade=True)
+result.print_summary()
 ```
 
-### GraphVisualizer
+### Visualization Module
 
 ```python
-from src.visualization import GraphVisualizer, DashboardGenerator
+from src.visualization import Neo4jVisualizer, DashboardGenerator
 
-# Basic visualization
-visualizer = GraphVisualizer()
-html = visualizer.render_html(graph, criticality)
+# Neo4j-based visualization
+viz = Neo4jVisualizer(uri, user, password)
+html = viz.visualize_html()
+html = viz.visualize_multi_layer()
+html = viz.generate_dashboard(validation_results=result.to_dict())
+viz.close()
 
-# Multi-layer view
-html = visualizer.render_multi_layer_html(graph, criticality)
-
-# Dashboard
+# Manual dashboard
+from src.visualization import DashboardGenerator
 generator = DashboardGenerator()
-dashboard = generator.generate(graph, criticality, validation, simulation)
+html = generator.generate(nodes, edges, criticality, validation_results)
 ```
 
 ---
 
-## Examples
+## Publications
 
-### Example 1: IoT Smart City Analysis
+### Primary Publication
 
-```bash
-./run.sh --scenario iot --scale medium
-```
+**Graph-Based Modeling and Analysis of Distributed Publish-Subscribe Systems**  
+Ibrahim Onuralp Yigit  
+IEEE International Conference on Recent Advances in Systems Science and Engineering (RASSE) 2025
 
-### Example 2: Financial Trading System
-
-```bash
-./run.sh --scenario financial --scale large --full-validation
-```
-
-### Example 3: Custom Analysis
-
-```python
-import json
-import networkx as nx
-from src.analysis import GraphAnalyzer
-from src.validation import GraphValidator
-
-# Load your system
-with open('my_system.json') as f:
-    data = json.load(f)
-
-# Build graph
-G = nx.DiGraph()
-for node in data['nodes']:
-    G.add_node(node['id'], **node)
-for edge in data['edges']:
-    G.add_edge(edge['source'], edge['target'], **edge)
-
-# Analyze
-analyzer = GraphAnalyzer()
-results = analyzer.analyze(G)
-
-# Validate
-validator = GraphValidator()
-validation = validator.validate_with_simulation(G, results['criticality'])
-
-print(f"Spearman: {validation.correlation.spearman_coefficient:.3f}")
-print(f"F1-Score: {validation.classification.overall.f1_score:.3f}")
-```
-
----
-
-## Contributing
-
-Contributions are welcome! Please read our contributing guidelines and submit pull requests.
-
-### Development Setup
-
-```bash
-# Clone and install
-git clone https://github.com/onuralpyigit/software-as-a-graph.git
-cd software-as-a-graph
-pip install -e ".[dev]"
-
-# Run tests
-python -m pytest tests/ -v
-
-# Run with coverage
-python -m pytest tests/ --cov=src --cov-report=html
-```
-
----
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## Citation
-
-If you use this framework in your research, please cite:
+### Cite This Work
 
 ```bibtex
 @inproceedings{yigit2025graph,
@@ -735,12 +655,20 @@ If you use this framework in your research, please cite:
 
 ---
 
-## Acknowledgments
+## License
 
-- NetworkX team for the excellent graph analysis library
-- Neo4j for the powerful graph database
-- Vis.js for interactive network visualizations
+This project is developed as part of PhD research at Istanbul Technical University. See LICENSE for details.
 
 ---
 
-*Generated by Software-as-a-Graph Research Framework v2.0*
+## Contributing
+
+Contributions welcome! Please see CONTRIBUTING.md for guidelines.
+
+---
+
+## Acknowledgments
+
+- Neo4j and the Graph Data Science team
+- NetworkX developers
+- vis.js and Chart.js communities
