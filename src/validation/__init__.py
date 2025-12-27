@@ -1,103 +1,120 @@
 """
-Validation Module for Graph-Based Analysis
-============================================
+Validation Module - Version 4.0
 
 Validates graph-based criticality analysis by comparing predicted scores
 from topological analysis against actual impact scores from failure simulation.
 
 Target Validation Metrics:
-- Spearman Correlation: ≥ 0.70
-- F1-Score: ≥ 0.90
+- Spearman Correlation: ≥ 0.70 (rank correlation)
+- F1-Score: ≥ 0.90 (classification accuracy)
 - Precision/Recall: ≥ 0.80
 - Top-5 Overlap: ≥ 60%
 - Top-10 Overlap: ≥ 70%
 
+Key Question: Do graph-based topological metrics accurately predict
+which components will have the highest impact when they fail?
+
 Usage:
-    from src.validation import IntegratedValidator
+    from src.validation import ValidationPipeline, SimulationGraph
+
+    # Load graph
+    graph = SimulationGraph.from_json("system.json")
     
     # Run complete validation pipeline
-    validator = IntegratedValidator(
-        uri="bolt://localhost:7687",
-        user="neo4j",
-        password="password"
-    )
-    result = validator.run_validation()
-    result.print_summary()
+    pipeline = ValidationPipeline()
+    result = pipeline.run(graph, analysis_method="composite")
+    
+    print(f"Status: {result.validation.status.value}")
+    print(f"Spearman: {result.validation.correlation.spearman:.4f}")
+    print(f"F1-Score: {result.validation.classification.f1:.4f}")
+    
+    # Compare analysis methods
+    results = pipeline.compare_methods(graph)
+    for method, r in results.items():
+        print(f"{method}: ρ={r.validation.correlation.spearman:.4f}")
     
     # Quick validation
-    from src.validation import run_quick_validation
-    metrics = run_quick_validation()
-    print(f"Spearman: {metrics['spearman']}")
-    
-    # Manual validation
-    from src.validation import GraphValidator
-    validator = GraphValidator()
-    result = validator.validate(predicted_scores, actual_impacts)
+    from src.validation import quick_pipeline
+    metrics = quick_pipeline(graph)
+    print(metrics)
+
+Author: Software-as-a-Graph Research Project
+Version: 4.0
 """
 
-from .graph_validator import (
-    # Main class
-    GraphValidator,
-    
+# Metrics
+from .metrics import (
     # Enums
     ValidationStatus,
     MetricStatus,
-    
     # Data classes
     CorrelationMetrics,
     ConfusionMatrix,
     RankingMetrics,
-    ComponentValidation,
-    BootstrapResult,
+    BootstrapCI,
     ValidationTargets,
-    ValidationResult,
-    
     # Statistical functions
-    spearman_correlation,
-    pearson_correlation,
-    kendall_tau,
+    spearman,
+    pearson,
+    kendall,
     percentile,
-    
-    # Convenience functions
-    validate_predictions,
-    quick_validate
+    std_dev,
+    calculate_correlation,
+    calculate_confusion,
+    calculate_ranking,
+    bootstrap_confidence_interval,
 )
 
-from .integrated_validator import (
-    IntegratedValidator,
-    IntegratedValidationResult,
-    run_quick_validation
+# Validator
+from .validator import (
+    Validator,
+    ComponentValidation,
+    ValidationResult,
+    validate_predictions,
+    quick_validate,
+)
+
+# Pipeline
+from .pipeline import (
+    GraphAnalyzer,
+    ValidationPipeline,
+    PipelineResult,
+    run_validation,
+    quick_pipeline,
 )
 
 __all__ = [
-    # Main classes
-    'GraphValidator',
-    'IntegratedValidator',
-    
     # Enums
-    'ValidationStatus',
-    'MetricStatus',
-    
-    # Data classes
-    'CorrelationMetrics',
-    'ConfusionMatrix',
-    'RankingMetrics',
-    'ComponentValidation',
-    'BootstrapResult',
-    'ValidationTargets',
-    'ValidationResult',
-    'IntegratedValidationResult',
-    
+    "ValidationStatus",
+    "MetricStatus",
+    # Metrics
+    "CorrelationMetrics",
+    "ConfusionMatrix",
+    "RankingMetrics",
+    "BootstrapCI",
+    "ValidationTargets",
     # Statistical functions
-    'spearman_correlation',
-    'pearson_correlation',
-    'kendall_tau',
-    'percentile',
-    
-    # Convenience functions
-    'validate_predictions',
-    'quick_validate',
-    'run_quick_validation'
+    "spearman",
+    "pearson",
+    "kendall",
+    "percentile",
+    "std_dev",
+    "calculate_correlation",
+    "calculate_confusion",
+    "calculate_ranking",
+    "bootstrap_confidence_interval",
+    # Validator
+    "Validator",
+    "ComponentValidation",
+    "ValidationResult",
+    "validate_predictions",
+    "quick_validate",
+    # Pipeline
+    "GraphAnalyzer",
+    "ValidationPipeline",
+    "PipelineResult",
+    "run_validation",
+    "quick_pipeline",
 ]
 
-__version__ = '2.0.0'
+__version__ = "4.0.0"
