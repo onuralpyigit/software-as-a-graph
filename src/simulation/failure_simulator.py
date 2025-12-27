@@ -1,79 +1,83 @@
-#!/usr/bin/env python3
 """
-Failure Simulator
-==================
+Failure Simulator - Version 4.0
 
-Simulates component failures and cascading effects in distributed systems.
-Uses graph structure to analyze failure impact.
+Simulates component failures and their impact on the pub-sub system.
+Works directly on the graph model without DEPENDS_ON relationships.
 
 Features:
 - Single and multiple component failures
 - Cascading failure propagation
-- Impact assessment (reachability loss, connectivity)
-- Targeted attack strategies
-- Batch simulation campaigns
+- Targeted attack simulations
+- Exhaustive failure campaigns
+- Impact measurement via reachability loss
 
 Author: Software-as-a-Graph Research Project
+Version: 4.0
 """
 
+from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Any, Optional, Set, Tuple
+from typing import Dict, List, Any, Optional, Tuple
+from collections import defaultdict
 
-from .neo4j_loader import SimulationGraph, Component, Dependency, ComponentType
+from .graph_model import SimulationGraph, Component, ComponentType, ConnectionType
 
+
+# =============================================================================
+# Enums
+# =============================================================================
 
 class FailureType(Enum):
-    """Type of failure"""
-    COMPLETE = "complete"      # Component fully unavailable
-    PARTIAL = "partial"        # Component degraded
-    INTERMITTENT = "intermittent"  # Sporadic availability
+    """Types of failures"""
+    COMPLETE = "complete"       # Total failure
+    PARTIAL = "partial"         # Degraded performance
+    INTERMITTENT = "intermittent"  # Occasional failures
 
 
 class FailureMode(Enum):
-    """How the failure manifests"""
-    CRASH = "crash"            # Immediate stop
-    HANG = "hang"              # Component unresponsive
-    BYZANTINE = "byzantine"    # Erratic behavior
-    OVERLOAD = "overload"      # Capacity exceeded
+    """How failures manifest"""
+    CRASH = "crash"             # Immediate stop
+    HANG = "hang"               # Unresponsive
+    BYZANTINE = "byzantine"     # Incorrect behavior
 
 
 class AttackStrategy(Enum):
     """Targeted attack strategies"""
-    RANDOM = "random"                  # Random selection
-    HIGHEST_DEGREE = "highest_degree"  # Most connected
-    HIGHEST_BETWEENNESS = "highest_betweenness"  # Most central
-    HIGHEST_WEIGHT = "highest_weight"  # Highest total weight
-    BROKERS_FIRST = "brokers_first"    # Target brokers
+    RANDOM = "random"
+    HIGHEST_DEGREE = "highest_degree"
+    HIGHEST_BETWEENNESS = "highest_betweenness"
+    BROKERS_FIRST = "brokers_first"
+    NODES_FIRST = "nodes_first"
 
+
+# =============================================================================
+# Data Classes
+# =============================================================================
 
 @dataclass
 class FailureEvent:
-    """Record of a failure event"""
+    """Records a single failure event"""
     component: str
     component_type: str
     failure_type: FailureType
-    failure_mode: FailureMode
     timestamp: datetime
-    severity: float
-    is_cascade: bool
-    cascade_depth: int
-    cause: str
-    
-    def to_dict(self) -> Dict[str, Any]:
+    is_cascade: bool = False
+    cascade_depth: int = 0
+    cause: str = "primary"
+
+    def to_dict(self) -> Dict:
         return {
-            'component': self.component,
-            'component_type': self.component_type,
-            'failure_type': self.failure_type.value,
-            'failure_mode': self.failure_mode.value,
-            'timestamp': self.timestamp.isoformat(),
-            'severity': self.severity,
-            'is_cascade': self.is_cascade,
-            'cascade_depth': self.cascade_depth,
-            'cause': self.cause
+            "component": self.component,
+            "component_type": self.component_type,
+            "failure_type": self.failure_type.value,
+            "timestamp": self.timestamp.isoformat(),
+            "is_cascade": self.is_cascade,
+            "cascade_depth": self.cascade_depth,
+            "cause": self.cause,
         }
 
 
@@ -83,43 +87,53 @@ class ImpactMetrics:
     # Reachability
     original_reachability: int
     final_reachability: int
-    reachability_loss: float
+    reachability_loss: int
     reachability_loss_pct: float
+    
+    # Paths
+    original_paths: int
+    final_paths: int
+    paths_lost: int
+    paths_lost_pct: float
     
     # Connectivity
     original_components: int
     final_components: int
-    components_added: int
+    fragmentation: int
     
-    # Component counts
-    original_node_count: int
-    final_active_count: int
+    # Counts
+    total_nodes: int
     failed_count: int
     cascade_count: int
     
-    # Severity
-    impact_score: float  # Combined impact metric
-    
-    def to_dict(self) -> Dict[str, Any]:
+    # Combined score
+    impact_score: float  # 0.0 to 1.0
+
+    def to_dict(self) -> Dict:
         return {
-            'reachability': {
-                'original': self.original_reachability,
-                'final': self.final_reachability,
-                'loss': self.reachability_loss,
-                'loss_pct': round(self.reachability_loss_pct, 2)
+            "reachability": {
+                "original": self.original_reachability,
+                "final": self.final_reachability,
+                "loss": self.reachability_loss,
+                "loss_pct": round(self.reachability_loss_pct, 2),
             },
-            'connectivity': {
-                'original_components': self.original_components,
-                'final_components': self.final_components,
-                'fragmentation': self.components_added
+            "paths": {
+                "original": self.original_paths,
+                "final": self.final_paths,
+                "lost": self.paths_lost,
+                "lost_pct": round(self.paths_lost_pct, 2),
             },
-            'nodes': {
-                'original': self.original_node_count,
-                'active': self.final_active_count,
-                'failed': self.failed_count,
-                'cascade': self.cascade_count
+            "connectivity": {
+                "original_components": self.original_components,
+                "final_components": self.final_components,
+                "fragmentation": self.fragmentation,
             },
-            'impact_score': round(self.impact_score, 4)
+            "nodes": {
+                "total": self.total_nodes,
+                "failed": self.failed_count,
+                "cascade": self.cascade_count,
+            },
+            "impact_score": round(self.impact_score, 4),
         }
 
 
@@ -140,33 +154,31 @@ class SimulationResult:
     # Impact
     impact: ImpactMetrics
     
-    # Graph state
-    affected_dependencies: int
+    # Isolated components
     isolated_components: List[str]
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> Dict:
         return {
-            'simulation_id': self.simulation_id,
-            'simulation_type': self.simulation_type,
-            'timing': {
-                'start': self.start_time.isoformat(),
-                'end': self.end_time.isoformat(),
-                'duration_ms': round(self.duration_ms, 2)
+            "simulation_id": self.simulation_id,
+            "simulation_type": self.simulation_type,
+            "timing": {
+                "start": self.start_time.isoformat(),
+                "end": self.end_time.isoformat(),
+                "duration_ms": round(self.duration_ms, 2),
             },
-            'failures': {
-                'primary': self.primary_failures,
-                'cascade': self.cascade_failures,
-                'total': len(self.primary_failures) + len(self.cascade_failures),
-                'events': [e.to_dict() for e in self.failure_events]
+            "failures": {
+                "primary": self.primary_failures,
+                "cascade": self.cascade_failures,
+                "total": len(self.primary_failures) + len(self.cascade_failures),
+                "events": [e.to_dict() for e in self.failure_events],
             },
-            'impact': self.impact.to_dict(),
-            'affected_dependencies': self.affected_dependencies,
-            'isolated_components': self.isolated_components
+            "impact": self.impact.to_dict(),
+            "isolated_components": self.isolated_components,
         }
 
 
 @dataclass
-class BatchSimulationResult:
+class BatchResult:
     """Result of batch simulations"""
     simulation_count: int
     total_duration_ms: float
@@ -176,47 +188,56 @@ class BatchSimulationResult:
     avg_impact_score: float
     max_impact_score: float
     critical_components: List[Tuple[str, float]]  # (component, impact_score)
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> Dict:
         return {
-            'summary': {
-                'simulation_count': self.simulation_count,
-                'duration_ms': round(self.total_duration_ms, 2),
-                'avg_impact': round(self.avg_impact_score, 4),
-                'max_impact': round(self.max_impact_score, 4)
+            "summary": {
+                "simulation_count": self.simulation_count,
+                "duration_ms": round(self.total_duration_ms, 2),
+                "avg_impact": round(self.avg_impact_score, 4),
+                "max_impact": round(self.max_impact_score, 4),
             },
-            'critical_components': [
-                {'component': c, 'impact': round(i, 4)} 
+            "critical_components": [
+                {"component": c, "impact": round(i, 4)}
                 for c, i in self.critical_components[:20]
             ],
-            'results': [r.to_dict() for r in self.results]
+            "results": [r.to_dict() for r in self.results],
         }
 
 
+# =============================================================================
+# Failure Simulator
+# =============================================================================
+
 class FailureSimulator:
     """
-    Simulates failures and measures their impact on the system.
+    Simulates failures and measures impact on the pub-sub system.
+    
+    Works directly on the graph model using native pub-sub connections
+    (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON) rather than
+    derived DEPENDS_ON relationships.
     
     Supports:
-    - Single component failures
-    - Multiple simultaneous failures
+    - Single/multiple component failures
     - Cascading failure propagation
     - Targeted attack simulations
     - Exhaustive failure campaigns
     """
-    
-    def __init__(self,
-                 cascade_threshold: float = 0.5,
-                 cascade_probability: float = 0.7,
-                 max_cascade_depth: int = 5,
-                 seed: Optional[int] = None):
+
+    def __init__(
+        self,
+        cascade_threshold: float = 0.5,
+        cascade_probability: float = 0.7,
+        max_cascade_depth: int = 5,
+        seed: Optional[int] = None,
+    ):
         """
         Initialize the failure simulator.
         
         Args:
-            cascade_threshold: Dependency loss ratio to trigger cascade (0-1)
-            cascade_probability: Probability of cascade propagation (0-1)
-            max_cascade_depth: Maximum depth of cascade chain
+            cascade_threshold: Fraction of lost dependencies triggering cascade
+            cascade_probability: Probability of cascade occurring
+            max_cascade_depth: Maximum cascade propagation depth
             seed: Random seed for reproducibility
         """
         self.cascade_threshold = cascade_threshold
@@ -225,15 +246,19 @@ class FailureSimulator:
         
         self._rng = random.Random(seed)
         self._simulation_counter = 0
-        self.logger = logging.getLogger('FailureSimulator')
-    
-    def simulate_single_failure(self,
-                                 graph: SimulationGraph,
-                                 component: str,
-                                 failure_type: FailureType = FailureType.COMPLETE,
-                                 failure_mode: FailureMode = FailureMode.CRASH,
-                                 severity: float = 1.0,
-                                 enable_cascade: bool = True) -> SimulationResult:
+        self.logger = logging.getLogger(__name__)
+
+    # =========================================================================
+    # Single Failure
+    # =========================================================================
+
+    def simulate_failure(
+        self,
+        graph: SimulationGraph,
+        component: str,
+        failure_type: FailureType = FailureType.COMPLETE,
+        enable_cascade: bool = True,
+    ) -> SimulationResult:
         """
         Simulate failure of a single component.
         
@@ -241,15 +266,13 @@ class FailureSimulator:
             graph: SimulationGraph to simulate on
             component: Component ID to fail
             failure_type: Type of failure
-            failure_mode: How failure manifests
-            severity: Failure severity (0-1)
-            enable_cascade: Whether to propagate cascading failures
-            
+            enable_cascade: Whether to propagate cascades
+        
         Returns:
             SimulationResult with impact analysis
         """
         if component not in graph.components:
-            raise ValueError(f"Component '{component}' not found in graph")
+            raise ValueError(f"Component '{component}' not found")
         
         self._simulation_counter += 1
         sim_id = f"fail_{self._simulation_counter:05d}"
@@ -259,6 +282,7 @@ class FailureSimulator:
         
         # Store original metrics
         original_reach = graph.calculate_total_reachability()
+        original_paths = graph.count_active_paths()
         original_cc = graph.count_connected_components()
         
         # Create simulation copy
@@ -271,48 +295,51 @@ class FailureSimulator:
             component=component,
             component_type=comp_obj.type.value,
             failure_type=failure_type,
-            failure_mode=failure_mode,
             timestamp=datetime.now(),
-            severity=severity,
             is_cascade=False,
             cascade_depth=0,
-            cause="Primary failure (simulated)"
+            cause="Primary failure",
         )
         failure_events.append(event)
         
-        self._apply_failure(sim_graph, component, failure_type, severity)
+        self._apply_failure(sim_graph, component, failure_type)
         
         # Cascade propagation
         cascade_failures = []
         if enable_cascade and failure_type == FailureType.COMPLETE:
             cascade_failures, cascade_events = self._propagate_cascade(
-                sim_graph, [component], failure_mode, 1
+                sim_graph, [component], 1
             )
             failure_events.extend(cascade_events)
         
         end_time = datetime.now()
         
-        # Build result
         return self._build_result(
             sim_id=sim_id,
             sim_type="single_failure",
             original_graph=graph,
             sim_graph=sim_graph,
             original_reach=original_reach,
+            original_paths=original_paths,
             original_cc=original_cc,
             primary_failures=[component],
             cascade_failures=cascade_failures,
             failure_events=failure_events,
             start_time=start_time,
-            end_time=end_time
+            end_time=end_time,
         )
-    
-    def simulate_multiple_failures(self,
-                                    graph: SimulationGraph,
-                                    components: List[str],
-                                    failure_type: FailureType = FailureType.COMPLETE,
-                                    simultaneous: bool = True,
-                                    enable_cascade: bool = True) -> SimulationResult:
+
+    # =========================================================================
+    # Multiple Failures
+    # =========================================================================
+
+    def simulate_multiple_failures(
+        self,
+        graph: SimulationGraph,
+        components: List[str],
+        failure_type: FailureType = FailureType.COMPLETE,
+        enable_cascade: bool = True,
+    ) -> SimulationResult:
         """
         Simulate failure of multiple components.
         
@@ -320,16 +347,15 @@ class FailureSimulator:
             graph: SimulationGraph to simulate on
             components: List of component IDs to fail
             failure_type: Type of failure
-            simultaneous: Whether failures occur at once
-            enable_cascade: Whether to propagate cascading failures
-            
+            enable_cascade: Whether to propagate cascades
+        
         Returns:
             SimulationResult with impact analysis
         """
         # Validate components
         for comp in components:
             if comp not in graph.components:
-                raise ValueError(f"Component '{comp}' not found in graph")
+                raise ValueError(f"Component '{comp}' not found")
         
         self._simulation_counter += 1
         sim_id = f"multi_{self._simulation_counter:05d}"
@@ -339,34 +365,33 @@ class FailureSimulator:
         
         # Store original metrics
         original_reach = graph.calculate_total_reachability()
+        original_paths = graph.count_active_paths()
         original_cc = graph.count_connected_components()
         
         # Create simulation copy
         sim_graph = graph.copy()
         failure_events = []
         
-        # Apply failures
+        # Apply all failures
         for comp in components:
             comp_obj = sim_graph.components[comp]
             event = FailureEvent(
                 component=comp,
                 component_type=comp_obj.type.value,
                 failure_type=failure_type,
-                failure_mode=FailureMode.CRASH,
                 timestamp=datetime.now(),
-                severity=1.0,
                 is_cascade=False,
                 cascade_depth=0,
-                cause="Primary failure (multiple)"
+                cause="Primary failure (multiple)",
             )
             failure_events.append(event)
-            self._apply_failure(sim_graph, comp, failure_type, 1.0)
+            self._apply_failure(sim_graph, comp, failure_type)
         
         # Cascade propagation
         cascade_failures = []
         if enable_cascade and failure_type == FailureType.COMPLETE:
             cascade_failures, cascade_events = self._propagate_cascade(
-                sim_graph, components, FailureMode.CRASH, 1
+                sim_graph, components, 1
             )
             failure_events.extend(cascade_events)
         
@@ -378,95 +403,116 @@ class FailureSimulator:
             original_graph=graph,
             sim_graph=sim_graph,
             original_reach=original_reach,
+            original_paths=original_paths,
             original_cc=original_cc,
             primary_failures=components,
             cascade_failures=cascade_failures,
             failure_events=failure_events,
             start_time=start_time,
-            end_time=end_time
+            end_time=end_time,
         )
-    
-    def simulate_all_single_failures(self,
-                                      graph: SimulationGraph,
-                                      component_types: Optional[List[ComponentType]] = None,
-                                      enable_cascade: bool = True) -> BatchSimulationResult:
+
+    # =========================================================================
+    # Targeted Attack
+    # =========================================================================
+
+    def simulate_attack(
+        self,
+        graph: SimulationGraph,
+        strategy: AttackStrategy,
+        count: int = 1,
+        enable_cascade: bool = True,
+    ) -> SimulationResult:
+        """
+        Simulate targeted attack on components.
+        
+        Args:
+            graph: SimulationGraph to simulate on
+            strategy: Attack strategy
+            count: Number of components to attack
+            enable_cascade: Whether to propagate cascades
+        
+        Returns:
+            SimulationResult with impact analysis
+        """
+        targets = self._select_targets(graph, strategy, count)
+        self.logger.info(f"Attack ({strategy.value}): {targets}")
+        
+        return self.simulate_multiple_failures(
+            graph, targets, enable_cascade=enable_cascade
+        )
+
+    # =========================================================================
+    # Exhaustive Campaign
+    # =========================================================================
+
+    def simulate_all_failures(
+        self,
+        graph: SimulationGraph,
+        component_types: Optional[List[ComponentType]] = None,
+        enable_cascade: bool = True,
+    ) -> BatchResult:
         """
         Simulate failure of each component individually.
         
         Args:
             graph: SimulationGraph to simulate on
-            component_types: Filter by component types (default: all)
-            enable_cascade: Whether to propagate cascading failures
-            
+            component_types: Types to include (None = all)
+            enable_cascade: Whether to propagate cascades
+        
         Returns:
-            BatchSimulationResult with all individual results
+            BatchResult with all simulation results
         """
-        start_time = datetime.now()
+        self._simulation_counter += 1
+        batch_start = datetime.now()
         
-        # Get components to test
+        # Select components to test
         if component_types:
-            components = []
-            for ct in component_types:
-                components.extend(graph.get_by_type(ct))
+            targets = [
+                c.id for c in graph.components.values()
+                if c.type in component_types
+            ]
         else:
-            components = list(graph.components.keys())
+            targets = list(graph.components.keys())
         
-        self.logger.info(f"Running exhaustive campaign on {len(components)} components")
+        self.logger.info(f"Running exhaustive campaign on {len(targets)} components")
         
         results = []
-        for comp in components:
-            result = self.simulate_single_failure(
-                graph, comp, enable_cascade=enable_cascade
+        for comp_id in targets:
+            result = self.simulate_failure(
+                graph, comp_id, enable_cascade=enable_cascade
             )
             results.append(result)
         
-        end_time = datetime.now()
-        duration = (end_time - start_time).total_seconds() * 1000
+        batch_end = datetime.now()
+        total_duration = (batch_end - batch_start).total_seconds() * 1000
         
-        # Aggregate
+        # Compute aggregates
         impacts = [(r.primary_failures[0], r.impact.impact_score) for r in results]
         impacts.sort(key=lambda x: -x[1])
         
         avg_impact = sum(r.impact.impact_score for r in results) / len(results) if results else 0
         max_impact = max(r.impact.impact_score for r in results) if results else 0
         
-        return BatchSimulationResult(
+        return BatchResult(
             simulation_count=len(results),
-            total_duration_ms=duration,
+            total_duration_ms=total_duration,
             results=results,
             avg_impact_score=avg_impact,
             max_impact_score=max_impact,
-            critical_components=impacts[:20]
+            critical_components=impacts,
         )
-    
-    def simulate_targeted_attack(self,
-                                  graph: SimulationGraph,
-                                  strategy: AttackStrategy,
-                                  count: int = 5,
-                                  enable_cascade: bool = True) -> SimulationResult:
-        """
-        Simulate a targeted attack using specified strategy.
-        
-        Args:
-            graph: SimulationGraph to simulate on
-            strategy: Attack strategy to use
-            count: Number of components to attack
-            enable_cascade: Whether to propagate cascading failures
-            
-        Returns:
-            SimulationResult with impact analysis
-        """
-        # Select targets based on strategy
-        targets = self._select_attack_targets(graph, strategy, count)
-        
-        self.logger.info(f"Targeted attack ({strategy.value}): {targets}")
-        
-        return self.simulate_multiple_failures(
-            graph, targets, enable_cascade=enable_cascade
-        )
-    
-    def _apply_failure(self, graph: SimulationGraph, component: str,
-                       failure_type: FailureType, severity: float):
+
+    # =========================================================================
+    # Internal Methods
+    # =========================================================================
+
+    def _apply_failure(
+        self,
+        graph: SimulationGraph,
+        component: str,
+        failure_type: FailureType,
+    ) -> None:
         """Apply failure to a component"""
         comp = graph.components.get(component)
         if not comp:
@@ -475,214 +521,203 @@ class FailureSimulator:
         if failure_type == FailureType.COMPLETE:
             comp.is_active = False
             comp.capacity = 0.0
-            # Deactivate all dependencies involving this component
-            for dep in graph.get_outgoing(component):
-                dep.is_active = False
-            for dep in graph.get_incoming(component):
-                dep.is_active = False
+            
+            # Deactivate connections
+            for conn in graph.get_outgoing(component):
+                conn.is_active = False
+            for conn in graph.get_incoming(component):
+                conn.is_active = False
         
         elif failure_type == FailureType.PARTIAL:
             comp.is_degraded = True
-            comp.capacity = max(0, 1.0 - severity)
+            comp.capacity = 0.5
         
         elif failure_type == FailureType.INTERMITTENT:
             comp.is_degraded = True
-            comp.capacity = 0.5  # 50% availability
-    
-    def _propagate_cascade(self,
-                            graph: SimulationGraph,
-                            failed: List[str],
-                            failure_mode: FailureMode,
-                            depth: int) -> Tuple[List[str], List[FailureEvent]]:
-        """Propagate cascading failures"""
+            comp.capacity = 0.7
+
+    def _propagate_cascade(
+        self,
+        graph: SimulationGraph,
+        failed: List[str],
+        depth: int,
+    ) -> Tuple[List[str], List[FailureEvent]]:
+        """Propagate cascading failures based on dependency loss"""
         if depth > self.max_cascade_depth:
             return [], []
         
         cascade_failures = []
         cascade_events = []
         
-        # Find components that depend on failed components
+        # Find components affected by failures
         at_risk = set()
+        
         for failed_comp in failed:
-            for dep in graph.get_incoming(failed_comp):
-                if dep.is_active:
-                    source = dep.source
-                    source_comp = graph.components.get(source)
-                    if source_comp and source_comp.is_active:
-                        at_risk.add(source)
+            # Find components that depend on the failed component
+            # In pub-sub: publishers depend on brokers/topics, subscribers depend on topics
+            
+            # If broker failed, apps using topics routed by this broker are at risk
+            if graph.components.get(failed_comp, Component("", ComponentType.APPLICATION)).type == ComponentType.BROKER:
+                for conn in graph.get_outgoing(failed_comp):
+                    if conn.type == ConnectionType.ROUTES:
+                        topic = conn.target
+                        # All publishers/subscribers of this topic are at risk
+                        at_risk.update(graph.get_publishers(topic))
+                        at_risk.update(graph.get_subscribers(topic))
+            
+            # If node failed, all apps on it are at risk
+            if graph.components.get(failed_comp, Component("", ComponentType.APPLICATION)).type == ComponentType.NODE:
+                at_risk.update(graph.get_apps_on_node(failed_comp))
+            
+            # If topic failed, publishers and subscribers are at risk
+            if graph.components.get(failed_comp, Component("", ComponentType.APPLICATION)).type == ComponentType.TOPIC:
+                at_risk.update(graph.get_publishers(failed_comp))
+                at_risk.update(graph.get_subscribers(failed_comp))
+        
+        # Remove already failed components
+        at_risk -= set(failed)
+        at_risk = {c for c in at_risk if graph.components.get(c, Component("", ComponentType.APPLICATION)).is_active}
         
         # Evaluate cascade for each at-risk component
         for comp_id in at_risk:
-            # Calculate dependency loss
+            comp = graph.components.get(comp_id)
+            if not comp or not comp.is_active:
+                continue
+            
+            # Calculate dependency loss ratio
             outgoing = graph.get_outgoing(comp_id)
             if not outgoing:
                 continue
             
-            active_deps = sum(1 for d in outgoing if d.is_active)
-            total_deps = len(outgoing)
-            loss_ratio = 1.0 - (active_deps / total_deps)
+            active = sum(1 for c in outgoing if c.is_active)
+            total = len(outgoing)
+            loss_ratio = 1.0 - (active / total) if total > 0 else 0
             
             # Check if cascade occurs
             if loss_ratio >= self.cascade_threshold:
                 if self._rng.random() < self.cascade_probability:
-                    # Cascade failure occurs
                     cascade_failures.append(comp_id)
                     
-                    comp_obj = graph.components[comp_id]
                     event = FailureEvent(
                         component=comp_id,
-                        component_type=comp_obj.type.value,
+                        component_type=comp.type.value,
                         failure_type=FailureType.COMPLETE,
-                        failure_mode=failure_mode,
                         timestamp=datetime.now(),
-                        severity=1.0,
                         is_cascade=True,
                         cascade_depth=depth,
-                        cause=f"Cascade from depth {depth-1} (loss: {loss_ratio:.0%})"
+                        cause=f"Cascade depth {depth} (loss: {loss_ratio:.0%})",
                     )
                     cascade_events.append(event)
                     
-                    self._apply_failure(graph, comp_id, FailureType.COMPLETE, 1.0)
+                    self._apply_failure(graph, comp_id, FailureType.COMPLETE)
         
         # Recursive cascade
         if cascade_failures:
             more_failures, more_events = self._propagate_cascade(
-                graph, cascade_failures, failure_mode, depth + 1
+                graph, cascade_failures, depth + 1
             )
             cascade_failures.extend(more_failures)
             cascade_events.extend(more_events)
         
         return cascade_failures, cascade_events
-    
-    def _select_attack_targets(self, graph: SimulationGraph,
-                                strategy: AttackStrategy, count: int) -> List[str]:
+
+    def _select_targets(
+        self,
+        graph: SimulationGraph,
+        strategy: AttackStrategy,
+        count: int,
+    ) -> List[str]:
         """Select attack targets based on strategy"""
-        components = list(graph.components.keys())
+        candidates = [c for c in graph.components.values() if c.is_active]
         
         if strategy == AttackStrategy.RANDOM:
-            return self._rng.sample(components, min(count, len(components)))
+            targets = self._rng.sample(candidates, min(count, len(candidates)))
+            return [t.id for t in targets]
         
         elif strategy == AttackStrategy.HIGHEST_DEGREE:
             # Sort by total connections
-            by_degree = [
-                (c, len(graph.get_outgoing(c)) + len(graph.get_incoming(c)))
-                for c in components
-            ]
-            by_degree.sort(key=lambda x: -x[1])
-            return [c for c, _ in by_degree[:count]]
-        
-        elif strategy == AttackStrategy.HIGHEST_WEIGHT:
-            # Sort by total weight of incoming dependencies
-            by_weight = []
-            for c in components:
-                total_weight = sum(d.weight for d in graph.get_incoming(c))
-                by_weight.append((c, total_weight))
-            by_weight.sort(key=lambda x: -x[1])
-            return [c for c, _ in by_weight[:count]]
+            by_degree = sorted(
+                candidates,
+                key=lambda c: len(graph.get_outgoing(c.id)) + len(graph.get_incoming(c.id)),
+                reverse=True,
+            )
+            return [c.id for c in by_degree[:count]]
         
         elif strategy == AttackStrategy.BROKERS_FIRST:
-            brokers = graph.get_by_type(ComponentType.BROKER)
-            if len(brokers) >= count:
-                return brokers[:count]
-            # Add other components if not enough brokers
-            others = [c for c in components if c not in brokers]
-            return brokers + others[:count - len(brokers)]
+            brokers = [c for c in candidates if c.type == ComponentType.BROKER]
+            others = [c for c in candidates if c.type != ComponentType.BROKER]
+            targets = brokers + others
+            return [c.id for c in targets[:count]]
         
-        elif strategy == AttackStrategy.HIGHEST_BETWEENNESS:
-            # Approximate betweenness using path sampling
-            betweenness = {c: 0 for c in components}
-            sample_size = min(100, len(components) * 2)
-            
-            for _ in range(sample_size):
-                if len(components) < 2:
-                    break
-                src, dst = self._rng.sample(components, 2)
-                path = self._find_path(graph, src, dst)
-                for node in path[1:-1]:  # Exclude endpoints
-                    betweenness[node] += 1
-            
-            by_bc = sorted(betweenness.items(), key=lambda x: -x[1])
-            return [c for c, _ in by_bc[:count]]
+        elif strategy == AttackStrategy.NODES_FIRST:
+            nodes = [c for c in candidates if c.type == ComponentType.NODE]
+            others = [c for c in candidates if c.type != ComponentType.NODE]
+            targets = nodes + others
+            return [c.id for c in targets[:count]]
         
-        return components[:count]
-    
-    def _find_path(self, graph: SimulationGraph, src: str, dst: str) -> List[str]:
-        """Find a path between two components (BFS)"""
-        if src == dst:
-            return [src]
-        
-        visited = {src}
-        queue = [(src, [src])]
-        
-        while queue:
-            current, path = queue.pop(0)
-            
-            for dep in graph.get_outgoing(current):
-                if not dep.is_active:
-                    continue
-                target = dep.target
-                if target == dst:
-                    return path + [target]
-                if target not in visited:
-                    visited.add(target)
-                    queue.append((target, path + [target]))
-        
-        return []
-    
-    def _build_result(self,
-                      sim_id: str,
-                      sim_type: str,
-                      original_graph: SimulationGraph,
-                      sim_graph: SimulationGraph,
-                      original_reach: int,
-                      original_cc: int,
-                      primary_failures: List[str],
-                      cascade_failures: List[str],
-                      failure_events: List[FailureEvent],
-                      start_time: datetime,
-                      end_time: datetime) -> SimulationResult:
-        """Build simulation result with metrics"""
+        else:
+            return [candidates[0].id] if candidates else []
+
+    def _build_result(
+        self,
+        sim_id: str,
+        sim_type: str,
+        original_graph: SimulationGraph,
+        sim_graph: SimulationGraph,
+        original_reach: int,
+        original_paths: int,
+        original_cc: int,
+        primary_failures: List[str],
+        cascade_failures: List[str],
+        failure_events: List[FailureEvent],
+        start_time: datetime,
+        end_time: datetime,
+    ) -> SimulationResult:
+        """Build simulation result with impact metrics"""
         # Calculate final metrics
         final_reach = sim_graph.calculate_total_reachability()
+        final_paths = sim_graph.count_active_paths()
         final_cc = sim_graph.count_connected_components()
         
+        # Reachability
         reach_loss = original_reach - final_reach
         reach_loss_pct = (reach_loss / original_reach * 100) if original_reach > 0 else 0
         
-        # Count affected dependencies
-        affected_deps = sum(1 for d in sim_graph.dependencies if not d.is_active)
+        # Paths
+        paths_lost = original_paths - final_paths
+        paths_lost_pct = (paths_lost / original_paths * 100) if original_paths > 0 else 0
+        
+        # Impact score (weighted average of losses)
+        impact_score = 0.0
+        if original_reach > 0:
+            impact_score = 0.5 * (reach_loss / original_reach)
+        if original_paths > 0:
+            impact_score += 0.5 * (paths_lost / original_paths)
         
         # Find isolated components
-        active_comps = sim_graph.get_active_components()
         isolated = []
-        for comp_id in active_comps:
-            if not sim_graph.get_outgoing(comp_id) and not sim_graph.get_incoming(comp_id):
-                # Check if it was connected before
-                if original_graph.get_outgoing(comp_id) or original_graph.get_incoming(comp_id):
+        for comp_id, comp in sim_graph.components.items():
+            if comp.is_active:
+                reachable = sim_graph.calculate_reachability(comp_id)
+                if len(reachable) == 1:  # Only reaches itself
                     isolated.append(comp_id)
-        
-        # Calculate impact score
-        # Combines reachability loss, fragmentation, and cascade extent
-        impact_score = (
-            0.5 * (reach_loss_pct / 100) +
-            0.3 * (final_cc - original_cc) / max(original_cc, 1) +
-            0.2 * len(cascade_failures) / max(len(original_graph.components), 1)
-        )
-        impact_score = min(1.0, max(0.0, impact_score))
         
         impact = ImpactMetrics(
             original_reachability=original_reach,
             final_reachability=final_reach,
             reachability_loss=reach_loss,
             reachability_loss_pct=reach_loss_pct,
+            original_paths=original_paths,
+            final_paths=final_paths,
+            paths_lost=paths_lost,
+            paths_lost_pct=paths_lost_pct,
             original_components=original_cc,
             final_components=final_cc,
-            components_added=final_cc - original_cc,
-            original_node_count=len(original_graph.components),
-            final_active_count=len(active_comps),
-            failed_count=len(primary_failures) + len(cascade_failures),
+            fragmentation=final_cc - original_cc,
+            total_nodes=len(original_graph.components),
+            failed_count=len(primary_failures),
             cascade_count=len(cascade_failures),
-            impact_score=impact_score
+            impact_score=impact_score,
         )
         
         duration = (end_time - start_time).total_seconds() * 1000
@@ -697,6 +732,5 @@ class FailureSimulator:
             cascade_failures=cascade_failures,
             failure_events=failure_events,
             impact=impact,
-            affected_dependencies=affected_deps,
-            isolated_components=isolated
+            isolated_components=isolated,
         )
