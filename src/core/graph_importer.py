@@ -1,1375 +1,845 @@
 """
-Graph Importer
+Graph Importer - Refactored Version 4.0
 
-Imports GraphModel data into Neo4j graph database with:
+Imports pub-sub system graphs into Neo4j with:
 - Batch processing for large graphs
-- Schema creation with constraints and indexes
-- Unified DEPENDS_ON relationship derivation via Cypher
-- Progress tracking and error handling
-- Sample queries for exploration
+- Schema management (constraints and indexes)
+- QoS-aware DEPENDS_ON relationship derivation
+- Four dependency types: app_to_app, node_to_node, app_to_broker, node_to_broker
+- Weight calculation based on topic QoS and message size
+- Progress tracking and statistics
 - Export capabilities
-- Retry logic for transient errors
-- Idempotent imports using MERGE
-- Transaction management for reliability
 
-The importer derives all dependency types directly in Neo4j using Cypher queries,
-ensuring consistency between in-memory and database representations.
+Weight Calculation:
+    DEPENDS_ON weight = base_weight + qos_score + size_factor
+    
+    where:
+    - base_weight = number of shared topics
+    - qos_score = sum of (durability + reliability + priority) weights
+    - size_factor = normalized message size contribution
 
 Usage:
     from src.core.graph_importer import GraphImporter
 
     # Basic usage
-    importer = GraphImporter(
-        uri="bolt://localhost:7687",
-        user="neo4j",
-        password="password"
-    )
-
-    importer.import_graph(graph_data)
-    stats = importer.get_statistics()
-    importer.close()
-
-    # Context manager usage (recommended)
-    with GraphImporter(uri="bolt://localhost:7687", user="neo4j", password="password") as importer:
+    with GraphImporter(uri="bolt://localhost:7687", password="secret") as importer:
         importer.import_graph(graph_data)
         stats = importer.get_statistics()
+
+Author: Software-as-a-Graph Research Project
+Version: 4.0
 """
 
+from __future__ import annotations
 import time
+import json
 import logging
-import functools
-from typing import Dict, List, Optional, Any, Tuple, Callable
-from collections import defaultdict
+from typing import Dict, List, Optional, Any, Callable
+from contextlib import contextmanager
 
 try:
     from neo4j import GraphDatabase
-    from neo4j.exceptions import ServiceUnavailable, ClientError, TransientError, SessionExpired
+    from neo4j.exceptions import ServiceUnavailable, ClientError, TransientError
     HAS_NEO4J = True
 except ImportError:
     HAS_NEO4J = False
     GraphDatabase = None
-    ServiceUnavailable = Exception
-    ClientError = Exception
-    TransientError = Exception
-    SessionExpired = Exception
-
-
-def retry_on_transient_error(max_retries: int = 3, initial_delay: float = 1.0):
-    """
-    Decorator to retry operations on transient Neo4j errors.
-
-    Args:
-        max_retries: Maximum number of retry attempts
-        initial_delay: Initial delay between retries (doubles each attempt)
-    """
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            delay = initial_delay
-            last_exception = None
-
-            for attempt in range(max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except (TransientError, SessionExpired, ServiceUnavailable) as e:
-                    last_exception = e
-                    if attempt < max_retries:
-                        logging.getLogger(__name__).warning(
-                            f"Transient error in {func.__name__}, retrying in {delay}s "
-                            f"(attempt {attempt + 1}/{max_retries}): {e}"
-                        )
-                        time.sleep(delay)
-                        delay *= 2  # Exponential backoff
-                    else:
-                        raise
-
-            raise last_exception
-        return wrapper
-    return decorator
 
 
 class GraphImporter:
     """
     Imports pub-sub system graphs into Neo4j.
-
+    
     Supports:
     - Batch imports for performance
-    - Schema management (constraints, indexes)
     - Unified DEPENDS_ON derivation with four dependency types
+    - QoS-aware weight calculation
+    - Schema management with constraints and indexes
     - Statistics and validation
     - Context manager protocol
-    - Retry logic for transient errors
-    - Idempotent imports using MERGE
-    - Progress callbacks
-
-    Example:
-        with GraphImporter(uri="bolt://localhost:7687", user="neo4j", password="pass") as importer:
-            importer.import_graph(graph_data)
     """
 
-    def __init__(self,
-                 uri: str = "bolt://localhost:7687",
-                 user: str = "neo4j",
-                 password: str = "password",
-                 database: str = "neo4j",
-                 max_retries: int = 3):
-        """
-        Initialize the Neo4j connection.
+    # Default batch size for imports
+    DEFAULT_BATCH_SIZE = 100
+    
+    # Schema definitions
+    CONSTRAINTS = [
+        "CREATE CONSTRAINT app_id IF NOT EXISTS FOR (a:Application) REQUIRE a.id IS UNIQUE",
+        "CREATE CONSTRAINT topic_id IF NOT EXISTS FOR (t:Topic) REQUIRE t.id IS UNIQUE",
+        "CREATE CONSTRAINT broker_id IF NOT EXISTS FOR (b:Broker) REQUIRE b.id IS UNIQUE",
+        "CREATE CONSTRAINT node_id IF NOT EXISTS FOR (n:Node) REQUIRE n.id IS UNIQUE",
+    ]
+    
+    INDEXES = [
+        "CREATE INDEX app_name IF NOT EXISTS FOR (a:Application) ON (a.name)",
+        "CREATE INDEX topic_name IF NOT EXISTS FOR (t:Topic) ON (t.name)",
+        "CREATE INDEX broker_name IF NOT EXISTS FOR (b:Broker) ON (b.name)",
+        "CREATE INDEX node_name IF NOT EXISTS FOR (n:Node) ON (n.name)",
+        "CREATE INDEX depends_on_type IF NOT EXISTS FOR ()-[d:DEPENDS_ON]-() ON (d.dependency_type)",
+    ]
 
+    def __init__(
+        self,
+        uri: str = "bolt://localhost:7687",
+        user: str = "neo4j",
+        password: str = "password",
+        database: str = "neo4j",
+    ):
+        """
+        Initialize Neo4j connection.
+        
         Args:
             uri: Neo4j bolt URI
             user: Database username
             password: Database password
             database: Database name
-            max_retries: Maximum retries for transient errors
         """
         if not HAS_NEO4J:
-            raise ImportError(
-                "neo4j driver not installed. Install with: pip install neo4j"
-            )
-
+            raise ImportError("neo4j driver not installed. Install with: pip install neo4j")
+        
         self.uri = uri
         self.user = user
         self.password = password
         self.database = database
-        self.max_retries = max_retries
-        self.driver = None
         self.logger = logging.getLogger(__name__)
-        self._import_stats = {}
-
+        self.driver = None
+        self._stats = {}
+        
         self._connect()
 
-    def __enter__(self):
-        """Context manager entry"""
+    def __enter__(self) -> GraphImporter:
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - ensures connection is closed"""
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         self.close()
-        return False  # Don't suppress exceptions
+        return False
 
-    def _connect(self):
-        """Establish connection to Neo4j with retry logic"""
-        delay = 1.0
-        last_exception = None
+    def _connect(self) -> None:
+        """Establish connection to Neo4j"""
+        try:
+            self.driver = GraphDatabase.driver(
+                self.uri,
+                auth=(self.user, self.password),
+                max_connection_lifetime=3600,
+            )
+            self.driver.verify_connectivity()
+            self.logger.info(f"Connected to Neo4j at {self.uri}")
+        except ServiceUnavailable as e:
+            self.logger.error(f"Failed to connect to Neo4j: {e}")
+            raise
 
-        for attempt in range(self.max_retries + 1):
-            try:
-                self.driver = GraphDatabase.driver(
-                    self.uri,
-                    auth=(self.user, self.password),
-                    max_connection_lifetime=3600,
-                    max_connection_pool_size=50,
-                    connection_acquisition_timeout=60
-                )
-                # Verify connection
-                self.driver.verify_connectivity()
-                self.logger.info(f"Connected to Neo4j at {self.uri}")
-                return
-            except ServiceUnavailable as e:
-                last_exception = e
-                if attempt < self.max_retries:
-                    self.logger.warning(
-                        f"Connection attempt {attempt + 1}/{self.max_retries} failed, "
-                        f"retrying in {delay}s: {e}"
-                    )
-                    time.sleep(delay)
-                    delay *= 2
-
-        self.logger.error(f"Failed to connect to Neo4j after {self.max_retries} attempts")
-        raise last_exception
-
-    def close(self):
-        """Close the Neo4j connection"""
+    def close(self) -> None:
+        """Close Neo4j connection"""
         if self.driver:
             self.driver.close()
             self.driver = None
             self.logger.info("Disconnected from Neo4j")
-    
+
     # =========================================================================
     # Schema Management
     # =========================================================================
-    
-    def create_schema(self):
+
+    def create_schema(self) -> None:
         """Create database schema with constraints and indexes"""
-        self.logger.info("Creating database schema...")
+        self.logger.info("Creating schema...")
         
         with self.driver.session(database=self.database) as session:
-            # Uniqueness constraints
-            constraints = [
-                "CREATE CONSTRAINT app_id IF NOT EXISTS FOR (a:Application) REQUIRE a.id IS UNIQUE",
-                "CREATE CONSTRAINT topic_id IF NOT EXISTS FOR (t:Topic) REQUIRE t.id IS UNIQUE",
-                "CREATE CONSTRAINT broker_id IF NOT EXISTS FOR (b:Broker) REQUIRE b.id IS UNIQUE",
-                "CREATE CONSTRAINT node_id IF NOT EXISTS FOR (n:Node) REQUIRE n.id IS UNIQUE"
-            ]
-            
-            for constraint in constraints:
+            for constraint in self.CONSTRAINTS:
                 try:
                     session.run(constraint)
-                except ClientError as e:
-                    self.logger.debug(f"Constraint may already exist: {e}")
+                except ClientError:
+                    pass  # Constraint may already exist
             
-            # Performance indexes
-            indexes = [
-                "CREATE INDEX app_name IF NOT EXISTS FOR (a:Application) ON (a.name)",
-                "CREATE INDEX topic_name IF NOT EXISTS FOR (t:Topic) ON (t.name)",
-                "CREATE INDEX broker_name IF NOT EXISTS FOR (b:Broker) ON (b.name)",
-                "CREATE INDEX node_name IF NOT EXISTS FOR (n:Node) ON (n.name)"
-            ]
-            
-            for index in indexes:
+            for index in self.INDEXES:
                 try:
                     session.run(index)
-                except ClientError as e:
-                    self.logger.debug(f"Index may already exist: {e}")
+                except ClientError:
+                    pass  # Index may already exist
         
-        self.logger.info("✓ Schema created")
-    
-    def clear_database(self):
+        self.logger.info("Schema created")
+
+    def clear_database(self) -> None:
         """Clear all data from the database"""
         self.logger.info("Clearing database...")
         
         with self.driver.session(database=self.database) as session:
-            # Delete relationships first, then nodes
             session.run("MATCH ()-[r]->() DELETE r")
             session.run("MATCH (n) DELETE n")
         
-        self.logger.info("✓ Database cleared")
-    
+        self.logger.info("Database cleared")
+
     # =========================================================================
     # Main Import Method
     # =========================================================================
 
-    def import_graph(self,
-                     graph_data: Dict,
-                     batch_size: int = 100,
-                     show_progress: bool = False,
-                     clear_first: bool = False,
-                     derive_dependencies: bool = True,
-                     progress_callback: Optional[Callable[[str, int, int], None]] = None):
+    def import_graph(
+        self,
+        graph_data: Dict,
+        batch_size: int = DEFAULT_BATCH_SIZE,
+        clear_first: bool = False,
+        derive_dependencies: bool = True,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
+    ) -> Dict[str, int]:
         """
         Import graph data into Neo4j.
-
+        
         Args:
-            graph_data: Graph dictionary from JSON or GraphModel.to_dict()
+            graph_data: Graph dictionary with vertices and relationships
             batch_size: Batch size for bulk imports
-            show_progress: Show progress indicators (uses default logging)
-            clear_first: Clear existing data before import (default False to avoid accidental data loss)
-            derive_dependencies: Whether to derive DEPENDS_ON relationships (default True)
-            progress_callback: Optional callback(phase, current, total) for progress updates
-
+            clear_first: Clear database before import
+            derive_dependencies: Derive DEPENDS_ON relationships
+            progress_callback: Optional callback(step, current, total)
+        
         Returns:
-            Dict containing import statistics
+            Dictionary with import counts
         """
         self.logger.info("Starting graph import...")
         start_time = time.time()
-
-        # Initialize import statistics
-        self._import_stats = {
-            'start_time': start_time,
-            'phases': {},
-            'errors': []
-        }
-
-        def report_progress(phase: str, current: int, total: int):
-            """Internal progress reporter"""
+        
+        if clear_first:
+            self.clear_database()
+        
+        self.create_schema()
+        
+        # Import vertices
+        counts = {}
+        
+        vertices = [
+            ("nodes", graph_data.get("nodes", []), self._import_nodes),
+            ("brokers", graph_data.get("brokers", []), self._import_brokers),
+            ("topics", graph_data.get("topics", []), self._import_topics),
+            ("applications", graph_data.get("applications", []), self._import_applications),
+        ]
+        
+        for name, data, import_fn in vertices:
+            if data:
+                import_fn(data, batch_size)
+                counts[name] = len(data)
+                if progress_callback:
+                    progress_callback(f"Imported {name}", len(data), len(data))
+        
+        # Import relationships
+        relationships = graph_data.get("relationships", {})
+        rel_imports = [
+            ("runs_on", relationships.get("runs_on", []), self._import_runs_on),
+            ("connects_to", relationships.get("connects_to", []), self._import_connects_to),
+            ("routes", relationships.get("routes", []), self._import_routes),
+            ("publishes_to", relationships.get("publishes_to", []), self._import_publishes_to),
+            ("subscribes_to", relationships.get("subscribes_to", []), self._import_subscribes_to),
+        ]
+        
+        for name, data, import_fn in rel_imports:
+            if data:
+                import_fn(data, batch_size)
+                counts[name] = len(data)
+                if progress_callback:
+                    progress_callback(f"Imported {name}", len(data), len(data))
+        
+        # Derive DEPENDS_ON relationships
+        if derive_dependencies:
+            depends_on_counts = self._derive_all_dependencies()
+            counts["depends_on"] = depends_on_counts
             if progress_callback:
-                progress_callback(phase, current, total)
-            if show_progress and total > 0:
-                percent = 100 * current / total
-                self.logger.info(f"  {phase}: {current}/{total} ({percent:.1f}%)")
+                progress_callback("Derived DEPENDS_ON", sum(depends_on_counts.values()), sum(depends_on_counts.values()))
+        
+        elapsed = time.time() - start_time
+        self.logger.info(f"Import completed in {elapsed:.2f}s")
+        
+        self._stats = counts
+        return counts
 
-        try:
-            if clear_first:
-                self.clear_database()
-
-            # Schema is always created/verified (idempotent)
-            self.create_schema()
-
-            # Import nodes
-            nodes = graph_data.get('nodes', [])
-            self._import_nodes(nodes, batch_size)
-            self._import_stats['phases']['nodes'] = len(nodes)
-            report_progress('Nodes', len(nodes), len(nodes))
-
-            apps = graph_data.get('applications', [])
-            self._import_applications(apps, batch_size)
-            self._import_stats['phases']['applications'] = len(apps)
-            report_progress('Applications', len(apps), len(apps))
-
-            topics = graph_data.get('topics', [])
-            self._import_topics(topics, batch_size)
-            self._import_stats['phases']['topics'] = len(topics)
-            report_progress('Topics', len(topics), len(topics))
-
-            brokers = graph_data.get('brokers', [])
-            self._import_brokers(brokers, batch_size)
-            self._import_stats['phases']['brokers'] = len(brokers)
-            report_progress('Brokers', len(brokers), len(brokers))
-
-            # Import explicit relationships
-            relationships = graph_data.get('relationships', graph_data.get('edges', {}))
-
-            runs_on = relationships.get('runs_on', [])
-            self._import_runs_on(runs_on, batch_size)
-            self._import_stats['phases']['runs_on'] = len(runs_on)
-
-            publishes = relationships.get('publishes_to', relationships.get('publishes', []))
-            self._import_publishes_to(publishes, batch_size)
-            self._import_stats['phases']['publishes_to'] = len(publishes)
-
-            subscribes = relationships.get('subscribes_to', relationships.get('subscribes', []))
-            self._import_subscribes_to(subscribes, batch_size)
-            self._import_stats['phases']['subscribes_to'] = len(subscribes)
-
-            routes = relationships.get('routes', [])
-            self._import_routes(routes, batch_size)
-            self._import_stats['phases']['routes'] = len(routes)
-
-            connects = relationships.get('connects_to', [])
-            self._import_connects_to(connects, batch_size)
-            self._import_stats['phases']['connects_to'] = len(connects)
-
-            # Derive unified DEPENDS_ON relationships
-            if derive_dependencies:
-                dep_counts = self._derive_all_dependencies()
-                self._import_stats['phases']['depends_on'] = dep_counts
-
-            duration = time.time() - start_time
-            self._import_stats['duration'] = duration
-            self.logger.info(f"✓ Graph imported in {duration:.2f}s")
-
-            # Verify import
-            stats = self.get_statistics()
-            self._import_stats['final_stats'] = stats
-
-            return stats
-
-        except Exception as e:
-            self._import_stats['errors'].append(str(e))
-            self.logger.error(f"Import failed: {e}")
-            raise
-    
     # =========================================================================
-    # Node Import Methods
+    # Vertex Import Methods
     # =========================================================================
 
-    @retry_on_transient_error(max_retries=3)
-    def _import_nodes(self, nodes: List[Dict], batch_size: int):
-        """Import infrastructure nodes using MERGE for idempotency"""
-        if not nodes:
-            return
-
-        self.logger.info(f"Importing {len(nodes)} infrastructure nodes...")
-
+    def _import_nodes(self, nodes: List[Dict], batch_size: int) -> None:
+        """Import infrastructure nodes"""
+        self.logger.info(f"Importing {len(nodes)} nodes...")
+        
         with self.driver.session(database=self.database) as session:
             for i in range(0, len(nodes), batch_size):
                 batch = nodes[i:i + batch_size]
-                # Use explicit transaction for reliability
-                with session.begin_transaction() as tx:
-                    tx.run("""
-                        UNWIND $nodes AS node
-                        MERGE (n:Node {id: node.id})
-                        SET n.name = coalesce(node.name, node.id)
-                    """, nodes=batch)
-                    tx.commit()
+                session.run("""
+                    UNWIND $nodes AS node
+                    MERGE (n:Node {id: node.id})
+                    SET n.name = coalesce(node.name, node.id)
+                """, nodes=batch)
 
-        self.logger.info(f"  ✓ Imported {len(nodes)} nodes")
-
-    @retry_on_transient_error(max_retries=3)
-    def _import_applications(self, apps: List[Dict], batch_size: int):
-        """Import application nodes using MERGE for idempotency"""
-        if not apps:
-            return
-
-        self.logger.info(f"Importing {len(apps)} applications...")
-
-        with self.driver.session(database=self.database) as session:
-            for i in range(0, len(apps), batch_size):
-                batch = apps[i:i + batch_size]
-                with session.begin_transaction() as tx:
-                    tx.run("""
-                        UNWIND $apps AS app
-                        MERGE (a:Application {id: app.id})
-                        SET a.name = coalesce(app.name, app.id),
-                            a.role = coalesce(app.role, 'pubsub')
-                    """, apps=batch)
-                    tx.commit()
-
-        self.logger.info(f"  ✓ Imported {len(apps)} applications")
-
-    @retry_on_transient_error(max_retries=3)
-    def _import_topics(self, topics: List[Dict], batch_size: int):
-        """Import topic nodes with QoS, handling missing data gracefully"""
-        if not topics:
-            return
-
-        self.logger.info(f"Importing {len(topics)} topics...")
-
-        # Pre-process topics to normalize QoS data
-        processed_topics = []
-        for t in topics:
-            qos = t.get('qos', {}) or {}  # Handle None case
-            processed_topic = {
-                'id': t.get('id'),
-                'name': t.get('name'),
-                'size': t.get('size'),
-                'qos_reliability': qos.get('reliability', 'best_effort'),
-                'qos_durability': qos.get('durability', 'volatile'),
-                'qos_transport_priority': qos.get('transport_priority', 'MEDIUM')
-            }
-            processed_topics.append(processed_topic)
-
-        with self.driver.session(database=self.database) as session:
-            for i in range(0, len(processed_topics), batch_size):
-                batch = processed_topics[i:i + batch_size]
-                with session.begin_transaction() as tx:
-                    tx.run("""
-                        UNWIND $topics AS topic
-                        MERGE (t:Topic {id: topic.id})
-                        SET t.name = coalesce(topic.name, topic.id),
-                            t.size = topic.size,
-                            t.qos_reliability = topic.qos_reliability,
-                            t.qos_durability = topic.qos_durability,
-                            t.qos_transport_priority = topic.qos_transport_priority
-                    """, topics=batch)
-                    tx.commit()
-
-        self.logger.info(f"  ✓ Imported {len(topics)} topics")
-
-    @retry_on_transient_error(max_retries=3)
-    def _import_brokers(self, brokers: List[Dict], batch_size: int):
-        """Import broker nodes using MERGE for idempotency"""
-        if not brokers:
-            return
-
+    def _import_brokers(self, brokers: List[Dict], batch_size: int) -> None:
+        """Import message brokers"""
         self.logger.info(f"Importing {len(brokers)} brokers...")
-
+        
         with self.driver.session(database=self.database) as session:
             for i in range(0, len(brokers), batch_size):
                 batch = brokers[i:i + batch_size]
-                with session.begin_transaction() as tx:
-                    tx.run("""
-                        UNWIND $brokers AS broker
-                        MERGE (b:Broker {id: broker.id})
-                        SET b.name = coalesce(broker.name, broker.id)
-                    """, brokers=batch)
-                    tx.commit()
+                session.run("""
+                    UNWIND $brokers AS broker
+                    MERGE (b:Broker {id: broker.id})
+                    SET b.name = coalesce(broker.name, broker.id)
+                """, brokers=batch)
 
-        self.logger.info(f"  ✓ Imported {len(brokers)} brokers")
-    
+    def _import_topics(self, topics: List[Dict], batch_size: int) -> None:
+        """Import topics with QoS settings"""
+        self.logger.info(f"Importing {len(topics)} topics...")
+        
+        # Normalize topic data
+        normalized = []
+        for t in topics:
+            qos = t.get("qos", {})
+            normalized.append({
+                "id": t["id"],
+                "name": t.get("name", t["id"]),
+                "size": t.get("size", 256),
+                "qos_durability": qos.get("durability", "VOLATILE"),
+                "qos_reliability": qos.get("reliability", "BEST_EFFORT"),
+                "qos_priority": qos.get("priority", qos.get("transport_priority", "MEDIUM")),
+            })
+        
+        with self.driver.session(database=self.database) as session:
+            for i in range(0, len(normalized), batch_size):
+                batch = normalized[i:i + batch_size]
+                session.run("""
+                    UNWIND $topics AS topic
+                    MERGE (t:Topic {id: topic.id})
+                    SET t.name = coalesce(topic.name, topic.id),
+                        t.size = topic.size,
+                        t.qos_durability = topic.qos_durability,
+                        t.qos_reliability = topic.qos_reliability,
+                        t.qos_priority = topic.qos_priority
+                """, topics=batch)
+
+    def _import_applications(self, applications: List[Dict], batch_size: int) -> None:
+        """Import applications"""
+        self.logger.info(f"Importing {len(applications)} applications...")
+        
+        with self.driver.session(database=self.database) as session:
+            for i in range(0, len(applications), batch_size):
+                batch = applications[i:i + batch_size]
+                session.run("""
+                    UNWIND $apps AS app
+                    MERGE (a:Application {id: app.id})
+                    SET a.name = coalesce(app.name, app.id),
+                        a.role = coalesce(app.role, 'pubsub')
+                """, apps=batch)
+
     # =========================================================================
     # Relationship Import Methods
     # =========================================================================
 
     def _normalize_relationship(self, rel: Dict) -> Dict:
-        """Normalize relationship dict to use consistent field names"""
+        """Normalize relationship field names"""
         return {
-            'from': rel.get('from', rel.get('source')),
-            'to': rel.get('to', rel.get('target'))
+            "from": rel.get("from", rel.get("source")),
+            "to": rel.get("to", rel.get("target")),
         }
 
-    @retry_on_transient_error(max_retries=3)
-    def _import_runs_on(self, relationships: List[Dict], batch_size: int):
-        """Import RUNS_ON relationships using MERGE for idempotency"""
-        if not relationships:
-            return
-
+    def _import_runs_on(self, relationships: List[Dict], batch_size: int) -> None:
+        """Import RUNS_ON relationships"""
         self.logger.info(f"Importing {len(relationships)} RUNS_ON relationships...")
-
-        # Normalize field names
         rels = [self._normalize_relationship(r) for r in relationships]
-
+        
         with self.driver.session(database=self.database) as session:
             for i in range(0, len(rels), batch_size):
                 batch = rels[i:i + batch_size]
-                with session.begin_transaction() as tx:
-                    # Handle both Application and Broker sources
-                    tx.run("""
-                        UNWIND $rels AS rel
-                        MATCH (source) WHERE source.id = rel.from
-                        MATCH (n:Node {id: rel.to})
-                        MERGE (source)-[r:RUNS_ON]->(n)
-                    """, rels=batch)
-                    tx.commit()
+                session.run("""
+                    UNWIND $rels AS rel
+                    MATCH (component {id: rel.from})
+                    MATCH (node:Node {id: rel.to})
+                    MERGE (component)-[:RUNS_ON]->(node)
+                """, rels=batch)
 
-        self.logger.info(f"  ✓ Imported {len(relationships)} RUNS_ON")
-
-    @retry_on_transient_error(max_retries=3)
-    def _import_publishes_to(self, relationships: List[Dict], batch_size: int):
-        """Import PUBLISHES_TO relationships using MERGE for idempotency"""
-        if not relationships:
-            return
-
-        self.logger.info(f"Importing {len(relationships)} PUBLISHES_TO relationships...")
-
-        rels = []
-        for r in relationships:
-            rel = self._normalize_relationship(r)
-            rels.append(rel)
-
-        with self.driver.session(database=self.database) as session:
-            for i in range(0, len(rels), batch_size):
-                batch = rels[i:i + batch_size]
-                with session.begin_transaction() as tx:
-                    tx.run("""
-                        UNWIND $rels AS rel
-                        MATCH (a:Application {id: rel.from})
-                        MATCH (t:Topic {id: rel.to})
-                        MERGE (a)-[r:PUBLISHES_TO]->(t)
-                    """, rels=batch)
-                    tx.commit()
-
-        self.logger.info(f"  ✓ Imported {len(relationships)} PUBLISHES_TO")
-
-    @retry_on_transient_error(max_retries=3)
-    def _import_subscribes_to(self, relationships: List[Dict], batch_size: int):
-        """Import SUBSCRIBES_TO relationships using MERGE for idempotency"""
-        if not relationships:
-            return
-
-        self.logger.info(f"Importing {len(relationships)} SUBSCRIBES_TO relationships...")
-
-        rels = [self._normalize_relationship(r) for r in relationships]
-
-        with self.driver.session(database=self.database) as session:
-            for i in range(0, len(rels), batch_size):
-                batch = rels[i:i + batch_size]
-                with session.begin_transaction() as tx:
-                    tx.run("""
-                        UNWIND $rels AS rel
-                        MATCH (a:Application {id: rel.from})
-                        MATCH (t:Topic {id: rel.to})
-                        MERGE (a)-[r:SUBSCRIBES_TO]->(t)
-                    """, rels=batch)
-                    tx.commit()
-
-        self.logger.info(f"  ✓ Imported {len(relationships)} SUBSCRIBES_TO")
-
-    @retry_on_transient_error(max_retries=3)
-    def _import_routes(self, relationships: List[Dict], batch_size: int):
-        """Import ROUTES relationships using MERGE for idempotency"""
-        if not relationships:
-            return
-
-        self.logger.info(f"Importing {len(relationships)} ROUTES relationships...")
-
-        rels = [self._normalize_relationship(r) for r in relationships]
-
-        with self.driver.session(database=self.database) as session:
-            for i in range(0, len(rels), batch_size):
-                batch = rels[i:i + batch_size]
-                with session.begin_transaction() as tx:
-                    tx.run("""
-                        UNWIND $rels AS rel
-                        MATCH (b:Broker {id: rel.from})
-                        MATCH (t:Topic {id: rel.to})
-                        MERGE (b)-[r:ROUTES]->(t)
-                    """, rels=batch)
-                    tx.commit()
-
-        self.logger.info(f"  ✓ Imported {len(relationships)} ROUTES")
-
-    @retry_on_transient_error(max_retries=3)
-    def _import_connects_to(self, relationships: List[Dict], batch_size: int):
-        """Import explicit CONNECTS_TO relationships (physical topology) using MERGE"""
-        if not relationships:
-            return
-
+    def _import_connects_to(self, relationships: List[Dict], batch_size: int) -> None:
+        """Import CONNECTS_TO relationships"""
         self.logger.info(f"Importing {len(relationships)} CONNECTS_TO relationships...")
-
-        rels = []
-        for r in relationships:
-            rel = self._normalize_relationship(r)
-            rels.append(rel)
-
+        rels = [self._normalize_relationship(r) for r in relationships]
+        
         with self.driver.session(database=self.database) as session:
             for i in range(0, len(rels), batch_size):
                 batch = rels[i:i + batch_size]
-                with session.begin_transaction() as tx:
-                    tx.run("""
-                        UNWIND $rels AS rel
-                        MATCH (n1:Node {id: rel.from})
-                        MATCH (n2:Node {id: rel.to})
-                        MERGE (n1)-[r:CONNECTS_TO]->(n2)
-                    """, rels=batch)
-                    tx.commit()
+                session.run("""
+                    UNWIND $rels AS rel
+                    MATCH (n1:Node {id: rel.from})
+                    MATCH (n2:Node {id: rel.to})
+                    MERGE (n1)-[:CONNECTS_TO]->(n2)
+                """, rels=batch)
 
-        self.logger.info(f"  ✓ Imported {len(relationships)} CONNECTS_TO")
-    
+    def _import_routes(self, relationships: List[Dict], batch_size: int) -> None:
+        """Import ROUTES relationships"""
+        self.logger.info(f"Importing {len(relationships)} ROUTES relationships...")
+        rels = [self._normalize_relationship(r) for r in relationships]
+        
+        with self.driver.session(database=self.database) as session:
+            for i in range(0, len(rels), batch_size):
+                batch = rels[i:i + batch_size]
+                session.run("""
+                    UNWIND $rels AS rel
+                    MATCH (b:Broker {id: rel.from})
+                    MATCH (t:Topic {id: rel.to})
+                    MERGE (b)-[:ROUTES]->(t)
+                """, rels=batch)
+
+    def _import_publishes_to(self, relationships: List[Dict], batch_size: int) -> None:
+        """Import PUBLISHES_TO relationships"""
+        self.logger.info(f"Importing {len(relationships)} PUBLISHES_TO relationships...")
+        rels = [self._normalize_relationship(r) for r in relationships]
+        
+        with self.driver.session(database=self.database) as session:
+            for i in range(0, len(rels), batch_size):
+                batch = rels[i:i + batch_size]
+                session.run("""
+                    UNWIND $rels AS rel
+                    MATCH (a:Application {id: rel.from})
+                    MATCH (t:Topic {id: rel.to})
+                    MERGE (a)-[:PUBLISHES_TO]->(t)
+                """, rels=batch)
+
+    def _import_subscribes_to(self, relationships: List[Dict], batch_size: int) -> None:
+        """Import SUBSCRIBES_TO relationships"""
+        self.logger.info(f"Importing {len(relationships)} SUBSCRIBES_TO relationships...")
+        rels = [self._normalize_relationship(r) for r in relationships]
+        
+        with self.driver.session(database=self.database) as session:
+            for i in range(0, len(rels), batch_size):
+                batch = rels[i:i + batch_size]
+                session.run("""
+                    UNWIND $rels AS rel
+                    MATCH (a:Application {id: rel.from})
+                    MATCH (t:Topic {id: rel.to})
+                    MERGE (a)-[:SUBSCRIBES_TO]->(t)
+                """, rels=batch)
+
     # =========================================================================
-    # Unified DEPENDS_ON Derivation
+    # DEPENDS_ON Derivation
     # =========================================================================
-    
-    def _derive_all_dependencies(self):
+
+    def _derive_all_dependencies(self) -> Dict[str, int]:
         """
-        Derive all DEPENDS_ON relationships using Cypher queries.
+        Derive all DEPENDS_ON relationship types.
         
-        Order of derivation:
-        1. APP_TO_APP: From topic subscription patterns
-        2. APP_TO_BROKER: From topic routing
-        3. NODE_TO_NODE: From application dependencies
-        4. NODE_TO_BROKER: From broker placement
+        Returns:
+            Dictionary with counts per dependency type
         """
-        self.logger.info("Deriving unified DEPENDS_ON relationships...")
+        self.logger.info("Deriving DEPENDS_ON relationships...")
         
-        counts = {}
-        
-        # 1. APP_TO_APP dependencies
-        counts['app_to_app'] = self._derive_app_to_app()
-        
-        # 2. APP_TO_BROKER dependencies
-        counts['app_to_broker'] = self._derive_app_to_broker()
-        
-        # 3. NODE_TO_NODE dependencies
-        counts['node_to_node'] = self._derive_node_to_node()
-        
-        # 4. NODE_TO_BROKER dependencies
-        counts['node_to_broker'] = self._derive_node_to_broker()
+        counts = {
+            "app_to_app": self._derive_app_to_app(),
+            "app_to_broker": self._derive_app_to_broker(),
+            "node_to_node": self._derive_node_to_node(),
+            "node_to_broker": self._derive_node_to_broker(),
+        }
         
         total = sum(counts.values())
-        self.logger.info(f"  ✓ Derived {counts['app_to_app']} APP_TO_APP dependencies")
-        self.logger.info(f"  ✓ Derived {counts['app_to_broker']} APP_TO_BROKER dependencies")
-        self.logger.info(f"  ✓ Derived {counts['node_to_node']} NODE_TO_NODE dependencies")
-        self.logger.info(f"  ✓ Derived {counts['node_to_broker']} NODE_TO_BROKER dependencies")
-        self.logger.info(f"  Total: {total} DEPENDS_ON relationships")
+        self.logger.info(f"Derived {total} DEPENDS_ON relationships: {counts}")
         
         return counts
-    
+
     def _derive_app_to_app(self) -> int:
         """
-        Derive APP_TO_APP dependencies from topic subscription patterns.
-
-        Rule: subscriber DEPENDS_ON publisher via shared topic
-
-        Weight calculation considers:
-        - Number of shared topics (more topics = stronger coupling)
-        - QoS criticality of topics (higher reliability/durability = more critical dependency)
+        Derive APP_TO_APP dependencies.
+        
+        Rule: subscriber DEPENDS_ON publisher if they share topics.
+        
+        Weight = count(shared_topics) + sum(qos_scores) + sum(size_factors)
+        
+        QoS score components:
+        - PERSISTENT durability: +0.40
+        - TRANSIENT durability: +0.25
+        - TRANSIENT_LOCAL durability: +0.20
+        - RELIABLE reliability: +0.30
+        - URGENT priority: +0.30
+        - HIGH priority: +0.20
+        - MEDIUM priority: +0.10
+        
+        Size factor: min(size / 10000, 0.5) per topic
         """
         with self.driver.session(database=self.database) as session:
             result = session.run("""
-                // Find all subscriber-publisher pairs through shared topics
-                MATCH (subscriber:Application)-[:SUBSCRIBES_TO]->(t:Topic)
-                      <-[:PUBLISHES_TO]-(publisher:Application)
-                WHERE subscriber.id <> publisher.id
-                                 
+                // Find publisher-subscriber pairs through shared topics
+                MATCH (pub:Application)-[:PUBLISHES_TO]->(t:Topic)
+                      <-[:SUBSCRIBES_TO]-(sub:Application)
+                WHERE pub <> sub
+                
                 // Calculate QoS criticality score for each topic
-                // Based on: durability (0.4), reliability (0.3), transport priority (0.3)
-                WITH subscriber, publisher, t,                                 
-                     // Durability score: persistent = 0.4, transient = 0.25, transient_local = 0.2, volatile = 0.0
-                     CASE t.qos_durability
-                         WHEN 'PERSISTENT' THEN 0.40
-                         WHEN 'TRANSIENT' THEN 0.25
-                         WHEN 'TRANSIENT_LOCAL' THEN 0.20
-                         ELSE 0.00
-                     END +
-                                 
-                    // Reliability score: reliable = 0.3, best_effort = 0.0
-                     CASE t.qos_reliability
-                         WHEN 'RELIABLE' THEN 0.30
-                         ELSE 0.00
-                     END +
-
-                     // Transport priority score: urgent = 0.3, high = 0.2, medium = 0.1, low = 0.0
-                     CASE t.qos_transport_priority
-                         WHEN 'URGENT' THEN 0.30
-                         WHEN 'HIGH' THEN 0.20
-                         WHEN 'MEDIUM' THEN 0.10
-                         ELSE 0.00
-                     END AS qos_score
-                                 
-                // Collect topics
-                WITH subscriber, publisher,
-                     collect(t.id) AS topics,
-                     sum(qos_score) AS total_qos_score
-
-                // Create DEPENDS_ON with aggregated information
-                MERGE (subscriber)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(publisher)
+                WITH pub, sub, t,
+                    // Durability contribution
+                    CASE t.qos_durability
+                        WHEN 'PERSISTENT' THEN 0.40
+                        WHEN 'TRANSIENT' THEN 0.25
+                        WHEN 'TRANSIENT_LOCAL' THEN 0.20
+                        ELSE 0.0
+                    END +
+                    // Reliability contribution
+                    CASE t.qos_reliability
+                        WHEN 'RELIABLE' THEN 0.30
+                        ELSE 0.0
+                    END +
+                    // Priority contribution
+                    CASE t.qos_priority
+                        WHEN 'URGENT' THEN 0.30
+                        WHEN 'HIGH' THEN 0.20
+                        WHEN 'MEDIUM' THEN 0.10
+                        ELSE 0.0
+                    END AS qos_score,
+                    // Size contribution (normalized, capped at 0.5)
+                    CASE 
+                        WHEN t.size IS NULL THEN 0.025
+                        ELSE toFloat(t.size) / 10000.0
+                    END AS size_factor
+                
+                // Aggregate per publisher-subscriber pair
+                WITH sub, pub,
+                     collect(DISTINCT t.id) AS topics,
+                     sum(qos_score) AS total_qos,
+                     sum(CASE WHEN size_factor > 0.5 THEN 0.5 ELSE size_factor END) AS total_size
+                
+                // Calculate final weight: topic_count + qos_scores + size_factors
+                WITH sub, pub, topics,
+                     size(topics) + total_qos + total_size AS weight
+                
+                // Create DEPENDS_ON: subscriber depends on publisher
+                MERGE (sub)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(pub)
                 SET d.via_topics = topics,
-                    d.weight = size(topics) + total_qos_score
-
+                    d.weight = weight
+                
                 RETURN count(*) AS count
             """)
-
+            
             return result.single()["count"]
-    
+
     def _derive_app_to_broker(self) -> int:
         """
-        Derive APP_TO_BROKER dependencies from topic routing.
-
-        Rule: app DEPENDS_ON broker that routes topics the app uses
-
-        Weight calculation considers:
-        - Number of topics routed through the broker (more topics = stronger coupling)
-        - QoS criticality of topics (higher reliability/durability = more critical dependency)
+        Derive APP_TO_BROKER dependencies.
+        
+        Rule: app DEPENDS_ON broker that routes topics the app uses.
+        
+        Weight = count(topics) + sum(qos_scores) + sum(size_factors)
         """
         with self.driver.session(database=self.database) as session:
             result = session.run("""
                 // Find apps and the brokers routing their topics
                 MATCH (app:Application)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
                       <-[:ROUTES]-(broker:Broker)
-                                 
-                // Calculate QoS criticality score for each topic
+                
+                // Calculate QoS score
                 WITH app, broker, t,
-                        // Durability score
-                        CASE t.qos_durability
-                            WHEN 'PERSISTENT' THEN 0.40
-                            WHEN 'TRANSIENT' THEN 0.25
-                            WHEN 'TRANSIENT_LOCAL' THEN 0.20
-                            ELSE 0.00
-                        END +
-                        // Reliability score
-                        CASE t.qos_reliability
-                            WHEN 'RELIABLE' THEN 0.30
-                            ELSE 0.00
-                        END +
-                        // Transport priority score
-                        CASE t.qos_transport_priority
-                            WHEN 'URGENT' THEN 0.30 
-                            WHEN 'HIGH' THEN 0.20
-                            WHEN 'MEDIUM' THEN 0.10
-                            ELSE 0.00
-                        END AS qos_score
-
-                // Collect unique topics
+                    CASE t.qos_durability
+                        WHEN 'PERSISTENT' THEN 0.40
+                        WHEN 'TRANSIENT' THEN 0.25
+                        WHEN 'TRANSIENT_LOCAL' THEN 0.20
+                        ELSE 0.0
+                    END +
+                    CASE t.qos_reliability
+                        WHEN 'RELIABLE' THEN 0.30
+                        ELSE 0.0
+                    END +
+                    CASE t.qos_priority
+                        WHEN 'URGENT' THEN 0.30
+                        WHEN 'HIGH' THEN 0.20
+                        WHEN 'MEDIUM' THEN 0.10
+                        ELSE 0.0
+                    END AS qos_score,
+                    CASE 
+                        WHEN t.size IS NULL THEN 0.025
+                        ELSE toFloat(t.size) / 10000.0
+                    END AS size_factor
+                
+                // Aggregate
                 WITH app, broker,
                      collect(DISTINCT t.id) AS topics,
-                     sum(qos_score) AS total_qos_score
-
-                // Create DEPENDS_ON
+                     sum(qos_score) AS total_qos,
+                     sum(CASE WHEN size_factor > 0.5 THEN 0.5 ELSE size_factor END) AS total_size
+                
+                WITH app, broker, topics,
+                     size(topics) + total_qos + total_size AS weight
+                
                 MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
                 SET d.via_topics = topics,
-                    d.weight = size(topics) + total_qos_score
-
+                    d.weight = weight
+                
                 RETURN count(*) AS count
             """)
-
+            
             return result.single()["count"]
-    
+
     def _derive_node_to_node(self) -> int:
         """
-        Derive NODE_TO_NODE dependencies from application dependencies.
-
-        Rule: node_X DEPENDS_ON node_Y if app on node_X depends on app on node_Y
-
-        The weight reflects the aggregated importance of underlying app dependencies,
-        which now include QoS factors.
+        Derive NODE_TO_NODE dependencies.
+        
+        Rule: node_X DEPENDS_ON node_Y if app on node_X depends on app on node_Y.
+        
+        Weight aggregates the weights of underlying app-to-app dependencies.
         """
         with self.driver.session(database=self.database) as session:
             result = session.run("""
-                // Find infrastructure dependencies based on app dependencies
+                // Find nodes through app-to-app dependencies
                 MATCH (n1:Node)<-[:RUNS_ON]-(a1:Application)
                       -[dep:DEPENDS_ON {dependency_type: 'app_to_app'}]->
                       (a2:Application)-[:RUNS_ON]->(n2:Node)
-                WHERE n1.id <> n2.id
-
-                // Aggregate all app pairs for each node pair with their weights
-                WITH n1, n2, collect(DISTINCT a1.id + '->' + a2.id) AS app_pairs, collect(dep.weight) AS weights
-                                 
-                WITH n1, n2, weights, app_pairs
-                        // Sum weights from underlying app dependencies
-                        , reduce(total = 0, w IN weights | total + w) AS total_weight
-
-                // Create NODE_TO_NODE DEPENDS_ON
+                WHERE n1 <> n2
+                
+                // Aggregate dependencies per node pair
+                WITH n1, n2,
+                     collect(DISTINCT a1.id) AS dependent_apps,
+                     collect(DISTINCT a2.id) AS dependency_apps,
+                     sum(dep.weight) AS total_weight
+                
+                // Weight = app_count + aggregated_app_weights
+                WITH n1, n2, dependent_apps, dependency_apps,
+                     size(dependent_apps) + total_weight AS weight
+                
                 MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
-                SET d.via_apps = app_pairs,
-                    d.weight = size(app_pairs) + total_weight
-
+                SET d.via_apps = dependent_apps,
+                    d.target_apps = dependency_apps,
+                    d.weight = weight
+                
                 RETURN count(*) AS count
             """)
-
+            
             return result.single()["count"]
-    
+
     def _derive_node_to_broker(self) -> int:
         """
-        Derive NODE_TO_BROKER dependencies from broker placement.
-
-        Rule: node DEPENDS_ON broker if apps on node depend on that broker
-
-        The weight incorporates QoS-aware weights from underlying app-broker dependencies.
+        Derive NODE_TO_BROKER dependencies.
+        
+        Rule: node DEPENDS_ON broker if apps on node depend on that broker.
+        
+        Weight aggregates the weights of underlying app-to-broker dependencies.
         """
         with self.driver.session(database=self.database) as session:
             result = session.run("""
                 // Find nodes that depend on brokers through their apps
                 MATCH (n:Node)<-[:RUNS_ON]-(app:Application)
                       -[dep:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker:Broker)
-
-                // Aggregate dependent apps and their QoS factors per node-broker pair
+                
+                // Aggregate
                 WITH n, broker,
                      collect(DISTINCT app.id) AS dependent_apps,
-                     collect(dep.weight) AS weights
-
-                WITH n, broker, dependent_apps, weights, reduce(total = 0, w IN weights | total + w) AS total_weight
-
-                // Create NODE_TO_BROKER DEPENDS_ON
+                     sum(dep.weight) AS total_weight
+                
+                WITH n, broker, dependent_apps,
+                     size(dependent_apps) + total_weight AS weight
+                
                 MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(broker)
                 SET d.via_apps = dependent_apps,
-                    d.weight = size(dependent_apps) + total_weight
-
+                    d.weight = weight
+                
                 RETURN count(*) AS count
             """)
-
+            
             return result.single()["count"]
-    
+
     # =========================================================================
     # Statistics and Queries
     # =========================================================================
-    
+
     def get_statistics(self) -> Dict[str, Any]:
         """Get graph statistics from Neo4j"""
         with self.driver.session(database=self.database) as session:
             # Node counts
-            node_counts = session.run("""
+            node_result = session.run("""
                 MATCH (n)
                 WITH labels(n)[0] AS label, count(*) AS count
                 RETURN collect({label: label, count: count}) AS nodes
-            """).single()["nodes"]
+            """)
+            node_counts = {item["label"]: item["count"] for item in node_result.single()["nodes"]}
             
             # Relationship counts
-            rel_counts = session.run("""
+            rel_result = session.run("""
                 MATCH ()-[r]->()
                 WITH type(r) AS rel_type, count(*) AS count
                 RETURN collect({type: rel_type, count: count}) AS relationships
-            """).single()["relationships"]
+            """)
+            rel_counts = {item["type"]: item["count"] for item in rel_result.single()["relationships"]}
             
             # DEPENDS_ON by type
-            depends_on_counts = session.run("""
+            dep_result = session.run("""
                 MATCH ()-[d:DEPENDS_ON]->()
                 WITH d.dependency_type AS dep_type, count(*) AS count
                 RETURN collect({type: dep_type, count: count}) AS depends_on
-            """).single()["depends_on"]
+            """)
+            dep_counts = {item["type"]: item["count"] for item in dep_result.single()["depends_on"]}
+            
+            # Weight statistics
+            weight_result = session.run("""
+                MATCH ()-[d:DEPENDS_ON]->()
+                RETURN 
+                    avg(d.weight) AS avg_weight,
+                    min(d.weight) AS min_weight,
+                    max(d.weight) AS max_weight
+            """)
+            weight_stats = weight_result.single()
             
             return {
-                'nodes': {item['label']: item['count'] for item in node_counts},
-                'relationships': {item['type']: item['count'] for item in rel_counts},
-                'depends_on_by_type': {item['type']: item['count'] for item in depends_on_counts}
+                "nodes": node_counts,
+                "relationships": rel_counts,
+                "depends_on_by_type": dep_counts,
+                "weight_statistics": {
+                    "average": weight_stats["avg_weight"],
+                    "minimum": weight_stats["min_weight"],
+                    "maximum": weight_stats["max_weight"],
+                },
             }
 
-    def verify_import(self, expected_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Verify that imported data matches expected counts.
-
-        Args:
-            expected_data: The original graph data used for import
-
-        Returns:
-            Dictionary with verification results including:
-            - is_valid: Overall validation status
-            - expected: Expected counts from input data
-            - actual: Actual counts from database
-            - mismatches: List of any mismatches found
-        """
-        self.logger.info("Verifying import...")
-
-        # Calculate expected counts from input data
-        expected = {
-            'nodes': len(expected_data.get('nodes', [])),
-            'applications': len(expected_data.get('applications', [])),
-            'topics': len(expected_data.get('topics', [])),
-            'brokers': len(expected_data.get('brokers', []))
-        }
-
-        relationships = expected_data.get('relationships', expected_data.get('edges', {}))
-        expected['runs_on'] = len(relationships.get('runs_on', []))
-        expected['publishes_to'] = len(relationships.get('publishes_to', relationships.get('publishes', [])))
-        expected['subscribes_to'] = len(relationships.get('subscribes_to', relationships.get('subscribes', [])))
-        expected['routes'] = len(relationships.get('routes', []))
-        expected['connects_to'] = len(relationships.get('connects_to', []))
-
-        # Get actual counts from database
-        stats = self.get_statistics()
-        actual = {
-            'nodes': stats.get('nodes', {}).get('Node', 0),
-            'applications': stats.get('nodes', {}).get('Application', 0),
-            'topics': stats.get('nodes', {}).get('Topic', 0),
-            'brokers': stats.get('nodes', {}).get('Broker', 0),
-            'runs_on': stats.get('relationships', {}).get('RUNS_ON', 0),
-            'publishes_to': stats.get('relationships', {}).get('PUBLISHES_TO', 0),
-            'subscribes_to': stats.get('relationships', {}).get('SUBSCRIBES_TO', 0),
-            'routes': stats.get('relationships', {}).get('ROUTES', 0),
-            'connects_to': stats.get('relationships', {}).get('CONNECTS_TO', 0)
-        }
-
-        # Compare and find mismatches
-        mismatches = []
-        for key in expected:
-            exp_val = expected[key]
-            act_val = actual.get(key, 0)
-            # Allow actual to be >= expected (MERGE may not create duplicates)
-            if act_val < exp_val:
-                mismatches.append({
-                    'type': key,
-                    'expected': exp_val,
-                    'actual': act_val,
-                    'difference': exp_val - act_val
-                })
-
-        is_valid = len(mismatches) == 0
-
-        result = {
-            'is_valid': is_valid,
-            'expected': expected,
-            'actual': actual,
-            'mismatches': mismatches,
-            'statistics': stats
-        }
-
-        if is_valid:
-            self.logger.info("Import verification passed")
-        else:
-            self.logger.warning(f"Import verification found {len(mismatches)} mismatches")
-            for m in mismatches:
-                self.logger.warning(f"  {m['type']}: expected {m['expected']}, got {m['actual']}")
-
-        return result
-
-    def get_import_health(self) -> Dict[str, Any]:
-        """
-        Get comprehensive health check of the imported graph.
-
-        Returns:
-            Dictionary with health metrics including connectivity,
-            orphan nodes, missing relationships, etc.
-        """
-        with self.driver.session(database=self.database) as session:
-            health = {}
-
-            # Check for orphan applications (no pub/sub relationships)
-            orphan_apps_result = session.run("""
-                MATCH (a:Application)
-                WHERE NOT (a)-[:PUBLISHES_TO]->() AND NOT (a)-[:SUBSCRIBES_TO]->()
-                RETURN count(a) AS count
-            """)
-            health['orphan_applications'] = orphan_apps_result.single()['count']
-
-            # Check for orphan topics (no publishers)
-            orphan_topics_result = session.run("""
-                MATCH (t:Topic)
-                WHERE NOT ()-[:PUBLISHES_TO]->(t)
-                RETURN count(t) AS count
-            """)
-            health['orphan_topics'] = orphan_topics_result.single()['count']
-
-            # Check for apps without RUNS_ON
-            unhosted_apps_result = session.run("""
-                MATCH (a:Application)
-                WHERE NOT (a)-[:RUNS_ON]->()
-                RETURN count(a) AS count
-            """)
-            health['unhosted_applications'] = unhosted_apps_result.single()['count']
-
-            # Check for unrouted topics
-            unrouted_topics_result = session.run("""
-                MATCH (t:Topic)
-                WHERE NOT ()-[:ROUTES]->(t)
-                RETURN count(t) AS count
-            """)
-            health['unrouted_topics'] = unrouted_topics_result.single()['count']
-
-            # Check for dependency islands (nodes with no dependencies)
-            dependency_coverage_result = session.run("""
-                MATCH (a:Application)
-                OPTIONAL MATCH (a)-[d:DEPENDS_ON]-()
-                WITH a, count(d) AS dep_count
-                RETURN
-                    count(CASE WHEN dep_count = 0 THEN 1 END) AS isolated,
-                    count(CASE WHEN dep_count > 0 THEN 1 END) AS connected
-            """)
-            dep_record = dependency_coverage_result.single()
-            health['isolated_applications'] = dep_record['isolated']
-            health['connected_applications'] = dep_record['connected']
-
-            # Overall health score (0-100)
-            stats = self.get_statistics()
-            total_apps = stats.get('nodes', {}).get('Application', 0)
-            total_topics = stats.get('nodes', {}).get('Topic', 0)
-
-            if total_apps > 0 and total_topics > 0:
-                orphan_app_pct = health['orphan_applications'] / total_apps
-                orphan_topic_pct = health['orphan_topics'] / total_topics
-                unhosted_pct = health['unhosted_applications'] / total_apps
-
-                # Score: 100 - penalties for issues
-                score = 100
-                score -= orphan_app_pct * 30  # Up to 30 point penalty
-                score -= orphan_topic_pct * 20  # Up to 20 point penalty
-                score -= unhosted_pct * 20  # Up to 20 point penalty
-                health['health_score'] = max(0, round(score, 1))
-            else:
-                health['health_score'] = 0
-
-            return health
-
-    def query_dependencies(self, 
-                          dependency_type: Optional[str] = None,
-                          source_id: Optional[str] = None,
-                          target_id: Optional[str] = None,
-                          limit: int = 100) -> List[Dict]:
-        """
-        Query DEPENDS_ON relationships with optional filters.
-        
-        Args:
-            dependency_type: Filter by type (app_to_app, app_to_broker, etc.)
-            source_id: Filter by source component ID
-            target_id: Filter by target component ID
-            limit: Maximum results to return
-        """
-        with self.driver.session(database=self.database) as session:
-            # Build dynamic query
-            where_clauses = []
-            params = {'limit': limit}
-            
-            if dependency_type:
-                where_clauses.append("d.dependency_type = $dep_type")
-                params['dep_type'] = dependency_type
-            
-            if source_id:
-                where_clauses.append("source.id = $source_id")
-                params['source_id'] = source_id
-            
-            if target_id:
-                where_clauses.append("target.id = $target_id")
-                params['target_id'] = target_id
-            
-            where_clause = " AND ".join(where_clauses) if where_clauses else "true"
-            
-            query = f"""
-                MATCH (source)-[d:DEPENDS_ON]->(target)
-                WHERE {where_clause}
-                RETURN source.id AS source,
-                       target.id AS target,
-                       d.dependency_type AS type,
-                       d.weight AS weight,
-                       d.topics AS topics
-                LIMIT $limit
-            """
-            
-            result = session.run(query, params)
-            return [dict(record) for record in result]
-    
-    def get_dependency_chain(self, 
-                            start_id: str, 
-                            max_depth: int = 5) -> List[Dict]:
-        """
-        Get transitive dependency chain from a starting component.
-        
-        Args:
-            start_id: Starting component ID
-            max_depth: Maximum dependency depth to traverse
-        """
-        with self.driver.session(database=self.database) as session:
-            result = session.run("""
-                MATCH path = (start {id: $start_id})-[:DEPENDS_ON*1..$max_depth]->(end)
-                WITH path, length(path) AS depth
-                RETURN [n IN nodes(path) | n.id] AS chain,
-                       [r IN relationships(path) | r.dependency_type] AS types,
-                       depth
-                ORDER BY depth
-            """, start_id=start_id, max_depth=max_depth)
-            
-            return [dict(record) for record in result]
-    
-    # =========================================================================
-    # Sample Queries
-    # =========================================================================
-    
-    def run_sample_queries(self):
-        """Run and display sample queries for exploring the graph"""
-        self.logger.info("Running sample queries...")
-        
+    def run_sample_queries(self) -> None:
+        """Execute and print sample queries"""
         queries = [
-            ("Application Count by Type", """
-                MATCH (a:Application)
-                RETURN a.role AS role, count(*) AS count
-                ORDER BY count DESC
-            """),
-            
-            ("Topics with Most Publishers", """
-                MATCH (a:Application)-[:PUBLISHES_TO]->(t:Topic)
-                WITH t, count(a) AS pub_count
-                RETURN t.name AS topic, pub_count
-                ORDER BY pub_count DESC
-                LIMIT 10
-            """),
-            
-            ("Topics with Most Subscribers", """
-                MATCH (a:Application)-[:SUBSCRIBES_TO]->(t:Topic)
-                WITH t, count(a) AS sub_count
-                RETURN t.name AS topic, sub_count
-                ORDER BY sub_count DESC
-                LIMIT 10
-            """),
-            
-            ("Applications per Infrastructure Node", """
-                MATCH (a:Application)-[:RUNS_ON]->(n:Node)
-                WITH n, count(a) AS app_count
-                RETURN n.name AS node, app_count
-                ORDER BY app_count DESC
-            """),
-            
-            ("Broker Load Distribution", """
-                MATCH (b:Broker)-[:ROUTES]->(t:Topic)
-                WITH b, count(t) AS topic_count
-                RETURN b.name AS broker, topic_count
-                ORDER BY topic_count DESC
-            """),
-            
-            ("DEPENDS_ON Distribution by Type", """
-                MATCH ()-[d:DEPENDS_ON]->()
-                RETURN d.dependency_type AS type, count(*) AS count
-                ORDER BY count DESC
-            """),
-            
-            ("Applications with Most Dependencies", """
+            ("Top 10 Applications by Dependency Weight", """
                 MATCH (a:Application)-[d:DEPENDS_ON]->()
-                WITH a, count(d) AS dep_count
-                RETURN a.name AS application, dep_count
-                ORDER BY dep_count DESC
+                WITH a, sum(d.weight) AS total_weight, count(d) AS dep_count
+                RETURN a.name AS application, round(total_weight, 2) AS weight, dep_count
+                ORDER BY total_weight DESC
                 LIMIT 10
             """),
-            
-            ("Applications Most Depended Upon", """
-                MATCH ()-[d:DEPENDS_ON]->(a:Application)
-                WITH a, count(d) AS dependents
-                RETURN a.name AS application, dependents
+            ("Most Depended-Upon Components", """
+                MATCH ()-[d:DEPENDS_ON]->(target)
+                WITH target, count(d) AS dependents, sum(d.weight) AS total_weight
+                RETURN labels(target)[0] AS type, target.name AS component,
+                       dependents, round(total_weight, 2) AS weight
                 ORDER BY dependents DESC
                 LIMIT 10
-            """)
+            """),
+            ("DEPENDS_ON Distribution by Type", """
+                MATCH ()-[d:DEPENDS_ON]->()
+                RETURN d.dependency_type AS type,
+                       count(*) AS count,
+                       round(avg(d.weight), 2) AS avg_weight
+                ORDER BY count DESC
+            """),
+            ("High-Weight Dependencies (Critical)", """
+                MATCH (a)-[d:DEPENDS_ON]->(b)
+                WHERE d.weight > 5.0
+                RETURN labels(a)[0] AS source_type, a.name AS source,
+                       labels(b)[0] AS target_type, b.name AS target,
+                       d.dependency_type AS type, round(d.weight, 2) AS weight
+                ORDER BY d.weight DESC
+                LIMIT 10
+            """),
         ]
         
         with self.driver.session(database=self.database) as session:
             for title, query in queries:
                 print(f"\n{title}:")
-                print("-" * 50)
+                print("-" * 60)
                 try:
                     result = session.run(query)
                     records = list(result)
                     if records:
-                        # Print header
                         keys = records[0].keys()
                         header = " | ".join(f"{k:20s}" for k in keys)
                         print(header)
                         print("-" * len(header))
-                        # Print rows
-                        for record in records[:10]:
+                        for record in records:
                             row = " | ".join(f"{str(record[k]):20s}" for k in keys)
                             print(row)
                     else:
                         print("  No results")
                 except Exception as e:
                     print(f"  Error: {e}")
-    
+
     # =========================================================================
     # Export Methods
     # =========================================================================
-    
-    def export_to_json(self, filepath: str, include_derived: bool = True):
-        """
-        Export graph data from Neo4j to JSON.
 
-        Args:
-            filepath: Output file path
-            include_derived: Include derived DEPENDS_ON relationships (default True)
-        """
-        import json
-
+    def export_to_json(self, filepath: str, include_depends_on: bool = True) -> None:
+        """Export graph from Neo4j to JSON"""
         with self.driver.session(database=self.database) as session:
-            # Export infrastructure nodes
-            nodes_result = session.run("""
-                MATCH (n:Node)
-                RETURN n.id AS id, n.name AS name
-            """)
-            nodes = [dict(r) for r in nodes_result]
-
-            # Export brokers
-            brokers_result = session.run("""
-                MATCH (b:Broker)
-                RETURN b.id AS id, b.name AS name
-            """)
-            brokers = [dict(r) for r in brokers_result]
-
-            # Export applications
-            apps_result = session.run("""
-                MATCH (a:Application)
-                RETURN a.id AS id, a.name AS name, a.role AS role
-            """)
-            applications = [dict(r) for r in apps_result]
-
-            # Export topics with QoS
-            topics_result = session.run("""
-                MATCH (t:Topic)
-                RETURN t.id AS id, t.name AS name,
-                       t.size AS message_size,
-                       t.qos_reliability AS qos_reliability,
-                       t.qos_durability AS qos_durability,
-                       t.qos_transport_priority AS qos_transport_priority
-            """)
-            topics = []
-            for r in topics_result:
-                topic_data = dict(r)
-                # Restructure QoS fields
-                qos = {
-                    'reliability': topic_data.pop('qos_reliability', None),
-                    'durability': topic_data.pop('qos_durability', None),
-                    'transport_priority': topic_data.pop('qos_transport_priority', None)
-                }
-                # Remove None values
-                topic_data['qos'] = {k: v for k, v in qos.items() if v is not None}
-                topics.append(topic_data)
-
-            # Export RUNS_ON relationships (both apps and brokers)
-            runs_on_result = session.run("""
-                MATCH (s)-[r:RUNS_ON]->(n:Node)
-                RETURN s.id AS source, n.id AS target
-            """)
-            runs_on = [{'from': r['source'], 'to': r['target']} for r in runs_on_result]
-
-            # Export PUBLISHES_TO relationships
-            publishes_result = session.run("""
-                MATCH (a:Application)-[r:PUBLISHES_TO]->(t:Topic)
-                RETURN a.id AS source, t.id AS target, t.size AS message_size
-            """)
-            publishes = [
-                {
-                    'from': r['source'],
-                    'to': r['target'],
-                    'message_size': r['message_size']
-                }
-                for r in publishes_result
-            ]
-
-            # Export SUBSCRIBES_TO relationships
-            subscribes_result = session.run("""
-                MATCH (a:Application)-[r:SUBSCRIBES_TO]->(t:Topic)
-                RETURN a.id AS source, t.id AS target
-            """)
-            subscribes = [{'from': r['source'], 'to': r['target']} for r in subscribes_result]
-
-            # Export ROUTES relationships
-            routes_result = session.run("""
-                MATCH (b:Broker)-[r:ROUTES]->(t:Topic)
-                RETURN b.id AS source, t.id AS target
-            """)
-            routes = [{'from': r['source'], 'to': r['target']} for r in routes_result]
-
-            # Export CONNECTS_TO relationships (physical topology)
-            connects_result = session.run("""
-                MATCH (n1:Node)-[r:CONNECTS_TO]->(n2:Node)
-                RETURN n1.id AS source, n2.id AS target,
-                       r.bandwidth_mbps AS bandwidth_mbps, r.latency_ms AS latency_ms
-            """)
-            connects = [
-                {
-                    'from': r['source'],
-                    'to': r['target'],
-                    'bandwidth_mbps': r['bandwidth_mbps'],
-                    'latency_ms': r['latency_ms']
-                }
-                for r in connects_result
-            ]
-
-            # Build relationships dictionary
-            relationships = {
-                'runs_on': runs_on,
-                'publishes_to': publishes,
-                'subscribes_to': subscribes,
-                'routes': routes,
-                'connects_to': connects
+            # Export vertices
+            graph = {
+                "metadata": {
+                    "exported_at": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "source": "neo4j",
+                    "database": self.database,
+                },
+                "nodes": list(session.run("MATCH (n:Node) RETURN n.id AS id, n.name AS name")),
+                "brokers": list(session.run("MATCH (b:Broker) RETURN b.id AS id, b.name AS name")),
+                "applications": list(session.run(
+                    "MATCH (a:Application) RETURN a.id AS id, a.name AS name, a.role AS role"
+                )),
+                "topics": [],
+                "relationships": {},
             }
-
-            # Export DEPENDS_ON relationships if requested
-            if include_derived:
-                depends_on_result = session.run("""
+            
+            # Topics with QoS
+            for r in session.run("""
+                MATCH (t:Topic)
+                RETURN t.id AS id, t.name AS name, t.size AS size,
+                       t.qos_durability AS durability,
+                       t.qos_reliability AS reliability,
+                       t.qos_priority AS priority
+            """):
+                graph["topics"].append({
+                    "id": r["id"],
+                    "name": r["name"],
+                    "size": r["size"],
+                    "qos": {
+                        "durability": r["durability"],
+                        "reliability": r["reliability"],
+                        "priority": r["priority"],
+                    },
+                })
+            
+            # Relationships
+            rel_queries = {
+                "publishes_to": "MATCH (a:Application)-[:PUBLISHES_TO]->(t:Topic) RETURN a.id AS `from`, t.id AS `to`",
+                "subscribes_to": "MATCH (a:Application)-[:SUBSCRIBES_TO]->(t:Topic) RETURN a.id AS `from`, t.id AS `to`",
+                "routes": "MATCH (b:Broker)-[:ROUTES]->(t:Topic) RETURN b.id AS `from`, t.id AS `to`",
+                "runs_on": "MATCH (c)-[:RUNS_ON]->(n:Node) RETURN c.id AS `from`, n.id AS `to`",
+                "connects_to": "MATCH (n1:Node)-[:CONNECTS_TO]->(n2:Node) RETURN n1.id AS `from`, n2.id AS `to`",
+            }
+            
+            for name, query in rel_queries.items():
+                graph["relationships"][name] = [dict(r) for r in session.run(query)]
+            
+            # DEPENDS_ON
+            if include_depends_on:
+                graph["depends_on"] = []
+                for r in session.run("""
                     MATCH (source)-[d:DEPENDS_ON]->(target)
-                    RETURN source.id AS source, target.id AS target,
+                    RETURN source.id AS `from`, target.id AS `to`,
                            d.dependency_type AS dependency_type,
                            d.weight AS weight,
-                           d.topics AS topics,
-                           labels(source)[0] AS source_type,
-                           labels(target)[0] AS target_type
-                """)
-                depends_on = [
-                    {
-                        'from': r['source'],
-                        'to': r['target'],
-                        'dependency_type': r['dependency_type'],
-                        'weight': r['weight'],
-                        'topics': r['topics'],
-                        'source_type': r['source_type'],
-                        'target_type': r['target_type']
-                    }
-                    for r in depends_on_result
-                ]
-                relationships['depends_on'] = depends_on
-
-            # Build graph dictionary
-            graph = {
-                'metadata': {
-                    'exported_at': time.strftime('%Y-%m-%dT%H:%M:%S'),
-                    'source': 'neo4j',
-                    'database': self.database,
-                    'include_derived': include_derived
-                },
-                'nodes': nodes,
-                'brokers': brokers,
-                'applications': applications,
-                'topics': topics,
-                'relationships': relationships
-            }
-
-            with open(filepath, 'w') as f:
-                json.dump(graph, f, indent=2, default=str)
-
-        self.logger.info(f"Graph exported to {filepath}")
-    
-    def export_cypher_queries(self, filepath: str):
-        """
-        Export useful Cypher queries to a file.
+                           d.via_topics AS via_topics
+                """):
+                    graph["depends_on"].append(dict(r))
         
-        Args:
-            filepath: Output file path
-        """
+        with open(filepath, "w") as f:
+            json.dump(graph, f, indent=2, default=str)
+        
+        self.logger.info(f"Graph exported to {filepath}")
+
+    def export_cypher_queries(self, filepath: str) -> None:
+        """Export useful Cypher queries to a file"""
         queries = '''
 // ============================================================================
 // Software-as-a-Graph: Useful Cypher Queries
 // ============================================================================
 
-// --- Basic Exploration ---
+// --- Basic Statistics ---
 
-// View all node types and counts
+// Count all node types
 MATCH (n)
 RETURN labels(n)[0] AS type, count(*) AS count
 ORDER BY count DESC;
 
-// View all relationship types and counts
+// Count all relationship types
 MATCH ()-[r]->()
 RETURN type(r) AS relationship, count(*) AS count
 ORDER BY count DESC;
 
-// --- Application Queries ---
-
-// Find all applications with their connections
-MATCH (a:Application)
-OPTIONAL MATCH (a)-[:PUBLISHES_TO]->(pub:Topic)
-OPTIONAL MATCH (a)-[:SUBSCRIBES_TO]->(sub:Topic)
-WITH a, collect(DISTINCT pub.name) AS publishes, collect(DISTINCT sub.name) AS subscribes
-RETURN a.name AS application, a.role AS role,
-       size(publishes) AS pub_count, size(subscribes) AS sub_count,
-       publishes, subscribes
-ORDER BY pub_count + sub_count DESC
-LIMIT 20;
-
-// Find applications by type
-MATCH (a:Application)
-WHERE a.role = 'pub'  // Change to 'sub' or 'pubsub'
-RETURN a.name, a.role;
-
 // --- Dependency Analysis ---
 
-// View all APP_TO_APP dependencies
-MATCH (a1:Application)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(a2:Application)
-RETURN a1.name AS dependent, a2.name AS dependency, d.topics AS via_topics, d.weight
-ORDER BY d.weight DESC;
+// View DEPENDS_ON by type
+MATCH ()-[d:DEPENDS_ON]->()
+RETURN d.dependency_type AS type, count(*) AS count,
+       round(avg(d.weight), 2) AS avg_weight
+ORDER BY count DESC;
+
+// Find highest-weight dependencies
+MATCH (a)-[d:DEPENDS_ON]->(b)
+RETURN a.name AS source, b.name AS target,
+       d.dependency_type AS type, round(d.weight, 2) AS weight
+ORDER BY d.weight DESC
+LIMIT 20;
 
 // Find dependency chains (up to 3 hops)
 MATCH path = (a:Application)-[:DEPENDS_ON*1..3]->(b:Application)
@@ -1378,88 +848,53 @@ RETURN [n IN nodes(path) | n.name] AS chain, length(path) AS depth
 ORDER BY depth DESC
 LIMIT 20;
 
-// Find circular dependencies
-MATCH path = (a:Application)-[:DEPENDS_ON*2..5]->(a)
-RETURN [n IN nodes(path) | n.name] AS cycle
-LIMIT 10;
-
-// --- Infrastructure Analysis ---
-
-// View infrastructure topology
-MATCH (n:Node)
-OPTIONAL MATCH (component)-[:RUNS_ON]->(n)
-WITH n, collect(component.name) AS hosted
-RETURN n.name AS node, size(hosted) AS component_count, hosted
-ORDER BY component_count DESC;
-
-// Cross-node data flow
-MATCH (n1:Node)<-[:RUNS_ON]-(a1:Application)-[:PUBLISHES_TO]->(t:Topic)
-      <-[:SUBSCRIBES_TO]-(a2:Application)-[:RUNS_ON]->(n2:Node)
-WHERE n1 <> n2
-RETURN n1.name AS source_node, n2.name AS target_node,
-       t.name AS topic, a1.name AS publisher, a2.name AS subscriber
-LIMIT 50;
-
-// --- Topic Analysis ---
-
-// Find "god topics" (high connectivity)
-MATCH (t:Topic)
-OPTIONAL MATCH (pub:Application)-[:PUBLISHES_TO]->(t)
-OPTIONAL MATCH (sub:Application)-[:SUBSCRIBES_TO]->(t)
-WITH t, count(DISTINCT pub) AS publishers, count(DISTINCT sub) AS subscribers
-WHERE publishers + subscribers > 5
-RETURN t.name AS topic, publishers, subscribers,
-       publishers + subscribers AS total_connections
-ORDER BY total_connections DESC;
-
-// Find orphan topics (no publishers)
-MATCH (t:Topic)
-WHERE NOT ()-[:PUBLISHES_TO]->(t)
-RETURN t.name AS orphan_topic;
-
-// --- Broker Analysis ---
-
-// Broker load analysis
-MATCH (b:Broker)-[:ROUTES]->(t:Topic)
-WITH b, collect(t.name) AS topics, count(t) AS topic_count
-RETURN b.name AS broker, topic_count, topics
-ORDER BY topic_count DESC;
-
 // --- Critical Components ---
 
-// Find Single Points of Failure candidates
-MATCH ()-[d:DEPENDS_ON]->(target)
-WITH target, count(*) AS dependent_count
-WHERE dependent_count >= 3
-RETURN target.name AS component, labels(target)[0] AS type, dependent_count
-ORDER BY dependent_count DESC;
-
-// Find applications most depended upon
-MATCH (a:Application)<-[d:DEPENDS_ON]-()
-WITH a, count(d) AS dependents
-RETURN a.name AS application, dependents
+// Most depended-upon applications
+MATCH ()-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(a:Application)
+WITH a, count(*) AS dependents, sum(d.weight) AS total_weight
+RETURN a.name AS application, dependents, round(total_weight, 2) AS weight
 ORDER BY dependents DESC
 LIMIT 10;
 
+// Single points of failure (only one broker routes critical topics)
+MATCH (t:Topic)
+WHERE t.qos_reliability = 'RELIABLE' OR t.qos_durability = 'PERSISTENT'
+WITH t
+MATCH (b:Broker)-[:ROUTES]->(t)
+WITH t, collect(b) AS brokers
+WHERE size(brokers) = 1
+RETURN t.name AS topic, brokers[0].name AS single_broker;
+
 // --- QoS Analysis ---
 
-// Topics by QoS requirements
+// Topics by QoS criticality
 MATCH (t:Topic)
-WHERE t.qos_reliability IS NOT NULL
-RETURN t.name AS topic, 
-       t.qos_reliability AS reliability,
-       t.qos_durability AS durability,
-       t.qos_deadline_ms AS deadline_ms
-ORDER BY t.qos_deadline_ms ASC;
+WITH t,
+     CASE t.qos_durability WHEN 'PERSISTENT' THEN 0.4 WHEN 'TRANSIENT' THEN 0.25 ELSE 0 END +
+     CASE t.qos_reliability WHEN 'RELIABLE' THEN 0.3 ELSE 0 END +
+     CASE t.qos_priority WHEN 'URGENT' THEN 0.3 WHEN 'HIGH' THEN 0.2 ELSE 0 END AS qos_score
+RETURN t.name AS topic, t.qos_durability AS durability,
+       t.qos_reliability AS reliability, t.qos_priority AS priority,
+       round(qos_score, 2) AS criticality_score
+ORDER BY qos_score DESC
+LIMIT 20;
 
-// Critical topics (reliable + strict deadline)
-MATCH (t:Topic)
-WHERE t.qos_reliability = 'reliable' AND t.qos_deadline_ms < 100
-RETURN t.name AS critical_topic, t.qos_deadline_ms AS deadline
-ORDER BY t.qos_deadline_ms;
+// --- Infrastructure Analysis ---
+
+// Node load (apps per node)
+MATCH (app:Application)-[:RUNS_ON]->(n:Node)
+WITH n, count(app) AS app_count, collect(app.name) AS apps
+RETURN n.name AS node, app_count, apps
+ORDER BY app_count DESC;
+
+// Cross-node dependencies
+MATCH (n1:Node)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2:Node)
+RETURN n1.name AS source_node, n2.name AS target_node,
+       d.via_apps AS dependent_apps, round(d.weight, 2) AS weight
+ORDER BY d.weight DESC;
 '''
-        
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.write(queries)
         
         self.logger.info(f"Cypher queries exported to {filepath}")

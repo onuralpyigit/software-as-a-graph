@@ -1,41 +1,40 @@
 #!/usr/bin/env python3
 """
-Neo4j Graph Importer CLI
+Neo4j Graph Importer CLI - Version 4.0
 
-Imports generated pub-sub system graphs into Neo4j database with:
-- Batch processing for large graphs
-- Progress reporting
-- Schema management
-- Unified DEPENDS_ON relationship derivation
-- Export capabilities
+Imports generated pub-sub system graphs into Neo4j with:
+- QoS-aware DEPENDS_ON relationship derivation
+- Multi-layer dependency analysis (app, node, broker)
+- Weight calculation based on topic QoS and size
+- Progress reporting and statistics
 
-Usage Examples:
+Usage:
     # Basic import
-    python import_graph.py --uri bolt://localhost:7687 \\
-        --user neo4j --password password --input system.json
+    python import_graph.py --input system.json
     
-    # Clear database and import data
-    python import_graph.py --uri bolt://localhost:7687 \\
-        --user neo4j --password password --input system.json \\
-        --clear
+    # With custom connection
+    python import_graph.py --input system.json \\
+        --uri bolt://localhost:7687 --password mypassword
     
-    # Import large graph with custom batch size
-    python import_graph.py --uri bolt://localhost:7687 \\
-        --user neo4j --password password --input large.json \\
-        --batch-size 500 --progress
+    # Clear and reimport
+    python import_graph.py --input system.json --clear
     
-    # Export Cypher queries for reference
-    python import_graph.py --uri bolt://localhost:7687 \\
-        --user neo4j --password password --input system.json \\
-        --export-queries queries.cypher
+    # Show analytics after import
+    python import_graph.py --input system.json --analytics
+    
+    # Export useful queries
+    python import_graph.py --input system.json --export-queries queries.cypher
 
 Docker Quick Start:
     docker run -d --name neo4j \\
         -p 7474:7474 -p 7687:7687 \\
         -e NEO4J_AUTH=neo4j/password \\
+        -e NEO4J_PLUGINS='["graph-data-science"]' \\
         neo4j:latest
     
     # Access Browser: http://localhost:7474
+
+Author: Software-as-a-Graph Research Project
 """
 
 import argparse
@@ -44,13 +43,12 @@ import sys
 import time
 import logging
 from pathlib import Path
-from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
 
-# Add project root to path
+# Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.core.graph_importer import GraphImporter
+from src.core import GraphImporter
 
 
 # =============================================================================
@@ -58,502 +56,403 @@ from src.core.graph_importer import GraphImporter
 # =============================================================================
 
 class Colors:
-    """ANSI color codes for terminal output"""
     HEADER = '\033[95m'
     BLUE = '\033[94m'
     CYAN = '\033[96m'
     GREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    END = '\033[0m'
     BOLD = '\033[1m'
     DIM = '\033[2m'
 
     @classmethod
     def disable(cls):
-        """Disable colors for non-TTY output"""
-        cls.HEADER = ''
-        cls.BLUE = ''
-        cls.CYAN = ''
-        cls.GREEN = ''
-        cls.WARNING = ''
-        cls.FAIL = ''
-        cls.ENDC = ''
-        cls.BOLD = ''
-        cls.DIM = ''
+        for attr in ['HEADER', 'BLUE', 'CYAN', 'GREEN', 'YELLOW', 'RED', 'END', 'BOLD', 'DIM']:
+            setattr(cls, attr, '')
 
 
-def print_header(text: str):
-    """Print formatted header"""
-    width = 70
-    print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*width}{Colors.ENDC}")
-    print(f"{Colors.HEADER}{Colors.BOLD}{text:^{width}}{Colors.ENDC}")
-    print(f"{Colors.HEADER}{Colors.BOLD}{'='*width}{Colors.ENDC}")
-
-
-def print_section(text: str):
-    """Print section header"""
-    print(f"\n{Colors.CYAN}{Colors.BOLD}{text}{Colors.ENDC}")
-    print(f"{Colors.DIM}{'-'*50}{Colors.ENDC}")
-
-
-def print_success(text: str):
-    """Print success message"""
-    print(f"{Colors.GREEN}✓{Colors.ENDC} {text}")
-
-
-def print_error(text: str):
-    """Print error message"""
-    print(f"{Colors.FAIL}✗{Colors.ENDC} {text}")
-
-
-def print_warning(text: str):
-    """Print warning message"""
-    print(f"{Colors.WARNING}⚠{Colors.ENDC} {text}")
-
-
-def print_info(text: str):
-    """Print info message"""
-    print(f"{Colors.CYAN}ℹ{Colors.ENDC} {text}")
-
-
-def print_kv(key: str, value: Any, indent: int = 2):
-    """Print key-value pair"""
-    spaces = ' ' * indent
-    print(f"{spaces}{Colors.DIM}{key}:{Colors.ENDC} {value}")
-
-def print_import_progress(phase: str, current: int, total: int, start_time: float):
-    """Print progress bar for import operations"""
-    if total == 0:
-        return
-    
-    percent = 100 * current / total
-    elapsed = time.time() - start_time
-    rate = current / elapsed if elapsed > 0 else 0
-    eta = (total - current) / rate if rate > 0 else 0
-    
-    bar_length = 40
-    filled = int(bar_length * current / total)
-    bar = '█' * filled + '░' * (bar_length - filled)
-    
-    print(f"\r  {phase}: |{bar}| {percent:5.1f}% ({current}/{total}) "
-          f"[{rate:.1f}/s, ETA: {eta:.0f}s]", end='', flush=True)
-    
-    if current == total:
-        print()
+def use_colors() -> bool:
+    import os
+    return hasattr(sys.stdout, 'isatty') and sys.stdout.isatty() and not os.getenv('NO_COLOR')
 
 
 # =============================================================================
-# Quick Start Help
+# Output Helpers
 # =============================================================================
 
-def print_quick_start():
-    """Print quick start guide"""
-    print_header("QUICK START GUIDE")
+def print_header(text: str) -> None:
+    print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*60}{Colors.END}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{text:^60}{Colors.END}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{'='*60}{Colors.END}")
+
+
+def print_section(title: str) -> None:
+    print(f"\n{Colors.CYAN}{Colors.BOLD}{title}{Colors.END}")
+    print(f"{Colors.DIM}{'-'*40}{Colors.END}")
+
+
+def print_kv(key: str, value, indent: int = 2) -> None:
+    print(f"{' '*indent}{Colors.BLUE}{key}:{Colors.END} {value}")
+
+
+def print_success(text: str) -> None:
+    print(f"{Colors.GREEN}✓{Colors.END} {text}")
+
+
+def print_error(text: str) -> None:
+    print(f"{Colors.RED}✗{Colors.END} {text}", file=sys.stderr)
+
+
+def print_warning(text: str) -> None:
+    print(f"{Colors.YELLOW}⚠{Colors.END} {text}")
+
+
+def print_info(text: str) -> None:
+    print(f"{Colors.BLUE}ℹ{Colors.END} {text}")
+
+
+# =============================================================================
+# Progress Callback
+# =============================================================================
+
+def make_progress_callback(quiet: bool):
+    """Create a progress callback function"""
+    if quiet:
+        return None
     
-    print(f"""
-{Colors.BOLD}1. Start Neo4j (using Docker):{Colors.ENDC}
-   docker run -d --name neo4j \\
-       -p 7474:7474 -p 7687:7687 \\
-       -e NEO4J_AUTH=neo4j/password \\
-       neo4j:latest
+    def callback(step: str, current: int, total: int):
+        print(f"  {Colors.DIM}→{Colors.END} {step}: {current}/{total}")
+    
+    return callback
 
-{Colors.BOLD}2. Generate a graph:{Colors.ENDC}
-   python generate_graph.py --scale medium --scenario iot --output system.json
 
-{Colors.BOLD}3. Import to Neo4j:{Colors.ENDC}
-   python import_graph.py --uri bolt://localhost:7687 \\
-       --user neo4j --password password \\
-       --input system.json
-
-{Colors.BOLD}4. Access Neo4j Browser:{Colors.ENDC}
-   Open http://localhost:7474 in your browser
-   Username: neo4j
-   Password: password
-
-{Colors.BOLD}5. Try these Cypher queries:{Colors.ENDC}
-   // View all applications
-   MATCH (a:Application) RETURN a LIMIT 25
-   
-   // View pub-sub network
-   MATCH (a:Application)-[r]->(t:Topic)
-   RETURN a, r, t LIMIT 100
-   
-   // Find dependencies
-   MATCH (a:Application)-[:DEPENDS_ON]->(b:Application)
-   RETURN a.name, b.name LIMIT 50
-""")
-
+# =============================================================================
+# Connection Help
+# =============================================================================
 
 def print_connection_help():
-    """Print connection troubleshooting help"""
     print(f"""
-{Colors.WARNING}Connection Troubleshooting:{Colors.ENDC}
+{Colors.YELLOW}Connection Troubleshooting:{Colors.END}
 
-1. {Colors.BOLD}Check Neo4j is running:{Colors.ENDC}
+1. Ensure Neo4j is running:
    docker ps | grep neo4j
-   # Or check: http://localhost:7474
 
-2. {Colors.BOLD}Verify connection parameters:{Colors.ENDC}
-   URI should be: bolt://localhost:7687 (not http)
-   Default user: neo4j
-   
-3. {Colors.BOLD}Docker Quick Start:{Colors.ENDC}
+2. Start Neo4j if needed:
    docker run -d --name neo4j \\
        -p 7474:7474 -p 7687:7687 \\
        -e NEO4J_AUTH=neo4j/password \\
+       -e NEO4J_PLUGINS='["graph-data-science"]' \\
        neo4j:latest
 
-4. {Colors.BOLD}Check logs:{Colors.ENDC}
-   docker logs neo4j
+3. Wait for startup (check logs):
+   docker logs -f neo4j
 
-5. {Colors.BOLD}Reset password (if needed):{Colors.ENDC}
-   docker exec neo4j neo4j-admin set-initial-password newpassword
+4. Access browser:
+   http://localhost:7474
+
+5. Default credentials:
+   Username: neo4j
+   Password: password (or as configured)
 """)
 
 
 # =============================================================================
-# Main CLI
+# Statistics Display
 # =============================================================================
 
-def create_parser() -> argparse.ArgumentParser:
-    """Create argument parser"""
+def print_statistics(stats: dict) -> None:
+    """Print import statistics"""
+    print_section("Import Statistics")
+    
+    nodes = stats.get("nodes", {})
+    if nodes:
+        print(f"  {Colors.BOLD}Nodes:{Colors.END}")
+        for label, count in sorted(nodes.items()):
+            print_kv(label, count, indent=4)
+    
+    rels = stats.get("relationships", {})
+    if rels:
+        print(f"  {Colors.BOLD}Relationships:{Colors.END}")
+        for rel_type, count in sorted(rels.items()):
+            print_kv(rel_type, count, indent=4)
+    
+    depends_on = stats.get("depends_on_by_type", {})
+    if depends_on:
+        print(f"  {Colors.BOLD}DEPENDS_ON by Type:{Colors.END}")
+        for dep_type, count in sorted(depends_on.items()):
+            print_kv(dep_type, count, indent=4)
+    
+    weight_stats = stats.get("weight_statistics", {})
+    if weight_stats.get("average"):
+        print(f"  {Colors.BOLD}Weight Statistics:{Colors.END}")
+        print_kv("Average", f"{weight_stats.get('average', 0):.2f}", indent=4)
+        print_kv("Min", f"{weight_stats.get('minimum', 0):.2f}", indent=4)
+        print_kv("Max", f"{weight_stats.get('maximum', 0):.2f}", indent=4)
+
+
+# =============================================================================
+# Main
+# =============================================================================
+
+def parse_args():
     parser = argparse.ArgumentParser(
-        description='Import pub-sub system graphs into Neo4j database',
+        description="Import pub-sub graphs into Neo4j with DEPENDS_ON derivation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s --uri bolt://localhost:7687 --user neo4j --password pass --input system.json
-  %(prog)s --uri bolt://localhost:7687 --user neo4j --password pass --input system.json --clear
-  %(prog)s --quick-start
-        """
+    python import_graph.py --input system.json
+    python import_graph.py --input system.json --uri bolt://localhost:7687 --password secret
+    python import_graph.py --input system.json --clear --analytics
+    python import_graph.py --input system.json --export-queries queries.cypher
+        """,
     )
     
-    # Connection parameters
-    conn_group = parser.add_argument_group('Connection')
-    conn_group.add_argument(
-        '--uri', '-U',
-        default='bolt://localhost:7687',
-        help='Neo4j connection URI (default: bolt://localhost:7687)'
-    )
-    conn_group.add_argument(
-        '--user', '-u',
-        default='neo4j',
-        help='Neo4j username (default: neo4j)'
-    )
-    conn_group.add_argument(
-        '--password', '-p',
-        default='password',
-        help='Neo4j password (default: password)'
-    )
-    conn_group.add_argument(
-        '--database', '-d',
-        default='neo4j',
-        help='Database name (default: neo4j)'
+    # Input
+    parser.add_argument(
+        "--input", "-i",
+        type=Path,
+        required=True,
+        help="Input JSON file with graph data",
     )
     
-    # Input options
-    input_group = parser.add_argument_group('Input')
-    input_group.add_argument(
-        '--input', '-i',
-        help='Input JSON file containing graph data'
+    # Neo4j connection
+    parser.add_argument(
+        "--uri",
+        default="bolt://localhost:7687",
+        help="Neo4j bolt URI (default: bolt://localhost:7687)",
+    )
+    parser.add_argument(
+        "--user",
+        default="neo4j",
+        help="Neo4j username (default: neo4j)",
+    )
+    parser.add_argument(
+        "--password",
+        default="password",
+        help="Neo4j password (default: password)",
+    )
+    parser.add_argument(
+        "--database",
+        default="neo4j",
+        help="Neo4j database name (default: neo4j)",
     )
     
     # Import options
-    import_group = parser.add_argument_group('Import Options')
-    import_group.add_argument(
-        '--clear',
-        action='store_true',
-        help='Clear database before import (WARNING: deletes all data)'
+    parser.add_argument(
+        "--clear",
+        action="store_true",
+        help="Clear database before import",
     )
-    import_group.add_argument(
-        '--batch-size',
-        type=int, default=100,
-        help='Batch size for bulk imports (default: 100)'
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=100,
+        help="Batch size for imports (default: 100)",
     )
-    import_group.add_argument(
-        '--progress',
-        action='store_true',
-        help='Show detailed progress during import'
-    )
-    import_group.add_argument(
-        '--skip-dependencies',
-        action='store_true',
-        help='Skip DEPENDS_ON derivation'
+    parser.add_argument(
+        "--no-depends-on",
+        action="store_true",
+        help="Skip DEPENDS_ON relationship derivation",
     )
     
-    # Analysis options
-    analysis_group = parser.add_argument_group('Analytics')
-    analysis_group.add_argument(
-        '--analytics', '-a',
-        action='store_true',
-        help='Run sample queries after import'
+    # Output options
+    parser.add_argument(
+        "--analytics",
+        action="store_true",
+        help="Show sample analytics after import",
+    )
+    parser.add_argument(
+        "--export-queries",
+        type=Path,
+        help="Export useful Cypher queries to file",
+    )
+    parser.add_argument(
+        "--export-stats",
+        type=Path,
+        help="Export import statistics to JSON file",
+    )
+    parser.add_argument(
+        "--export-graph",
+        type=Path,
+        help="Export graph from Neo4j to JSON file",
     )
     
-    # Export options
-    export_group = parser.add_argument_group('Export')
-    export_group.add_argument(
-        '--export-stats',
-        metavar='FILE',
-        help='Export import statistics to JSON file'
+    # General options
+    parser.add_argument(
+        "--quiet", "-q",
+        action="store_true",
+        help="Minimal output",
     )
-    export_group.add_argument(
-        '--export-queries',
-        metavar='FILE',
-        help='Export useful Cypher queries to file'
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Verbose logging",
     )
-    export_group.add_argument(
-        '--export-graph',
-        metavar='FILE',
-        help='Export graph from Neo4j to JSON file'
-    )
-    
-    # Help options
-    help_group = parser.add_argument_group('Help')
-    help_group.add_argument(
-        '--quick-start',
-        action='store_true',
-        help='Show quick start guide'
-    )
-    help_group.add_argument(
-        '--connection-help',
-        action='store_true',
-        help='Show connection troubleshooting help'
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output",
     )
     
-    # Verbosity
-    verbosity_group = parser.add_argument_group('Verbosity')
-    verbosity_group.add_argument(
-        '--verbose', '-v',
-        action='store_true',
-        help='Verbose output'
-    )
-    verbosity_group.add_argument(
-        '--quiet',
-        action='store_true',
-        help='Minimal output (errors only)'
-    )
-    verbosity_group.add_argument(
-        '--no-color',
-        action='store_true',
-        help='Disable colored output'
-    )
-    
-    return parser
+    return parser.parse_args()
 
 
 def main() -> int:
-    """Main entry point"""
-    parser = create_parser()
-    args = parser.parse_args()
+    args = parse_args()
     
-    # Setup colors
-    if args.no_color or not sys.stdout.isatty():
+    # Handle colors
+    if args.no_color or not use_colors():
         Colors.disable()
     
     # Setup logging
-    if args.quiet:
-        log_level = logging.ERROR
-    elif args.verbose:
-        log_level = logging.DEBUG
-    else:
-        log_level = logging.INFO
-    
+    log_level = logging.DEBUG if args.verbose else logging.WARNING
     logging.basicConfig(
         level=log_level,
-        format='%(levelname)s: %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    logger = logging.getLogger(__name__)
     
-    # Help modes
-    if args.quick_start:
-        print_quick_start()
-        return 0
-    
-    if args.connection_help:
-        print_connection_help()
-        return 0
-    
-    # Require input file for most operations
-    if not args.input and not args.export_graph:
-        print_error("Input file required. Use --input to specify graph JSON file.")
-        print_info("Use --quick-start for getting started guide")
+    # Validate input
+    if not args.input.exists():
+        print_error(f"Input file not found: {args.input}")
         return 1
     
-    # Print header
-    if not args.quiet:
-        print_header("NEO4J GRAPH IMPORTER")
-        print(f"  Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"  Neo4j URI: {args.uri}")
-        print(f"  Database:  {args.database}")
-    
-    # Load graph data
-    graph_data = None
-    if args.input:
-        if not args.quiet:
-            print_info(f"Loading graph from: {args.input}")
-        
-        try:
-            input_path = Path(args.input)
-            if not input_path.exists():
-                print_error(f"Input file not found: {args.input}")
-                return 1
-            
-            with open(input_path) as f:
-                graph_data = json.load(f)
-        except json.JSONDecodeError as e:
-            print_error(f"Invalid JSON: {e}")
-            return 1
-        except Exception as e:
-            print_error(f"Failed to load graph: {e}")
-            return 1
-        
-    # Connect to Neo4j
-    if not args.quiet:
-        print_info(f"Connecting to Neo4j at {args.uri}...")
-
     try:
-        # Use context manager for reliable connection cleanup
+        # Load graph data
+        if not args.quiet:
+            print_header("Neo4j Graph Import")
+            print_section("Loading Graph")
+        
+        with open(args.input) as f:
+            graph_data = json.load(f)
+        
+        if not args.quiet:
+            metadata = graph_data.get("metadata", {})
+            print_kv("File", args.input.name)
+            print_kv("Scale", metadata.get("scale", "N/A"))
+            print_kv("Scenario", metadata.get("scenario", "N/A"))
+            
+            metrics = graph_data.get("metrics", {}).get("vertex_counts", {})
+            print_kv("Vertices", metrics.get("total", "N/A"))
+        
+        # Connect and import
+        if not args.quiet:
+            print_section("Connecting to Neo4j")
+            print_kv("URI", args.uri)
+            print_kv("Database", args.database)
+        
+        start_time = time.time()
+        
         with GraphImporter(
             uri=args.uri,
             user=args.user,
             password=args.password,
-            database=args.database
+            database=args.database,
         ) as importer:
-            print_success("Connected to Neo4j")
-
-            # Clear database if requested
-            if args.clear:
-                importer.clear_database()
-
-            # Import graph data
-            if graph_data:
-                # Import graph (includes schema creation)
-                if not args.quiet:
-                    print_info("Importing graph...")
-
-                import_start = time.time()
-
-                # Define progress callback for CLI
-                def cli_progress(phase: str, current: int, total: int):
-                    if args.progress and total > 0:
-                        print_import_progress(phase, current, total, import_start)
-
-                stats = importer.import_graph(
-                    graph_data,
-                    batch_size=args.batch_size,
-                    show_progress=args.progress,
-                    clear_first=False,  # Already handled above
-                    derive_dependencies=not args.skip_dependencies,
-                    progress_callback=cli_progress if args.progress else None
-                )
-                import_duration = time.time() - import_start
-
-                print_success(f"Graph imported in {import_duration:.2f}s")
-
-                # Get and display statistics
-                if not args.quiet:
-                    print_section("Import Statistics")
-                    print(f"  {Colors.BOLD}Nodes:{Colors.ENDC}")
-                    node_total = 0
-                    for node_type, count in stats.get('nodes', {}).items():
-                        print_kv(node_type, count, indent=4)
-                        node_total += count
-                    print_kv("Total", node_total, indent=4)
-
-                    print(f"\n  {Colors.BOLD}Relationships:{Colors.ENDC}")
-                    rel_total = 0
-                    for rel_type, count in stats.get('relationships', {}).items():
-                        print_kv(rel_type, count, indent=4)
-                        rel_total += count
-                    print_kv("Total", rel_total, indent=4)
-
-                    # Show DEPENDS_ON breakdown if available
-                    depends_on_stats = stats.get('depends_on_by_type', {})
-                    if depends_on_stats:
-                        print(f"\n  {Colors.BOLD}DEPENDS_ON by Type:{Colors.ENDC}")
-                        for dep_type, count in depends_on_stats.items():
-                            print_kv(dep_type, count, indent=4)
-
-                    print(f"\n  {Colors.BOLD}Performance:{Colors.ENDC}")
-                    total_items = node_total + rel_total
-                    rate = total_items / import_duration if import_duration > 0 else 0
-                    print_kv("Duration", f"{import_duration:.2f}s", indent=4)
-                    print_kv("Items/sec", f"{rate:.1f}", indent=4)
-
-                    # Export stats if requested
-                    if args.export_stats:
-                        export_stats = {
-                            'import_duration': import_duration,
-                            'timestamp': datetime.now().isoformat(),
-                            'source_file': str(args.input),
-                            'nodes': stats.get('nodes', {}),
-                            'relationships': stats.get('relationships', {}),
-                            'depends_on_by_type': stats.get('depends_on_by_type', {}),
-                            'items_per_second': rate
-                        }
-                        with open(args.export_stats, 'w') as f:
-                            json.dump(export_stats, f, indent=2)
-                        print_success(f"Statistics exported to {args.export_stats}")
-
-            # Run sample queries
+            
+            # Import
+            if not args.quiet:
+                print_section("Importing Graph")
+            
+            counts = importer.import_graph(
+                graph_data,
+                batch_size=args.batch_size,
+                clear_first=args.clear,
+                derive_dependencies=not args.no_depends_on,
+                progress_callback=make_progress_callback(args.quiet),
+            )
+            
+            import_duration = time.time() - start_time
+            
+            # Get and display statistics
+            stats = importer.get_statistics()
+            
+            if not args.quiet:
+                print_statistics(stats)
+                
+                print_section("Performance")
+                total_items = sum(stats.get("nodes", {}).values()) + sum(stats.get("relationships", {}).values())
+                rate = total_items / import_duration if import_duration > 0 else 0
+                print_kv("Duration", f"{import_duration:.2f}s")
+                print_kv("Items/sec", f"{rate:.1f}")
+            
+            # Show analytics
             if args.analytics:
-                print_section("Sample Queries")
+                print_section("Sample Analytics")
                 importer.run_sample_queries()
-
-            # Export Cypher queries
+            
+            # Export queries
             if args.export_queries:
-                importer.export_cypher_queries(args.export_queries)
-                print_success(f"Cypher queries exported to {args.export_queries}")
-
-            # Export graph from Neo4j
+                importer.export_cypher_queries(str(args.export_queries))
+                if not args.quiet:
+                    print_success(f"Queries exported to {args.export_queries}")
+            
+            # Export stats
+            if args.export_stats:
+                export_data = {
+                    "timestamp": datetime.now().isoformat(),
+                    "source_file": str(args.input),
+                    "import_duration": import_duration,
+                    **stats,
+                }
+                with open(args.export_stats, "w") as f:
+                    json.dump(export_data, f, indent=2)
+                if not args.quiet:
+                    print_success(f"Statistics exported to {args.export_stats}")
+            
+            # Export graph
             if args.export_graph:
-                importer.export_to_json(args.export_graph)
-                print_success(f"Graph exported to {args.export_graph}")
+                importer.export_to_json(str(args.export_graph))
+                if not args.quiet:
+                    print_success(f"Graph exported to {args.export_graph}")
+        
+        # Success message
+        if not args.quiet:
+            print_section("Success!")
+            print(f"""
+{Colors.GREEN}✓{Colors.END} Graph imported to Neo4j database '{args.database}'
 
-            # Print success message
-            if not args.quiet and graph_data:
-                print_section("Success!")
-                print(f"""
-{Colors.GREEN}{Colors.ENDC} Graph successfully imported to Neo4j database '{args.database}'
-
-{Colors.BOLD}Access Neo4j Browser:{Colors.ENDC}
+{Colors.BOLD}Access Neo4j Browser:{Colors.END}
   URL:      http://localhost:7474
   Username: {args.user}
-  Password: {'*' * len(args.password)}
 
-{Colors.BOLD}Quick Cypher Queries:{Colors.ENDC}
-  // View all applications
-  MATCH (a:Application) RETURN a LIMIT 25
+{Colors.BOLD}Quick Cypher Queries:{Colors.END}
+  // View all DEPENDS_ON relationships
+  MATCH (a)-[d:DEPENDS_ON]->(b)
+  RETURN a.name, d.dependency_type, d.weight, b.name
+  ORDER BY d.weight DESC LIMIT 20
 
-  // View pub-sub network
-  MATCH (a:Application)-[r]->(t:Topic) RETURN a, r, t LIMIT 100
+  // Find critical dependencies (high weight)
+  MATCH (a)-[d:DEPENDS_ON]->(b)
+  WHERE d.weight > 5
+  RETURN a.name, b.name, d.weight
+  ORDER BY d.weight DESC
 
-  // Find dependencies
-  MATCH (a)-[:DEPENDS_ON]->(b) RETURN a.name, b.name LIMIT 50
-
-  // Find critical components
-  MATCH ()-[d:DEPENDS_ON]->(target)
-  WITH target, count(*) AS dependents
-  WHERE dependents >= 3
-  RETURN target.name, dependents ORDER BY dependents DESC
+  // Dependency chain analysis
+  MATCH path = (a:Application)-[:DEPENDS_ON*1..3]->(b)
+  RETURN [n IN nodes(path) | n.name] AS chain
+  LIMIT 20
 """)
-
-    except KeyboardInterrupt:
-        print(f"\n{Colors.WARNING}Import interrupted by user{Colors.ENDC}")
-        return 130
+        
+        return 0
+        
     except ImportError as e:
         print_error(f"Missing dependency: {e}")
         print_info("Install neo4j driver: pip install neo4j")
         return 1
+    
+    except KeyboardInterrupt:
+        print_warning("\nImport interrupted by user")
+        return 130
+    
     except Exception as e:
-        logger.exception("Import failed")
         print_error(f"Import failed: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
         print_connection_help()
         return 1
 
-    return 0
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -1,67 +1,95 @@
 """
-Software-as-a-Graph Core Module - Simplified Version 3.0
+Software-as-a-Graph Core Module - Version 4.0
+
+A simplified, refactored core module for pub-sub system graph modeling,
+generation, and Neo4j import with QoS-aware dependency analysis.
 
 Graph Model:
-- Vertices: Application, Broker, Topic, Node
-- Edges: PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO
+    Vertices: Application, Broker, Topic, Node
+    Edges: PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO
+    Derived: DEPENDS_ON (app_to_app, node_to_node, app_to_broker, node_to_broker)
 
-Exports:
-    - GraphGenerator, GraphConfig: Generate graphs
-    - GraphModel: Container for graph data
-    - GraphBuilder: Build GraphModel from sources
-    - GraphExporter: Export GraphModel to formats
-    - Vertex types: Application, Broker, Topic, Node
-    - Edge type: Edge
-    - QoSPolicy: QoS configuration
+Usage:
+    # Generate a graph
+    from src.core import generate_graph
+    graph = generate_graph(scale="medium", scenario="iot")
+    
+    # Import into Neo4j
+    from src.core import GraphImporter
+    with GraphImporter(uri="bolt://localhost:7687", password="secret") as importer:
+        importer.import_graph(graph)
+        stats = importer.get_statistics()
+
+    # Work with graph model
+    from src.core import GraphModel
+    model = GraphModel.from_dict(graph)
+    print(model.summary())
+
+Author: Software-as-a-Graph Research Project
+Version: 4.0
 """
 
-from .graph_generator import GraphGenerator, GraphConfig, create_graph
+# Graph Model - Data structures
 from .graph_model import (
-    GraphModel,
+    # Enums
+    VertexType,
+    EdgeType,
+    DependencyType,
+    Durability,
+    Reliability,
+    Priority,
+    # QoS
+    QoSPolicy,
+    # Vertices
     Application,
     Broker,
     Topic,
     Node,
+    # Edges
     Edge,
-    QoSPolicy,
-    ApplicationRole,
-    DurabilityPolicy,
-    ReliabilityPolicy,
-    TransportPriority,
-    EdgeType,
-    VertexType
+    DependsOnEdge,
+    # Model
+    GraphModel,
 )
-from .graph_builder import GraphBuilder, ValidationResult, GraphDiffResult
-from .graph_exporter import GraphExporter
+
+# Graph Generator - Create test graphs
+from .graph_generator import (
+    GraphConfig,
+    GraphGenerator,
+    generate_graph,
+)
+
+# Graph Importer - Neo4j integration
+from .graph_importer import (
+    GraphImporter,
+)
 
 __all__ = [
-    # Generator
-    'GraphGenerator',
-    'GraphConfig',
-    'create_graph',
-    
-    # Model
-    'GraphModel',
-    'Application',
-    'Broker',
-    'Topic',
-    'Node',
-    'Edge',
-    'QoSPolicy',
-    
     # Enums
-    'ApplicationRole',
-    'DurabilityPolicy',
-    'ReliabilityPolicy',
-    'TransportPriority',
-    'EdgeType',
-    'VertexType',
-    
-    # Builder & Validation
-    'GraphBuilder',
-    'ValidationResult',
-    'GraphDiffResult',
-    
-    # Exporter
-    'GraphExporter'
+    "VertexType",
+    "EdgeType",
+    "DependencyType",
+    "Durability",
+    "Reliability",
+    "Priority",
+    # QoS
+    "QoSPolicy",
+    # Vertices
+    "Application",
+    "Broker",
+    "Topic",
+    "Node",
+    # Edges
+    "Edge",
+    "DependsOnEdge",
+    # Model
+    "GraphModel",
+    # Generator
+    "GraphConfig",
+    "GraphGenerator",
+    "generate_graph",
+    # Importer
+    "GraphImporter",
 ]
+
+__version__ = "4.0.0"
