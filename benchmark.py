@@ -50,7 +50,7 @@ from src.analysis import BoxPlotClassifier
 # Configuration
 # =============================================================================
 
-SCALES = ["tiny", "small", "medium", "large", "xlarge"]
+SCALES = ["small", "medium", "large"]
 SCENARIOS = ["iot", "financial", "healthcare", "autonomous_vehicle", "smart_city"]
 METHODS = ["composite", "betweenness", "degree", "pagerank", "message_path"]
 
