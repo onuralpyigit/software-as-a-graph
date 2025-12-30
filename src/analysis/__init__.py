@@ -37,7 +37,7 @@ Version: 4.0
 """
 
 # GDS Client
-from .gds_client import (
+from .graph_algorithms import (
     GDSClient,
     CentralityResult,
     CommunityResult,
@@ -88,7 +88,7 @@ from .antipatterns import (
 )
 
 __all__ = [
-    # GDS Client
+    # Graph Algorithms
     "GDSClient",
     "CentralityResult",
     "CommunityResult",
