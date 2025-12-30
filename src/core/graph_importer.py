@@ -450,7 +450,7 @@ class GraphImporter:
         - HIGH priority: +0.20
         - MEDIUM priority: +0.10
         
-        Size factor: min(size / 10000, 0.5) per topic
+        Size factor: min(size / 10000, 1.0) per topic
         """
         with self.driver.session(database=self.database) as session:
             result = session.run("""
@@ -490,7 +490,7 @@ class GraphImporter:
                 WITH sub, pub,
                      collect(DISTINCT t.id) AS topics,
                      sum(qos_score) AS total_qos,
-                     sum(CASE WHEN size_factor > 0.5 THEN 0.5 ELSE size_factor END) AS total_size
+                     sum(CASE WHEN size_factor > 1.0 THEN 1.0 ELSE size_factor END) AS total_size
                 
                 // Calculate final weight: topic_count + qos_scores + size_factors
                 WITH sub, pub, topics,
@@ -547,7 +547,7 @@ class GraphImporter:
                 WITH app, broker,
                      collect(DISTINCT t.id) AS topics,
                      sum(qos_score) AS total_qos,
-                     sum(CASE WHEN size_factor > 0.5 THEN 0.5 ELSE size_factor END) AS total_size
+                     sum(CASE WHEN size_factor > 1.0 THEN 1.0 ELSE size_factor END) AS total_size
                 
                 WITH app, broker, topics,
                      size(topics) + total_qos + total_size AS weight
