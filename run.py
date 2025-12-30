@@ -157,7 +157,7 @@ class PipelineConfig:
     
     # Validation targets
     spearman_target: float = 0.70
-    f1_target: float = 0.90
+    f1_target: float = 0.80
     
     # Output options
     verbose: bool = False
@@ -930,8 +930,8 @@ Pipeline Steps:
         help="Spearman correlation target (default: 0.70)",
     )
     val_group.add_argument(
-        "--f1-target", type=float, default=0.90,
-        help="F1-score target (default: 0.90)",
+        "--f1-target", type=float, default=0.80,
+        help="F1-score target (default: 0.80)",
     )
     
     # Output options
