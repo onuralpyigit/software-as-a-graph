@@ -54,6 +54,9 @@ from src.analysis import (
     CriticalityLevel,
     Severity,
     QualityAttribute,
+    # GDS Quality Assessment
+    GDSQualityAssessor,
+    GDSQualityResult,
 )
 
 
@@ -298,6 +301,97 @@ def print_antipattern_result(result, verbose: bool = False) -> None:
             print(f"    → {rec}")
 
 
+def print_quality_result(result: GDSQualityResult, verbose: bool = False) -> None:
+    """Print quality assessment result"""
+    summary = result.summary
+    
+    # Health score
+    health = summary.get("health_score", 0)
+    if health >= 0.8:
+        health_color = Colors.GREEN
+        health_status = "HEALTHY"
+    elif health >= 0.6:
+        health_color = Colors.YELLOW
+        health_status = "MODERATE"
+    else:
+        health_color = Colors.RED
+        health_status = "AT RISK"
+    
+    print(f"\n  {Colors.BOLD}System Health: {health_color}{health:.0%} ({health_status}){Colors.END}")
+    
+    # Average scores
+    avg_scores = summary.get("average_scores", {})
+    print(f"\n  Quality Criticality Scores (Lower = Less Critical = Better):")
+    for attr in ["reliability", "maintainability", "availability", "composite"]:
+        score = avg_scores.get(attr, 0)
+        if score < 0.3:
+            color = Colors.GREEN
+        elif score < 0.5:
+            color = Colors.YELLOW
+        else:
+            color = Colors.RED
+        print(f"    {attr.capitalize():20} {color}{score:.4f}{Colors.END}")
+    
+    # Analyzer scores (if available)
+    analyzer_scores = summary.get("analyzer_scores", {})
+    if analyzer_scores:
+        print(f"\n  Analyzer Scores (Higher = Better):")
+        for attr, score in analyzer_scores.items():
+            color = score_color(score)
+            print(f"    {attr.capitalize():20} {color}{score:.1f}/100{Colors.END}")
+    
+    # Criticality level distribution
+    levels = summary.get("levels", {})
+    if levels.get("overall"):
+        print(f"\n  Criticality Distribution:")
+        for level, count in sorted(levels["overall"].items(), key=lambda x: -x[1]):
+            color = level_color(level)
+            print(f"    {color}{level.upper():10}{Colors.END} {count}")
+    
+    # Findings summary
+    total_findings = summary.get("total_findings", 0)
+    if total_findings > 0:
+        print(f"\n  Findings: {total_findings} total")
+        by_severity = summary.get("findings_by_severity", {})
+        if by_severity:
+            parts = []
+            for sev in ["critical", "high", "medium", "low"]:
+                if by_severity.get(sev, 0) > 0:
+                    color = severity_color(sev)
+                    parts.append(f"{color}{sev}: {by_severity[sev]}{Colors.END}")
+            if parts:
+                print(f"    By severity: {', '.join(parts)}")
+    
+    # Top critical components
+    top_critical = summary.get("top_critical_components", [])
+    if top_critical:
+        print(f"\n  Top Critical Components:")
+        for i, comp in enumerate(top_critical, 1):
+            print(f"    {i}. {comp['id']}: {comp['score']:.4f}")
+    
+    # Verbose: show detailed findings
+    if verbose:
+        critical_findings = [f for f in result.findings if f.severity == Severity.CRITICAL]
+        high_findings = [f for f in result.findings if f.severity == Severity.HIGH]
+        
+        if critical_findings:
+            print(f"\n  {Colors.RED}Critical Issues:{Colors.END}")
+            for f in critical_findings[:5]:
+                print(f"    • [{f.category}] {f.component_id}: {f.description}")
+        
+        if high_findings:
+            print(f"\n  {Colors.YELLOW}High Issues:{Colors.END}")
+            for f in high_findings[:5]:
+                print(f"    • [{f.category}] {f.component_id}: {f.description}")
+        
+        # Edge criticality
+        if result.edge_criticality:
+            print(f"\n  Top Critical Edges:")
+            for edge in result.edge_criticality[:5]:
+                bridge_marker = " [BRIDGE]" if edge.is_bridge else ""
+                print(f"    {edge.source_id} → {edge.target_id}: {edge.composite_score:.4f}{bridge_marker}")
+
+
 def print_overall_summary(results: Dict) -> None:
     """Print overall analysis summary"""
     print_section("Overall Summary")
@@ -319,6 +413,21 @@ def print_overall_summary(results: Dict) -> None:
             color = score_color(score)
             print(f"    {name:20} {color}{score:5.1f}{Colors.END}")
     
+    # Quality assessment summary
+    if "quality" in results and results["quality"]:
+        quality = results["quality"]
+        summary = quality.summary
+        health = summary.get("health_score", 0)
+        if health >= 0.8:
+            health_color = Colors.GREEN
+        elif health >= 0.6:
+            health_color = Colors.YELLOW
+        else:
+            health_color = Colors.RED
+        print(f"\n  {Colors.BOLD}Quality Health: {health_color}{health:.0%}{Colors.END}")
+        print(f"    Components: {summary.get('total_components', 0)}")
+        print(f"    Findings: {summary.get('total_findings', 0)}")
+    
     # Count critical issues
     total_critical = 0
     total_high = 0
@@ -326,6 +435,12 @@ def print_overall_summary(results: Dict) -> None:
         if key in results and results[key]:
             total_critical += len([f for f in results[key].findings if f.severity == Severity.CRITICAL])
             total_high += len([f for f in results[key].findings if f.severity == Severity.HIGH])
+    
+    # Add quality findings
+    if "quality" in results and results["quality"]:
+        q_findings = results["quality"].summary.get("findings_by_severity", {})
+        total_critical += q_findings.get("critical", 0)
+        total_high += q_findings.get("high", 0)
     
     if total_critical > 0 or total_high > 0:
         print(f"\n  {Colors.RED}⚠ Action Required:{Colors.END}")
@@ -365,6 +480,10 @@ def export_results(results: Dict, output_dir: Path, formats: List[str]) -> None:
     if "antipatterns" in results and results["antipatterns"]:
         export_data["antipatterns"] = results["antipatterns"].to_dict()
     
+    # Add quality assessment
+    if "quality" in results and results["quality"]:
+        export_data["quality"] = results["quality"].to_dict()
+    
     if "json" in formats:
         json_file = output_dir / f"analysis_{timestamp}.json"
         with open(json_file, "w") as f:
@@ -387,9 +506,247 @@ def export_results(results: Dict, output_dir: Path, formats: List[str]) -> None:
             
             if "antipatterns" in results and results["antipatterns"]:
                 ap = results["antipatterns"]
-                f.write(f"Anti-patterns: {ap.summary['total']}\n")
+                f.write(f"Anti-patterns: {ap.summary['total']}\n\n")
+            
+            # Quality assessment summary
+            if "quality" in results and results["quality"]:
+                q = results["quality"]
+                summary = q.summary
+                f.write(f"Quality Assessment\n")
+                f.write(f"{'-'*30}\n")
+                f.write(f"Health Score: {summary.get('health_score', 0):.0%}\n")
+                f.write(f"Components: {summary.get('total_components', 0)}\n")
+                f.write(f"Findings: {summary.get('total_findings', 0)}\n\n")
+                
+                avg = summary.get('average_scores', {})
+                f.write(f"Average Criticality Scores:\n")
+                f.write(f"  Reliability:     {avg.get('reliability', 0):.4f}\n")
+                f.write(f"  Maintainability: {avg.get('maintainability', 0):.4f}\n")
+                f.write(f"  Availability:    {avg.get('availability', 0):.4f}\n")
+                f.write(f"  Composite:       {avg.get('composite', 0):.4f}\n")
         
         print_success(f"Summary exported: {summary_file}")
+    
+    # Generate quality dashboard HTML
+    if "quality" in results and results["quality"]:
+        try:
+            from src.quality import QualityDashboardGenerator
+            
+            # Convert GDS result to format expected by dashboard
+            dashboard = QualityDashboardGenerator()
+            
+            # Create a compatible result object for the dashboard
+            # The GDS result has similar structure so we can adapt it
+            html_file = output_dir / f"quality_dashboard_{timestamp}.html"
+            
+            # Generate custom HTML for GDS results
+            html = _generate_gds_quality_dashboard(results["quality"])
+            html_file.write_text(html)
+            print_success(f"Quality dashboard: {html_file}")
+        except Exception as e:
+            print_warning(f"Could not generate dashboard: {e}")
+
+
+def _generate_gds_quality_dashboard(result: GDSQualityResult) -> str:
+    """Generate HTML dashboard for GDS quality result."""
+    summary = result.summary
+    avg_scores = summary.get("average_scores", {})
+    
+    # Component rows
+    component_rows = ""
+    for s in result.component_scores[:30]:
+        component_rows += f"""
+        <tr>
+            <td><strong>{s.component_id}</strong></td>
+            <td>{s.component_type}</td>
+            <td>{s.reliability_score:.4f}</td>
+            <td>{s.maintainability_score:.4f}</td>
+            <td>{s.availability_score:.4f}</td>
+            <td><strong>{s.composite_score:.4f}</strong></td>
+            <td><span class="badge {s.overall_level.value}">{s.overall_level.value}</span></td>
+            <td>{len(s.findings)}</td>
+        </tr>
+        """
+    
+    # Findings rows
+    findings_rows = ""
+    for f in result.findings[:20]:
+        findings_rows += f"""
+        <tr>
+            <td><span class="badge {f.severity.value}">{f.severity.value}</span></td>
+            <td>{f.component_id}</td>
+            <td>{f.category}</td>
+            <td>{f.description}</td>
+        </tr>
+        """
+    
+    # Edge rows
+    edge_rows = ""
+    for e in result.edge_criticality[:20]:
+        bridge_marker = "🌉" if e.is_bridge else ""
+        edge_rows += f"""
+        <tr>
+            <td>{e.source_id}</td>
+            <td>{e.target_id}</td>
+            <td>{e.dependency_type}</td>
+            <td>{e.composite_score:.4f} {bridge_marker}</td>
+        </tr>
+        """
+    
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>GDS Quality Assessment Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {{ font-family: 'Segoe UI', sans-serif; background: #f5f7fa; margin: 0; padding: 20px; }}
+        .container {{ max-width: 1400px; margin: 0 auto; }}
+        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; 
+                   padding: 30px; border-radius: 12px; margin-bottom: 20px; }}
+        .cards {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }}
+        .card {{ background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }}
+        .card h3 {{ color: #666; font-size: 0.9em; text-transform: uppercase; margin-bottom: 8px; }}
+        .card .value {{ font-size: 2em; font-weight: bold; }}
+        .section {{ background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 20px; }}
+        .section h2 {{ margin-bottom: 20px; color: #444; border-bottom: 2px solid #eee; padding-bottom: 10px; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #eee; }}
+        th {{ background: #f8f9fa; font-weight: 600; }}
+        .badge {{ display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.8em; }}
+        .badge.critical {{ background: #e74c3c; color: white; }}
+        .badge.high {{ background: #e67e22; color: white; }}
+        .badge.medium {{ background: #f1c40f; color: #333; }}
+        .badge.low {{ background: #3498db; color: white; }}
+        .badge.minimal {{ background: #95a5a6; color: white; }}
+        .charts {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }}
+        .chart-container {{ height: 300px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 GDS Quality Assessment</h1>
+            <p>Analysis using Neo4j Graph Data Science on DEPENDS_ON relationships</p>
+            <p style="opacity: 0.7;">{result.timestamp}</p>
+        </div>
+        
+        <div class="cards">
+            <div class="card">
+                <h3>Health Score</h3>
+                <div class="value">{summary.get('health_score', 0):.0%}</div>
+            </div>
+            <div class="card">
+                <h3>Components</h3>
+                <div class="value">{result.node_count}</div>
+            </div>
+            <div class="card">
+                <h3>Dependencies</h3>
+                <div class="value">{result.relationship_count}</div>
+            </div>
+            <div class="card">
+                <h3>Findings</h3>
+                <div class="value">{summary.get('total_findings', 0)}</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📊 Quality Scores (Lower = Less Critical = Better)</h2>
+            <div class="charts">
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📋 Component Criticality ({len(result.component_scores)} total)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Type</th>
+                        <th>Reliability</th>
+                        <th>Maintainability</th>
+                        <th>Availability</th>
+                        <th>Composite</th>
+                        <th>Level</th>
+                        <th>Findings</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {component_rows}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2>⚠️ Findings ({len(result.findings)} total)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Component</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {findings_rows}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2>🔗 Edge Criticality ({len(result.edge_criticality)} edges)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Source</th>
+                        <th>Target</th>
+                        <th>Type</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {edge_rows}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        new Chart(document.getElementById('radarChart'), {{
+            type: 'radar',
+            data: {{
+                labels: ['Reliability', 'Maintainability', 'Availability'],
+                datasets: [{{
+                    label: 'Avg Criticality',
+                    data: [{avg_scores.get('reliability', 0)}, {avg_scores.get('maintainability', 0)}, {avg_scores.get('availability', 0)}],
+                    backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                }}]
+            }},
+            options: {{ scales: {{ r: {{ beginAtZero: true, max: 1 }} }} }}
+        }});
+        
+        new Chart(document.getElementById('barChart'), {{
+            type: 'bar',
+            data: {{
+                labels: ['Reliability', 'Maintainability', 'Availability', 'Composite'],
+                datasets: [{{
+                    label: 'Avg Score',
+                    data: [{avg_scores.get('reliability', 0)}, {avg_scores.get('maintainability', 0)}, {avg_scores.get('availability', 0)}, {avg_scores.get('composite', 0)}],
+                    backgroundColor: ['#3498db', '#9b59b6', '#2ecc71', '#e74c3c'],
+                }}]
+            }},
+            options: {{ scales: {{ y: {{ beginAtZero: true, max: 1 }} }} }}
+        }});
+    </script>
+</body>
+</html>"""
 
 
 # =============================================================================
@@ -402,10 +759,34 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+    # Full analysis with all features
     python analyze_graph.py --uri bolt://localhost:7687
+    
+    # Specific quality attribute analyses
     python analyze_graph.py --reliability --maintainability --verbose
+    
+    # Box-plot classification
     python analyze_graph.py --classify --k-factor 1.5
+    
+    # Anti-pattern detection
     python analyze_graph.py --antipatterns --output results/
+    
+    # Quality assessment only
+    python analyze_graph.py --quality
+    
+    # Quality assessment with custom weights
+    python analyze_graph.py --quality --reliability-weight 0.5 --maintainability-weight 0.2
+    
+    # Export quality dashboard
+    python analyze_graph.py --quality --output results/
+
+Quality Assessment:
+    The --quality flag runs comprehensive R/M/A assessment using GDS algorithms:
+    - Computes criticality scores from PageRank, Betweenness, Degree centrality
+    - Identifies articulation points and bridge edges
+    - Runs quality analyzers for detailed findings
+    - Classifies components using box-plot method
+    - Generates HTML dashboard with visualizations
         """,
     )
     
@@ -422,6 +803,22 @@ Examples:
     parser.add_argument("--availability", "-a", action="store_true", help="Analyze availability")
     parser.add_argument("--classify", "-c", action="store_true", help="Run box-plot classification")
     parser.add_argument("--antipatterns", "-p", action="store_true", help="Detect anti-patterns")
+    parser.add_argument("--quality", "--qa", action="store_true", help="Run comprehensive quality assessment (R/M/A)")
+    
+    # Quality assessment weights
+    quality_group = parser.add_argument_group("Quality Assessment Weights")
+    quality_group.add_argument(
+        "--reliability-weight", "-rw", type=float, default=0.40,
+        help="Weight for reliability in composite score (default: 0.40)",
+    )
+    quality_group.add_argument(
+        "--maintainability-weight", "-mw", type=float, default=0.25,
+        help="Weight for maintainability in composite score (default: 0.25)",
+    )
+    quality_group.add_argument(
+        "--availability-weight", "-aw", type=float, default=0.35,
+        help="Weight for availability in composite score (default: 0.35)",
+    )
     
     # Classification options
     parser.add_argument("--k-factor", type=float, default=1.5, help="Box-plot k-factor (default: 1.5)")
@@ -460,12 +857,13 @@ def main() -> int:
     logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
     
     # Determine what to run
-    run_all = args.all or not any([args.reliability, args.maintainability, args.availability, args.classify, args.antipatterns])
+    run_all = args.all or not any([args.reliability, args.maintainability, args.availability, args.classify, args.antipatterns, args.quality])
     run_reliability = args.reliability or run_all
     run_maintainability = args.maintainability or run_all
     run_availability = args.availability or run_all
     run_classify = args.classify or run_all
     run_antipatterns = args.antipatterns or run_all
+    run_quality = args.quality or run_all
     
     results = {}
     
@@ -581,6 +979,36 @@ def main() -> int:
                 if not args.quiet and not args.json:
                     print_antipattern_result(ap_result, verbose=args.verbose)
             
+            # Run comprehensive quality assessment
+            if run_quality:
+                if not args.quiet:
+                    print_section("Quality Assessment (R/M/A)")
+                    print_kv("Reliability Weight", f"{args.reliability_weight:.0%}")
+                    print_kv("Maintainability Weight", f"{args.maintainability_weight:.0%}")
+                    print_kv("Availability Weight", f"{args.availability_weight:.0%}")
+                
+                # Create a separate projection for quality assessment
+                quality_projection = "quality_projection"
+                
+                assessor = GDSQualityAssessor(
+                    gds,
+                    reliability_weight=args.reliability_weight,
+                    maintainability_weight=args.maintainability_weight,
+                    availability_weight=args.availability_weight,
+                    k_factor=args.k_factor,
+                )
+                
+                quality_result = assessor.assess(
+                    projection_name=quality_projection,
+                    dependency_types=args.dep_types,
+                    run_analyzers=True,
+                    include_edges=True,
+                )
+                results["quality"] = quality_result
+                
+                if not args.quiet and not args.json:
+                    print_quality_result(quality_result, verbose=args.verbose)
+            
             # Cleanup projection
             gds.drop_projection(projection_name)
             
@@ -601,6 +1029,8 @@ def main() -> int:
                     output["classification"] = {m: r.to_dict() for m, r in results["classification"].items()}
                 if "antipatterns" in results:
                     output["antipatterns"] = results["antipatterns"].to_dict()
+                if "quality" in results and results["quality"]:
+                    output["quality"] = results["quality"].to_dict()
                 
                 print(json.dumps(output, indent=2, default=str))
             

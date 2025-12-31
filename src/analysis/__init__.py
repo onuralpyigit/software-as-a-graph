@@ -87,6 +87,19 @@ from .antipatterns import (
     AntiPatternDetector,
 )
 
+# Quality Assessment
+from .quality_assessment import (
+    # Data classes
+    GDSQualityMetrics,
+    GDSComponentScore,
+    GDSEdgeCriticality,
+    GDSQualityResult,
+    # Formulas
+    GDSCriticalityFormulas,
+    # Assessor
+    GDSQualityAssessor,
+)
+
 __all__ = [
     # Graph Algorithms
     "GDSClient",
@@ -117,6 +130,13 @@ __all__ = [
     "AntiPattern",
     "AntiPatternResult",
     "AntiPatternDetector",
+    # GDS Quality Assessment
+    "GDSQualityMetrics",
+    "GDSComponentScore",
+    "GDSEdgeCriticality",
+    "GDSQualityResult",
+    "GDSCriticalityFormulas",
+    "GDSQualityAssessor",
 ]
 
 __version__ = "4.0.0"
