@@ -1,12 +1,12 @@
 {
   "metadata": {
-    "id": "graph_generic_medium_42",
-    "generated_at": "2026-01-01T00:37:57.014854Z",
+    "id": "graph_generic_small_42",
+    "generated_at": "2026-01-01T21:31:35.742329Z",
     "generator_version": "4.0",
-    "scale": "medium",
+    "scale": "small",
     "scenario": "generic",
     "seed": 42,
-    "generation_time_seconds": 0.000568,
+    "generation_time_seconds": 0.000468,
     "antipatterns_applied": null
   },
   "applications": [
@@ -18,7 +18,7 @@
     {
       "id": "A2",
       "name": "Service2",
-      "role": "sub"
+      "role": "pub"
     },
     {
       "id": "A3",
@@ -28,7 +28,7 @@
     {
       "id": "A4",
       "name": "Handler4",
-      "role": "sub"
+      "role": "pubsub"
     },
     {
       "id": "A5",
@@ -48,7 +48,7 @@
     {
       "id": "A8",
       "name": "Worker8",
-      "role": "sub"
+      "role": "pubsub"
     },
     {
       "id": "A9",
@@ -58,22 +58,22 @@
     {
       "id": "A10",
       "name": "Processor10",
-      "role": "pub"
+      "role": "sub"
     },
     {
       "id": "A11",
       "name": "App11",
-      "role": "pubsub"
+      "role": "sub"
     },
     {
       "id": "A12",
       "name": "Service12",
-      "role": "sub"
+      "role": "pub"
     },
     {
       "id": "A13",
       "name": "Worker13",
-      "role": "pubsub"
+      "role": "sub"
     },
     {
       "id": "A14",
@@ -83,132 +83,7 @@
     {
       "id": "A15",
       "name": "Processor15",
-      "role": "sub"
-    },
-    {
-      "id": "A16",
-      "name": "App16",
-      "role": "sub"
-    },
-    {
-      "id": "A17",
-      "name": "Service17",
       "role": "pubsub"
-    },
-    {
-      "id": "A18",
-      "name": "Worker18",
-      "role": "pub"
-    },
-    {
-      "id": "A19",
-      "name": "Handler19",
-      "role": "pubsub"
-    },
-    {
-      "id": "A20",
-      "name": "Processor20",
-      "role": "sub"
-    },
-    {
-      "id": "A21",
-      "name": "App21",
-      "role": "pub"
-    },
-    {
-      "id": "A22",
-      "name": "Service22",
-      "role": "pubsub"
-    },
-    {
-      "id": "A23",
-      "name": "Worker23",
-      "role": "pubsub"
-    },
-    {
-      "id": "A24",
-      "name": "Handler24",
-      "role": "pub"
-    },
-    {
-      "id": "A25",
-      "name": "Processor25",
-      "role": "pub"
-    },
-    {
-      "id": "A26",
-      "name": "App26",
-      "role": "pubsub"
-    },
-    {
-      "id": "A27",
-      "name": "Service27",
-      "role": "sub"
-    },
-    {
-      "id": "A28",
-      "name": "Worker28",
-      "role": "pub"
-    },
-    {
-      "id": "A29",
-      "name": "Handler29",
-      "role": "pub"
-    },
-    {
-      "id": "A30",
-      "name": "Processor30",
-      "role": "pub"
-    },
-    {
-      "id": "A31",
-      "name": "App31",
-      "role": "pubsub"
-    },
-    {
-      "id": "A32",
-      "name": "Service32",
-      "role": "sub"
-    },
-    {
-      "id": "A33",
-      "name": "Worker33",
-      "role": "pub"
-    },
-    {
-      "id": "A34",
-      "name": "Handler34",
-      "role": "pub"
-    },
-    {
-      "id": "A35",
-      "name": "Processor35",
-      "role": "sub"
-    },
-    {
-      "id": "A36",
-      "name": "App36",
-      "role": "pubsub"
-    },
-    {
-      "id": "A37",
-      "name": "Service37",
-      "role": "sub"
-    },
-    {
-      "id": "A38",
-      "name": "Worker38",
-      "role": "sub"
-    },
-    {
-      "id": "A39",
-      "name": "Handler39",
-      "role": "pubsub"
-    },
-    {
-      "id": "A40",
-      "name": "Processor40",
-      "role": "sub"
     }
   ],
   "brokers": [
@@ -219,14 +94,6 @@
     {
       "id": "B2",
       "name": "Broker2"
-    },
-    {
-      "id": "B3",
-      "name": "Broker3"
-    },
-    {
-      "id": "B4",
-      "name": "Broker4"
     }
   ],
   "topics": [
@@ -237,7 +104,7 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
+        "transport_priority": "MEDIUM"
       }
     },
     {
@@ -247,7 +114,7 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "priority": "MEDIUM"
+        "transport_priority": "MEDIUM"
       }
     },
     {
@@ -257,7 +124,7 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
+        "transport_priority": "MEDIUM"
       }
     },
     {
@@ -267,7 +134,7 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
+        "transport_priority": "MEDIUM"
       }
     },
     {
@@ -277,7 +144,7 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
+        "transport_priority": "MEDIUM"
       }
     },
     {
@@ -287,7 +154,7 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "priority": "MEDIUM"
+        "transport_priority": "MEDIUM"
       }
     },
     {
@@ -297,7 +164,7 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
+        "transport_priority": "MEDIUM"
       }
     },
     {
@@ -307,7 +174,7 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
+        "transport_priority": "MEDIUM"
       }
     },
     {
@@ -317,7 +184,7 @@
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
+        "transport_priority": "MEDIUM"
       }
     },
     {
@@ -327,157 +194,7 @@
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T11",
-      "name": "status/component11",
-      "size": 365,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T12",
-      "name": "data/stream12",
-      "size": 1526,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T13",
-      "name": "events/type13",
-      "size": 331,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T14",
-      "name": "commands/action14",
-      "size": 107,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T15",
-      "name": "status/component15",
-      "size": 343,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T16",
-      "name": "data/stream16",
-      "size": 1200,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T17",
-      "name": "events/type17",
-      "size": 200,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T18",
-      "name": "commands/action18",
-      "size": 99,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T19",
-      "name": "status/component19",
-      "size": 215,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T20",
-      "name": "data/stream20",
-      "size": 991,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T21",
-      "name": "events/type21",
-      "size": 251,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T22",
-      "name": "commands/action22",
-      "size": 160,
-      "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T23",
-      "name": "status/component23",
-      "size": 346,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T24",
-      "name": "data/stream24",
-      "size": 795,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T25",
-      "name": "events/type25",
-      "size": 335,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "MEDIUM"
+        "transport_priority": "MEDIUM"
       }
     }
   ],
@@ -497,604 +214,152 @@
     {
       "id": "N4",
       "name": "Node4"
-    },
-    {
-      "id": "N5",
-      "name": "Node5"
-    },
-    {
-      "id": "N6",
-      "name": "Node6"
-    },
-    {
-      "id": "N7",
-      "name": "Node7"
-    },
-    {
-      "id": "N8",
-      "name": "Node8"
     }
   ],
   "relationships": {
     "publishes_to": [
       {
-        "from": "A3",
-        "to": "T10"
+        "from": "A2",
+        "to": "T4"
       },
       {
-        "from": "A3",
-        "to": "T8"
-      },
-      {
-        "from": "A3",
-        "to": "T2"
-      },
-      {
-        "from": "A6",
-        "to": "T25"
-      },
-      {
-        "from": "A6",
-        "to": "T18"
-      },
-      {
-        "from": "A6",
+        "from": "A2",
         "to": "T5"
       },
       {
-        "from": "A6",
-        "to": "T22"
-      },
-      {
-        "from": "A9",
-        "to": "T23"
-      },
-      {
-        "from": "A9",
+        "from": "A3",
         "to": "T10"
       },
       {
-        "from": "A10",
-        "to": "T22"
-      },
-      {
-        "from": "A10",
-        "to": "T21"
-      },
-      {
-        "from": "A10",
-        "to": "T12"
-      },
-      {
-        "from": "A10",
-        "to": "T15"
-      },
-      {
-        "from": "A11",
-        "to": "T8"
-      },
-      {
-        "from": "A11",
+        "from": "A4",
         "to": "T3"
       },
       {
-        "from": "A11",
-        "to": "T11"
-      },
-      {
-        "from": "A11",
+        "from": "A6",
         "to": "T1"
       },
       {
-        "from": "A13",
-        "to": "T3"
-      },
-      {
-        "from": "A14",
-        "to": "T8"
-      },
-      {
-        "from": "A17",
-        "to": "T12"
-      },
-      {
-        "from": "A18",
-        "to": "T2"
-      },
-      {
-        "from": "A19",
-        "to": "T4"
-      },
-      {
-        "from": "A19",
-        "to": "T8"
-      },
-      {
-        "from": "A19",
-        "to": "T7"
-      },
-      {
-        "from": "A19",
-        "to": "T18"
-      },
-      {
-        "from": "A21",
-        "to": "T3"
-      },
-      {
-        "from": "A21",
-        "to": "T15"
-      },
-      {
-        "from": "A22",
-        "to": "T21"
-      },
-      {
-        "from": "A23",
-        "to": "T25"
-      },
-      {
-        "from": "A24",
-        "to": "T14"
-      },
-      {
-        "from": "A24",
-        "to": "T16"
-      },
-      {
-        "from": "A25",
-        "to": "T7"
-      },
-      {
-        "from": "A25",
-        "to": "T13"
-      },
-      {
-        "from": "A25",
-        "to": "T2"
-      },
-      {
-        "from": "A25",
-        "to": "T6"
-      },
-      {
-        "from": "A26",
-        "to": "T13"
-      },
-      {
-        "from": "A26",
-        "to": "T9"
-      },
-      {
-        "from": "A26",
-        "to": "T15"
-      },
-      {
-        "from": "A26",
+        "from": "A8",
         "to": "T10"
       },
       {
-        "from": "A28",
+        "from": "A9",
+        "to": "T8"
+      },
+      {
+        "from": "A12",
+        "to": "T10"
+      },
+      {
+        "from": "A12",
         "to": "T7"
       },
       {
-        "from": "A28",
+        "from": "A14",
         "to": "T2"
       },
       {
-        "from": "A28",
-        "to": "T19"
+        "from": "A15",
+        "to": "T7"
       },
       {
-        "from": "A29",
-        "to": "T2"
-      },
-      {
-        "from": "A29",
-        "to": "T24"
-      },
-      {
-        "from": "A29",
-        "to": "T11"
-      },
-      {
-        "from": "A29",
-        "to": "T19"
-      },
-      {
-        "from": "A29",
-        "to": "T16"
-      },
-      {
-        "from": "A30",
-        "to": "T17"
-      },
-      {
-        "from": "A30",
+        "from": "A12",
         "to": "T6"
       },
       {
-        "from": "A30",
-        "to": "T2"
-      },
-      {
-        "from": "A30",
-        "to": "T3"
-      },
-      {
-        "from": "A30",
-        "to": "T20"
-      },
-      {
-        "from": "A31",
-        "to": "T13"
-      },
-      {
-        "from": "A33",
-        "to": "T20"
-      },
-      {
-        "from": "A34",
-        "to": "T14"
-      },
-      {
-        "from": "A36",
+        "from": "A12",
         "to": "T9"
-      },
-      {
-        "from": "A36",
-        "to": "T13"
-      },
-      {
-        "from": "A36",
-        "to": "T5"
-      },
-      {
-        "from": "A39",
-        "to": "T19"
-      },
-      {
-        "from": "A39",
-        "to": "T4"
-      },
-      {
-        "from": "A39",
-        "to": "T3"
-      },
-      {
-        "from": "A39",
-        "to": "T18"
       }
     ],
     "subscribes_to": [
       {
         "from": "A1",
-        "to": "T25"
-      },
-      {
-        "from": "A1",
         "to": "T6"
       },
       {
-        "from": "A1",
-        "to": "T18"
-      },
-      {
-        "from": "A2",
-        "to": "T1"
-      },
-      {
-        "from": "A2",
-        "to": "T20"
-      },
-      {
-        "from": "A2",
-        "to": "T11"
-      },
-      {
-        "from": "A2",
-        "to": "T16"
-      },
-      {
-        "from": "A2",
-        "to": "T4"
-      },
-      {
         "from": "A4",
-        "to": "T19"
-      },
-      {
-        "from": "A4",
-        "to": "T3"
-      },
-      {
-        "from": "A5",
-        "to": "T24"
-      },
-      {
-        "from": "A6",
-        "to": "T17"
-      },
-      {
-        "from": "A7",
-        "to": "T6"
-      },
-      {
-        "from": "A7",
         "to": "T9"
       },
       {
-        "from": "A7",
-        "to": "T17"
+        "from": "A5",
+        "to": "T5"
       },
       {
-        "from": "A7",
-        "to": "T20"
+        "from": "A5",
+        "to": "T9"
       },
       {
-        "from": "A7",
-        "to": "T14"
+        "from": "A6",
+        "to": "T5"
       },
       {
-        "from": "A8",
-        "to": "T18"
-      },
-      {
-        "from": "A8",
-        "to": "T25"
-      },
-      {
-        "from": "A11",
-        "to": "T23"
-      },
-      {
-        "from": "A12",
-        "to": "T8"
-      },
-      {
-        "from": "A12",
-        "to": "T19"
-      },
-      {
-        "from": "A12",
-        "to": "T1"
-      },
-      {
-        "from": "A12",
-        "to": "T3"
-      },
-      {
-        "from": "A12",
-        "to": "T23"
-      },
-      {
-        "from": "A13",
+        "from": "A6",
         "to": "T2"
       },
       {
+        "from": "A7",
+        "to": "T7"
+      },
+      {
+        "from": "A7",
+        "to": "T5"
+      },
+      {
+        "from": "A8",
+        "to": "T6"
+      },
+      {
+        "from": "A10",
+        "to": "T8"
+      },
+      {
+        "from": "A10",
+        "to": "T3"
+      },
+      {
+        "from": "A11",
+        "to": "T3"
+      },
+      {
+        "from": "A11",
+        "to": "T4"
+      },
+      {
         "from": "A13",
-        "to": "T12"
+        "to": "T6"
+      },
+      {
+        "from": "A13",
+        "to": "T4"
+      },
+      {
+        "from": "A14",
+        "to": "T1"
+      },
+      {
+        "from": "A14",
+        "to": "T3"
+      },
+      {
+        "from": "A15",
+        "to": "T2"
       },
       {
         "from": "A14",
         "to": "T10"
-      },
-      {
-        "from": "A14",
-        "to": "T23"
-      },
-      {
-        "from": "A14",
-        "to": "T17"
-      },
-      {
-        "from": "A14",
-        "to": "T7"
-      },
-      {
-        "from": "A14",
-        "to": "T19"
-      },
-      {
-        "from": "A15",
-        "to": "T24"
-      },
-      {
-        "from": "A15",
-        "to": "T19"
-      },
-      {
-        "from": "A16",
-        "to": "T16"
-      },
-      {
-        "from": "A16",
-        "to": "T8"
-      },
-      {
-        "from": "A16",
-        "to": "T14"
-      },
-      {
-        "from": "A16",
-        "to": "T7"
-      },
-      {
-        "from": "A16",
-        "to": "T4"
-      },
-      {
-        "from": "A17",
-        "to": "T15"
-      },
-      {
-        "from": "A17",
-        "to": "T16"
-      },
-      {
-        "from": "A17",
-        "to": "T25"
-      },
-      {
-        "from": "A17",
-        "to": "T2"
-      },
-      {
-        "from": "A19",
-        "to": "T19"
-      },
-      {
-        "from": "A19",
-        "to": "T6"
-      },
-      {
-        "from": "A19",
-        "to": "T17"
-      },
-      {
-        "from": "A20",
-        "to": "T9"
-      },
-      {
-        "from": "A20",
-        "to": "T15"
-      },
-      {
-        "from": "A22",
-        "to": "T18"
-      },
-      {
-        "from": "A23",
-        "to": "T8"
-      },
-      {
-        "from": "A26",
-        "to": "T18"
-      },
-      {
-        "from": "A27",
-        "to": "T24"
-      },
-      {
-        "from": "A27",
-        "to": "T18"
-      },
-      {
-        "from": "A27",
-        "to": "T22"
-      },
-      {
-        "from": "A27",
-        "to": "T16"
-      },
-      {
-        "from": "A27",
-        "to": "T5"
-      },
-      {
-        "from": "A27",
-        "to": "T7"
-      },
-      {
-        "from": "A31",
-        "to": "T4"
-      },
-      {
-        "from": "A31",
-        "to": "T20"
-      },
-      {
-        "from": "A32",
-        "to": "T19"
-      },
-      {
-        "from": "A32",
-        "to": "T20"
-      },
-      {
-        "from": "A35",
-        "to": "T19"
-      },
-      {
-        "from": "A35",
-        "to": "T25"
-      },
-      {
-        "from": "A35",
-        "to": "T17"
-      },
-      {
-        "from": "A35",
-        "to": "T11"
-      },
-      {
-        "from": "A35",
-        "to": "T9"
-      },
-      {
-        "from": "A35",
-        "to": "T7"
-      },
-      {
-        "from": "A36",
-        "to": "T25"
-      },
-      {
-        "from": "A36",
-        "to": "T24"
-      },
-      {
-        "from": "A37",
-        "to": "T15"
-      },
-      {
-        "from": "A37",
-        "to": "T11"
-      },
-      {
-        "from": "A37",
-        "to": "T25"
-      },
-      {
-        "from": "A38",
-        "to": "T1"
-      },
-      {
-        "from": "A39",
-        "to": "T9"
-      },
-      {
-        "from": "A39",
-        "to": "T21"
-      },
-      {
-        "from": "A39",
-        "to": "T11"
-      },
-      {
-        "from": "A39",
-        "to": "T7"
-      },
-      {
-        "from": "A39",
-        "to": "T14"
-      },
-      {
-        "from": "A40",
-        "to": "T8"
-      },
-      {
-        "from": "A15",
-        "to": "T13"
       }
     ],
     "routes": [
       {
+        "from": "B1",
+        "to": "T1"
+      },
+      {
         "from": "B2",
         "to": "T1"
       },
       {
-        "from": "B4",
+        "from": "B1",
         "to": "T2"
       },
       {
@@ -1102,39 +367,47 @@
         "to": "T2"
       },
       {
-        "from": "B3",
+        "from": "B2",
         "to": "T3"
+      },
+      {
+        "from": "B1",
+        "to": "T3"
+      },
+      {
+        "from": "B1",
+        "to": "T4"
       },
       {
         "from": "B2",
         "to": "T4"
       },
       {
-        "from": "B3",
+        "from": "B2",
         "to": "T5"
       },
       {
-        "from": "B3",
-        "to": "T6"
-      },
-      {
         "from": "B1",
         "to": "T6"
       },
       {
-        "from": "B3",
+        "from": "B2",
+        "to": "T6"
+      },
+      {
+        "from": "B1",
         "to": "T7"
       },
       {
-        "from": "B4",
+        "from": "B1",
         "to": "T8"
       },
       {
-        "from": "B4",
-        "to": "T9"
+        "from": "B2",
+        "to": "T8"
       },
       {
-        "from": "B1",
+        "from": "B2",
         "to": "T9"
       },
       {
@@ -1144,94 +417,6 @@
       {
         "from": "B1",
         "to": "T10"
-      },
-      {
-        "from": "B4",
-        "to": "T11"
-      },
-      {
-        "from": "B3",
-        "to": "T11"
-      },
-      {
-        "from": "B3",
-        "to": "T12"
-      },
-      {
-        "from": "B1",
-        "to": "T12"
-      },
-      {
-        "from": "B4",
-        "to": "T13"
-      },
-      {
-        "from": "B1",
-        "to": "T14"
-      },
-      {
-        "from": "B2",
-        "to": "T15"
-      },
-      {
-        "from": "B4",
-        "to": "T16"
-      },
-      {
-        "from": "B4",
-        "to": "T17"
-      },
-      {
-        "from": "B4",
-        "to": "T18"
-      },
-      {
-        "from": "B3",
-        "to": "T18"
-      },
-      {
-        "from": "B1",
-        "to": "T19"
-      },
-      {
-        "from": "B3",
-        "to": "T19"
-      },
-      {
-        "from": "B3",
-        "to": "T20"
-      },
-      {
-        "from": "B1",
-        "to": "T21"
-      },
-      {
-        "from": "B2",
-        "to": "T21"
-      },
-      {
-        "from": "B2",
-        "to": "T22"
-      },
-      {
-        "from": "B4",
-        "to": "T22"
-      },
-      {
-        "from": "B3",
-        "to": "T23"
-      },
-      {
-        "from": "B1",
-        "to": "T24"
-      },
-      {
-        "from": "B2",
-        "to": "T25"
-      },
-      {
-        "from": "B1",
-        "to": "T25"
       }
     ],
     "runs_on": [
@@ -1244,171 +429,63 @@
         "to": "N2"
       },
       {
-        "from": "B3",
-        "to": "N3"
-      },
-      {
-        "from": "B4",
-        "to": "N4"
-      },
-      {
         "from": "A1",
-        "to": "N1"
+        "to": "N2"
       },
       {
         "from": "A2",
-        "to": "N3"
+        "to": "N1"
       },
       {
         "from": "A3",
-        "to": "N4"
+        "to": "N2"
       },
       {
         "from": "A4",
-        "to": "N2"
+        "to": "N1"
       },
       {
         "from": "A5",
-        "to": "N1"
+        "to": "N2"
       },
       {
         "from": "A6",
-        "to": "N3"
+        "to": "N1"
       },
       {
         "from": "A7",
-        "to": "N4"
+        "to": "N2"
       },
       {
         "from": "A8",
-        "to": "N2"
+        "to": "N1"
       },
       {
         "from": "A9",
-        "to": "N1"
+        "to": "N2"
       },
       {
         "from": "A10",
-        "to": "N3"
+        "to": "N1"
       },
       {
         "from": "A11",
-        "to": "N4"
+        "to": "N2"
       },
       {
         "from": "A12",
-        "to": "N2"
+        "to": "N1"
       },
       {
         "from": "A13",
-        "to": "N1"
+        "to": "N2"
       },
       {
         "from": "A14",
-        "to": "N3"
+        "to": "N1"
       },
       {
         "from": "A15",
-        "to": "N4"
-      },
-      {
-        "from": "A16",
-        "to": "N2"
-      },
-      {
-        "from": "A17",
-        "to": "N1"
-      },
-      {
-        "from": "A18",
-        "to": "N3"
-      },
-      {
-        "from": "A19",
-        "to": "N4"
-      },
-      {
-        "from": "A20",
-        "to": "N2"
-      },
-      {
-        "from": "A21",
-        "to": "N1"
-      },
-      {
-        "from": "A22",
-        "to": "N3"
-      },
-      {
-        "from": "A23",
-        "to": "N4"
-      },
-      {
-        "from": "A24",
-        "to": "N2"
-      },
-      {
-        "from": "A25",
-        "to": "N1"
-      },
-      {
-        "from": "A26",
-        "to": "N3"
-      },
-      {
-        "from": "A27",
-        "to": "N4"
-      },
-      {
-        "from": "A28",
-        "to": "N2"
-      },
-      {
-        "from": "A29",
-        "to": "N1"
-      },
-      {
-        "from": "A30",
-        "to": "N3"
-      },
-      {
-        "from": "A31",
-        "to": "N4"
-      },
-      {
-        "from": "A32",
-        "to": "N2"
-      },
-      {
-        "from": "A33",
-        "to": "N1"
-      },
-      {
-        "from": "A34",
-        "to": "N3"
-      },
-      {
-        "from": "A35",
-        "to": "N4"
-      },
-      {
-        "from": "A36",
-        "to": "N2"
-      },
-      {
-        "from": "A37",
-        "to": "N1"
-      },
-      {
-        "from": "A38",
-        "to": "N3"
-      },
-      {
-        "from": "A39",
-        "to": "N4"
-      },
-      {
-        "from": "A40",
         "to": "N2"
       }
     ],
@@ -1419,7 +496,7 @@
       },
       {
         "from": "N1",
-        "to": "N8"
+        "to": "N3"
       },
       {
         "from": "N2",
@@ -1427,7 +504,11 @@
       },
       {
         "from": "N2",
-        "to": "N5"
+        "to": "N1"
+      },
+      {
+        "from": "N2",
+        "to": "N4"
       },
       {
         "from": "N3",
@@ -1435,87 +516,39 @@
       },
       {
         "from": "N3",
-        "to": "N5"
-      },
-      {
-        "from": "N3",
-        "to": "N7"
-      },
-      {
-        "from": "N4",
-        "to": "N5"
-      },
-      {
-        "from": "N4",
         "to": "N2"
       },
       {
         "from": "N4",
-        "to": "N3"
-      },
-      {
-        "from": "N5",
-        "to": "N6"
-      },
-      {
-        "from": "N5",
-        "to": "N2"
-      },
-      {
-        "from": "N5",
-        "to": "N7"
-      },
-      {
-        "from": "N6",
-        "to": "N7"
-      },
-      {
-        "from": "N6",
-        "to": "N8"
-      },
-      {
-        "from": "N7",
-        "to": "N8"
-      },
-      {
-        "from": "N7",
-        "to": "N5"
-      },
-      {
-        "from": "N8",
         "to": "N1"
-      },
-      {
-        "from": "N8",
-        "to": "N5"
       }
     ]
   },
   "metrics": {
     "vertex_counts": {
-      "applications": 40,
-      "brokers": 4,
-      "topics": 25,
-      "nodes": 8,
-      "total": 77
+      "applications": 15,
+      "brokers": 2,
+      "topics": 10,
+      "nodes": 4,
+      "total": 31
     },
     "edge_counts": {
-      "publishes_to": 62,
-      "subscribes_to": 80,
-      "routes": 36,
-      "runs_on": 44,
-      "connects_to": 19,
-      "total": 241
+      "publishes_to": 13,
+      "subscribes_to": 19,
+      "routes": 17,
+      "runs_on": 17,
+      "connects_to": 8,
+      "total": 74
     },
     "pub_sub": {
-      "avg_pubs_per_topic": 2.48,
-      "avg_subs_per_topic": 3.2,
-      "max_fanout": 7
+      "avg_pubs_per_topic": 1.3,
+      "avg_subs_per_topic": 1.9,
+      "max_fanout": 3
     },
     "role_distribution": {
-      "sub": 16,
-      "pub": 12,
-      "pubsub": 12
+      "sub": 6,
+      "pub": 4,
+      "pubsub": 5
     }
   }
 }

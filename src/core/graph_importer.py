@@ -15,7 +15,7 @@ Weight Calculation:
     
     where:
     - base_weight = number of shared topics
-    - qos_score = sum of (durability + reliability + priority) weights
+    - qos_score = sum of (durability + reliability + transport_priority) weights
     - size_factor = normalized message size contribution
 
 Usage:
@@ -292,7 +292,7 @@ class GraphImporter:
                 "size": t.get("size", 256),
                 "qos_durability": qos.get("durability", "VOLATILE"),
                 "qos_reliability": qos.get("reliability", "BEST_EFFORT"),
-                "qos_priority": qos.get("priority", qos.get("transport_priority", "MEDIUM")),
+                "qos_transport_priority": qos.get("transport_priority", "MEDIUM"),
             })
         
         with self.driver.session(database=self.database) as session:
@@ -305,7 +305,7 @@ class GraphImporter:
                         t.size = topic.size,
                         t.qos_durability = topic.qos_durability,
                         t.qos_reliability = topic.qos_reliability,
-                        t.qos_priority = topic.qos_priority
+                        t.qos_transport_priority = topic.qos_transport_priority
                 """, topics=batch)
 
     def _import_applications(self, applications: List[Dict], batch_size: int) -> None:
@@ -446,9 +446,9 @@ class GraphImporter:
         - TRANSIENT durability: +0.25
         - TRANSIENT_LOCAL durability: +0.20
         - RELIABLE reliability: +0.30
-        - URGENT priority: +0.30
-        - HIGH priority: +0.20
-        - MEDIUM priority: +0.10
+        - URGENT transport_priority: +0.30
+        - HIGH transport_priority: +0.20
+        - MEDIUM transport_priority: +0.10
         
         Size factor: min(size / 10000, 1.0) per topic
         """
@@ -474,7 +474,7 @@ class GraphImporter:
                         ELSE 0.0
                     END +
                     // Priority contribution
-                    CASE t.qos_priority
+                    CASE t.qos_transport_priority
                         WHEN 'URGENT' THEN 0.30
                         WHEN 'HIGH' THEN 0.20
                         WHEN 'MEDIUM' THEN 0.10
@@ -532,7 +532,7 @@ class GraphImporter:
                         WHEN 'RELIABLE' THEN 0.30
                         ELSE 0.0
                     END +
-                    CASE t.qos_priority
+                    CASE t.qos_transport_priority
                         WHEN 'URGENT' THEN 0.30
                         WHEN 'HIGH' THEN 0.20
                         WHEN 'MEDIUM' THEN 0.10
@@ -765,7 +765,7 @@ class GraphImporter:
                 RETURN t.id AS id, t.name AS name, t.size AS size,
                        t.qos_durability AS durability,
                        t.qos_reliability AS reliability,
-                       t.qos_priority AS priority
+                       t.qos_transport_priority AS transport_priority
             """):
                 graph["topics"].append({
                     "id": r["id"],
@@ -774,7 +774,7 @@ class GraphImporter:
                     "qos": {
                         "durability": r["durability"],
                         "reliability": r["reliability"],
-                        "priority": r["priority"],
+                        "transport_priority": r["transport_priority"],
                     },
                 })
             
@@ -873,9 +873,9 @@ MATCH (t:Topic)
 WITH t,
      CASE t.qos_durability WHEN 'PERSISTENT' THEN 0.4 WHEN 'TRANSIENT' THEN 0.25 ELSE 0 END +
      CASE t.qos_reliability WHEN 'RELIABLE' THEN 0.3 ELSE 0 END +
-     CASE t.qos_priority WHEN 'URGENT' THEN 0.3 WHEN 'HIGH' THEN 0.2 ELSE 0 END AS qos_score
+     CASE t.qos_transport_priority WHEN 'URGENT' THEN 0.3 WHEN 'HIGH' THEN 0.2 WHEN 'MEDIUM' THEN 0.1 ELSE 0 END AS qos_score
 RETURN t.name AS topic, t.qos_durability AS durability,
-       t.qos_reliability AS reliability, t.qos_priority AS priority,
+       t.qos_reliability AS reliability, t.qos_transport_priority AS transport_priority,
        round(qos_score, 2) AS criticality_score
 ORDER BY qos_score DESC
 LIMIT 20;

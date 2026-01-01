@@ -116,7 +116,7 @@ class QoSPolicy:
     """
     durability: str = "VOLATILE"
     reliability: str = "BEST_EFFORT"
-    priority: str = "MEDIUM"
+    transport_priority: str = "MEDIUM"
 
     def criticality_score(self) -> float:
         """
@@ -136,7 +136,7 @@ class QoSPolicy:
             r_weight = 0.0
             
         try:
-            p_weight = Priority(self.priority).weight
+            p_weight = Priority(self.transport_priority).weight
         except ValueError:
             p_weight = 0.0
             
@@ -146,7 +146,7 @@ class QoSPolicy:
         return {
             "durability": self.durability,
             "reliability": self.reliability,
-            "priority": self.priority,
+            "transport_priority": self.transport_priority,
         }
 
     @classmethod
@@ -156,7 +156,7 @@ class QoSPolicy:
         return cls(
             durability=data.get("durability", "VOLATILE"),
             reliability=data.get("reliability", "BEST_EFFORT"),
-            priority=data.get("priority", data.get("transport_priority", "MEDIUM")),
+            transport_priority=data.get("transport_priority", "MEDIUM"),
         )
 
 

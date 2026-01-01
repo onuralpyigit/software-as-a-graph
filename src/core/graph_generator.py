@@ -47,11 +47,11 @@ SCALE_PRESETS = {
 
 # QoS profiles by scenario
 QOS_PROFILES = {
-    "default": {"durability": "VOLATILE", "reliability": "BEST_EFFORT", "priority": "MEDIUM"},
-    "reliable": {"durability": "TRANSIENT_LOCAL", "reliability": "RELIABLE", "priority": "MEDIUM"},
-    "persistent": {"durability": "PERSISTENT", "reliability": "RELIABLE", "priority": "HIGH"},
-    "realtime": {"durability": "VOLATILE", "reliability": "BEST_EFFORT", "priority": "URGENT"},
-    "critical": {"durability": "PERSISTENT", "reliability": "RELIABLE", "priority": "URGENT"},
+    "default": {"durability": "VOLATILE", "reliability": "BEST_EFFORT", "transport_priority": "MEDIUM"},
+    "reliable": {"durability": "TRANSIENT_LOCAL", "reliability": "RELIABLE", "transport_priority": "MEDIUM"},
+    "persistent": {"durability": "PERSISTENT", "reliability": "RELIABLE", "transport_priority": "HIGH"},
+    "realtime": {"durability": "VOLATILE", "reliability": "BEST_EFFORT", "transport_priority": "URGENT"},
+    "critical": {"durability": "PERSISTENT", "reliability": "RELIABLE", "transport_priority": "URGENT"},
 }
 
 # Scenario-specific topic templates
