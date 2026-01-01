@@ -1,142 +1,144 @@
 """
-Software-as-a-Graph Analysis Module - Version 4.0
+Software-as-a-Graph Analysis Module - Version 5.0 (Refactored)
 
-GDS-based analysis for distributed pub-sub systems providing:
-- Centrality analysis (PageRank, Betweenness, Degree)
-- Quality attribute assessment (Reliability, Maintainability, Availability)
-- Box-plot statistical classification
-- Anti-pattern detection
+Multi-layer graph analysis for distributed pub-sub systems using Neo4j GDS.
+
+Key Features:
+- Component-type-specific analysis (Application, Topic, Node, Broker)
+- Centrality algorithms: PageRank, Betweenness, Degree via Neo4j GDS
+- Box-plot statistical classification (adaptive thresholds)
+- Problem detection: Reliability, Maintainability, Availability issues
+- Anti-pattern detection with symptoms and recommendations
+- Critical edge identification
 
 Usage:
-    from src.analysis import GDSClient, GDSClassifier
-    from src.analysis import ReliabilityAnalyzer, MaintainabilityAnalyzer, AvailabilityAnalyzer
-    from src.analysis import AntiPatternDetector
+    from src.analysis import (
+        GDSAnalyzer,
+        ComponentTypeAnalyzer,
+        BoxPlotClassifier,
+        ProblemDetector,
+        AntiPatternDetector,
+    )
 
-    # Connect to Neo4j
-    with GDSClient(uri, user, password) as gds:
-        # Create projection
-        gds.create_projection("my_graph", ["app_to_app", "node_to_node"])
+    # Analyze by component type
+    with GDSAnalyzer(uri, user, password) as analyzer:
+        # Analyze all applications
+        app_results = analyzer.analyze_component_type("Application")
         
-        # Run centrality analysis with box-plot classification
-        classifier = GDSClassifier(gds, k_factor=1.5)
-        result = classifier.classify_by_composite("my_graph")
+        # Analyze all topics
+        topic_results = analyzer.analyze_component_type("Topic")
         
-        # Assess quality attributes
-        reliability = ReliabilityAnalyzer(gds).analyze("my_graph")
-        maintainability = MaintainabilityAnalyzer(gds).analyze("my_graph")
-        availability = AvailabilityAnalyzer(gds).analyze("my_graph")
+        # Full multi-layer analysis
+        full_results = analyzer.analyze_all()
+        
+        # Detect problems
+        problems = analyzer.detect_problems()
         
         # Detect anti-patterns
-        patterns = AntiPatternDetector(gds).detect_all()
-        
-        # Cleanup
-        gds.drop_projection("my_graph")
+        antipatterns = analyzer.detect_antipatterns()
 
 Author: Software-as-a-Graph Research Project
-Version: 4.0
+Version: 5.0
 """
 
-# GDS Client
-from .graph_algorithms import (
+__version__ = "5.0.0"
+
+# Core GDS Client and Analyzer
+from .gds_client import (
     GDSClient,
     CentralityResult,
     CommunityResult,
     ProjectionInfo,
 )
 
+# Component-Type Analyzer
+from .component_analyzer import (
+    ComponentTypeAnalyzer,
+    ComponentTypeResult,
+    ComponentMetrics,
+)
+
+# Main GDS Analyzer (Facade)
+from .gds_analyzer import (
+    GDSAnalyzer,
+    MultiLayerAnalysisResult,
+    LayerAnalysisResult,
+)
+
 # Box-Plot Classification
 from .classifier import (
-    # Enums
     CriticalityLevel,
-    # Data classes
     BoxPlotStats,
     ClassifiedItem,
     ClassificationResult,
-    # Classifiers
     BoxPlotClassifier,
-    GDSClassifier,
-    # Utilities
-    merge_classifications,
 )
 
-# Quality Attribute Analyzers
-from .analyzers import (
-    # Enums
+# Problem Detection
+from .problem_detector import (
+    ProblemType,
+    ProblemSeverity,
     QualityAttribute,
-    Severity,
-    # Data classes
-    Finding,
-    CriticalComponent,
-    AnalysisResult,
-    # Analyzers
-    BaseAnalyzer,
-    ReliabilityAnalyzer,
-    MaintainabilityAnalyzer,
-    AvailabilityAnalyzer,
+    Problem,
+    Symptom,
+    ProblemDetectionResult,
+    ProblemDetector,
 )
 
 # Anti-Pattern Detection
 from .antipatterns import (
-    # Enums
     AntiPatternType,
     PatternSeverity,
-    # Data classes
     AntiPattern,
     AntiPatternResult,
-    # Detector
     AntiPatternDetector,
 )
 
-# Quality Assessment
-from .quality_assessment import (
-    # Data classes
-    GDSQualityMetrics,
-    GDSComponentScore,
-    GDSEdgeCriticality,
-    GDSQualityResult,
-    # Formulas
-    GDSCriticalityFormulas,
-    # Assessor
-    GDSQualityAssessor,
+# Critical Edge Analysis
+from .edge_analyzer import (
+    EdgeCriticality,
+    EdgeAnalysisResult,
+    EdgeAnalyzer,
 )
 
 __all__ = [
-    # Graph Algorithms
+    # Version
+    "__version__",
+    # GDS Client
     "GDSClient",
     "CentralityResult",
     "CommunityResult",
     "ProjectionInfo",
-    # Classification
+    # Component Analyzer
+    "ComponentTypeAnalyzer",
+    "ComponentTypeResult",
+    "ComponentMetrics",
+    # Main Analyzer
+    "GDSAnalyzer",
+    "MultiLayerAnalysisResult",
+    "LayerAnalysisResult",
+    # Classifier
     "CriticalityLevel",
     "BoxPlotStats",
     "ClassifiedItem",
     "ClassificationResult",
     "BoxPlotClassifier",
-    "GDSClassifier",
-    "merge_classifications",
-    # Quality Attributes
+    # Problem Detection
+    "ProblemType",
+    "ProblemSeverity",
     "QualityAttribute",
-    "Severity",
-    "Finding",
-    "CriticalComponent",
-    "AnalysisResult",
-    "BaseAnalyzer",
-    "ReliabilityAnalyzer",
-    "MaintainabilityAnalyzer",
-    "AvailabilityAnalyzer",
+    "Problem",
+    "Symptom",
+    "ProblemDetectionResult",
+    "ProblemDetector",
     # Anti-Patterns
     "AntiPatternType",
     "PatternSeverity",
     "AntiPattern",
     "AntiPatternResult",
     "AntiPatternDetector",
-    # GDS Quality Assessment
-    "GDSQualityMetrics",
-    "GDSComponentScore",
-    "GDSEdgeCriticality",
-    "GDSQualityResult",
-    "GDSCriticalityFormulas",
-    "GDSQualityAssessor",
+    # Edge Analysis
+    "EdgeCriticality",
+    "EdgeAnalysisResult",
+    "EdgeAnalyzer",
 ]
-
-__version__ = "4.0.0"

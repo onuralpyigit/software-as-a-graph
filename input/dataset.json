@@ -1,213 +1,213 @@
 {
   "metadata": {
-    "id": "graph_financial_medium_42",
-    "generated_at": "2025-12-27T21:21:12.375294Z",
+    "id": "graph_generic_medium_42",
+    "generated_at": "2026-01-01T00:07:25.888588Z",
     "generator_version": "4.0",
     "scale": "medium",
-    "scenario": "financial",
+    "scenario": "generic",
     "seed": 42,
-    "generation_time_seconds": 0.001469,
+    "generation_time_seconds": 0.000512,
     "antipatterns_applied": null
   },
   "applications": [
     {
       "id": "A1",
-      "name": "Trading1",
+      "name": "App1",
       "role": "sub"
     },
     {
       "id": "A2",
-      "name": "Risk2",
+      "name": "Service2",
       "role": "sub"
     },
     {
       "id": "A3",
-      "name": "Market3",
+      "name": "Worker3",
       "role": "pub"
     },
     {
       "id": "A4",
-      "name": "Settlement4",
+      "name": "Handler4",
       "role": "sub"
     },
     {
       "id": "A5",
-      "name": "Audit5",
+      "name": "Processor5",
       "role": "sub"
     },
     {
       "id": "A6",
-      "name": "Trading6",
+      "name": "App6",
       "role": "pubsub"
     },
     {
       "id": "A7",
-      "name": "Risk7",
+      "name": "Service7",
       "role": "sub"
     },
     {
       "id": "A8",
-      "name": "Market8",
+      "name": "Worker8",
       "role": "sub"
     },
     {
       "id": "A9",
-      "name": "Settlement9",
+      "name": "Handler9",
       "role": "pub"
     },
     {
       "id": "A10",
-      "name": "Audit10",
+      "name": "Processor10",
       "role": "pub"
     },
     {
       "id": "A11",
-      "name": "Trading11",
+      "name": "App11",
       "role": "pubsub"
     },
     {
       "id": "A12",
-      "name": "Risk12",
+      "name": "Service12",
       "role": "sub"
     },
     {
       "id": "A13",
-      "name": "Market13",
+      "name": "Worker13",
       "role": "pubsub"
     },
     {
       "id": "A14",
-      "name": "Settlement14",
+      "name": "Handler14",
       "role": "pubsub"
     },
     {
       "id": "A15",
-      "name": "Audit15",
+      "name": "Processor15",
       "role": "sub"
     },
     {
       "id": "A16",
-      "name": "Trading16",
+      "name": "App16",
       "role": "sub"
     },
     {
       "id": "A17",
-      "name": "Risk17",
+      "name": "Service17",
       "role": "pubsub"
     },
     {
       "id": "A18",
-      "name": "Market18",
+      "name": "Worker18",
       "role": "pub"
     },
     {
       "id": "A19",
-      "name": "Settlement19",
+      "name": "Handler19",
       "role": "pubsub"
     },
     {
       "id": "A20",
-      "name": "Audit20",
+      "name": "Processor20",
       "role": "sub"
     },
     {
       "id": "A21",
-      "name": "Trading21",
+      "name": "App21",
       "role": "pub"
     },
     {
       "id": "A22",
-      "name": "Risk22",
+      "name": "Service22",
       "role": "pubsub"
     },
     {
       "id": "A23",
-      "name": "Market23",
+      "name": "Worker23",
       "role": "pubsub"
     },
     {
       "id": "A24",
-      "name": "Settlement24",
+      "name": "Handler24",
       "role": "pub"
     },
     {
       "id": "A25",
-      "name": "Audit25",
+      "name": "Processor25",
       "role": "pub"
     },
     {
       "id": "A26",
-      "name": "Trading26",
+      "name": "App26",
       "role": "pubsub"
     },
     {
       "id": "A27",
-      "name": "Risk27",
+      "name": "Service27",
       "role": "sub"
     },
     {
       "id": "A28",
-      "name": "Market28",
+      "name": "Worker28",
       "role": "pub"
     },
     {
       "id": "A29",
-      "name": "Settlement29",
+      "name": "Handler29",
       "role": "pub"
     },
     {
       "id": "A30",
-      "name": "Audit30",
+      "name": "Processor30",
       "role": "pub"
     },
     {
       "id": "A31",
-      "name": "Trading31",
+      "name": "App31",
       "role": "pubsub"
     },
     {
       "id": "A32",
-      "name": "Risk32",
+      "name": "Service32",
       "role": "sub"
     },
     {
       "id": "A33",
-      "name": "Market33",
+      "name": "Worker33",
       "role": "pub"
     },
     {
       "id": "A34",
-      "name": "Settlement34",
+      "name": "Handler34",
       "role": "pub"
     },
     {
       "id": "A35",
-      "name": "Audit35",
+      "name": "Processor35",
       "role": "sub"
     },
     {
       "id": "A36",
-      "name": "Trading36",
+      "name": "App36",
       "role": "pubsub"
     },
     {
       "id": "A37",
-      "name": "Risk37",
+      "name": "Service37",
       "role": "sub"
     },
     {
       "id": "A38",
-      "name": "Market38",
+      "name": "Worker38",
       "role": "sub"
     },
     {
       "id": "A39",
-      "name": "Settlement39",
+      "name": "Handler39",
       "role": "pubsub"
     },
     {
       "id": "A40",
-      "name": "Audit40",
+      "name": "Processor40",
       "role": "sub"
     }
   ],
@@ -232,88 +232,58 @@
   "topics": [
     {
       "id": "T1",
-      "name": "market/sym1/quotes",
-      "size": 711,
+      "name": "events/type1",
+      "size": 355,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "URGENT"
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T2",
-      "name": "orders/type2",
-      "size": 220,
+      "name": "commands/action2",
+      "size": 110,
       "qos": {
-        "durability": "PERSISTENT",
+        "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T3",
-      "name": "trades/venue3",
+      "name": "status/component3",
       "size": 198,
       "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T4",
-      "name": "risk/metric4",
-      "size": 381,
+      "name": "data/stream4",
+      "size": 1527,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
         "priority": "MEDIUM"
       }
     },
     {
       "id": "T5",
-      "name": "audit/event5",
+      "name": "events/type5",
       "size": 262,
       "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T6",
-      "name": "market/sym6/quotes",
-      "size": 509,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "priority": "URGENT"
-      }
-    },
-    {
-      "id": "T7",
-      "name": "orders/type7",
-      "size": 249,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
-      }
-    },
-    {
-      "id": "T8",
-      "name": "trades/venue8",
-      "size": 227,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
-      }
-    },
-    {
-      "id": "T9",
-      "name": "risk/metric9",
-      "size": 380,
+      "name": "commands/action6",
+      "size": 127,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
@@ -321,49 +291,79 @@
       }
     },
     {
-      "id": "T10",
-      "name": "audit/event10",
-      "size": 218,
+      "id": "T7",
+      "name": "status/component7",
+      "size": 249,
       "qos": {
-        "durability": "PERSISTENT",
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T8",
+      "name": "data/stream8",
+      "size": 910,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T9",
+      "name": "events/type9",
+      "size": 380,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T10",
+      "name": "commands/action10",
+      "size": 109,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T11",
-      "name": "market/sym11/quotes",
-      "size": 730,
+      "name": "status/component11",
+      "size": 365,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "URGENT"
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T12",
-      "name": "orders/type12",
-      "size": 381,
+      "name": "data/stream12",
+      "size": 1526,
       "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T13",
-      "name": "trades/venue13",
+      "name": "events/type13",
       "size": 331,
       "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T14",
-      "name": "risk/metric14",
-      "size": 214,
+      "name": "commands/action14",
+      "size": 107,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
@@ -372,98 +372,78 @@
     },
     {
       "id": "T15",
-      "name": "audit/event15",
+      "name": "status/component15",
       "size": 343,
       "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T16",
-      "name": "market/sym16/quotes",
-      "size": 600,
+      "name": "data/stream16",
+      "size": 1200,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "URGENT"
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T17",
-      "name": "orders/type17",
+      "name": "events/type17",
       "size": 200,
       "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T18",
-      "name": "trades/venue18",
-      "size": 199,
+      "name": "commands/action18",
+      "size": 99,
       "qos": {
-        "durability": "PERSISTENT",
+        "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T19",
-      "name": "risk/metric19",
+      "name": "status/component19",
       "size": 215,
       "qos": {
-        "durability": "TRANSIENT_LOCAL",
-        "reliability": "RELIABLE",
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
         "priority": "MEDIUM"
       }
     },
     {
       "id": "T20",
-      "name": "audit/event20",
-      "size": 247,
+      "name": "data/stream20",
+      "size": 991,
       "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T21",
-      "name": "market/sym21/quotes",
-      "size": 503,
+      "name": "events/type21",
+      "size": 251,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "priority": "URGENT"
+        "priority": "MEDIUM"
       }
     },
     {
       "id": "T22",
-      "name": "orders/type22",
-      "size": 321,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
-      }
-    },
-    {
-      "id": "T23",
-      "name": "trades/venue23",
-      "size": 346,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
-      }
-    },
-    {
-      "id": "T24",
-      "name": "risk/metric24",
-      "size": 198,
+      "name": "commands/action22",
+      "size": 160,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
@@ -471,13 +451,33 @@
       }
     },
     {
+      "id": "T23",
+      "name": "status/component23",
+      "size": 346,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T24",
+      "name": "data/stream24",
+      "size": 795,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
+      }
+    },
+    {
       "id": "T25",
-      "name": "audit/event25",
+      "name": "events/type25",
       "size": 335,
       "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "HIGH"
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "priority": "MEDIUM"
       }
     }
   ],
@@ -1253,7 +1253,7 @@
       },
       {
         "from": "A1",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A2",
@@ -1261,15 +1261,15 @@
       },
       {
         "from": "A3",
-        "to": "N4"
+        "to": "N3"
       },
       {
         "from": "A4",
-        "to": "N2"
+        "to": "N4"
       },
       {
         "from": "A5",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A6",
@@ -1277,15 +1277,15 @@
       },
       {
         "from": "A7",
-        "to": "N4"
+        "to": "N3"
       },
       {
         "from": "A8",
-        "to": "N2"
+        "to": "N4"
       },
       {
         "from": "A9",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A10",
@@ -1293,15 +1293,15 @@
       },
       {
         "from": "A11",
-        "to": "N4"
+        "to": "N3"
       },
       {
         "from": "A12",
-        "to": "N2"
+        "to": "N4"
       },
       {
         "from": "A13",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A14",
@@ -1309,15 +1309,15 @@
       },
       {
         "from": "A15",
-        "to": "N4"
+        "to": "N3"
       },
       {
         "from": "A16",
-        "to": "N2"
+        "to": "N4"
       },
       {
         "from": "A17",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A18",
@@ -1325,15 +1325,15 @@
       },
       {
         "from": "A19",
-        "to": "N4"
+        "to": "N3"
       },
       {
         "from": "A20",
-        "to": "N2"
+        "to": "N4"
       },
       {
         "from": "A21",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A22",
@@ -1341,15 +1341,15 @@
       },
       {
         "from": "A23",
-        "to": "N4"
+        "to": "N3"
       },
       {
         "from": "A24",
-        "to": "N2"
+        "to": "N4"
       },
       {
         "from": "A25",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A26",
@@ -1357,15 +1357,15 @@
       },
       {
         "from": "A27",
-        "to": "N4"
+        "to": "N3"
       },
       {
         "from": "A28",
-        "to": "N2"
+        "to": "N4"
       },
       {
         "from": "A29",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A30",
@@ -1373,15 +1373,15 @@
       },
       {
         "from": "A31",
-        "to": "N4"
+        "to": "N3"
       },
       {
         "from": "A32",
-        "to": "N2"
+        "to": "N4"
       },
       {
         "from": "A33",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A34",
@@ -1389,15 +1389,15 @@
       },
       {
         "from": "A35",
-        "to": "N4"
+        "to": "N3"
       },
       {
         "from": "A36",
-        "to": "N2"
+        "to": "N4"
       },
       {
         "from": "A37",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A38",
@@ -1405,11 +1405,11 @@
       },
       {
         "from": "A39",
-        "to": "N4"
+        "to": "N3"
       },
       {
         "from": "A40",
-        "to": "N2"
+        "to": "N4"
       }
     ],
     "connects_to": [
