@@ -1,42 +1,44 @@
 """
-Graph Validator - Version 4.0
+Validator - Version 5.0
 
-Validates graph-based criticality predictions by comparing against
-actual impact scores from failure simulation.
+Core validation logic for comparing predicted criticality scores
+(from graph analysis) against actual impact scores (from simulation).
 
-Validation Approach:
-1. Correlation Analysis: Spearman rank correlation (target ≥ 0.70)
-2. Classification Metrics: F1-Score (≥ 0.90), Precision/Recall (≥ 0.80)
-3. Ranking Analysis: Top-k overlap for critical component identification
-4. Statistical Confidence: Bootstrap confidence intervals, p-values
+Supports:
+- Component-type specific validation
+- Overall system validation
+- Multiple analysis method comparison
+- Detailed component-level results
 
-This module answers the key research question: Do topological metrics
-accurately predict actual system impact when components fail?
+Key Research Question:
+Do graph-based topological metrics accurately predict which components
+will have the highest impact when they fail?
 
 Author: Software-as-a-Graph Research Project
-Version: 4.0
+Version: 5.0
 """
 
 from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Sequence
+from enum import Enum
 
 from .metrics import (
     ValidationStatus,
     MetricStatus,
+    ValidationTargets,
     CorrelationMetrics,
-    ConfusionMatrix,
+    ClassificationMetrics,
     RankingMetrics,
     BootstrapCI,
-    ValidationTargets,
     calculate_correlation,
-    calculate_confusion,
+    calculate_classification,
     calculate_ranking,
     bootstrap_confidence_interval,
-    spearman,
-    percentile,
+    spearman_correlation,
+    mean,
     std_dev,
 )
 
@@ -51,93 +53,133 @@ class ComponentValidation:
     component_id: str
     component_type: str
     predicted_score: float
-    actual_impact: float
+    actual_score: float
     predicted_rank: int
     actual_rank: int
     rank_difference: int
     predicted_critical: bool
     actual_critical: bool
-    correct: bool
-
-    def to_dict(self) -> Dict:
+    correctly_classified: bool
+    
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            "id": self.component_id,
-            "type": self.component_type,
-            "predicted_score": round(self.predicted_score, 4),
-            "actual_impact": round(self.actual_impact, 4),
+            "component_id": self.component_id,
+            "component_type": self.component_type,
+            "predicted_score": round(self.predicted_score, 6),
+            "actual_score": round(self.actual_score, 6),
             "predicted_rank": self.predicted_rank,
             "actual_rank": self.actual_rank,
-            "rank_diff": self.rank_difference,
+            "rank_difference": self.rank_difference,
             "predicted_critical": self.predicted_critical,
             "actual_critical": self.actual_critical,
-            "correct": self.correct,
+            "correctly_classified": self.correctly_classified,
+        }
+
+
+@dataclass
+class TypeValidationResult:
+    """Validation result for a specific component type"""
+    component_type: str
+    count: int
+    correlation: CorrelationMetrics
+    classification: ClassificationMetrics
+    ranking: RankingMetrics
+    spearman_ci: Optional[BootstrapCI] = None
+    status: ValidationStatus = ValidationStatus.PASSED
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "component_type": self.component_type,
+            "count": self.count,
+            "correlation": self.correlation.to_dict(),
+            "classification": self.classification.to_dict(),
+            "ranking": self.ranking.to_dict(),
+            "spearman_ci": self.spearman_ci.to_dict() if self.spearman_ci else None,
+            "status": self.status.value,
         }
 
 
 @dataclass
 class ValidationResult:
     """Complete validation result"""
-    timestamp: datetime
-    status: ValidationStatus
-    n_components: int
-    
-    # Core metrics
     correlation: CorrelationMetrics
-    classification: ConfusionMatrix
+    classification: ClassificationMetrics
     ranking: RankingMetrics
-    
-    # Targets and achievements
-    targets: ValidationTargets
-    achieved: Dict[str, Tuple[float, MetricStatus]]
-    
-    # Component details
     components: List[ComponentValidation]
+    by_type: Dict[str, TypeValidationResult]
+    status: ValidationStatus
+    targets: ValidationTargets
+    spearman_ci: Optional[BootstrapCI] = None
+    timestamp: datetime = field(default_factory=datetime.now)
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
-    # Misclassified
-    false_positives: List[str]
-    false_negatives: List[str]
+    @property
+    def passed(self) -> bool:
+        """Check if validation passed"""
+        return self.status == ValidationStatus.PASSED
     
-    # Optional bootstrap
-    bootstrap: Optional[List[BootstrapCI]] = None
-
-    def to_dict(self) -> Dict:
-        result = {
-            "timestamp": self.timestamp.isoformat(),
+    @property
+    def spearman(self) -> float:
+        """Shortcut for Spearman correlation"""
+        return self.correlation.spearman
+    
+    @property
+    def f1_score(self) -> float:
+        """Shortcut for F1-score"""
+        return self.classification.f1_score
+    
+    def get_misclassified(self) -> List[ComponentValidation]:
+        """Get incorrectly classified components"""
+        return [c for c in self.components if not c.correctly_classified]
+    
+    def get_top_rank_errors(self, n: int = 10) -> List[ComponentValidation]:
+        """Get components with largest rank differences"""
+        return sorted(self.components, key=lambda c: -abs(c.rank_difference))[:n]
+    
+    def get_false_positives(self) -> List[ComponentValidation]:
+        """Get components predicted critical but not actually critical"""
+        return [c for c in self.components 
+                if c.predicted_critical and not c.actual_critical]
+    
+    def get_false_negatives(self) -> List[ComponentValidation]:
+        """Get components actually critical but not predicted"""
+        return [c for c in self.components 
+                if c.actual_critical and not c.predicted_critical]
+    
+    def summary(self) -> str:
+        """Get human-readable summary"""
+        lines = [
+            f"Validation Result: {self.status.value.upper()}",
+            f"  Samples: {self.correlation.n_samples}",
+            f"  Spearman ρ: {self.spearman:.4f} (target: ≥{self.targets.spearman})",
+            f"  F1-Score: {self.f1_score:.4f} (target: ≥{self.targets.f1_score})",
+            f"  Precision: {self.classification.precision:.4f}",
+            f"  Recall: {self.classification.recall:.4f}",
+            f"  Top-5 Overlap: {self.ranking.top_5_overlap:.2%}",
+            f"  Top-10 Overlap: {self.ranking.top_10_overlap:.2%}",
+        ]
+        
+        if self.by_type:
+            lines.append("\n  By Component Type:")
+            for comp_type, result in self.by_type.items():
+                lines.append(f"    {comp_type}: ρ={result.correlation.spearman:.4f}, "
+                           f"F1={result.classification.f1_score:.4f}")
+        
+        return "\n".join(lines)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
             "status": self.status.value,
-            "n_components": self.n_components,
             "correlation": self.correlation.to_dict(),
             "classification": self.classification.to_dict(),
             "ranking": self.ranking.to_dict(),
+            "spearman_ci": self.spearman_ci.to_dict() if self.spearman_ci else None,
+            "by_type": {k: v.to_dict() for k, v in self.by_type.items()},
             "targets": self.targets.to_dict(),
-            "achieved": {
-                k: {"value": round(v[0], 4), "status": v[1].value}
-                for k, v in self.achieved.items()
-            },
-            "misclassified": {
-                "false_positives": self.false_positives[:10],
-                "false_negatives": self.false_negatives[:10],
-            },
-            "summary": self.summary(),
-        }
-        
-        if self.bootstrap:
-            result["bootstrap"] = [b.to_dict() for b in self.bootstrap]
-        
-        return result
-
-    def summary(self) -> Dict:
-        """Generate summary statistics"""
-        met = sum(1 for _, (_, s) in self.achieved.items() if s == MetricStatus.MET)
-        total = len(self.achieved)
-        
-        return {
-            "metrics_met": f"{met}/{total}",
-            "pass_rate": round(met / total, 2) if total > 0 else 0,
-            "spearman": round(self.correlation.spearman, 4),
-            "f1": round(self.classification.f1, 4),
-            "precision": round(self.classification.precision, 4),
-            "recall": round(self.classification.recall, 4),
-            "top_5": round(self.ranking.top_k_overlap.get(5, 0), 4),
+            "component_count": len(self.components),
+            "misclassified_count": len(self.get_misclassified()),
+            "timestamp": self.timestamp.isoformat(),
+            "metadata": self.metadata,
         }
 
 
@@ -147,337 +189,300 @@ class ValidationResult:
 
 class Validator:
     """
-    Validates graph-based predictions against simulation results.
+    Validates predicted criticality against actual impact.
     
-    Compares:
-    - Predicted criticality scores from graph analysis
-    - Actual impact scores from failure simulation
-    
-    Uses statistical methods to determine if predictions are reliable.
+    Compares scores from graph analysis (predicted) with
+    impact scores from failure simulation (actual) to determine
+    if topological metrics accurately predict system behavior.
     """
-
+    
     def __init__(
         self,
         targets: Optional[ValidationTargets] = None,
-        critical_percentile: float = 75,
+        critical_threshold: Optional[float] = None,
+        bootstrap_samples: int = 1000,
         seed: Optional[int] = None,
     ):
         """
-        Initialize the validator.
+        Initialize validator.
         
         Args:
-            targets: Validation target metrics
-            critical_percentile: Percentile for critical threshold (default: top 25%)
+            targets: Validation target thresholds
+            critical_threshold: Threshold for critical classification
+                              (default: 75th percentile of actual scores)
+            bootstrap_samples: Number of bootstrap samples for CI
             seed: Random seed for reproducibility
         """
         self.targets = targets or ValidationTargets()
-        self.critical_percentile = critical_percentile
+        self.critical_threshold = critical_threshold
+        self.bootstrap_samples = bootstrap_samples
         self.seed = seed
-        self.logger = logging.getLogger(__name__)
-
+        self._logger = logging.getLogger(__name__)
+    
     def validate(
         self,
-        predicted: Dict[str, float],
-        actual: Dict[str, float],
+        predicted_scores: Dict[str, float],
+        actual_scores: Dict[str, float],
         component_types: Optional[Dict[str, str]] = None,
+        compute_ci: bool = True,
     ) -> ValidationResult:
         """
-        Validate predicted scores against actual impacts.
+        Validate predicted scores against actual scores.
         
         Args:
-            predicted: Component ID -> predicted criticality score
-            actual: Component ID -> actual impact score (from simulation)
-            component_types: Component ID -> type (optional)
+            predicted_scores: Dict mapping component_id -> predicted score
+            actual_scores: Dict mapping component_id -> actual impact score
+            component_types: Dict mapping component_id -> type (e.g., "Application")
+            compute_ci: Whether to compute confidence intervals
         
         Returns:
             ValidationResult with all metrics
         """
-        # Find common components
-        common = list(set(predicted.keys()) & set(actual.keys()))
-        n = len(common)
+        # Get common components
+        common_ids = set(predicted_scores.keys()) & set(actual_scores.keys())
         
-        self.logger.info(f"Validating {n} components")
+        if not common_ids:
+            self._logger.warning("No common components between predicted and actual")
+            return self._empty_result()
         
-        if n < 5:
-            return self._insufficient_data_result(n)
+        # Extract aligned values
+        ids = sorted(common_ids)
+        predicted = [predicted_scores[cid] for cid in ids]
+        actual = [actual_scores[cid] for cid in ids]
         
-        # Prepare data
-        pred_list = [predicted[c] for c in common]
-        actual_list = [actual[c] for c in common]
-        
-        # Calculate thresholds (top 25% are critical)
-        pred_threshold = percentile(pred_list, self.critical_percentile)
-        actual_threshold = percentile(actual_list, self.critical_percentile)
+        # Determine threshold
+        threshold = self.critical_threshold
+        if threshold is None:
+            sorted_actual = sorted(actual)
+            idx = int(len(sorted_actual) * 0.75)
+            threshold = sorted_actual[min(idx, len(sorted_actual) - 1)]
         
         # Calculate metrics
-        correlation = calculate_correlation(pred_list, actual_list)
+        correlation = calculate_correlation(predicted, actual)
+        classification = calculate_classification(predicted, actual, threshold)
         
-        confusion, fp_list, fn_list = calculate_confusion(
-            predicted, actual, pred_threshold, actual_threshold
-        )
+        # Build rankings
+        pred_ranked = sorted(ids, key=lambda x: -predicted_scores[x])
+        actual_ranked = sorted(ids, key=lambda x: -actual_scores[x])
+        ranking = calculate_ranking(pred_ranked, actual_ranked)
         
-        ranking = calculate_ranking(predicted, actual)
+        # Component-level validation
+        pred_ranks = {cid: i for i, cid in enumerate(pred_ranked)}
+        actual_ranks = {cid: i for i, cid in enumerate(actual_ranked)}
         
-        # Build component validations
-        components = self._build_component_validations(
-            common, predicted, actual,
-            pred_threshold, actual_threshold,
-            component_types or {},
-        )
-        
-        # Evaluate against targets
-        achieved = self._evaluate_targets(correlation, confusion, ranking)
-        
-        # Determine status
-        status = self._determine_status(achieved)
-        
-        return ValidationResult(
-            timestamp=datetime.now(),
-            status=status,
-            n_components=n,
-            correlation=correlation,
-            classification=confusion,
-            ranking=ranking,
-            targets=self.targets,
-            achieved=achieved,
-            components=components,
-            false_positives=fp_list,
-            false_negatives=fn_list,
-        )
-
-    def validate_with_bootstrap(
-        self,
-        predicted: Dict[str, float],
-        actual: Dict[str, float],
-        component_types: Optional[Dict[str, str]] = None,
-        n_iterations: int = 1000,
-        confidence: float = 0.95,
-    ) -> ValidationResult:
-        """
-        Validate with bootstrap confidence intervals.
-        
-        Args:
-            predicted: Predicted scores
-            actual: Actual impacts
-            component_types: Component types
-            n_iterations: Bootstrap iterations
-            confidence: Confidence level
-        
-        Returns:
-            ValidationResult with bootstrap confidence intervals
-        """
-        # First run standard validation
-        result = self.validate(predicted, actual, component_types)
-        
-        if result.status == ValidationStatus.INSUFFICIENT:
-            return result
-        
-        # Prepare data for bootstrap
-        common = list(set(predicted.keys()) & set(actual.keys()))
-        pred_list = [predicted[c] for c in common]
-        actual_list = [actual[c] for c in common]
-        
-        # Bootstrap for Spearman
-        def spearman_fn(x, y):
-            r, _ = spearman(x, y)
-            return r
-        
-        spearman_ci = bootstrap_confidence_interval(
-            pred_list, actual_list, spearman_fn,
-            n_iterations=n_iterations, confidence=confidence, seed=self.seed
-        )
-        spearman_ci.metric = "spearman"
-        
-        # Bootstrap for F1 (simplified)
-        pred_thresh = percentile(pred_list, self.critical_percentile)
-        actual_thresh = percentile(actual_list, self.critical_percentile)
-        
-        def f1_fn(x, y):
-            n = len(x)
-            pt = percentile(x, self.critical_percentile)
-            at = percentile(y, self.critical_percentile)
+        components = []
+        for cid in ids:
+            pred_score = predicted_scores[cid]
+            actual_score = actual_scores[cid]
+            pred_rank = pred_ranks[cid]
+            actual_rank = actual_ranks[cid]
+            pred_critical = pred_score >= threshold
+            actual_critical = actual_score >= threshold
             
-            tp = sum(1 for px, py in zip(x, y) if px >= pt and py >= at)
-            fp = sum(1 for px, py in zip(x, y) if px >= pt and py < at)
-            fn = sum(1 for px, py in zip(x, y) if px < pt and py >= at)
-            
-            prec = tp / (tp + fp) if (tp + fp) > 0 else 0
-            rec = tp / (tp + fn) if (tp + fn) > 0 else 0
-            return 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0
-        
-        f1_ci = bootstrap_confidence_interval(
-            pred_list, actual_list, f1_fn,
-            n_iterations=n_iterations, confidence=confidence, seed=self.seed
-        )
-        f1_ci.metric = "f1"
-        
-        result.bootstrap = [spearman_ci, f1_ci]
-        return result
-
-    def _insufficient_data_result(self, n: int) -> ValidationResult:
-        """Return result for insufficient data"""
-        return ValidationResult(
-            timestamp=datetime.now(),
-            status=ValidationStatus.INSUFFICIENT,
-            n_components=n,
-            correlation=CorrelationMetrics(0, 1, 0, 1, 0, n),
-            classification=ConfusionMatrix(0, 0, 0, 0, 0),
-            ranking=RankingMetrics({}, 0, 0, 0),
-            targets=self.targets,
-            achieved={},
-            components=[],
-            false_positives=[],
-            false_negatives=[],
-        )
-
-    def _build_component_validations(
-        self,
-        components: List[str],
-        predicted: Dict[str, float],
-        actual: Dict[str, float],
-        pred_threshold: float,
-        actual_threshold: float,
-        types: Dict[str, str],
-    ) -> List[ComponentValidation]:
-        """Build per-component validation details"""
-        # Rank components
-        pred_ranked = sorted(components, key=lambda c: -predicted[c])
-        actual_ranked = sorted(components, key=lambda c: -actual[c])
-        
-        pred_rank = {c: i + 1 for i, c in enumerate(pred_ranked)}
-        actual_rank = {c: i + 1 for i, c in enumerate(actual_ranked)}
-        
-        validations = []
-        for comp in components:
-            pred_crit = predicted[comp] >= pred_threshold
-            actual_crit = actual[comp] >= actual_threshold
-            
-            validations.append(ComponentValidation(
-                component_id=comp,
-                component_type=types.get(comp, "Unknown"),
-                predicted_score=predicted[comp],
-                actual_impact=actual[comp],
-                predicted_rank=pred_rank[comp],
-                actual_rank=actual_rank[comp],
-                rank_difference=abs(pred_rank[comp] - actual_rank[comp]),
-                predicted_critical=pred_crit,
-                actual_critical=actual_crit,
-                correct=(pred_crit == actual_crit),
+            components.append(ComponentValidation(
+                component_id=cid,
+                component_type=component_types.get(cid, "Unknown") if component_types else "Unknown",
+                predicted_score=pred_score,
+                actual_score=actual_score,
+                predicted_rank=pred_rank,
+                actual_rank=actual_rank,
+                rank_difference=pred_rank - actual_rank,
+                predicted_critical=pred_critical,
+                actual_critical=actual_critical,
+                correctly_classified=pred_critical == actual_critical,
             ))
         
-        # Sort by actual impact (most critical first)
-        validations.sort(key=lambda v: -v.actual_impact)
-        return validations
-
-    def _evaluate_targets(
+        # Validate by component type
+        by_type = {}
+        if component_types:
+            by_type = self._validate_by_type(
+                ids, predicted_scores, actual_scores, 
+                component_types, threshold, compute_ci
+            )
+        
+        # Bootstrap CI for Spearman
+        spearman_ci = None
+        if compute_ci and len(predicted) >= 10:
+            spearman_ci = bootstrap_confidence_interval(
+                predicted, actual, spearman_correlation,
+                n_bootstrap=self.bootstrap_samples,
+                seed=self.seed
+            )
+        
+        # Determine overall status
+        status = self._determine_status(correlation, classification, ranking)
+        
+        return ValidationResult(
+            correlation=correlation,
+            classification=classification,
+            ranking=ranking,
+            components=components,
+            by_type=by_type,
+            status=status,
+            targets=self.targets,
+            spearman_ci=spearman_ci,
+            metadata={
+                "total_components": len(ids),
+                "threshold": threshold,
+            },
+        )
+    
+    def _validate_by_type(
         self,
-        correlation: CorrelationMetrics,
-        confusion: ConfusionMatrix,
-        ranking: RankingMetrics,
-    ) -> Dict[str, Tuple[float, MetricStatus]]:
-        """Evaluate achieved metrics against targets"""
-        achieved = {}
+        ids: List[str],
+        predicted_scores: Dict[str, float],
+        actual_scores: Dict[str, float],
+        component_types: Dict[str, str],
+        threshold: float,
+        compute_ci: bool,
+    ) -> Dict[str, TypeValidationResult]:
+        """Validate each component type separately"""
+        # Group by type
+        by_type_ids: Dict[str, List[str]] = {}
+        for cid in ids:
+            comp_type = component_types.get(cid, "Unknown")
+            if comp_type not in by_type_ids:
+                by_type_ids[comp_type] = []
+            by_type_ids[comp_type].append(cid)
         
-        # Spearman
-        achieved["spearman"] = (
-            correlation.spearman,
-            self._metric_status(correlation.spearman, self.targets.spearman),
-        )
+        results = {}
+        for comp_type, type_ids in by_type_ids.items():
+            if len(type_ids) < 3:
+                continue
+            
+            predicted = [predicted_scores[cid] for cid in type_ids]
+            actual = [actual_scores[cid] for cid in type_ids]
+            
+            correlation = calculate_correlation(predicted, actual)
+            classification = calculate_classification(predicted, actual, threshold)
+            
+            pred_ranked = sorted(type_ids, key=lambda x: -predicted_scores[x])
+            actual_ranked = sorted(type_ids, key=lambda x: -actual_scores[x])
+            ranking = calculate_ranking(pred_ranked, actual_ranked)
+            
+            spearman_ci = None
+            if compute_ci and len(predicted) >= 10:
+                spearman_ci = bootstrap_confidence_interval(
+                    predicted, actual, spearman_correlation,
+                    n_bootstrap=self.bootstrap_samples,
+                    seed=self.seed
+                )
+            
+            status = self._determine_status(correlation, classification, ranking)
+            
+            results[comp_type] = TypeValidationResult(
+                component_type=comp_type,
+                count=len(type_ids),
+                correlation=correlation,
+                classification=classification,
+                ranking=ranking,
+                spearman_ci=spearman_ci,
+                status=status,
+            )
         
-        # F1
-        achieved["f1"] = (
-            confusion.f1,
-            self._metric_status(confusion.f1, self.targets.f1),
-        )
-        
-        # Precision
-        achieved["precision"] = (
-            confusion.precision,
-            self._metric_status(confusion.precision, self.targets.precision),
-        )
-        
-        # Recall
-        achieved["recall"] = (
-            confusion.recall,
-            self._metric_status(confusion.recall, self.targets.recall),
-        )
-        
-        # Top-5 overlap
-        top5 = ranking.top_k_overlap.get(5, 0)
-        achieved["top_5"] = (top5, self._metric_status(top5, self.targets.top_5))
-        
-        # Top-10 overlap
-        top10 = ranking.top_k_overlap.get(10, 0)
-        achieved["top_10"] = (top10, self._metric_status(top10, self.targets.top_10))
-        
-        return achieved
-
-    def _metric_status(self, value: float, target: float) -> MetricStatus:
-        """Determine metric status"""
-        if value >= target:
-            return MetricStatus.MET
-        elif value >= target * 0.95:
-            return MetricStatus.BORDERLINE
-        return MetricStatus.NOT_MET
-
+        return results
+    
     def _determine_status(
         self,
-        achieved: Dict[str, Tuple[float, MetricStatus]],
+        correlation: CorrelationMetrics,
+        classification: ClassificationMetrics,
+        ranking: RankingMetrics,
     ) -> ValidationStatus:
-        """Determine overall validation status"""
-        met = sum(1 for _, (_, s) in achieved.items() if s == MetricStatus.MET)
-        total = len(achieved)
+        """Determine validation status based on metrics"""
+        # Primary criteria
+        spearman_passed = correlation.spearman >= self.targets.spearman
+        f1_passed = classification.f1_score >= self.targets.f1_score
         
-        # Check critical metrics
-        spearman_met = achieved.get("spearman", (0, MetricStatus.NOT_MET))[1] == MetricStatus.MET
-        f1_met = achieved.get("f1", (0, MetricStatus.NOT_MET))[1] == MetricStatus.MET
+        # Secondary criteria
+        precision_passed = classification.precision >= self.targets.precision
+        recall_passed = classification.recall >= self.targets.recall
         
-        if spearman_met and f1_met and met >= total * 0.8:
+        if spearman_passed and f1_passed:
             return ValidationStatus.PASSED
-        elif met >= total * 0.5 or spearman_met or f1_met:
+        elif spearman_passed or f1_passed:
             return ValidationStatus.PARTIAL
-        return ValidationStatus.FAILED
+        else:
+            return ValidationStatus.FAILED
+    
+    def _empty_result(self) -> ValidationResult:
+        """Return empty validation result"""
+        return ValidationResult(
+            correlation=CorrelationMetrics(),
+            classification=ClassificationMetrics(
+                confusion_matrix=ConfusionMatrix(),
+                threshold=0.0
+            ),
+            ranking=RankingMetrics(),
+            components=[],
+            by_type={},
+            status=ValidationStatus.ERROR,
+            targets=self.targets,
+        )
+    
+    def compare_methods(
+        self,
+        methods: Dict[str, Dict[str, float]],
+        actual_scores: Dict[str, float],
+        component_types: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, ValidationResult]:
+        """
+        Compare multiple analysis methods.
+        
+        Args:
+            methods: Dict mapping method_name -> {component_id: score}
+            actual_scores: Actual impact scores
+            component_types: Component type mapping
+        
+        Returns:
+            Dict mapping method_name -> ValidationResult
+        """
+        results = {}
+        for method_name, predicted_scores in methods.items():
+            results[method_name] = self.validate(
+                predicted_scores, actual_scores, component_types
+            )
+        return results
 
 
 # =============================================================================
-# Convenience Functions
+# Factory Functions
 # =============================================================================
 
 def validate_predictions(
-    predicted: Dict[str, float],
-    actual: Dict[str, float],
+    predicted_scores: Dict[str, float],
+    actual_scores: Dict[str, float],
     component_types: Optional[Dict[str, str]] = None,
     targets: Optional[ValidationTargets] = None,
 ) -> ValidationResult:
     """
-    Convenience function for quick validation.
+    Quick validation function.
     
     Args:
-        predicted: Predicted scores
-        actual: Actual impacts
-        component_types: Component types
+        predicted_scores: Predicted criticality scores
+        actual_scores: Actual impact scores
+        component_types: Optional component type mapping
         targets: Validation targets
     
     Returns:
         ValidationResult
     """
     validator = Validator(targets=targets)
-    return validator.validate(predicted, actual, component_types)
+    return validator.validate(predicted_scores, actual_scores, component_types)
 
 
 def quick_validate(
-    predicted: Dict[str, float],
-    actual: Dict[str, float],
-) -> Dict[str, Any]:
+    predicted_scores: Dict[str, float],
+    actual_scores: Dict[str, float],
+) -> Tuple[float, float, bool]:
     """
-    Quick validation returning key metrics.
-    
-    Args:
-        predicted: Predicted scores
-        actual: Actual impacts
+    Quick validation returning just key metrics.
     
     Returns:
-        Dictionary with key metrics
+        Tuple of (spearman, f1_score, passed)
     """
-    result = validate_predictions(predicted, actual)
-    return result.summary()
+    result = validate_predictions(predicted_scores, actual_scores)
+    return (result.spearman, result.f1_score, result.passed)
+
+
+# Import ConfusionMatrix for _empty_result
+from .metrics import ConfusionMatrix

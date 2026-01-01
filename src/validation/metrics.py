@@ -1,25 +1,34 @@
 """
-Statistical Metrics for Validation - Version 4.0
+Validation Metrics - Version 5.0
 
-Pure Python implementations of statistical functions for validating
-graph-based analysis predictions against simulation results.
+Statistical metrics for validating graph-based criticality predictions
+against actual failure impact scores from simulation.
 
-Includes:
-- Correlation coefficients (Spearman, Pearson, Kendall)
-- Classification metrics (F1, precision, recall)
-- Ranking metrics (top-k overlap, NDCG)
-- Bootstrap confidence intervals
+Metrics:
+- Correlation: Spearman (rank), Pearson (linear), Kendall (ordinal)
+- Classification: F1-Score, Precision, Recall, Accuracy
+- Ranking: Top-K Overlap, NDCG, Mean Reciprocal Rank
+- Statistical: Bootstrap Confidence Intervals, P-values
+
+Validation Targets (from research):
+- Spearman ρ ≥ 0.70 (rank correlation)
+- F1-Score ≥ 0.90 (classification accuracy)
+- Precision ≥ 0.80
+- Recall ≥ 0.80
+- Top-5 Overlap ≥ 60%
+- Top-10 Overlap ≥ 70%
 
 Author: Software-as-a-Graph Research Project
-Version: 4.0
+Version: 5.0
 """
 
 from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Optional
 from enum import Enum
+from typing import Dict, List, Tuple, Any, Optional, Sequence
+from collections import defaultdict
 
 
 # =============================================================================
@@ -27,183 +36,179 @@ from enum import Enum
 # =============================================================================
 
 class ValidationStatus(Enum):
-    """Overall validation result status"""
-    PASSED = "passed"           # All targets met
-    PARTIAL = "partial"         # Some targets met
-    FAILED = "failed"           # Most targets not met
-    INSUFFICIENT = "insufficient"  # Not enough data
+    """Overall validation status"""
+    PASSED = "passed"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    ERROR = "error"
 
 
 class MetricStatus(Enum):
-    """Individual metric status"""
-    MET = "met"
-    NOT_MET = "not_met"
-    BORDERLINE = "borderline"   # Within 5% of target
+    """Status of individual metric"""
+    ABOVE_TARGET = "above_target"
+    BELOW_TARGET = "below_target"
+    NOT_CALCULATED = "not_calculated"
 
 
 # =============================================================================
-# Data Classes
+# Validation Targets
 # =============================================================================
-
-@dataclass
-class CorrelationMetrics:
-    """Correlation analysis results"""
-    spearman: float
-    spearman_p: float
-    pearson: float
-    pearson_p: float
-    kendall: float
-    n: int
-
-    def to_dict(self) -> Dict:
-        return {
-            "spearman": {
-                "coefficient": round(self.spearman, 4),
-                "p_value": round(self.spearman_p, 6),
-                "significant": self.spearman_p < 0.05,
-            },
-            "pearson": {
-                "coefficient": round(self.pearson, 4),
-                "p_value": round(self.pearson_p, 6),
-                "significant": self.pearson_p < 0.05,
-            },
-            "kendall": round(self.kendall, 4),
-            "sample_size": self.n,
-        }
-
-
-@dataclass
-class ConfusionMatrix:
-    """Binary classification confusion matrix"""
-    tp: int  # True positives
-    tn: int  # True negatives
-    fp: int  # False positives
-    fn: int  # False negatives
-    threshold: float
-
-    @property
-    def precision(self) -> float:
-        d = self.tp + self.fp
-        return self.tp / d if d > 0 else 0.0
-
-    @property
-    def recall(self) -> float:
-        d = self.tp + self.fn
-        return self.tp / d if d > 0 else 0.0
-
-    @property
-    def f1(self) -> float:
-        p, r = self.precision, self.recall
-        return 2 * p * r / (p + r) if (p + r) > 0 else 0.0
-
-    @property
-    def accuracy(self) -> float:
-        total = self.tp + self.tn + self.fp + self.fn
-        return (self.tp + self.tn) / total if total > 0 else 0.0
-
-    @property
-    def specificity(self) -> float:
-        d = self.tn + self.fp
-        return self.tn / d if d > 0 else 0.0
-
-    def to_dict(self) -> Dict:
-        return {
-            "matrix": {
-                "tp": self.tp,
-                "tn": self.tn,
-                "fp": self.fp,
-                "fn": self.fn,
-            },
-            "threshold": round(self.threshold, 4),
-            "precision": round(self.precision, 4),
-            "recall": round(self.recall, 4),
-            "f1": round(self.f1, 4),
-            "accuracy": round(self.accuracy, 4),
-            "specificity": round(self.specificity, 4),
-        }
-
-
-@dataclass
-class RankingMetrics:
-    """Ranking analysis metrics"""
-    top_k_overlap: Dict[int, float]  # k -> overlap fraction
-    ndcg: float  # Normalized Discounted Cumulative Gain
-    mrr: float   # Mean Reciprocal Rank
-    rank_correlation: float
-
-    def to_dict(self) -> Dict:
-        return {
-            "top_k_overlap": {
-                str(k): round(v, 4) for k, v in self.top_k_overlap.items()
-            },
-            "ndcg": round(self.ndcg, 4),
-            "mrr": round(self.mrr, 4),
-            "rank_correlation": round(self.rank_correlation, 4),
-        }
-
-
-@dataclass
-class BootstrapCI:
-    """Bootstrap confidence interval"""
-    metric: str
-    estimate: float
-    ci_lower: float
-    ci_upper: float
-    confidence: float
-    std_error: float
-    n_iterations: int
-
-    def to_dict(self) -> Dict:
-        return {
-            "metric": self.metric,
-            "estimate": round(self.estimate, 4),
-            "ci_lower": round(self.ci_lower, 4),
-            "ci_upper": round(self.ci_upper, 4),
-            "confidence": self.confidence,
-            "std_error": round(self.std_error, 4),
-            "iterations": self.n_iterations,
-        }
-
 
 @dataclass
 class ValidationTargets:
-    """Target metrics for validation"""
+    """Target thresholds for validation metrics"""
     spearman: float = 0.70
-    f1: float = 0.90
+    pearson: float = 0.65
+    kendall: float = 0.60
+    f1_score: float = 0.90
     precision: float = 0.80
     recall: float = 0.80
-    top_5: float = 0.60
-    top_10: float = 0.70
-
-    def to_dict(self) -> Dict:
+    accuracy: float = 0.85
+    top_5_overlap: float = 0.60
+    top_10_overlap: float = 0.70
+    
+    def to_dict(self) -> Dict[str, float]:
         return {
             "spearman": self.spearman,
-            "f1": self.f1,
+            "pearson": self.pearson,
+            "kendall": self.kendall,
+            "f1_score": self.f1_score,
             "precision": self.precision,
             "recall": self.recall,
-            "top_5_overlap": self.top_5,
-            "top_10_overlap": self.top_10,
+            "accuracy": self.accuracy,
+            "top_5_overlap": self.top_5_overlap,
+            "top_10_overlap": self.top_10_overlap,
         }
 
 
 # =============================================================================
-# Statistical Functions
+# Correlation Metrics
 # =============================================================================
 
-def _rank_data(data: List[float]) -> List[float]:
-    """Rank data with average rank for ties"""
-    indexed = [(val, i) for i, val in enumerate(data)]
+def spearman_correlation(x: Sequence[float], y: Sequence[float]) -> float:
+    """
+    Calculate Spearman rank correlation coefficient.
+    
+    Measures how well the relationship between two variables can be 
+    described by a monotonic function. Range: [-1, 1]
+    
+    Args:
+        x: First sequence of values
+        y: Second sequence of values (same length as x)
+    
+    Returns:
+        Spearman correlation coefficient
+    """
+    if len(x) != len(y) or len(x) < 2:
+        return 0.0
+    
+    n = len(x)
+    
+    # Calculate ranks
+    rank_x = _calculate_ranks(x)
+    rank_y = _calculate_ranks(y)
+    
+    # Calculate Pearson correlation of ranks
+    return pearson_correlation(rank_x, rank_y)
+
+
+def pearson_correlation(x: Sequence[float], y: Sequence[float]) -> float:
+    """
+    Calculate Pearson linear correlation coefficient.
+    
+    Measures linear relationship between variables. Range: [-1, 1]
+    
+    Args:
+        x: First sequence of values
+        y: Second sequence of values
+    
+    Returns:
+        Pearson correlation coefficient
+    """
+    if len(x) != len(y) or len(x) < 2:
+        return 0.0
+    
+    n = len(x)
+    mean_x = sum(x) / n
+    mean_y = sum(y) / n
+    
+    # Calculate covariance and standard deviations
+    cov = sum((x[i] - mean_x) * (y[i] - mean_y) for i in range(n))
+    std_x = math.sqrt(sum((xi - mean_x) ** 2 for xi in x))
+    std_y = math.sqrt(sum((yi - mean_y) ** 2 for yi in y))
+    
+    if std_x == 0 or std_y == 0:
+        return 0.0
+    
+    return cov / (std_x * std_y)
+
+
+def kendall_correlation(x: Sequence[float], y: Sequence[float]) -> float:
+    """
+    Calculate Kendall tau-b correlation coefficient.
+    
+    Measures ordinal association. More robust than Spearman for
+    small samples or many tied values. Range: [-1, 1]
+    
+    Args:
+        x: First sequence of values
+        y: Second sequence of values
+    
+    Returns:
+        Kendall tau-b coefficient
+    """
+    if len(x) != len(y) or len(x) < 2:
+        return 0.0
+    
+    n = len(x)
+    concordant = 0
+    discordant = 0
+    ties_x = 0
+    ties_y = 0
+    ties_both = 0
+    
+    for i in range(n):
+        for j in range(i + 1, n):
+            sign_x = _sign(x[i] - x[j])
+            sign_y = _sign(y[i] - y[j])
+            
+            if sign_x == 0 and sign_y == 0:
+                ties_both += 1
+            elif sign_x == 0:
+                ties_x += 1
+            elif sign_y == 0:
+                ties_y += 1
+            elif sign_x == sign_y:
+                concordant += 1
+            else:
+                discordant += 1
+    
+    total_pairs = n * (n - 1) // 2
+    n0 = total_pairs
+    n1 = ties_x + ties_both
+    n2 = ties_y + ties_both
+    
+    denom = math.sqrt((n0 - n1) * (n0 - n2))
+    if denom == 0:
+        return 0.0
+    
+    return (concordant - discordant) / denom
+
+
+def _calculate_ranks(values: Sequence[float]) -> List[float]:
+    """Calculate ranks with average ranking for ties"""
+    n = len(values)
+    indexed = [(v, i) for i, v in enumerate(values)]
     indexed.sort(key=lambda x: x[0])
     
-    ranks = [0.0] * len(data)
+    ranks = [0.0] * n
     i = 0
-    while i < len(indexed):
+    while i < n:
         j = i
-        # Find all items with same value (ties)
-        while j < len(indexed) and indexed[j][0] == indexed[i][0]:
+        while j < n and indexed[j][0] == indexed[i][0]:
             j += 1
-        # Assign average rank to ties
-        avg_rank = (i + j + 1) / 2.0
+        # Average rank for tied values
+        avg_rank = (i + j + 1) / 2
         for k in range(i, j):
             ranks[indexed[k][1]] = avg_rank
         i = j
@@ -211,268 +216,451 @@ def _rank_data(data: List[float]) -> List[float]:
     return ranks
 
 
-def spearman(x: List[float], y: List[float]) -> Tuple[float, float]:
-    """
-    Calculate Spearman rank correlation coefficient.
-    
-    Returns (coefficient, p-value)
-    """
-    n = len(x)
-    if n < 3:
-        return 0.0, 1.0
-    
-    rank_x = _rank_data(x)
-    rank_y = _rank_data(y)
-    
-    return pearson(rank_x, rank_y)
+def _sign(x: float) -> int:
+    """Sign function"""
+    if x > 0:
+        return 1
+    elif x < 0:
+        return -1
+    return 0
 
 
-def pearson(x: List[float], y: List[float]) -> Tuple[float, float]:
-    """
-    Calculate Pearson correlation coefficient.
+@dataclass
+class CorrelationMetrics:
+    """Correlation metrics between predicted and actual scores"""
+    spearman: float = 0.0
+    pearson: float = 0.0
+    kendall: float = 0.0
+    n_samples: int = 0
+    spearman_pvalue: Optional[float] = None
+    pearson_pvalue: Optional[float] = None
     
-    Returns (coefficient, p-value)
-    """
-    n = len(x)
-    if n < 3:
-        return 0.0, 1.0
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "spearman": round(self.spearman, 4),
+            "pearson": round(self.pearson, 4),
+            "kendall": round(self.kendall, 4),
+            "n_samples": self.n_samples,
+            "spearman_pvalue": round(self.spearman_pvalue, 6) if self.spearman_pvalue else None,
+            "pearson_pvalue": round(self.pearson_pvalue, 6) if self.pearson_pvalue else None,
+        }
     
-    # Means
-    mean_x = sum(x) / n
-    mean_y = sum(y) / n
-    
-    # Compute correlation
-    num = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
-    denom_x = math.sqrt(sum((xi - mean_x) ** 2 for xi in x))
-    denom_y = math.sqrt(sum((yi - mean_y) ** 2 for yi in y))
-    
-    if denom_x == 0 or denom_y == 0:
-        return 0.0, 1.0
-    
-    r = num / (denom_x * denom_y)
-    r = max(-1.0, min(1.0, r))  # Clamp to [-1, 1]
-    
-    # Calculate p-value using t-distribution approximation
-    if abs(r) == 1.0:
-        p = 0.0
-    else:
-        t = r * math.sqrt((n - 2) / (1 - r * r))
-        # Approximate p-value using normal distribution for large n
-        p = 2 * (1 - _normal_cdf(abs(t) / math.sqrt(n / 2)))
-    
-    return r, p
+    def check_targets(self, targets: ValidationTargets) -> Dict[str, MetricStatus]:
+        """Check metrics against targets"""
+        return {
+            "spearman": MetricStatus.ABOVE_TARGET if self.spearman >= targets.spearman 
+                       else MetricStatus.BELOW_TARGET,
+            "pearson": MetricStatus.ABOVE_TARGET if self.pearson >= targets.pearson 
+                      else MetricStatus.BELOW_TARGET,
+            "kendall": MetricStatus.ABOVE_TARGET if self.kendall >= targets.kendall 
+                      else MetricStatus.BELOW_TARGET,
+        }
 
-
-def kendall(x: List[float], y: List[float]) -> float:
-    """
-    Calculate Kendall's tau-b rank correlation.
-    """
-    n = len(x)
-    if n < 2:
-        return 0.0
-    
-    concordant = 0
-    discordant = 0
-    ties_x = 0
-    ties_y = 0
-    
-    for i in range(n):
-        for j in range(i + 1, n):
-            dx = x[i] - x[j]
-            dy = y[i] - y[j]
-            
-            if dx == 0 and dy == 0:
-                ties_x += 1
-                ties_y += 1
-            elif dx == 0:
-                ties_x += 1
-            elif dy == 0:
-                ties_y += 1
-            elif (dx > 0 and dy > 0) or (dx < 0 and dy < 0):
-                concordant += 1
-            else:
-                discordant += 1
-    
-    n_pairs = n * (n - 1) / 2
-    denom = math.sqrt((n_pairs - ties_x) * (n_pairs - ties_y))
-    
-    if denom == 0:
-        return 0.0
-    
-    return (concordant - discordant) / denom
-
-
-def _normal_cdf(x: float) -> float:
-    """Approximate normal CDF using error function approximation"""
-    return 0.5 * (1 + math.erf(x / math.sqrt(2)))
-
-
-def percentile(data: List[float], p: float) -> float:
-    """Calculate percentile (0-100)"""
-    if not data:
-        return 0.0
-    
-    sorted_data = sorted(data)
-    k = (len(sorted_data) - 1) * p / 100.0
-    f = math.floor(k)
-    c = math.ceil(k)
-    
-    if f == c:
-        return sorted_data[int(k)]
-    
-    return sorted_data[int(f)] * (c - k) + sorted_data[int(c)] * (k - f)
-
-
-def std_dev(data: List[float]) -> float:
-    """Calculate standard deviation"""
-    if len(data) < 2:
-        return 0.0
-    
-    mean = sum(data) / len(data)
-    variance = sum((x - mean) ** 2 for x in data) / (len(data) - 1)
-    return math.sqrt(variance)
-
-
-# =============================================================================
-# Metric Calculation Functions
-# =============================================================================
 
 def calculate_correlation(
-    predicted: List[float],
-    actual: List[float],
+    predicted: Sequence[float],
+    actual: Sequence[float],
 ) -> CorrelationMetrics:
-    """Calculate all correlation metrics"""
-    s_r, s_p = spearman(predicted, actual)
-    p_r, p_p = pearson(predicted, actual)
-    k_t = kendall(predicted, actual)
+    """
+    Calculate all correlation metrics.
+    
+    Args:
+        predicted: Predicted criticality scores
+        actual: Actual impact scores from simulation
+    
+    Returns:
+        CorrelationMetrics with all coefficients
+    """
+    n = len(predicted)
     
     return CorrelationMetrics(
-        spearman=s_r,
-        spearman_p=s_p,
-        pearson=p_r,
-        pearson_p=p_p,
-        kendall=k_t,
-        n=len(predicted),
+        spearman=spearman_correlation(predicted, actual),
+        pearson=pearson_correlation(predicted, actual),
+        kendall=kendall_correlation(predicted, actual),
+        n_samples=n,
     )
 
 
-def calculate_confusion(
-    predicted: Dict[str, float],
-    actual: Dict[str, float],
-    pred_threshold: float,
-    actual_threshold: float,
-) -> Tuple[ConfusionMatrix, List[str], List[str]]:
-    """
-    Calculate confusion matrix and identify misclassified components.
+# =============================================================================
+# Classification Metrics
+# =============================================================================
+
+@dataclass
+class ConfusionMatrix:
+    """Binary classification confusion matrix"""
+    true_positives: int = 0
+    true_negatives: int = 0
+    false_positives: int = 0
+    false_negatives: int = 0
     
-    Returns (ConfusionMatrix, false_positives, false_negatives)
-    """
-    common = set(predicted.keys()) & set(actual.keys())
+    @property
+    def total(self) -> int:
+        return (self.true_positives + self.true_negatives + 
+                self.false_positives + self.false_negatives)
     
-    tp = tn = fp = fn = 0
-    fp_list = []
-    fn_list = []
+    @property
+    def precision(self) -> float:
+        """TP / (TP + FP)"""
+        denom = self.true_positives + self.false_positives
+        return self.true_positives / denom if denom > 0 else 0.0
     
-    for comp in common:
-        pred_critical = predicted[comp] >= pred_threshold
-        actual_critical = actual[comp] >= actual_threshold
+    @property
+    def recall(self) -> float:
+        """TP / (TP + FN) - also known as sensitivity"""
+        denom = self.true_positives + self.false_negatives
+        return self.true_positives / denom if denom > 0 else 0.0
+    
+    @property
+    def specificity(self) -> float:
+        """TN / (TN + FP)"""
+        denom = self.true_negatives + self.false_positives
+        return self.true_negatives / denom if denom > 0 else 0.0
+    
+    @property
+    def accuracy(self) -> float:
+        """(TP + TN) / Total"""
+        if self.total == 0:
+            return 0.0
+        return (self.true_positives + self.true_negatives) / self.total
+    
+    @property
+    def f1_score(self) -> float:
+        """2 * (Precision * Recall) / (Precision + Recall)"""
+        p, r = self.precision, self.recall
+        if p + r == 0:
+            return 0.0
+        return 2 * p * r / (p + r)
+    
+    @property
+    def f_beta(self) -> float:
+        """F-beta score with beta=2 (weights recall higher)"""
+        beta = 2.0
+        p, r = self.precision, self.recall
+        if p + r == 0:
+            return 0.0
+        return (1 + beta**2) * p * r / (beta**2 * p + r)
+    
+    @property
+    def mcc(self) -> float:
+        """Matthews Correlation Coefficient - balanced measure"""
+        tp, tn = self.true_positives, self.true_negatives
+        fp, fn = self.false_positives, self.false_negatives
         
-        if pred_critical and actual_critical:
-            tp += 1
-        elif not pred_critical and not actual_critical:
-            tn += 1
-        elif pred_critical and not actual_critical:
-            fp += 1
-            fp_list.append(comp)
-        else:
-            fn += 1
-            fn_list.append(comp)
+        denom = math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+        if denom == 0:
+            return 0.0
+        return (tp * tn - fp * fn) / denom
     
-    return (
-        ConfusionMatrix(tp=tp, tn=tn, fp=fp, fn=fn, threshold=pred_threshold),
-        fp_list,
-        fn_list,
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "true_positives": self.true_positives,
+            "true_negatives": self.true_negatives,
+            "false_positives": self.false_positives,
+            "false_negatives": self.false_negatives,
+            "precision": round(self.precision, 4),
+            "recall": round(self.recall, 4),
+            "specificity": round(self.specificity, 4),
+            "accuracy": round(self.accuracy, 4),
+            "f1_score": round(self.f1_score, 4),
+            "mcc": round(self.mcc, 4),
+        }
+
+
+@dataclass
+class ClassificationMetrics:
+    """Complete classification metrics"""
+    confusion_matrix: ConfusionMatrix
+    threshold: float
+    critical_count_predicted: int = 0
+    critical_count_actual: int = 0
+    
+    @property
+    def precision(self) -> float:
+        return self.confusion_matrix.precision
+    
+    @property
+    def recall(self) -> float:
+        return self.confusion_matrix.recall
+    
+    @property
+    def f1_score(self) -> float:
+        return self.confusion_matrix.f1_score
+    
+    @property
+    def accuracy(self) -> float:
+        return self.confusion_matrix.accuracy
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "confusion_matrix": self.confusion_matrix.to_dict(),
+            "threshold": self.threshold,
+            "critical_count_predicted": self.critical_count_predicted,
+            "critical_count_actual": self.critical_count_actual,
+            "precision": round(self.precision, 4),
+            "recall": round(self.recall, 4),
+            "f1_score": round(self.f1_score, 4),
+            "accuracy": round(self.accuracy, 4),
+        }
+    
+    def check_targets(self, targets: ValidationTargets) -> Dict[str, MetricStatus]:
+        """Check metrics against targets"""
+        return {
+            "f1_score": MetricStatus.ABOVE_TARGET if self.f1_score >= targets.f1_score 
+                       else MetricStatus.BELOW_TARGET,
+            "precision": MetricStatus.ABOVE_TARGET if self.precision >= targets.precision 
+                        else MetricStatus.BELOW_TARGET,
+            "recall": MetricStatus.ABOVE_TARGET if self.recall >= targets.recall 
+                     else MetricStatus.BELOW_TARGET,
+            "accuracy": MetricStatus.ABOVE_TARGET if self.accuracy >= targets.accuracy 
+                       else MetricStatus.BELOW_TARGET,
+        }
+
+
+def calculate_confusion_matrix(
+    predicted_critical: Sequence[bool],
+    actual_critical: Sequence[bool],
+) -> ConfusionMatrix:
+    """
+    Calculate confusion matrix from binary classifications.
+    
+    Args:
+        predicted_critical: Predicted critical status
+        actual_critical: Actual critical status
+    
+    Returns:
+        ConfusionMatrix
+    """
+    cm = ConfusionMatrix()
+    
+    for pred, actual in zip(predicted_critical, actual_critical):
+        if pred and actual:
+            cm.true_positives += 1
+        elif not pred and not actual:
+            cm.true_negatives += 1
+        elif pred and not actual:
+            cm.false_positives += 1
+        else:
+            cm.false_negatives += 1
+    
+    return cm
+
+
+def calculate_classification(
+    predicted_scores: Sequence[float],
+    actual_scores: Sequence[float],
+    threshold: Optional[float] = None,
+) -> ClassificationMetrics:
+    """
+    Calculate classification metrics using threshold-based classification.
+    
+    Components are classified as "critical" if their score >= threshold.
+    Default threshold is the 75th percentile of actual scores.
+    
+    Args:
+        predicted_scores: Predicted criticality scores
+        actual_scores: Actual impact scores
+        threshold: Classification threshold (default: 75th percentile)
+    
+    Returns:
+        ClassificationMetrics
+    """
+    if not actual_scores:
+        return ClassificationMetrics(
+            confusion_matrix=ConfusionMatrix(),
+            threshold=threshold or 0.0
+        )
+    
+    # Calculate threshold as 75th percentile if not provided
+    if threshold is None:
+        sorted_actual = sorted(actual_scores)
+        idx = int(len(sorted_actual) * 0.75)
+        threshold = sorted_actual[min(idx, len(sorted_actual) - 1)]
+    
+    # Classify
+    predicted_critical = [s >= threshold for s in predicted_scores]
+    actual_critical = [s >= threshold for s in actual_scores]
+    
+    cm = calculate_confusion_matrix(predicted_critical, actual_critical)
+    
+    return ClassificationMetrics(
+        confusion_matrix=cm,
+        threshold=threshold,
+        critical_count_predicted=sum(predicted_critical),
+        critical_count_actual=sum(actual_critical),
     )
+
+
+# =============================================================================
+# Ranking Metrics
+# =============================================================================
+
+@dataclass
+class RankingMetrics:
+    """Ranking comparison metrics"""
+    top_5_overlap: float = 0.0
+    top_10_overlap: float = 0.0
+    top_k_overlaps: Dict[int, float] = field(default_factory=dict)
+    ndcg: float = 0.0
+    mrr: float = 0.0  # Mean Reciprocal Rank
+    rank_difference_mean: float = 0.0
+    rank_difference_std: float = 0.0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "top_5_overlap": round(self.top_5_overlap, 4),
+            "top_10_overlap": round(self.top_10_overlap, 4),
+            "top_k_overlaps": {k: round(v, 4) for k, v in self.top_k_overlaps.items()},
+            "ndcg": round(self.ndcg, 4),
+            "mrr": round(self.mrr, 4),
+            "rank_difference_mean": round(self.rank_difference_mean, 4),
+            "rank_difference_std": round(self.rank_difference_std, 4),
+        }
+    
+    def check_targets(self, targets: ValidationTargets) -> Dict[str, MetricStatus]:
+        """Check metrics against targets"""
+        return {
+            "top_5_overlap": MetricStatus.ABOVE_TARGET if self.top_5_overlap >= targets.top_5_overlap 
+                            else MetricStatus.BELOW_TARGET,
+            "top_10_overlap": MetricStatus.ABOVE_TARGET if self.top_10_overlap >= targets.top_10_overlap 
+                             else MetricStatus.BELOW_TARGET,
+        }
 
 
 def calculate_ranking(
-    predicted: Dict[str, float],
-    actual: Dict[str, float],
-    k_values: List[int] = None,
+    predicted_ranking: Sequence[str],
+    actual_ranking: Sequence[str],
+    k_values: Optional[List[int]] = None,
 ) -> RankingMetrics:
-    """Calculate ranking metrics"""
+    """
+    Calculate ranking comparison metrics.
+    
+    Args:
+        predicted_ranking: Component IDs ranked by predicted criticality
+        actual_ranking: Component IDs ranked by actual impact
+        k_values: Values of k for top-k overlap (default: [3, 5, 10, 20])
+    
+    Returns:
+        RankingMetrics
+    """
     if k_values is None:
         k_values = [3, 5, 10, 20]
     
-    common = list(set(predicted.keys()) & set(actual.keys()))
-    n = len(common)
+    n = len(predicted_ranking)
+    metrics = RankingMetrics()
     
-    if n == 0:
-        return RankingMetrics(
-            top_k_overlap={k: 0.0 for k in k_values},
-            ndcg=0.0,
-            mrr=0.0,
-            rank_correlation=0.0,
-        )
+    # Build rank maps
+    pred_rank = {comp: i for i, comp in enumerate(predicted_ranking)}
+    actual_rank = {comp: i for i, comp in enumerate(actual_ranking)}
     
-    # Sort by score (descending)
-    pred_ranked = sorted(common, key=lambda c: -predicted[c])
-    actual_ranked = sorted(common, key=lambda c: -actual[c])
-    
-    # Top-k overlap
-    top_k_overlap = {}
+    # Calculate top-k overlaps
     for k in k_values:
-        k_actual = min(k, n)
-        pred_top_k = set(pred_ranked[:k_actual])
-        actual_top_k = set(actual_ranked[:k_actual])
-        overlap = len(pred_top_k & actual_top_k) / k_actual
-        top_k_overlap[k] = overlap
+        if k <= n:
+            pred_top_k = set(predicted_ranking[:k])
+            actual_top_k = set(actual_ranking[:k])
+            overlap = len(pred_top_k & actual_top_k) / k
+            metrics.top_k_overlaps[k] = overlap
     
-    # NDCG (Normalized Discounted Cumulative Gain)
-    # Using actual impact as relevance score
+    metrics.top_5_overlap = metrics.top_k_overlaps.get(5, 0.0)
+    metrics.top_10_overlap = metrics.top_k_overlaps.get(10, 0.0)
+    
+    # Calculate NDCG (Normalized Discounted Cumulative Gain)
+    metrics.ndcg = _calculate_ndcg(predicted_ranking, actual_ranking)
+    
+    # Calculate MRR (Mean Reciprocal Rank)
+    metrics.mrr = _calculate_mrr(predicted_ranking, actual_ranking)
+    
+    # Calculate rank differences
+    rank_diffs = []
+    for comp in predicted_ranking:
+        if comp in actual_rank:
+            diff = abs(pred_rank[comp] - actual_rank[comp])
+            rank_diffs.append(diff)
+    
+    if rank_diffs:
+        metrics.rank_difference_mean = sum(rank_diffs) / len(rank_diffs)
+        if len(rank_diffs) > 1:
+            variance = sum((d - metrics.rank_difference_mean) ** 2 for d in rank_diffs) / len(rank_diffs)
+            metrics.rank_difference_std = math.sqrt(variance)
+    
+    return metrics
+
+
+def _calculate_ndcg(predicted: Sequence[str], actual: Sequence[str]) -> float:
+    """Calculate Normalized Discounted Cumulative Gain"""
+    n = len(actual)
+    if n == 0:
+        return 0.0
+    
+    # Relevance scores based on actual ranking position
+    relevance = {comp: n - i for i, comp in enumerate(actual)}
+    
+    # DCG for predicted ranking
     dcg = 0.0
+    for i, comp in enumerate(predicted):
+        rel = relevance.get(comp, 0)
+        dcg += rel / math.log2(i + 2)  # +2 because log2(1) = 0
+    
+    # IDCG (ideal DCG) - actual ranking
     idcg = 0.0
-    
-    for i, comp in enumerate(pred_ranked):
-        rel = actual[comp]
-        dcg += rel / math.log2(i + 2)  # i + 2 because log2(1) = 0
-    
-    for i, comp in enumerate(actual_ranked):
-        rel = actual[comp]
+    for i, comp in enumerate(actual):
+        rel = relevance.get(comp, 0)
         idcg += rel / math.log2(i + 2)
     
-    ndcg = dcg / idcg if idcg > 0 else 0.0
+    return dcg / idcg if idcg > 0 else 0.0
+
+
+def _calculate_mrr(predicted: Sequence[str], actual: Sequence[str]) -> float:
+    """Calculate Mean Reciprocal Rank for top actual items in predicted"""
+    top_actual = set(actual[:5]) if len(actual) >= 5 else set(actual)
     
-    # MRR (Mean Reciprocal Rank)
-    # Find first correctly identified critical component
-    actual_top_10pct = set(actual_ranked[:max(1, n // 10)])
-    mrr = 0.0
-    for i, comp in enumerate(pred_ranked):
-        if comp in actual_top_10pct:
-            mrr = 1.0 / (i + 1)
-            break
+    reciprocal_ranks = []
+    for comp in top_actual:
+        try:
+            rank = list(predicted).index(comp) + 1
+            reciprocal_ranks.append(1.0 / rank)
+        except ValueError:
+            reciprocal_ranks.append(0.0)
     
-    # Rank correlation
-    pred_ranks = {c: i + 1 for i, c in enumerate(pred_ranked)}
-    actual_ranks = {c: i + 1 for i, c in enumerate(actual_ranked)}
+    return sum(reciprocal_ranks) / len(reciprocal_ranks) if reciprocal_ranks else 0.0
+
+
+# =============================================================================
+# Bootstrap Confidence Intervals
+# =============================================================================
+
+@dataclass
+class BootstrapCI:
+    """Bootstrap confidence interval"""
+    estimate: float
+    lower: float
+    upper: float
+    confidence: float
+    n_bootstrap: int
     
-    x = [pred_ranks[c] for c in common]
-    y = [actual_ranks[c] for c in common]
-    rank_corr, _ = spearman(x, y)
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "estimate": round(self.estimate, 4),
+            "lower": round(self.lower, 4),
+            "upper": round(self.upper, 4),
+            "confidence": self.confidence,
+            "n_bootstrap": self.n_bootstrap,
+        }
     
-    return RankingMetrics(
-        top_k_overlap=top_k_overlap,
-        ndcg=ndcg,
-        mrr=mrr,
-        rank_correlation=rank_corr,
-    )
+    @property
+    def width(self) -> float:
+        """Width of confidence interval"""
+        return self.upper - self.lower
+    
+    def contains(self, value: float) -> bool:
+        """Check if value falls within CI"""
+        return self.lower <= value <= self.upper
 
 
 def bootstrap_confidence_interval(
-    predicted: List[float],
-    actual: List[float],
-    metric_fn,
-    n_iterations: int = 1000,
+    x: Sequence[float],
+    y: Sequence[float],
+    metric_func: callable,
+    n_bootstrap: int = 1000,
     confidence: float = 0.95,
     seed: Optional[int] = None,
 ) -> BootstrapCI:
@@ -480,54 +668,119 @@ def bootstrap_confidence_interval(
     Calculate bootstrap confidence interval for a metric.
     
     Args:
-        predicted: Predicted values
-        actual: Actual values
-        metric_fn: Function that takes (predicted, actual) and returns float
-        n_iterations: Number of bootstrap iterations
-        confidence: Confidence level
+        x: First sequence
+        y: Second sequence
+        metric_func: Function that takes (x, y) and returns float
+        n_bootstrap: Number of bootstrap iterations
+        confidence: Confidence level (default: 0.95)
         seed: Random seed
     
     Returns:
-        BootstrapCI with confidence interval
+        BootstrapCI with point estimate and interval
     """
     rng = random.Random(seed)
-    n = len(predicted)
+    n = len(x)
     
-    if n < 3:
-        point = metric_fn(predicted, actual)
+    if n < 2:
         return BootstrapCI(
-            metric="metric",
-            estimate=point,
-            ci_lower=point,
-            ci_upper=point,
-            confidence=confidence,
-            std_error=0.0,
-            n_iterations=0,
+            estimate=0.0, lower=0.0, upper=0.0,
+            confidence=confidence, n_bootstrap=0
         )
     
     # Point estimate
-    point_estimate = metric_fn(predicted, actual)
+    estimate = metric_func(x, y)
     
     # Bootstrap samples
-    samples = []
-    for _ in range(n_iterations):
+    bootstrap_estimates = []
+    for _ in range(n_bootstrap):
         indices = [rng.randint(0, n - 1) for _ in range(n)]
-        pred_sample = [predicted[i] for i in indices]
-        actual_sample = [actual[i] for i in indices]
-        samples.append(metric_fn(pred_sample, actual_sample))
+        x_sample = [x[i] for i in indices]
+        y_sample = [y[i] for i in indices]
+        bootstrap_estimates.append(metric_func(x_sample, y_sample))
     
-    # Calculate confidence interval
-    samples.sort()
-    alpha = (1 - confidence) / 2
-    lower_idx = int(n_iterations * alpha)
-    upper_idx = int(n_iterations * (1 - alpha))
+    # Calculate percentiles
+    bootstrap_estimates.sort()
+    alpha = 1 - confidence
+    lower_idx = int(n_bootstrap * alpha / 2)
+    upper_idx = int(n_bootstrap * (1 - alpha / 2))
     
     return BootstrapCI(
-        metric="metric",
-        estimate=point_estimate,
-        ci_lower=samples[lower_idx],
-        ci_upper=samples[min(upper_idx, n_iterations - 1)],
+        estimate=estimate,
+        lower=bootstrap_estimates[lower_idx],
+        upper=bootstrap_estimates[upper_idx],
         confidence=confidence,
-        std_error=std_dev(samples),
-        n_iterations=n_iterations,
+        n_bootstrap=n_bootstrap,
     )
+
+
+# =============================================================================
+# Statistical Utilities
+# =============================================================================
+
+def percentile(values: Sequence[float], p: float) -> float:
+    """
+    Calculate percentile using linear interpolation.
+    
+    Args:
+        values: Sequence of values
+        p: Percentile (0-100)
+    
+    Returns:
+        Value at percentile
+    """
+    if not values:
+        return 0.0
+    
+    sorted_vals = sorted(values)
+    n = len(sorted_vals)
+    
+    k = (n - 1) * p / 100
+    f = math.floor(k)
+    c = math.ceil(k)
+    
+    if f == c:
+        return sorted_vals[int(k)]
+    
+    return sorted_vals[int(f)] * (c - k) + sorted_vals[int(c)] * (k - f)
+
+
+def mean(values: Sequence[float]) -> float:
+    """Calculate mean"""
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
+def std_dev(values: Sequence[float], sample: bool = True) -> float:
+    """
+    Calculate standard deviation.
+    
+    Args:
+        values: Sequence of values
+        sample: Use sample std (n-1) or population (n)
+    
+    Returns:
+        Standard deviation
+    """
+    if len(values) < 2:
+        return 0.0
+    
+    m = mean(values)
+    variance = sum((x - m) ** 2 for x in values)
+    
+    if sample:
+        variance /= (len(values) - 1)
+    else:
+        variance /= len(values)
+    
+    return math.sqrt(variance)
+
+
+def median(values: Sequence[float]) -> float:
+    """Calculate median"""
+    return percentile(values, 50)
+
+
+def iqr(values: Sequence[float]) -> float:
+    """Calculate interquartile range (Q3 - Q1)"""
+    return percentile(values, 75) - percentile(values, 25)

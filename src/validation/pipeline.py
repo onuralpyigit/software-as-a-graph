@@ -1,187 +1,264 @@
 """
-Validation Pipeline - Version 4.0
+Validation Pipeline - Version 5.0
 
-Integrates graph analysis, failure simulation, and validation into
-a single pipeline for end-to-end methodology assessment.
+Complete validation pipeline that:
+1. Runs graph analysis to get predicted criticality scores
+2. Runs failure simulation to get actual impact scores
+3. Validates predictions against actuals
+4. Supports component-type specific validation
+5. Compares multiple analysis methods
 
-Pipeline Steps:
-1. Load graph from JSON
-2. Compute predicted criticality scores using graph metrics
-3. Run failure simulation to get actual impact scores
-4. Validate predictions against simulation results
-
-Works entirely on graph model without requiring Neo4j.
+Pipeline Flow:
+    Graph Model → Analysis (Predicted) → Simulation (Actual) → Validation
 
 Author: Software-as-a-Graph Research Project
-Version: 4.0
+Version: 5.0
 """
 
 from __future__ import annotations
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Any, Optional
-from collections import defaultdict
+from typing import Dict, List, Any, Optional, Tuple
+from enum import Enum
 
-from ..simulation import (
-    SimulationGraph,
-    FailureSimulator,
-    ComponentType,
+from .metrics import (
+    ValidationStatus,
+    ValidationTargets,
+    CorrelationMetrics,
+    ClassificationMetrics,
+    RankingMetrics,
+    mean,
+    std_dev,
 )
-
-from .validator import Validator, ValidationResult
-from .metrics import ValidationTargets
+from .validator import (
+    Validator,
+    ValidationResult,
+    TypeValidationResult,
+    ComponentValidation,
+)
 
 
 # =============================================================================
-# Criticality Analyzers (Pure Python - No Neo4j)
+# Analysis Methods
+# =============================================================================
+
+class AnalysisMethod(Enum):
+    """Available analysis methods for criticality prediction"""
+    BETWEENNESS = "betweenness"
+    PAGERANK = "pagerank"
+    DEGREE = "degree"
+    COMPOSITE = "composite"
+    CLOSENESS = "closeness"
+    EIGENVECTOR = "eigenvector"
+
+
+# =============================================================================
+# Graph Analyzer (Prediction)
 # =============================================================================
 
 class GraphAnalyzer:
     """
-    Computes criticality scores using pure graph analysis.
+    Analyzes graph to compute predicted criticality scores.
     
-    Metrics computed:
-    - Degree centrality (connection count)
-    - Betweenness centrality (path importance)
-    - Message path centrality (pub-sub specific)
-    - Composite score combining all metrics
+    Uses NetworkX for graph algorithms when Neo4j is not available.
     """
-
-    def __init__(self, graph: SimulationGraph):
-        self.graph = graph
-        self.logger = logging.getLogger(__name__)
-
-    def degree_centrality(self) -> Dict[str, float]:
-        """
-        Calculate degree centrality for all components.
-        
-        Degree = (in_degree + out_degree) / max_possible
-        """
-        scores = {}
-        n = len(self.graph.components)
-        max_degree = 2 * (n - 1) if n > 1 else 1
-        
-        for comp_id in self.graph.components:
-            in_deg = len(self.graph.get_incoming(comp_id))
-            out_deg = len(self.graph.get_outgoing(comp_id))
-            scores[comp_id] = (in_deg + out_deg) / max_degree
-        
-        return scores
-
-    def betweenness_centrality(self) -> Dict[str, float]:
-        """
-        Calculate betweenness centrality for all components.
-        
-        Uses Brandes' algorithm for efficiency.
-        """
-        scores = {c: 0.0 for c in self.graph.components}
-        components = list(self.graph.components.keys())
-        n = len(components)
-        
-        for source in components:
-            # Single-source shortest paths (BFS)
-            dist = {source: 0}
-            paths = defaultdict(int)
-            paths[source] = 1
-            pred = defaultdict(list)
-            queue = [source]
-            stack = []
-            
-            while queue:
-                current = queue.pop(0)
-                stack.append(current)
-                
-                for neighbor in self.graph.get_neighbors(current):
-                    # First visit
-                    if neighbor not in dist:
-                        dist[neighbor] = dist[current] + 1
-                        queue.append(neighbor)
-                    
-                    # Shortest path to neighbor
-                    if dist[neighbor] == dist[current] + 1:
-                        paths[neighbor] += paths[current]
-                        pred[neighbor].append(current)
-            
-            # Back propagation
-            delta = defaultdict(float)
-            while stack:
-                w = stack.pop()
-                for v in pred[w]:
-                    delta[v] += (paths[v] / paths[w]) * (1 + delta[w])
-                if w != source:
-                    scores[w] += delta[w]
-        
-        # Normalize
-        if n > 2:
-            norm = 2.0 / ((n - 1) * (n - 2))
-            scores = {k: v * norm for k, v in scores.items()}
-        
-        return scores
-
-    def message_path_centrality(self) -> Dict[str, float]:
-        """
-        Calculate centrality based on message paths.
-        
-        Components appearing in more message paths are more critical.
-        """
-        paths = self.graph.get_all_message_paths()
-        
-        if not paths:
-            return {c: 0.0 for c in self.graph.components}
-        
-        counts = defaultdict(int)
-        for _, _, _, path in paths:
-            for comp in path:
-                counts[comp] += 1
-        
-        max_count = max(counts.values()) if counts else 1
-        
-        return {
-            c: counts.get(c, 0) / max_count
-            for c in self.graph.components
-        }
-
-    def composite_score(
+    
+    def __init__(self, seed: Optional[int] = None):
+        self.seed = seed
+        self._logger = logging.getLogger(__name__)
+    
+    def analyze(
         self,
+        graph: Any,  # SimulationGraph
+        method: AnalysisMethod = AnalysisMethod.COMPOSITE,
+        weights: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, float]:
+        """
+        Compute criticality scores using specified method.
+        
+        Args:
+            graph: SimulationGraph instance
+            method: Analysis method to use
+            weights: Weights for composite method
+        
+        Returns:
+            Dict mapping component_id -> criticality score
+        """
+        try:
+            import networkx as nx
+        except ImportError:
+            self._logger.error("NetworkX required for graph analysis")
+            return {}
+        
+        # Build NetworkX graph
+        G = self._build_nx_graph(graph)
+        
+        if method == AnalysisMethod.BETWEENNESS:
+            return self._betweenness_centrality(G)
+        elif method == AnalysisMethod.PAGERANK:
+            return self._pagerank(G)
+        elif method == AnalysisMethod.DEGREE:
+            return self._degree_centrality(G)
+        elif method == AnalysisMethod.CLOSENESS:
+            return self._closeness_centrality(G)
+        elif method == AnalysisMethod.EIGENVECTOR:
+            return self._eigenvector_centrality(G)
+        elif method == AnalysisMethod.COMPOSITE:
+            return self._composite_score(G, weights)
+        else:
+            return self._composite_score(G, weights)
+    
+    def analyze_all_methods(
+        self,
+        graph: Any,
+    ) -> Dict[str, Dict[str, float]]:
+        """
+        Compute scores using all analysis methods.
+        
+        Returns:
+            Dict mapping method_name -> {component_id: score}
+        """
+        results = {}
+        for method in AnalysisMethod:
+            try:
+                results[method.value] = self.analyze(graph, method)
+            except Exception as e:
+                self._logger.warning(f"Failed to compute {method.value}: {e}")
+        return results
+    
+    def analyze_by_type(
+        self,
+        graph: Any,
+        method: AnalysisMethod = AnalysisMethod.COMPOSITE,
+    ) -> Dict[str, Dict[str, float]]:
+        """
+        Compute scores separately for each component type.
+        
+        Returns:
+            Dict mapping component_type -> {component_id: score}
+        """
+        from src.simulation import ComponentType
+        
+        results = {}
+        for comp_type in ComponentType:
+            # Get subgraph for this type
+            type_ids = graph.get_component_ids_by_type(comp_type)
+            if len(type_ids) < 2:
+                continue
+            
+            subgraph = graph.get_subgraph_by_type(comp_type)
+            scores = self.analyze(subgraph, method)
+            
+            if scores:
+                results[comp_type.value] = scores
+        
+        return results
+    
+    def _build_nx_graph(self, graph: Any) -> 'nx.DiGraph':
+        """Build NetworkX graph from SimulationGraph"""
+        import networkx as nx
+        
+        G = nx.DiGraph()
+        
+        for comp_id, comp in graph.components.items():
+            G.add_node(comp_id, type=comp.type.value)
+        
+        for edge in graph.edges.values():
+            G.add_edge(
+                edge.source, edge.target,
+                weight=edge.weight,
+                edge_type=edge.edge_type.value
+            )
+        
+        return G
+    
+    def _betweenness_centrality(self, G: 'nx.DiGraph') -> Dict[str, float]:
+        """Calculate betweenness centrality"""
+        import networkx as nx
+        return nx.betweenness_centrality(G, weight='weight', normalized=True)
+    
+    def _pagerank(self, G: 'nx.DiGraph') -> Dict[str, float]:
+        """Calculate PageRank"""
+        import networkx as nx
+        try:
+            return nx.pagerank(G, weight='weight')
+        except nx.PowerIterationFailedConvergence:
+            return nx.pagerank(G, weight='weight', max_iter=1000)
+    
+    def _degree_centrality(self, G: 'nx.DiGraph') -> Dict[str, float]:
+        """Calculate degree centrality (in + out)"""
+        import networkx as nx
+        in_deg = nx.in_degree_centrality(G)
+        out_deg = nx.out_degree_centrality(G)
+        return {n: (in_deg.get(n, 0) + out_deg.get(n, 0)) / 2 for n in G.nodes()}
+    
+    def _closeness_centrality(self, G: 'nx.DiGraph') -> Dict[str, float]:
+        """Calculate closeness centrality"""
+        import networkx as nx
+        return nx.closeness_centrality(G)
+    
+    def _eigenvector_centrality(self, G: 'nx.DiGraph') -> Dict[str, float]:
+        """Calculate eigenvector centrality"""
+        import networkx as nx
+        try:
+            return nx.eigenvector_centrality(G, weight='weight', max_iter=1000)
+        except (nx.PowerIterationFailedConvergence, nx.NetworkXError):
+            # Fall back to degree for problematic graphs
+            return self._degree_centrality(G)
+    
+    def _composite_score(
+        self,
+        G: 'nx.DiGraph',
         weights: Optional[Dict[str, float]] = None,
     ) -> Dict[str, float]:
         """
         Calculate composite criticality score.
         
-        C_score = α·BC + β·DC + γ·MPC
-        
-        Default weights: betweenness=0.4, degree=0.3, message_path=0.3
+        Default weights:
+        - Betweenness: 0.40 (bottleneck importance)
+        - PageRank: 0.35 (dependency importance)
+        - Degree: 0.25 (coupling level)
         """
         if weights is None:
             weights = {
-                "betweenness": 0.4,
-                "degree": 0.3,
-                "message_path": 0.3,
+                "betweenness": 0.40,
+                "pagerank": 0.35,
+                "degree": 0.25,
             }
         
-        bc = self.betweenness_centrality()
-        dc = self.degree_centrality()
-        mpc = self.message_path_centrality()
+        bc = self._betweenness_centrality(G)
+        pr = self._pagerank(G)
+        dc = self._degree_centrality(G)
         
-        scores = {}
-        for comp_id in self.graph.components:
-            scores[comp_id] = (
-                weights.get("betweenness", 0.4) * bc.get(comp_id, 0) +
-                weights.get("degree", 0.3) * dc.get(comp_id, 0) +
-                weights.get("message_path", 0.3) * mpc.get(comp_id, 0)
+        # Normalize each metric to [0, 1]
+        bc = self._normalize(bc)
+        pr = self._normalize(pr)
+        dc = self._normalize(dc)
+        
+        # Compute weighted composite
+        composite = {}
+        for node in G.nodes():
+            composite[node] = (
+                weights.get("betweenness", 0.4) * bc.get(node, 0) +
+                weights.get("pagerank", 0.35) * pr.get(node, 0) +
+                weights.get("degree", 0.25) * dc.get(node, 0)
             )
         
-        return scores
-
-    def analyze_all(self) -> Dict[str, Dict[str, float]]:
-        """Compute all centrality metrics"""
-        return {
-            "degree": self.degree_centrality(),
-            "betweenness": self.betweenness_centrality(),
-            "message_path": self.message_path_centrality(),
-            "composite": self.composite_score(),
-        }
+        return composite
+    
+    def _normalize(self, scores: Dict[str, float]) -> Dict[str, float]:
+        """Normalize scores to [0, 1]"""
+        if not scores:
+            return scores
+        
+        min_val = min(scores.values())
+        max_val = max(scores.values())
+        
+        if max_val == min_val:
+            return {k: 0.5 for k in scores}
+        
+        return {k: (v - min_val) / (max_val - min_val) for k, v in scores.items()}
 
 
 # =============================================================================
@@ -189,53 +266,93 @@ class GraphAnalyzer:
 # =============================================================================
 
 @dataclass
-class PipelineResult:
-    """Complete pipeline result"""
-    timestamp: datetime
+class MethodComparison:
+    """Comparison of analysis methods"""
+    method: str
+    spearman: float
+    f1_score: float
+    precision: float
+    recall: float
+    status: ValidationStatus
     
-    # Graph info
-    n_components: int
-    n_connections: int
-    n_paths: int
-    
-    # Analysis results
-    predicted_scores: Dict[str, float]
-    analysis_method: str
-    analysis_time_ms: float
-    
-    # Simulation results
-    actual_impacts: Dict[str, float]
-    simulation_time_ms: float
-    
-    # Validation results
-    validation: ValidationResult
-    validation_time_ms: float
-    
-    # Total time
-    total_time_ms: float
-
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            "timestamp": self.timestamp.isoformat(),
-            "graph": {
-                "components": self.n_components,
-                "connections": self.n_connections,
-                "paths": self.n_paths,
-            },
-            "analysis": {
-                "method": self.analysis_method,
-                "time_ms": round(self.analysis_time_ms, 2),
-            },
-            "simulation": {
-                "time_ms": round(self.simulation_time_ms, 2),
-            },
+            "method": self.method,
+            "spearman": round(self.spearman, 4),
+            "f1_score": round(self.f1_score, 4),
+            "precision": round(self.precision, 4),
+            "recall": round(self.recall, 4),
+            "status": self.status.value,
+        }
+
+
+@dataclass
+class PipelineResult:
+    """Complete pipeline execution result"""
+    validation: ValidationResult
+    predicted_scores: Dict[str, float]
+    actual_scores: Dict[str, float]
+    analysis_method: str
+    by_component_type: Dict[str, ValidationResult]
+    method_comparison: Optional[Dict[str, MethodComparison]] = None
+    simulation_stats: Optional[Dict[str, Any]] = None
+    timestamp: datetime = field(default_factory=datetime.now)
+    
+    @property
+    def passed(self) -> bool:
+        return self.validation.passed
+    
+    @property
+    def spearman(self) -> float:
+        return self.validation.spearman
+    
+    @property
+    def f1_score(self) -> float:
+        return self.validation.f1_score
+    
+    def get_best_method(self) -> Optional[str]:
+        """Get method with highest Spearman correlation"""
+        if not self.method_comparison:
+            return self.analysis_method
+        
+        best = max(self.method_comparison.items(), key=lambda x: x[1].spearman)
+        return best[0]
+    
+    def summary(self) -> str:
+        """Get human-readable summary"""
+        lines = [
+            f"Pipeline Result: {self.validation.status.value.upper()}",
+            f"  Analysis Method: {self.analysis_method}",
+            f"  Components: {len(self.predicted_scores)}",
+            self.validation.summary(),
+        ]
+        
+        if self.method_comparison:
+            lines.append("\n  Method Comparison:")
+            for method, comp in sorted(
+                self.method_comparison.items(),
+                key=lambda x: -x[1].spearman
+            ):
+                lines.append(f"    {method}: ρ={comp.spearman:.4f}, F1={comp.f1_score:.4f}")
+        
+        if self.by_component_type:
+            lines.append("\n  By Component Type:")
+            for comp_type, result in self.by_component_type.items():
+                lines.append(f"    {comp_type}: ρ={result.spearman:.4f}, F1={result.f1_score:.4f}")
+        
+        return "\n".join(lines)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
             "validation": self.validation.to_dict(),
-            "timing": {
-                "analysis_ms": round(self.analysis_time_ms, 2),
-                "simulation_ms": round(self.simulation_time_ms, 2),
-                "validation_ms": round(self.validation_time_ms, 2),
-                "total_ms": round(self.total_time_ms, 2),
-            },
+            "analysis_method": self.analysis_method,
+            "predicted_scores": {k: round(v, 6) for k, v in self.predicted_scores.items()},
+            "actual_scores": {k: round(v, 6) for k, v in self.actual_scores.items()},
+            "by_component_type": {k: v.to_dict() for k, v in self.by_component_type.items()},
+            "method_comparison": {k: v.to_dict() for k, v in (self.method_comparison or {}).items()},
+            "simulation_stats": self.simulation_stats,
+            "best_method": self.get_best_method(),
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
@@ -245,224 +362,262 @@ class PipelineResult:
 
 class ValidationPipeline:
     """
-    End-to-end validation pipeline.
+    Complete validation pipeline integrating analysis and simulation.
     
-    1. Analyzes graph to compute predicted criticality scores
-    2. Runs failure simulation to compute actual impact scores
-    3. Validates predictions against simulation results
+    Pipeline:
+    1. Analyze graph to get predicted criticality scores
+    2. Run failure simulation to get actual impact scores
+    3. Validate predictions against actuals
+    4. Optionally compare multiple analysis methods
+    5. Validate by component type
     """
-
+    
     def __init__(
         self,
         targets: Optional[ValidationTargets] = None,
-        cascade_threshold: float = 0.5,
-        cascade_probability: float = 0.7,
         seed: Optional[int] = None,
+        cascade: bool = True,
     ):
         """
-        Initialize the pipeline.
+        Initialize pipeline.
         
         Args:
-            targets: Validation target metrics
-            cascade_threshold: Cascade propagation threshold
-            cascade_probability: Cascade probability
+            targets: Validation target thresholds
             seed: Random seed for reproducibility
+            cascade: Enable cascade in failure simulation
         """
         self.targets = targets or ValidationTargets()
-        self.cascade_threshold = cascade_threshold
-        self.cascade_probability = cascade_probability
         self.seed = seed
-        self.logger = logging.getLogger(__name__)
-
+        self.cascade = cascade
+        self.analyzer = GraphAnalyzer(seed=seed)
+        self.validator = Validator(targets=targets, seed=seed)
+        self._logger = logging.getLogger(__name__)
+    
     def run(
         self,
-        graph: SimulationGraph,
-        analysis_method: str = "composite",
-        component_types: Optional[List[ComponentType]] = None,
-        enable_cascade: bool = True,
+        graph: Any,  # SimulationGraph
+        analysis_method: AnalysisMethod = AnalysisMethod.COMPOSITE,
+        compare_methods: bool = False,
+        validate_by_type: bool = True,
     ) -> PipelineResult:
         """
-        Run the complete validation pipeline.
+        Run complete validation pipeline.
         
         Args:
-            graph: SimulationGraph to analyze
-            analysis_method: Method for computing predicted scores
-                - "composite": Combined centrality score (default)
-                - "betweenness": Betweenness centrality
-                - "degree": Degree centrality
-                - "message_path": Message path centrality
-            component_types: Component types to include (None = all)
-            enable_cascade: Enable cascade propagation in simulation
+            graph: SimulationGraph to validate
+            analysis_method: Primary analysis method
+            compare_methods: Compare all analysis methods
+            validate_by_type: Validate each component type separately
         
         Returns:
-            PipelineResult with all analysis and validation results
+            PipelineResult with complete validation
         """
-        pipeline_start = datetime.now()
+        from src.simulation import FailureSimulator, ComponentType
         
-        self.logger.info(f"Starting validation pipeline: {analysis_method}")
+        self._logger.info("Starting validation pipeline")
         
-        # Graph stats
-        n_components = len(graph.components)
-        n_connections = len(graph.connections)
-        n_paths = len(graph.get_all_message_paths())
+        # Step 1: Get predicted scores from analysis
+        self._logger.info(f"Running analysis using {analysis_method.value}")
+        predicted_scores = self.analyzer.analyze(graph, analysis_method)
         
-        # Step 1: Analysis - compute predicted scores
-        analysis_start = datetime.now()
-        
-        analyzer = GraphAnalyzer(graph)
-        all_metrics = analyzer.analyze_all()
-        
-        if analysis_method == "composite":
-            predicted = all_metrics["composite"]
-        elif analysis_method == "betweenness":
-            predicted = all_metrics["betweenness"]
-        elif analysis_method == "degree":
-            predicted = all_metrics["degree"]
-        elif analysis_method == "message_path":
-            predicted = all_metrics["message_path"]
-        else:
-            predicted = all_metrics["composite"]
-        
-        analysis_end = datetime.now()
-        analysis_time = (analysis_end - analysis_start).total_seconds() * 1000
-        
-        self.logger.info(f"Analysis complete: {len(predicted)} components")
-        
-        # Step 2: Simulation - compute actual impacts
-        simulation_start = datetime.now()
-        
+        # Step 2: Get actual scores from simulation
+        self._logger.info("Running failure simulation")
         simulator = FailureSimulator(
-            cascade_threshold=self.cascade_threshold,
-            cascade_probability=self.cascade_probability,
             seed=self.seed,
+            cascade=self.cascade,
+            critical_threshold=0.3,
         )
+        campaign = simulator.simulate_all_failures(graph)
+        actual_scores = campaign.component_impacts
         
-        # Run exhaustive failure campaign
-        batch = simulator.simulate_all_failures(
-            graph,
-            component_types=component_types,
-            enable_cascade=enable_cascade,
-        )
-        
-        # Extract impact scores
-        actual = {
-            result.primary_failures[0]: result.impact.impact_score
-            for result in batch.results
+        # Build component type mapping
+        component_types = {
+            comp_id: comp.type.value 
+            for comp_id, comp in graph.components.items()
         }
         
-        simulation_end = datetime.now()
-        simulation_time = (simulation_end - simulation_start).total_seconds() * 1000
-        
-        self.logger.info(f"Simulation complete: {len(batch.results)} failures")
-        
-        # Step 3: Validation - compare predicted vs actual
-        validation_start = datetime.now()
-        
-        # Get component types
-        comp_types = {
-            c.id: c.type.value for c in graph.components.values()
-        }
-        
-        validator = Validator(targets=self.targets, seed=self.seed)
-        validation = validator.validate(predicted, actual, comp_types)
-        
-        validation_end = datetime.now()
-        validation_time = (validation_end - validation_start).total_seconds() * 1000
-        
-        pipeline_end = datetime.now()
-        total_time = (pipeline_end - pipeline_start).total_seconds() * 1000
-        
-        self.logger.info(f"Validation complete: {validation.status.value}")
-        
-        return PipelineResult(
-            timestamp=pipeline_start,
-            n_components=n_components,
-            n_connections=n_connections,
-            n_paths=n_paths,
-            predicted_scores=predicted,
-            analysis_method=analysis_method,
-            analysis_time_ms=analysis_time,
-            actual_impacts=actual,
-            simulation_time_ms=simulation_time,
-            validation=validation,
-            validation_time_ms=validation_time,
-            total_time_ms=total_time,
+        # Step 3: Validate
+        self._logger.info("Validating predictions")
+        validation = self.validator.validate(
+            predicted_scores, actual_scores, component_types
         )
-
-    def compare_methods(
-        self,
-        graph: SimulationGraph,
-        methods: Optional[List[str]] = None,
-        enable_cascade: bool = True,
-    ) -> Dict[str, PipelineResult]:
-        """
-        Compare multiple analysis methods.
         
-        Args:
-            graph: SimulationGraph to analyze
-            methods: Methods to compare (default: all)
-            enable_cascade: Enable cascade propagation
-        
-        Returns:
-            Dictionary of method -> PipelineResult
-        """
-        if methods is None:
-            methods = ["composite", "betweenness", "degree", "message_path"]
-        
-        results = {}
-        for method in methods:
-            self.logger.info(f"Running method: {method}")
-            results[method] = self.run(
-                graph, analysis_method=method, enable_cascade=enable_cascade
+        # Step 4: Compare methods if requested
+        method_comparison = None
+        if compare_methods:
+            method_comparison = self._compare_methods(
+                graph, actual_scores, component_types
             )
         
+        # Step 5: Validate by component type
+        by_component_type = {}
+        if validate_by_type:
+            by_component_type = self._validate_by_type(
+                graph, predicted_scores, actual_scores, component_types
+            )
+        
+        self._logger.info(f"Validation complete: {validation.status.value}")
+        
+        return PipelineResult(
+            validation=validation,
+            predicted_scores=predicted_scores,
+            actual_scores=actual_scores,
+            analysis_method=analysis_method.value,
+            by_component_type=by_component_type,
+            method_comparison=method_comparison,
+            simulation_stats={
+                "total_components": len(campaign.results),
+                "critical_count": len(campaign.critical_components),
+            },
+        )
+    
+    def _compare_methods(
+        self,
+        graph: Any,
+        actual_scores: Dict[str, float],
+        component_types: Dict[str, str],
+    ) -> Dict[str, MethodComparison]:
+        """Compare all analysis methods"""
+        all_methods = self.analyzer.analyze_all_methods(graph)
+        comparisons = {}
+        
+        for method_name, predicted in all_methods.items():
+            result = self.validator.validate(
+                predicted, actual_scores, component_types,
+                compute_ci=False
+            )
+            comparisons[method_name] = MethodComparison(
+                method=method_name,
+                spearman=result.spearman,
+                f1_score=result.f1_score,
+                precision=result.classification.precision,
+                recall=result.classification.recall,
+                status=result.status,
+            )
+        
+        return comparisons
+    
+    def _validate_by_type(
+        self,
+        graph: Any,
+        predicted_scores: Dict[str, float],
+        actual_scores: Dict[str, float],
+        component_types: Dict[str, str],
+    ) -> Dict[str, ValidationResult]:
+        """Validate each component type separately"""
+        from src.simulation import ComponentType
+        
+        results = {}
+        
+        for comp_type in ComponentType:
+            # Filter to this type
+            type_ids = [
+                cid for cid, ct in component_types.items()
+                if ct == comp_type.value
+            ]
+            
+            if len(type_ids) < 3:
+                continue
+            
+            type_predicted = {cid: predicted_scores[cid] for cid in type_ids 
+                            if cid in predicted_scores}
+            type_actual = {cid: actual_scores[cid] for cid in type_ids 
+                         if cid in actual_scores}
+            
+            if len(type_predicted) < 3:
+                continue
+            
+            result = self.validator.validate(
+                type_predicted, type_actual,
+                {cid: comp_type.value for cid in type_ids},
+                compute_ci=False
+            )
+            results[comp_type.value] = result
+        
         return results
+    
+    def run_with_custom_scores(
+        self,
+        predicted_scores: Dict[str, float],
+        actual_scores: Dict[str, float],
+        component_types: Optional[Dict[str, str]] = None,
+    ) -> PipelineResult:
+        """
+        Run validation with pre-computed scores.
+        
+        Useful when scores come from Neo4j or external analysis.
+        """
+        validation = self.validator.validate(
+            predicted_scores, actual_scores, component_types
+        )
+        
+        by_component_type = {}
+        if component_types:
+            # Group by type
+            types = set(component_types.values())
+            for comp_type in types:
+                type_ids = [cid for cid, ct in component_types.items() if ct == comp_type]
+                if len(type_ids) < 3:
+                    continue
+                
+                type_pred = {cid: predicted_scores[cid] for cid in type_ids if cid in predicted_scores}
+                type_actual = {cid: actual_scores[cid] for cid in type_ids if cid in actual_scores}
+                
+                if len(type_pred) >= 3:
+                    result = self.validator.validate(type_pred, type_actual, compute_ci=False)
+                    by_component_type[comp_type] = result
+        
+        return PipelineResult(
+            validation=validation,
+            predicted_scores=predicted_scores,
+            actual_scores=actual_scores,
+            analysis_method="custom",
+            by_component_type=by_component_type,
+        )
 
 
 # =============================================================================
-# Convenience Functions
+# Factory Functions
 # =============================================================================
 
 def run_validation(
-    graph: SimulationGraph,
+    graph: Any,
     method: str = "composite",
-    targets: Optional[ValidationTargets] = None,
+    compare_methods: bool = False,
     seed: Optional[int] = None,
 ) -> PipelineResult:
     """
-    Convenience function to run validation pipeline.
+    Quick validation function.
     
     Args:
-        graph: SimulationGraph to analyze
-        method: Analysis method
-        targets: Validation targets
+        graph: SimulationGraph to validate
+        method: Analysis method name
+        compare_methods: Compare all methods
         seed: Random seed
     
     Returns:
         PipelineResult
     """
-    pipeline = ValidationPipeline(targets=targets, seed=seed)
-    return pipeline.run(graph, analysis_method=method)
-
-
-def quick_pipeline(graph: SimulationGraph) -> Dict[str, Any]:
-    """
-    Quick pipeline returning key metrics.
+    method_enum = AnalysisMethod(method) if method in [m.value for m in AnalysisMethod] else AnalysisMethod.COMPOSITE
     
-    Args:
-        graph: SimulationGraph to analyze
+    pipeline = ValidationPipeline(seed=seed)
+    return pipeline.run(graph, method_enum, compare_methods)
+
+
+def quick_pipeline(
+    graph: Any,
+    method: str = "composite",
+) -> Dict[str, float]:
+    """
+    Quick pipeline returning just key metrics.
     
     Returns:
-        Dictionary with key validation metrics
+        Dict with spearman, f1_score, passed
     """
-    result = run_validation(graph)
+    result = run_validation(graph, method)
     return {
+        "spearman": result.spearman,
+        "f1_score": result.f1_score,
+        "passed": result.passed,
         "status": result.validation.status.value,
-        "spearman": result.validation.correlation.spearman,
-        "f1": result.validation.classification.f1,
-        "precision": result.validation.classification.precision,
-        "recall": result.validation.classification.recall,
-        "top_5": result.validation.ranking.top_k_overlap.get(5, 0),
-        "n_components": result.n_components,
-        "total_time_ms": result.total_time_ms,
     }
