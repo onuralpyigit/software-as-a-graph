@@ -1,133 +1,122 @@
 """
-Graph Generator - Refactored Version 4.0
+Graph Generator - Version 5.0
 
-Generates realistic pub-sub system graphs with:
-- Configurable scale presets (tiny to extreme)
-- Domain-specific scenarios (IoT, financial, healthcare, etc.)
-- Anti-pattern injection for testing
-- Reproducible generation with seeds
+Generates realistic pub-sub system graphs for testing and validation.
+
+Features:
+- Multiple scale presets (tiny, small, medium, large, xlarge)
+- Domain-specific scenarios (iot, financial, healthcare, etc.)
+- Configurable anti-patterns for testing
+- QoS-aware topic generation
+- Deterministic generation with seed support
 
 Usage:
-    from src.core.graph_generator import generate_graph, GraphConfig
+    from src.core import generate_graph
     
-    # Simple usage
-    graph = generate_graph(scale="medium", scenario="iot")
-    
-    # With configuration
-    config = GraphConfig(scale="large", scenario="financial", seed=42)
-    generator = GraphGenerator(config)
-    graph = generator.generate()
+    graph = generate_graph(scale="medium", scenario="iot", seed=42)
 
 Author: Software-as-a-Graph Research Project
-Version: 4.0
+Version: 5.0
 """
 
 from __future__ import annotations
+
 import random
-import logging
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Dict, List, Optional, Any
-from collections import defaultdict
+from typing import Any, Dict, List, Optional
+
+
+# =============================================================================
+# Scale Presets
+# =============================================================================
+
+SCALE_PRESETS = {
+    "tiny": {"apps": 5, "brokers": 1, "topics": 8, "nodes": 2},
+    "small": {"apps": 10, "brokers": 2, "topics": 20, "nodes": 4},
+    "medium": {"apps": 30, "brokers": 4, "topics": 60, "nodes": 8},
+    "large": {"apps": 100, "brokers": 8, "topics": 200, "nodes": 20},
+    "xlarge": {"apps": 300, "brokers": 16, "topics": 600, "nodes": 50},
+}
+
+# Scenario-specific configurations
+SCENARIOS = {
+    "generic": {
+        "topic_prefixes": ["data", "events", "commands", "status"],
+        "app_prefixes": ["service", "worker", "processor", "handler"],
+        "qos_distribution": {"reliable": 0.3, "persistent": 0.2},
+    },
+    "iot": {
+        "topic_prefixes": ["sensor", "telemetry", "actuator", "alert", "device"],
+        "app_prefixes": ["collector", "aggregator", "controller", "monitor"],
+        "qos_distribution": {"reliable": 0.4, "persistent": 0.3},
+    },
+    "financial": {
+        "topic_prefixes": ["market", "orders", "trades", "quotes", "risk"],
+        "app_prefixes": ["trading", "pricing", "risk", "execution", "analytics"],
+        "qos_distribution": {"reliable": 0.8, "persistent": 0.5},
+    },
+    "healthcare": {
+        "topic_prefixes": ["patient", "vitals", "alerts", "records", "monitor"],
+        "app_prefixes": ["monitor", "recorder", "alerter", "analytics"],
+        "qos_distribution": {"reliable": 0.9, "persistent": 0.7},
+    },
+    "autonomous_vehicle": {
+        "topic_prefixes": ["lidar", "camera", "radar", "cmd_vel", "odom", "nav"],
+        "app_prefixes": ["perception", "planning", "control", "localization"],
+        "qos_distribution": {"reliable": 0.6, "persistent": 0.1},
+    },
+}
 
 
 # =============================================================================
 # Configuration
 # =============================================================================
 
-# Scale presets: (nodes, apps, topics, brokers)
-SCALE_PRESETS = {
-    "tiny": (2, 5, 3, 1),
-    "small": (4, 15, 10, 2),
-    "medium": (8, 40, 25, 4),
-    "large": (16, 100, 60, 8),
-    "xlarge": (32, 250, 150, 16),
-    "extreme": (64, 500, 300, 32),
-}
-
-# QoS profiles by scenario
-QOS_PROFILES = {
-    "default": {"durability": "VOLATILE", "reliability": "BEST_EFFORT", "transport_priority": "MEDIUM"},
-    "reliable": {"durability": "TRANSIENT_LOCAL", "reliability": "RELIABLE", "transport_priority": "MEDIUM"},
-    "persistent": {"durability": "PERSISTENT", "reliability": "RELIABLE", "transport_priority": "HIGH"},
-    "realtime": {"durability": "VOLATILE", "reliability": "BEST_EFFORT", "transport_priority": "URGENT"},
-    "critical": {"durability": "PERSISTENT", "reliability": "RELIABLE", "transport_priority": "URGENT"},
-}
-
-# Scenario-specific topic templates
-SCENARIO_TOPICS = {
-    "generic": [
-        ("events/{type}", "default"),
-        ("commands/{action}", "reliable"),
-        ("status/{component}", "default"),
-        ("data/{stream}", "default"),
-    ],
-    "iot": [
-        ("sensor/{type}/data", "default"),
-        ("device/{id}/status", "default"),
-        ("alerts/{priority}", "reliable"),
-        ("commands/{device}", "reliable"),
-        ("telemetry/{zone}", "default"),
-    ],
-    "financial": [
-        ("market/{symbol}/quotes", "realtime"),
-        ("orders/{type}", "persistent"),
-        ("trades/{venue}", "persistent"),
-        ("risk/{metric}", "reliable"),
-        ("audit/{event}", "persistent"),
-    ],
-    "healthcare": [
-        ("patient/{id}/vitals", "critical"),
-        ("alerts/clinical", "critical"),
-        ("devices/{type}/data", "reliable"),
-        ("orders/medication", "persistent"),
-        ("records/{type}", "persistent"),
-    ],
-    "autonomous_vehicle": [
-        ("perception/{sensor}", "realtime"),
-        ("planning/trajectory", "realtime"),
-        ("control/commands", "critical"),
-        ("safety/alerts", "critical"),
-        ("localization/pose", "realtime"),
-    ],
-    "smart_city": [
-        ("traffic/{intersection}", "reliable"),
-        ("parking/{zone}/status", "default"),
-        ("energy/{grid}/usage", "reliable"),
-        ("emergency/dispatch", "critical"),
-        ("weather/forecast", "default"),
-    ],
-}
-
-
 @dataclass
 class GraphConfig:
-    """Configuration for graph generation"""
-    scale: str = "medium"
+    """Configuration for graph generation."""
+    
+    # Scale
+    num_applications: int = 30
+    num_brokers: int = 4
+    num_topics: int = 60
+    num_nodes: int = 8
+    
+    # Connectivity
+    pub_probability: float = 0.15
+    sub_probability: float = 0.25
+    min_publishers_per_topic: int = 1
+    min_subscribers_per_topic: int = 1
+    
+    # Scenario
     scenario: str = "generic"
-    seed: int = 42
     
-    # Optional overrides
-    num_nodes: Optional[int] = None
-    num_applications: Optional[int] = None
-    num_topics: Optional[int] = None
-    num_brokers: Optional[int] = None
+    # QoS distribution
+    reliable_probability: float = 0.3
+    persistent_probability: float = 0.2
     
-    # Anti-patterns to inject
+    # Anti-patterns
     antipatterns: List[str] = field(default_factory=list)
+    
+    # Randomization
+    seed: Optional[int] = None
 
-    def __post_init__(self):
-        if self.scale not in SCALE_PRESETS:
-            raise ValueError(f"Invalid scale '{self.scale}'. Valid: {list(SCALE_PRESETS.keys())}")
+    @classmethod
+    def from_scale(cls, scale: str, scenario: str = "generic", **kwargs) -> GraphConfig:
+        """Create config from scale preset."""
+        preset = SCALE_PRESETS.get(scale, SCALE_PRESETS["medium"])
+        scenario_config = SCENARIOS.get(scenario, SCENARIOS["generic"])
         
-        valid_scenarios = list(SCENARIO_TOPICS.keys())
-        if self.scenario not in valid_scenarios:
-            raise ValueError(f"Invalid scenario '{self.scenario}'. Valid: {valid_scenarios}")
-        
-        valid_antipatterns = ["spof", "god_topic", "chatty", "bottleneck"]
-        for ap in self.antipatterns:
-            if ap not in valid_antipatterns:
-                raise ValueError(f"Invalid antipattern '{ap}'. Valid: {valid_antipatterns}")
+        return cls(
+            num_applications=preset["apps"],
+            num_brokers=preset["brokers"],
+            num_topics=preset["topics"],
+            num_nodes=preset["nodes"],
+            scenario=scenario,
+            reliable_probability=scenario_config["qos_distribution"]["reliable"],
+            persistent_probability=scenario_config["qos_distribution"]["persistent"],
+            **kwargs,
+        )
 
 
 # =============================================================================
@@ -135,404 +124,222 @@ class GraphConfig:
 # =============================================================================
 
 class GraphGenerator:
-    """
-    Generates realistic pub-sub system graphs.
+    """Generates realistic pub-sub system graphs."""
     
-    The generator creates:
-    1. Infrastructure nodes
-    2. Message brokers distributed across nodes
-    3. Topics with scenario-appropriate QoS settings
-    4. Applications with publisher/subscriber roles
-    5. All necessary relationships
-    """
-
-    def __init__(self, config: GraphConfig):
+    def __init__(self, config: GraphConfig) -> None:
+        """Initialize generator with configuration."""
         self.config = config
-        self.logger = logging.getLogger(__name__)
-        random.seed(config.seed)
-        
-        # Get counts from scale or overrides
-        preset = SCALE_PRESETS[config.scale]
-        self.num_nodes = config.num_nodes or preset[0]
-        self.num_apps = config.num_applications or preset[1]
-        self.num_topics = config.num_topics or preset[2]
-        self.num_brokers = config.num_brokers or preset[3]
-        
-        # Get scenario templates
-        self.topic_templates = SCENARIO_TOPICS.get(config.scenario, SCENARIO_TOPICS["generic"])
-
+        self.rng = random.Random(config.seed)
+        self.scenario_config = SCENARIOS.get(config.scenario, SCENARIOS["generic"])
+    
     def generate(self) -> Dict[str, Any]:
-        """
-        Generate the complete graph.
-        
-        Returns:
-            Dictionary with vertices, relationships, and metadata
-        """
-        start_time = datetime.utcnow()
-        
-        # Generate vertices
+        """Generate a complete graph."""
+        # Generate components
         nodes = self._generate_nodes()
         brokers = self._generate_brokers()
         topics = self._generate_topics()
         applications = self._generate_applications()
         
         # Generate relationships
-        relationships = {
-            "publishes_to": [],
-            "subscribes_to": [],
-            "routes": [],
-            "runs_on": [],
-            "connects_to": [],
-        }
+        runs_on = self._generate_runs_on(applications, brokers, nodes)
+        routes = self._generate_routes(brokers, topics)
+        pub_sub = self._generate_pub_sub(applications, topics)
+        connects = self._generate_connects(nodes)
         
-        self._generate_infrastructure(nodes, brokers, relationships)
-        self._generate_routing(brokers, topics, relationships)
-        self._generate_pubsub(applications, topics, relationships)
-        self._ensure_connectivity(applications, topics, relationships)
-        
-        # Apply anti-patterns
-        antipatterns_applied = {}
-        for ap in self.config.antipatterns:
-            result = self._apply_antipattern(ap, applications, topics, relationships)
-            if result:
-                antipatterns_applied[ap] = result
-        
-        # Build final graph
-        generation_time = (datetime.utcnow() - start_time).total_seconds()
-        
-        graph = {
+        return {
             "metadata": {
-                "id": f"graph_{self.config.scenario}_{self.config.scale}_{self.config.seed}",
-                "generated_at": datetime.utcnow().isoformat() + "Z",
-                "generator_version": "4.0",
-                "scale": self.config.scale,
+                "scale": self._get_scale_name(),
                 "scenario": self.config.scenario,
                 "seed": self.config.seed,
-                "generation_time_seconds": generation_time,
-                "antipatterns_applied": antipatterns_applied or None,
             },
-            "applications": applications,
+            "nodes": nodes,
             "brokers": brokers,
             "topics": topics,
-            "nodes": nodes,
-            "relationships": relationships,
+            "applications": applications,
+            "relationships": {
+                "runs_on": runs_on,
+                "routes": routes,
+                "publishes_to": pub_sub["publishes"],
+                "subscribes_to": pub_sub["subscribes"],
+                "connects_to": connects,
+            },
         }
-        
-        # Add metrics
-        graph["metrics"] = self._calculate_metrics(graph)
-        
-        self.logger.info(
-            f"Generated: {len(nodes)} nodes, {len(applications)} apps, "
-            f"{len(topics)} topics, {len(brokers)} brokers in {generation_time:.3f}s"
-        )
-        
-        return graph
-
-    # -------------------------------------------------------------------------
-    # Vertex Generation
-    # -------------------------------------------------------------------------
-
+    
+    def _get_scale_name(self) -> str:
+        """Determine scale name from config."""
+        for name, preset in SCALE_PRESETS.items():
+            if preset["apps"] == self.config.num_applications:
+                return name
+        return "custom"
+    
     def _generate_nodes(self) -> List[Dict]:
-        """Generate infrastructure nodes"""
-        return [{"id": f"N{i+1}", "name": f"Node{i+1}"} for i in range(self.num_nodes)]
-
+        """Generate infrastructure nodes."""
+        return [
+            {"id": f"N{i}", "name": f"Node {i}"}
+            for i in range(self.config.num_nodes)
+        ]
+    
     def _generate_brokers(self) -> List[Dict]:
-        """Generate message brokers"""
-        return [{"id": f"B{i+1}", "name": f"Broker{i+1}"} for i in range(self.num_brokers)]
-
+        """Generate brokers."""
+        return [
+            {"id": f"B{i}", "name": f"Broker {i}"}
+            for i in range(self.config.num_brokers)
+        ]
+    
     def _generate_topics(self) -> List[Dict]:
-        """Generate topics with scenario-appropriate QoS"""
+        """Generate topics with QoS."""
+        prefixes = self.scenario_config["topic_prefixes"]
         topics = []
-        for i in range(self.num_topics):
-            # Select template based on index
-            template, qos_profile = self.topic_templates[i % len(self.topic_templates)]
+        
+        for i in range(self.config.num_topics):
+            prefix = self.rng.choice(prefixes)
             
-            # Generate topic name from template
-            name = template.format(
-                type=f"type{i+1}",
-                id=f"id{i+1}",
-                action=f"action{i+1}",
-                component=f"component{i+1}",
-                stream=f"stream{i+1}",
-                device=f"device{i+1}",
-                zone=f"zone{i+1}",
-                priority=["low", "medium", "high"][i % 3],
-                symbol=f"sym{i+1}",
-                venue=f"venue{i+1}",
-                metric=f"metric{i+1}",
-                event=f"event{i+1}",
-                sensor=["lidar", "camera", "radar"][i % 3],
-                intersection=f"int{i+1}",
-                grid=f"grid{i+1}",
+            # Determine QoS
+            reliability = (
+                "RELIABLE"
+                if self.rng.random() < self.config.reliable_probability
+                else "BEST_EFFORT"
             )
             
-            # Get QoS profile
-            qos = QOS_PROFILES.get(qos_profile, QOS_PROFILES["default"]).copy()
+            if self.rng.random() < self.config.persistent_probability:
+                durability = "PERSISTENT"
+            elif self.rng.random() < 0.3:
+                durability = "TRANSIENT"
+            else:
+                durability = "VOLATILE"
             
-            # Vary message size based on topic type
-            base_size = 256
-            if "data" in name or "vitals" in name:
-                base_size = 1024
-            elif "commands" in name or "control" in name:
-                base_size = 128
-            elif "quotes" in name or "perception" in name:
-                base_size = 512
-            
-            size = base_size + random.randint(-base_size // 4, base_size // 2)
+            priority = self.rng.choice(["LOW", "MEDIUM", "MEDIUM", "HIGH", "URGENT"])
+            size = self.rng.choice([64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536])
             
             topics.append({
-                "id": f"T{i+1}",
-                "name": name,
-                "size": max(64, size),
-                "qos": qos,
+                "id": f"T{i}",
+                "name": f"/{prefix}/{prefix}_{i}",
+                "size": size,
+                "qos": {
+                    "durability": durability,
+                    "reliability": reliability,
+                    "transport_priority": priority,
+                },
             })
         
         return topics
-
+    
     def _generate_applications(self) -> List[Dict]:
-        """Generate applications with role distribution"""
-        applications = []
+        """Generate applications."""
+        prefixes = self.scenario_config["app_prefixes"]
+        apps = []
         
-        # Role distribution: ~30% pub, ~40% sub, ~30% pubsub
-        roles = ["pub"] * int(self.num_apps * 0.3)
-        roles += ["sub"] * int(self.num_apps * 0.4)
-        roles += ["pubsub"] * (self.num_apps - len(roles))
-        random.shuffle(roles)
-        
-        scenario_prefix = {
-            "iot": ["Sensor", "Controller", "Gateway", "Monitor", "Actuator"],
-            "financial": ["Trading", "Risk", "Market", "Settlement", "Audit"],
-            "healthcare": ["Monitor", "Alert", "Device", "Record", "Order"],
-            "autonomous_vehicle": ["Perception", "Planning", "Control", "Safety", "Localization"],
-            "smart_city": ["Traffic", "Energy", "Parking", "Emergency", "Weather"],
-        }.get(self.config.scenario, ["App", "Service", "Worker", "Handler", "Processor"])
-        
-        for i in range(self.num_apps):
-            prefix = scenario_prefix[i % len(scenario_prefix)]
-            applications.append({
-                "id": f"A{i+1}",
-                "name": f"{prefix}{i+1}",
-                "role": roles[i],
+        for i in range(self.config.num_applications):
+            prefix = self.rng.choice(prefixes)
+            role = self.rng.choice(["pub", "sub", "pubsub"])
+            
+            apps.append({
+                "id": f"A{i}",
+                "name": f"{prefix}_{i}",
+                "role": role,
             })
         
-        return applications
-
-    # -------------------------------------------------------------------------
-    # Relationship Generation
-    # -------------------------------------------------------------------------
-
-    def _generate_infrastructure(self, nodes: List[Dict], brokers: List[Dict], 
-                                  relationships: Dict) -> None:
-        """Generate RUNS_ON and CONNECTS_TO relationships"""
-        node_ids = [n["id"] for n in nodes]
+        return apps
+    
+    def _generate_runs_on(
+        self,
+        applications: List[Dict],
+        brokers: List[Dict],
+        nodes: List[Dict],
+    ) -> List[Dict]:
+        """Generate RUNS_ON relationships."""
+        runs_on = []
         
-        # Distribute brokers across nodes (round-robin with some randomness)
-        for i, broker in enumerate(brokers):
-            node_id = node_ids[i % len(node_ids)]
-            relationships["runs_on"].append({"from": broker["id"], "to": node_id})
+        # Applications run on nodes
+        for app in applications:
+            node = self.rng.choice(nodes)
+            runs_on.append({"from": app["id"], "to": node["id"]})
         
-        # Create node mesh connectivity (each node connects to 2-3 others)
+        # Brokers run on nodes
+        for broker in brokers:
+            node = self.rng.choice(nodes)
+            runs_on.append({"from": broker["id"], "to": node["id"]})
+        
+        return runs_on
+    
+    def _generate_routes(
+        self,
+        brokers: List[Dict],
+        topics: List[Dict],
+    ) -> List[Dict]:
+        """Generate ROUTES relationships (broker -> topic)."""
+        routes = []
+        
+        # Each topic is routed by at least one broker
+        for topic in topics:
+            # Pick 1-2 brokers to route this topic
+            num_brokers = self.rng.randint(1, min(2, len(brokers)))
+            selected = self.rng.sample(brokers, num_brokers)
+            
+            for broker in selected:
+                routes.append({"from": broker["id"], "to": topic["id"]})
+        
+        return routes
+    
+    def _generate_pub_sub(
+        self,
+        applications: List[Dict],
+        topics: List[Dict],
+    ) -> Dict[str, List[Dict]]:
+        """Generate PUBLISHES_TO and SUBSCRIBES_TO relationships."""
+        publishes = []
+        subscribes = []
+        
+        for topic in topics:
+            # Ensure minimum publishers
+            publishers = []
+            pub_candidates = [a for a in applications if a["role"] in ("pub", "pubsub")]
+            
+            if pub_candidates:
+                num_pubs = max(
+                    self.config.min_publishers_per_topic,
+                    int(len(pub_candidates) * self.config.pub_probability),
+                )
+                num_pubs = min(num_pubs, len(pub_candidates))
+                publishers = self.rng.sample(pub_candidates, num_pubs)
+            
+            for app in publishers:
+                publishes.append({"from": app["id"], "to": topic["id"]})
+            
+            # Ensure minimum subscribers
+            sub_candidates = [a for a in applications if a["role"] in ("sub", "pubsub")]
+            
+            if sub_candidates:
+                num_subs = max(
+                    self.config.min_subscribers_per_topic,
+                    int(len(sub_candidates) * self.config.sub_probability),
+                )
+                num_subs = min(num_subs, len(sub_candidates))
+                subscribers = self.rng.sample(sub_candidates, num_subs)
+            else:
+                subscribers = []
+            
+            for app in subscribers:
+                subscribes.append({"from": app["id"], "to": topic["id"]})
+        
+        return {"publishes": publishes, "subscribes": subscribes}
+    
+    def _generate_connects(self, nodes: List[Dict]) -> List[Dict]:
+        """Generate CONNECTS_TO relationships (mesh network)."""
+        connects = []
+        
+        # Create a connected mesh
         for i, node in enumerate(nodes):
             # Connect to next node (ring topology base)
-            next_idx = (i + 1) % len(nodes)
-            if next_idx != i:
-                relationships["connects_to"].append({
-                    "from": node["id"],
-                    "to": nodes[next_idx]["id"],
-                })
+            if i < len(nodes) - 1:
+                connects.append({"from": node["id"], "to": nodes[i + 1]["id"]})
             
-            # Add random connections for mesh
-            if len(nodes) > 3:
-                extra_connections = random.randint(1, min(2, len(nodes) - 2))
-                candidates = [n["id"] for n in nodes if n["id"] != node["id"]]
-                for target in random.sample(candidates, min(extra_connections, len(candidates))):
-                    if not any(r["from"] == node["id"] and r["to"] == target 
-                              for r in relationships["connects_to"]):
-                        relationships["connects_to"].append({
-                            "from": node["id"],
-                            "to": target,
-                        })
-
-    def _generate_routing(self, brokers: List[Dict], topics: List[Dict],
-                          relationships: Dict) -> None:
-        """Generate ROUTES relationships (broker -> topic)"""
-        broker_ids = [b["id"] for b in brokers]
+            # Add some random connections
+            for other in nodes:
+                if node["id"] != other["id"] and self.rng.random() < 0.2:
+                    connects.append({"from": node["id"], "to": other["id"]})
         
-        for topic in topics:
-            # Each topic routed by 1-2 brokers
-            num_brokers = min(random.randint(1, 2), len(broker_ids))
-            for broker_id in random.sample(broker_ids, num_brokers):
-                relationships["routes"].append({
-                    "from": broker_id,
-                    "to": topic["id"],
-                })
-
-    def _generate_pubsub(self, applications: List[Dict], topics: List[Dict],
-                         relationships: Dict) -> None:
-        """Generate PUBLISHES_TO, SUBSCRIBES_TO, and RUNS_ON relationships"""
-        topic_ids = [t["id"] for t in topics]
-        
-        for app in applications:
-            role = app["role"]
-            app_id = app["id"]
-            
-            # Determine number of topics based on role
-            if role == "pub":
-                num_pub = random.randint(1, max(1, len(topic_ids) // 5))
-                num_sub = 0
-            elif role == "sub":
-                num_pub = 0
-                num_sub = random.randint(1, max(1, len(topic_ids) // 4))
-            else:  # pubsub
-                num_pub = random.randint(1, max(1, len(topic_ids) // 6))
-                num_sub = random.randint(1, max(1, len(topic_ids) // 5))
-            
-            # Create publish relationships
-            pub_topics = random.sample(topic_ids, min(num_pub, len(topic_ids)))
-            for topic_id in pub_topics:
-                relationships["publishes_to"].append({"from": app_id, "to": topic_id})
-            
-            # Create subscribe relationships (avoid subscribing to own publications)
-            available_for_sub = [t for t in topic_ids if t not in pub_topics]
-            if available_for_sub:
-                sub_topics = random.sample(available_for_sub, min(num_sub, len(available_for_sub)))
-                for topic_id in sub_topics:
-                    relationships["subscribes_to"].append({"from": app_id, "to": topic_id})
-
-    def _ensure_connectivity(self, applications: List[Dict], topics: List[Dict],
-                             relationships: Dict) -> None:
-        """Ensure all topics have at least one publisher and subscriber"""
-        app_ids = [a["id"] for a in applications]
-        pub_apps = [a["id"] for a in applications if a["role"] in ("pub", "pubsub")]
-        sub_apps = [a["id"] for a in applications if a["role"] in ("sub", "pubsub")]
-        
-        published_topics = {r["to"] for r in relationships["publishes_to"]}
-        subscribed_topics = {r["to"] for r in relationships["subscribes_to"]}
-        
-        for topic in topics:
-            topic_id = topic["id"]
-            
-            # Ensure at least one publisher
-            if topic_id not in published_topics and pub_apps:
-                publisher = random.choice(pub_apps)
-                relationships["publishes_to"].append({"from": publisher, "to": topic_id})
-            
-            # Ensure at least one subscriber
-            if topic_id not in subscribed_topics and sub_apps:
-                subscriber = random.choice(sub_apps)
-                relationships["subscribes_to"].append({"from": subscriber, "to": topic_id})
-        
-        # Distribute apps across nodes
-        nodes_with_apps = {r["to"] for r in relationships["runs_on"] 
-                          if r["from"].startswith("A")}
-        all_nodes = {r["to"] for r in relationships["runs_on"]}
-        
-        for app in applications:
-            if not any(r["from"] == app["id"] for r in relationships["runs_on"]):
-                # Assign to least loaded node
-                node_loads = defaultdict(int)
-                for r in relationships["runs_on"]:
-                    if r["from"].startswith("A"):
-                        node_loads[r["to"]] += 1
-                
-                if all_nodes:
-                    target_node = min(all_nodes, key=lambda n: node_loads.get(n, 0))
-                    relationships["runs_on"].append({"from": app["id"], "to": target_node})
-
-    # -------------------------------------------------------------------------
-    # Anti-patterns
-    # -------------------------------------------------------------------------
-
-    def _apply_antipattern(self, antipattern: str, applications: List[Dict],
-                           topics: List[Dict], relationships: Dict) -> Optional[Dict]:
-        """Apply an anti-pattern to the graph"""
-        
-        if antipattern == "god_topic":
-            # Create a topic that many apps depend on
-            god_topic = topics[0] if topics else None
-            if god_topic:
-                app_ids = [a["id"] for a in applications[:min(10, len(applications))]]
-                for app_id in app_ids:
-                    if not any(r["from"] == app_id and r["to"] == god_topic["id"] 
-                              for r in relationships["subscribes_to"]):
-                        relationships["subscribes_to"].append({
-                            "from": app_id, "to": god_topic["id"]
-                        })
-                return {"topic": god_topic["id"], "subscribers": len(app_ids)}
-        
-        elif antipattern == "spof":
-            # Make one broker route critical topics
-            if len(topics) > 3:
-                spof_broker = random.choice([b["id"] for b in self._generate_brokers()[:1]])
-                critical_topics = [t["id"] for t in topics[:3]]
-                # Remove other broker routes for these topics
-                relationships["routes"] = [
-                    r for r in relationships["routes"]
-                    if r["to"] not in critical_topics or r["from"] == spof_broker
-                ]
-                return {"broker": spof_broker, "critical_topics": critical_topics}
-        
-        elif antipattern == "chatty":
-            # Make some apps publish to many topics
-            if applications and topics:
-                chatty_app = applications[0]
-                topic_ids = [t["id"] for t in topics]
-                for topic_id in topic_ids[:min(10, len(topic_ids))]:
-                    if not any(r["from"] == chatty_app["id"] and r["to"] == topic_id
-                              for r in relationships["publishes_to"]):
-                        relationships["publishes_to"].append({
-                            "from": chatty_app["id"], "to": topic_id
-                        })
-                return {"app": chatty_app["id"], "topics": len(topic_ids)}
-        
-        return None
-
-    # -------------------------------------------------------------------------
-    # Metrics
-    # -------------------------------------------------------------------------
-
-    def _calculate_metrics(self, graph: Dict) -> Dict:
-        """Calculate graph metrics"""
-        apps = graph["applications"]
-        topics = graph["topics"]
-        edges = graph["relationships"]
-        
-        # Publisher/subscriber analysis
-        topic_pubs = defaultdict(int)
-        topic_subs = defaultdict(int)
-        for pub in edges["publishes_to"]:
-            topic_pubs[pub["to"]] += 1
-        for sub in edges["subscribes_to"]:
-            topic_subs[sub["to"]] += 1
-        
-        # Role distribution
-        role_counts = defaultdict(int)
-        for app in apps:
-            role_counts[app["role"]] += 1
-        
-        return {
-            "vertex_counts": {
-                "applications": len(apps),
-                "brokers": len(graph["brokers"]),
-                "topics": len(topics),
-                "nodes": len(graph["nodes"]),
-                "total": len(apps) + len(graph["brokers"]) + len(topics) + len(graph["nodes"]),
-            },
-            "edge_counts": {
-                "publishes_to": len(edges["publishes_to"]),
-                "subscribes_to": len(edges["subscribes_to"]),
-                "routes": len(edges["routes"]),
-                "runs_on": len(edges["runs_on"]),
-                "connects_to": len(edges["connects_to"]),
-                "total": sum(len(v) for v in edges.values()),
-            },
-            "pub_sub": {
-                "avg_pubs_per_topic": sum(topic_pubs.values()) / len(topics) if topics else 0,
-                "avg_subs_per_topic": sum(topic_subs.values()) / len(topics) if topics else 0,
-                "max_fanout": max(topic_subs.values()) if topic_subs else 0,
-            },
-            "role_distribution": dict(role_counts),
-        }
+        return connects
 
 
 # =============================================================================
@@ -542,32 +349,30 @@ class GraphGenerator:
 def generate_graph(
     scale: str = "medium",
     scenario: str = "generic",
-    seed: int = 42,
+    seed: Optional[int] = None,
     antipatterns: Optional[List[str]] = None,
-    **kwargs,
 ) -> Dict[str, Any]:
     """
-    Convenience function to generate a graph.
+    Generate a pub-sub system graph.
     
     Args:
-        scale: Size preset (tiny, small, medium, large, xlarge, extreme)
+        scale: Size preset (tiny, small, medium, large, xlarge)
         scenario: Domain scenario (generic, iot, financial, healthcare, etc.)
         seed: Random seed for reproducibility
         antipatterns: List of anti-patterns to inject
-        **kwargs: Additional GraphConfig parameters
     
     Returns:
-        Generated graph dictionary
+        Dictionary with graph data ready for import
     
     Example:
-        graph = generate_graph(scale="medium", scenario="iot")
+        graph = generate_graph(scale="medium", scenario="iot", seed=42)
     """
-    config = GraphConfig(
+    config = GraphConfig.from_scale(
         scale=scale,
         scenario=scenario,
         seed=seed,
         antipatterns=antipatterns or [],
-        **kwargs,
     )
+    
     generator = GraphGenerator(config)
     return generator.generate()
