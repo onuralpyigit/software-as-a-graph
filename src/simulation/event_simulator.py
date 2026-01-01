@@ -1,34 +1,51 @@
 """
-Event-Driven Simulator - Version 4.0
+Event-Driven Simulator - Version 5.0
 
-Simulates message flow through a pub-sub system using discrete event simulation.
-Works directly on the graph model without DEPENDS_ON relationships.
+Discrete event simulation for pub-sub message flow analysis.
+Uses ORIGINAL edge types (NOT derived DEPENDS_ON).
 
 Features:
-- Message publishing and delivery through topics
-- Processing delays and queuing
-- QoS level enforcement (at-most-once, at-least-once, exactly-once)
-- Failure injection during simulation
-- Load testing with configurable rates
-- Chaos engineering scenarios
-- Real-time metrics collection
+- Message publication and delivery simulation
+- QoS-aware message handling
+- Latency and throughput modeling
+- Component load tracking
+- Event scheduling with priority queue
+- Statistics collection
+
+Event Types:
+- PUBLISH: Application publishes message to topic
+- ROUTE: Broker routes message
+- DELIVER: Message delivered to subscriber
+- TIMEOUT: Message delivery timeout
+- FAILURE: Component failure event
+- RECOVERY: Component recovery event
 
 Author: Software-as-a-Graph Research Project
-Version: 4.0
+Version: 5.0
 """
 
 from __future__ import annotations
 import heapq
 import logging
 import random
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
-from typing import Dict, List, Any, Optional, Set, Tuple
+from enum import Enum, auto
+from typing import (
+    Dict, List, Set, Any, Optional, Tuple, 
+    Callable, Iterator, TypeVar, Generic
+)
 from collections import defaultdict
+import statistics
 
-from .graph_model import SimulationGraph, Component, ComponentType, ConnectionType
+from .simulation_graph import (
+    SimulationGraph,
+    Component,
+    ComponentType,
+    EdgeType,
+    ComponentStatus,
+    QoSPolicy,
+)
 
 
 # =============================================================================
@@ -37,31 +54,33 @@ from .graph_model import SimulationGraph, Component, ComponentType, ConnectionTy
 
 class EventType(Enum):
     """Types of simulation events"""
-    MSG_PUBLISH = "msg_publish"
-    MSG_BROKER_RECEIVE = "msg_broker_receive"
-    MSG_DELIVER = "msg_deliver"
-    MSG_ACK = "msg_ack"
-    MSG_TIMEOUT = "msg_timeout"
-    COMPONENT_FAIL = "component_fail"
-    COMPONENT_RECOVER = "component_recover"
-    SIM_END = "sim_end"
+    PUBLISH = auto()      # App publishes message
+    ROUTE = auto()        # Broker routes message
+    DELIVER = auto()      # Message delivered to subscriber
+    TIMEOUT = auto()      # Message timeout
+    FAILURE = auto()      # Component fails
+    RECOVERY = auto()     # Component recovers
+    LOAD_CHECK = auto()   # Periodic load assessment
+    CUSTOM = auto()       # User-defined event
 
 
-class MessageState(Enum):
-    """Message lifecycle states"""
+class MessageStatus(Enum):
+    """Status of a message in transit"""
     PENDING = "pending"
-    IN_TRANSIT = "in_transit"
-    AT_BROKER = "at_broker"
+    ROUTING = "routing"
     DELIVERED = "delivered"
     FAILED = "failed"
     TIMEOUT = "timeout"
+    DROPPED = "dropped"
 
 
-class QoSLevel(Enum):
-    """Quality of Service levels"""
-    AT_MOST_ONCE = 0    # Fire and forget
-    AT_LEAST_ONCE = 1   # Retry until ACK
-    EXACTLY_ONCE = 2    # Dedup + retry
+class SimulationState(Enum):
+    """State of the simulation"""
+    IDLE = "idle"
+    RUNNING = "running"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    ERROR = "error"
 
 
 # =============================================================================
@@ -69,865 +88,774 @@ class QoSLevel(Enum):
 # =============================================================================
 
 @dataclass(order=True)
-class SimEvent:
-    """A discrete simulation event"""
+class Event:
+    """A simulation event"""
     time: float
+    priority: int = field(compare=True)
     event_type: EventType = field(compare=False)
-    data: Dict[str, Any] = field(compare=False, default_factory=dict)
-
-    def to_dict(self) -> Dict:
+    source: str = field(compare=False)
+    target: Optional[str] = field(default=None, compare=False)
+    data: Dict[str, Any] = field(default_factory=dict, compare=False)
+    event_id: int = field(default=0, compare=False)
+    
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            "time": round(self.time, 3),
-            "type": self.event_type.value,
+            "time": self.time,
+            "type": self.event_type.name,
+            "source": self.source,
+            "target": self.target,
             "data": self.data,
+            "event_id": self.event_id,
         }
 
 
 @dataclass
 class Message:
-    """A message in the system"""
-    id: str
+    """A message in the pub-sub system"""
+    message_id: str
     publisher: str
     topic: str
-    subscribers: List[str]
-    payload_size: int
-    qos: QoSLevel
+    payload_size: int = 100  # bytes
+    priority: int = 0
+    qos: QoSPolicy = field(default_factory=QoSPolicy)
+    created_at: float = 0.0
+    delivered_at: Optional[float] = None
+    status: MessageStatus = MessageStatus.PENDING
+    path: List[str] = field(default_factory=list)
     
-    # Timing
-    publish_time: float
-    delivery_times: Dict[str, float] = field(default_factory=dict)
+    @property
+    def latency(self) -> Optional[float]:
+        """Delivery latency in ms"""
+        if self.delivered_at is not None:
+            return self.delivered_at - self.created_at
+        return None
     
-    # State
-    state: MessageState = MessageState.PENDING
-    retries: int = 0
-    
-    def latency(self, subscriber: str) -> float:
-        """Get delivery latency for a subscriber"""
-        if subscriber in self.delivery_times:
-            return self.delivery_times[subscriber] - self.publish_time
-        return -1
-
-
-@dataclass
-class ComponentStats:
-    """Statistics for a component"""
-    messages_sent: int = 0
-    messages_received: int = 0
-    messages_failed: int = 0
-    bytes_sent: int = 0
-    bytes_received: int = 0
-    processing_time_total: float = 0.0
-    queue_depth_max: int = 0
-    failures: int = 0
-
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            "messages_sent": self.messages_sent,
-            "messages_received": self.messages_received,
-            "messages_failed": self.messages_failed,
-            "bytes_sent": self.bytes_sent,
-            "bytes_received": self.bytes_received,
-            "processing_time_total": round(self.processing_time_total, 2),
-            "queue_depth_max": self.queue_depth_max,
-            "failures": self.failures,
+            "message_id": self.message_id,
+            "publisher": self.publisher,
+            "topic": self.topic,
+            "payload_size": self.payload_size,
+            "priority": self.priority,
+            "status": self.status.value,
+            "created_at": self.created_at,
+            "delivered_at": self.delivered_at,
+            "latency": self.latency,
+            "path": self.path,
         }
 
 
 @dataclass
-class SimMetrics:
-    """Overall simulation metrics"""
-    messages_published: int = 0
-    messages_delivered: int = 0
-    messages_failed: int = 0
-    messages_timeout: int = 0
-    bytes_total: int = 0
-    latencies: List[float] = field(default_factory=list)
+class ComponentLoad:
+    """Load statistics for a component"""
+    component_id: str
+    messages_processed: int = 0
+    messages_dropped: int = 0
+    total_latency: float = 0.0
+    peak_queue_size: int = 0
+    current_queue_size: int = 0
     
-    # Failures
-    component_failures: int = 0
-    cascade_failures: int = 0
-
-    def delivery_rate(self) -> float:
-        """Calculate successful delivery rate"""
-        total = self.messages_published
-        if total == 0:
-            return 1.0
-        return self.messages_delivered / total
-
-    def avg_latency(self) -> float:
-        """Calculate average latency"""
-        if not self.latencies:
-            return 0.0
-        return sum(self.latencies) / len(self.latencies)
-
-    def p99_latency(self) -> float:
-        """Calculate 99th percentile latency"""
-        if not self.latencies:
-            return 0.0
-        sorted_lat = sorted(self.latencies)
-        idx = int(len(sorted_lat) * 0.99)
-        return sorted_lat[min(idx, len(sorted_lat) - 1)]
-
-    def to_dict(self) -> Dict:
+    @property
+    def average_latency(self) -> float:
+        if self.messages_processed > 0:
+            return self.total_latency / self.messages_processed
+        return 0.0
+    
+    @property
+    def drop_rate(self) -> float:
+        total = self.messages_processed + self.messages_dropped
+        if total > 0:
+            return self.messages_dropped / total
+        return 0.0
+    
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            "messages": {
-                "published": self.messages_published,
-                "delivered": self.messages_delivered,
-                "failed": self.messages_failed,
-                "timeout": self.messages_timeout,
-                "delivery_rate": round(self.delivery_rate(), 4),
-            },
-            "latency": {
-                "avg_ms": round(self.avg_latency(), 2),
-                "p99_ms": round(self.p99_latency(), 2),
-                "min_ms": round(min(self.latencies), 2) if self.latencies else 0,
-                "max_ms": round(max(self.latencies), 2) if self.latencies else 0,
-            },
-            "throughput": {
-                "bytes_total": self.bytes_total,
-            },
-            "failures": {
-                "component_failures": self.component_failures,
-                "cascade_failures": self.cascade_failures,
-            },
+            "component_id": self.component_id,
+            "messages_processed": self.messages_processed,
+            "messages_dropped": self.messages_dropped,
+            "average_latency": round(self.average_latency, 4),
+            "drop_rate": round(self.drop_rate, 4),
+            "peak_queue_size": self.peak_queue_size,
+        }
+
+
+@dataclass
+class SimulationStatistics:
+    """Overall simulation statistics"""
+    total_messages: int = 0
+    delivered_messages: int = 0
+    failed_messages: int = 0
+    dropped_messages: int = 0
+    timeout_messages: int = 0
+    total_events: int = 0
+    simulation_time: float = 0.0
+    wall_clock_time: float = 0.0
+    latencies: List[float] = field(default_factory=list)
+    throughput_samples: List[float] = field(default_factory=list)
+    
+    @property
+    def delivery_rate(self) -> float:
+        if self.total_messages > 0:
+            return self.delivered_messages / self.total_messages
+        return 0.0
+    
+    @property
+    def average_latency(self) -> float:
+        if self.latencies:
+            return statistics.mean(self.latencies)
+        return 0.0
+    
+    @property
+    def p99_latency(self) -> float:
+        if len(self.latencies) >= 100:
+            sorted_lat = sorted(self.latencies)
+            idx = int(len(sorted_lat) * 0.99)
+            return sorted_lat[idx]
+        elif self.latencies:
+            return max(self.latencies)
+        return 0.0
+    
+    @property
+    def average_throughput(self) -> float:
+        if self.throughput_samples:
+            return statistics.mean(self.throughput_samples)
+        return 0.0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_messages": self.total_messages,
+            "delivered_messages": self.delivered_messages,
+            "failed_messages": self.failed_messages,
+            "dropped_messages": self.dropped_messages,
+            "timeout_messages": self.timeout_messages,
+            "delivery_rate": round(self.delivery_rate, 4),
+            "average_latency_ms": round(self.average_latency, 4),
+            "p99_latency_ms": round(self.p99_latency, 4),
+            "average_throughput": round(self.average_throughput, 4),
+            "total_events": self.total_events,
+            "simulation_time_ms": round(self.simulation_time, 2),
+            "wall_clock_time_s": round(self.wall_clock_time, 4),
         }
 
 
 @dataclass
 class SimulationResult:
-    """Result of event-driven simulation"""
-    simulation_id: str
-    duration_ms: float
-    real_time_ms: float
-    speedup: float
+    """Complete simulation results"""
+    statistics: SimulationStatistics
+    component_loads: Dict[str, ComponentLoad]
+    messages: List[Message]
+    events_log: List[Event]
+    failed_components: Set[str]
+    timestamp: datetime = field(default_factory=datetime.now)
     
-    metrics: SimMetrics
-    component_stats: Dict[str, ComponentStats]
+    def get_critical_components(self, threshold: float = 0.1) -> List[str]:
+        """Get components with drop rate above threshold"""
+        return [
+            comp_id for comp_id, load in self.component_loads.items()
+            if load.drop_rate > threshold
+        ]
     
-    events_processed: int
-    events_by_type: Dict[str, int]
+    def get_bottlenecks(self, threshold: int = 100) -> List[str]:
+        """Get components with peak queue above threshold"""
+        return [
+            comp_id for comp_id, load in self.component_loads.items()
+            if load.peak_queue_size > threshold
+        ]
     
-    failures_injected: List[Dict[str, Any]]
-
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            "simulation_id": self.simulation_id,
-            "timing": {
-                "simulated_duration_ms": round(self.duration_ms, 2),
-                "real_time_ms": round(self.real_time_ms, 2),
-                "speedup": round(self.speedup, 1),
-            },
-            "metrics": self.metrics.to_dict(),
-            "component_stats": {
-                k: v.to_dict() for k, v in self.component_stats.items()
-            },
-            "events": {
-                "total_processed": self.events_processed,
-                "by_type": self.events_by_type,
-            },
-            "failures_injected": self.failures_injected,
+            "statistics": self.statistics.to_dict(),
+            "component_loads": {k: v.to_dict() for k, v in self.component_loads.items()},
+            "message_count": len(self.messages),
+            "sample_messages": [m.to_dict() for m in self.messages[:100]],
+            "failed_components": list(self.failed_components),
+            "critical_components": self.get_critical_components(),
+            "bottlenecks": self.get_bottlenecks(),
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
 # =============================================================================
-# Event-Driven Simulator
+# Event Simulator
 # =============================================================================
 
 class EventSimulator:
     """
-    Discrete event simulator for pub-sub message flow.
+    Discrete event simulation for pub-sub message flow.
     
-    Simulates messages flowing through the pub-sub topology:
-    Publisher -> Topic -> Broker -> Subscribers
-    
-    Works directly on SimulationGraph using native pub-sub connections.
+    Uses ORIGINAL edge types to trace message paths:
+    - PUBLISHES_TO: App -> Topic
+    - SUBSCRIBES_TO: App <- Topic (delivery direction)
+    - ROUTES: Broker -> Topic
     """
-
+    
     def __init__(
         self,
-        base_latency_ms: float = 1.0,
-        latency_variance: float = 0.3,
-        broker_latency_ms: float = 0.5,
-        queue_capacity: int = 1000,
-        timeout_ms: float = 5000,
+        graph: SimulationGraph,
         seed: Optional[int] = None,
+        default_latency: float = 10.0,  # ms
+        default_processing_time: float = 1.0,  # ms
+        queue_capacity: int = 1000,
+        timeout: float = 5000.0,  # ms
     ):
         """
         Initialize the event simulator.
         
         Args:
-            base_latency_ms: Base network latency per hop
-            latency_variance: Variance in latency (0-1)
-            broker_latency_ms: Additional broker processing latency
-            queue_capacity: Maximum queue size per component
-            timeout_ms: Message timeout threshold
+            graph: The simulation graph
             seed: Random seed for reproducibility
+            default_latency: Default network latency in ms
+            default_processing_time: Default processing time in ms
+            queue_capacity: Max queue size per component
+            timeout: Message timeout in ms
         """
-        self.base_latency_ms = base_latency_ms
-        self.latency_variance = latency_variance
-        self.broker_latency_ms = broker_latency_ms
+        self.graph = graph
+        self.rng = random.Random(seed)
+        self.default_latency = default_latency
+        self.default_processing_time = default_processing_time
         self.queue_capacity = queue_capacity
-        self.timeout_ms = timeout_ms
+        self.timeout = timeout
         
-        self._rng = random.Random(seed)
-        self._simulation_counter = 0
-        self.logger = logging.getLogger(__name__)
+        # Simulation state
+        self.current_time: float = 0.0
+        self.event_queue: List[Event] = []
+        self.event_counter: int = 0
+        self.state = SimulationState.IDLE
         
-        # State (reset per simulation)
-        self._reset_state()
-
-    def _reset_state(self) -> None:
-        """Reset simulation state"""
-        self._event_queue: List[SimEvent] = []
-        self._current_time: float = 0.0
-        self._messages: Dict[str, Message] = {}
-        self._component_queues: Dict[str, List[str]] = defaultdict(list)
-        self._metrics = SimMetrics()
-        self._component_stats: Dict[str, ComponentStats] = defaultdict(ComponentStats)
-        self._events_processed: int = 0
-        self._events_by_type: Dict[str, int] = defaultdict(int)
-        self._failures_injected: List[Dict[str, Any]] = []
-        self._graph: Optional[SimulationGraph] = None
-        self._delivered_ids: Set[str] = set()  # For exactly-once dedup
-
+        # Component state
+        self.component_status: Dict[str, ComponentStatus] = {}
+        self.component_queues: Dict[str, List[Message]] = defaultdict(list)
+        self.component_loads: Dict[str, ComponentLoad] = {}
+        
+        # Message tracking
+        self.messages: Dict[str, Message] = {}
+        self.events_log: List[Event] = []
+        
+        # Statistics
+        self.stats = SimulationStatistics()
+        
+        # Initialize component states
+        self._initialize_components()
+        
+        self._logger = logging.getLogger(__name__)
+    
+    def _initialize_components(self) -> None:
+        """Initialize component states and loads"""
+        for comp_id in self.graph.components:
+            self.component_status[comp_id] = ComponentStatus.HEALTHY
+            self.component_loads[comp_id] = ComponentLoad(component_id=comp_id)
+    
     # =========================================================================
-    # Main Simulation
+    # Event Management
     # =========================================================================
-
-    def simulate(
+    
+    def schedule_event(
         self,
-        graph: SimulationGraph,
-        duration_ms: float = 10000,
-        message_rate: float = 100,
-        qos: QoSLevel = QoSLevel.AT_LEAST_ONCE,
-        failure_schedule: Optional[List[Dict[str, Any]]] = None,
+        time: float,
+        event_type: EventType,
+        source: str,
+        target: Optional[str] = None,
+        priority: int = 5,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> Event:
+        """Schedule a new event"""
+        self.event_counter += 1
+        event = Event(
+            time=time,
+            priority=priority,
+            event_type=event_type,
+            source=source,
+            target=target,
+            data=data or {},
+            event_id=self.event_counter,
+        )
+        heapq.heappush(self.event_queue, event)
+        return event
+    
+    def cancel_event(self, event_id: int) -> bool:
+        """Cancel a scheduled event (marks as cancelled)"""
+        for event in self.event_queue:
+            if event.event_id == event_id:
+                event.data["cancelled"] = True
+                return True
+        return False
+    
+    def pop_event(self) -> Optional[Event]:
+        """Get next event from queue"""
+        while self.event_queue:
+            event = heapq.heappop(self.event_queue)
+            if not event.data.get("cancelled"):
+                return event
+        return None
+    
+    # =========================================================================
+    # Message Operations
+    # =========================================================================
+    
+    def create_message(
+        self,
+        publisher: str,
+        topic: str,
+        payload_size: int = 100,
+        priority: int = 0,
+    ) -> Message:
+        """Create a new message"""
+        msg_id = f"msg_{self.stats.total_messages + 1}"
+        
+        # Get QoS from edge if available
+        qos = QoSPolicy()
+        for edge in self.graph.get_outgoing_edges(publisher):
+            if edge.target == topic and edge.edge_type == EdgeType.PUBLISHES_TO:
+                qos = edge.qos
+                break
+        
+        message = Message(
+            message_id=msg_id,
+            publisher=publisher,
+            topic=topic,
+            payload_size=payload_size,
+            priority=priority,
+            qos=qos,
+            created_at=self.current_time,
+            path=[publisher],
+        )
+        
+        self.messages[msg_id] = message
+        self.stats.total_messages += 1
+        
+        return message
+    
+    def _get_processing_time(self, component_id: str) -> float:
+        """Get processing time with jitter"""
+        base = self.default_processing_time
+        jitter = self.rng.uniform(0.8, 1.2)
+        
+        # Add load-based delay
+        load = self.component_loads.get(component_id)
+        if load and load.current_queue_size > 0:
+            load_factor = 1.0 + (load.current_queue_size / self.queue_capacity) * 0.5
+            base *= load_factor
+        
+        return base * jitter
+    
+    def _get_network_latency(self, source: str, target: str) -> float:
+        """Get network latency between components"""
+        base = self.default_latency
+        jitter = self.rng.uniform(0.9, 1.1)
+        return base * jitter
+    
+    # =========================================================================
+    # Event Handlers
+    # =========================================================================
+    
+    def _handle_publish(self, event: Event) -> None:
+        """Handle message publication event"""
+        publisher = event.source
+        topic = event.target
+        msg_id = event.data.get("message_id")
+        
+        # Check publisher status
+        if self.component_status.get(publisher) == ComponentStatus.FAILED:
+            self._mark_message_failed(msg_id, "publisher_failed")
+            return
+        
+        message = self.messages.get(msg_id)
+        if not message:
+            return
+        
+        message.path.append(topic)
+        
+        # Find broker for this topic
+        broker = self.graph.get_broker_for_topic(topic)
+        
+        if broker:
+            # Schedule routing through broker
+            latency = self._get_network_latency(publisher, broker)
+            self.schedule_event(
+                time=self.current_time + latency,
+                event_type=EventType.ROUTE,
+                source=broker,
+                target=topic,
+                priority=message.priority,
+                data={"message_id": msg_id},
+            )
+            message.status = MessageStatus.ROUTING
+        else:
+            # Direct delivery (no broker)
+            self._schedule_deliveries(message, topic)
+        
+        # Update publisher load
+        load = self.component_loads[publisher]
+        load.messages_processed += 1
+    
+    def _handle_route(self, event: Event) -> None:
+        """Handle broker routing event"""
+        broker = event.source
+        topic = event.target
+        msg_id = event.data.get("message_id")
+        
+        # Check broker status
+        if self.component_status.get(broker) == ComponentStatus.FAILED:
+            self._mark_message_failed(msg_id, "broker_failed")
+            return
+        
+        message = self.messages.get(msg_id)
+        if not message:
+            return
+        
+        message.path.append(broker)
+        
+        # Check queue capacity
+        load = self.component_loads[broker]
+        if load.current_queue_size >= self.queue_capacity:
+            self._mark_message_dropped(msg_id, "queue_full")
+            load.messages_dropped += 1
+            return
+        
+        # Process message
+        processing_time = self._get_processing_time(broker)
+        load.current_queue_size += 1
+        load.peak_queue_size = max(load.peak_queue_size, load.current_queue_size)
+        
+        # Schedule delivery to subscribers after processing
+        delivery_time = self.current_time + processing_time
+        
+        # Schedule deliveries
+        self._schedule_deliveries(message, topic, delivery_time)
+        
+        # Update load
+        load.messages_processed += 1
+        load.current_queue_size -= 1
+    
+    def _handle_deliver(self, event: Event) -> None:
+        """Handle message delivery event"""
+        subscriber = event.target
+        msg_id = event.data.get("message_id")
+        
+        # Check subscriber status
+        if self.component_status.get(subscriber) == ComponentStatus.FAILED:
+            # Message delivery failed but not entire message
+            return
+        
+        message = self.messages.get(msg_id)
+        if not message:
+            return
+        
+        # Check timeout
+        if self.current_time - message.created_at > self.timeout:
+            self._mark_message_timeout(msg_id)
+            return
+        
+        # Mark delivered
+        message.delivered_at = self.current_time
+        message.status = MessageStatus.DELIVERED
+        message.path.append(subscriber)
+        
+        # Update statistics
+        self.stats.delivered_messages += 1
+        if message.latency:
+            self.stats.latencies.append(message.latency)
+        
+        # Update subscriber load
+        load = self.component_loads[subscriber]
+        load.messages_processed += 1
+        if message.latency:
+            load.total_latency += message.latency
+    
+    def _handle_failure(self, event: Event) -> None:
+        """Handle component failure event"""
+        component_id = event.source
+        self.component_status[component_id] = ComponentStatus.FAILED
+        
+        # Fail in-flight messages to this component
+        for msg_id, message in self.messages.items():
+            if message.status == MessageStatus.ROUTING:
+                if component_id in message.path or message.topic == component_id:
+                    self._mark_message_failed(msg_id, "component_failed")
+    
+    def _handle_recovery(self, event: Event) -> None:
+        """Handle component recovery event"""
+        component_id = event.source
+        self.component_status[component_id] = ComponentStatus.HEALTHY
+    
+    def _schedule_deliveries(
+        self,
+        message: Message,
+        topic: str,
+        base_time: Optional[float] = None,
+    ) -> None:
+        """Schedule delivery events to all subscribers"""
+        if base_time is None:
+            base_time = self.current_time
+        
+        subscribers = self.graph.get_subscribers(topic)
+        
+        for subscriber in subscribers:
+            if subscriber == message.publisher:
+                continue  # Don't deliver to publisher
+            
+            latency = self._get_network_latency(topic, subscriber)
+            
+            self.schedule_event(
+                time=base_time + latency,
+                event_type=EventType.DELIVER,
+                source=topic,
+                target=subscriber,
+                priority=message.priority,
+                data={"message_id": message.message_id},
+            )
+    
+    def _mark_message_failed(self, msg_id: str, reason: str) -> None:
+        """Mark a message as failed"""
+        message = self.messages.get(msg_id)
+        if message and message.status not in (MessageStatus.DELIVERED, MessageStatus.FAILED):
+            message.status = MessageStatus.FAILED
+            message.path.append(f"FAILED:{reason}")
+            self.stats.failed_messages += 1
+    
+    def _mark_message_dropped(self, msg_id: str, reason: str) -> None:
+        """Mark a message as dropped"""
+        message = self.messages.get(msg_id)
+        if message:
+            message.status = MessageStatus.DROPPED
+            message.path.append(f"DROPPED:{reason}")
+            self.stats.dropped_messages += 1
+    
+    def _mark_message_timeout(self, msg_id: str) -> None:
+        """Mark a message as timed out"""
+        message = self.messages.get(msg_id)
+        if message and message.status not in (MessageStatus.DELIVERED,):
+            message.status = MessageStatus.TIMEOUT
+            self.stats.timeout_messages += 1
+    
+    # =========================================================================
+    # Simulation Control
+    # =========================================================================
+    
+    def run(
+        self,
+        duration: float,
+        message_rate: float = 10.0,
+        publishers: Optional[List[str]] = None,
+        log_events: bool = False,
     ) -> SimulationResult:
         """
-        Run event-driven simulation.
+        Run the simulation.
         
         Args:
-            graph: SimulationGraph to simulate on
-            duration_ms: Simulation duration in milliseconds
-            message_rate: Messages per second
-            qos: Quality of service level
-            failure_schedule: List of failure events to inject
+            duration: Simulation duration in ms
+            message_rate: Messages per ms (across all publishers)
+            publishers: Specific publishers to use (default: all apps)
+            log_events: Whether to log all events
         
         Returns:
-            SimulationResult with metrics and statistics
+            SimulationResult with complete statistics
         """
-        self._simulation_counter += 1
-        sim_id = f"event_{self._simulation_counter:05d}"
-        real_start = datetime.now()
+        import time
+        start_wall_time = time.time()
         
-        self.logger.info(f"[{sim_id}] Starting simulation: {duration_ms}ms, {message_rate}/sec")
+        self.state = SimulationState.RUNNING
+        self._logger.info(f"Starting simulation for {duration}ms")
         
-        # Reset state
-        self._reset_state()
-        self._graph = graph.copy()
+        # Get publishers
+        if publishers is None:
+            publishers = list(self.graph.get_component_ids_by_type(ComponentType.APPLICATION))
         
-        # Schedule message publications
-        self._schedule_publications(duration_ms, message_rate, qos)
+        # Schedule initial message publications
+        self._schedule_message_generation(duration, message_rate, publishers)
         
-        # Schedule failures if provided
-        if failure_schedule:
-            self._schedule_failures(failure_schedule)
+        # Event handlers
+        handlers = {
+            EventType.PUBLISH: self._handle_publish,
+            EventType.ROUTE: self._handle_route,
+            EventType.DELIVER: self._handle_deliver,
+            EventType.FAILURE: self._handle_failure,
+            EventType.RECOVERY: self._handle_recovery,
+        }
         
-        # Schedule simulation end
-        heapq.heappush(
-            self._event_queue,
-            SimEvent(time=duration_ms, event_type=EventType.SIM_END),
-        )
-        
-        # Run simulation loop
-        while self._event_queue:
-            event = heapq.heappop(self._event_queue)
-            self._current_time = event.time
-            
-            if event.event_type == EventType.SIM_END:
+        # Main simulation loop
+        while self.event_queue and self.state == SimulationState.RUNNING:
+            event = self.pop_event()
+            if not event:
                 break
             
-            self._process_event(event)
-            self._events_processed += 1
-            self._events_by_type[event.event_type.value] += 1
-        
-        real_end = datetime.now()
-        real_time_ms = (real_end - real_start).total_seconds() * 1000
-        
-        return SimulationResult(
-            simulation_id=sim_id,
-            duration_ms=duration_ms,
-            real_time_ms=real_time_ms,
-            speedup=duration_ms / real_time_ms if real_time_ms > 0 else 0,
-            metrics=self._metrics,
-            component_stats=dict(self._component_stats),
-            events_processed=self._events_processed,
-            events_by_type=dict(self._events_by_type),
-            failures_injected=self._failures_injected,
-        )
-
-    # =========================================================================
-    # Load Testing
-    # =========================================================================
-
-    def simulate_load_test(
-        self,
-        graph: SimulationGraph,
-        duration_ms: float = 30000,
-        initial_rate: float = 10,
-        peak_rate: float = 500,
-        ramp_time_ms: float = 10000,
-        qos: QoSLevel = QoSLevel.AT_LEAST_ONCE,
-    ) -> SimulationResult:
-        """
-        Run load testing simulation with ramping rate.
-        
-        Starts at initial_rate, ramps to peak_rate over ramp_time,
-        then holds at peak_rate.
-        """
-        self._simulation_counter += 1
-        sim_id = f"load_{self._simulation_counter:05d}"
-        real_start = datetime.now()
-        
-        self.logger.info(f"[{sim_id}] Load test: {initial_rate} -> {peak_rate}/sec")
-        
-        self._reset_state()
-        self._graph = graph.copy()
-        
-        # Schedule publications with ramping rate
-        self._schedule_load_test_publications(
-            duration_ms, initial_rate, peak_rate, ramp_time_ms, qos
-        )
-        
-        heapq.heappush(
-            self._event_queue,
-            SimEvent(time=duration_ms, event_type=EventType.SIM_END),
-        )
-        
-        while self._event_queue:
-            event = heapq.heappop(self._event_queue)
-            self._current_time = event.time
-            
-            if event.event_type == EventType.SIM_END:
+            # Check if past duration
+            if event.time > duration:
                 break
             
-            self._process_event(event)
-            self._events_processed += 1
-            self._events_by_type[event.event_type.value] += 1
+            self.current_time = event.time
+            self.stats.total_events += 1
+            
+            if log_events:
+                self.events_log.append(event)
+            
+            # Handle event
+            handler = handlers.get(event.event_type)
+            if handler:
+                handler(event)
         
-        real_end = datetime.now()
-        real_time_ms = (real_end - real_start).total_seconds() * 1000
+        # Finalize
+        self.state = SimulationState.COMPLETED
+        self.stats.simulation_time = duration
+        self.stats.wall_clock_time = time.time() - start_wall_time
+        
+        # Calculate throughput
+        if duration > 0:
+            throughput = self.stats.delivered_messages / (duration / 1000.0)
+            self.stats.throughput_samples.append(throughput)
+        
+        self._logger.info(
+            f"Simulation complete: {self.stats.delivered_messages}/{self.stats.total_messages} "
+            f"delivered ({self.stats.delivery_rate:.2%})"
+        )
         
         return SimulationResult(
-            simulation_id=sim_id,
-            duration_ms=duration_ms,
-            real_time_ms=real_time_ms,
-            speedup=duration_ms / real_time_ms if real_time_ms > 0 else 0,
-            metrics=self._metrics,
-            component_stats=dict(self._component_stats),
-            events_processed=self._events_processed,
-            events_by_type=dict(self._events_by_type),
-            failures_injected=self._failures_injected,
+            statistics=self.stats,
+            component_loads=self.component_loads,
+            messages=list(self.messages.values()),
+            events_log=self.events_log,
+            failed_components={
+                k for k, v in self.component_status.items() 
+                if v == ComponentStatus.FAILED
+            },
         )
-
-    # =========================================================================
-    # Chaos Engineering
-    # =========================================================================
-
-    def simulate_chaos(
+    
+    def _schedule_message_generation(
         self,
-        graph: SimulationGraph,
-        duration_ms: float = 30000,
-        message_rate: float = 100,
-        failure_probability: float = 0.01,
-        recovery_probability: float = 0.1,
-        qos: QoSLevel = QoSLevel.AT_LEAST_ONCE,
-    ) -> SimulationResult:
-        """
-        Run chaos engineering simulation with random failures.
-        
-        Components fail and recover probabilistically during simulation.
-        """
-        self._simulation_counter += 1
-        sim_id = f"chaos_{self._simulation_counter:05d}"
-        real_start = datetime.now()
-        
-        self.logger.info(f"[{sim_id}] Chaos: fail_prob={failure_probability}")
-        
-        self._reset_state()
-        self._graph = graph.copy()
-        
-        # Schedule publications
-        self._schedule_publications(duration_ms, message_rate, qos)
-        
-        # Schedule random failures throughout simulation
-        self._schedule_chaos_failures(
-            duration_ms, failure_probability, recovery_probability
-        )
-        
-        heapq.heappush(
-            self._event_queue,
-            SimEvent(time=duration_ms, event_type=EventType.SIM_END),
-        )
-        
-        while self._event_queue:
-            event = heapq.heappop(self._event_queue)
-            self._current_time = event.time
-            
-            if event.event_type == EventType.SIM_END:
-                break
-            
-            self._process_event(event)
-            self._events_processed += 1
-            self._events_by_type[event.event_type.value] += 1
-        
-        real_end = datetime.now()
-        real_time_ms = (real_end - real_start).total_seconds() * 1000
-        
-        return SimulationResult(
-            simulation_id=sim_id,
-            duration_ms=duration_ms,
-            real_time_ms=real_time_ms,
-            speedup=duration_ms / real_time_ms if real_time_ms > 0 else 0,
-            metrics=self._metrics,
-            component_stats=dict(self._component_stats),
-            events_processed=self._events_processed,
-            events_by_type=dict(self._events_by_type),
-            failures_injected=self._failures_injected,
-        )
-
-    # =========================================================================
-    # Event Scheduling
-    # =========================================================================
-
-    def _schedule_publications(
-        self,
-        duration_ms: float,
+        duration: float,
         message_rate: float,
-        qos: QoSLevel,
+        publishers: List[str],
     ) -> None:
-        """Schedule message publications throughout simulation"""
-        # Get active publishers
-        publishers = [
-            c for c in self._graph.get_components_by_type(ComponentType.APPLICATION)
-            if c.is_active and self._graph.get_published_topics(c.id)
-        ]
-        
+        """Schedule message generation events"""
         if not publishers:
-            self.logger.warning("No active publishers found")
             return
         
         # Calculate inter-arrival time
-        interval_ms = 1000.0 / message_rate if message_rate > 0 else 1000
+        inter_arrival = 1.0 / message_rate if message_rate > 0 else duration
         
         current_time = 0.0
-        while current_time < duration_ms:
+        while current_time < duration:
             # Pick random publisher
-            publisher = self._rng.choice(publishers)
-            topics = self._graph.get_published_topics(publisher.id)
+            publisher = self.rng.choice(publishers)
             
-            if topics:
-                topic = self._rng.choice(topics)
-                
-                # Schedule publish event
-                heapq.heappush(
-                    self._event_queue,
-                    SimEvent(
-                        time=current_time,
-                        event_type=EventType.MSG_PUBLISH,
-                        data={
-                            "publisher": publisher.id,
-                            "topic": topic,
-                            "qos": qos.value,
-                            "size": self._rng.randint(100, 10000),
-                        },
-                    ),
-                )
+            # Pick random topic from publisher's topics
+            topics = list(self.graph.get_topics_published_by(publisher))
+            if not topics:
+                current_time += inter_arrival
+                continue
             
-            # Add jitter
-            jitter = self._rng.uniform(-0.2, 0.2) * interval_ms
-            current_time += interval_ms + jitter
-
-    def _schedule_load_test_publications(
-        self,
-        duration_ms: float,
-        initial_rate: float,
-        peak_rate: float,
-        ramp_time_ms: float,
-        qos: QoSLevel,
-    ) -> None:
-        """Schedule publications with ramping rate"""
-        publishers = [
-            c for c in self._graph.get_components_by_type(ComponentType.APPLICATION)
-            if c.is_active and self._graph.get_published_topics(c.id)
-        ]
-        
-        if not publishers:
-            return
-        
-        current_time = 0.0
-        while current_time < duration_ms:
-            # Calculate current rate based on ramp
-            if current_time < ramp_time_ms:
-                progress = current_time / ramp_time_ms
-                rate = initial_rate + (peak_rate - initial_rate) * progress
-            else:
-                rate = peak_rate
+            topic = self.rng.choice(topics)
             
-            interval_ms = 1000.0 / rate if rate > 0 else 1000
+            # Create and schedule message
+            message = self.create_message(publisher, topic)
             
-            publisher = self._rng.choice(publishers)
-            topics = self._graph.get_published_topics(publisher.id)
-            
-            if topics:
-                topic = self._rng.choice(topics)
-                heapq.heappush(
-                    self._event_queue,
-                    SimEvent(
-                        time=current_time,
-                        event_type=EventType.MSG_PUBLISH,
-                        data={
-                            "publisher": publisher.id,
-                            "topic": topic,
-                            "qos": qos.value,
-                            "size": self._rng.randint(100, 10000),
-                        },
-                    ),
-                )
-            
-            current_time += interval_ms * self._rng.uniform(0.8, 1.2)
-
-    def _schedule_failures(self, schedule: List[Dict[str, Any]]) -> None:
-        """Schedule predetermined failures"""
-        for failure in schedule:
-            heapq.heappush(
-                self._event_queue,
-                SimEvent(
-                    time=failure.get("time_ms", 0),
-                    event_type=EventType.COMPONENT_FAIL,
-                    data={
-                        "component": failure.get("component"),
-                        "recover_time_ms": failure.get("recover_time_ms"),
-                    },
-                ),
+            self.schedule_event(
+                time=current_time,
+                event_type=EventType.PUBLISH,
+                source=publisher,
+                target=topic,
+                priority=message.priority,
+                data={"message_id": message.message_id},
             )
-
-    def _schedule_chaos_failures(
-        self,
-        duration_ms: float,
-        failure_prob: float,
-        recovery_prob: float,
-    ) -> None:
-        """Schedule random failures for chaos simulation"""
-        components = list(self._graph.components.keys())
-        
-        # Check every 100ms for failures
-        check_interval = 100.0
-        current_time = check_interval
-        
-        while current_time < duration_ms:
-            for comp_id in components:
-                comp = self._graph.components.get(comp_id)
-                if not comp:
-                    continue
-                
-                if comp.is_active and self._rng.random() < failure_prob:
-                    # Schedule failure
-                    heapq.heappush(
-                        self._event_queue,
-                        SimEvent(
-                            time=current_time,
-                            event_type=EventType.COMPONENT_FAIL,
-                            data={"component": comp_id},
-                        ),
-                    )
-                elif not comp.is_active and self._rng.random() < recovery_prob:
-                    # Schedule recovery
-                    heapq.heappush(
-                        self._event_queue,
-                        SimEvent(
-                            time=current_time,
-                            event_type=EventType.COMPONENT_RECOVER,
-                            data={"component": comp_id},
-                        ),
-                    )
             
-            current_time += check_interval
-
-    # =========================================================================
-    # Event Processing
-    # =========================================================================
-
-    def _process_event(self, event: SimEvent) -> None:
-        """Process a simulation event"""
-        if event.event_type == EventType.MSG_PUBLISH:
-            self._handle_publish(event.data)
+            # Next arrival (exponential distribution)
+            current_time += self.rng.expovariate(1.0 / inter_arrival)
+    
+    def inject_failure(
+        self,
+        component_id: str,
+        at_time: float,
+        duration: Optional[float] = None,
+    ) -> None:
+        """
+        Inject a component failure during simulation.
         
-        elif event.event_type == EventType.MSG_BROKER_RECEIVE:
-            self._handle_broker_receive(event.data)
-        
-        elif event.event_type == EventType.MSG_DELIVER:
-            self._handle_deliver(event.data)
-        
-        elif event.event_type == EventType.MSG_TIMEOUT:
-            self._handle_timeout(event.data)
-        
-        elif event.event_type == EventType.COMPONENT_FAIL:
-            self._handle_failure(event.data)
-        
-        elif event.event_type == EventType.COMPONENT_RECOVER:
-            self._handle_recovery(event.data)
-
-    def _handle_publish(self, data: Dict) -> None:
-        """Handle message publish event"""
-        publisher_id = data["publisher"]
-        topic_id = data["topic"]
-        qos = QoSLevel(data["qos"])
-        size = data["size"]
-        
-        # Check if publisher is active
-        publisher = self._graph.components.get(publisher_id)
-        if not publisher or not publisher.is_active:
-            self._metrics.messages_failed += 1
-            return
-        
-        # Check if topic is active
-        topic = self._graph.components.get(topic_id)
-        if not topic or not topic.is_active:
-            self._metrics.messages_failed += 1
-            return
-        
-        # Get subscribers
-        subscribers = [
-            s for s in self._graph.get_subscribers(topic_id)
-            if self._graph.components.get(s, Component("", ComponentType.APPLICATION)).is_active
-        ]
-        
-        if not subscribers:
-            # No subscribers - message still counts as published
-            self._metrics.messages_published += 1
-            return
-        
-        # Create message
-        msg_id = str(uuid.uuid4())[:8]
-        msg = Message(
-            id=msg_id,
-            publisher=publisher_id,
-            topic=topic_id,
-            subscribers=subscribers,
-            payload_size=size,
-            qos=qos,
-            publish_time=self._current_time,
+        Args:
+            component_id: Component to fail
+            at_time: When to trigger failure
+            duration: How long failure lasts (None = permanent)
+        """
+        self.schedule_event(
+            time=at_time,
+            event_type=EventType.FAILURE,
+            source=component_id,
+            priority=0,  # High priority
         )
-        self._messages[msg_id] = msg
         
-        # Update stats
-        self._metrics.messages_published += 1
-        self._metrics.bytes_total += size
-        self._component_stats[publisher_id].messages_sent += 1
-        self._component_stats[publisher_id].bytes_sent += size
-        
-        # Get broker for topic
-        broker_id = self._graph.get_broker_for_topic(topic_id)
-        
-        if broker_id:
-            broker = self._graph.components.get(broker_id)
-            if broker and broker.is_active:
-                # Route through broker
-                latency = self._calculate_latency()
-                heapq.heappush(
-                    self._event_queue,
-                    SimEvent(
-                        time=self._current_time + latency,
-                        event_type=EventType.MSG_BROKER_RECEIVE,
-                        data={"msg_id": msg_id, "broker": broker_id},
-                    ),
-                )
-                msg.state = MessageState.IN_TRANSIT
-            else:
-                # Broker down - fail message
-                msg.state = MessageState.FAILED
-                self._metrics.messages_failed += 1
-        else:
-            # No broker - deliver directly to subscribers
-            for sub in subscribers:
-                latency = self._calculate_latency()
-                heapq.heappush(
-                    self._event_queue,
-                    SimEvent(
-                        time=self._current_time + latency,
-                        event_type=EventType.MSG_DELIVER,
-                        data={"msg_id": msg_id, "subscriber": sub},
-                    ),
-                )
-            msg.state = MessageState.IN_TRANSIT
-        
-        # Schedule timeout
-        heapq.heappush(
-            self._event_queue,
-            SimEvent(
-                time=self._current_time + self.timeout_ms,
-                event_type=EventType.MSG_TIMEOUT,
-                data={"msg_id": msg_id},
-            ),
-        )
-
-    def _handle_broker_receive(self, data: Dict) -> None:
-        """Handle message arrival at broker"""
-        msg_id = data["msg_id"]
-        broker_id = data["broker"]
-        
-        msg = self._messages.get(msg_id)
-        if not msg or msg.state not in (MessageState.IN_TRANSIT, MessageState.AT_BROKER):
-            return
-        
-        broker = self._graph.components.get(broker_id)
-        if not broker or not broker.is_active:
-            msg.state = MessageState.FAILED
-            self._metrics.messages_failed += 1
-            return
-        
-        msg.state = MessageState.AT_BROKER
-        self._component_stats[broker_id].messages_received += 1
-        
-        # Add broker processing delay
-        broker_delay = self.broker_latency_ms * self._rng.uniform(0.8, 1.2)
-        
-        # Deliver to each subscriber
-        for sub in msg.subscribers:
-            sub_comp = self._graph.components.get(sub)
-            if sub_comp and sub_comp.is_active:
-                latency = self._calculate_latency() + broker_delay
-                heapq.heappush(
-                    self._event_queue,
-                    SimEvent(
-                        time=self._current_time + latency,
-                        event_type=EventType.MSG_DELIVER,
-                        data={"msg_id": msg_id, "subscriber": sub},
-                    ),
-                )
-
-    def _handle_deliver(self, data: Dict) -> None:
-        """Handle message delivery to subscriber"""
-        msg_id = data["msg_id"]
-        subscriber_id = data["subscriber"]
-        
-        msg = self._messages.get(msg_id)
-        if not msg:
-            return
-        
-        # Check for exactly-once dedup
-        if msg.qos == QoSLevel.EXACTLY_ONCE:
-            dedup_key = f"{msg_id}:{subscriber_id}"
-            if dedup_key in self._delivered_ids:
-                return
-            self._delivered_ids.add(dedup_key)
-        
-        if msg.state in (MessageState.FAILED, MessageState.TIMEOUT):
-            return
-        
-        subscriber = self._graph.components.get(subscriber_id)
-        if not subscriber or not subscriber.is_active:
-            # Retry for at-least-once
-            if msg.qos in (QoSLevel.AT_LEAST_ONCE, QoSLevel.EXACTLY_ONCE):
-                if msg.retries < 3:
-                    msg.retries += 1
-                    latency = self._calculate_latency() * (msg.retries + 1)
-                    heapq.heappush(
-                        self._event_queue,
-                        SimEvent(
-                            time=self._current_time + latency,
-                            event_type=EventType.MSG_DELIVER,
-                            data={"msg_id": msg_id, "subscriber": subscriber_id},
-                        ),
-                    )
-            return
-        
-        # Successful delivery
-        msg.delivery_times[subscriber_id] = self._current_time
-        latency = msg.latency(subscriber_id)
-        
-        self._metrics.messages_delivered += 1
-        self._metrics.latencies.append(latency)
-        
-        self._component_stats[subscriber_id].messages_received += 1
-        self._component_stats[subscriber_id].bytes_received += msg.payload_size
-        
-        # Check if all subscribers received
-        if len(msg.delivery_times) == len(msg.subscribers):
-            msg.state = MessageState.DELIVERED
-
-    def _handle_timeout(self, data: Dict) -> None:
-        """Handle message timeout"""
-        msg_id = data["msg_id"]
-        msg = self._messages.get(msg_id)
-        
-        if not msg:
-            return
-        
-        if msg.state not in (MessageState.DELIVERED, MessageState.FAILED, MessageState.TIMEOUT):
-            msg.state = MessageState.TIMEOUT
-            self._metrics.messages_timeout += 1
-
-    def _handle_failure(self, data: Dict) -> None:
-        """Handle component failure event"""
-        comp_id = data["component"]
-        comp = self._graph.components.get(comp_id)
-        
-        if not comp:
-            return
-        
-        comp.is_active = False
-        
-        # Deactivate connections
-        for conn in self._graph.get_outgoing(comp_id):
-            conn.is_active = False
-        for conn in self._graph.get_incoming(comp_id):
-            conn.is_active = False
-        
-        self._metrics.component_failures += 1
-        self._component_stats[comp_id].failures += 1
-        
-        self._failures_injected.append({
-            "component": comp_id,
-            "time_ms": self._current_time,
-            "type": "failure",
-        })
-        
-        # Schedule recovery if specified
-        recover_time = data.get("recover_time_ms")
-        if recover_time:
-            heapq.heappush(
-                self._event_queue,
-                SimEvent(
-                    time=self._current_time + recover_time,
-                    event_type=EventType.COMPONENT_RECOVER,
-                    data={"component": comp_id},
-                ),
+        if duration is not None:
+            self.schedule_event(
+                time=at_time + duration,
+                event_type=EventType.RECOVERY,
+                source=component_id,
+                priority=0,
             )
+    
+    def reset(self) -> None:
+        """Reset simulation state"""
+        self.current_time = 0.0
+        self.event_queue = []
+        self.event_counter = 0
+        self.state = SimulationState.IDLE
+        self.messages = {}
+        self.events_log = []
+        self.stats = SimulationStatistics()
+        self._initialize_components()
 
-    def _handle_recovery(self, data: Dict) -> None:
-        """Handle component recovery event"""
-        comp_id = data["component"]
-        comp = self._graph.components.get(comp_id)
-        
-        if not comp:
-            return
-        
-        comp.is_active = True
-        
-        # Reactivate connections
-        for conn in self._graph.get_outgoing(comp_id):
-            conn.is_active = True
-        for conn in self._graph.get_incoming(comp_id):
-            conn.is_active = True
-        
-        self._failures_injected.append({
-            "component": comp_id,
-            "time_ms": self._current_time,
-            "type": "recovery",
-        })
 
-    def _calculate_latency(self) -> float:
-        """Calculate latency with variance"""
-        variance = self._rng.uniform(-self.latency_variance, self.latency_variance)
-        return self.base_latency_ms * (1 + variance)
+# =============================================================================
+# Factory Functions
+# =============================================================================
+
+def run_event_simulation(
+    graph: SimulationGraph,
+    duration: float = 1000.0,
+    message_rate: float = 10.0,
+    seed: Optional[int] = None,
+) -> SimulationResult:
+    """
+    Quick function to run event simulation.
+    
+    Args:
+        graph: Simulation graph
+        duration: Duration in ms
+        message_rate: Messages per ms
+        seed: Random seed
+    
+    Returns:
+        SimulationResult
+    """
+    simulator = EventSimulator(graph, seed=seed)
+    return simulator.run(duration, message_rate)
+
+
+def run_stress_test(
+    graph: SimulationGraph,
+    duration: float = 5000.0,
+    message_rate: float = 100.0,
+    failure_rate: float = 0.01,
+    seed: Optional[int] = None,
+) -> SimulationResult:
+    """
+    Run stress test with random failures.
+    
+    Args:
+        graph: Simulation graph
+        duration: Duration in ms
+        message_rate: Messages per ms
+        failure_rate: Probability of failure per component per 1000ms
+        seed: Random seed
+    
+    Returns:
+        SimulationResult
+    """
+    rng = random.Random(seed)
+    simulator = EventSimulator(graph, seed=seed)
+    
+    # Schedule random failures
+    for comp_id in graph.components:
+        if rng.random() < failure_rate:
+            fail_time = rng.uniform(0, duration * 0.8)
+            recovery_time = rng.uniform(100, 500)
+            simulator.inject_failure(comp_id, fail_time, recovery_time)
+    
+    return simulator.run(duration, message_rate)
