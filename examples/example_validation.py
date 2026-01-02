@@ -1,593 +1,561 @@
 #!/usr/bin/env python3
 """
-Example Validation Script - Version 5.0
+Validation Example - Version 5.0
 
-Demonstrates the validation capabilities of the software-as-a-graph project.
-
-Features Demonstrated:
-1. Statistical Metrics - Correlation, classification, ranking
-2. Component-Type Validation - Separate validation per type
-3. Method Comparison - Compare multiple analysis methods
-4. Full Pipeline - Analysis + Simulation + Validation
-5. Custom Score Validation - Validate pre-computed scores
+Demonstrates the validation module:
+1. Basic validation of predictions vs actuals
+2. Layer-specific validation
+3. Method comparison
+4. Full validation pipeline
 
 Usage:
-    # Run all demos (no Neo4j required)
-    python examples/example_validation.py --demo
-    
-    # Run with Neo4j
-    python examples/example_validation.py --uri bolt://localhost:7687 --password secret
-    
-    # Export results
-    python examples/example_validation.py --demo --output results.json
+    python examples/example_validation.py
+    python examples/example_validation.py --verbose
 
 Author: Software-as-a-Graph Research Project
 Version: 5.0
 """
 
 import argparse
-import json
 import sys
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any, Optional
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.validation import (
-    # Enums
-    ValidationStatus,
-    AnalysisMethod,
-    # Metrics
-    ValidationTargets,
-    CorrelationMetrics,
-    ClassificationMetrics,
-    RankingMetrics,
-    # Functions
-    spearman_correlation,
-    pearson_correlation,
-    calculate_correlation,
-    calculate_classification,
-    calculate_ranking,
-    bootstrap_confidence_interval,
-    # Validator
-    Validator,
-    ValidationResult,
-    validate_predictions,
-    quick_validate,
-    # Pipeline
-    GraphAnalyzer,
-    ValidationPipeline,
-    PipelineResult,
-    run_validation,
-)
-
 
 # =============================================================================
-# Output Formatting
+# Terminal Output
 # =============================================================================
 
-RESET = "\033[0m"
 BOLD = "\033[1m"
-RED = "\033[91m"
-YELLOW = "\033[93m"
 GREEN = "\033[92m"
 BLUE = "\033[94m"
 CYAN = "\033[96m"
+YELLOW = "\033[93m"
+RED = "\033[91m"
 GRAY = "\033[90m"
+RESET = "\033[0m"
 
 
 def print_header(title: str) -> None:
     print(f"\n{BOLD}{CYAN}{'=' * 60}{RESET}")
-    print(f"{BOLD}{CYAN}{title.center(60)}{RESET}")
+    print(f"{BOLD}{CYAN}{title:^60}{RESET}")
     print(f"{BOLD}{CYAN}{'=' * 60}{RESET}\n")
 
 
-def print_subheader(title: str) -> None:
+def print_section(title: str) -> None:
     print(f"\n{BOLD}{title}{RESET}")
     print(f"{'-' * 40}")
 
 
 def print_success(msg: str) -> None:
-    print(f"{GREEN}✓ {msg}{RESET}")
+    print(f"{GREEN}✓{RESET} {msg}")
 
 
 def print_info(msg: str) -> None:
-    print(f"{BLUE}ℹ {msg}{RESET}")
+    print(f"{BLUE}ℹ{RESET} {msg}")
 
 
 def metric_color(value: float, target: float) -> str:
     if value >= target:
         return GREEN
-    elif value >= target * 0.9:
+    elif value >= target * 0.8:
         return YELLOW
     return RED
 
 
-# =============================================================================
-# Demo Graph Creation
-# =============================================================================
-
-def create_demo_graph():
-    """Create a demo graph for validation examples"""
-    from src.simulation import (
-        SimulationGraph, Component, Edge,
-        ComponentType, EdgeType, QoSPolicy
-    )
+def status_color(status) -> str:
+    from src.validation import ValidationStatus
     
-    graph = SimulationGraph()
-    
-    # Applications (8)
-    apps = [
-        ("sensor1", "Temperature Sensor"),
-        ("sensor2", "Humidity Sensor"),
-        ("processor", "Data Processor"),
-        ("alerter", "Alert Generator"),
-        ("controller", "System Controller"),
-        ("dashboard", "Dashboard"),
-        ("logger", "Data Logger"),
-        ("notifier", "Notification Service"),
-    ]
-    for app_id, name in apps:
-        graph.add_component(Component(
-            id=app_id, type=ComponentType.APPLICATION, name=name
-        ))
-    
-    # Brokers (2)
-    for i in range(1, 3):
-        graph.add_component(Component(
-            id=f"broker{i}", type=ComponentType.BROKER
-        ))
-    
-    # Topics (5)
-    for i in range(1, 6):
-        graph.add_component(Component(
-            id=f"topic{i}", type=ComponentType.TOPIC
-        ))
-    
-    # Nodes (2)
-    for i in range(1, 3):
-        graph.add_component(Component(
-            id=f"node{i}", type=ComponentType.NODE
-        ))
-    
-    # Pub/Sub relationships
-    edges = [
-        ("sensor1", "topic1", EdgeType.PUBLISHES_TO),
-        ("sensor2", "topic1", EdgeType.PUBLISHES_TO),
-        ("processor", "topic2", EdgeType.PUBLISHES_TO),
-        ("processor", "topic1", EdgeType.SUBSCRIBES_TO),
-        ("alerter", "topic3", EdgeType.PUBLISHES_TO),
-        ("alerter", "topic1", EdgeType.SUBSCRIBES_TO),
-        ("controller", "topic4", EdgeType.PUBLISHES_TO),
-        ("controller", "topic2", EdgeType.SUBSCRIBES_TO),
-        ("dashboard", "topic2", EdgeType.SUBSCRIBES_TO),
-        ("dashboard", "topic3", EdgeType.SUBSCRIBES_TO),
-        ("logger", "topic1", EdgeType.SUBSCRIBES_TO),
-        ("logger", "topic5", EdgeType.PUBLISHES_TO),
-        ("notifier", "topic3", EdgeType.SUBSCRIBES_TO),
-    ]
-    
-    for source, target, edge_type in edges:
-        graph.add_edge(Edge(source=source, target=target, edge_type=edge_type))
-    
-    # Broker routes
-    graph.add_edge(Edge(source="broker1", target="topic1", edge_type=EdgeType.ROUTES))
-    graph.add_edge(Edge(source="broker1", target="topic2", edge_type=EdgeType.ROUTES))
-    graph.add_edge(Edge(source="broker1", target="topic3", edge_type=EdgeType.ROUTES))
-    graph.add_edge(Edge(source="broker2", target="topic4", edge_type=EdgeType.ROUTES))
-    graph.add_edge(Edge(source="broker2", target="topic5", edge_type=EdgeType.ROUTES))
-    
-    # RUNS_ON
-    graph.add_edge(Edge(source="sensor1", target="node1", edge_type=EdgeType.RUNS_ON))
-    graph.add_edge(Edge(source="sensor2", target="node1", edge_type=EdgeType.RUNS_ON))
-    graph.add_edge(Edge(source="broker1", target="node1", edge_type=EdgeType.RUNS_ON))
-    graph.add_edge(Edge(source="processor", target="node2", edge_type=EdgeType.RUNS_ON))
-    graph.add_edge(Edge(source="broker2", target="node2", edge_type=EdgeType.RUNS_ON))
-    
-    return graph
+    if status == ValidationStatus.PASSED:
+        return GREEN
+    elif status == ValidationStatus.PARTIAL:
+        return YELLOW
+    return RED
 
 
 # =============================================================================
 # Demo Functions
 # =============================================================================
 
-def demo_correlation_metrics() -> Dict[str, Any]:
-    """Demo 1: Correlation Metrics"""
+def demo_correlation_metrics():
+    """Demo 1: Correlation metrics."""
     print_header("DEMO 1: CORRELATION METRICS")
     
-    # Create test data
-    predicted = [0.9, 0.75, 0.6, 0.45, 0.3, 0.15]
-    actual = [0.85, 0.7, 0.55, 0.5, 0.35, 0.2]
-    
-    print(f"Test Data:")
-    print(f"  Predicted: {predicted}")
-    print(f"  Actual:    {actual}")
-    
-    # Calculate correlations
-    print_subheader("Correlation Coefficients")
-    
-    spearman = spearman_correlation(predicted, actual)
-    pearson = pearson_correlation(predicted, actual)
-    
-    print(f"  Spearman ρ: {GREEN}{spearman:.4f}{RESET} (rank correlation)")
-    print(f"  Pearson r:  {GREEN}{pearson:.4f}{RESET} (linear correlation)")
-    
-    # Using calculate_correlation
-    metrics = calculate_correlation(predicted, actual)
-    print(f"\n  Kendall τ:  {metrics.kendall:.4f}")
-    print(f"  Samples:    {metrics.n_samples}")
-    
-    # Bootstrap confidence interval
-    print_subheader("Bootstrap Confidence Interval")
-    
-    ci = bootstrap_confidence_interval(
-        predicted, actual, spearman_correlation,
-        n_bootstrap=1000, confidence=0.95, seed=42
+    from src.validation import (
+        spearman_correlation,
+        pearson_correlation,
+        kendall_correlation,
+        calculate_correlation,
     )
     
-    print(f"  Spearman 95% CI: [{ci.lower:.4f}, {ci.upper:.4f}]")
-    print(f"  Point Estimate:  {ci.estimate:.4f}")
-    print(f"  CI Width:        {ci.width:.4f}")
+    print("Correlation measures how well predictions match actuals.")
+    print()
     
-    print_success("Correlation metrics demo complete")
+    # Perfect correlation
+    print_section("Perfect Correlation")
+    x = [0.9, 0.7, 0.5, 0.3, 0.1]
+    y = [0.9, 0.7, 0.5, 0.3, 0.1]
     
-    return {
-        "spearman": spearman,
-        "pearson": pearson,
-        "kendall": metrics.kendall,
-        "ci_lower": ci.lower,
-        "ci_upper": ci.upper,
-    }
+    print(f"  Predicted: {x}")
+    print(f"  Actual:    {y}")
+    print(f"  Spearman:  {GREEN}{spearman_correlation(x, y):.4f}{RESET}")
+    
+    # Good correlation
+    print_section("Good Correlation")
+    x = [0.9, 0.7, 0.5, 0.3, 0.1]
+    y = [0.85, 0.65, 0.55, 0.25, 0.15]  # Slightly different
+    
+    result = calculate_correlation(x, y)
+    print(f"  Predicted: {x}")
+    print(f"  Actual:    {y}")
+    print(f"  Spearman:  {GREEN}{result.spearman:.4f}{RESET}")
+    print(f"  Pearson:   {result.pearson:.4f}")
+    print(f"  Kendall:   {result.kendall:.4f}")
+    
+    # Poor correlation
+    print_section("Poor Correlation")
+    x = [0.9, 0.7, 0.5, 0.3, 0.1]
+    y = [0.3, 0.9, 0.1, 0.7, 0.5]  # Different order
+    
+    result = calculate_correlation(x, y)
+    print(f"  Predicted: {x}")
+    print(f"  Actual:    {y}")
+    print(f"  Spearman:  {RED}{result.spearman:.4f}{RESET}")
+    
+    print_success("Correlation metrics demonstrated")
 
 
-def demo_classification_metrics() -> Dict[str, Any]:
-    """Demo 2: Classification Metrics"""
+def demo_classification_metrics():
+    """Demo 2: Classification metrics."""
     print_header("DEMO 2: CLASSIFICATION METRICS")
     
-    # Create test data
-    predicted_scores = [0.9, 0.8, 0.7, 0.4, 0.3, 0.2, 0.1]
-    actual_scores = [0.85, 0.75, 0.65, 0.45, 0.35, 0.25, 0.15]
+    from src.validation import (
+        calculate_classification,
+        ConfusionMatrix,
+    )
     
-    print(f"Test Data:")
-    print(f"  Predicted: {predicted_scores}")
-    print(f"  Actual:    {actual_scores}")
+    print("Classification determines if critical components are identified.")
+    print()
     
-    # Calculate with threshold
-    threshold = 0.5
-    print(f"  Threshold: {threshold}")
+    # Perfect classification
+    print_section("Confusion Matrix Example")
     
-    metrics = calculate_classification(predicted_scores, actual_scores, threshold)
+    cm = ConfusionMatrix(
+        true_positives=8,
+        false_positives=2,
+        false_negatives=1,
+        true_negatives=89,
+    )
     
-    print_subheader("Classification Results")
+    print(f"  True Positives:  {cm.true_positives} (predicted critical, actually critical)")
+    print(f"  False Positives: {cm.false_positives} (predicted critical, not actually)")
+    print(f"  False Negatives: {cm.false_negatives} (not predicted, but actually critical)")
+    print(f"  True Negatives:  {cm.true_negatives} (not predicted, not critical)")
+    print()
+    print(f"  Precision: {GREEN}{cm.precision:.4f}{RESET} (TP / (TP + FP))")
+    print(f"  Recall:    {GREEN}{cm.recall:.4f}{RESET} (TP / (TP + FN))")
+    print(f"  F1-Score:  {GREEN}{cm.f1_score:.4f}{RESET}")
+    print(f"  Accuracy:  {cm.accuracy:.4f}")
     
-    cm = metrics.confusion_matrix
-    print(f"\n  Confusion Matrix:")
-    print(f"    TP={cm.true_positives}  FP={cm.false_positives}")
-    print(f"    FN={cm.false_negatives}  TN={cm.true_negatives}")
+    # From scores
+    print_section("Classification from Scores")
     
-    print(f"\n  Metrics:")
-    print(f"    Precision: {GREEN}{cm.precision:.4f}{RESET}")
-    print(f"    Recall:    {GREEN}{cm.recall:.4f}{RESET}")
-    print(f"    F1-Score:  {GREEN}{cm.f1_score:.4f}{RESET}")
-    print(f"    Accuracy:  {GREEN}{cm.accuracy:.4f}{RESET}")
-    print(f"    MCC:       {cm.mcc:.4f}")
+    predicted = [0.9, 0.8, 0.7, 0.3, 0.2, 0.1]
+    actual = [0.85, 0.75, 0.65, 0.25, 0.15, 0.05]
     
-    print_success("Classification metrics demo complete")
+    result = calculate_classification(predicted, actual)
     
-    return {
-        "precision": cm.precision,
-        "recall": cm.recall,
-        "f1_score": cm.f1_score,
-        "accuracy": cm.accuracy,
-    }
+    print(f"  Threshold: {result.threshold:.4f} (75th percentile of actual)")
+    print(f"  Precision: {result.precision:.4f}")
+    print(f"  Recall:    {result.recall:.4f}")
+    print(f"  F1-Score:  {result.f1_score:.4f}")
+    
+    print_success("Classification metrics demonstrated")
 
 
-def demo_ranking_metrics() -> Dict[str, Any]:
-    """Demo 3: Ranking Metrics"""
+def demo_ranking_metrics():
+    """Demo 3: Ranking metrics."""
     print_header("DEMO 3: RANKING METRICS")
     
-    # Create test rankings
-    predicted_ranking = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
-    actual_ranking = ["a", "c", "b", "e", "d", "f", "h", "g", "j", "i"]
+    from src.validation import calculate_ranking
     
-    print(f"Test Rankings:")
-    print(f"  Predicted: {predicted_ranking}")
-    print(f"  Actual:    {actual_ranking}")
+    print("Ranking metrics compare which components are identified as most critical.")
+    print()
     
-    # Calculate ranking metrics
-    metrics = calculate_ranking(predicted_ranking, actual_ranking)
+    print_section("Top-K Overlap")
     
-    print_subheader("Ranking Metrics")
+    predicted = {"a": 0.9, "b": 0.8, "c": 0.7, "d": 0.6, "e": 0.5, "f": 0.4}
+    actual = {"a": 0.85, "c": 0.80, "b": 0.75, "d": 0.55, "f": 0.50, "e": 0.45}
     
-    print(f"  Top-5 Overlap:  {GREEN}{metrics.top_5_overlap:.2%}{RESET}")
-    print(f"  Top-10 Overlap: {GREEN}{metrics.top_10_overlap:.2%}{RESET}")
-    print(f"  NDCG:           {metrics.ndcg:.4f}")
-    print(f"  MRR:            {metrics.mrr:.4f}")
-    print(f"  Avg Rank Diff:  {metrics.rank_difference_mean:.2f}")
+    result = calculate_ranking(predicted, actual)
     
-    # Top-K overlaps
-    print(f"\n  Top-K Overlaps:")
-    for k, overlap in metrics.top_k_overlaps.items():
-        print(f"    Top-{k}: {overlap:.2%}")
+    pred_order = sorted(predicted.keys(), key=lambda x: -predicted[x])
+    actual_order = sorted(actual.keys(), key=lambda x: -actual[x])
     
-    print_success("Ranking metrics demo complete")
+    print(f"  Predicted ranking: {pred_order}")
+    print(f"  Actual ranking:    {actual_order}")
+    print()
+    print(f"  Top-3 Overlap: {GREEN}{result.top_3_overlap:.2%}{RESET}")
+    print(f"  Top-5 Overlap: {result.top_5_overlap:.2%}")
+    print(f"  NDCG:          {result.ndcg:.4f}")
+    print(f"  MRR:           {result.mrr:.4f}")
+    print(f"  Avg Rank Diff: {result.rank_difference_mean:.2f}")
     
-    return {
-        "top_5_overlap": metrics.top_5_overlap,
-        "top_10_overlap": metrics.top_10_overlap,
-        "ndcg": metrics.ndcg,
-    }
+    print_success("Ranking metrics demonstrated")
 
 
-def demo_validator() -> Dict[str, Any]:
-    """Demo 4: Validator with Component Types"""
-    print_header("DEMO 4: VALIDATOR WITH COMPONENT TYPES")
+def demo_validator():
+    """Demo 4: Validator class."""
+    print_header("DEMO 4: VALIDATOR")
     
-    # Create test data with component types
+    from src.validation import Validator, ValidationTargets
+    
+    print("The Validator compares predicted scores against actual scores.")
+    print()
+    
+    # Create test data
     predicted = {
-        "app1": 0.9, "app2": 0.7, "app3": 0.5,
-        "broker1": 0.85, "broker2": 0.65,
-        "topic1": 0.6, "topic2": 0.4,
-        "node1": 0.8, "node2": 0.3,
+        "broker_1": 0.90,
+        "broker_2": 0.85,
+        "app_1": 0.70,
+        "app_2": 0.65,
+        "app_3": 0.60,
+        "node_1": 0.55,
+        "node_2": 0.50,
+        "topic_1": 0.40,
+        "topic_2": 0.35,
+        "topic_3": 0.30,
     }
     
     actual = {
-        "app1": 0.85, "app2": 0.75, "app3": 0.45,
-        "broker1": 0.9, "broker2": 0.6,
-        "topic1": 0.55, "topic2": 0.45,
-        "node1": 0.75, "node2": 0.35,
+        "broker_1": 0.88,
+        "broker_2": 0.82,
+        "app_1": 0.68,
+        "app_2": 0.62,
+        "app_3": 0.58,
+        "node_1": 0.52,
+        "node_2": 0.48,
+        "topic_1": 0.38,
+        "topic_2": 0.32,
+        "topic_3": 0.28,
     }
     
-    component_types = {
-        "app1": "Application", "app2": "Application", "app3": "Application",
-        "broker1": "Broker", "broker2": "Broker",
-        "topic1": "Topic", "topic2": "Topic",
-        "node1": "Node", "node2": "Node",
+    component_info = {
+        "broker_1": {"type": "Broker", "layer": "app_broker"},
+        "broker_2": {"type": "Broker", "layer": "app_broker"},
+        "app_1": {"type": "Application", "layer": "application"},
+        "app_2": {"type": "Application", "layer": "application"},
+        "app_3": {"type": "Application", "layer": "application"},
+        "node_1": {"type": "Node", "layer": "infrastructure"},
+        "node_2": {"type": "Node", "layer": "infrastructure"},
+        "topic_1": {"type": "Topic", "layer": "application"},
+        "topic_2": {"type": "Topic", "layer": "application"},
+        "topic_3": {"type": "Topic", "layer": "application"},
     }
     
-    print(f"Components: {len(predicted)}")
-    print(f"  Applications: 3")
-    print(f"  Brokers: 2")
-    print(f"  Topics: 2")
-    print(f"  Nodes: 2")
-    
-    # Configure validator
-    targets = ValidationTargets(spearman=0.70, f1_score=0.80)
+    targets = ValidationTargets(spearman=0.70, f1_score=0.85)
     validator = Validator(targets=targets, seed=42)
     
-    # Run validation
-    result = validator.validate(predicted, actual, component_types)
+    result = validator.validate(predicted, actual, component_info)
     
-    print_subheader("Overall Results")
+    print_section("Overall Results")
     
-    status_color = GREEN if result.passed else RED
-    print(f"  Status: {status_color}{BOLD}{result.status.value.upper()}{RESET}")
+    color = status_color(result.status)
+    print(f"  Status: {color}{BOLD}{result.status.value.upper()}{RESET}")
     print(f"  Spearman ρ: {metric_color(result.spearman, 0.70)}{result.spearman:.4f}{RESET}")
-    print(f"  F1-Score: {metric_color(result.f1_score, 0.80)}{result.f1_score:.4f}{RESET}")
+    print(f"  F1-Score:   {metric_color(result.f1_score, 0.85)}{result.f1_score:.4f}{RESET}")
     
-    # Confidence interval
-    if result.spearman_ci:
-        ci = result.spearman_ci
-        print(f"  95% CI: [{ci.lower:.4f}, {ci.upper:.4f}]")
+    # Layer results
+    print_section("Results by Layer")
     
-    # By component type
-    print_subheader("By Component Type")
+    for layer, layer_result in result.by_layer.items():
+        sp_color = metric_color(layer_result.spearman, 0.70)
+        f1_color = metric_color(layer_result.f1_score, 0.85)
+        print(f"  {layer_result.layer_name}:")
+        print(f"    Components: {layer_result.count}")
+        print(f"    Spearman:   {sp_color}{layer_result.spearman:.4f}{RESET}")
+        print(f"    F1-Score:   {f1_color}{layer_result.f1_score:.4f}{RESET}")
+    
+    # Type results
+    print_section("Results by Component Type")
     
     for comp_type, type_result in result.by_type.items():
-        color = GREEN if type_result.status == ValidationStatus.PASSED else YELLOW
-        print(f"  {comp_type}:")
-        print(f"    Count: {type_result.count}")
-        print(f"    Spearman: {color}{type_result.correlation.spearman:.4f}{RESET}")
-        print(f"    F1-Score: {type_result.classification.f1_score:.4f}")
+        print(f"  {comp_type}: ρ={type_result.spearman:.4f}, F1={type_result.f1_score:.4f}")
     
-    # Misclassified components
-    misclassified = result.get_misclassified()
-    if misclassified:
-        print_subheader(f"Misclassified Components ({len(misclassified)})")
-        for comp in misclassified[:5]:
-            print(f"  {comp.component_id} ({comp.component_type}): "
-                  f"pred={comp.predicted_score:.2f}, actual={comp.actual_score:.2f}")
-    
-    print_success("Validator demo complete")
+    print_success("Validator demonstrated")
     
     return result.to_dict()
 
 
-def demo_pipeline() -> Dict[str, Any]:
-    """Demo 5: Full Validation Pipeline"""
+def demo_pipeline():
+    """Demo 5: Validation Pipeline."""
     print_header("DEMO 5: VALIDATION PIPELINE")
     
-    # Create demo graph
-    graph = create_demo_graph()
-    stats = graph.get_statistics()
+    from src.simulation import create_simulation_graph
+    from src.validation import ValidationPipeline, AnalysisMethod, ValidationTargets
     
-    print(f"Graph Statistics:")
-    print(f"  Components: {stats['total_components']}")
-    print(f"  Edges: {stats['total_edges']}")
+    print("The pipeline integrates analysis, simulation, and validation.")
+    print()
+    
+    # Create graph
+    graph = create_simulation_graph(
+        applications=8,
+        brokers=2,
+        topics=10,
+        nodes=3,
+        seed=42,
+    )
+    
+    summary = graph.summary()
+    print(f"  Graph: {summary['total_components']} components, "
+          f"{summary['total_edges']} edges")
     
     # Configure pipeline
-    targets = ValidationTargets(spearman=0.70, f1_score=0.85)
+    targets = ValidationTargets(spearman=0.60, f1_score=0.70)
     pipeline = ValidationPipeline(targets=targets, seed=42, cascade=True)
     
     # Run pipeline
-    print(f"\nRunning validation pipeline...")
+    print_section("Running Pipeline")
     print(f"  Analysis Method: composite")
-    print(f"  Cascade Enabled: True")
+    print(f"  Compare Methods: True")
     
     result = pipeline.run(
         graph,
         analysis_method=AnalysisMethod.COMPOSITE,
         compare_methods=True,
-        validate_by_type=True,
     )
     
-    print_subheader("Pipeline Results")
+    # Results
+    print_section("Pipeline Results")
     
-    status_color = GREEN if result.passed else RED
-    print(f"  Status: {status_color}{BOLD}{result.validation.status.value.upper()}{RESET}")
+    color = status_color(result.validation.status)
+    print(f"  Status: {color}{BOLD}{result.validation.status.value.upper()}{RESET}")
     print(f"  Spearman ρ: {result.spearman:.4f}")
-    print(f"  F1-Score: {result.f1_score:.4f}")
+    print(f"  F1-Score:   {result.f1_score:.4f}")
+    
+    # Timing
+    print(f"\n  Timing:")
+    print(f"    Analysis:   {result.analysis_time_ms:.0f}ms")
+    print(f"    Simulation: {result.simulation_time_ms:.0f}ms")
+    print(f"    Validation: {result.validation_time_ms:.0f}ms")
     
     # Method comparison
     if result.method_comparison:
-        print_subheader("Method Comparison")
+        print_section("Method Comparison")
         
         sorted_methods = sorted(
             result.method_comparison.items(),
             key=lambda x: -x[1].spearman
         )
         
-        print(f"  {'Method':<15} {'Spearman':<12} {'F1-Score':<12} {'Status'}")
-        print(f"  {'-' * 50}")
+        print(f"  {'Method':<12} {'Spearman':<12} {'F1-Score':<12} {'Status'}")
+        print(f"  {'-' * 45}")
         
         for method, comp in sorted_methods:
-            sp_color = metric_color(comp.spearman, 0.70)
-            f1_color = metric_color(comp.f1_score, 0.85)
-            print(f"  {method:<15} {sp_color}{comp.spearman:.4f}{RESET}       "
+            sp_color = metric_color(comp.spearman, 0.60)
+            f1_color = metric_color(comp.f1_score, 0.70)
+            print(f"  {method:<12} {sp_color}{comp.spearman:.4f}{RESET}       "
                   f"{f1_color}{comp.f1_score:.4f}{RESET}       {comp.status.value}")
         
         best = result.get_best_method()
         print(f"\n  {GREEN}Best Method: {best}{RESET}")
     
-    # By component type
-    if result.by_component_type:
-        print_subheader("By Component Type")
+    # Layer results
+    if result.by_layer:
+        print_section("Results by Layer")
         
-        for comp_type, type_result in result.by_component_type.items():
-            print(f"  {comp_type}: ρ={type_result.spearman:.4f}, "
-                  f"F1={type_result.f1_score:.4f}")
+        for layer, layer_result in result.by_layer.items():
+            st_color = status_color(layer_result.status)
+            print(f"  {layer_result.layer_name}:")
+            print(f"    ρ={layer_result.spearman:.4f}, "
+                  f"F1={layer_result.f1_score:.4f}, "
+                  f"Status={st_color}{layer_result.status.value}{RESET}")
     
-    print_success("Pipeline demo complete")
+    print_success("Pipeline demonstrated")
     
     return result.to_dict()
 
 
-def demo_quick_functions() -> Dict[str, Any]:
-    """Demo 6: Quick Validation Functions"""
-    print_header("DEMO 6: QUICK VALIDATION FUNCTIONS")
+def demo_cli_usage():
+    """Demo 6: CLI usage examples."""
+    print_header("DEMO 6: CLI USAGE")
     
-    # Create test data
-    predicted = {"a": 0.9, "b": 0.7, "c": 0.5, "d": 0.3, "e": 0.1}
-    actual = {"a": 0.85, "b": 0.75, "c": 0.45, "d": 0.35, "e": 0.15}
+    print("The validate_graph.py CLI provides these commands:")
+    print()
     
-    print(f"Test Data: {len(predicted)} components")
+    examples = [
+        ("Basic validation",
+         "python validate_graph.py --input graph.json"),
+        ("Compare all methods",
+         "python validate_graph.py --input graph.json --compare-methods"),
+        ("Specific method",
+         "python validate_graph.py --input graph.json --method pagerank"),
+        ("Custom targets",
+         "python validate_graph.py --input graph.json --spearman-target 0.80"),
+        ("Export results",
+         "python validate_graph.py --input graph.json --output results.json"),
+        ("No cascade",
+         "python validate_graph.py --input graph.json --no-cascade"),
+    ]
     
-    # Quick validate
-    print_subheader("quick_validate()")
+    for desc, cmd in examples:
+        print(f"  {desc}:")
+        print(f"    {GRAY}{cmd}{RESET}")
+        print()
     
-    spearman, f1, passed = quick_validate(predicted, actual)
-    
-    print(f"  Spearman: {spearman:.4f}")
-    print(f"  F1-Score: {f1:.4f}")
-    print(f"  Passed: {GREEN if passed else RED}{passed}{RESET}")
-    
-    # validate_predictions
-    print_subheader("validate_predictions()")
-    
-    result = validate_predictions(predicted, actual)
-    
-    print(f"  Status: {result.status.value}")
-    print(f"  Correlation: {result.correlation.to_dict()}")
-    
-    # run_validation (with graph)
-    print_subheader("run_validation() with Graph")
-    
-    graph = create_demo_graph()
-    pipeline_result = run_validation(graph, method="composite", seed=42)
-    
-    print(f"  Status: {pipeline_result.validation.status.value}")
-    print(f"  Spearman: {pipeline_result.spearman:.4f}")
-    print(f"  Best Method: {pipeline_result.get_best_method()}")
-    
-    print_success("Quick functions demo complete")
-    
-    return {
-        "quick_validate": {"spearman": spearman, "f1": f1, "passed": passed},
-        "validate_predictions": result.to_dict(),
-    }
+    print_success("See --help for all options")
 
 
-# =============================================================================
-# Live Mode (Neo4j)
-# =============================================================================
-
-def run_live_mode(args) -> Optional[Dict[str, Any]]:
-    """Run validation with Neo4j"""
-    print_header("LIVE MODE - NEO4J VALIDATION")
+def demo_neo4j_integration():
+    """Demo 7: Neo4j Integration"""
+    print_header("DEMO 7: NEO4J INTEGRATION")
     
+    from src.validation import check_neo4j_available
+    
+    print("The validation module can load graphs directly from Neo4j.")
+    print()
+    
+    # Check if Neo4j is available
+    if not check_neo4j_available():
+        print(f"  {YELLOW}Neo4j driver not installed{RESET}")
+        print(f"  Install with: pip install neo4j")
+        print()
+        print_neo4j_cli_examples()
+        print_success("Neo4j integration available when driver is installed")
+        return
+    
+    print(f"  {GREEN}✓{RESET} Neo4j driver installed")
+    
+    # Try to connect
     try:
         from src.validation import Neo4jValidationClient
-    except ImportError as e:
-        print(f"{RED}Error: Neo4j driver not installed{RESET}")
-        print(f"Install with: pip install neo4j")
-        return None
-    
-    print(f"Connecting to Neo4j at {args.uri}...")
-    
-    try:
-        with Neo4jValidationClient(
-            uri=args.uri,
-            user=args.user,
-            password=args.password,
-            database=args.database,
-        ) as client:
-            # Get stats
-            stats = client.get_validation_stats()
-            
-            print(f"\n  Data Availability:")
-            for comp_type, count in stats["components"].items():
-                print(f"    {comp_type}: {count} components")
-            
-            total = sum(stats["components"].values())
-            if total == 0:
-                print(f"\n{YELLOW}Database is empty. Running demo mode instead.{RESET}")
-                return run_demo_mode(args)
-            
-            # Run full validation
-            print(f"\n  Running full validation pipeline...")
-            result = client.run_full_validation(seed=args.seed)
-            
-            print(f"\n  Status: {result.validation.status.value}")
-            print(f"  Spearman: {result.spearman:.4f}")
-            print(f"  F1-Score: {result.f1_score:.4f}")
-            
-            return result.to_dict()
+        
+        print(f"\n  Testing connection to localhost:7687...")
+        
+        with Neo4jValidationClient() as client:
+            if client.verify_connection():
+                print(f"  {GREEN}✓{RESET} Connected to Neo4j")
+                
+                # Get statistics
+                stats = client.get_statistics()
+                print(f"\n  {BOLD}Database Statistics{RESET}")
+                print(f"    Components: {stats['total_components']}")
+                print(f"    Edges: {stats['total_edges']}")
+                
+                if stats['total_components'] > 5:
+                    # Run validation
+                    print(f"\n  {BOLD}Running Validation{RESET}")
+                    result = client.run_validation()
+                    
+                    status_color = GREEN if result.validation.status.value == "passed" else YELLOW
+                    print(f"    Status: {status_color}{result.validation.status.value.upper()}{RESET}")
+                    print(f"    Spearman ρ: {result.spearman:.4f}")
+                    print(f"    F1-Score: {result.f1_score:.4f}")
+                    
+                    # Layer results
+                    if result.by_layer:
+                        print(f"\n  {BOLD}Layer Results{RESET}")
+                        for layer, layer_result in result.by_layer.items():
+                            status = "✓" if layer_result.passed else "✗"
+                            print(f"    {status} {layer}: ρ={layer_result.spearman:.4f}")
+                else:
+                    print(f"\n  {YELLOW}Insufficient data for validation{RESET}")
+            else:
+                print(f"  {RED}✗{RESET} Could not connect to Neo4j")
+                print(f"    Make sure Neo4j is running on localhost:7687")
     
     except Exception as e:
-        print(f"{RED}Error: {e}{RESET}")
-        print(f"\n{YELLOW}Falling back to demo mode...{RESET}")
-        return run_demo_mode(args)
+        print(f"  {YELLOW}⚠{RESET} Connection failed: {e}")
+        print(f"    Make sure Neo4j is running")
+    
+    print()
+    print_neo4j_cli_examples()
+    print_success("Neo4j integration demonstrated")
 
 
-# =============================================================================
-# Demo Mode
-# =============================================================================
+def print_neo4j_cli_examples():
+    """Print Neo4j CLI examples."""
+    print(f"\n  {BOLD}Neo4j CLI Examples{RESET}")
+    print()
+    
+    neo4j_examples = [
+        ("Load from Neo4j",
+         "python validate_graph.py --neo4j"),
+        ("Custom connection",
+         "python validate_graph.py --neo4j --uri bolt://host:7687 --user neo4j --password pass"),
+        ("Load specific layer",
+         "python validate_graph.py --neo4j --layer application"),
+        ("Compare methods from Neo4j",
+         "python validate_graph.py --neo4j --compare-methods"),
+        ("Export results",
+         "python validate_graph.py --neo4j --output results.json"),
+    ]
+    
+    for desc, cmd in neo4j_examples:
+        print(f"  {desc}:")
+        print(f"    {GRAY}{cmd}{RESET}")
+        print()
 
-def run_demo_mode(args) -> Dict[str, Any]:
-    """Run all demos without Neo4j"""
-    results = {}
+
+def demo_neo4j_python_api():
+    """Demo 8: Neo4j Python API"""
+    print_header("DEMO 8: NEO4J PYTHON API")
     
-    # Demo 1: Correlation Metrics
-    results["correlation"] = demo_correlation_metrics()
+    print("Using Neo4j validation in Python code:")
+    print()
     
-    # Demo 2: Classification Metrics
-    results["classification"] = demo_classification_metrics()
+    code = '''
+from src.validation import (
+    Neo4jValidationClient,
+    validate_from_neo4j,
+    AnalysisMethod,
+    ValidationTargets,
+)
+
+# Method 1: Using context manager
+with Neo4jValidationClient(
+    uri="bolt://localhost:7687",
+    user="neo4j",
+    password="password",
+) as client:
+    # Run full validation
+    result = client.run_validation(compare_methods=True)
+    print(f"Status: {result.validation.status.value}")
+    print(f"Spearman: {result.spearman:.4f}")
     
-    # Demo 3: Ranking Metrics
-    results["ranking"] = demo_ranking_metrics()
+    # Validate specific layer
+    app_result = client.validate_layer("application")
+    print(f"App Layer: {app_result.spearman:.4f}")
     
-    # Demo 4: Validator
-    results["validator"] = demo_validator()
+    # Validate all layers separately
+    all_layers = client.validate_all_layers()
+    for layer, result in all_layers.items():
+        print(f"{layer}: {result.spearman:.4f}")
+
+# Method 2: Using factory function
+result = validate_from_neo4j(
+    uri="bolt://localhost:7687",
+    user="neo4j",
+    password="password",
+    method=AnalysisMethod.COMPOSITE,
+    compare_methods=True,
+    layer="app_broker",  # Optional
+)
+
+# Check results
+print(f"Status: {result.validation.status.value}")
+for method, comp in result.method_comparison.items():
+    print(f"  {method}: ρ={comp.spearman:.4f}")
+
+# With custom targets
+targets = ValidationTargets(spearman=0.80, f1_score=0.95)
+result = validate_from_neo4j(targets=targets)
+'''
     
-    # Demo 5: Pipeline
-    results["pipeline"] = demo_pipeline()
-    
-    # Demo 6: Quick Functions
-    results["quick_functions"] = demo_quick_functions()
-    
-    return results
+    print(f"  {GRAY}{code}{RESET}")
+    print_success("Neo4j Python API demonstrated")
 
 
 # =============================================================================
@@ -596,91 +564,29 @@ def run_demo_mode(args) -> Dict[str, Any]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Validation module examples and demonstrations",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Run all demos
-  python examples/example_validation.py --demo
-  
-  # Run with Neo4j
-  python examples/example_validation.py --uri bolt://localhost:7687 --password secret
-  
-  # Export results
-  python examples/example_validation.py --demo --output results.json
-        """
+        description="Validation Module Demo"
     )
-    
     parser.add_argument(
-        "--demo",
+        "--verbose", "-v",
         action="store_true",
-        help="Run demo mode (no Neo4j required)"
-    )
-    parser.add_argument(
-        "--uri",
-        default="bolt://localhost:7687",
-        help="Neo4j bolt URI"
-    )
-    parser.add_argument(
-        "--user",
-        default="neo4j",
-        help="Neo4j username"
-    )
-    parser.add_argument(
-        "--password",
-        default="password",
-        help="Neo4j password"
-    )
-    parser.add_argument(
-        "--database",
-        default="neo4j",
-        help="Neo4j database name"
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Random seed"
-    )
-    parser.add_argument(
-        "--output", "-o",
-        help="Output file for results (JSON)"
+        help="Verbose output"
     )
     
     args = parser.parse_args()
     
-    print_header("SOFTWARE-AS-A-GRAPH VALIDATION EXAMPLES")
-    print(f"Version: 5.0")
-    print(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print_header("Validation Module Demo")
     
-    # Run appropriate mode
-    if args.demo:
-        results = run_demo_mode(args)
-    else:
-        results = run_live_mode(args)
-        if results is None:
-            results = run_demo_mode(args)
+    # Run demos
+    demo_correlation_metrics()
+    demo_classification_metrics()
+    demo_ranking_metrics()
+    demo_validator()
+    demo_pipeline()
+    demo_cli_usage()
+    demo_neo4j_integration()
+    demo_neo4j_python_api()
     
-    # Export if requested
-    if args.output and results:
-        output_path = Path(args.output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_path, "w") as f:
-            json.dump(results, f, indent=2, default=str)
-        
-        print(f"\n{GREEN}✓ Results saved to: {output_path}{RESET}")
-    
-    # Summary
-    print_header("EXAMPLES COMPLETE")
-    print(f"{GREEN}All validation examples completed successfully!{RESET}")
-    print(f"\nKey Capabilities Demonstrated:")
-    print(f"  ✓ Correlation metrics (Spearman, Pearson, Kendall)")
-    print(f"  ✓ Classification metrics (F1, Precision, Recall)")
-    print(f"  ✓ Ranking metrics (Top-K Overlap, NDCG, MRR)")
-    print(f"  ✓ Component-type specific validation")
-    print(f"  ✓ Analysis method comparison")
-    print(f"  ✓ Full validation pipeline")
+    print_header("Demo Complete")
     
     return 0
 

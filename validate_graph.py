@@ -2,35 +2,37 @@
 """
 Validate Graph CLI - Version 5.0
 
-Command-line interface for validating graph-based criticality predictions
-against actual failure impact scores.
+Validates graph analysis predictions against simulation results.
 
-Features:
-- Validate predicted vs actual criticality scores
-- Component-type specific validation
-- Compare multiple analysis methods
-- Load data from JSON files or Neo4j
-- Export detailed validation reports
+Input Sources:
+- JSON file (--input)
+- Neo4j database (--neo4j)
 
-Validation Targets:
-- Spearman ρ ≥ 0.70 (rank correlation)
-- F1-Score ≥ 0.90 (classification accuracy)
+Compares predicted criticality scores from topological analysis
+against actual impact scores from failure simulation.
+
+Layers Reported:
+- application: app_to_app dependencies
+- infrastructure: node_to_node dependencies
+- app_broker: app_to_broker dependencies
+- node_broker: node_to_broker dependencies
 
 Usage:
-    # Validate from JSON file
+    # Load from file
     python validate_graph.py --input graph.json
     
-    # Validate from Neo4j
-    python validate_graph.py --neo4j --password secret
+    # Load from Neo4j
+    python validate_graph.py --neo4j
+    python validate_graph.py --neo4j --uri bolt://localhost:7687
     
-    # Compare analysis methods
+    # Load specific layer from Neo4j
+    python validate_graph.py --neo4j --layer application
+    
+    # Compare all analysis methods
     python validate_graph.py --input graph.json --compare-methods
     
-    # Validate specific component type
-    python validate_graph.py --input graph.json --component-type Application
-    
-    # Custom targets
-    python validate_graph.py --input graph.json --spearman-target 0.75 --f1-target 0.85
+    # Export results
+    python validate_graph.py --neo4j --output results.json
 
 Author: Software-as-a-Graph Research Project
 Version: 5.0
@@ -42,145 +44,204 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional, List
-
-try:
-    from src.validation import (
-        ValidationPipeline,
-        ValidationTargets,
-        ValidationResult,
-        PipelineResult,
-        AnalysisMethod,
-        Validator,
-        run_validation,
-    )
-    from src.simulation import (
-        SimulationGraph,
-        ComponentType,
-        create_simulation_graph,
-    )
-    HAS_VALIDATION = True
-except ImportError as e:
-    HAS_VALIDATION = False
-    IMPORT_ERROR = str(e)
+from typing import Dict, Any, Optional
 
 
 # =============================================================================
-# Output Formatting
+# Terminal Colors
 # =============================================================================
 
-RESET = "\033[0m"
-BOLD = "\033[1m"
-RED = "\033[91m"
-YELLOW = "\033[93m"
-GREEN = "\033[92m"
-BLUE = "\033[94m"
-CYAN = "\033[96m"
-GRAY = "\033[90m"
+class Colors:
+    BOLD = "\033[1m"
+    GREEN = "\033[92m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    GRAY = "\033[90m"
+    RESET = "\033[0m"
+    
+    @classmethod
+    def disable(cls):
+        for attr in ["BOLD", "GREEN", "BLUE", "CYAN", "YELLOW", "RED", "GRAY", "RESET"]:
+            setattr(cls, attr, "")
 
+
+def use_colors() -> bool:
+    import os
+    return hasattr(sys.stdout, "isatty") and sys.stdout.isatty() and os.name != "nt"
+
+
+# =============================================================================
+# Output Helpers
+# =============================================================================
 
 def print_header(title: str) -> None:
-    """Print section header"""
-    print(f"\n{BOLD}{CYAN}{'=' * 70}{RESET}")
-    print(f"{BOLD}{CYAN}{title.center(70)}{RESET}")
-    print(f"{BOLD}{CYAN}{'=' * 70}{RESET}\n")
+    print(f"\n{Colors.BOLD}{Colors.CYAN}{'=' * 60}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.CYAN}{title:^60}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.CYAN}{'=' * 60}{Colors.RESET}\n")
 
 
-def print_subheader(title: str) -> None:
-    """Print subsection header"""
-    print(f"\n{BOLD}{title}{RESET}")
-    print(f"{'-' * 50}")
+def print_section(title: str) -> None:
+    print(f"\n{Colors.BOLD}{title}{Colors.RESET}")
+    print(f"{'-' * 40}")
 
 
-def status_color(passed: bool) -> str:
-    """Get color based on pass/fail status"""
-    return GREEN if passed else RED
+def print_success(msg: str) -> None:
+    print(f"{Colors.GREEN}✓{Colors.RESET} {msg}")
+
+
+def print_error(msg: str) -> None:
+    print(f"{Colors.RED}✗{Colors.RESET} {msg}")
+
+
+def print_info(msg: str) -> None:
+    print(f"{Colors.BLUE}ℹ{Colors.RESET} {msg}")
 
 
 def metric_color(value: float, target: float) -> str:
-    """Get color based on metric vs target"""
+    """Get color based on whether value meets target."""
     if value >= target:
-        return GREEN
-    elif value >= target * 0.9:
-        return YELLOW
-    return RED
+        return Colors.GREEN
+    elif value >= target * 0.8:
+        return Colors.YELLOW
+    else:
+        return Colors.RED
 
 
-def format_metric(name: str, value: float, target: float, width: int = 20) -> str:
-    """Format a metric with target comparison"""
+def format_metric(name: str, value: float, target: float) -> str:
+    """Format a metric with color based on target."""
     color = metric_color(value, target)
     status = "✓" if value >= target else "✗"
-    return f"  {name:<{width}} {color}{value:.4f}{RESET} (target: ≥{target}) {color}{status}{RESET}"
+    return f"  {name:<20} {color}{value:.4f}{Colors.RESET} (target: ≥{target}) {status}"
+
+
+def status_color(status) -> str:
+    """Get color for validation status."""
+    from src.validation import ValidationStatus
+    
+    if status == ValidationStatus.PASSED:
+        return Colors.GREEN
+    elif status == ValidationStatus.PARTIAL:
+        return Colors.YELLOW
+    else:
+        return Colors.RED
 
 
 # =============================================================================
 # Graph Loading
 # =============================================================================
 
-def load_graph(args) -> Optional[SimulationGraph]:
-    """Load graph from file or Neo4j"""
+def load_graph_from_file(args):
+    """Load simulation graph from JSON file."""
+    from src.simulation import SimulationGraph
+    
+    if not args.input:
+        return None
+    
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print_error(f"File not found: {input_path}")
+        return None
+    
+    print_info(f"Loading graph from {input_path}")
+    
     try:
-        if args.neo4j:
-            from src.simulation import load_graph_from_neo4j
-            
-            print(f"{CYAN}Loading graph from Neo4j at {args.uri}...{RESET}")
-            graph = load_graph_from_neo4j(
-                uri=args.uri,
-                user=args.user,
-                password=args.password,
-                database=args.database,
-            )
-        elif args.input:
-            print(f"{CYAN}Loading graph from {args.input}...{RESET}")
-            graph = create_simulation_graph(args.input)
-        else:
-            print(f"{RED}Error: Must specify --input or --neo4j{RESET}")
-            return None
+        graph = SimulationGraph.from_json(str(input_path))
+        summary = graph.summary()
         
-        stats = graph.get_statistics()
-        print(f"  Components: {stats['total_components']}")
-        print(f"  Edges: {stats['total_edges']}")
+        print_success(f"Loaded {summary['total_components']} components, {summary['total_edges']} edges")
         
         return graph
-        
     except Exception as e:
-        print(f"{RED}Error loading graph: {e}{RESET}")
+        print_error(f"Failed to load graph: {e}")
+        return None
+
+
+def load_graph_from_neo4j(args):
+    """Load simulation graph from Neo4j database."""
+    from src.simulation import Neo4jSimulationClient, check_neo4j_available
+    
+    if not check_neo4j_available():
+        print_error("Neo4j driver not installed. Install with: pip install neo4j")
+        return None
+    
+    print_info(f"Connecting to Neo4j at {args.uri}")
+    
+    try:
+        with Neo4jSimulationClient(
+            uri=args.uri,
+            user=args.user,
+            password=args.password,
+            database=args.database,
+        ) as client:
+            # Verify connection
+            if not client.verify_connection():
+                print_error("Failed to connect to Neo4j")
+                return None
+            
+            print_success("Connected to Neo4j")
+            
+            # Get statistics
+            stats = client.get_statistics()
+            print_info(f"Components in DB: {stats['total_components']}")
+            print_info(f"Edges in DB: {stats['total_edges']}")
+            
+            # Load graph
+            if args.layer:
+                print_info(f"Loading layer: {args.layer}")
+                graph = client.load_layer(args.layer)
+            else:
+                print_info("Loading full graph")
+                graph = client.load_full_graph()
+            
+            summary = graph.summary()
+            print_success(f"Loaded {summary['total_components']} components, {summary['total_edges']} edges")
+            
+            return graph
+            
+    except Exception as e:
+        print_error(f"Failed to load from Neo4j: {e}")
         if args.verbose:
             import traceback
             traceback.print_exc()
         return None
 
 
+def load_graph(args):
+    """Load graph from file or Neo4j."""
+    if args.neo4j:
+        return load_graph_from_neo4j(args)
+    elif args.input:
+        return load_graph_from_file(args)
+    else:
+        print_error("Specify --input <file> or --neo4j")
+        return None
+
+
 # =============================================================================
-# Validation Output
+# Output Functions
 # =============================================================================
 
-def print_validation_result(
-    result: ValidationResult,
-    targets: ValidationTargets,
-    verbose: bool = False,
-) -> None:
-    """Print validation result details"""
+def print_validation_result(result, targets, verbose: bool = False) -> None:
+    """Print validation result details."""
     
-    # Status
-    status = result.status.value.upper()
-    color = GREEN if result.passed else (YELLOW if status == "PARTIAL" else RED)
-    print(f"\n  Status: {color}{BOLD}{status}{RESET}")
-    print(f"  Components: {result.correlation.n_samples}")
+    # Overall status
+    color = status_color(result.status)
+    print(f"\n  {Colors.BOLD}Overall Status:{Colors.RESET} {color}{result.status.value.upper()}{Colors.RESET}")
     
     # Correlation metrics
-    print_subheader("Correlation Metrics")
+    print_section("Correlation Metrics")
     print(format_metric("Spearman ρ", result.spearman, targets.spearman))
     print(format_metric("Pearson r", result.correlation.pearson, targets.pearson))
     print(format_metric("Kendall τ", result.correlation.kendall, targets.kendall))
     
-    # Confidence interval
     if result.spearman_ci:
         ci = result.spearman_ci
         print(f"  {'Spearman 95% CI':<20} [{ci.lower:.4f}, {ci.upper:.4f}]")
     
     # Classification metrics
-    print_subheader("Classification Metrics")
+    print_section("Classification Metrics")
     print(format_metric("F1-Score", result.f1_score, targets.f1_score))
     print(format_metric("Precision", result.classification.precision, targets.precision))
     print(format_metric("Recall", result.classification.recall, targets.recall))
@@ -192,136 +253,150 @@ def print_validation_result(
     print(f"    FN={cm.false_negatives:3d}  TN={cm.true_negatives:3d}")
     
     # Ranking metrics
-    print_subheader("Ranking Metrics")
+    print_section("Ranking Metrics")
     print(format_metric("Top-5 Overlap", result.ranking.top_5_overlap, targets.top_5_overlap))
     print(format_metric("Top-10 Overlap", result.ranking.top_10_overlap, targets.top_10_overlap))
     print(f"  {'NDCG':<20} {result.ranking.ndcg:.4f}")
     print(f"  {'MRR':<20} {result.ranking.mrr:.4f}")
-    print(f"  {'Avg Rank Diff':<20} {result.ranking.rank_difference_mean:.2f} ± {result.ranking.rank_difference_std:.2f}")
     
-    # Verbose: component details
+    # Verbose details
     if verbose:
-        # False positives
         fps = result.get_false_positives()
         if fps:
-            print_subheader("False Positives (predicted critical, not actually)")
-            for comp in fps[:10]:
+            print_section("False Positives")
+            for comp in fps[:5]:
                 print(f"    {comp.component_id} ({comp.component_type}): "
                       f"pred={comp.predicted_score:.4f}, actual={comp.actual_score:.4f}")
         
-        # False negatives
         fns = result.get_false_negatives()
         if fns:
-            print_subheader("False Negatives (actually critical, not predicted)")
-            for comp in fns[:10]:
+            print_section("False Negatives")
+            for comp in fns[:5]:
                 print(f"    {comp.component_id} ({comp.component_type}): "
                       f"pred={comp.predicted_score:.4f}, actual={comp.actual_score:.4f}")
+
+
+def print_layer_results(result, targets) -> None:
+    """Print layer-specific results."""
+    print_section("Results by Layer")
+    
+    print(f"\n  {'Layer':<20} {'ρ':<10} {'F1':<10} {'Status':<10} {'n'}")
+    print(f"  {'-' * 60}")
+    
+    for layer, layer_result in sorted(result.by_layer.items()):
+        rho_color = metric_color(layer_result.spearman, targets.spearman)
+        f1_color = metric_color(layer_result.f1_score, targets.f1_score)
+        status = "PASSED" if layer_result.passed else "FAILED"
+        status_c = Colors.GREEN if layer_result.passed else Colors.RED
         
-        # Top rank errors
-        print_subheader("Top 10 Rank Errors")
-        for comp in result.get_top_rank_errors(10):
-            print(f"    {comp.component_id}: pred_rank={comp.predicted_rank}, "
-                  f"actual_rank={comp.actual_rank}, diff={comp.rank_difference:+d}")
+        print(f"  {layer:<20} "
+              f"{rho_color}{layer_result.spearman:<10.4f}{Colors.RESET} "
+              f"{f1_color}{layer_result.f1_score:<10.4f}{Colors.RESET} "
+              f"{status_c}{status:<10}{Colors.RESET} "
+              f"{layer_result.count}")
 
 
-def print_method_comparison(
-    comparison: Dict[str, Any],
-    targets: ValidationTargets,
-) -> None:
-    """Print method comparison results"""
-    print_subheader("Analysis Method Comparison")
+def print_type_results(result, targets) -> None:
+    """Print component type results."""
+    if not result.by_type:
+        return
     
-    # Sort by Spearman
-    sorted_methods = sorted(
-        comparison.items(),
-        key=lambda x: -x[1].spearman
-    )
+    print_section("Results by Component Type")
     
-    print(f"\n  {'Method':<15} {'Spearman':<12} {'F1-Score':<12} {'Status':<10}")
-    print(f"  {'-' * 49}")
+    print(f"\n  {'Type':<15} {'ρ':<10} {'F1':<10} {'n'}")
+    print(f"  {'-' * 45}")
     
-    for method, comp in sorted_methods:
-        sp_color = metric_color(comp.spearman, targets.spearman)
+    for comp_type, type_result in sorted(result.by_type.items()):
+        rho_color = metric_color(type_result.spearman, targets.spearman)
+        f1_color = metric_color(type_result.f1_score, targets.f1_score)
+        
+        print(f"  {comp_type:<15} "
+              f"{rho_color}{type_result.spearman:<10.4f}{Colors.RESET} "
+              f"{f1_color}{type_result.f1_score:<10.4f}{Colors.RESET} "
+              f"{type_result.n_samples}")
+
+
+def print_method_comparison(result, targets) -> None:
+    """Print method comparison results."""
+    if not result.method_comparison:
+        return
+    
+    print_section("Method Comparison")
+    
+    print(f"\n  {'Method':<15} {'ρ':<10} {'F1':<10} {'Status'}")
+    print(f"  {'-' * 50}")
+    
+    for method, comp in sorted(result.method_comparison.items()):
+        rho_color = metric_color(comp.spearman, targets.spearman)
         f1_color = metric_color(comp.f1_score, targets.f1_score)
-        status_clr = GREEN if comp.status.value == "passed" else (
-            YELLOW if comp.status.value == "partial" else RED
-        )
+        status_c = status_color(comp.status)
         
-        print(f"  {method:<15} {sp_color}{comp.spearman:.4f}{RESET}       "
-              f"{f1_color}{comp.f1_score:.4f}{RESET}       "
-              f"{status_clr}{comp.status.value}{RESET}")
+        print(f"  {method:<15} "
+              f"{rho_color}{comp.spearman:<10.4f}{Colors.RESET} "
+              f"{f1_color}{comp.f1_score:<10.4f}{Colors.RESET} "
+              f"{status_c}{comp.status.value}{Colors.RESET}")
     
     # Best method
-    best = sorted_methods[0]
-    print(f"\n  {GREEN}Best Method: {best[0]} (ρ={best[1].spearman:.4f}){RESET}")
+    best = result.get_best_method()
+    if best:
+        print(f"\n  {Colors.BOLD}Best Method:{Colors.RESET} {best}")
 
 
-def print_by_component_type(
-    by_type: Dict[str, ValidationResult],
-    targets: ValidationTargets,
-) -> None:
-    """Print validation by component type"""
-    print_subheader("Validation by Component Type")
+def print_timing(result) -> None:
+    """Print timing breakdown."""
+    print_section("Timing")
     
-    print(f"\n  {'Type':<15} {'Count':<8} {'Spearman':<12} {'F1-Score':<12} {'Status':<10}")
-    print(f"  {'-' * 57}")
-    
-    for comp_type, result in sorted(by_type.items()):
-        sp_color = metric_color(result.spearman, targets.spearman)
-        f1_color = metric_color(result.f1_score, targets.f1_score)
-        status_clr = GREEN if result.passed else RED
-        
-        print(f"  {comp_type:<15} {result.correlation.n_samples:<8} "
-              f"{sp_color}{result.spearman:.4f}{RESET}       "
-              f"{f1_color}{result.f1_score:.4f}{RESET}       "
-              f"{status_clr}{result.status.value}{RESET}")
+    print(f"  {'Analysis':<15} {result.analysis_time_ms:.0f}ms")
+    print(f"  {'Simulation':<15} {result.simulation_time_ms:.0f}ms")
+    print(f"  {'Validation':<15} {result.validation_time_ms:.0f}ms")
 
 
 # =============================================================================
-# Main Validation
+# Validation Pipeline
 # =============================================================================
 
-def run_validation_pipeline(args, graph: SimulationGraph) -> Optional[Dict[str, Any]]:
-    """Run validation pipeline"""
+def run_validation_pipeline(args, graph) -> Optional[Dict[str, Any]]:
+    """Run validation pipeline."""
+    from src.validation import (
+        ValidationPipeline,
+        ValidationTargets,
+        AnalysisMethod,
+    )
+    
     print_header("VALIDATION PIPELINE")
     
-    # Configure targets
+    # Build targets
     targets = ValidationTargets(
         spearman=args.spearman_target,
         f1_score=args.f1_target,
         precision=args.precision_target,
         recall=args.recall_target,
+        top_5_overlap=args.top5_target,
+        top_10_overlap=args.top10_target,
     )
     
-    # Configure pipeline
+    # Get method
+    method = AnalysisMethod(args.method)
+    
+    print_info(f"Analysis Method: {method.value}")
+    print_info(f"Cascade: {'enabled' if args.cascade else 'disabled'}")
+    
+    # Create pipeline
     pipeline = ValidationPipeline(
         targets=targets,
         seed=args.seed,
         cascade=args.cascade,
     )
     
-    # Determine analysis method
-    method = AnalysisMethod.COMPOSITE
-    if args.method:
-        try:
-            method = AnalysisMethod(args.method)
-        except ValueError:
-            print(f"{YELLOW}Unknown method '{args.method}', using composite{RESET}")
-    
-    print(f"Analysis Method: {method.value}")
-    print(f"Compare Methods: {args.compare_methods}")
-    print(f"Cascade Enabled: {args.cascade}")
-    
-    # Run pipeline
+    # Run validation
     try:
         result = pipeline.run(
             graph,
             analysis_method=method,
             compare_methods=args.compare_methods,
-            validate_by_type=True,
         )
     except Exception as e:
-        print(f"{RED}Error running validation: {e}{RESET}")
+        print_error(f"Validation failed: {e}")
         if args.verbose:
             import traceback
             traceback.print_exc()
@@ -330,19 +405,25 @@ def run_validation_pipeline(args, graph: SimulationGraph) -> Optional[Dict[str, 
     # Print results
     print_validation_result(result.validation, targets, args.verbose)
     
+    # Layer results
+    if result.by_layer:
+        print_layer_results(result, targets)
+    
+    # Type results
+    if args.verbose and result.by_type:
+        print_type_results(result, targets)
+    
     # Method comparison
     if result.method_comparison:
-        print_method_comparison(result.method_comparison, targets)
+        print_method_comparison(result, targets)
     
-    # By component type
-    if result.by_component_type:
-        print_by_component_type(result.by_component_type, targets)
+    # Timing
+    print_timing(result)
     
     # Summary
-    print_header("VALIDATION SUMMARY")
-    
-    status_clr = GREEN if result.passed else RED
-    print(f"  Overall Status: {status_clr}{BOLD}{result.validation.status.value.upper()}{RESET}")
+    print_section("Summary")
+    color = status_color(result.validation.status)
+    print(f"\n  {Colors.BOLD}Status:{Colors.RESET} {color}{result.validation.status.value.upper()}{Colors.RESET}")
     print(f"  Spearman ρ: {result.spearman:.4f} (target: ≥{targets.spearman})")
     print(f"  F1-Score: {result.f1_score:.4f} (target: ≥{targets.f1_score})")
     
@@ -350,259 +431,122 @@ def run_validation_pipeline(args, graph: SimulationGraph) -> Optional[Dict[str, 
         best = result.get_best_method()
         print(f"  Best Method: {best}")
     
-    return result.to_dict()
-
-
-def run_custom_validation(args) -> Optional[Dict[str, Any]]:
-    """Run validation with custom predicted/actual score files"""
-    print_header("CUSTOM SCORE VALIDATION")
-    
-    # Load predicted scores
-    print(f"Loading predicted scores from {args.predicted}...")
-    with open(args.predicted) as f:
-        predicted_data = json.load(f)
-    
-    # Handle different formats
-    if isinstance(predicted_data, dict) and "scores" in predicted_data:
-        predicted_scores = predicted_data["scores"]
-    else:
-        predicted_scores = predicted_data
-    
-    # Load actual scores
-    print(f"Loading actual scores from {args.actual}...")
-    with open(args.actual) as f:
-        actual_data = json.load(f)
-    
-    if isinstance(actual_data, dict) and "scores" in actual_data:
-        actual_scores = actual_data["scores"]
-    else:
-        actual_scores = actual_data
-    
-    print(f"  Predicted: {len(predicted_scores)} components")
-    print(f"  Actual: {len(actual_scores)} components")
-    
-    # Configure targets
-    targets = ValidationTargets(
-        spearman=args.spearman_target,
-        f1_score=args.f1_target,
-    )
-    
-    # Load component types if provided
-    component_types = None
-    if args.types:
-        with open(args.types) as f:
-            component_types = json.load(f)
-    
-    # Run validation
-    validator = Validator(targets=targets, seed=args.seed)
-    result = validator.validate(predicted_scores, actual_scores, component_types)
-    
-    # Print results
-    print_validation_result(result, targets, args.verbose)
+    # Layer summary
+    if result.by_layer:
+        print(f"\n  Layer Summary:")
+        passed_layers = [l for l, r in result.by_layer.items() if r.passed]
+        print(f"    Passed: {len(passed_layers)}/{len(result.by_layer)}")
+        for layer in passed_layers:
+            print(f"      ✓ {layer}")
     
     return result.to_dict()
-
-
-def run_neo4j_validation(args) -> Optional[Dict[str, Any]]:
-    """Run validation using Neo4j data"""
-    print_header("NEO4J VALIDATION")
-    
-    try:
-        from src.validation import Neo4jValidationClient
-    except ImportError:
-        print(f"{RED}Error: Neo4j driver not available{RESET}")
-        return None
-    
-    targets = ValidationTargets(
-        spearman=args.spearman_target,
-        f1_score=args.f1_target,
-    )
-    
-    print(f"Connecting to Neo4j at {args.uri}...")
-    
-    try:
-        with Neo4jValidationClient(
-            uri=args.uri,
-            user=args.user,
-            password=args.password,
-            database=args.database,
-            targets=targets,
-        ) as client:
-            # Check data availability
-            stats = client.get_validation_stats()
-            print(f"\n  Data Availability:")
-            for comp_type, count in stats["components"].items():
-                analysis = stats["has_analysis_scores"].get(comp_type, 0)
-                impact = stats["has_impact_scores"].get(comp_type, 0)
-                print(f"    {comp_type}: {count} total, "
-                      f"{analysis} with analysis, {impact} with impact")
-            
-            # Run validation
-            if args.full_pipeline:
-                print(f"\n  Running full validation pipeline...")
-                result = client.run_full_validation(seed=args.seed)
-                print_validation_result(result.validation, targets, args.verbose)
-                
-                if result.method_comparison:
-                    print_method_comparison(result.method_comparison, targets)
-                
-                return result.to_dict()
-            
-            else:
-                # Validate stored scores
-                print(f"\n  Validating stored scores...")
-                result = client.validate(
-                    args.predicted_property,
-                    args.actual_property,
-                )
-                print_validation_result(result, targets, args.verbose)
-                
-                # By type
-                if args.by_type:
-                    by_type = client.validate_by_component_type(
-                        args.predicted_property,
-                        args.actual_property,
-                    )
-                    print_by_component_type(by_type, targets)
-                
-                return result.to_dict()
-    
-    except Exception as e:
-        print(f"{RED}Error: {e}{RESET}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        return None
 
 
 # =============================================================================
 # Main
 # =============================================================================
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Validate graph-based criticality predictions",
+        description="Validate graph analysis against simulation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Validate from JSON file
-  python validate_graph.py --input graph.json
-  
-  # Compare analysis methods
-  python validate_graph.py --input graph.json --compare-methods
-  
-  # Custom targets
-  python validate_graph.py --input graph.json --spearman-target 0.75 --f1-target 0.85
-  
-  # Validate from Neo4j
-  python validate_graph.py --neo4j --password secret --full-pipeline
-  
-  # Validate custom score files
-  python validate_graph.py --predicted pred.json --actual actual.json
-  
-  # Specific analysis method
-  python validate_graph.py --input graph.json --method betweenness
-  
-  # Export results
-  python validate_graph.py --input graph.json --output results.json
+    # Load from file
+    python validate_graph.py --input graph.json
+    python validate_graph.py --input graph.json --compare-methods
+    
+    # Load from Neo4j
+    python validate_graph.py --neo4j
+    python validate_graph.py --neo4j --uri bolt://localhost:7687
+    
+    # Load specific layer from Neo4j
+    python validate_graph.py --neo4j --layer application
+    
+    # Custom targets
+    python validate_graph.py --input graph.json --spearman-target 0.80
+    
+    # Export results
+    python validate_graph.py --neo4j --output results.json
+
+Layers Reported:
+    application    - app_to_app dependencies
+    infrastructure - node_to_node dependencies
+    app_broker     - app_to_broker dependencies
+    node_broker    - node_to_broker dependencies
         """
     )
     
-    # Input source
+    # Input source group
     input_group = parser.add_argument_group("Input Source")
     input_group.add_argument(
         "--input", "-i",
-        help="Input graph file (JSON format)"
+        help="Input graph JSON file"
     )
     input_group.add_argument(
-        "--neo4j",
+        "--neo4j", "-n",
         action="store_true",
-        help="Use Neo4j database"
-    )
-    input_group.add_argument(
-        "--predicted",
-        help="File with predicted scores (for custom validation)"
-    )
-    input_group.add_argument(
-        "--actual",
-        help="File with actual scores (for custom validation)"
-    )
-    input_group.add_argument(
-        "--types",
-        help="File with component type mapping"
+        help="Load graph from Neo4j database"
     )
     
-    # Neo4j connection
+    # Neo4j connection options
     neo4j_group = parser.add_argument_group("Neo4j Connection")
     neo4j_group.add_argument(
-        "--uri", "-u",
+        "--uri",
         default="bolt://localhost:7687",
         help="Neo4j bolt URI (default: bolt://localhost:7687)"
     )
     neo4j_group.add_argument(
-        "--user", "-U",
+        "--user",
         default="neo4j",
         help="Neo4j username (default: neo4j)"
     )
     neo4j_group.add_argument(
-        "--password", "-p",
+        "--password",
         default="password",
-        help="Neo4j password"
+        help="Neo4j password (default: password)"
     )
     neo4j_group.add_argument(
-        "--database", "-d",
+        "--database",
         default="neo4j",
         help="Neo4j database name (default: neo4j)"
     )
     neo4j_group.add_argument(
-        "--predicted-property",
-        default="composite_score",
-        help="Neo4j property with predicted scores"
-    )
-    neo4j_group.add_argument(
-        "--actual-property",
-        default="impact_score",
-        help="Neo4j property with actual scores"
-    )
-    neo4j_group.add_argument(
-        "--full-pipeline",
-        action="store_true",
-        help="Run full pipeline (analysis + simulation + validation)"
+        "--layer",
+        choices=["application", "infrastructure", "app_broker", "node_broker"],
+        help="Load specific layer from Neo4j"
     )
     
-    # Validation options
-    val_group = parser.add_argument_group("Validation Options")
-    val_group.add_argument(
+    # Analysis options
+    analysis_group = parser.add_argument_group("Analysis Options")
+    analysis_group.add_argument(
         "--method", "-m",
-        choices=["betweenness", "pagerank", "degree", "composite", "closeness", "eigenvector"],
+        choices=["betweenness", "pagerank", "degree", "composite"],
         default="composite",
         help="Analysis method (default: composite)"
     )
-    val_group.add_argument(
-        "--compare-methods",
+    analysis_group.add_argument(
+        "--compare-methods", "-c",
         action="store_true",
         help="Compare all analysis methods"
     )
-    val_group.add_argument(
-        "--by-type",
-        action="store_true",
-        default=True,
-        help="Validate by component type"
-    )
-    val_group.add_argument(
+    
+    # Simulation options
+    sim_group = parser.add_argument_group("Simulation Options")
+    sim_group.add_argument(
         "--cascade",
         action="store_true",
         default=True,
-        help="Enable cascade in simulation"
+        help="Enable cascade propagation (default)"
     )
-    val_group.add_argument(
+    sim_group.add_argument(
         "--no-cascade",
         action="store_false",
         dest="cascade",
-        help="Disable cascade in simulation"
+        help="Disable cascade propagation"
     )
     
-    # Targets
+    # Target thresholds
     target_group = parser.add_argument_group("Validation Targets")
     target_group.add_argument(
         "--spearman-target",
@@ -628,86 +572,82 @@ Examples:
         default=0.80,
         help="Recall target (default: 0.80)"
     )
-    
-    # Output options
-    output_group = parser.add_argument_group("Output Options")
-    output_group.add_argument(
-        "--output", "-o",
-        help="Output file path (JSON format)"
+    target_group.add_argument(
+        "--top5-target",
+        type=float,
+        default=0.60,
+        help="Top-5 overlap target (default: 0.60)"
     )
-    output_group.add_argument(
+    target_group.add_argument(
+        "--top10-target",
+        type=float,
+        default=0.70,
+        help="Top-10 overlap target (default: 0.70)"
+    )
+    
+    # Common options
+    parser.add_argument(
+        "--seed", "-s",
+        type=int,
+        help="Random seed"
+    )
+    parser.add_argument(
+        "--output", "-o",
+        help="Export results to JSON"
+    )
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Verbose output"
     )
-    output_group.add_argument(
-        "--quiet", "-q",
+    parser.add_argument(
+        "--no-color",
         action="store_true",
-        help="Minimal output"
-    )
-    output_group.add_argument(
-        "--json",
-        action="store_true",
-        help="Output results as JSON to stdout"
-    )
-    output_group.add_argument(
-        "--seed",
-        type=int,
-        help="Random seed for reproducibility"
+        help="Disable colors"
     )
     
     args = parser.parse_args()
     
-    # Check module availability
-    if not HAS_VALIDATION:
-        print(f"{RED}Error: Validation module not available.{RESET}")
-        print(f"Import error: {IMPORT_ERROR}")
-        print("Make sure you're running from the project root.")
-        sys.exit(1)
+    # Handle colors
+    if args.no_color or not use_colors():
+        Colors.disable()
     
-    # Configure logging
-    log_level = logging.WARNING if args.quiet else (
-        logging.DEBUG if args.verbose else logging.INFO
-    )
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s - %(levelname)s - %(message)s"
-    )
+    # Setup logging
+    log_level = logging.DEBUG if args.verbose else logging.WARNING
+    logging.basicConfig(level=log_level)
     
-    # Determine mode and run
-    result = None
+    # Import check
+    try:
+        from src.simulation import SimulationGraph
+        from src.validation import ValidationPipeline
+    except ImportError as e:
+        print_error(f"Import failed: {e}")
+        return 1
     
-    if args.predicted and args.actual:
-        # Custom validation with score files
-        result = run_custom_validation(args)
+    # Load graph
+    graph = load_graph(args)
+    if graph is None:
+        return 1
     
-    elif args.neo4j:
-        # Neo4j validation
-        result = run_neo4j_validation(args)
+    # Run validation
+    results = run_validation_pipeline(args, graph)
     
-    elif args.input:
-        # File-based validation with pipeline
-        graph = load_graph(args)
-        if graph:
-            result = run_validation_pipeline(args, graph)
+    if results is None:
+        return 1
     
-    else:
-        print(f"{RED}Error: Must specify --input, --neo4j, or --predicted/--actual{RESET}")
-        parser.print_help()
-        sys.exit(1)
-    
-    # Output results
-    if result:
-        if args.output:
-            with open(args.output, "w") as f:
-                json.dump(result, f, indent=2, default=str)
-            print(f"\n{GREEN}✓ Results saved to: {args.output}{RESET}")
+    # Export
+    if args.output:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        if args.json:
-            print(json.dumps(result, indent=2, default=str))
+        with open(output_path, "w") as f:
+            json.dump(results, f, indent=2, default=str)
+        
+        print_success(f"Results exported to {output_path}")
     
-    print(f"\n{GREEN}✓ Validation complete{RESET}")
+    print_header("Validation Complete")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
