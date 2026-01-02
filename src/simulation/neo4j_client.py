@@ -1,14 +1,25 @@
 """
-Neo4j Client for Simulation - Version 5.0
+Neo4j Simulation Client - Version 5.0
 
-Retrieves graph data directly from Neo4j for simulation.
-Supports original edge types (NOT derived DEPENDS_ON).
+Loads simulation graph data directly from Neo4j database.
 
 Features:
-- Load full graph or by component type
-- Filter by edge types
-- Support for multiple scenarios
-- Connection pooling
+- Load full graph with all components and edges
+- Load by component type (Application, Broker, Topic, Node)
+- Load by edge type (PUBLISHES_TO, SUBSCRIBES_TO, etc.)
+- Load layer-specific subgraphs
+- Database statistics and verification
+
+Usage:
+    from src.simulation import Neo4jSimulationClient, load_graph_from_neo4j
+    
+    # Using context manager
+    with Neo4jSimulationClient(uri, user, password) as client:
+        graph = client.load_full_graph()
+        stats = client.get_statistics()
+    
+    # Using factory function
+    graph = load_graph_from_neo4j(uri, user, password)
 
 Author: Software-as-a-Graph Research Project
 Version: 5.0
@@ -18,13 +29,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from typing import Dict, List, Any, Optional, Set
-
-try:
-    from neo4j import GraphDatabase
-    HAS_NEO4J = True
-except ImportError:
-    HAS_NEO4J = False
-    GraphDatabase = None
+from contextlib import contextmanager
 
 from .simulation_graph import (
     SimulationGraph,
@@ -36,18 +41,38 @@ from .simulation_graph import (
     QoSPolicy,
 )
 
+# Check for Neo4j driver
+try:
+    from neo4j import GraphDatabase
+    from neo4j.exceptions import ServiceUnavailable, ClientError
+    HAS_NEO4J = True
+except ImportError:
+    HAS_NEO4J = False
+    GraphDatabase = None
+    ServiceUnavailable = Exception
+    ClientError = Exception
+
 
 # =============================================================================
-# Data Classes
+# Configuration
 # =============================================================================
 
 @dataclass
 class Neo4jConfig:
-    """Neo4j connection configuration"""
+    """Neo4j connection configuration."""
     uri: str = "bolt://localhost:7687"
     user: str = "neo4j"
     password: str = "password"
     database: str = "neo4j"
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, str]) -> Neo4jConfig:
+        return cls(
+            uri=data.get("uri", "bolt://localhost:7687"),
+            user=data.get("user", "neo4j"),
+            password=data.get("password", "password"),
+            database=data.get("database", "neo4j"),
+        )
     
     def to_dict(self) -> Dict[str, str]:
         return {
@@ -65,25 +90,44 @@ class Neo4jSimulationClient:
     """
     Client for loading simulation graphs from Neo4j.
     
-    Retrieves original edge types (PUBLISHES_TO, SUBSCRIBES_TO, etc.)
-    NOT derived DEPENDS_ON relationships.
+    Loads original edge types (PUBLISHES_TO, SUBSCRIBES_TO, etc.)
+    for accurate message flow simulation.
+    
+    Example:
+        with Neo4jSimulationClient(uri, user, password) as client:
+            # Load full graph
+            graph = client.load_full_graph()
+            
+            # Load specific layer
+            app_graph = client.load_layer("application")
+            
+            # Get statistics
+            stats = client.get_statistics()
     """
     
-    # Node labels in Neo4j
-    NODE_LABELS = {
+    # Mapping from ComponentType to Neo4j label
+    COMPONENT_LABELS = {
         ComponentType.APPLICATION: "Application",
         ComponentType.BROKER: "Broker",
         ComponentType.TOPIC: "Topic",
         ComponentType.NODE: "Node",
     }
     
-    # Edge types in Neo4j
+    # Mapping from EdgeType to Neo4j relationship type
     EDGE_TYPES = {
         EdgeType.PUBLISHES_TO: "PUBLISHES_TO",
         EdgeType.SUBSCRIBES_TO: "SUBSCRIBES_TO",
         EdgeType.ROUTES: "ROUTES",
         EdgeType.RUNS_ON: "RUNS_ON",
         EdgeType.CONNECTS_TO: "CONNECTS_TO",
+    }
+    
+    # Layer definitions
+    LAYER_EDGE_TYPES = {
+        "application": [EdgeType.PUBLISHES_TO, EdgeType.SUBSCRIBES_TO],
+        "infrastructure": [EdgeType.CONNECTS_TO],
+        "app_broker": [EdgeType.PUBLISHES_TO, EdgeType.SUBSCRIBES_TO, EdgeType.ROUTES],
+        "node_broker": [EdgeType.CONNECTS_TO, EdgeType.RUNS_ON],
     }
     
     def __init__(
@@ -93,25 +137,72 @@ class Neo4jSimulationClient:
         password: str = "password",
         database: str = "neo4j",
     ):
+        """
+        Initialize Neo4j simulation client.
+        
+        Args:
+            uri: Neo4j bolt URI
+            user: Username
+            password: Password
+            database: Database name
+        
+        Raises:
+            ImportError: If neo4j driver not installed
+        """
         if not HAS_NEO4J:
             raise ImportError(
-                "neo4j package is required. Install with: pip install neo4j"
+                "neo4j driver not installed. Install with: pip install neo4j"
             )
         
         self.config = Neo4jConfig(uri, user, password, database)
-        self._driver = GraphDatabase.driver(uri, auth=(user, password))
+        self._driver = None
         self._logger = logging.getLogger(__name__)
     
-    def __enter__(self) -> 'Neo4jSimulationClient':
+    def __enter__(self) -> Neo4jSimulationClient:
+        self.connect()
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         self.close()
+        return False
+    
+    def connect(self) -> None:
+        """Establish connection to Neo4j."""
+        self._driver = GraphDatabase.driver(
+            self.config.uri,
+            auth=(self.config.user, self.config.password),
+        )
+        self._driver.verify_connectivity()
+        self._logger.info(f"Connected to Neo4j at {self.config.uri}")
     
     def close(self) -> None:
-        """Close the database connection"""
+        """Close connection."""
         if self._driver:
             self._driver.close()
+            self._driver = None
+            self._logger.info("Disconnected from Neo4j")
+    
+    @contextmanager
+    def session(self):
+        """Get a database session."""
+        if not self._driver:
+            self.connect()
+        
+        session = self._driver.session(database=self.config.database)
+        try:
+            yield session
+        finally:
+            session.close()
+    
+    def verify_connection(self) -> bool:
+        """Verify database connection."""
+        try:
+            with self.session() as session:
+                result = session.run("RETURN 1 AS test")
+                return result.single()["test"] == 1
+        except Exception as e:
+            self._logger.error(f"Connection verification failed: {e}")
+            return False
     
     # =========================================================================
     # Graph Loading
@@ -119,22 +210,18 @@ class Neo4jSimulationClient:
     
     def load_full_graph(self) -> SimulationGraph:
         """
-        Load the complete graph from Neo4j.
-        Includes all component types and original edge types.
+        Load complete simulation graph from Neo4j.
+        
+        Returns:
+            SimulationGraph with all components and edges
         """
         graph = SimulationGraph()
         
         # Load all components
-        for comp_type in ComponentType:
-            components = self._load_components_by_type(comp_type)
-            for comp in components:
-                graph.add_component(comp)
+        self._load_components(graph)
         
-        # Load all original edges (NOT DEPENDS_ON)
-        for edge_type in EdgeType:
-            edges = self._load_edges_by_type(edge_type)
-            for edge in edges:
-                graph.add_edge(edge)
+        # Load all edges
+        self._load_edges(graph)
         
         self._logger.info(
             f"Loaded graph: {len(graph.components)} components, "
@@ -143,213 +230,176 @@ class Neo4jSimulationClient:
         
         return graph
     
-    def load_graph_by_component_type(
-        self,
-        comp_type: ComponentType,
-        include_related: bool = True,
-    ) -> SimulationGraph:
+    def load_layer(self, layer: str) -> SimulationGraph:
         """
-        Load graph containing only specific component type.
+        Load a specific layer subgraph.
         
         Args:
-            comp_type: Component type to load
-            include_related: If True, include edges connecting to this type
+            layer: Layer name (application, infrastructure, app_broker, node_broker)
+        
+        Returns:
+            SimulationGraph for the specified layer
+        """
+        if layer not in self.LAYER_EDGE_TYPES:
+            raise ValueError(f"Unknown layer: {layer}. "
+                           f"Valid: {list(self.LAYER_EDGE_TYPES.keys())}")
+        
+        edge_types = self.LAYER_EDGE_TYPES[layer]
+        return self.load_by_edge_types(edge_types)
+    
+    def load_by_component_type(
+        self,
+        component_type: ComponentType,
+    ) -> SimulationGraph:
+        """
+        Load graph containing only specified component type.
+        
+        Args:
+            component_type: Type of components to load
+        
+        Returns:
+            SimulationGraph with filtered components
         """
         graph = SimulationGraph()
         
-        # Load components of this type
-        components = self._load_components_by_type(comp_type)
-        component_ids = set()
+        # Load only specified component type
+        self._load_components(graph, component_types=[component_type])
         
-        for comp in components:
-            graph.add_component(comp)
-            component_ids.add(comp.id)
-        
-        if include_related:
-            # Load edges involving these components
-            for edge_type in EdgeType:
-                edges = self._load_edges_by_type(edge_type)
-                for edge in edges:
-                    if edge.source in component_ids or edge.target in component_ids:
-                        # Add the other component if needed
-                        for comp_id in [edge.source, edge.target]:
-                            if comp_id not in graph.components:
-                                comp = self._load_component_by_id(comp_id)
-                                if comp:
-                                    graph.add_component(comp)
-                        graph.add_edge(edge)
+        # Load edges where both endpoints exist
+        self._load_edges(graph, filter_missing=True)
         
         return graph
     
-    def load_graph_by_edge_types(
+    def load_by_edge_types(
         self,
         edge_types: List[EdgeType],
     ) -> SimulationGraph:
         """
-        Load graph with only specific edge types.
+        Load graph with only specified edge types.
         
         Args:
             edge_types: List of edge types to include
+        
+        Returns:
+            SimulationGraph with filtered edges
         """
         graph = SimulationGraph()
-        involved_ids = set()
         
-        # Load edges of specified types
-        for edge_type in edge_types:
-            edges = self._load_edges_by_type(edge_type)
-            for edge in edges:
-                involved_ids.add(edge.source)
-                involved_ids.add(edge.target)
-                graph.add_edge(edge)
+        # Load all components
+        self._load_components(graph)
         
-        # Load involved components
-        for comp_id in involved_ids:
-            comp = self._load_component_by_id(comp_id)
-            if comp:
-                graph.add_component(comp)
+        # Load only specified edge types
+        self._load_edges(graph, edge_types=edge_types)
         
         return graph
     
-    def load_messaging_graph(self) -> SimulationGraph:
-        """
-        Load only the messaging layer (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES).
-        Useful for simulating message flow without infrastructure.
-        """
-        return self.load_graph_by_edge_types([
-            EdgeType.PUBLISHES_TO,
-            EdgeType.SUBSCRIBES_TO,
-            EdgeType.ROUTES,
-        ])
-    
-    def load_infrastructure_graph(self) -> SimulationGraph:
-        """
-        Load only the infrastructure layer (RUNS_ON, CONNECTS_TO).
-        Useful for simulating node failures.
-        """
-        return self.load_graph_by_edge_types([
-            EdgeType.RUNS_ON,
-            EdgeType.CONNECTS_TO,
-        ])
-    
-    # =========================================================================
-    # Component Loading
-    # =========================================================================
-    
-    def _load_components_by_type(self, comp_type: ComponentType) -> List[Component]:
-        """Load all components of a specific type"""
-        label = self.NODE_LABELS[comp_type]
+    def _load_components(
+        self,
+        graph: SimulationGraph,
+        component_types: Optional[List[ComponentType]] = None,
+    ) -> None:
+        """Load components from Neo4j."""
+        types_to_load = component_types or list(ComponentType)
         
-        query = f"""
-        MATCH (n:{label})
-        RETURN n.id AS id, n.name AS name, labels(n) AS labels, properties(n) AS props
-        """
-        
-        components = []
-        
-        with self._driver.session(database=self.config.database) as session:
-            result = session.run(query)
-            for record in result:
-                props = record["props"] or {}
-                comp = Component(
-                    id=record["id"] or props.get("name", "unknown"),
-                    type=comp_type,
-                    name=record["name"] or record["id"] or "",
-                    status=ComponentStatus.HEALTHY,
-                    properties={k: v for k, v in props.items() 
-                               if k not in ("id", "name")},
-                )
-                components.append(comp)
-        
-        return components
-    
-    def _load_component_by_id(self, comp_id: str) -> Optional[Component]:
-        """Load a single component by ID"""
-        query = """
-        MATCH (n)
-        WHERE n.id = $id OR n.name = $id
-        RETURN n.id AS id, n.name AS name, labels(n) AS labels, properties(n) AS props
-        LIMIT 1
-        """
-        
-        with self._driver.session(database=self.config.database) as session:
-            result = session.run(query, id=comp_id)
-            record = result.single()
-            
-            if not record:
-                return None
-            
-            # Determine type from labels
-            labels = record["labels"] or []
-            comp_type = ComponentType.APPLICATION
-            for label in labels:
-                for ct, neo_label in self.NODE_LABELS.items():
-                    if label == neo_label:
-                        comp_type = ct
-                        break
-            
-            props = record["props"] or {}
-            return Component(
-                id=record["id"] or comp_id,
-                type=comp_type,
-                name=record["name"] or comp_id,
-                status=ComponentStatus.HEALTHY,
-                properties={k: v for k, v in props.items() 
-                           if k not in ("id", "name")},
-            )
-    
-    # =========================================================================
-    # Edge Loading
-    # =========================================================================
-    
-    def _load_edges_by_type(self, edge_type: EdgeType) -> List[Edge]:
-        """Load all edges of a specific type"""
-        rel_type = self.EDGE_TYPES[edge_type]
-        
-        query = f"""
-        MATCH (a)-[r:{rel_type}]->(b)
-        RETURN 
-            COALESCE(a.id, a.name) AS source,
-            COALESCE(b.id, b.name) AS target,
-            type(r) AS rel_type,
-            properties(r) AS props
-        """
-        
-        edges = []
-        
-        with self._driver.session(database=self.config.database) as session:
-            result = session.run(query)
-            for record in result:
-                props = record["props"] or {}
+        with self.session() as session:
+            for comp_type in types_to_load:
+                label = self.COMPONENT_LABELS[comp_type]
                 
-                # Parse QoS if present
-                qos = QoSPolicy(
-                    reliability=props.get("reliability", "best_effort"),
-                    durability=props.get("durability", "volatile"),
-                    priority=props.get("priority", 0),
-                    bandwidth=props.get("bandwidth", 1.0),
-                    latency_ms=props.get("latency_ms", 10.0),
-                )
+                result = session.run(f"""
+                    MATCH (n:{label})
+                    RETURN n.id AS id, n.name AS name, 
+                           n.weight AS weight, n.status AS status,
+                           properties(n) AS props
+                """)
                 
-                edge = Edge(
-                    source=record["source"],
-                    target=record["target"],
-                    edge_type=edge_type,
-                    weight=props.get("weight", 1.0),
-                    qos=qos,
-                    properties={k: v for k, v in props.items() 
-                               if k not in ("weight", "reliability", "durability", 
-                                           "priority", "bandwidth", "latency_ms")},
-                )
-                edges.append(edge)
+                for record in result:
+                    comp_id = record["id"]
+                    props = record["props"] or {}
+                    
+                    # Extract QoS properties for topics
+                    properties = {
+                        k: v for k, v in props.items()
+                        if k not in ["id", "name", "weight", "status"]
+                    }
+                    
+                    component = Component(
+                        id=comp_id,
+                        type=comp_type,
+                        name=record["name"] or comp_id,
+                        status=ComponentStatus(record["status"] or "healthy"),
+                        properties=properties,
+                    )
+                    
+                    graph.add_component(component)
+    
+    def _load_edges(
+        self,
+        graph: SimulationGraph,
+        edge_types: Optional[List[EdgeType]] = None,
+        filter_missing: bool = False,
+    ) -> None:
+        """Load edges from Neo4j."""
+        types_to_load = edge_types or list(EdgeType)
         
-        return edges
+        with self.session() as session:
+            for edge_type in types_to_load:
+                rel_type = self.EDGE_TYPES[edge_type]
+                
+                result = session.run(f"""
+                    MATCH (s)-[r:{rel_type}]->(t)
+                    RETURN s.id AS source, t.id AS target,
+                           r.weight AS weight,
+                           r.qos_reliability AS reliability,
+                           r.qos_durability AS durability,
+                           r.qos_priority AS priority,
+                           properties(r) AS props
+                """)
+                
+                for record in result:
+                    source = record["source"]
+                    target = record["target"]
+                    
+                    # Skip if filtering and component doesn't exist
+                    if filter_missing:
+                        if source not in graph.components or target not in graph.components:
+                            continue
+                    
+                    # Build QoS policy
+                    qos = QoSPolicy(
+                        reliability=record["reliability"] or "BEST_EFFORT",
+                        durability=record["durability"] or "VOLATILE",
+                        priority=record["priority"] or "MEDIUM",
+                    )
+                    
+                    # Extract additional properties
+                    props = record["props"] or {}
+                    properties = {
+                        k: v for k, v in props.items()
+                        if k not in ["weight", "qos_reliability", "qos_durability", "qos_priority"]
+                    }
+                    
+                    edge = Edge(
+                        source=source,
+                        target=target,
+                        edge_type=edge_type,
+                        qos=qos,
+                        weight=record["weight"] or 1.0,
+                        properties=properties,
+                    )
+                    
+                    graph.add_edge(edge)
     
     # =========================================================================
     # Statistics
     # =========================================================================
     
-    def get_graph_stats(self) -> Dict[str, Any]:
-        """Get graph statistics from Neo4j"""
+    def get_statistics(self) -> Dict[str, Any]:
+        """
+        Get graph statistics from Neo4j.
+        
+        Returns:
+            Dictionary with component and edge counts
+        """
         stats = {
             "components": {},
             "edges": {},
@@ -357,11 +407,13 @@ class Neo4jSimulationClient:
             "total_edges": 0,
         }
         
-        with self._driver.session(database=self.config.database) as session:
+        with self.session() as session:
             # Count components by type
             for comp_type in ComponentType:
-                label = self.NODE_LABELS[comp_type]
-                result = session.run(f"MATCH (n:{label}) RETURN count(n) AS count")
+                label = self.COMPONENT_LABELS[comp_type]
+                result = session.run(
+                    f"MATCH (n:{label}) RETURN count(n) AS count"
+                )
                 count = result.single()["count"]
                 if count > 0:
                     stats["components"][comp_type.value] = count
@@ -380,19 +432,30 @@ class Neo4jSimulationClient:
         
         return stats
     
-    def verify_connection(self) -> bool:
-        """Verify database connection is working"""
-        try:
-            with self._driver.session(database=self.config.database) as session:
-                result = session.run("RETURN 1 AS test")
-                return result.single()["test"] == 1
-        except Exception as e:
-            self._logger.error(f"Connection verification failed: {e}")
-            return False
+    def get_layer_statistics(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get statistics for each layer.
+        
+        Returns:
+            Dictionary with per-layer statistics
+        """
+        layer_stats = {}
+        
+        for layer, edge_types in self.LAYER_EDGE_TYPES.items():
+            layer_graph = self.load_layer(layer)
+            summary = layer_graph.summary()
+            
+            layer_stats[layer] = {
+                "components": summary["total_components"],
+                "edges": summary["total_edges"],
+                "message_paths": len(layer_graph.get_message_paths()),
+            }
+        
+        return layer_stats
 
 
 # =============================================================================
-# Factory Function
+# Factory Functions
 # =============================================================================
 
 def load_graph_from_neo4j(
@@ -400,8 +463,7 @@ def load_graph_from_neo4j(
     user: str = "neo4j",
     password: str = "password",
     database: str = "neo4j",
-    component_type: Optional[ComponentType] = None,
-    edge_types: Optional[List[EdgeType]] = None,
+    layer: Optional[str] = None,
 ) -> SimulationGraph:
     """
     Factory function to load simulation graph from Neo4j.
@@ -411,16 +473,33 @@ def load_graph_from_neo4j(
         user: Username
         password: Password
         database: Database name
-        component_type: If specified, load only this component type
-        edge_types: If specified, load only these edge types
+        layer: Optional layer to load (application, infrastructure, etc.)
     
     Returns:
         SimulationGraph loaded from Neo4j
+    
+    Example:
+        # Load full graph
+        graph = load_graph_from_neo4j(
+            uri="bolt://localhost:7687",
+            user="neo4j",
+            password="mypassword"
+        )
+        
+        # Load specific layer
+        app_graph = load_graph_from_neo4j(
+            uri="bolt://localhost:7687",
+            user="neo4j",
+            password="mypassword",
+            layer="application"
+        )
     """
     with Neo4jSimulationClient(uri, user, password, database) as client:
-        if component_type is not None:
-            return client.load_graph_by_component_type(component_type)
-        elif edge_types is not None:
-            return client.load_graph_by_edge_types(edge_types)
-        else:
-            return client.load_full_graph()
+        if layer:
+            return client.load_layer(layer)
+        return client.load_full_graph()
+
+
+def check_neo4j_available() -> bool:
+    """Check if Neo4j driver is available."""
+    return HAS_NEO4J

@@ -6,54 +6,69 @@ Comprehensive simulation capabilities for pub-sub systems.
 Features:
 - Failure simulation with cascade propagation
 - Event-driven discrete event simulation
-- Component-type specific simulation
-- Neo4j integration for live graph data
-- Impact scoring and statistics
-
-Simulators:
-1. FailureSimulator: Tests system resilience by failing components
-2. EventSimulator: Simulates message flow with QoS modeling
+- Layer-specific analysis and reporting
+- Impact scoring based on message path disruption
+- Neo4j integration for loading graphs directly from database
 
 Key Design Decision:
-Simulations use ORIGINAL edge types (PUBLISHES_TO, SUBSCRIBES_TO, etc.)
-NOT derived DEPENDS_ON relationships. This allows accurate simulation
-of message flow paths through the pub-sub system.
+    Simulations use ORIGINAL edge types:
+    - PUBLISHES_TO, SUBSCRIBES_TO (message flow)
+    - ROUTES (broker responsibility)
+    - RUNS_ON, CONNECTS_TO (infrastructure)
+    
+    NOT derived DEPENDS_ON relationships.
+    
+    This enables accurate simulation of actual message paths
+    through the pub-sub system.
+
+Layers:
+    - application: App-to-app communication via topics
+    - infrastructure: Node-to-broker connections
+    - app_broker: How applications connect through brokers
+    - node_broker: Infrastructure deployment topology
 
 Usage:
     from src.simulation import (
         SimulationGraph,
         FailureSimulator,
         EventSimulator,
-        load_graph_from_neo4j,
+        create_simulation_graph,
     )
     
-    # Load graph from JSON
+    # Load from JSON
     graph = SimulationGraph.from_json("system.json")
     
-    # Or from Neo4j
+    # Generate synthetic graph
+    graph = create_simulation_graph(applications=10, brokers=2)
+    
+    # Load from Neo4j
+    from src.simulation import load_graph_from_neo4j
     graph = load_graph_from_neo4j(
         uri="bolt://localhost:7687",
-        password="secret"
+        user="neo4j",
+        password="password"
     )
     
     # Failure simulation
     simulator = FailureSimulator(cascade=True)
-    result = simulator.simulate_failure(graph, "broker1")
+    result = simulator.simulate_failure(graph, "broker_1")
     print(f"Impact: {result.impact_score:.4f}")
     
     # Full campaign
-    campaign = simulator.simulate_all_failures(graph)
-    for comp_id, impact in campaign.ranked_by_impact[:10]:
+    campaign = simulator.simulate_all(graph)
+    for comp_id, impact in campaign.ranked_by_impact()[:10]:
         print(f"{comp_id}: {impact:.4f}")
     
-    # Event simulation
-    event_sim = EventSimulator(graph, seed=42)
-    result = event_sim.run(duration=5000, message_rate=100)
-    print(f"Delivered: {result.statistics.delivery_rate:.2%}")
+    # Event-driven simulation
+    event_sim = EventSimulator(seed=42)
+    result = event_sim.run(graph, duration=5000, message_rate=100)
+    print(f"Delivered: {result.stats.delivery_rate:.2%}")
 
 Author: Software-as-a-Graph Research Project
 Version: 5.0
 """
+
+__version__ = "5.0.0"
 
 # Simulation Graph
 from .simulation_graph import (
@@ -75,9 +90,9 @@ from .simulation_graph import (
 from .failure_simulator import (
     # Enums
     FailureMode,
-    PropagationRule,
     # Data Classes
     FailureResult,
+    LayerFailureResult,
     CampaignResult,
     # Main Class
     FailureSimulator,
@@ -91,12 +106,12 @@ from .event_simulator import (
     # Enums
     EventType,
     MessageStatus,
-    SimulationState,
     # Data Classes
     Event,
     Message,
     ComponentLoad,
-    SimulationStatistics,
+    SimulationStats,
+    LayerStats,
     SimulationResult,
     # Main Class
     EventSimulator,
@@ -107,60 +122,61 @@ from .event_simulator import (
 
 # Neo4j Client
 from .neo4j_client import (
+    # Config
     Neo4jConfig,
+    # Main Class
     Neo4jSimulationClient,
+    # Factory Functions
     load_graph_from_neo4j,
+    check_neo4j_available,
 )
 
+
 __all__ = [
-    # === Simulation Graph ===
-    # Enums
+    # Version
+    "__version__",
+    
+    # Simulation Graph - Enums
     "ComponentType",
     "EdgeType",
     "ComponentStatus",
-    # Data Classes
+    # Simulation Graph - Data Classes
     "QoSPolicy",
     "Component",
     "Edge",
-    # Main Class
+    # Simulation Graph - Main
     "SimulationGraph",
-    # Factory
     "create_simulation_graph",
     
-    # === Failure Simulator ===
-    # Enums
+    # Failure Simulator - Enums
     "FailureMode",
-    "PropagationRule",
-    # Data Classes
+    # Failure Simulator - Data Classes
     "FailureResult",
+    "LayerFailureResult",
     "CampaignResult",
-    # Main Class
+    # Failure Simulator - Main
     "FailureSimulator",
-    # Factory Functions
     "simulate_single_failure",
     "simulate_all_components",
     
-    # === Event Simulator ===
-    # Enums
+    # Event Simulator - Enums
     "EventType",
     "MessageStatus",
-    "SimulationState",
-    # Data Classes
+    # Event Simulator - Data Classes
     "Event",
     "Message",
     "ComponentLoad",
-    "SimulationStatistics",
+    "SimulationStats",
+    "LayerStats",
     "SimulationResult",
-    # Main Class
+    # Event Simulator - Main
     "EventSimulator",
-    # Factory Functions
     "run_event_simulation",
     "run_stress_test",
     
-    # === Neo4j Client ===
+    # Neo4j Client
     "Neo4jConfig",
     "Neo4jSimulationClient",
     "load_graph_from_neo4j",
+    "check_neo4j_available",
 ]
-
-__version__ = "5.0.0"

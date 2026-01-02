@@ -2,7 +2,11 @@
 """
 Simulate Graph CLI - Version 5.0
 
-Command-line interface for graph-based simulation of distributed pub-sub systems.
+Command-line interface for graph-based simulation of pub-sub systems.
+
+Input Sources:
+- JSON file (--input)
+- Neo4j database (--neo4j)
 
 Simulation Types:
 1. Failure Simulation: Test system resilience by failing components
@@ -10,26 +14,23 @@ Simulation Types:
 
 Features:
 - Component-type specific simulation
-- Load graph from JSON file or Neo4j database
 - Cascade failure propagation
+- Layer-specific reporting
 - QoS-aware message simulation
-- Impact scoring and statistics
 
 Usage:
-    # Failure simulation from JSON file
-    python simulate_graph.py --input graph.json --failure
-
-    # Failure simulation from Neo4j
-    python simulate_graph.py --neo4j --password secret --failure
-
-    # Event-driven simulation
+    # Load from file
+    python simulate_graph.py --input graph.json --failure --all
+    
+    # Load from Neo4j
+    python simulate_graph.py --neo4j --failure --all
+    python simulate_graph.py --neo4j --uri bolt://localhost:7687 --failure --all
+    
+    # Load specific layer from Neo4j
+    python simulate_graph.py --neo4j --layer application --failure --all
+    
+    # Event simulation
     python simulate_graph.py --input graph.json --event --duration 5000
-
-    # Simulate specific component type
-    python simulate_graph.py --input graph.json --failure --component-type Application
-
-    # Full campaign with cascade
-    python simulate_graph.py --input graph.json --failure --cascade --all
 
 Author: Software-as-a-Graph Research Project
 Version: 5.0
@@ -43,100 +44,163 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-try:
-    from src.simulation import (
-        SimulationGraph,
-        ComponentType,
-        FailureSimulator,
-        FailureMode,
-        EventSimulator,
-        load_graph_from_neo4j,
-        create_simulation_graph,
-    )
-    HAS_SIMULATION = True
-except ImportError as e:
-    HAS_SIMULATION = False
-    IMPORT_ERROR = str(e)
+
+# =============================================================================
+# Terminal Colors
+# =============================================================================
+
+class Colors:
+    BOLD = "\033[1m"
+    GREEN = "\033[92m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    GRAY = "\033[90m"
+    RESET = "\033[0m"
+    
+    @classmethod
+    def disable(cls):
+        for attr in ["BOLD", "GREEN", "BLUE", "CYAN", "YELLOW", "RED", "GRAY", "RESET"]:
+            setattr(cls, attr, "")
+
+
+def use_colors() -> bool:
+    import os
+    return hasattr(sys.stdout, "isatty") and sys.stdout.isatty() and os.name != "nt"
 
 
 # =============================================================================
-# Output Formatting
+# Output Helpers
 # =============================================================================
-
-RESET = "\033[0m"
-BOLD = "\033[1m"
-RED = "\033[91m"
-YELLOW = "\033[93m"
-GREEN = "\033[92m"
-BLUE = "\033[94m"
-GRAY = "\033[90m"
-CYAN = "\033[96m"
-
 
 def print_header(title: str) -> None:
-    """Print a section header"""
-    print(f"\n{BOLD}{CYAN}{'=' * 70}{RESET}")
-    print(f"{BOLD}{CYAN}{title.center(70)}{RESET}")
-    print(f"{BOLD}{CYAN}{'=' * 70}{RESET}\n")
+    print(f"\n{Colors.BOLD}{Colors.CYAN}{'=' * 60}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.CYAN}{title:^60}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.CYAN}{'=' * 60}{Colors.RESET}\n")
 
 
-def print_subheader(title: str) -> None:
-    """Print a subsection header"""
-    print(f"\n{BOLD}{title}{RESET}")
-    print(f"{'-' * 50}")
+def print_section(title: str) -> None:
+    print(f"\n{Colors.BOLD}{title}{Colors.RESET}")
+    print(f"{'-' * 40}")
 
 
-def impact_color(score: float) -> str:
-    """Get color based on impact score"""
-    if score >= 0.5:
-        return RED
-    elif score >= 0.3:
-        return YELLOW
-    elif score >= 0.1:
-        return BLUE
-    return GREEN
+def print_success(msg: str) -> None:
+    print(f"{Colors.GREEN}✓{Colors.RESET} {msg}")
+
+
+def print_error(msg: str) -> None:
+    print(f"{Colors.RED}✗{Colors.RESET} {msg}")
+
+
+def print_info(msg: str) -> None:
+    print(f"{Colors.BLUE}ℹ{Colors.RESET} {msg}")
+
+
+def print_kv(key: str, value: Any, indent: int = 2) -> None:
+    print(f"{' ' * indent}{key}: {value}")
+
+
+def impact_color(impact: float) -> str:
+    if impact >= 0.5:
+        return Colors.RED
+    elif impact >= 0.3:
+        return Colors.YELLOW
+    elif impact >= 0.1:
+        return Colors.BLUE
+    return Colors.GRAY
 
 
 # =============================================================================
 # Graph Loading
 # =============================================================================
 
-def load_graph(args) -> Optional[SimulationGraph]:
-    """Load graph from file or Neo4j"""
+def load_graph_from_file(args):
+    """Load simulation graph from JSON file."""
+    from src.simulation import SimulationGraph
+    
+    if not args.input:
+        return None
+    
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print_error(f"File not found: {input_path}")
+        return None
+    
+    print_info(f"Loading graph from {input_path}")
+    
     try:
-        if args.neo4j:
-            print(f"{CYAN}Loading graph from Neo4j at {args.uri}...{RESET}")
-            
-            # Determine what to load
-            component_type = None
-            if args.component_type:
-                component_type = ComponentType.from_string(args.component_type)
-            
-            graph = load_graph_from_neo4j(
-                uri=args.uri,
-                user=args.user,
-                password=args.password,
-                database=args.database,
-                component_type=component_type,
-            )
-        elif args.input:
-            print(f"{CYAN}Loading graph from {args.input}...{RESET}")
-            graph = create_simulation_graph(args.input)
-        else:
-            print(f"{RED}Error: Must specify --input or --neo4j{RESET}")
-            return None
+        graph = SimulationGraph.from_json(str(input_path))
+        summary = graph.summary()
         
-        stats = graph.get_statistics()
-        print(f"  Components: {stats['total_components']}")
-        print(f"  Edges: {stats['total_edges']}")
+        print_success(f"Loaded {summary['total_components']} components, {summary['total_edges']} edges")
+        print_kv("Message paths", summary['message_paths'])
         
         return graph
-        
     except Exception as e:
-        print(f"{RED}Error loading graph: {e}{RESET}")
+        print_error(f"Failed to load graph: {e}")
+        return None
+
+
+def load_graph_from_neo4j(args):
+    """Load simulation graph from Neo4j database."""
+    from src.simulation import Neo4jSimulationClient, check_neo4j_available
+    
+    if not check_neo4j_available():
+        print_error("Neo4j driver not installed. Install with: pip install neo4j")
+        return None
+    
+    print_info(f"Connecting to Neo4j at {args.uri}")
+    
+    try:
+        with Neo4jSimulationClient(
+            uri=args.uri,
+            user=args.user,
+            password=args.password,
+            database=args.database,
+        ) as client:
+            # Verify connection
+            if not client.verify_connection():
+                print_error("Failed to connect to Neo4j")
+                return None
+            
+            print_success("Connected to Neo4j")
+            
+            # Get statistics
+            stats = client.get_statistics()
+            print_kv("Components in DB", stats['total_components'])
+            print_kv("Edges in DB", stats['total_edges'])
+            
+            # Load graph
+            if args.layer:
+                print_info(f"Loading layer: {args.layer}")
+                graph = client.load_layer(args.layer)
+            else:
+                print_info("Loading full graph")
+                graph = client.load_full_graph()
+            
+            summary = graph.summary()
+            print_success(f"Loaded {summary['total_components']} components, {summary['total_edges']} edges")
+            print_kv("Message paths", summary['message_paths'])
+            
+            return graph
+            
+    except Exception as e:
+        print_error(f"Failed to load from Neo4j: {e}")
         if args.verbose:
             import traceback
             traceback.print_exc()
+        return None
+
+
+def load_graph(args):
+    """Load graph from file or Neo4j."""
+    if args.neo4j:
+        return load_graph_from_neo4j(args)
+    elif args.input:
+        return load_graph_from_file(args)
+    else:
+        print_error("Specify --input <file> or --neo4j")
         return None
 
 
@@ -144,8 +208,10 @@ def load_graph(args) -> Optional[SimulationGraph]:
 # Failure Simulation
 # =============================================================================
 
-def run_failure_simulation(args, graph: SimulationGraph) -> Optional[Dict[str, Any]]:
-    """Run failure simulation"""
+def run_failure_simulation(args, graph) -> Optional[Dict[str, Any]]:
+    """Run failure simulation."""
+    from src.simulation import FailureSimulator, FailureMode, ComponentType
+    
     print_header("FAILURE SIMULATION")
     
     # Configure simulator
@@ -156,243 +222,288 @@ def run_failure_simulation(args, graph: SimulationGraph) -> Optional[Dict[str, A
         critical_threshold=args.critical_threshold,
     )
     
-    # Determine failure mode
-    failure_mode = FailureMode.CRASH
-    if args.failure_mode:
-        try:
-            failure_mode = FailureMode(args.failure_mode)
-        except ValueError:
-            print(f"{YELLOW}Unknown failure mode '{args.failure_mode}', using CRASH{RESET}")
+    print_kv("Cascade", "enabled" if args.cascade else "disabled")
+    print_kv("Cascade Threshold", args.cascade_threshold)
     
-    # Single component simulation
+    # Get failure mode
+    failure_mode = FailureMode(args.failure_mode)
+    
+    results = {}
+    
+    # Single component failure
     if args.component:
-        print_subheader(f"Single Failure: {args.component}")
+        print_section(f"Single Failure: {args.component}")
         
-        result = simulator.simulate_failure(graph, args.component, failure_mode)
-        
-        print(f"  Component: {result.failed_component}")
-        print(f"  Type: {result.component_type.value}")
-        print(f"  Mode: {result.failure_mode.value}")
-        color = impact_color(result.impact_score)
-        print(f"  {BOLD}Impact: {color}{result.impact_score:.4f}{RESET}")
-        print(f"  Directly Affected: {len(result.directly_affected)}")
-        print(f"  Cascade Affected: {len(result.cascade_affected)}")
-        print(f"  Total Affected: {result.total_affected} / {result.total_components}")
-        print(f"  Message Paths Broken: {result.message_paths_broken}")
-        
-        if args.verbose and result.directly_affected:
-            print(f"\n  Directly Affected Components:")
-            for comp_id in sorted(result.directly_affected)[:20]:
-                print(f"    - {comp_id}")
-        
-        return {"single_failure": result.to_dict()}
+        try:
+            result = simulator.simulate_failure(graph, args.component, failure_mode)
+            
+            color = impact_color(result.impact_score)
+            print(f"\n  {Colors.BOLD}Impact Score:{Colors.RESET} {color}{result.impact_score:.4f}{Colors.RESET}")
+            print_kv("Reachability Loss", f"{result.reachability_loss:.2%}")
+            print_kv("Paths Broken", f"{result.paths_broken}/{result.total_paths}")
+            print_kv("Directly Affected", len(result.directly_affected))
+            
+            if args.cascade:
+                print_kv("Cascade Affected", len(result.cascade_affected))
+            
+            results = result.to_dict()
+            
+        except ValueError as e:
+            print_error(str(e))
+            return None
     
-    # Campaign simulation
-    component_types = None
-    if args.component_type:
-        component_types = [ComponentType.from_string(args.component_type)]
-        print_subheader(f"Campaign: {args.component_type} Components")
+    # Type-specific failures
+    elif args.type:
+        comp_type = ComponentType(args.type)
+        print_section(f"Failures by Type: {args.type}")
+        
+        campaign = simulator.simulate_type(graph, comp_type, failure_mode)
+        
+        print_kv("Simulations", campaign.total_simulations)
+        print_kv("Duration", f"{campaign.duration_ms:.0f}ms")
+        
+        print_section("Results by Impact")
+        
+        for comp_id, impact in campaign.ranked_by_impact()[:15]:
+            color = impact_color(impact)
+            print(f"  {color}{comp_id:20s}{Colors.RESET}: {impact:.4f}")
+        
+        results = campaign.to_dict()
+    
+    # All component failures
     elif args.all:
-        print_subheader("Campaign: All Components")
+        print_section("Full Failure Campaign")
+        
+        campaign = simulator.simulate_all(graph, None, failure_mode)
+        
+        print_kv("Total Simulations", campaign.total_simulations)
+        print_kv("Duration", f"{campaign.duration_ms:.0f}ms")
+        print_kv("Critical Components", len(campaign.get_critical()))
+        
+        # Top 15 by impact
+        print_section("Top 15 by Impact")
+        
+        for i, (comp_id, impact) in enumerate(campaign.ranked_by_impact()[:15], 1):
+            comp = graph.get_component(comp_id)
+            comp_type = comp.type.value if comp else "?"
+            color = impact_color(impact)
+            print(f"  {i:2d}. {color}{comp_id:20s}{Colors.RESET} ({comp_type:11s}): {impact:.4f}")
+        
+        # Layer results
+        if campaign.by_layer:
+            print_section("Results by Layer")
+            
+            print(f"\n  {'Layer':<25} {'Count':<8} {'Avg':<10} {'Max':<10} {'Critical'}")
+            print(f"  {'-' * 65}")
+            
+            for layer_key, layer_result in sorted(campaign.by_layer.items()):
+                print(f"  {layer_result.layer_name:<25} "
+                      f"{layer_result.count:<8} "
+                      f"{layer_result.avg_impact:<10.4f} "
+                      f"{layer_result.max_impact:<10.4f} "
+                      f"{len(layer_result.get_critical())}")
+        
+        # Type results
+        print_section("Results by Component Type")
+        print(f"\n  {'Component Type':<15} {'Count':<8} {'Avg':<10} {'Max':<10} {'Critical'}")
+        print(f"  {'-' * 65}")
+        
+        for comp_type, results in campaign.by_type.items():
+            if not results:
+                continue
+            
+            avg_impact = sum(r.impact_score for r in results) / len(results)
+            max_impact = max(r.impact_score for r in results)
+            
+            print(f"  {comp_type.value:<15} "
+                  f"{len(results):<8} "
+                  f"{avg_impact:<10.4f} "
+                  f"{max_impact:<10.4f} "
+                  f"{len(campaign.get_critical(max_impact))}")
+        
+        results = campaign.to_dict()
     else:
-        print_subheader("Campaign: All Components")
+        print_info("Specify --component, --type, or --all")
+        return None
     
-    campaign = simulator.simulate_all_failures(
-        graph, 
-        failure_mode, 
-        component_types
-    )
-    
-    # Summary
-    print(f"  Total Tested: {len(campaign.results)}")
-    print(f"  Critical (>{campaign.critical_threshold:.0%} impact): "
-          f"{RED}{len(campaign.critical_components)}{RESET}")
-    
-    # Top 10 by impact
-    print(f"\n  {BOLD}Top 10 by Impact:{RESET}")
-    for i, (comp_id, impact) in enumerate(campaign.ranked_by_impact[:10], 1):
-        comp = graph.get_component(comp_id)
-        comp_type = comp.type.value if comp else "Unknown"
-        color = impact_color(impact)
-        print(f"    {i:2}. {color}{comp_id}{RESET} ({comp_type}): {impact:.4f}")
-    
-    # By type summary
-    if not component_types:
-        print(f"\n  {BOLD}By Component Type:{RESET}")
-        for comp_type in ComponentType:
-            type_results = campaign.get_by_type(comp_type)
-            if type_results:
-                avg_impact = sum(r.impact_score for r in type_results) / len(type_results)
-                max_impact = max(r.impact_score for r in type_results)
-                print(f"    {comp_type.value}:")
-                print(f"      Count: {len(type_results)}, Avg Impact: {avg_impact:.4f}, "
-                      f"Max: {max_impact:.4f}")
-    
-    return {"campaign": campaign.to_dict()}
+    return results
 
 
 # =============================================================================
 # Event Simulation
 # =============================================================================
 
-def run_event_simulation(args, graph: SimulationGraph) -> Optional[Dict[str, Any]]:
-    """Run event-driven simulation"""
-    print_header("EVENT-DRIVEN SIMULATION")
+def run_event_simulation(args, graph) -> Optional[Dict[str, Any]]:
+    """Run event-driven simulation."""
+    from src.simulation import EventSimulator
+    
+    print_header("EVENT SIMULATION")
     
     # Configure simulator
     simulator = EventSimulator(
-        graph,
         seed=args.seed,
         default_latency=args.latency,
         queue_capacity=args.queue_capacity,
         timeout=args.timeout,
     )
     
-    # Inject failures if specified
+    print_kv("Duration", f"{args.duration}ms")
+    print_kv("Message Rate", f"{args.message_rate}/sec")
+    print_kv("Default Latency", f"{args.latency}ms")
+    print_kv("Queue Capacity", args.queue_capacity)
+    
+    # Build failure schedule
+    failure_schedule = None
     if args.inject_failure:
+        failure_time = args.failure_time or args.duration / 4
+        failure_schedule = {}
+        
         for comp_id in args.inject_failure:
-            fail_time = args.failure_time or 0.0
-            duration = args.failure_duration
-            simulator.inject_failure(comp_id, fail_time, duration)
-            print(f"  Scheduled failure: {comp_id} at {fail_time}ms" +
-                  (f" (duration: {duration}ms)" if duration else " (permanent)"))
+            if args.failure_duration:
+                failure_schedule[comp_id] = (failure_time, failure_time + args.failure_duration)
+            else:
+                failure_schedule[comp_id] = (failure_time, None)
+        
+        print_section("Failure Schedule")
+        for comp_id, (start, end) in failure_schedule.items():
+            if end:
+                print_kv(comp_id, f"fails at {start}ms, recovers at {end}ms")
+            else:
+                print_kv(comp_id, f"fails at {start}ms (permanent)")
     
     # Run simulation
-    print_subheader(f"Running for {args.duration}ms at {args.message_rate} msg/ms")
+    print_section("Running Simulation")
     
     result = simulator.run(
+        graph,
         duration=args.duration,
         message_rate=args.message_rate,
-        log_events=args.verbose,
+        failure_schedule=failure_schedule,
     )
     
-    # Statistics
-    stats = result.statistics
-    print(f"\n  {BOLD}Message Statistics:{RESET}")
-    print(f"    Total Messages: {stats.total_messages}")
-    print(f"    Delivered: {GREEN}{stats.delivered_messages}{RESET}")
-    print(f"    Failed: {RED}{stats.failed_messages}{RESET}")
-    print(f"    Dropped: {YELLOW}{stats.dropped_messages}{RESET}")
-    print(f"    Timeout: {YELLOW}{stats.timeout_messages}{RESET}")
-    print(f"    Delivery Rate: {stats.delivery_rate:.2%}")
+    # Results
+    print_section("Simulation Results")
     
-    print(f"\n  {BOLD}Performance:{RESET}")
-    print(f"    Avg Latency: {stats.average_latency:.2f} ms")
-    print(f"    P99 Latency: {stats.p99_latency:.2f} ms")
-    print(f"    Throughput: {stats.average_throughput:.2f} msg/s")
-    print(f"    Total Events: {stats.total_events}")
-    print(f"    Wall Clock Time: {stats.wall_clock_time:.3f}s")
+    stats = result.stats
+    print(f"\n  {Colors.BOLD}Message Statistics{Colors.RESET}")
+    print_kv("Messages Generated", stats.total_messages)
+    print_kv("Messages Delivered", stats.delivered_messages)
+    print_kv("Messages Failed", stats.failed_messages)
+    print_kv("Messages Timeout", stats.timeout_messages)
+    
+    delivery_color = Colors.GREEN if stats.delivery_rate > 0.9 else Colors.YELLOW if stats.delivery_rate > 0.7 else Colors.RED
+    print(f"\n  {Colors.BOLD}Delivery Rate:{Colors.RESET} {delivery_color}{stats.delivery_rate:.2%}{Colors.RESET}")
+    
+    print(f"\n  {Colors.BOLD}Latency (ms){Colors.RESET}")
+    print_kv("Average", f"{stats.avg_latency:.2f}")
+    print_kv("P99", f"{stats.p99_latency:.2f}")
+    
+    # Layer stats
+    if result.layer_stats:
+        print_section("Results by Layer")
+        
+        print(f"\n  {'Layer':<25} {'Sent':<10} {'Delivered':<12} {'Rate':<10} {'Latency'}")
+        print(f"  {'-' * 70}")
+        
+        for layer, layer_stats in sorted(result.layer_stats.items()):
+            rate_color = Colors.GREEN if layer_stats.delivery_rate > 0.9 else Colors.YELLOW
+            print(f"  {layer:<25} "
+                  f"{layer_stats.messages_sent:<10} "
+                  f"{layer_stats.messages_delivered:<12} "
+                  f"{rate_color}{layer_stats.delivery_rate:.2%}{Colors.RESET}     "
+                  f"{layer_stats.avg_latency:.2f}ms")
     
     # Component loads
-    if args.verbose:
-        print(f"\n  {BOLD}Component Loads (Top 10 by Processed):{RESET}")
+    if args.verbose and result.component_loads:
+        print_section("Component Loads (Top 10)")
+        
         sorted_loads = sorted(
-            result.component_loads.values(),
-            key=lambda x: x.messages_processed,
-            reverse=True
+            result.component_loads.items(),
+            key=lambda x: -x[1].messages_processed
         )[:10]
         
-        for load in sorted_loads:
-            if load.messages_processed > 0:
-                print(f"    {load.component_id}: "
-                      f"processed={load.messages_processed}, "
-                      f"dropped={load.messages_dropped}, "
-                      f"avg_lat={load.average_latency:.2f}ms")
+        for comp_id, load in sorted_loads:
+            print(f"  {comp_id}: processed={load.messages_processed}, "
+                  f"dropped={load.messages_dropped}, "
+                  f"avg_latency={load.avg_latency:.2f}ms")
     
-    # Bottlenecks and issues
-    bottlenecks = result.get_bottlenecks(threshold=args.queue_capacity // 2)
-    critical = result.get_critical_components(threshold=0.1)
-    
-    if bottlenecks:
-        print(f"\n  {YELLOW}Bottlenecks Detected:{RESET}")
-        for comp_id in bottlenecks:
-            load = result.component_loads[comp_id]
-            print(f"    - {comp_id}: peak queue = {load.peak_queue_size}")
-    
-    if critical:
-        print(f"\n  {RED}High Drop Rate Components:{RESET}")
-        for comp_id in critical:
-            load = result.component_loads[comp_id]
-            print(f"    - {comp_id}: drop rate = {load.drop_rate:.2%}")
-    
-    if result.failed_components:
-        print(f"\n  {RED}Failed Components:{RESET}")
-        for comp_id in result.failed_components:
-            print(f"    - {comp_id}")
-    
-    return {"event_simulation": result.to_dict()}
+    return result.to_dict()
 
 
 # =============================================================================
 # Main
 # =============================================================================
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Graph-based simulation of distributed pub-sub systems",
+        description="Simulate pub-sub system failures and message flow",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Failure simulation from JSON file
-  python simulate_graph.py --input graph.json --failure --cascade
-  
-  # Single component failure
-  python simulate_graph.py --input graph.json --failure --component broker1
-  
-  # Event simulation
-  python simulate_graph.py --input graph.json --event --duration 5000 --message-rate 50
-  
-  # Load from Neo4j
-  python simulate_graph.py --neo4j --password secret --failure --all
-  
-  # Simulate specific component type
-  python simulate_graph.py --input graph.json --failure --component-type Application
-  
-  # Event simulation with injected failure
-  python simulate_graph.py --input graph.json --event --inject-failure broker1 --failure-time 2000
-  
-  # Export results to JSON
-  python simulate_graph.py --input graph.json --failure --output results.json
+    # Load from file
+    python simulate_graph.py --input graph.json --failure --all
+    python simulate_graph.py --input graph.json --event --duration 5000
+    
+    # Load from Neo4j
+    python simulate_graph.py --neo4j --failure --all
+    python simulate_graph.py --neo4j --uri bolt://localhost:7687 --failure --all
+    
+    # Load specific layer from Neo4j
+    python simulate_graph.py --neo4j --layer application --failure --all
+    
+    # Export results
+    python simulate_graph.py --neo4j --failure --all --output results.json
+
+Layers:
+    application   - App-to-app via topics
+    infrastructure- Node-to-node connections
+    app_broker    - App-to-broker messaging
+    node_broker   - Deployment topology
         """
     )
     
-    # Input source
+    # Input source group
     input_group = parser.add_argument_group("Input Source")
     input_group.add_argument(
         "--input", "-i",
-        help="Input graph file (JSON format)"
+        help="Input graph JSON file"
     )
     input_group.add_argument(
-        "--neo4j",
+        "--neo4j", "-n",
         action="store_true",
         help="Load graph from Neo4j database"
     )
     
-    # Neo4j connection
+    # Neo4j connection options
     neo4j_group = parser.add_argument_group("Neo4j Connection")
     neo4j_group.add_argument(
-        "--uri", "-u",
+        "--uri",
         default="bolt://localhost:7687",
         help="Neo4j bolt URI (default: bolt://localhost:7687)"
     )
     neo4j_group.add_argument(
-        "--user", "-U",
+        "--user",
         default="neo4j",
         help="Neo4j username (default: neo4j)"
     )
     neo4j_group.add_argument(
-        "--password", "-p",
+        "--password",
         default="password",
-        help="Neo4j password"
+        help="Neo4j password (default: password)"
     )
     neo4j_group.add_argument(
-        "--database", "-d",
+        "--database",
         default="neo4j",
         help="Neo4j database name (default: neo4j)"
     )
+    neo4j_group.add_argument(
+        "--layer",
+        choices=["application", "infrastructure", "app_broker", "node_broker"],
+        help="Load specific layer from Neo4j"
+    )
     
     # Simulation type
-    sim_type = parser.add_argument_group("Simulation Type")
+    sim_type = parser.add_mutually_exclusive_group()
     sim_type.add_argument(
         "--failure", "-f",
         action="store_true",
@@ -404,66 +515,66 @@ Examples:
         help="Run event-driven simulation"
     )
     
-    # Failure simulation options
-    failure_group = parser.add_argument_group("Failure Simulation Options")
+    # Failure options
+    failure_group = parser.add_argument_group("Failure Simulation")
     failure_group.add_argument(
         "--component", "-c",
         help="Simulate failure of specific component"
     )
     failure_group.add_argument(
-        "--component-type", "-t",
+        "--type", "-t",
         choices=["Application", "Broker", "Topic", "Node"],
-        help="Simulate failures for specific component type"
+        help="Simulate all components of type"
     )
     failure_group.add_argument(
         "--all", "-a",
         action="store_true",
-        help="Simulate all component failures (campaign)"
+        help="Simulate all component failures"
     )
     failure_group.add_argument(
         "--cascade",
         action="store_true",
         default=True,
-        help="Enable cascade failure propagation (default: True)"
+        help="Enable cascade propagation (default)"
     )
     failure_group.add_argument(
         "--no-cascade",
         action="store_false",
         dest="cascade",
-        help="Disable cascade failure propagation"
+        help="Disable cascade propagation"
     )
     failure_group.add_argument(
         "--cascade-threshold",
         type=float,
         default=0.5,
-        help="Fraction of dependencies that must fail to cascade (default: 0.5)"
+        help="Cascade threshold (default: 0.5)"
     )
     failure_group.add_argument(
         "--critical-threshold",
         type=float,
         default=0.3,
-        help="Impact threshold for critical classification (default: 0.3)"
+        help="Critical impact threshold (default: 0.3)"
     )
     failure_group.add_argument(
         "--failure-mode",
-        choices=["crash", "degraded", "partition", "overload"],
+        choices=["crash", "degraded", "partition"],
         default="crash",
-        help="Type of failure to simulate (default: crash)"
+        help="Failure mode (default: crash)"
     )
     
-    # Event simulation options
-    event_group = parser.add_argument_group("Event Simulation Options")
+    # Event options
+    event_group = parser.add_argument_group("Event Simulation")
     event_group.add_argument(
-        "--duration",
+        "--duration", "-d",
         type=float,
         default=1000.0,
         help="Simulation duration in ms (default: 1000)"
     )
     event_group.add_argument(
-        "--message-rate",
+        "--message-rate", "-r",
         type=float,
-        default=10.0,
-        help="Messages per ms (default: 10)"
+        default=100.0,
+        help="Messages per second (default: 100)"
     )
     event_group.add_argument(
         "--latency",
@@ -475,7 +586,7 @@ Examples:
         "--queue-capacity",
         type=int,
         default=1000,
-        help="Max queue size per component (default: 1000)"
+        help="Queue capacity per component (default: 1000)"
     )
     event_group.add_argument(
         "--timeout",
@@ -486,106 +597,98 @@ Examples:
     event_group.add_argument(
         "--inject-failure",
         nargs="+",
-        help="Component IDs to fail during simulation"
+        help="Components to fail during simulation"
     )
     event_group.add_argument(
         "--failure-time",
         type=float,
-        help="When to trigger injected failure (ms)"
+        help="When to inject failure (ms)"
     )
     event_group.add_argument(
         "--failure-duration",
         type=float,
-        help="Duration of injected failure (ms, omit for permanent)"
+        help="Failure duration (ms, omit for permanent)"
     )
     
-    # Output options
-    output_group = parser.add_argument_group("Output Options")
-    output_group.add_argument(
-        "--output", "-o",
-        help="Output file path (JSON format)"
+    # Common options
+    parser.add_argument(
+        "--seed", "-s",
+        type=int,
+        help="Random seed for reproducibility"
     )
-    output_group.add_argument(
+    parser.add_argument(
+        "--output", "-o",
+        help="Export results to JSON file"
+    )
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Verbose output"
     )
-    output_group.add_argument(
-        "--quiet", "-q",
+    parser.add_argument(
+        "--no-color",
         action="store_true",
-        help="Minimal output"
-    )
-    output_group.add_argument(
-        "--json",
-        action="store_true",
-        help="Output results as JSON to stdout"
-    )
-    output_group.add_argument(
-        "--seed",
-        type=int,
-        help="Random seed for reproducibility"
+        help="Disable colored output"
     )
     
     args = parser.parse_args()
     
-    # Check module availability
-    if not HAS_SIMULATION:
-        print(f"{RED}Error: Simulation module not available.{RESET}")
-        print(f"Import error: {IMPORT_ERROR}")
-        print("Make sure you're running from the project root.")
-        sys.exit(1)
+    # Handle colors
+    if args.no_color or not use_colors():
+        Colors.disable()
     
-    # Configure logging
-    log_level = logging.WARNING if args.quiet else (
-        logging.DEBUG if args.verbose else logging.INFO
-    )
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s - %(levelname)s - %(message)s"
-    )
+    # Setup logging
+    log_level = logging.DEBUG if args.verbose else logging.WARNING
+    logging.basicConfig(level=log_level)
     
-    # Validate arguments
-    if not args.input and not args.neo4j:
-        print(f"{RED}Error: Must specify --input or --neo4j{RESET}")
-        parser.print_help()
-        sys.exit(1)
-    
-    if not args.failure and not args.event:
-        print(f"{YELLOW}No simulation type specified, defaulting to --failure{RESET}")
-        args.failure = True
+    # Import check
+    try:
+        from src.simulation import SimulationGraph
+    except ImportError as e:
+        print_error(f"Import failed: {e}")
+        return 1
     
     # Load graph
     graph = load_graph(args)
-    if not graph:
-        sys.exit(1)
+    if graph is None:
+        return 1
     
     # Run simulation
-    result = None
-    try:
-        if args.failure:
-            result = run_failure_simulation(args, graph)
-        elif args.event:
-            result = run_event_simulation(args, graph)
-        
-    except Exception as e:
-        print(f"{RED}Error during simulation: {e}{RESET}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        sys.exit(1)
+    results = None
     
-    # Output results
-    if result:
-        if args.output:
-            with open(args.output, "w") as f:
-                json.dump(result, f, indent=2, default=str)
-            print(f"\n{GREEN}✓ Results saved to: {args.output}{RESET}")
+    if args.failure:
+        results = run_failure_simulation(args, graph)
+    elif args.event:
+        results = run_event_simulation(args, graph)
+    else:
+        print_info("Specify --failure or --event simulation type")
         
-        if args.json:
-            print(json.dumps(result, indent=2, default=str))
+        # Show graph summary
+        print_section("Graph Summary")
+        summary = graph.summary()
+        for key, value in summary.items():
+            if isinstance(value, dict):
+                print(f"\n  {key}:")
+                for k, v in value.items():
+                    print_kv(k, v, indent=4)
+            else:
+                print_kv(key, value)
+        
+        return 0
     
-    print(f"\n{GREEN}✓ Simulation complete{RESET}")
+    # Export results
+    if results and args.output:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(output_path, "w") as f:
+            json.dump(results, f, indent=2, default=str)
+        
+        print_success(f"Results exported to {output_path}")
+    
+    print_header("Simulation Complete")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
