@@ -3,10 +3,10 @@ Edge Analyzer - Version 5.0
 
 Analyzes DEPENDS_ON edges to identify critical connections.
 
-Critical edges are those whose failure would have significant impact:
-- Bridge edges (only path between components)
-- High-weight edges (heavy dependencies)
-- Edges connecting critical components
+Critical edges are identified based on:
+- Edge weight (dependency strength from QoS)
+- Bridge status (only path between components)
+- Endpoint criticality (connects to critical components)
 
 Author: Software-as-a-Graph Research Project
 Version: 5.0
@@ -16,10 +16,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Set
 
-from .gds_client import GDSClient
-from .classifier import BoxPlotClassifier, CriticalityLevel
+from .gds_client import GDSClient, DEPENDENCY_TYPES
+from .classifier import BoxPlotClassifier, ClassificationResult, CriticalityLevel
 
 
 # =============================================================================
@@ -27,9 +27,9 @@ from .classifier import BoxPlotClassifier, CriticalityLevel
 # =============================================================================
 
 @dataclass
-class EdgeCriticality:
+class EdgeMetrics:
     """
-    Criticality assessment for a single edge.
+    Metrics for a single DEPENDS_ON edge.
     """
     source_id: str
     target_id: str
@@ -37,16 +37,20 @@ class EdgeCriticality:
     target_type: str
     dependency_type: str
     
-    # Criticality scores
+    # Weight and scores
     weight: float = 1.0
     criticality_score: float = 0.0
     
-    # Flags
+    # Structural flags
     is_bridge: bool = False
     connects_critical: bool = False
     
     # Classification
     level: CriticalityLevel = CriticalityLevel.MEDIUM
+    
+    @property
+    def edge_key(self) -> str:
+        return f"{self.source_id}->{self.target_id}"
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -66,41 +70,59 @@ class EdgeCriticality:
 @dataclass
 class EdgeAnalysisResult:
     """
-    Complete result from edge analysis.
+    Complete edge analysis result.
     """
     timestamp: str
-    edge_count: int
-    edges: List[EdgeCriticality]
-    by_level: Dict[CriticalityLevel, List[EdgeCriticality]]
-    summary: Dict[str, Any]
+    edges: List[EdgeMetrics] = field(default_factory=list)
+    classification: Optional[ClassificationResult] = None
+    by_level: Dict[CriticalityLevel, List[EdgeMetrics]] = field(default_factory=dict)
+    by_type: Dict[str, List[EdgeMetrics]] = field(default_factory=dict)
+    summary: Dict[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        if not self.by_level:
+            self.by_level = {level: [] for level in CriticalityLevel}
+            for edge in self.edges:
+                self.by_level[edge.level].append(edge)
+        
+        if not self.by_type:
+            self.by_type = {t: [] for t in DEPENDENCY_TYPES}
+            for edge in self.edges:
+                if edge.dependency_type in self.by_type:
+                    self.by_type[edge.dependency_type].append(edge)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
             "timestamp": self.timestamp,
-            "edge_count": self.edge_count,
+            "edge_count": len(self.edges),
             "edges": [e.to_dict() for e in self.edges],
+            "classification": self.classification.to_dict() if self.classification else None,
             "by_level": {
-                level.value: [e.to_dict() for e in edges]
+                level.value: len(edges)
                 for level, edges in self.by_level.items()
+            },
+            "by_type": {
+                dep_type: len(edges)
+                for dep_type, edges in self.by_type.items()
             },
             "summary": self.summary,
         }
     
-    def get_critical_edges(self) -> List[EdgeCriticality]:
-        """Get edges classified as CRITICAL"""
+    def get_critical(self) -> List[EdgeMetrics]:
+        """Get critical edges."""
         return self.by_level.get(CriticalityLevel.CRITICAL, [])
     
-    def get_bridges(self) -> List[EdgeCriticality]:
-        """Get bridge edges"""
+    def get_bridges(self) -> List[EdgeMetrics]:
+        """Get bridge edges."""
         return [e for e in self.edges if e.is_bridge]
     
-    def top_n(self, n: int = 10) -> List[EdgeCriticality]:
-        """Get top N edges by criticality score"""
-        return sorted(
-            self.edges, 
-            key=lambda e: e.criticality_score, 
-            reverse=True
-        )[:n]
+    def get_by_dependency_type(self, dep_type: str) -> List[EdgeMetrics]:
+        """Get edges by dependency type."""
+        return self.by_type.get(dep_type, [])
+    
+    def top_n(self, n: int = 10) -> List[EdgeMetrics]:
+        """Get top N edges by criticality score."""
+        return sorted(self.edges, key=lambda e: e.criticality_score, reverse=True)[:n]
 
 
 # =============================================================================
@@ -109,29 +131,36 @@ class EdgeAnalysisResult:
 
 class EdgeAnalyzer:
     """
-    Analyzes edges in the DEPENDS_ON graph.
+    Analyzes DEPENDS_ON edges to identify critical connections.
     
-    Identifies critical edges based on:
-    - Weight (dependency strength)
-    - Bridge status (only path between components)
-    - Endpoint criticality (connects critical components)
+    Uses weighted combination of:
+    - Edge weight (from QoS-based calculation)
+    - Bridge status (structural importance)
+    - Endpoint criticality (connection to critical nodes)
     
     Example:
         with GDSClient(uri, user, password) as gds:
             analyzer = EdgeAnalyzer(gds)
+            
+            # Analyze all edges
             result = analyzer.analyze()
             
-            for edge in result.get_critical_edges():
+            # Get critical edges
+            for edge in result.get_critical():
                 print(f"{edge.source_id} -> {edge.target_id}: {edge.criticality_score:.4f}")
+            
+            # Get bridges
+            for edge in result.get_bridges():
+                print(f"BRIDGE: {edge.source_id} -> {edge.target_id}")
     """
-
-    # Weights for criticality score
+    
+    # Weights for criticality score calculation
     DEFAULT_WEIGHTS = {
-        "weight": 0.30,        # Edge weight
-        "bridge": 0.40,        # Bridge bonus
-        "endpoint": 0.30,      # Critical endpoint bonus
+        "weight": 0.35,      # Edge weight contribution
+        "bridge": 0.40,      # Bridge bonus
+        "endpoint": 0.25,    # Critical endpoint bonus
     }
-
+    
     def __init__(
         self,
         gds_client: GDSClient,
@@ -150,18 +179,18 @@ class EdgeAnalyzer:
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
         self.weights = weights or self.DEFAULT_WEIGHTS
         self.logger = logging.getLogger(__name__)
-
+    
     def analyze(
         self,
         dependency_types: Optional[List[str]] = None,
-        critical_component_ids: Optional[set] = None,
+        critical_components: Optional[Set[str]] = None,
     ) -> EdgeAnalysisResult:
         """
         Analyze all DEPENDS_ON edges.
         
         Args:
-            dependency_types: Types to analyze (None = all)
-            critical_component_ids: Set of known critical component IDs
+            dependency_types: Filter to specific types (None = all)
+            critical_components: Set of known critical component IDs
         
         Returns:
             EdgeAnalysisResult with all edge analysis
@@ -171,23 +200,23 @@ class EdgeAnalyzer:
         self.logger.info("Starting edge analysis")
         
         # Get all edges
-        edges_data = self._get_all_edges(dependency_types)
+        edges_data = self._get_edges(dependency_types)
         
         if not edges_data:
             return self._empty_result(timestamp)
         
         # Get bridges
-        bridges = self._get_bridge_set()
+        bridge_set = self._get_bridge_set()
         
         # Get critical components if not provided
-        if critical_component_ids is None:
-            critical_component_ids = self._get_critical_components()
+        if critical_components is None:
+            critical_components = self._identify_critical_components()
         
         # Normalize weights
         max_weight = max(e["weight"] for e in edges_data) or 1.0
         
-        # Build edge criticality objects
-        edges: List[EdgeCriticality] = []
+        # Build edge metrics
+        edges: List[EdgeMetrics] = []
         
         for edge_data in edges_data:
             source = edge_data["source_id"]
@@ -195,20 +224,20 @@ class EdgeAnalyzer:
             weight = edge_data["weight"]
             
             # Check flags
-            is_bridge = (source, target) in bridges
+            is_bridge = (source, target) in bridge_set
             connects_critical = (
-                source in critical_component_ids or 
-                target in critical_component_ids
+                source in critical_components or 
+                target in critical_components
             )
             
             # Calculate criticality score
-            score = self._calculate_criticality_score(
-                weight / max_weight,
-                is_bridge,
-                connects_critical,
+            score = self._calculate_criticality(
+                weight_norm=weight / max_weight,
+                is_bridge=is_bridge,
+                connects_critical=connects_critical,
             )
             
-            edges.append(EdgeCriticality(
+            edges.append(EdgeMetrics(
                 source_id=source,
                 target_id=target,
                 source_type=edge_data["source_type"],
@@ -222,7 +251,7 @@ class EdgeAnalyzer:
         
         # Classify edges
         items = [
-            {"id": f"{e.source_id}->{e.target_id}", "type": "edge", "score": e.criticality_score}
+            {"id": e.edge_key, "type": "edge", "score": e.criticality_score}
             for e in edges
         ]
         classification = self.classifier.classify(items, metric_name="edge_criticality")
@@ -230,35 +259,49 @@ class EdgeAnalyzer:
         # Assign levels
         level_map = {item.id: item.level for item in classification.items}
         for edge in edges:
-            edge_key = f"{edge.source_id}->{edge.target_id}"
-            edge.level = level_map.get(edge_key, CriticalityLevel.MEDIUM)
+            edge.level = level_map.get(edge.edge_key, CriticalityLevel.MEDIUM)
         
-        # Group by level
-        by_level: Dict[CriticalityLevel, List[EdgeCriticality]] = {
-            level: [] for level in CriticalityLevel
-        }
-        for edge in edges:
-            by_level[edge.level].append(edge)
-        
-        # Sort by criticality score
+        # Sort by score
         edges.sort(key=lambda e: e.criticality_score, reverse=True)
         
         # Generate summary
-        summary = self._generate_summary(edges, by_level)
+        summary = self._generate_summary(edges, classification)
         
         return EdgeAnalysisResult(
             timestamp=timestamp,
-            edge_count=len(edges),
             edges=edges,
-            by_level=by_level,
+            classification=classification,
             summary=summary,
         )
-
-    def _get_all_edges(
-        self, 
-        dependency_types: Optional[List[str]]
+    
+    def analyze_by_layer(
+        self,
+        critical_components: Optional[Set[str]] = None,
+    ) -> Dict[str, EdgeAnalysisResult]:
+        """
+        Analyze edges grouped by dependency type (layer).
+        
+        Args:
+            critical_components: Known critical component IDs
+        
+        Returns:
+            Dict mapping dependency type to EdgeAnalysisResult
+        """
+        results = {}
+        
+        for dep_type in DEPENDENCY_TYPES:
+            results[dep_type] = self.analyze(
+                dependency_types=[dep_type],
+                critical_components=critical_components,
+            )
+        
+        return results
+    
+    def _get_edges(
+        self,
+        dependency_types: Optional[List[str]],
     ) -> List[Dict[str, Any]]:
-        """Get all DEPENDS_ON edges"""
+        """Get all DEPENDS_ON edges from database."""
         type_filter = ""
         if dependency_types:
             types_str = ", ".join(f"'{t}'" for t in dependency_types)
@@ -288,18 +331,15 @@ class EdgeAnalyzer:
                 })
         
         return edges
-
-    def _get_bridge_set(self) -> set:
-        """Get set of bridge edges as (source, target) tuples"""
+    
+    def _get_bridge_set(self) -> Set[tuple]:
+        """Get set of bridge edges as (source, target) tuples."""
         bridges = self.gds.find_bridges()
-        return {
-            (b["source_id"], b["target_id"]) 
-            for b in bridges
-        }
-
-    def _get_critical_components(self) -> set:
-        """Get set of critical component IDs based on betweenness"""
-        projection_name = "edge_analysis_temp"
+        return {(b["source_id"], b["target_id"]) for b in bridges}
+    
+    def _identify_critical_components(self) -> Set[str]:
+        """Identify critical components based on betweenness centrality."""
+        projection_name = "edge_analysis_critical"
         
         try:
             self.gds.create_projection(projection_name)
@@ -308,6 +348,7 @@ class EdgeAnalyzer:
             if not bc_results:
                 return set()
             
+            # Classify and get high+ components
             items = [
                 {"id": r.node_id, "type": r.node_type, "score": r.score}
                 for r in bc_results
@@ -318,64 +359,55 @@ class EdgeAnalyzer:
         
         finally:
             self.gds.drop_projection(projection_name)
-
-    def _calculate_criticality_score(
+    
+    def _calculate_criticality(
         self,
-        normalized_weight: float,
+        weight_norm: float,
         is_bridge: bool,
         connects_critical: bool,
     ) -> float:
-        """Calculate edge criticality score"""
-        score = 0.0
+        """Calculate edge criticality score."""
+        score = self.weights["weight"] * weight_norm
         
-        # Weight contribution
-        score += self.weights.get("weight", 0.3) * normalized_weight
-        
-        # Bridge bonus
         if is_bridge:
-            score += self.weights.get("bridge", 0.4)
+            score += self.weights["bridge"]
         
-        # Critical endpoint bonus
         if connects_critical:
-            score += self.weights.get("endpoint", 0.3)
+            score += self.weights["endpoint"]
         
         return min(1.0, score)
-
+    
     def _generate_summary(
         self,
-        edges: List[EdgeCriticality],
-        by_level: Dict[CriticalityLevel, List[EdgeCriticality]],
+        edges: List[EdgeMetrics],
+        classification: ClassificationResult,
     ) -> Dict[str, Any]:
-        """Generate summary statistics"""
+        """Generate analysis summary."""
         weights = [e.weight for e in edges]
         scores = [e.criticality_score for e in edges]
         
+        by_type_counts = {}
+        for dep_type in DEPENDENCY_TYPES:
+            by_type_counts[dep_type] = len([e for e in edges if e.dependency_type == dep_type])
+        
         return {
             "total_edges": len(edges),
-            "bridge_count": sum(1 for e in edges if e.is_bridge),
-            "connects_critical_count": sum(1 for e in edges if e.connects_critical),
-            "by_level": {
-                level.value: len(level_edges) 
-                for level, level_edges in by_level.items()
-            },
+            "bridge_count": len([e for e in edges if e.is_bridge]),
+            "connects_critical_count": len([e for e in edges if e.connects_critical]),
+            "by_level": classification.summary(),
+            "by_type": by_type_counts,
             "weight_stats": {
-                "min": min(weights) if weights else 0,
-                "max": max(weights) if weights else 0,
-                "mean": sum(weights) / len(weights) if weights else 0,
+                "min": round(min(weights), 4) if weights else 0,
+                "max": round(max(weights), 4) if weights else 0,
+                "mean": round(sum(weights) / len(weights), 4) if weights else 0,
             },
-            "criticality_stats": {
-                "min": min(scores) if scores else 0,
-                "max": max(scores) if scores else 0,
-                "mean": sum(scores) / len(scores) if scores else 0,
-            },
+            "score_stats": classification.stats.to_dict(),
         }
-
+    
     def _empty_result(self, timestamp: str) -> EdgeAnalysisResult:
-        """Create empty result"""
+        """Create empty result."""
         return EdgeAnalysisResult(
             timestamp=timestamp,
-            edge_count=0,
             edges=[],
-            by_level={level: [] for level in CriticalityLevel},
             summary={"total_edges": 0},
         )

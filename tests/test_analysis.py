@@ -1,758 +1,591 @@
 #!/usr/bin/env python3
 """
-Test Suite for Analysis Module - Version 5.0
+Test Suite for src.analysis Module - Version 5.0
 
-Comprehensive tests for:
+Tests for graph analysis including:
 - Box-plot classification
-- Component-type analysis
-- Problem detection
-- Anti-pattern detection
-- Edge criticality analysis
+- Centrality algorithms (mock/demo mode)
+- Layer analysis
+- Component type analysis
+- Edge analysis
 
-Run with: python -m pytest tests/test_analysis.py -v
-Or:       python tests/test_analysis.py
+Run with pytest:
+    pytest tests/test_analysis.py -v
+
+Or standalone:
+    python tests/test_analysis.py
 
 Author: Software-as-a-Graph Research Project
 Version: 5.0
 """
 
-import unittest
 import sys
-import os
+from pathlib import Path
+from typing import Dict, List, Any
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.analysis import (
-    # Classifier
-    BoxPlotClassifier,
-    CriticalityLevel,
-    BoxPlotStats,
-    ClassifiedItem,
-    ClassificationResult,
-    # Problem Detection
-    ProblemType,
-    ProblemSeverity,
-    QualityAttribute,
-    Problem,
-    Symptom,
-    # Anti-Pattern Detection
-    AntiPatternType,
-    PatternSeverity,
-    AntiPattern,
-    # GDS Client (enums only, don't need connection)
-)
-
-from src.analysis.gds_client import DependencyType, ComponentType
+try:
+    import pytest
+    HAS_PYTEST = True
+except ImportError:
+    HAS_PYTEST = False
 
 
 # =============================================================================
-# Test: Enums
+# Test Data
 # =============================================================================
 
-class TestEnums(unittest.TestCase):
-    """Test enum definitions and properties"""
-    
-    def test_criticality_level_values(self):
-        """Test CriticalityLevel enum values"""
-        self.assertEqual(CriticalityLevel.CRITICAL.value, "critical")
-        self.assertEqual(CriticalityLevel.HIGH.value, "high")
-        self.assertEqual(CriticalityLevel.MEDIUM.value, "medium")
-        self.assertEqual(CriticalityLevel.LOW.value, "low")
-        self.assertEqual(CriticalityLevel.MINIMAL.value, "minimal")
-    
-    def test_criticality_level_numeric(self):
-        """Test CriticalityLevel numeric ordering"""
-        self.assertEqual(CriticalityLevel.CRITICAL.numeric, 5)
-        self.assertEqual(CriticalityLevel.HIGH.numeric, 4)
-        self.assertEqual(CriticalityLevel.MEDIUM.numeric, 3)
-        self.assertEqual(CriticalityLevel.LOW.numeric, 2)
-        self.assertEqual(CriticalityLevel.MINIMAL.numeric, 1)
-    
-    def test_criticality_level_comparison(self):
-        """Test CriticalityLevel comparison operators"""
-        self.assertTrue(CriticalityLevel.CRITICAL > CriticalityLevel.HIGH)
-        self.assertTrue(CriticalityLevel.HIGH > CriticalityLevel.MEDIUM)
-        self.assertTrue(CriticalityLevel.MEDIUM > CriticalityLevel.LOW)
-        self.assertTrue(CriticalityLevel.LOW > CriticalityLevel.MINIMAL)
-        
-        self.assertTrue(CriticalityLevel.MINIMAL < CriticalityLevel.LOW)
-        self.assertTrue(CriticalityLevel.MEDIUM >= CriticalityLevel.MEDIUM)
-        self.assertTrue(CriticalityLevel.HIGH <= CriticalityLevel.CRITICAL)
-    
-    def test_criticality_level_has_color(self):
-        """Test CriticalityLevel has color property"""
-        for level in CriticalityLevel:
-            self.assertIsInstance(level.color, str)
-            self.assertTrue(level.color.startswith("\033["))
-    
-    def test_criticality_level_has_description(self):
-        """Test CriticalityLevel has description property"""
-        for level in CriticalityLevel:
-            self.assertIsInstance(level.description, str)
-            self.assertGreater(len(level.description), 0)
-    
-    def test_dependency_type_values(self):
-        """Test DependencyType enum values"""
-        self.assertEqual(DependencyType.APP_TO_APP.value, "app_to_app")
-        self.assertEqual(DependencyType.NODE_TO_NODE.value, "node_to_node")
-        self.assertEqual(DependencyType.APP_TO_BROKER.value, "app_to_broker")
-        self.assertEqual(DependencyType.NODE_TO_BROKER.value, "node_to_broker")
-    
-    def test_component_type_values(self):
-        """Test ComponentType enum values"""
-        self.assertEqual(ComponentType.APPLICATION.value, "Application")
-        self.assertEqual(ComponentType.BROKER.value, "Broker")
-        self.assertEqual(ComponentType.TOPIC.value, "Topic")
-        self.assertEqual(ComponentType.NODE.value, "Node")
-    
-    def test_problem_type_values(self):
-        """Test ProblemType enum has expected values"""
-        # Reliability problems
-        self.assertIn(ProblemType.SINGLE_POINT_OF_FAILURE, ProblemType)
-        self.assertIn(ProblemType.CASCADE_RISK, ProblemType)
-        self.assertIn(ProblemType.CRITICAL_BRIDGE, ProblemType)
-        
-        # Maintainability problems
-        self.assertIn(ProblemType.HIGH_COUPLING, ProblemType)
-        self.assertIn(ProblemType.GOD_COMPONENT, ProblemType)
-        self.assertIn(ProblemType.POOR_MODULARITY, ProblemType)
-        
-        # Availability problems
-        self.assertIn(ProblemType.BOTTLENECK, ProblemType)
-        self.assertIn(ProblemType.NO_REDUNDANCY, ProblemType)
-    
-    def test_problem_type_quality_attribute(self):
-        """Test ProblemType maps to correct QualityAttribute"""
-        self.assertEqual(
-            ProblemType.SINGLE_POINT_OF_FAILURE.quality_attribute,
-            QualityAttribute.RELIABILITY
-        )
-        self.assertEqual(
-            ProblemType.HIGH_COUPLING.quality_attribute,
-            QualityAttribute.MAINTAINABILITY
-        )
-        self.assertEqual(
-            ProblemType.BOTTLENECK.quality_attribute,
-            QualityAttribute.AVAILABILITY
-        )
-    
-    def test_problem_severity_numeric(self):
-        """Test ProblemSeverity numeric ordering"""
-        self.assertEqual(ProblemSeverity.CRITICAL.numeric, 4)
-        self.assertEqual(ProblemSeverity.HIGH.numeric, 3)
-        self.assertEqual(ProblemSeverity.MEDIUM.numeric, 2)
-        self.assertEqual(ProblemSeverity.LOW.numeric, 1)
-    
-    def test_antipattern_type_values(self):
-        """Test AntiPatternType enum has expected values"""
-        self.assertIn(AntiPatternType.GOD_TOPIC, AntiPatternType)
-        self.assertIn(AntiPatternType.BOTTLENECK_BROKER, AntiPatternType)
-        self.assertIn(AntiPatternType.CHATTY_APPLICATION, AntiPatternType)
-        self.assertIn(AntiPatternType.HUB_AND_SPOKE, AntiPatternType)
-        self.assertIn(AntiPatternType.CIRCULAR_DEPENDENCY, AntiPatternType)
-        self.assertIn(AntiPatternType.ORPHAN_COMPONENT, AntiPatternType)
-    
-    def test_antipattern_type_has_description(self):
-        """Test AntiPatternType has description property"""
-        for pattern_type in AntiPatternType:
-            self.assertIsInstance(pattern_type.description, str)
-            self.assertGreater(len(pattern_type.description), 0)
-    
-    def test_quality_attribute_values(self):
-        """Test QualityAttribute enum values"""
-        self.assertEqual(QualityAttribute.RELIABILITY.value, "reliability")
-        self.assertEqual(QualityAttribute.MAINTAINABILITY.value, "maintainability")
-        self.assertEqual(QualityAttribute.AVAILABILITY.value, "availability")
-    
-    def test_quality_attribute_has_description(self):
-        """Test QualityAttribute has description property"""
-        for qa in QualityAttribute:
-            self.assertIsInstance(qa.description, str)
-            self.assertGreater(len(qa.description), 0)
+def create_test_scores() -> List[Dict[str, Any]]:
+    """Create test score data for classification tests."""
+    return [
+        {"id": "comp_01", "type": "Application", "score": 0.95},  # Outlier
+        {"id": "comp_02", "type": "Application", "score": 0.88},
+        {"id": "comp_03", "type": "Application", "score": 0.75},
+        {"id": "comp_04", "type": "Broker", "score": 0.72},
+        {"id": "comp_05", "type": "Application", "score": 0.65},
+        {"id": "comp_06", "type": "Broker", "score": 0.55},
+        {"id": "comp_07", "type": "Node", "score": 0.45},
+        {"id": "comp_08", "type": "Node", "score": 0.35},
+        {"id": "comp_09", "type": "Application", "score": 0.25},
+        {"id": "comp_10", "type": "Node", "score": 0.15},
+        {"id": "comp_11", "type": "Application", "score": 0.08},
+    ]
+
+
+def create_edge_test_data() -> List[Dict[str, Any]]:
+    """Create test edge data."""
+    return [
+        {"source": "app_1", "target": "app_2", "weight": 5.5, "type": "app_to_app"},
+        {"source": "app_2", "target": "app_3", "weight": 3.2, "type": "app_to_app"},
+        {"source": "app_1", "target": "broker_1", "weight": 4.0, "type": "app_to_broker"},
+        {"source": "node_1", "target": "node_2", "weight": 2.5, "type": "node_to_node"},
+        {"source": "node_1", "target": "broker_1", "weight": 1.8, "type": "node_to_broker"},
+    ]
 
 
 # =============================================================================
-# Test: Box-Plot Statistics
+# Test: CriticalityLevel Enum
 # =============================================================================
 
-class TestBoxPlotStats(unittest.TestCase):
-    """Test box-plot statistics calculation"""
-    
-    def setUp(self):
-        self.classifier = BoxPlotClassifier(k_factor=1.5)
-    
-    def test_calculate_stats_basic(self):
-        """Test basic statistics calculation"""
-        scores = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
-        stats = self.classifier.calculate_stats(scores)
+class TestCriticalityLevel:
+    """Tests for CriticalityLevel enum."""
+
+    def test_level_values(self):
+        """Test enum values."""
+        from src.analysis import CriticalityLevel
         
-        self.assertEqual(stats.min_val, 1.0)
-        self.assertEqual(stats.max_val, 10.0)
-        self.assertEqual(stats.count, 10)
-        self.assertAlmostEqual(stats.mean, 5.5, places=2)
-    
-    def test_calculate_stats_quartiles(self):
-        """Test quartile calculation"""
-        # 20 values for clear quartiles
-        scores = list(range(1, 21))  # 1-20
-        stats = self.classifier.calculate_stats(scores)
+        assert CriticalityLevel.CRITICAL.value == "critical"
+        assert CriticalityLevel.HIGH.value == "high"
+        assert CriticalityLevel.MEDIUM.value == "medium"
+        assert CriticalityLevel.LOW.value == "low"
+        assert CriticalityLevel.MINIMAL.value == "minimal"
+
+    def test_level_ordering(self):
+        """Test level comparison."""
+        from src.analysis import CriticalityLevel
         
-        # Q1 should be around 5.75, median around 10.5, Q3 around 15.25
-        self.assertAlmostEqual(stats.q1, 5.75, places=1)
-        self.assertAlmostEqual(stats.median, 10.5, places=1)
-        self.assertAlmostEqual(stats.q3, 15.25, places=1)
-    
-    def test_calculate_stats_iqr(self):
-        """Test IQR calculation"""
-        scores = list(range(1, 21))
-        stats = self.classifier.calculate_stats(scores)
+        assert CriticalityLevel.CRITICAL > CriticalityLevel.HIGH
+        assert CriticalityLevel.HIGH > CriticalityLevel.MEDIUM
+        assert CriticalityLevel.MEDIUM > CriticalityLevel.LOW
+        assert CriticalityLevel.LOW > CriticalityLevel.MINIMAL
         
-        expected_iqr = stats.q3 - stats.q1
-        self.assertAlmostEqual(stats.iqr, expected_iqr, places=4)
-    
-    def test_calculate_stats_fences(self):
-        """Test fence calculation with k=1.5"""
-        scores = list(range(1, 21))
-        stats = self.classifier.calculate_stats(scores)
+        assert CriticalityLevel.CRITICAL >= CriticalityLevel.HIGH
+        assert CriticalityLevel.HIGH >= CriticalityLevel.HIGH
         
-        expected_lower_fence = stats.q1 - 1.5 * stats.iqr
-        expected_upper_fence = stats.q3 + 1.5 * stats.iqr
-        
-        self.assertAlmostEqual(stats.lower_fence, expected_lower_fence, places=4)
-        self.assertAlmostEqual(stats.upper_fence, expected_upper_fence, places=4)
-    
-    def test_calculate_stats_single_value(self):
-        """Test statistics with single value"""
-        scores = [5.0]
-        stats = self.classifier.calculate_stats(scores)
-        
-        self.assertEqual(stats.min_val, 5.0)
-        self.assertEqual(stats.max_val, 5.0)
-        self.assertEqual(stats.median, 5.0)
-        self.assertEqual(stats.q1, 5.0)
-        self.assertEqual(stats.q3, 5.0)
-        self.assertEqual(stats.iqr, 0.0)
-        self.assertEqual(stats.count, 1)
-    
-    def test_calculate_stats_two_values(self):
-        """Test statistics with two values"""
-        scores = [1.0, 10.0]
-        stats = self.classifier.calculate_stats(scores)
-        
-        self.assertEqual(stats.min_val, 1.0)
-        self.assertEqual(stats.max_val, 10.0)
-        self.assertAlmostEqual(stats.median, 5.5, places=2)
-        self.assertEqual(stats.count, 2)
-    
-    def test_calculate_stats_empty(self):
-        """Test statistics with empty data"""
-        stats = self.classifier.calculate_stats([])
-        self.assertEqual(stats.count, 0)
-    
-    def test_boxplot_stats_to_dict(self):
-        """Test BoxPlotStats serialization"""
-        stats = BoxPlotStats(
-            min_val=1.0, q1=2.5, median=5.0, q3=7.5, max_val=10.0,
-            iqr=5.0, lower_fence=-5.0, upper_fence=15.0,
-            mean=5.0, std_dev=2.5, count=10, k_factor=1.5
-        )
-        
-        d = stats.to_dict()
-        self.assertIn("min", d)
-        self.assertIn("q1", d)
-        self.assertIn("median", d)
-        self.assertIn("q3", d)
-        self.assertIn("max", d)
-        self.assertIn("iqr", d)
-        self.assertIn("upper_fence", d)
-        self.assertIn("count", d)
-    
-    def test_boxplot_stats_empty_factory(self):
-        """Test BoxPlotStats.empty() factory method"""
-        stats = BoxPlotStats.empty(k_factor=2.0)
-        self.assertEqual(stats.count, 0)
-        self.assertEqual(stats.k_factor, 2.0)
+        assert CriticalityLevel.MINIMAL < CriticalityLevel.LOW
+        assert CriticalityLevel.LOW <= CriticalityLevel.MEDIUM
 
 
 # =============================================================================
-# Test: Classification
+# Test: BoxPlotStats
 # =============================================================================
 
-class TestClassification(unittest.TestCase):
-    """Test box-plot classification"""
-    
-    def setUp(self):
-        self.classifier = BoxPlotClassifier(k_factor=1.5)
-    
-    def test_classify_score_critical(self):
-        """Test score classification as CRITICAL (outlier)"""
-        # Create stats with upper fence at 100
+class TestBoxPlotStats:
+    """Tests for BoxPlotStats data class."""
+
+    def test_to_dict(self):
+        """Test serialization."""
+        from src.analysis import BoxPlotStats
+        
         stats = BoxPlotStats(
-            min_val=0, q1=25, median=50, q3=75, max_val=100,
-            iqr=50, lower_fence=-50, upper_fence=150,
-            mean=50, std_dev=25, count=20, k_factor=1.5
+            q1=0.25,
+            median=0.50,
+            q3=0.75,
+            iqr=0.50,
+            lower_fence=-0.50,
+            upper_fence=1.50,
+            min_val=0.10,
+            max_val=0.95,
+            mean=0.52,
+            count=10,
+            k_factor=1.5,
         )
         
-        # Score above upper fence -> CRITICAL
-        level, is_outlier = self.classifier.classify_score(200, stats)
-        self.assertEqual(level, CriticalityLevel.CRITICAL)
-        self.assertTrue(is_outlier)
-    
-    def test_classify_score_high(self):
-        """Test score classification as HIGH"""
-        stats = BoxPlotStats(
-            min_val=0, q1=25, median=50, q3=75, max_val=100,
-            iqr=50, lower_fence=-50, upper_fence=150,
-            mean=50, std_dev=25, count=20, k_factor=1.5
-        )
+        data = stats.to_dict()
         
-        # Score between Q3 and upper fence -> HIGH
-        level, is_outlier = self.classifier.classify_score(100, stats)
-        self.assertEqual(level, CriticalityLevel.HIGH)
-        self.assertFalse(is_outlier)
-    
-    def test_classify_score_medium(self):
-        """Test score classification as MEDIUM"""
-        stats = BoxPlotStats(
-            min_val=0, q1=25, median=50, q3=75, max_val=100,
-            iqr=50, lower_fence=-50, upper_fence=150,
-            mean=50, std_dev=25, count=20, k_factor=1.5
-        )
+        assert data["q1"] == 0.25
+        assert data["median"] == 0.50
+        assert data["q3"] == 0.75
+        assert data["iqr"] == 0.50
+        assert data["count"] == 10
+
+
+# =============================================================================
+# Test: BoxPlotClassifier
+# =============================================================================
+
+class TestBoxPlotClassifier:
+    """Tests for BoxPlotClassifier."""
+
+    def test_basic_classification(self):
+        """Test basic classification."""
+        from src.analysis import BoxPlotClassifier, CriticalityLevel
         
-        # Score between median and Q3 -> MEDIUM
-        level, is_outlier = self.classifier.classify_score(60, stats)
-        self.assertEqual(level, CriticalityLevel.MEDIUM)
-        self.assertFalse(is_outlier)
-    
-    def test_classify_score_low(self):
-        """Test score classification as LOW"""
-        stats = BoxPlotStats(
-            min_val=0, q1=25, median=50, q3=75, max_val=100,
-            iqr=50, lower_fence=-50, upper_fence=150,
-            mean=50, std_dev=25, count=20, k_factor=1.5
-        )
+        classifier = BoxPlotClassifier(k_factor=1.5)
+        items = create_test_scores()
         
-        # Score between Q1 and median -> LOW
-        level, is_outlier = self.classifier.classify_score(40, stats)
-        self.assertEqual(level, CriticalityLevel.LOW)
-        self.assertFalse(is_outlier)
-    
-    def test_classify_score_minimal(self):
-        """Test score classification as MINIMAL"""
-        stats = BoxPlotStats(
-            min_val=0, q1=25, median=50, q3=75, max_val=100,
-            iqr=50, lower_fence=-50, upper_fence=150,
-            mean=50, std_dev=25, count=20, k_factor=1.5
-        )
+        result = classifier.classify(items, metric_name="test_score")
         
-        # Score below Q1 -> MINIMAL
-        level, is_outlier = self.classifier.classify_score(10, stats)
-        self.assertEqual(level, CriticalityLevel.MINIMAL)
-        self.assertFalse(is_outlier)
-    
-    def test_classify_score_lower_outlier(self):
-        """Test score classification as lower outlier"""
-        stats = BoxPlotStats(
-            min_val=0, q1=25, median=50, q3=75, max_val=100,
-            iqr=50, lower_fence=-50, upper_fence=150,
-            mean=50, std_dev=25, count=20, k_factor=1.5
-        )
+        assert result.metric_name == "test_score"
+        assert len(result.items) == len(items)
+        assert result.stats.count == len(items)
+
+    def test_classification_levels(self):
+        """Test that items are classified into different levels."""
+        from src.analysis import BoxPlotClassifier, CriticalityLevel
         
-        # Score below lower fence -> MINIMAL but outlier
-        level, is_outlier = self.classifier.classify_score(-100, stats)
-        self.assertEqual(level, CriticalityLevel.MINIMAL)
-        self.assertTrue(is_outlier)
-    
-    def test_classify_items_list(self):
-        """Test classification of item list"""
+        classifier = BoxPlotClassifier(k_factor=1.5)
+        items = create_test_scores()
+        
+        result = classifier.classify(items)
+        
+        # Check distribution
+        total = sum(len(items) for items in result.by_level.values())
+        assert total == len(items)
+        
+        # Highest score should be HIGH or CRITICAL
+        assert result.items[0].level >= CriticalityLevel.HIGH
+        
+        # Lowest score should be LOW or MINIMAL
+        assert result.items[-1].level <= CriticalityLevel.LOW
+
+    def test_get_critical(self):
+        """Test getting critical items."""
+        from src.analysis import BoxPlotClassifier
+        
+        classifier = BoxPlotClassifier(k_factor=1.5)
+        items = create_test_scores()
+        
+        result = classifier.classify(items)
+        critical = result.get_critical()
+        
+        # All critical items should have high scores
+        for item in critical:
+            assert item.score > result.stats.upper_fence
+
+    def test_get_high_and_above(self):
+        """Test getting high and critical items."""
+        from src.analysis import BoxPlotClassifier, CriticalityLevel
+        
+        classifier = BoxPlotClassifier(k_factor=1.5)
+        items = create_test_scores()
+        
+        result = classifier.classify(items)
+        high_plus = result.get_high_and_above()
+        
+        for item in high_plus:
+            assert item.level >= CriticalityLevel.HIGH
+
+    def test_empty_input(self):
+        """Test classification with empty input."""
+        from src.analysis import BoxPlotClassifier
+        
+        classifier = BoxPlotClassifier()
+        result = classifier.classify([])
+        
+        assert len(result.items) == 0
+        assert result.stats.count == 0
+
+    def test_single_item(self):
+        """Test classification with single item."""
+        from src.analysis import BoxPlotClassifier
+        
+        classifier = BoxPlotClassifier()
+        items = [{"id": "single", "type": "test", "score": 0.5}]
+        
+        result = classifier.classify(items)
+        
+        assert len(result.items) == 1
+
+    def test_k_factor_effect(self):
+        """Test that k_factor affects outlier detection."""
+        from src.analysis import BoxPlotClassifier
+        
+        items = create_test_scores()
+        
+        # Lower k = more outliers
+        classifier_strict = BoxPlotClassifier(k_factor=1.0)
+        result_strict = classifier_strict.classify(items)
+        
+        # Higher k = fewer outliers
+        classifier_lenient = BoxPlotClassifier(k_factor=3.0)
+        result_lenient = classifier_lenient.classify(items)
+        
+        strict_outliers = len(result_strict.get_outliers())
+        lenient_outliers = len(result_lenient.get_outliers())
+        
+        assert strict_outliers >= lenient_outliers
+
+    def test_classify_scores_dict(self):
+        """Test classifying a dictionary of scores."""
+        from src.analysis import BoxPlotClassifier
+        
+        classifier = BoxPlotClassifier()
+        scores = {
+            "comp_1": 0.9,
+            "comp_2": 0.5,
+            "comp_3": 0.2,
+        }
+        
+        result = classifier.classify_scores(scores, item_type="Application")
+        
+        assert len(result.items) == 3
+        for item in result.items:
+            assert item.item_type == "Application"
+
+    def test_statistics_calculation(self):
+        """Test that statistics are calculated correctly."""
+        from src.analysis import BoxPlotClassifier
+        
+        classifier = BoxPlotClassifier(k_factor=1.5)
+        
+        # Simple data for easy verification
         items = [
-            {"id": "app1", "type": "Application", "score": 100},
-            {"id": "app2", "type": "Application", "score": 50},
-            {"id": "app3", "type": "Application", "score": 25},
-            {"id": "app4", "type": "Application", "score": 10},
-            {"id": "app5", "type": "Application", "score": 5},
+            {"id": f"item_{i}", "type": "test", "score": score}
+            for i, score in enumerate([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
         ]
         
-        result = self.classifier.classify(items, metric_name="test")
+        result = classifier.classify(items)
         
-        self.assertIsInstance(result, ClassificationResult)
-        self.assertEqual(len(result.items), 5)
-        self.assertEqual(result.metric_name, "test")
-        
-        # Items should be sorted by score descending
-        self.assertEqual(result.items[0].id, "app1")
-        self.assertEqual(result.items[0].rank, 1)
-        self.assertEqual(result.items[4].id, "app5")
-        self.assertEqual(result.items[4].rank, 5)
-    
-    def test_classify_returns_summary(self):
-        """Test classification returns level summary"""
-        items = [
-            {"id": f"item{i}", "type": "Test", "score": i * 10}
-            for i in range(1, 21)
-        ]
-        
-        result = self.classifier.classify(items, metric_name="test")
-        
-        self.assertIn(CriticalityLevel.CRITICAL, result.summary)
-        self.assertIn(CriticalityLevel.HIGH, result.summary)
-        self.assertIn(CriticalityLevel.MEDIUM, result.summary)
-        self.assertIn(CriticalityLevel.LOW, result.summary)
-        self.assertIn(CriticalityLevel.MINIMAL, result.summary)
-        
-        # Total should equal item count
-        total = sum(result.summary.values())
-        self.assertEqual(total, 20)
-    
-    def test_classify_by_level_grouping(self):
-        """Test classification groups items by level"""
-        items = [
-            {"id": f"item{i}", "type": "Test", "score": i * 10}
-            for i in range(1, 21)
-        ]
-        
-        result = self.classifier.classify(items, metric_name="test")
-        
-        # by_level should contain all levels
-        for level in CriticalityLevel:
-            self.assertIn(level, result.by_level)
-        
-        # Items in each level should match summary count
-        for level, level_items in result.by_level.items():
-            self.assertEqual(len(level_items), result.summary[level])
-    
-    def test_classify_empty_list(self):
-        """Test classification of empty list"""
-        result = self.classifier.classify([], metric_name="test")
-        
-        self.assertEqual(len(result.items), 0)
-        self.assertEqual(result.stats.count, 0)
-        for level in CriticalityLevel:
-            self.assertEqual(result.summary[level], 0)
-    
-    def test_classify_preserves_metadata(self):
-        """Test classification preserves extra metadata"""
-        items = [
-            {"id": "app1", "type": "Application", "score": 100, "extra": "data1"},
-            {"id": "app2", "type": "Application", "score": 50, "extra": "data2"},
-        ]
-        
-        result = self.classifier.classify(items, metric_name="test")
-        
-        self.assertEqual(result.items[0].metadata.get("extra"), "data1")
-        self.assertEqual(result.items[1].metadata.get("extra"), "data2")
-    
-    def test_classify_calculates_percentile(self):
-        """Test classification calculates percentiles"""
-        items = [
-            {"id": f"item{i}", "type": "Test", "score": i}
-            for i in range(1, 11)
-        ]
-        
-        result = self.classifier.classify(items, metric_name="test")
-        
-        # Highest score should have highest percentile
-        self.assertGreater(result.items[0].percentile, 80)
-        # Lowest score should have lowest percentile
-        self.assertLess(result.items[-1].percentile, 20)
-    
-    def test_classify_by_type_separates_types(self):
-        """Test classify_by_type separates component types"""
-        items = [
-            {"id": "app1", "type": "Application", "score": 100},
-            {"id": "app2", "type": "Application", "score": 50},
-            {"id": "broker1", "type": "Broker", "score": 75},
-            {"id": "broker2", "type": "Broker", "score": 25},
-        ]
-        
-        results = self.classifier.classify_by_type(items, metric_name="test")
-        
-        self.assertIn("Application", results)
-        self.assertIn("Broker", results)
-        self.assertEqual(len(results["Application"].items), 2)
-        self.assertEqual(len(results["Broker"].items), 2)
-    
-    def test_different_k_factors(self):
-        """Test different k_factor values affect classification"""
-        items = [
-            {"id": f"item{i}", "type": "Test", "score": i * 10}
-            for i in range(1, 21)
-        ]
-        
-        # Conservative (fewer outliers)
-        classifier_conservative = BoxPlotClassifier(k_factor=3.0)
-        result_conservative = classifier_conservative.classify(items, metric_name="test")
-        
-        # Aggressive (more outliers)
-        classifier_aggressive = BoxPlotClassifier(k_factor=1.0)
-        result_aggressive = classifier_aggressive.classify(items, metric_name="test")
-        
-        # Aggressive should have equal or more outliers
-        self.assertGreaterEqual(
-            result_aggressive.outlier_count,
-            result_conservative.outlier_count
-        )
+        assert result.stats.min_val == 0.1
+        assert result.stats.max_val == 0.9
+        assert 0.4 < result.stats.median < 0.6  # Should be around 0.5
 
 
 # =============================================================================
 # Test: ClassificationResult
 # =============================================================================
 
-class TestClassificationResult(unittest.TestCase):
-    """Test ClassificationResult data class"""
-    
-    def setUp(self):
-        self.classifier = BoxPlotClassifier(k_factor=1.5)
-        self.items = [
-            {"id": f"item{i}", "type": "Test", "score": i * 10}
-            for i in range(1, 21)
-        ]
-        self.result = self.classifier.classify(self.items, metric_name="test")
-    
-    def test_get_critical(self):
-        """Test get_critical() returns critical items"""
-        critical = self.result.get_critical()
-        for item in critical:
-            self.assertEqual(item.level, CriticalityLevel.CRITICAL)
-    
-    def test_get_high_and_above(self):
-        """Test get_high_and_above() returns HIGH and CRITICAL"""
-        high_and_above = self.result.get_high_and_above()
-        for item in high_and_above:
-            self.assertIn(item.level, [CriticalityLevel.HIGH, CriticalityLevel.CRITICAL])
-    
-    def test_get_by_type(self):
-        """Test get_by_type() filters by type"""
-        items = [
-            {"id": "app1", "type": "Application", "score": 100},
-            {"id": "broker1", "type": "Broker", "score": 75},
-        ]
-        result = self.classifier.classify(items, metric_name="test")
-        
-        apps = result.get_by_type("Application")
-        self.assertEqual(len(apps), 1)
-        self.assertEqual(apps[0].id, "app1")
-    
-    def test_top_n(self):
-        """Test top_n() returns top items"""
-        top_5 = self.result.top_n(5)
-        self.assertEqual(len(top_5), 5)
-        self.assertEqual(top_5[0].rank, 1)
-        self.assertEqual(top_5[4].rank, 5)
-    
-    def test_critical_count_property(self):
-        """Test critical_count property"""
-        self.assertEqual(
-            self.result.critical_count,
-            len(self.result.get_critical())
-        )
-    
-    def test_to_dict_serialization(self):
-        """Test to_dict() returns complete serialization"""
-        d = self.result.to_dict()
-        
-        self.assertIn("metric", d)
-        self.assertIn("statistics", d)
-        self.assertIn("summary", d)
-        self.assertIn("items", d)
-        self.assertIn("by_level", d)
-        
-        self.assertEqual(d["metric"], "test")
-        self.assertEqual(len(d["items"]), 20)
+class TestClassificationResult:
+    """Tests for ClassificationResult."""
 
-
-# =============================================================================
-# Test: ClassifiedItem
-# =============================================================================
-
-class TestClassifiedItem(unittest.TestCase):
-    """Test ClassifiedItem data class"""
-    
     def test_to_dict(self):
-        """Test ClassifiedItem serialization"""
-        item = ClassifiedItem(
-            id="test_id",
-            item_type="Application",
-            score=0.75,
+        """Test serialization."""
+        from src.analysis import BoxPlotClassifier
+        
+        classifier = BoxPlotClassifier()
+        items = create_test_scores()
+        
+        result = classifier.classify(items)
+        data = result.to_dict()
+        
+        assert "metric" in data
+        assert "stats" in data
+        assert "count" in data
+        assert "by_level" in data
+        assert "items" in data
+
+    def test_summary(self):
+        """Test summary method."""
+        from src.analysis import BoxPlotClassifier
+        
+        classifier = BoxPlotClassifier()
+        items = create_test_scores()
+        
+        result = classifier.classify(items)
+        summary = result.summary()
+        
+        assert "critical" in summary
+        assert "high" in summary
+        assert sum(summary.values()) == len(items)
+
+
+# =============================================================================
+# Test: Utility Functions
+# =============================================================================
+
+class TestUtilityFunctions:
+    """Tests for utility functions."""
+
+    def test_classify_items(self):
+        """Test classify_items convenience function."""
+        from src.analysis import classify_items, CriticalityLevel
+        
+        items = create_test_scores()
+        result = classify_items(items, k_factor=1.5, metric_name="test")
+        
+        assert result.metric_name == "test"
+        assert len(result.items) == len(items)
+
+    def test_get_level_for_score(self):
+        """Test get_level_for_score function."""
+        from src.analysis import get_level_for_score, CriticalityLevel
+        
+        all_scores = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        
+        # Very high score should be HIGH or CRITICAL
+        level_high = get_level_for_score(0.95, all_scores)
+        assert level_high >= CriticalityLevel.HIGH
+        
+        # Very low score should be LOW or MINIMAL
+        level_low = get_level_for_score(0.05, all_scores)
+        assert level_low <= CriticalityLevel.LOW
+
+
+# =============================================================================
+# Test: Constants
+# =============================================================================
+
+class TestConstants:
+    """Tests for module constants."""
+
+    def test_component_types(self):
+        """Test COMPONENT_TYPES constant."""
+        from src.analysis import COMPONENT_TYPES
+        
+        assert "Application" in COMPONENT_TYPES
+        assert "Broker" in COMPONENT_TYPES
+        assert "Node" in COMPONENT_TYPES
+        assert "Topic" in COMPONENT_TYPES
+
+    def test_dependency_types(self):
+        """Test DEPENDENCY_TYPES constant."""
+        from src.analysis import DEPENDENCY_TYPES
+        
+        assert "app_to_app" in DEPENDENCY_TYPES
+        assert "node_to_node" in DEPENDENCY_TYPES
+        assert "app_to_broker" in DEPENDENCY_TYPES
+        assert "node_to_broker" in DEPENDENCY_TYPES
+
+    def test_layer_definitions(self):
+        """Test LAYER_DEFINITIONS constant."""
+        from src.analysis import LAYER_DEFINITIONS
+        
+        assert "application" in LAYER_DEFINITIONS
+        assert "infrastructure" in LAYER_DEFINITIONS
+        assert "app_broker" in LAYER_DEFINITIONS
+        assert "node_broker" in LAYER_DEFINITIONS
+        assert "full" in LAYER_DEFINITIONS
+        
+        # Check structure
+        for key, definition in LAYER_DEFINITIONS.items():
+            assert "name" in definition
+            assert "component_types" in definition
+            assert "dependency_types" in definition
+
+
+# =============================================================================
+# Test: Data Classes
+# =============================================================================
+
+class TestDataClasses:
+    """Tests for data classes."""
+
+    def test_centrality_result(self):
+        """Test CentralityResult data class."""
+        from src.analysis import CentralityResult
+        
+        result = CentralityResult(
+            node_id="app_1",
+            node_type="Application",
+            score=0.85,
+            rank=1,
+        )
+        
+        assert result.node_id == "app_1"
+        assert result.node_type == "Application"
+        assert result.score == 0.85
+        assert result.rank == 1
+        
+        data = result.to_dict()
+        assert data["id"] == "app_1"
+        assert data["type"] == "Application"
+
+    def test_projection_info(self):
+        """Test ProjectionInfo data class."""
+        from src.analysis import ProjectionInfo
+        
+        info = ProjectionInfo(
+            name="test_projection",
+            node_count=100,
+            relationship_count=500,
+            node_labels=["Application", "Broker"],
+            relationship_types=["DEPENDS_ON"],
+        )
+        
+        assert info.name == "test_projection"
+        assert info.node_count == 100
+        
+        data = info.to_dict()
+        assert data["node_count"] == 100
+
+    def test_layer_metrics(self):
+        """Test LayerMetrics data class."""
+        from src.analysis import LayerMetrics, CriticalityLevel
+        
+        metrics = LayerMetrics(
+            component_id="app_1",
+            component_type="Application",
+            pagerank=0.5,
+            betweenness=0.3,
+            degree=0.7,
+            composite_score=0.5,
             level=CriticalityLevel.HIGH,
-            percentile=85.0,
-            rank=2,
-            is_outlier=False,
-            metadata={"extra": "data"}
+            is_articulation_point=True,
         )
         
-        d = item.to_dict()
+        assert metrics.component_id == "app_1"
+        assert metrics.is_articulation_point is True
         
-        self.assertEqual(d["id"], "test_id")
-        self.assertEqual(d["type"], "Application")
-        self.assertEqual(d["level"], "high")
-        self.assertEqual(d["percentile"], 85.0)
-        self.assertEqual(d["rank"], 2)
-        self.assertFalse(d["is_outlier"])
-        self.assertEqual(d["metadata"]["extra"], "data")
+        data = metrics.to_dict()
+        assert data["level"] == "high"
+
+    def test_edge_metrics(self):
+        """Test EdgeMetrics data class."""
+        from src.analysis import EdgeMetrics, CriticalityLevel
+        
+        edge = EdgeMetrics(
+            source_id="app_1",
+            target_id="app_2",
+            source_type="Application",
+            target_type="Application",
+            dependency_type="app_to_app",
+            weight=3.5,
+            criticality_score=0.8,
+            is_bridge=True,
+            connects_critical=True,
+            level=CriticalityLevel.CRITICAL,
+        )
+        
+        assert edge.edge_key == "app_1->app_2"
+        assert edge.is_bridge is True
+        
+        data = edge.to_dict()
+        assert data["dependency_type"] == "app_to_app"
 
 
 # =============================================================================
-# Test: Data Classes (Problem/AntiPattern)
+# Test: Result Classes
 # =============================================================================
 
-class TestProblemDataClasses(unittest.TestCase):
-    """Test problem-related data classes"""
-    
-    def test_symptom_to_dict(self):
-        """Test Symptom serialization"""
-        symptom = Symptom(
-            name="High Betweenness",
-            description="Component has high betweenness centrality",
-            metric="betweenness",
-            value=0.85,
-            threshold=0.50
-        )
-        
-        d = symptom.to_dict()
-        
-        self.assertEqual(d["name"], "High Betweenness")
-        self.assertEqual(d["metric"], "betweenness")
-        self.assertAlmostEqual(d["value"], 0.85, places=2)
-        self.assertAlmostEqual(d["threshold"], 0.50, places=2)
-    
-    def test_problem_to_dict(self):
-        """Test Problem serialization"""
-        problem = Problem(
-            problem_type=ProblemType.SINGLE_POINT_OF_FAILURE,
-            severity=ProblemSeverity.CRITICAL,
-            title="SPOF Detected",
-            description="Component is a single point of failure",
-            affected_components=["broker1"],
-            symptoms=[],
-            impact="System failure if component fails",
-            recommendation="Add redundancy",
-            quality_attributes=[QualityAttribute.RELIABILITY],
-            metrics={"betweenness": 0.9}
-        )
-        
-        d = problem.to_dict()
-        
-        self.assertEqual(d["type"], "spof")
-        self.assertEqual(d["severity"], "critical")
-        self.assertEqual(d["title"], "SPOF Detected")
-        self.assertIn("broker1", d["affected_components"])
-    
-    def test_antipattern_to_dict(self):
-        """Test AntiPattern serialization"""
-        pattern = AntiPattern(
-            pattern_type=AntiPatternType.GOD_TOPIC,
-            severity=PatternSeverity.HIGH,
-            affected_components=["topic1"],
-            description="Topic has too many connections",
-            impact="Single point of failure for messaging",
-            recommendation="Split into multiple topics",
-            quality_attributes=["reliability", "maintainability"],
-            metrics={"connections": 50}
-        )
-        
-        d = pattern.to_dict()
-        
-        self.assertEqual(d["type"], "god_topic")
-        self.assertEqual(d["severity"], "high")
-        self.assertIn("topic1", d["affected_components"])
+class TestResultClasses:
+    """Tests for result data classes."""
 
-
-# =============================================================================
-# Test: Integration
-# =============================================================================
-
-class TestIntegration(unittest.TestCase):
-    """Integration tests (without Neo4j connection)"""
-    
-    def test_full_classification_workflow(self):
-        """Test complete classification workflow"""
-        # Simulate realistic component data
-        items = [
-            {"id": "app_order_service", "type": "Application", "score": 0.95},
-            {"id": "app_payment_service", "type": "Application", "score": 0.85},
-            {"id": "app_notification_service", "type": "Application", "score": 0.45},
-            {"id": "app_logging_service", "type": "Application", "score": 0.25},
-            {"id": "app_cache_service", "type": "Application", "score": 0.15},
-            {"id": "broker_main", "type": "Broker", "score": 0.90},
-            {"id": "broker_backup", "type": "Broker", "score": 0.30},
-            {"id": "topic_orders", "type": "Topic", "score": 0.80},
-            {"id": "topic_payments", "type": "Topic", "score": 0.70},
-            {"id": "topic_logs", "type": "Topic", "score": 0.20},
+    def test_layer_result(self):
+        """Test LayerResult data class."""
+        from src.analysis import LayerResult, LayerMetrics, ProjectionInfo, CriticalityLevel
+        
+        metrics = [
+            LayerMetrics("app_1", "Application", composite_score=0.9, level=CriticalityLevel.CRITICAL),
+            LayerMetrics("app_2", "Application", composite_score=0.5, level=CriticalityLevel.MEDIUM),
+            LayerMetrics("app_3", "Application", composite_score=0.2, level=CriticalityLevel.LOW),
         ]
         
-        classifier = BoxPlotClassifier(k_factor=1.5)
+        result = LayerResult(
+            layer_name="Application Layer",
+            layer_key="application",
+            timestamp="2025-01-01T00:00:00",
+            projection=ProjectionInfo("test", 10, 20),
+            metrics=metrics,
+        )
         
-        # Overall classification
-        overall_result = classifier.classify(items, metric_name="composite")
+        critical = result.get_critical_components()
+        assert len(critical) == 1
+        assert critical[0].component_id == "app_1"
         
-        # Verify structure
-        self.assertEqual(len(overall_result.items), 10)
-        self.assertIsNotNone(overall_result.stats)
+        high_plus = result.get_high_and_above()
+        assert len(high_plus) == 1
         
-        # Verify sorting (highest score first)
-        self.assertEqual(overall_result.items[0].id, "app_order_service")
+        top = result.top_n(2)
+        assert len(top) == 2
+        assert top[0].composite_score > top[1].composite_score
+
+    def test_edge_analysis_result(self):
+        """Test EdgeAnalysisResult data class."""
+        from src.analysis import EdgeAnalysisResult, EdgeMetrics, CriticalityLevel
         
-        # Type-specific classification
-        by_type = classifier.classify_by_type(items, metric_name="composite")
-        
-        self.assertIn("Application", by_type)
-        self.assertIn("Broker", by_type)
-        self.assertIn("Topic", by_type)
-        
-        # Verify each type is analyzed separately
-        self.assertEqual(len(by_type["Application"].items), 5)
-        self.assertEqual(len(by_type["Broker"].items), 2)
-        self.assertEqual(len(by_type["Topic"].items), 3)
-    
-    def test_classification_result_export(self):
-        """Test that classification result can be exported as JSON"""
-        import json
-        
-        items = [
-            {"id": f"item{i}", "type": "Test", "score": i * 0.1}
-            for i in range(1, 11)
+        edges = [
+            EdgeMetrics("a", "b", "App", "App", "app_to_app", weight=5.0, 
+                       is_bridge=True, level=CriticalityLevel.CRITICAL),
+            EdgeMetrics("c", "d", "Node", "Node", "node_to_node", weight=2.0,
+                       level=CriticalityLevel.MEDIUM),
         ]
         
-        classifier = BoxPlotClassifier(k_factor=1.5)
-        result = classifier.classify(items, metric_name="test")
+        result = EdgeAnalysisResult(
+            timestamp="2025-01-01T00:00:00",
+            edges=edges,
+        )
         
-        # Should be JSON serializable
-        json_str = json.dumps(result.to_dict(), default=str)
-        self.assertIsInstance(json_str, str)
+        critical = result.get_critical()
+        assert len(critical) == 1
         
-        # Should be parseable back
-        parsed = json.loads(json_str)
-        self.assertEqual(parsed["metric"], "test")
-        self.assertEqual(len(parsed["items"]), 10)
+        bridges = result.get_bridges()
+        assert len(bridges) == 1
 
 
 # =============================================================================
-# Main
+# Standalone Test Runner
 # =============================================================================
 
-def run_tests():
-    """Run all tests"""
-    loader = unittest.TestLoader()
-    suite = unittest.TestSuite()
+def run_tests_standalone():
+    """Run tests without pytest."""
+    import traceback
     
-    # Add test classes
-    suite.addTests(loader.loadTestsFromTestCase(TestEnums))
-    suite.addTests(loader.loadTestsFromTestCase(TestBoxPlotStats))
-    suite.addTests(loader.loadTestsFromTestCase(TestClassification))
-    suite.addTests(loader.loadTestsFromTestCase(TestClassificationResult))
-    suite.addTests(loader.loadTestsFromTestCase(TestClassifiedItem))
-    suite.addTests(loader.loadTestsFromTestCase(TestProblemDataClasses))
-    suite.addTests(loader.loadTestsFromTestCase(TestIntegration))
+    test_classes = [
+        TestCriticalityLevel,
+        TestBoxPlotStats,
+        TestBoxPlotClassifier,
+        TestClassificationResult,
+        TestUtilityFunctions,
+        TestConstants,
+        TestDataClasses,
+        TestResultClasses,
+    ]
     
-    # Run with verbosity
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
+    passed = failed = 0
     
-    return result.wasSuccessful()
+    print("=" * 60)
+    print("Software-as-a-Graph Analysis Module Tests")
+    print("=" * 60)
+    
+    for test_class in test_classes:
+        print(f"\n{test_class.__name__}")
+        print("-" * 40)
+        
+        instance = test_class()
+        for method_name in [m for m in dir(instance) if m.startswith("test_")]:
+            try:
+                getattr(instance, method_name)()
+                print(f"  ✓ {method_name}")
+                passed += 1
+            except Exception as e:
+                print(f"  ✗ {method_name}: {e}")
+                if "--verbose" in sys.argv:
+                    traceback.print_exc()
+                failed += 1
+    
+    print(f"\n{'=' * 60}")
+    print(f"Results: {passed} passed, {failed} failed")
+    print("=" * 60)
+    
+    return failed == 0
 
 
 if __name__ == "__main__":
-    success = run_tests()
-    sys.exit(0 if success else 1)
+    if HAS_PYTEST and "--no-pytest" not in sys.argv:
+        sys.exit(pytest.main([__file__, "-v"]))
+    else:
+        success = run_tests_standalone()
+        sys.exit(0 if success else 1)

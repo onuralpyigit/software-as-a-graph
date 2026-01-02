@@ -1,41 +1,31 @@
 """
-Software-as-a-Graph Analysis Module - Version 5.0 (Refactored)
+Analysis Module - Version 5.0
 
-Multi-layer graph analysis for distributed pub-sub systems using Neo4j GDS.
+Multi-layer graph analysis for distributed pub-sub systems.
 
-Key Features:
-- Component-type-specific analysis (Application, Topic, Node, Broker)
-- Centrality algorithms: PageRank, Betweenness, Degree via Neo4j GDS
+Features:
+- Multi-layer analysis (by DEPENDS_ON relationship type)
+- Component-type analysis (Application, Broker, Node, Topic comparison)
+- Edge criticality analysis
 - Box-plot statistical classification (adaptive thresholds)
-- Problem detection: Reliability, Maintainability, Availability issues
-- Anti-pattern detection with symptoms and recommendations
-- Critical edge identification
+- Weighted algorithm support (PageRank, Betweenness, Degree)
+- Structural analysis (Articulation Points, Bridges)
 
 Usage:
-    from src.analysis import (
-        GDSAnalyzer,
-        ComponentTypeAnalyzer,
-        BoxPlotClassifier,
-        ProblemDetector,
-        AntiPatternDetector,
-    )
-
-    # Analyze by component type
-    with GDSAnalyzer(uri, user, password) as analyzer:
-        # Analyze all applications
-        app_results = analyzer.analyze_component_type("Application")
+    from src.analysis import GraphAnalyzer, CriticalityLevel
+    
+    with GraphAnalyzer(uri, user, password) as analyzer:
+        # Full analysis
+        result = analyzer.analyze_full()
         
-        # Analyze all topics
-        topic_results = analyzer.analyze_component_type("Topic")
+        # Layer analysis
+        app_layer = analyzer.analyze_layer("application")
         
-        # Full multi-layer analysis
-        full_results = analyzer.analyze_all()
+        # Component type analysis
+        brokers = analyzer.analyze_component_type("Broker")
         
-        # Detect problems
-        problems = analyzer.detect_problems()
-        
-        # Detect anti-patterns
-        antipatterns = analyzer.detect_antipatterns()
+        # Edge analysis
+        edges = analyzer.analyze_edges()
 
 Author: Software-as-a-Graph Research Project
 Version: 5.0
@@ -43,102 +33,102 @@ Version: 5.0
 
 __version__ = "5.0.0"
 
-# Core GDS Client and Analyzer
-from .gds_client import (
-    GDSClient,
-    CentralityResult,
-    CommunityResult,
-    ProjectionInfo,
-)
-
-# Component-Type Analyzer
-from .component_analyzer import (
-    ComponentTypeAnalyzer,
-    ComponentTypeResult,
-    ComponentMetrics,
-)
-
-# Main GDS Analyzer (Facade)
-from .gds_analyzer import (
-    GDSAnalyzer,
-    MultiLayerAnalysisResult,
-    LayerAnalysisResult,
-)
-
-# Box-Plot Classification
+# Classification
 from .classifier import (
     CriticalityLevel,
     BoxPlotStats,
     ClassifiedItem,
     ClassificationResult,
     BoxPlotClassifier,
+    classify_items,
+    get_level_for_score,
 )
 
-# Problem Detection
-from .problem_detector import (
-    ProblemType,
-    ProblemSeverity,
-    QualityAttribute,
-    Problem,
-    Symptom,
-    ProblemDetectionResult,
-    ProblemDetector,
+# GDS Client
+from .gds_client import (
+    GDSClient,
+    CentralityResult,
+    ProjectionInfo,
+    StructuralResult,
+    COMPONENT_TYPES,
+    DEPENDENCY_TYPES,
+    LAYER_DEFINITIONS,
 )
 
-# Anti-Pattern Detection
-from .antipatterns import (
-    AntiPatternType,
-    PatternSeverity,
-    AntiPattern,
-    AntiPatternResult,
-    AntiPatternDetector,
+# Layer Analyzer
+from .layer_analyzer import (
+    LayerAnalyzer,
+    LayerMetrics,
+    LayerResult,
+    MultiLayerResult,
 )
 
-# Critical Edge Analysis
+# Component Type Analyzer
+from .component_analyzer import (
+    ComponentTypeAnalyzer,
+    ComponentMetrics,
+    ComponentTypeResult,
+    AllTypesResult,
+)
+
+# Edge Analyzer
 from .edge_analyzer import (
-    EdgeCriticality,
-    EdgeAnalysisResult,
     EdgeAnalyzer,
+    EdgeMetrics,
+    EdgeAnalysisResult,
 )
+
+# Main Analyzer
+from .analyzer import (
+    GraphAnalyzer,
+    FullAnalysisResult,
+    analyze_graph,
+    analyze_layer,
+)
+
 
 __all__ = [
     # Version
     "__version__",
-    # GDS Client
-    "GDSClient",
-    "CentralityResult",
-    "CommunityResult",
-    "ProjectionInfo",
-    # Component Analyzer
-    "ComponentTypeAnalyzer",
-    "ComponentTypeResult",
-    "ComponentMetrics",
-    # Main Analyzer
-    "GDSAnalyzer",
-    "MultiLayerAnalysisResult",
-    "LayerAnalysisResult",
-    # Classifier
+    
+    # Classification
     "CriticalityLevel",
     "BoxPlotStats",
     "ClassifiedItem",
     "ClassificationResult",
     "BoxPlotClassifier",
-    # Problem Detection
-    "ProblemType",
-    "ProblemSeverity",
-    "QualityAttribute",
-    "Problem",
-    "Symptom",
-    "ProblemDetectionResult",
-    "ProblemDetector",
-    # Anti-Patterns
-    "AntiPatternType",
-    "PatternSeverity",
-    "AntiPattern",
-    "AntiPatternResult",
-    "AntiPatternDetector",
-    # Edge Analysis
-    "EdgeCriticality",
-    "EdgeAnalysisResult",
+    "classify_items",
+    "get_level_for_score",
+    
+    # GDS Client
+    "GDSClient",
+    "CentralityResult",
+    "ProjectionInfo",
+    "StructuralResult",
+    "COMPONENT_TYPES",
+    "DEPENDENCY_TYPES",
+    "LAYER_DEFINITIONS",
+    
+    # Layer Analyzer
+    "LayerAnalyzer",
+    "LayerMetrics",
+    "LayerResult",
+    "MultiLayerResult",
+    
+    # Component Type Analyzer
+    "ComponentTypeAnalyzer",
+    "ComponentMetrics",
+    "ComponentTypeResult",
+    "AllTypesResult",
+    
+    # Edge Analyzer
     "EdgeAnalyzer",
+    "EdgeMetrics",
+    "EdgeAnalysisResult",
+    
+    # Main Analyzer
+    "GraphAnalyzer",
+    "FullAnalysisResult",
+    "analyze_graph",
+    "analyze_layer",
 ]
