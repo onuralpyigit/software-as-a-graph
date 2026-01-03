@@ -187,7 +187,8 @@ class GraphImporter:
         with self.driver.session(database=self.database) as session:
             session.run("MATCH ()-[r]->() DELETE r")
             session.run("MATCH (n) DELETE n")
-        
+            session.run("CALL apoc.schema.assert({}, {})")  # Clear schema
+            
         self.logger.info("Database cleared")
 
     # =========================================================================
