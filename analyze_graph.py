@@ -13,7 +13,7 @@ Features:
 
 Usage:
     # Full analysis
-    python analyze_graph.py --full
+    python analyze_graph.py
     
     # Analyze specific layer
     python analyze_graph.py --layer application
@@ -30,7 +30,7 @@ Usage:
     python analyze_graph.py --edges
     
     # Export results
-    python analyze_graph.py --full --output results.json
+    python analyze_graph.py --output results.json
 
 Author: Software-as-a-Graph Research Project
 Version: 5.0
@@ -258,6 +258,7 @@ def run_analysis(args) -> int:
     try:
         from src.analysis import (
             GraphAnalyzer,
+            QualityAnalyzer,
             LAYER_DEFINITIONS,
             COMPONENT_TYPES,
         )
@@ -280,13 +281,25 @@ def run_analysis(args) -> int:
             print_success(f"Connected to {args.uri}")
             
             result = None
-            
-            # Full analysis
-            if args.full:
-                print_info("Running full analysis...")
-                result = analyzer.analyze_full(weighted=not args.unweighted)
-                print_full_result(result.to_dict(), verbose=args.verbose)
-            
+
+
+            if args.quality:
+                print_info("Running Quality Assessment (RMA)...")
+                q_analyzer = QualityAnalyzer(analyzer.gds, k_factor=args.k_factor)
+                result = q_analyzer.analyze_quality(weighted=not args.unweighted)
+                
+                print_section("Quality Assessment Results")
+                print_kv("Average Reliability", f"{result.summary['avg_reliability']:.4f}")
+                print_kv("Average Maintainability", f"{result.summary['avg_maintainability']:.4f}")
+                print_kv("Average Availability", f"{result.summary['avg_availability']:.4f}")
+                print_kv("Availability Risks (SPOFs)", result.summary['critical_availability_count'])
+                
+                # Show top critical components for Availability
+                top_avail = sorted(result.components, key=lambda x: x.availability_score, reverse=True)[:5]
+                print(f"\n  {Colors.BOLD}Top Availability Risks:{Colors.RESET}")
+                for c in top_avail:
+                    print(f"    {c.component_id}: {c.availability_score:.4f}")
+
             # Layer analysis
             elif args.layer:
                 if args.layer not in LAYER_DEFINITIONS:
@@ -355,7 +368,10 @@ def run_analysis(args) -> int:
                     for dep_type, count in stats["relationships"].items():
                         print_kv(dep_type, count, indent=4)
                 
-                print_info("Use --full for complete analysis")
+                print_info("\n Running full analysis...")
+                result = analyzer.analyze_full(weighted=not args.unweighted)
+                print_full_result(result.to_dict(), verbose=args.verbose)
+
                 return 0
             
             # Export results
@@ -400,7 +416,7 @@ def print_connection_help() -> None:
    python import_graph.py --input graph.json
 
 3. Run analysis:
-   python analyze_graph.py --full
+   python analyze_graph.py
 """)
 
 
@@ -415,7 +431,7 @@ def parse_args():
         epilog="""
 Examples:
     # Full analysis
-    python analyze_graph.py --full
+    python analyze_graph.py
     
     # Analyze application layer
     python analyze_graph.py --layer application
@@ -433,14 +449,13 @@ Examples:
     python analyze_graph.py --edges
     
     # Export to JSON
-    python analyze_graph.py --full --output results.json
+    python analyze_graph.py --output results.json
 
 Layers:
     application   - app_to_app dependencies
     infrastructure - node_to_node dependencies
     app_broker    - app_to_broker dependencies
     node_broker   - node_to_broker dependencies
-    full          - all dependencies
 
 Component Types:
     Application, Broker, Node, Topic
@@ -449,11 +464,6 @@ Component Types:
     
     # Analysis mode
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument(
-        "--full", "-f",
-        action="store_true",
-        help="Run full analysis (layers + types + edges)"
-    )
     mode.add_argument(
         "--layer", "-l",
         help="Analyze specific layer"
@@ -527,6 +537,13 @@ Component Types:
         "--no-color",
         action="store_true",
         help="Disable colored output"
+    )
+
+    # Quality analysis
+    parser.add_argument(
+        "--quality", "-q",
+        action="store_true",
+        help="Analyze Reliability, Maintainability, and Availability"
     )
     
     return parser.parse_args()

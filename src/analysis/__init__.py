@@ -78,6 +78,12 @@ from .edge_analyzer import (
     EdgeAnalysisResult,
 )
 
+from .quality_analyzer import (
+    QualityMetrics,
+    QualityAnalysisResult,
+    QualityAnalyzer
+)
+
 # Main Analyzer
 from .analyzer import (
     GraphAnalyzer,
@@ -125,6 +131,11 @@ __all__ = [
     "EdgeAnalyzer",
     "EdgeMetrics",
     "EdgeAnalysisResult",
+
+    # Quality Analyzer
+    "QualityMetrics",
+    "QualityAnalysisResult",
+    "QualityAnalyzer",
     
     # Main Analyzer
     "GraphAnalyzer",
