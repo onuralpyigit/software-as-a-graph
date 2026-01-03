@@ -1,56 +1,49 @@
 #!/usr/bin/env python3
 """
-Graph Visualization CLI - Version 4.0
+Visualize Graph CLI - Version 5.0
 
-Comprehensive visualization for multi-layer pub-sub system graphs.
-Generates interactive HTML visualizations and dashboards.
+Generate visualizations and dashboards for graph analysis.
 
-Features:
-- Interactive graph with vis.js
-- Multi-layer architecture view
-- Dashboard with Chart.js
-- Criticality-based coloring
-- Analysis integration
+Input Sources:
+- JSON file (--input)
+- Neo4j database (--neo4j)
+
+Dashboard Types:
+- graph: Graph model statistics
+- simulation: Failure simulation results
+- validation: Validation results
+- overview: Combined dashboard
 
 Usage:
-    # Basic graph visualization
-    python visualize_graph.py --input system.json --output graph.html
+    # Graph model dashboard
+    python visualize_graph.py --input graph.json --type graph
     
-    # Multi-layer view
-    python visualize_graph.py --input system.json --output layers.html --multi-layer
+    # Simulation dashboard
+    python visualize_graph.py --input graph.json --type simulation
     
-    # Criticality coloring
-    python visualize_graph.py --input system.json --output critical.html --color-by criticality
+    # Validation dashboard
+    python visualize_graph.py --input graph.json --type validation
     
-    # Dashboard with analysis
-    python visualize_graph.py --input system.json --output dashboard.html --dashboard
+    # Combined overview
+    python visualize_graph.py --input graph.json --type overview
     
-    # Layer-specific view
-    python visualize_graph.py --input system.json --output apps.html --layer application
+    # From Neo4j
+    python visualize_graph.py --neo4j --type overview
+    
+    # Custom output
+    python visualize_graph.py --input graph.json --output dashboard.html
 
 Author: Software-as-a-Graph Research Project
+Version: 5.0
 """
 
 import argparse
 import json
-import sys
 import logging
+import sys
+import webbrowser
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Any, Optional
-
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from src.simulation import SimulationGraph
-from src.visualization import (
-    GraphRenderer,
-    DashboardGenerator,
-    RenderConfig,
-    DashboardConfig,
-    Layer,
-    ColorScheme,
-)
+from typing import Optional
 
 
 # =============================================================================
@@ -58,266 +51,394 @@ from src.visualization import (
 # =============================================================================
 
 class Colors:
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    END = '\033[0m'
-    BOLD = '\033[1m'
-    DIM = '\033[2m'
-
+    BOLD = "\033[1m"
+    GREEN = "\033[92m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    GRAY = "\033[90m"
+    RESET = "\033[0m"
+    
     @classmethod
     def disable(cls):
-        for attr in ['HEADER', 'BLUE', 'CYAN', 'GREEN', 'YELLOW', 'RED', 'END', 'BOLD', 'DIM']:
-            setattr(cls, attr, '')
+        for attr in ["BOLD", "GREEN", "BLUE", "CYAN", "YELLOW", "RED", "GRAY", "RESET"]:
+            setattr(cls, attr, "")
 
 
 def use_colors() -> bool:
     import os
-    return hasattr(sys.stdout, 'isatty') and sys.stdout.isatty() and not os.getenv('NO_COLOR')
+    return hasattr(sys.stdout, "isatty") and sys.stdout.isatty() and os.name != "nt"
 
 
 # =============================================================================
 # Output Helpers
 # =============================================================================
 
-def print_header(text: str) -> None:
-    print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.END}")
-    print(f"{Colors.HEADER}{Colors.BOLD}{text:^70}{Colors.END}")
-    print(f"{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.END}")
+def print_header(title: str) -> None:
+    print(f"\n{Colors.BOLD}{Colors.CYAN}{'=' * 60}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.CYAN}{title:^60}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.CYAN}{'=' * 60}{Colors.RESET}\n")
 
 
 def print_section(title: str) -> None:
-    print(f"\n{Colors.CYAN}{Colors.BOLD}{title}{Colors.END}")
-    print(f"{Colors.DIM}{'-'*50}{Colors.END}")
+    print(f"\n{Colors.BOLD}{title}{Colors.RESET}")
+    print(f"{'-' * 40}")
 
 
-def print_kv(key: str, value, indent: int = 2) -> None:
-    print(f"{' '*indent}{Colors.DIM}{key}:{Colors.END} {value}")
+def print_success(msg: str) -> None:
+    print(f"{Colors.GREEN}✓{Colors.RESET} {msg}")
 
 
-def print_success(text: str) -> None:
-    print(f"{Colors.GREEN}✓{Colors.END} {text}")
+def print_error(msg: str) -> None:
+    print(f"{Colors.RED}✗{Colors.RESET} {msg}")
 
 
-def print_error(text: str) -> None:
-    print(f"{Colors.RED}✗{Colors.END} {text}", file=sys.stderr)
-
-
-def print_warning(text: str) -> None:
-    print(f"{Colors.YELLOW}⚠{Colors.END} {text}")
-
-
-def print_info(text: str) -> None:
-    print(f"{Colors.BLUE}ℹ{Colors.END} {text}")
+def print_info(msg: str) -> None:
+    print(f"{Colors.BLUE}ℹ{Colors.RESET} {msg}")
 
 
 # =============================================================================
-# Analysis Integration
+# Graph Loading
 # =============================================================================
 
-def run_analysis(graph: SimulationGraph, seed: Optional[int] = None) -> Dict[str, Any]:
-    """Run analysis pipeline to get criticality and validation results"""
-    from src.validation import ValidationPipeline, GraphAnalyzer
+def load_graph_from_file(args):
+    """Load simulation graph from JSON file."""
+    from src.simulation import SimulationGraph
     
-    # Compute centrality metrics
-    analyzer = GraphAnalyzer(graph)
-    analysis = analyzer.analyze_all()
+    if not args.input:
+        return None
     
-    # Build criticality scores with levels
-    composite = analysis["composite"]
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print_error(f"File not found: {input_path}")
+        return None
     
-    # Determine thresholds using percentiles
-    scores = sorted(composite.values())
-    n = len(scores)
+    print_info(f"Loading graph from {input_path}")
     
-    def get_percentile(p):
-        idx = int(n * p / 100)
-        return scores[min(idx, n - 1)]
-    
-    p90 = get_percentile(90)
-    p75 = get_percentile(75)
-    p50 = get_percentile(50)
-    p25 = get_percentile(25)
-    
-    criticality = {}
-    for comp_id, score in composite.items():
-        if score >= p90:
-            level = "critical"
-        elif score >= p75:
-            level = "high"
-        elif score >= p50:
-            level = "medium"
-        elif score >= p25:
-            level = "low"
-        else:
-            level = "minimal"
-        
-        criticality[comp_id] = {
-            "score": score,
-            "level": level,
-        }
-    
-    # Run validation pipeline
-    pipeline = ValidationPipeline(seed=seed)
-    result = pipeline.run(graph, analysis_method="composite")
-    
-    validation = result.validation.to_dict()
-    
-    return {
-        "criticality": criticality,
-        "validation": validation,
-        "analysis": analysis,
-    }
+    try:
+        graph = SimulationGraph.from_json(str(input_path))
+        summary = graph.summary()
+        print_success(f"Loaded {summary['total_components']} components, {summary['total_edges']} edges")
+        return graph
+    except Exception as e:
+        print_error(f"Failed to load graph: {e}")
+        return None
 
 
-def run_simulation(graph: SimulationGraph, seed: Optional[int] = None) -> Dict[str, Any]:
-    """Run event simulation to get message metrics"""
-    from src.simulation import EventSimulator
+def load_graph_from_neo4j(args):
+    """Load simulation graph from Neo4j database."""
+    from src.simulation import Neo4jSimulationClient, check_neo4j_available
     
-    simulator = EventSimulator(seed=seed)
-    result = simulator.simulate(
-        graph,
-        duration_ms=5000,
-        message_rate=50,
+    if not check_neo4j_available():
+        print_error("Neo4j driver not installed. Install with: pip install neo4j")
+        return None
+    
+    print_info(f"Connecting to Neo4j at {args.uri}")
+    
+    try:
+        with Neo4jSimulationClient(
+            uri=args.uri,
+            user=args.user,
+            password=args.password,
+            database=args.database,
+        ) as client:
+            if not client.verify_connection():
+                print_error("Failed to connect to Neo4j")
+                return None
+            
+            print_success("Connected to Neo4j")
+            
+            stats = client.get_statistics()
+            print_info(f"Components in DB: {stats['total_components']}")
+            
+            if args.layer:
+                print_info(f"Loading layer: {args.layer}")
+                graph = client.load_layer(args.layer)
+            else:
+                print_info("Loading full graph")
+                graph = client.load_full_graph()
+            
+            summary = graph.summary()
+            print_success(f"Loaded {summary['total_components']} components, {summary['total_edges']} edges")
+            return graph
+            
+    except Exception as e:
+        print_error(f"Failed to load from Neo4j: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return None
+
+
+def load_graph(args):
+    """Load graph from file or Neo4j."""
+    if args.neo4j:
+        return load_graph_from_neo4j(args)
+    elif args.input:
+        return load_graph_from_file(args)
+    else:
+        print_error("Specify --input <file> or --neo4j")
+        return None
+
+
+# =============================================================================
+# Dashboard Generation
+# =============================================================================
+
+def generate_graph_dashboard_cli(args, graph) -> Optional[str]:
+    """Generate graph model dashboard."""
+    from src.visualization import generate_graph_dashboard, DashboardConfig
+    
+    print_section("Generating Graph Dashboard")
+    
+    config = DashboardConfig(title=args.title or "Graph Model Dashboard")
+    html = generate_graph_dashboard(graph, config=config)
+    
+    print_success("Graph dashboard generated")
+    return html
+
+
+def generate_simulation_dashboard_cli(args, graph) -> Optional[str]:
+    """Generate simulation dashboard."""
+    from src.simulation import FailureSimulator
+    from src.visualization import generate_simulation_dashboard, DashboardConfig
+    
+    print_section("Running Failure Simulation")
+    
+    simulator = FailureSimulator(
+        seed=args.seed,
+        cascade=args.cascade,
     )
     
-    return result.metrics.to_dict()
+    campaign = simulator.simulate_all(graph)
+    
+    print_success(f"Simulated {campaign.total_simulations} failures")
+    print_info(f"Critical components: {len(campaign.get_critical())}")
+    print_info(f"Max impact: {campaign.max_impact:.4f}")
+    
+    print_section("Generating Simulation Dashboard")
+    
+    config = DashboardConfig(title=args.title or "Simulation Results Dashboard")
+    html = generate_simulation_dashboard(graph, campaign, config=config)
+    
+    print_success("Simulation dashboard generated")
+    return html
+
+
+def generate_validation_dashboard_cli(args, graph) -> Optional[str]:
+    """Generate validation dashboard."""
+    from src.validation import ValidationPipeline, AnalysisMethod
+    from src.visualization import generate_validation_dashboard, DashboardConfig
+    
+    print_section("Running Validation Pipeline")
+    
+    pipeline = ValidationPipeline(seed=args.seed, cascade=args.cascade)
+    
+    method = AnalysisMethod(args.method)
+    result = pipeline.run(graph, analysis_method=method, compare_methods=args.compare_methods)
+    
+    status_color = Colors.GREEN if result.validation.status.value == "passed" else Colors.YELLOW
+    print_success(f"Status: {status_color}{result.validation.status.value.upper()}{Colors.RESET}")
+    print_info(f"Spearman ρ: {result.spearman:.4f}")
+    print_info(f"F1-Score: {result.f1_score:.4f}")
+    
+    print_section("Generating Validation Dashboard")
+    
+    config = DashboardConfig(title=args.title or "Validation Results Dashboard")
+    html = generate_validation_dashboard(result, config=config)
+    
+    print_success("Validation dashboard generated")
+    return html
+
+
+def generate_overview_dashboard_cli(args, graph) -> Optional[str]:
+    """Generate combined overview dashboard."""
+    from src.simulation import FailureSimulator
+    from src.validation import ValidationPipeline, AnalysisMethod
+    from src.visualization import generate_overview_dashboard, DashboardConfig
+    
+    campaign = None
+    validation = None
+    
+    # Run simulation
+    print_section("Running Failure Simulation")
+    
+    simulator = FailureSimulator(seed=args.seed, cascade=args.cascade)
+    campaign = simulator.simulate_all(graph)
+    
+    print_success(f"Simulated {campaign.total_simulations} failures")
+    
+    # Run validation
+    print_section("Running Validation Pipeline")
+    
+    pipeline = ValidationPipeline(seed=args.seed, cascade=args.cascade)
+    method = AnalysisMethod(args.method)
+    validation = pipeline.run(graph, analysis_method=method, compare_methods=args.compare_methods)
+    
+    status_color = Colors.GREEN if validation.validation.status.value == "passed" else Colors.YELLOW
+    print_success(f"Status: {status_color}{validation.validation.status.value.upper()}{Colors.RESET}")
+    
+    # Generate dashboard
+    print_section("Generating Overview Dashboard")
+    
+    config = DashboardConfig(title=args.title or "System Overview Dashboard")
+    html = generate_overview_dashboard(
+        graph,
+        campaign_result=campaign,
+        validation_result=validation,
+        config=config,
+    )
+    
+    print_success("Overview dashboard generated")
+    return html
 
 
 # =============================================================================
 # Main
 # =============================================================================
 
-def parse_args():
+def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Visualize pub-sub system graphs",
+        description="Generate visualizations for graph analysis",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Basic graph visualization
-    python visualize_graph.py --input system.json --output graph.html
+    # Graph model dashboard
+    python visualize_graph.py --input graph.json --type graph
     
-    # Multi-layer view
-    python visualize_graph.py --input system.json --output layers.html --multi-layer
+    # Simulation dashboard
+    python visualize_graph.py --input graph.json --type simulation
     
-    # Criticality coloring with analysis
-    python visualize_graph.py --input system.json --output critical.html \\
-        --color-by criticality --run-analysis
+    # Validation dashboard
+    python visualize_graph.py --input graph.json --type validation
     
-    # Complete dashboard
-    python visualize_graph.py --input system.json --output dashboard.html \\
-        --dashboard --run-analysis --run-simulation
+    # Combined overview
+    python visualize_graph.py --input graph.json --type overview
     
-    # Layer-specific view
-    python visualize_graph.py --input system.json --output apps.html \\
-        --layer application
+    # From Neo4j
+    python visualize_graph.py --neo4j --type overview
     
-    # Custom title and theme
-    python visualize_graph.py --input system.json --output viz.html \\
-        --title "My System" --theme light
-        """,
-    )
-    
-    # Input/Output
-    parser.add_argument(
-        "--input", "-i", required=True, type=Path,
-        help="Input graph JSON file",
-    )
-    parser.add_argument(
-        "--output", "-o", type=Path,
-        help="Output HTML file (default: <input>_viz.html)",
+    # Custom output and open in browser
+    python visualize_graph.py --input graph.json --output dash.html --open
+
+Dashboard Types:
+    graph      - Graph model statistics (components, edges, layers)
+    simulation - Failure simulation results (impact ranking, critical)
+    validation - Validation results (correlation, classification)
+    overview   - Combined dashboard with all sections
+        """
     )
     
-    # Visualization mode
-    mode_group = parser.add_argument_group("Visualization Mode")
-    mode_group.add_argument(
-        "--multi-layer", "-m", action="store_true",
-        help="Generate multi-layer architecture view",
+    # Input source
+    input_group = parser.add_argument_group("Input Source")
+    input_group.add_argument(
+        "--input", "-i",
+        help="Input graph JSON file"
     )
-    mode_group.add_argument(
-        "--dashboard", "-d", action="store_true",
-        help="Generate comprehensive dashboard",
-    )
-    mode_group.add_argument(
-        "--layer", "-l", type=str,
-        choices=["application", "topic", "broker", "infrastructure", "all"],
-        default="all",
-        help="Layer to display (default: all)",
+    input_group.add_argument(
+        "--neo4j", "-n",
+        action="store_true",
+        help="Load graph from Neo4j database"
     )
     
-    # Styling
-    style_group = parser.add_argument_group("Styling Options")
-    style_group.add_argument(
-        "--color-by", "-c", type=str,
-        choices=["type", "criticality", "layer"],
-        default="type",
-        help="Color scheme (default: type)",
+    # Neo4j options
+    neo4j_group = parser.add_argument_group("Neo4j Connection")
+    neo4j_group.add_argument(
+        "--uri",
+        default="bolt://localhost:7687",
+        help="Neo4j bolt URI (default: bolt://localhost:7687)"
     )
-    style_group.add_argument(
-        "--title", "-t", type=str,
-        help="Visualization title",
+    neo4j_group.add_argument(
+        "--user",
+        default="neo4j",
+        help="Neo4j username (default: neo4j)"
     )
-    style_group.add_argument(
-        "--theme", type=str,
-        choices=["dark", "light"],
-        default="dark",
-        help="Dashboard theme (default: dark)",
+    neo4j_group.add_argument(
+        "--password",
+        default="password",
+        help="Neo4j password (default: password)"
     )
-    style_group.add_argument(
-        "--no-physics", action="store_true",
-        help="Disable physics simulation",
+    neo4j_group.add_argument(
+        "--database",
+        default="neo4j",
+        help="Neo4j database name (default: neo4j)"
     )
-    style_group.add_argument(
-        "--no-labels", action="store_true",
-        help="Hide node labels",
+    neo4j_group.add_argument(
+        "--layer",
+        choices=["application", "infrastructure", "app_broker", "node_broker"],
+        help="Load specific layer from Neo4j"
     )
     
-    # Analysis integration
-    analysis_group = parser.add_argument_group("Analysis Integration")
+    # Dashboard options
+    dash_group = parser.add_argument_group("Dashboard Options")
+    dash_group.add_argument(
+        "--type", "-t",
+        choices=["graph", "simulation", "validation", "overview"],
+        default="overview",
+        help="Dashboard type (default: overview)"
+    )
+    dash_group.add_argument(
+        "--title",
+        help="Custom dashboard title"
+    )
+    
+    # Analysis options
+    analysis_group = parser.add_argument_group("Analysis Options")
     analysis_group.add_argument(
-        "--run-analysis", "-a", action="store_true",
-        help="Run analysis to compute criticality scores",
-    )
-    analysis_group.add_argument(
-        "--run-simulation", "-s", action="store_true",
-        help="Run event simulation for dashboard metrics",
-    )
-    analysis_group.add_argument(
-        "--criticality-file", type=Path,
-        help="Load criticality scores from JSON file",
+        "--method", "-m",
+        choices=["betweenness", "pagerank", "degree", "composite"],
+        default="composite",
+        help="Analysis method (default: composite)"
     )
     analysis_group.add_argument(
-        "--validation-file", type=Path,
-        help="Load validation results from JSON file",
+        "--compare-methods", "-c",
+        action="store_true",
+        help="Compare all analysis methods"
+    )
+    analysis_group.add_argument(
+        "--cascade",
+        action="store_true",
+        default=True,
+        help="Enable cascade propagation (default)"
+    )
+    analysis_group.add_argument(
+        "--no-cascade",
+        action="store_false",
+        dest="cascade",
+        help="Disable cascade propagation"
     )
     
     # Output options
     output_group = parser.add_argument_group("Output Options")
     output_group.add_argument(
-        "--verbose", "-v", action="store_true",
-        help="Verbose output",
+        "--output", "-o",
+        help="Output HTML file (default: dashboard.html)"
     )
     output_group.add_argument(
-        "--quiet", "-q", action="store_true",
-        help="Minimal output",
-    )
-    output_group.add_argument(
-        "--no-color", action="store_true",
-        help="Disable colors",
-    )
-    output_group.add_argument(
-        "--seed", type=int,
-        help="Random seed for reproducibility",
+        "--open",
+        action="store_true",
+        help="Open dashboard in browser after generation"
     )
     
-    return parser.parse_args()
-
-
-def main() -> int:
-    args = parse_args()
+    # Common options
+    parser.add_argument(
+        "--seed", "-s",
+        type=int,
+        help="Random seed"
+    )
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Verbose output"
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colors"
+    )
+    
+    args = parser.parse_args()
     
     # Handle colors
     if args.no_color or not use_colors():
@@ -325,189 +446,53 @@ def main() -> int:
     
     # Setup logging
     log_level = logging.DEBUG if args.verbose else logging.WARNING
-    logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
+    logging.basicConfig(level=log_level)
     
-    try:
-        if not args.quiet:
-            print_header("Graph Visualization")
-            print(f"\n  Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"  Input: {args.input}")
-        
-        # Load graph
-        if not args.quiet:
-            print_section("Loading Graph")
-        
-        if not args.input.exists():
-            print_error(f"File not found: {args.input}")
-            return 1
-        
-        graph = SimulationGraph.from_json(args.input)
-        
-        if not args.quiet:
-            print_success(f"Loaded: {len(graph.components)} components, {len(graph.connections)} connections")
-        
-        # Determine output path
-        if args.output:
-            output_path = args.output
-        else:
-            output_path = args.input.with_suffix('.html')
-        
-        # Initialize data containers
-        criticality = None
-        validation = None
-        simulation = None
-        analysis = None
-        
-        # Load or run analysis
-        if args.criticality_file:
-            if not args.quiet:
-                print_section("Loading Criticality Data")
-            with open(args.criticality_file) as f:
-                criticality = json.load(f)
-            print_success(f"Loaded criticality from {args.criticality_file}")
-        
-        if args.validation_file:
-            if not args.quiet:
-                print_section("Loading Validation Data")
-            with open(args.validation_file) as f:
-                validation = json.load(f)
-            print_success(f"Loaded validation from {args.validation_file}")
-        
-        if args.run_analysis or args.color_by == "criticality":
-            if not args.quiet:
-                print_section("Running Analysis")
-            
-            results = run_analysis(graph, seed=args.seed)
-            criticality = results["criticality"]
-            validation = results["validation"]
-            analysis = results["analysis"]
-            
-            if not args.quiet:
-                print_success("Analysis complete")
-                # Show top critical components
-                top_crit = sorted(
-                    criticality.items(),
-                    key=lambda x: x[1]["score"],
-                    reverse=True
-                )[:5]
-                print_info("Top critical components:")
-                for comp, data in top_crit:
-                    print(f"    {comp}: {data['score']:.4f} ({data['level']})")
-        
-        if args.run_simulation:
-            if not args.quiet:
-                print_section("Running Simulation")
-            
-            simulation = run_simulation(graph, seed=args.seed)
-            
-            if not args.quiet:
-                print_success("Simulation complete")
-                print_info(f"Messages: {simulation.get('messages', {}).get('published', 0)} published, "
-                          f"{simulation.get('messages', {}).get('delivered', 0)} delivered")
-        
-        # Generate visualization
-        if not args.quiet:
-            print_section("Generating Visualization")
-        
-        # Map color scheme
-        color_map = {
-            "type": ColorScheme.TYPE,
-            "criticality": ColorScheme.CRITICALITY,
-            "layer": ColorScheme.LAYER,
-        }
-        color_scheme = color_map.get(args.color_by, ColorScheme.TYPE)
-        
-        # Map layer
-        layer_map = {
-            "application": Layer.APPLICATION,
-            "topic": Layer.TOPIC,
-            "broker": Layer.BROKER,
-            "infrastructure": Layer.INFRASTRUCTURE,
-            "all": Layer.ALL,
-        }
-        layer = layer_map.get(args.layer, Layer.ALL)
-        
-        if args.dashboard:
-            # Generate dashboard
-            config = DashboardConfig(
-                title=args.title or "Pub-Sub System Analysis Dashboard",
-                theme=args.theme,
-            )
-            generator = DashboardGenerator(config)
-            
-            html = generator.generate(
-                graph=graph,
-                criticality=criticality,
-                validation=validation,
-                simulation=simulation,
-                analysis=analysis,
-            )
-            
-            if not args.quiet:
-                print_info("Mode: Dashboard")
-        
-        elif args.multi_layer:
-            # Generate multi-layer view
-            config = RenderConfig(
-                title=args.title or "Multi-Layer System Architecture",
-                color_scheme=color_scheme,
-                physics_enabled=not args.no_physics,
-                show_labels=not args.no_labels,
-            )
-            renderer = GraphRenderer(config)
-            
-            html = renderer.render_multi_layer(graph, criticality)
-            
-            if not args.quiet:
-                print_info("Mode: Multi-layer view")
-        
-        else:
-            # Generate standard graph
-            config = RenderConfig(
-                title=args.title or "Pub-Sub System Graph",
-                color_scheme=color_scheme,
-                physics_enabled=not args.no_physics,
-                show_labels=not args.no_labels,
-            )
-            renderer = GraphRenderer(config)
-            
-            html = renderer.render(graph, criticality, layer)
-            
-            if not args.quiet:
-                print_info(f"Mode: Graph view (layer: {args.layer})")
-        
-        # Write output
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
-            f.write(html)
-        
-        if not args.quiet:
-            print_section("Output")
-            print_success(f"Visualization saved: {output_path}")
-            print_kv("File size", f"{output_path.stat().st_size / 1024:.1f} KB")
-        else:
-            print(output_path)
-        
-        return 0
+    # Check matplotlib
+    from src.visualization import check_matplotlib_available
+    if not check_matplotlib_available():
+        print_error("matplotlib not installed. Install with: pip install matplotlib")
+        print_info("Dashboards will be generated without charts")
     
-    except FileNotFoundError as e:
-        print_error(f"File not found: {e}")
+    # Load graph
+    graph = load_graph(args)
+    if graph is None:
         return 1
     
-    except json.JSONDecodeError as e:
-        print_error(f"Invalid JSON: {e}")
+    # Generate dashboard
+    print_header("VISUALIZATION DASHBOARD")
+    
+    html = None
+    
+    if args.type == "graph":
+        html = generate_graph_dashboard_cli(args, graph)
+    elif args.type == "simulation":
+        html = generate_simulation_dashboard_cli(args, graph)
+    elif args.type == "validation":
+        html = generate_validation_dashboard_cli(args, graph)
+    elif args.type == "overview":
+        html = generate_overview_dashboard_cli(args, graph)
+    
+    if html is None:
+        print_error("Failed to generate dashboard")
         return 1
     
-    except KeyboardInterrupt:
-        print_warning("\nVisualization interrupted")
-        return 130
+    # Save output
+    output_path = Path(args.output or "dashboard.html")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    except Exception as e:
-        print_error(f"Visualization failed: {e}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        return 1
+    with open(output_path, "w") as f:
+        f.write(html)
+    
+    print_success(f"Dashboard saved to {output_path}")
+    
+    # Open in browser
+    if args.open:
+        print_info("Opening in browser...")
+        webbrowser.open(f"file://{output_path.absolute()}")
+    
+    print_header("Visualization Complete")
+    return 0
 
 
 if __name__ == "__main__":

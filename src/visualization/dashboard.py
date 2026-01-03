@@ -1,882 +1,784 @@
 """
-Dashboard Generator - Version 4.0
+Visualization Dashboard - Version 5.0
 
-Comprehensive dashboard generation with Chart.js for visualizing
-graph statistics, analysis results, and simulation metrics.
+HTML dashboard generation for graph analysis visualization.
 
 Features:
-- Graph statistics overview
-- Criticality distribution charts
-- Validation metrics visualization
-- Simulation results
-- Interactive network graph
-- Export capabilities
+- Graph statistics dashboard
+- Analysis results dashboard
+- Simulation results dashboard
+- Validation results dashboard
+- Combined overview dashboard
 
 Author: Software-as-a-Graph Research Project
-Version: 4.0
+Version: 5.0
 """
 
 from __future__ import annotations
-import json
+import html
+import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Dict, List, Any, Optional
+from datetime import datetime
 
-from ..simulation import SimulationGraph, ComponentType
-from .graph_renderer import COLORS, Layer
+from .charts import (
+    ChartConfig,
+    ChartOutput,
+    chart_component_distribution,
+    chart_edge_distribution,
+    chart_layer_summary,
+    chart_impact_ranking,
+    chart_criticality_distribution,
+    chart_correlation_comparison,
+    chart_confusion_matrix,
+    chart_layer_validation,
+    chart_method_comparison,
+    chart_delivery_stats,
+    chart_layer_performance,
+    check_matplotlib_available,
+)
 
 
 # =============================================================================
-# Configuration
+# Dashboard Configuration
 # =============================================================================
 
 @dataclass
 class DashboardConfig:
-    """Dashboard configuration"""
-    title: str = "Pub-Sub System Analysis Dashboard"
-    theme: str = "dark"  # dark or light
-    show_graph: bool = True
-    show_statistics: bool = True
-    show_criticality: bool = True
-    show_validation: bool = True
-    show_simulation: bool = True
-    graph_height: str = "400px"
-
-
-# =============================================================================
-# Dashboard Generator
-# =============================================================================
-
-class DashboardGenerator:
-    """
-    Generates comprehensive HTML dashboards with Chart.js.
+    """Dashboard configuration."""
+    title: str = "Graph Analysis Dashboard"
+    theme: str = "light"  # light, dark
+    chart_config: ChartConfig = field(default_factory=ChartConfig)
+    include_timestamp: bool = True
     
-    Combines graph visualization, statistics, and analysis results
-    into an interactive dashboard.
-    """
+    # Colors for the dashboard
+    primary_color: str = "#3498db"
+    success_color: str = "#2ecc71"
+    warning_color: str = "#f39c12"
+    danger_color: str = "#e74c3c"
+    bg_color: str = "#f8f9fa"
+    card_bg: str = "#ffffff"
+    text_color: str = "#2c3e50"
 
-    def __init__(self, config: Optional[DashboardConfig] = None):
-        self.config = config or DashboardConfig()
 
-    def generate(
-        self,
-        graph: SimulationGraph,
-        criticality: Optional[Dict[str, Dict]] = None,
-        validation: Optional[Dict] = None,
-        simulation: Optional[Dict] = None,
-        analysis: Optional[Dict] = None,
-    ) -> str:
-        """
-        Generate complete dashboard HTML.
-        
-        Args:
-            graph: SimulationGraph data
-            criticality: Criticality scores {id: {score, level}}
-            validation: Validation results
-            simulation: Simulation results
-            analysis: Analysis results (centrality metrics)
-        
-        Returns:
-            Complete HTML dashboard
-        """
-        # Compute statistics
-        stats = self._compute_statistics(graph, criticality)
-        
-        # Build sections
-        sections = []
-        
-        if self.config.show_statistics:
-            sections.append(self._generate_stats_section(stats))
-        
-        if self.config.show_graph:
-            sections.append(self._generate_graph_section(graph, criticality))
-        
-        if self.config.show_criticality and criticality:
-            sections.append(self._generate_criticality_section(criticality, stats))
-        
-        if self.config.show_validation and validation:
-            sections.append(self._generate_validation_section(validation))
-        
-        if self.config.show_simulation and simulation:
-            sections.append(self._generate_simulation_section(simulation))
-        
-        if analysis:
-            sections.append(self._generate_analysis_section(analysis))
-        
-        return self._generate_html(sections, stats)
+# =============================================================================
+# HTML Templates
+# =============================================================================
 
-    def _compute_statistics(
-        self,
-        graph: SimulationGraph,
-        criticality: Optional[Dict[str, Dict]],
-    ) -> Dict:
-        """Compute graph statistics"""
-        # Component counts by type
-        type_counts = {t.value: 0 for t in ComponentType}
-        for comp in graph.components.values():
-            type_counts[comp.type.value] += 1
-        
-        # Edge counts by type
-        edge_types = {}
-        for conn in graph.connections:
-            t = conn.type.value
-            edge_types[t] = edge_types.get(t, 0) + 1
-        
-        # Criticality distribution
-        crit_dist = {"critical": 0, "high": 0, "medium": 0, "low": 0, "minimal": 0}
-        if criticality:
-            for c in criticality.values():
-                level = c.get("level", "minimal")
-                if level in crit_dist:
-                    crit_dist[level] += 1
-        
-        # Message paths
-        n_paths = len(graph.get_all_message_paths())
-        
-        return {
-            "n_components": len(graph.components),
-            "n_connections": len(graph.connections),
-            "n_paths": n_paths,
-            "type_counts": type_counts,
-            "edge_types": edge_types,
-            "criticality_distribution": crit_dist,
-            "timestamp": datetime.now().isoformat(),
-        }
-
-    def _generate_stats_section(self, stats: Dict) -> str:
-        """Generate statistics overview section"""
-        type_counts = stats["type_counts"]
-        
-        return f"""
-        <div class="section">
-            <h2>📊 System Overview</h2>
-            
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-value">{stats['n_components']}</div>
-                    <div class="metric-label">Components</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{stats['n_connections']}</div>
-                    <div class="metric-label">Connections</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{stats['n_paths']}</div>
-                    <div class="metric-label">Message Paths</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{type_counts.get('Broker', 0)}</div>
-                    <div class="metric-label">Brokers</div>
-                </div>
-            </div>
-            
-            <div class="charts-row">
-                <div class="chart-container">
-                    <h3>Component Distribution</h3>
-                    <canvas id="typeChart"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3>Connection Types</h3>
-                    <canvas id="edgeChart"></canvas>
-                </div>
-            </div>
-        </div>
-        
-        <script>
-            new Chart(document.getElementById('typeChart'), {{
-                type: 'doughnut',
-                data: {{
-                    labels: ['Applications', 'Topics', 'Brokers', 'Infrastructure'],
-                    datasets: [{{
-                        data: [{type_counts.get('Application', 0)}, {type_counts.get('Topic', 0)}, 
-                               {type_counts.get('Broker', 0)}, {type_counts.get('Node', 0)}],
-                        backgroundColor: ['{COLORS["Application"]}', '{COLORS["Topic"]}', 
-                                          '{COLORS["Broker"]}', '{COLORS["Node"]}']
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    plugins: {{
-                        legend: {{ position: 'bottom', labels: {{ color: '#ecf0f1' }} }}
-                    }}
-                }}
-            }});
-            
-            new Chart(document.getElementById('edgeChart'), {{
-                type: 'bar',
-                data: {{
-                    labels: {json.dumps(list(stats['edge_types'].keys()))},
-                    datasets: [{{
-                        label: 'Count',
-                        data: {json.dumps(list(stats['edge_types'].values()))},
-                        backgroundColor: '#3498db'
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    indexAxis: 'y',
-                    plugins: {{
-                        legend: {{ display: false }}
-                    }},
-                    scales: {{
-                        x: {{ ticks: {{ color: '#ecf0f1' }}, grid: {{ color: '#333' }} }},
-                        y: {{ ticks: {{ color: '#ecf0f1' }}, grid: {{ color: '#333' }} }}
-                    }}
-                }}
-            }});
-        </script>
-        """
-
-    def _generate_graph_section(
-        self,
-        graph: SimulationGraph,
-        criticality: Optional[Dict[str, Dict]],
-    ) -> str:
-        """Generate network graph section"""
-        # Prepare nodes
-        nodes = []
-        for comp_id, comp in graph.components.items():
-            color = COLORS.get(comp.type.value, "#95a5a6")
-            if criticality and comp_id in criticality:
-                level = criticality[comp_id].get("level", "minimal")
-                color = COLORS.get(level, color)
-            
-            nodes.append({
-                "id": comp_id,
-                "label": comp_id,
-                "color": {"background": color, "border": color},
-                "shape": "dot",
-                "size": 15,
-            })
-        
-        # Prepare edges
-        edges = []
-        for i, conn in enumerate(graph.connections):
-            edges.append({
-                "id": f"e{i}",
-                "from": conn.source,
-                "to": conn.target,
-                "color": {"color": COLORS.get(conn.type.value, "#7f8c8d"), "opacity": 0.7},
-                "arrows": "to",
-            })
-        
-        nodes_json = json.dumps(nodes)
-        edges_json = json.dumps(edges)
-        
-        return f"""
-        <div class="section">
-            <h2>🔗 System Graph</h2>
-            <div id="network" style="height: {self.config.graph_height}; background: #0f0f23; border-radius: 8px;"></div>
-        </div>
-        
-        <script>
-            var nodes = new vis.DataSet({nodes_json});
-            var edges = new vis.DataSet({edges_json});
-            
-            var container = document.getElementById('network');
-            var data = {{ nodes: nodes, edges: edges }};
-            
-            var options = {{
-                nodes: {{
-                    font: {{ size: 10, color: '#ecf0f1' }},
-                    borderWidth: 2,
-                    shadow: true
-                }},
-                edges: {{
-                    smooth: {{ type: 'continuous' }},
-                    shadow: true
-                }},
-                physics: {{
-                    barnesHut: {{
-                        gravitationalConstant: -3000,
-                        springLength: 100
-                    }},
-                    stabilization: {{ iterations: 100 }}
-                }},
-                interaction: {{
-                    hover: true,
-                    navigationButtons: true
-                }}
-            }};
-            
-            var network = new vis.Network(container, data, options);
-        </script>
-        """
-
-    def _generate_criticality_section(
-        self,
-        criticality: Dict[str, Dict],
-        stats: Dict,
-    ) -> str:
-        """Generate criticality analysis section"""
-        dist = stats["criticality_distribution"]
-        
-        # Top critical components
-        sorted_crit = sorted(
-            criticality.items(),
-            key=lambda x: x[1].get("score", 0),
-            reverse=True
-        )[:10]
-        
-        top_rows = "\n".join([
-            f"""<tr>
-                <td>{comp}</td>
-                <td>{crit.get('score', 0):.4f}</td>
-                <td><span class="badge badge-{crit.get('level', 'minimal')}">{crit.get('level', 'minimal')}</span></td>
-            </tr>"""
-            for comp, crit in sorted_crit
-        ])
-        
-        return f"""
-        <div class="section">
-            <h2>⚠️ Criticality Analysis</h2>
-            
-            <div class="charts-row">
-                <div class="chart-container">
-                    <h3>Criticality Distribution</h3>
-                    <canvas id="critChart"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3>Top Critical Components</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Component</th><th>Score</th><th>Level</th></tr>
-                        </thead>
-                        <tbody>
-                            {top_rows}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        
-        <script>
-            new Chart(document.getElementById('critChart'), {{
-                type: 'bar',
-                data: {{
-                    labels: ['Critical', 'High', 'Medium', 'Low', 'Minimal'],
-                    datasets: [{{
-                        label: 'Components',
-                        data: [{dist['critical']}, {dist['high']}, {dist['medium']}, 
-                               {dist['low']}, {dist['minimal']}],
-                        backgroundColor: ['{COLORS["critical"]}', '{COLORS["high"]}', 
-                                          '{COLORS["medium"]}', '{COLORS["low"]}', '{COLORS["minimal"]}']
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    plugins: {{
-                        legend: {{ display: false }}
-                    }},
-                    scales: {{
-                        x: {{ ticks: {{ color: '#ecf0f1' }}, grid: {{ color: '#333' }} }},
-                        y: {{ ticks: {{ color: '#ecf0f1' }}, grid: {{ color: '#333' }} }}
-                    }}
-                }}
-            }});
-        </script>
-        """
-
-    def _generate_validation_section(self, validation: Dict) -> str:
-        """Generate validation results section"""
-        # Extract metrics
-        corr = validation.get("correlation", {})
-        cls = validation.get("classification", {})
-        rank = validation.get("ranking", {})
-        status = validation.get("status", "unknown")
-        
-        spearman = corr.get("spearman", {}).get("coefficient", 0)
-        f1 = cls.get("f1", 0)
-        precision = cls.get("precision", 0)
-        recall = cls.get("recall", 0)
-        
-        # Status color
-        status_color = "#27ae60" if status == "passed" else "#e67e22" if status == "partial" else "#e74c3c"
-        
-        # Top-k overlap
-        top_k = rank.get("top_k_overlap", {})
-        
-        return f"""
-        <div class="section">
-            <h2>✓ Validation Results</h2>
-            
-            <div class="status-banner" style="background: {status_color}20; border-left: 4px solid {status_color};">
-                <strong>Status:</strong> {status.upper()}
-            </div>
-            
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-value">{spearman:.4f}</div>
-                    <div class="metric-label">Spearman ρ</div>
-                    <div class="metric-target">Target: ≥0.70</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{f1:.4f}</div>
-                    <div class="metric-label">F1-Score</div>
-                    <div class="metric-target">Target: ≥0.90</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{precision:.4f}</div>
-                    <div class="metric-label">Precision</div>
-                    <div class="metric-target">Target: ≥0.80</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{recall:.4f}</div>
-                    <div class="metric-label">Recall</div>
-                    <div class="metric-target">Target: ≥0.80</div>
-                </div>
-            </div>
-            
-            <div class="charts-row">
-                <div class="chart-container">
-                    <h3>Metrics vs Targets</h3>
-                    <canvas id="validationChart"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3>Confusion Matrix</h3>
-                    <div class="confusion-matrix">
-                        <div class="cm-row">
-                            <div class="cm-cell cm-header"></div>
-                            <div class="cm-cell cm-header">Pred +</div>
-                            <div class="cm-cell cm-header">Pred -</div>
-                        </div>
-                        <div class="cm-row">
-                            <div class="cm-cell cm-header">Actual +</div>
-                            <div class="cm-cell cm-tp">{cls.get('matrix', {}).get('tp', 0)}</div>
-                            <div class="cm-cell cm-fn">{cls.get('matrix', {}).get('fn', 0)}</div>
-                        </div>
-                        <div class="cm-row">
-                            <div class="cm-cell cm-header">Actual -</div>
-                            <div class="cm-cell cm-fp">{cls.get('matrix', {}).get('fp', 0)}</div>
-                            <div class="cm-cell cm-tn">{cls.get('matrix', {}).get('tn', 0)}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <script>
-            new Chart(document.getElementById('validationChart'), {{
-                type: 'radar',
-                data: {{
-                    labels: ['Spearman', 'F1-Score', 'Precision', 'Recall', 'Top-5'],
-                    datasets: [
-                        {{
-                            label: 'Achieved',
-                            data: [{spearman}, {f1}, {precision}, {recall}, {top_k.get('5', 0)}],
-                            backgroundColor: 'rgba(52, 152, 219, 0.2)',
-                            borderColor: '#3498db',
-                            pointBackgroundColor: '#3498db'
-                        }},
-                        {{
-                            label: 'Target',
-                            data: [0.70, 0.90, 0.80, 0.80, 0.60],
-                            backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                            borderColor: '#2ecc71',
-                            borderDash: [5, 5],
-                            pointBackgroundColor: '#2ecc71'
-                        }}
-                    ]
-                }},
-                options: {{
-                    responsive: true,
-                    scales: {{
-                        r: {{
-                            min: 0,
-                            max: 1,
-                            ticks: {{ color: '#ecf0f1' }},
-                            grid: {{ color: '#444' }},
-                            pointLabels: {{ color: '#ecf0f1' }}
-                        }}
-                    }},
-                    plugins: {{
-                        legend: {{ labels: {{ color: '#ecf0f1' }} }}
-                    }}
-                }}
-            }});
-        </script>
-        """
-
-    def _generate_simulation_section(self, simulation: Dict) -> str:
-        """Generate simulation results section"""
-        # Extract metrics
-        messages = simulation.get("messages", {})
-        latency = simulation.get("latency", {})
-        failures = simulation.get("failures", {})
-        
-        published = messages.get("published", 0)
-        delivered = messages.get("delivered", 0)
-        failed = messages.get("failed", 0)
-        delivery_rate = messages.get("delivery_rate", 0)
-        
-        avg_latency = latency.get("avg_ms", 0)
-        p99_latency = latency.get("p99_ms", 0)
-        
-        return f"""
-        <div class="section">
-            <h2>🔄 Simulation Results</h2>
-            
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-value">{published}</div>
-                    <div class="metric-label">Messages Published</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{delivered}</div>
-                    <div class="metric-label">Messages Delivered</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{delivery_rate:.1%}</div>
-                    <div class="metric-label">Delivery Rate</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">{avg_latency:.2f}ms</div>
-                    <div class="metric-label">Avg Latency</div>
-                </div>
-            </div>
-            
-            <div class="charts-row">
-                <div class="chart-container">
-                    <h3>Message Delivery</h3>
-                    <canvas id="msgChart"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3>Latency Distribution</h3>
-                    <canvas id="latencyChart"></canvas>
-                </div>
-            </div>
-        </div>
-        
-        <script>
-            new Chart(document.getElementById('msgChart'), {{
-                type: 'pie',
-                data: {{
-                    labels: ['Delivered', 'Failed', 'Timeout'],
-                    datasets: [{{
-                        data: [{delivered}, {failed}, {messages.get('timeout', 0)}],
-                        backgroundColor: ['#27ae60', '#e74c3c', '#f39c12']
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    plugins: {{
-                        legend: {{ position: 'bottom', labels: {{ color: '#ecf0f1' }} }}
-                    }}
-                }}
-            }});
-            
-            new Chart(document.getElementById('latencyChart'), {{
-                type: 'bar',
-                data: {{
-                    labels: ['Min', 'Avg', 'P99', 'Max'],
-                    datasets: [{{
-                        label: 'Latency (ms)',
-                        data: [{latency.get('min_ms', 0):.2f}, {avg_latency:.2f}, 
-                               {p99_latency:.2f}, {latency.get('max_ms', 0):.2f}],
-                        backgroundColor: '#9b59b6'
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    plugins: {{
-                        legend: {{ display: false }}
-                    }},
-                    scales: {{
-                        x: {{ ticks: {{ color: '#ecf0f1' }}, grid: {{ color: '#333' }} }},
-                        y: {{ ticks: {{ color: '#ecf0f1' }}, grid: {{ color: '#333' }} }}
-                    }}
-                }}
-            }});
-        </script>
-        """
-
-    def _generate_analysis_section(self, analysis: Dict) -> str:
-        """Generate analysis results section"""
-        # Extract top components by different metrics
-        composite = analysis.get("composite", {})
-        betweenness = analysis.get("betweenness", {})
-        
-        # Sort and take top 10
-        top_composite = sorted(composite.items(), key=lambda x: -x[1])[:10]
-        
-        rows = "\n".join([
-            f"<tr><td>{comp}</td><td>{score:.4f}</td></tr>"
-            for comp, score in top_composite
-        ])
-        
-        return f"""
-        <div class="section">
-            <h2>📈 Centrality Analysis</h2>
-            
-            <div class="charts-row">
-                <div class="chart-container">
-                    <h3>Top Components by Composite Score</h3>
-                    <canvas id="compositeChart"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h3>Centrality Rankings</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Component</th><th>Composite Score</th></tr>
-                        </thead>
-                        <tbody>
-                            {rows}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        
-        <script>
-            new Chart(document.getElementById('compositeChart'), {{
-                type: 'bar',
-                data: {{
-                    labels: {json.dumps([c for c, _ in top_composite])},
-                    datasets: [{{
-                        label: 'Composite Score',
-                        data: {json.dumps([s for _, s in top_composite])},
-                        backgroundColor: '#3498db'
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    indexAxis: 'y',
-                    plugins: {{
-                        legend: {{ display: false }}
-                    }},
-                    scales: {{
-                        x: {{ ticks: {{ color: '#ecf0f1' }}, grid: {{ color: '#333' }} }},
-                        y: {{ ticks: {{ color: '#ecf0f1' }}, grid: {{ color: '#333' }} }}
-                    }}
-                }}
-            }});
-        </script>
-        """
-
-    def _generate_html(self, sections: List[str], stats: Dict) -> str:
-        """Generate complete HTML document"""
-        sections_html = "\n".join(sections)
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        bg_color = "#1a1a2e" if self.config.theme == "dark" else "#f5f6fa"
-        text_color = "#ecf0f1" if self.config.theme == "dark" else "#2c3e50"
-        card_bg = "#16213e" if self.config.theme == "dark" else "#ffffff"
-        
-        return f"""<!DOCTYPE html>
+HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{self.config.title}</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <title>{title}</title>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        
         body {{
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: {bg_color};
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: {bg_color};
             color: {text_color};
             line-height: 1.6;
         }}
-        
-        #header {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .container {{ max-width: 1400px; margin: 0 auto; padding: 20px; }}
+        header {{
+            background: linear-gradient(135deg, {primary_color}, #2980b9);
             color: white;
-            padding: 25px 30px;
-            text-align: center;
-        }}
-        
-        #header h1 {{
-            font-size: 1.8em;
-            margin-bottom: 5px;
-        }}
-        
-        #header p {{
-            opacity: 0.9;
-            font-size: 0.95em;
-        }}
-        
-        .container {{
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }}
-        
-        .section {{
-            background: {card_bg};
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-        }}
-        
-        .section h2 {{
-            font-size: 1.3em;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
-        }}
-        
-        .section h3 {{
-            font-size: 1.1em;
-            margin-bottom: 15px;
-            color: #667eea;
-        }}
-        
-        .metrics-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }}
-        
-        .metric-card {{
-            background: rgba(102, 126, 234, 0.1);
+            padding: 30px 20px;
+            margin-bottom: 30px;
             border-radius: 8px;
-            padding: 20px;
-            text-align: center;
         }}
-        
-        .metric-value {{
-            font-size: 2em;
-            font-weight: bold;
-            color: #667eea;
-        }}
-        
-        .metric-label {{
-            font-size: 0.9em;
-            opacity: 0.8;
-            margin-top: 5px;
-        }}
-        
-        .metric-target {{
-            font-size: 0.75em;
-            opacity: 0.6;
-            margin-top: 3px;
-        }}
-        
-        .charts-row {{
+        header h1 {{ font-size: 2em; margin-bottom: 10px; }}
+        header .meta {{ opacity: 0.9; font-size: 0.9em; }}
+        .grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             gap: 20px;
+            margin-bottom: 30px;
         }}
-        
-        .chart-container {{
-            background: rgba(0,0,0,0.2);
+        .card {{
+            background: {card_bg};
             border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }}
+        .card-header {{
+            background: {primary_color};
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+        }}
+        .card-body {{ padding: 20px; }}
+        .card-body img {{ max-width: 100%; height: auto; }}
+        .stats-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }}
+        .stat-box {{
+            background: {bg_color};
             padding: 20px;
+            border-radius: 8px;
+            text-align: center;
         }}
-        
-        .chart-container canvas {{
-            max-height: 300px;
+        .stat-value {{
+            font-size: 2em;
+            font-weight: bold;
+            color: {primary_color};
         }}
-        
-        .data-table {{
+        .stat-label {{ color: #666; font-size: 0.9em; }}
+        .status-passed {{ color: {success_color}; }}
+        .status-partial {{ color: {warning_color}; }}
+        .status-failed {{ color: {danger_color}; }}
+        table {{
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9em;
+            margin: 10px 0;
         }}
-        
-        .data-table th,
-        .data-table td {{
-            padding: 10px 12px;
+        th, td {{
+            padding: 12px;
             text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid #eee;
         }}
-        
-        .data-table th {{
-            background: rgba(102, 126, 234, 0.2);
-            font-weight: 600;
-        }}
-        
-        .data-table tr:hover {{
-            background: rgba(102, 126, 234, 0.1);
-        }}
-        
+        th {{ background: {bg_color}; font-weight: 600; }}
         .badge {{
             display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: 600;
-            text-transform: uppercase;
-        }}
-        
-        .badge-critical {{ background: {COLORS['critical']}; color: white; }}
-        .badge-high {{ background: {COLORS['high']}; color: white; }}
-        .badge-medium {{ background: {COLORS['medium']}; color: black; }}
-        .badge-low {{ background: {COLORS['low']}; color: white; }}
-        .badge-minimal {{ background: {COLORS['minimal']}; color: white; }}
-        
-        .status-banner {{
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 1.1em;
-        }}
-        
-        .confusion-matrix {{
-            display: inline-block;
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            padding: 15px;
-        }}
-        
-        .cm-row {{
-            display: flex;
-        }}
-        
-        .cm-cell {{
-            width: 80px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            border: 1px solid rgba(255,255,255,0.1);
-        }}
-        
-        .cm-header {{
-            background: rgba(102, 126, 234, 0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
             font-size: 0.85em;
+            font-weight: 500;
         }}
-        
-        .cm-tp {{ background: rgba(39, 174, 96, 0.3); }}
-        .cm-tn {{ background: rgba(39, 174, 96, 0.2); }}
-        .cm-fp {{ background: rgba(231, 76, 60, 0.3); }}
-        .cm-fn {{ background: rgba(231, 76, 60, 0.2); }}
-        
-        #footer {{
+        .badge-success {{ background: {success_color}; color: white; }}
+        .badge-warning {{ background: {warning_color}; color: white; }}
+        .badge-danger {{ background: {danger_color}; color: white; }}
+        .full-width {{ grid-column: 1 / -1; }}
+        footer {{
             text-align: center;
             padding: 20px;
-            opacity: 0.6;
-            font-size: 0.85em;
-        }}
-        
-        @media (max-width: 768px) {{
-            .charts-row {{
-                grid-template-columns: 1fr;
-            }}
-            
-            .metrics-grid {{
-                grid-template-columns: repeat(2, 1fr);
-            }}
+            color: #666;
+            font-size: 0.9em;
         }}
     </style>
 </head>
 <body>
-    <div id="header">
-        <h1>{self.config.title}</h1>
-        <p>Generated: {timestamp} • {stats['n_components']} components • {stats['n_connections']} connections</p>
-    </div>
-    
     <div class="container">
-        {sections_html}
-    </div>
-    
-    <div id="footer">
-        Software-as-a-Graph Research Project • Graph-Based Modeling and Analysis of Distributed Pub-Sub Systems
+        {content}
+        <footer>
+            Generated by Software-as-a-Graph Visualization Module
+            {timestamp}
+        </footer>
     </div>
 </body>
-</html>"""
+</html>
+"""
+
+
+# =============================================================================
+# Dashboard Builder
+# =============================================================================
+
+class DashboardBuilder:
+    """Builds HTML dashboard content."""
+    
+    def __init__(self, config: Optional[DashboardConfig] = None):
+        self.config = config or DashboardConfig()
+        self._sections: List[str] = []
+    
+    def add_header(self, title: str, subtitle: str = "") -> DashboardBuilder:
+        """Add dashboard header."""
+        meta = f'<div class="meta">{html.escape(subtitle)}</div>' if subtitle else ""
+        self._sections.append(f"""
+        <header>
+            <h1>{html.escape(title)}</h1>
+            {meta}
+        </header>
+        """)
+        return self
+    
+    def add_stats_row(self, stats: Dict[str, Any], title: str = "") -> DashboardBuilder:
+        """Add a row of stat boxes."""
+        boxes = []
+        for label, value in stats.items():
+            if isinstance(value, float):
+                formatted = f"{value:.4f}" if value < 10 else f"{value:.2f}"
+            else:
+                formatted = str(value)
+            
+            # Check for status colors
+            css_class = ""
+            if isinstance(value, str):
+                if value.upper() == "PASSED":
+                    css_class = "status-passed"
+                elif value.upper() == "PARTIAL":
+                    css_class = "status-partial"
+                elif value.upper() == "FAILED":
+                    css_class = "status-failed"
+            
+            boxes.append(f"""
+            <div class="stat-box">
+                <div class="stat-value {css_class}">{formatted}</div>
+                <div class="stat-label">{html.escape(label)}</div>
+            </div>
+            """)
+        
+        header = f'<div class="card-header">{html.escape(title)}</div>' if title else ""
+        self._sections.append(f"""
+        <div class="card full-width">
+            {header}
+            <div class="card-body">
+                <div class="stats-grid">
+                    {''.join(boxes)}
+                </div>
+            </div>
+        </div>
+        """)
+        return self
+    
+    def add_chart(self, chart: ChartOutput, full_width: bool = False) -> DashboardBuilder:
+        """Add a chart card."""
+        width_class = "full-width" if full_width else ""
+        self._sections.append(f"""
+        <div class="card {width_class}">
+            <div class="card-header">{html.escape(chart.title)}</div>
+            <div class="card-body">
+                {chart.to_html_img()}
+            </div>
+        </div>
+        """)
+        return self
+    
+    def add_table(
+        self,
+        headers: List[str],
+        rows: List[List[Any]],
+        title: str = "",
+        full_width: bool = False,
+    ) -> DashboardBuilder:
+        """Add a data table."""
+        header_html = "".join(f"<th>{html.escape(str(h))}</th>" for h in headers)
+        
+        row_html = []
+        for row in rows:
+            cells = []
+            for cell in row:
+                # Format cell
+                if isinstance(cell, float):
+                    formatted = f"{cell:.4f}"
+                elif isinstance(cell, bool):
+                    badge_class = "badge-success" if cell else "badge-danger"
+                    badge_text = "Yes" if cell else "No"
+                    formatted = f'<span class="badge {badge_class}">{badge_text}</span>'
+                elif isinstance(cell, str) and cell.upper() in ["PASSED", "PARTIAL", "FAILED"]:
+                    badge_map = {
+                        "PASSED": "badge-success",
+                        "PARTIAL": "badge-warning",
+                        "FAILED": "badge-danger",
+                    }
+                    formatted = f'<span class="badge {badge_map[cell.upper()]}">{cell}</span>'
+                else:
+                    formatted = html.escape(str(cell))
+                cells.append(f"<td>{formatted}</td>")
+            row_html.append(f"<tr>{''.join(cells)}</tr>")
+        
+        width_class = "full-width" if full_width else ""
+        card_header = f'<div class="card-header">{html.escape(title)}</div>' if title else ""
+        
+        self._sections.append(f"""
+        <div class="card {width_class}">
+            {card_header}
+            <div class="card-body">
+                <table>
+                    <thead><tr>{header_html}</tr></thead>
+                    <tbody>{''.join(row_html)}</tbody>
+                </table>
+            </div>
+        </div>
+        """)
+        return self
+    
+    def start_grid(self) -> DashboardBuilder:
+        """Start a grid layout."""
+        self._sections.append('<div class="grid">')
+        return self
+    
+    def end_grid(self) -> DashboardBuilder:
+        """End a grid layout."""
+        self._sections.append('</div>')
+        return self
+    
+    def add_section_title(self, title: str) -> DashboardBuilder:
+        """Add a section title."""
+        self._sections.append(f"""
+        <div class="full-width" style="margin: 30px 0 15px 0;">
+            <h2 style="color: {self.config.primary_color}; border-bottom: 2px solid {self.config.primary_color}; padding-bottom: 10px;">
+                {html.escape(title)}
+            </h2>
+        </div>
+        """)
+        return self
+    
+    def build(self) -> str:
+        """Build the complete HTML."""
+        timestamp = ""
+        if self.config.include_timestamp:
+            timestamp = f"| {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        return HTML_TEMPLATE.format(
+            title=self.config.title,
+            bg_color=self.config.bg_color,
+            card_bg=self.config.card_bg,
+            text_color=self.config.text_color,
+            primary_color=self.config.primary_color,
+            success_color=self.config.success_color,
+            warning_color=self.config.warning_color,
+            danger_color=self.config.danger_color,
+            content="\n".join(self._sections),
+            timestamp=timestamp,
+        )
+
+
+# =============================================================================
+# Dashboard Generators
+# =============================================================================
+
+def generate_graph_dashboard(
+    graph,  # SimulationGraph
+    title: str = "Graph Model Dashboard",
+    config: Optional[DashboardConfig] = None,
+) -> str:
+    """
+    Generate dashboard for graph model statistics.
+    
+    Args:
+        graph: SimulationGraph instance
+        title: Dashboard title
+        config: Dashboard configuration
+    
+    Returns:
+        HTML string
+    """
+    config = config or DashboardConfig(title=title)
+    builder = DashboardBuilder(config)
+    
+    summary = graph.summary()
+    
+    # Header
+    builder.add_header(title, f"Graph Model Analysis")
+    
+    # Stats row
+    builder.add_stats_row({
+        "Total Components": summary['total_components'],
+        "Total Edges": summary['total_edges'],
+        "Message Paths": summary['message_paths'],
+    }, "Overview")
+    
+    builder.start_grid()
+    
+    # Component distribution chart
+    if check_matplotlib_available():
+        comp_chart = chart_component_distribution(
+            summary.get('by_type', {}),
+            "Components by Type",
+            config.chart_config,
+        )
+        builder.add_chart(comp_chart)
+        
+        edge_chart = chart_edge_distribution(
+            summary.get('by_edge_type', {}),
+            "Edges by Type",
+            config.chart_config,
+        )
+        builder.add_chart(edge_chart)
+    
+    # Component table
+    if summary.get('by_type'):
+        builder.add_table(
+            headers=["Component Type", "Count"],
+            rows=[[t, c] for t, c in summary['by_type'].items()],
+            title="Component Breakdown",
+        )
+    
+    # Edge table
+    if summary.get('by_edge_type'):
+        builder.add_table(
+            headers=["Edge Type", "Count"],
+            rows=[[t, c] for t, c in summary['by_edge_type'].items()],
+            title="Edge Breakdown",
+        )
+    
+    builder.end_grid()
+    
+    return builder.build()
+
+
+def generate_simulation_dashboard(
+    graph,  # SimulationGraph
+    campaign_result,  # CampaignResult
+    title: str = "Simulation Results Dashboard",
+    config: Optional[DashboardConfig] = None,
+) -> str:
+    """
+    Generate dashboard for simulation results.
+    
+    Args:
+        graph: SimulationGraph instance
+        campaign_result: CampaignResult from failure simulation
+        title: Dashboard title
+        config: Dashboard configuration
+    
+    Returns:
+        HTML string
+    """
+    config = config or DashboardConfig(title=title)
+    builder = DashboardBuilder(config)
+    
+    # Calculate avg/max impact from results
+    impacts = [r.impact_score for r in campaign_result.results]
+    avg_impact = sum(impacts) / len(impacts) if impacts else 0
+    max_impact = max(impacts) if impacts else 0
+    
+    # Header
+    builder.add_header(title, f"Failure Simulation Analysis")
+    
+    # Stats row
+    builder.add_stats_row({
+        "Total Simulations": campaign_result.total_simulations,
+        "Critical Components": len(campaign_result.get_critical()),
+        "Avg Impact": avg_impact,
+        "Max Impact": max_impact,
+        "Duration (ms)": f"{campaign_result.duration_ms:.0f}",
+    }, "Simulation Summary")
+    
+    builder.start_grid()
+    
+    # Impact ranking chart
+    if check_matplotlib_available():
+        impacts_ranked = campaign_result.ranked_by_impact()
+        impact_chart = chart_impact_ranking(
+            impacts_ranked, top_n=15,
+            title="Top 15 by Impact",
+            config=config.chart_config,
+        )
+        builder.add_chart(impact_chart)
+        
+        # Criticality distribution
+        type_summary = campaign_result.get_type_summary() if hasattr(campaign_result, 'get_type_summary') else {}
+        if type_summary:
+            crit_counts = {}
+            for comp_type, summary in type_summary.items():
+                crit_counts[comp_type] = summary.get('critical_count', 0)
+            
+            if any(crit_counts.values()):
+                crit_chart = chart_criticality_distribution(
+                    crit_counts,
+                    "Critical by Component Type",
+                    config.chart_config,
+                )
+                builder.add_chart(crit_chart)
+    
+    # Top impacts table
+    impacts_ranked = campaign_result.ranked_by_impact()[:15]
+    rows = []
+    for comp_id, impact in impacts_ranked:
+        comp = graph.get_component(comp_id)
+        comp_type = comp.type.value if comp else "Unknown"
+        critical = impact >= 0.3
+        rows.append([comp_id, comp_type, impact, critical])
+    
+    builder.add_table(
+        headers=["Component", "Type", "Impact", "Critical"],
+        rows=rows,
+        title="Impact Ranking",
+        full_width=True,
+    )
+    
+    # Layer results
+    if campaign_result.by_layer:
+        builder.add_section_title("Results by Layer")
+        
+        layer_rows = []
+        for layer_key, layer_result in sorted(campaign_result.by_layer.items()):
+            critical_count = len(layer_result.get_critical())
+            layer_rows.append([
+                layer_result.layer_name,
+                layer_result.count,
+                layer_result.avg_impact,
+                layer_result.max_impact,
+                critical_count,
+            ])
+        
+        builder.add_table(
+            headers=["Layer", "Count", "Avg Impact", "Max Impact", "Critical"],
+            rows=layer_rows,
+            title="Layer Summary",
+            full_width=True,
+        )
+    
+    builder.end_grid()
+    
+    return builder.build()
+
+
+def generate_validation_dashboard(
+    pipeline_result,  # PipelineResult
+    title: str = "Validation Results Dashboard",
+    config: Optional[DashboardConfig] = None,
+) -> str:
+    """
+    Generate dashboard for validation results.
+    
+    Args:
+        pipeline_result: PipelineResult from validation
+        title: Dashboard title
+        config: Dashboard configuration
+    
+    Returns:
+        HTML string
+    """
+    config = config or DashboardConfig(title=title)
+    builder = DashboardBuilder(config)
+    
+    result = pipeline_result.validation
+    
+    # Header
+    builder.add_header(title, f"Prediction vs Simulation Analysis")
+    
+    # Stats row
+    builder.add_stats_row({
+        "Status": result.status.value.upper(),
+        "Spearman ρ": result.spearman,
+        "F1-Score": result.f1_score,
+        "Precision": result.classification.precision,
+        "Recall": result.classification.recall,
+    }, "Validation Summary")
+    
+    builder.start_grid()
+    
+    # Charts
+    if check_matplotlib_available():
+        # Correlation metrics
+        corr_metrics = {
+            "Spearman": result.spearman,
+            "Pearson": result.correlation.pearson,
+            "Kendall": result.correlation.kendall,
+        }
+        targets = {"Spearman": 0.7, "Pearson": 0.65, "Kendall": 0.6}
+        corr_chart = chart_correlation_comparison(
+            corr_metrics, targets,
+            "Correlation Metrics",
+            config.chart_config,
+        )
+        builder.add_chart(corr_chart)
+        
+        # Confusion matrix
+        cm = result.classification.confusion_matrix
+        cm_chart = chart_confusion_matrix(
+            cm.true_positives, cm.false_positives,
+            cm.false_negatives, cm.true_negatives,
+            "Confusion Matrix",
+            config.chart_config,
+        )
+        builder.add_chart(cm_chart)
+        
+        # Layer validation
+        if pipeline_result.by_layer:
+            layer_data = {}
+            for layer, lr in pipeline_result.by_layer.items():
+                layer_data[layer] = {
+                    'spearman': lr.spearman,
+                    'f1_score': lr.f1_score,
+                }
+            layer_chart = chart_layer_validation(
+                layer_data,
+                "Validation by Layer",
+                config.chart_config,
+            )
+            builder.add_chart(layer_chart, full_width=True)
+        
+        # Method comparison
+        if pipeline_result.method_comparison:
+            method_data = {}
+            for method, comp in pipeline_result.method_comparison.items():
+                method_data[method] = {
+                    'spearman': comp.spearman,
+                    'f1_score': comp.f1_score,
+                }
+            method_chart = chart_method_comparison(
+                method_data,
+                "Method Comparison",
+                config.chart_config,
+            )
+            builder.add_chart(method_chart, full_width=True)
+    
+    # Layer results table
+    if pipeline_result.by_layer:
+        layer_rows = []
+        for layer, lr in sorted(pipeline_result.by_layer.items()):
+            status = "PASSED" if lr.passed else "FAILED"
+            layer_rows.append([layer, lr.spearman, lr.f1_score, lr.count, status])
+        
+        builder.add_table(
+            headers=["Layer", "Spearman ρ", "F1-Score", "Samples", "Status"],
+            rows=layer_rows,
+            title="Layer Results",
+            full_width=True,
+        )
+    
+    # Method comparison table
+    if pipeline_result.method_comparison:
+        method_rows = []
+        for method, comp in sorted(pipeline_result.method_comparison.items()):
+            method_rows.append([
+                method,
+                comp.spearman,
+                comp.f1_score,
+                comp.status.value.upper(),
+            ])
+        
+        builder.add_table(
+            headers=["Method", "Spearman ρ", "F1-Score", "Status"],
+            rows=method_rows,
+            title="Method Comparison",
+        )
+    
+    # Timing
+    builder.add_table(
+        headers=["Phase", "Duration (ms)"],
+        rows=[
+            ["Analysis", pipeline_result.analysis_time_ms],
+            ["Simulation", pipeline_result.simulation_time_ms],
+            ["Validation", pipeline_result.validation_time_ms],
+            ["Total", pipeline_result.analysis_time_ms + pipeline_result.simulation_time_ms + pipeline_result.validation_time_ms],
+        ],
+        title="Timing",
+    )
+    
+    builder.end_grid()
+    
+    return builder.build()
+
+
+def generate_overview_dashboard(
+    graph,  # SimulationGraph
+    campaign_result=None,  # Optional CampaignResult
+    validation_result=None,  # Optional PipelineResult
+    title: str = "System Overview Dashboard",
+    config: Optional[DashboardConfig] = None,
+) -> str:
+    """
+    Generate combined overview dashboard.
+    
+    Args:
+        graph: SimulationGraph instance
+        campaign_result: Optional CampaignResult
+        validation_result: Optional PipelineResult
+        title: Dashboard title
+        config: Dashboard configuration
+    
+    Returns:
+        HTML string
+    """
+    config = config or DashboardConfig(title=title)
+    builder = DashboardBuilder(config)
+    
+    summary = graph.summary()
+    
+    # Header
+    builder.add_header(title, "Multi-Layer Graph Analysis Overview")
+    
+    # Overview stats
+    stats = {
+        "Components": summary['total_components'],
+        "Edges": summary['total_edges'],
+        "Message Paths": summary['message_paths'],
+    }
+    
+    if campaign_result:
+        impacts = [r.impact_score for r in campaign_result.results]
+        max_impact = max(impacts) if impacts else 0
+        stats["Critical"] = len(campaign_result.get_critical())
+        stats["Max Impact"] = max_impact
+    
+    if validation_result:
+        stats["Status"] = validation_result.validation.status.value.upper()
+        stats["Spearman ρ"] = validation_result.spearman
+    
+    builder.add_stats_row(stats, "System Overview")
+    
+    # Graph section
+    builder.add_section_title("Graph Model")
+    builder.start_grid()
+    
+    if check_matplotlib_available():
+        comp_chart = chart_component_distribution(
+            summary.get('by_type', {}),
+            "Components by Type",
+            config.chart_config,
+        )
+        builder.add_chart(comp_chart)
+        
+        edge_chart = chart_edge_distribution(
+            summary.get('by_edge_type', {}),
+            "Edges by Type",
+            config.chart_config,
+        )
+        builder.add_chart(edge_chart)
+    
+    builder.end_grid()
+    
+    # Simulation section
+    if campaign_result:
+        builder.add_section_title("Failure Simulation")
+        builder.start_grid()
+        
+        if check_matplotlib_available():
+            impacts = campaign_result.ranked_by_impact()
+            impact_chart = chart_impact_ranking(
+                impacts, top_n=10,
+                title="Top 10 by Impact",
+                config=config.chart_config,
+            )
+            builder.add_chart(impact_chart)
+        
+        # Quick table
+        impacts = campaign_result.ranked_by_impact()[:10]
+        rows = [[comp_id, f"{impact:.4f}"] for comp_id, impact in impacts]
+        builder.add_table(
+            headers=["Component", "Impact"],
+            rows=rows,
+            title="Impact Ranking",
+        )
+        
+        builder.end_grid()
+    
+    # Validation section
+    if validation_result:
+        builder.add_section_title("Validation Results")
+        builder.start_grid()
+        
+        result = validation_result.validation
+        
+        if check_matplotlib_available():
+            corr_metrics = {
+                "Spearman": result.spearman,
+                "F1-Score": result.f1_score,
+            }
+            targets = {"Spearman": 0.7, "F1-Score": 0.9}
+            corr_chart = chart_correlation_comparison(
+                corr_metrics, targets,
+                "Key Metrics",
+                config.chart_config,
+            )
+            builder.add_chart(corr_chart)
+            
+            cm = result.classification.confusion_matrix
+            cm_chart = chart_confusion_matrix(
+                cm.true_positives, cm.false_positives,
+                cm.false_negatives, cm.true_negatives,
+                "Confusion Matrix",
+                config.chart_config,
+            )
+            builder.add_chart(cm_chart)
+        
+        builder.end_grid()
+    
+    return builder.build()
