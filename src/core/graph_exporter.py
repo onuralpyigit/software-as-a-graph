@@ -89,6 +89,7 @@ class EdgeData:
     source_type: str
     target_type: str
     dependency_type: str
+    relation_type: str
     weight: float = 1.0
     properties: Dict[str, Any] = field(default_factory=dict)
     
@@ -99,6 +100,7 @@ class EdgeData:
             "source_type": self.source_type,
             "target_type": self.target_type,
             "dependency_type": self.dependency_type,
+            "relation_type": self.relation_type,
             "weight": self.weight,
             **self.properties,
         }
@@ -347,6 +349,7 @@ class GraphExporter:
                     source_type=record["source_type"],
                     target_type=record["target_type"],
                     dependency_type=record["dependency_type"],
+                    relation_type="DEPENDS_ON",
                     weight=float(record["weight"]),
                     properties=props,
                 ))
@@ -512,6 +515,7 @@ class GraphExporter:
                     source_type=record["source_type"],
                     target_type=record["target_type"],
                     dependency_type=record["dependency_type"],
+                    relation_type="DEPENDS_ON",
                     weight=float(record["weight"]),
                     properties=props,
                 ))
@@ -557,6 +561,7 @@ class GraphExporter:
                 edges.append(EdgeData(
                     source_id=s_id, target_id=t_id,
                     source_type=s_type, target_type=t_type,
+                    dependency_type=r.get("dependency_type", "unknown"),
                     relation_type=r.type, weight=weight, properties=props
                 ))
             return edges
