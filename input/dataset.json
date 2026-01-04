@@ -1,112 +1,50 @@
 {
   "metadata": {
-    "scale": "small",
-    "scenario": "generic",
-    "seed": 42
+    "scale": "{'apps': 15, 'topics': 10, 'brokers': 2, 'nodes': 4}"
   },
   "nodes": [
     {
       "id": "N0",
-      "name": "Node 0"
+      "name": "Node-0"
     },
     {
       "id": "N1",
-      "name": "Node 1"
+      "name": "Node-1"
     },
     {
       "id": "N2",
-      "name": "Node 2"
+      "name": "Node-2"
     },
     {
       "id": "N3",
-      "name": "Node 3"
+      "name": "Node-3"
     }
   ],
   "brokers": [
     {
       "id": "B0",
-      "name": "Broker 0"
+      "name": "Broker-0"
     },
     {
       "id": "B1",
-      "name": "Broker 1"
+      "name": "Broker-1"
     }
   ],
   "topics": [
     {
       "id": "T0",
-      "name": "/data/data_0",
-      "size": 65536,
+      "name": "Topic-0",
+      "size": 6138,
       "qos": {
-        "durability": "TRANSIENT",
-        "reliability": "RELIABLE",
+        "durability": "PERSISTENT",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "LOW"
       }
     },
     {
       "id": "T1",
-      "name": "/data/data_1",
-      "size": 512,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
-      }
-    },
-    {
-      "id": "T2",
-      "name": "/events/events_2",
-      "size": 65536,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T3",
-      "name": "/status/status_3",
-      "size": 256,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "RELIABLE",
-        "transport_priority": "LOW"
-      }
-    },
-    {
-      "id": "T4",
-      "name": "/status/status_4",
-      "size": 128,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T5",
-      "name": "/data/data_5",
-      "size": 64,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T6",
-      "name": "/status/status_6",
-      "size": 1024,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "URGENT"
-      }
-    },
-    {
-      "id": "T7",
-      "name": "/commands/commands_7",
-      "size": 1024,
+      "name": "Topic-1",
+      "size": 1207,
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "BEST_EFFORT",
@@ -114,9 +52,69 @@
       }
     },
     {
+      "id": "T2",
+      "name": "Topic-2",
+      "size": 4901,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T3",
+      "name": "Topic-3",
+      "size": 831,
+      "qos": {
+        "durability": "TRANSIENT",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T4",
+      "name": "Topic-4",
+      "size": 4661,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T5",
+      "name": "Topic-5",
+      "size": 3743,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
+      }
+    },
+    {
+      "id": "T6",
+      "name": "Topic-6",
+      "size": 6280,
+      "qos": {
+        "durability": "PERSISTENT",
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T7",
+      "name": "Topic-7",
+      "size": 2340,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
       "id": "T8",
-      "name": "/data/data_8",
-      "size": 65536,
+      "name": "Topic-8",
+      "size": 901,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
@@ -125,188 +123,113 @@
     },
     {
       "id": "T9",
-      "name": "/commands/commands_9",
-      "size": 32768,
+      "name": "Topic-9",
+      "size": 3004,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
         "transport_priority": "LOW"
-      }
-    },
-    {
-      "id": "T10",
-      "name": "/events/events_10",
-      "size": 65536,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T11",
-      "name": "/events/events_11",
-      "size": 64,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T12",
-      "name": "/commands/commands_12",
-      "size": 2048,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "URGENT"
-      }
-    },
-    {
-      "id": "T13",
-      "name": "/events/events_13",
-      "size": 256,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
-      }
-    },
-    {
-      "id": "T14",
-      "name": "/commands/commands_14",
-      "size": 4096,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "RELIABLE",
-        "transport_priority": "URGENT"
-      }
-    },
-    {
-      "id": "T15",
-      "name": "/status/status_15",
-      "size": 128,
-      "qos": {
-        "durability": "TRANSIENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
-      }
-    },
-    {
-      "id": "T16",
-      "name": "/data/data_16",
-      "size": 65536,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T17",
-      "name": "/status/status_17",
-      "size": 16384,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
-      }
-    },
-    {
-      "id": "T18",
-      "name": "/commands/commands_18",
-      "size": 65536,
-      "qos": {
-        "durability": "TRANSIENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
-      }
-    },
-    {
-      "id": "T19",
-      "name": "/commands/commands_19",
-      "size": 8192,
-      "qos": {
-        "durability": "TRANSIENT",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
       }
     }
   ],
   "applications": [
     {
       "id": "A0",
-      "name": "service_0",
-      "role": "pubsub"
+      "name": "App-0",
+      "role": "sub"
     },
     {
       "id": "A1",
-      "name": "processor_1",
+      "name": "App-1",
       "role": "pubsub"
     },
     {
       "id": "A2",
-      "name": "worker_2",
-      "role": "pubsub"
+      "name": "App-2",
+      "role": "sub"
     },
     {
       "id": "A3",
-      "name": "service_3",
-      "role": "pubsub"
+      "name": "App-3",
+      "role": "pub"
     },
     {
       "id": "A4",
-      "name": "processor_4",
+      "name": "App-4",
       "role": "pubsub"
     },
     {
       "id": "A5",
-      "name": "worker_5",
-      "role": "pub"
+      "name": "App-5",
+      "role": "sub"
     },
     {
       "id": "A6",
-      "name": "processor_6",
-      "role": "pub"
-    },
-    {
-      "id": "A7",
-      "name": "service_7",
+      "name": "App-6",
       "role": "pubsub"
     },
     {
+      "id": "A7",
+      "name": "App-7",
+      "role": "pub"
+    },
+    {
       "id": "A8",
-      "name": "processor_8",
+      "name": "App-8",
       "role": "sub"
     },
     {
       "id": "A9",
-      "name": "service_9",
+      "name": "App-9",
       "role": "pub"
+    },
+    {
+      "id": "A10",
+      "name": "App-10",
+      "role": "pubsub"
+    },
+    {
+      "id": "A11",
+      "name": "App-11",
+      "role": "sub"
+    },
+    {
+      "id": "A12",
+      "name": "App-12",
+      "role": "pubsub"
+    },
+    {
+      "id": "A13",
+      "name": "App-13",
+      "role": "pubsub"
+    },
+    {
+      "id": "A14",
+      "name": "App-14",
+      "role": "sub"
     }
   ],
   "relationships": {
     "runs_on": [
       {
         "from": "A0",
-        "to": "N2"
+        "to": "N1"
       },
       {
         "from": "A1",
-        "to": "N2"
-      },
-      {
-        "from": "A2",
-        "to": "N1"
-      },
-      {
-        "from": "A3",
         "to": "N0"
       },
       {
-        "from": "A4",
+        "from": "A2",
+        "to": "N0"
+      },
+      {
+        "from": "A3",
         "to": "N1"
+      },
+      {
+        "from": "A4",
+        "to": "N2"
       },
       {
         "from": "A5",
@@ -314,19 +237,39 @@
       },
       {
         "from": "A6",
-        "to": "N0"
+        "to": "N1"
       },
       {
         "from": "A7",
-        "to": "N3"
-      },
-      {
-        "from": "A8",
         "to": "N0"
       },
       {
+        "from": "A8",
+        "to": "N3"
+      },
+      {
         "from": "A9",
+        "to": "N2"
+      },
+      {
+        "from": "A10",
+        "to": "N3"
+      },
+      {
+        "from": "A11",
+        "to": "N2"
+      },
+      {
+        "from": "A12",
         "to": "N1"
+      },
+      {
+        "from": "A13",
+        "to": "N2"
+      },
+      {
+        "from": "A14",
+        "to": "N2"
       },
       {
         "from": "B0",
@@ -334,12 +277,12 @@
       },
       {
         "from": "B1",
-        "to": "N3"
+        "to": "N2"
       }
     ],
     "routes": [
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T0"
       },
       {
@@ -347,27 +290,15 @@
         "to": "T1"
       },
       {
-        "from": "B1",
-        "to": "T1"
-      },
-      {
-        "from": "B1",
-        "to": "T2"
-      },
-      {
         "from": "B0",
         "to": "T2"
-      },
-      {
-        "from": "B1",
-        "to": "T3"
       },
       {
         "from": "B0",
         "to": "T3"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T4"
       },
       {
@@ -375,7 +306,7 @@
         "to": "T5"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T6"
       },
       {
@@ -383,232 +314,204 @@
         "to": "T7"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T8"
       },
       {
         "from": "B0",
         "to": "T9"
-      },
-      {
-        "from": "B1",
-        "to": "T10"
-      },
-      {
-        "from": "B0",
-        "to": "T11"
-      },
-      {
-        "from": "B1",
-        "to": "T12"
-      },
-      {
-        "from": "B0",
-        "to": "T12"
-      },
-      {
-        "from": "B1",
-        "to": "T13"
-      },
-      {
-        "from": "B1",
-        "to": "T14"
-      },
-      {
-        "from": "B0",
-        "to": "T15"
-      },
-      {
-        "from": "B1",
-        "to": "T15"
-      },
-      {
-        "from": "B1",
-        "to": "T16"
-      },
-      {
-        "from": "B1",
-        "to": "T17"
-      },
-      {
-        "from": "B0",
-        "to": "T17"
-      },
-      {
-        "from": "B0",
-        "to": "T18"
-      },
-      {
-        "from": "B1",
-        "to": "T18"
-      },
-      {
-        "from": "B1",
-        "to": "T19"
       }
     ],
     "publishes_to": [
       {
-        "from": "A5",
+        "from": "A13",
         "to": "T0"
       },
       {
-        "from": "A1",
+        "from": "A6",
         "to": "T1"
       },
       {
-        "from": "A3",
+        "from": "A4",
+        "to": "T1"
+      },
+      {
+        "from": "A14",
         "to": "T2"
       },
       {
-        "from": "A9",
+        "from": "A11",
+        "to": "T2"
+      },
+      {
+        "from": "A5",
+        "to": "T2"
+      },
+      {
+        "from": "A14",
         "to": "T3"
       },
       {
-        "from": "A2",
+        "from": "A10",
+        "to": "T3"
+      },
+      {
+        "from": "A8",
         "to": "T4"
       },
       {
-        "from": "A2",
+        "from": "A14",
+        "to": "T4"
+      },
+      {
+        "from": "A4",
+        "to": "T4"
+      },
+      {
+        "from": "A8",
         "to": "T5"
       },
       {
-        "from": "A7",
+        "from": "A10",
         "to": "T6"
+      },
+      {
+        "from": "A9",
+        "to": "T7"
       },
       {
         "from": "A1",
         "to": "T7"
       },
       {
-        "from": "A9",
+        "from": "A8",
         "to": "T8"
       },
       {
-        "from": "A0",
+        "from": "A13",
+        "to": "T8"
+      },
+      {
+        "from": "A1",
         "to": "T9"
       },
       {
-        "from": "A9",
-        "to": "T10"
+        "from": "A10",
+        "to": "T9"
       },
       {
-        "from": "A0",
-        "to": "T11"
-      },
-      {
-        "from": "A3",
-        "to": "T12"
-      },
-      {
-        "from": "A6",
-        "to": "T13"
-      },
-      {
-        "from": "A7",
-        "to": "T14"
-      },
-      {
-        "from": "A6",
-        "to": "T15"
-      },
-      {
-        "from": "A2",
-        "to": "T16"
-      },
-      {
-        "from": "A0",
-        "to": "T17"
-      },
-      {
-        "from": "A4",
-        "to": "T18"
-      },
-      {
-        "from": "A7",
-        "to": "T19"
+        "from": "A8",
+        "to": "T9"
       }
     ],
     "subscribes_to": [
       {
-        "from": "A8",
+        "from": "A12",
         "to": "T0"
       },
       {
-        "from": "A1",
+        "from": "A3",
         "to": "T1"
       },
       {
-        "from": "A1",
+        "from": "A10",
         "to": "T2"
+      },
+      {
+        "from": "A7",
+        "to": "T2"
+      },
+      {
+        "from": "A2",
+        "to": "T3"
+      },
+      {
+        "from": "A4",
+        "to": "T3"
+      },
+      {
+        "from": "A14",
+        "to": "T3"
       },
       {
         "from": "A3",
         "to": "T3"
       },
       {
+        "from": "A6",
+        "to": "T4"
+      },
+      {
+        "from": "A9",
+        "to": "T4"
+      },
+      {
+        "from": "A14",
+        "to": "T4"
+      },
+      {
+        "from": "A5",
+        "to": "T4"
+      },
+      {
         "from": "A3",
         "to": "T4"
       },
       {
-        "from": "A2",
+        "from": "A1",
         "to": "T5"
       },
       {
-        "from": "A1",
+        "from": "A12",
+        "to": "T5"
+      },
+      {
+        "from": "A0",
+        "to": "T5"
+      },
+      {
+        "from": "A14",
+        "to": "T5"
+      },
+      {
+        "from": "A12",
         "to": "T6"
       },
       {
-        "from": "A3",
+        "from": "A10",
+        "to": "T6"
+      },
+      {
+        "from": "A6",
         "to": "T7"
       },
       {
-        "from": "A0",
-        "to": "T8"
+        "from": "A9",
+        "to": "T7"
       },
       {
         "from": "A7",
+        "to": "T7"
+      },
+      {
+        "from": "A8",
+        "to": "T7"
+      },
+      {
+        "from": "A10",
+        "to": "T8"
+      },
+      {
+        "from": "A12",
         "to": "T9"
       },
       {
-        "from": "A8",
-        "to": "T10"
+        "from": "A10",
+        "to": "T9"
       },
       {
-        "from": "A0",
-        "to": "T11"
-      },
-      {
-        "from": "A1",
-        "to": "T12"
-      },
-      {
-        "from": "A3",
-        "to": "T13"
-      },
-      {
-        "from": "A1",
-        "to": "T14"
-      },
-      {
-        "from": "A0",
-        "to": "T15"
-      },
-      {
-        "from": "A3",
-        "to": "T16"
-      },
-      {
-        "from": "A3",
-        "to": "T17"
-      },
-      {
-        "from": "A8",
-        "to": "T18"
-      },
-      {
-        "from": "A2",
-        "to": "T19"
+        "from": "A5",
+        "to": "T9"
       }
     ],
     "connects_to": [
@@ -617,20 +520,8 @@
         "to": "N1"
       },
       {
-        "from": "N1",
-        "to": "N2"
-      },
-      {
-        "from": "N1",
-        "to": "N3"
-      },
-      {
         "from": "N2",
         "to": "N3"
-      },
-      {
-        "from": "N3",
-        "to": "N2"
       }
     ]
   }

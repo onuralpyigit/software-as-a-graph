@@ -26,17 +26,18 @@ BOLD = "\033[1m"
 
 def main():
     parser = argparse.ArgumentParser(description="Graph Analysis CLI")
+    parser.add_argument("--user", default="neo4j")
     parser.add_argument("--password", default="password")
     parser.add_argument("--uri", default="bolt://localhost:7687")
     args = parser.parse_args()
     
-    with GraphAnalyzer(uri=args.uri, password=args.password) as analyzer:
+    with GraphAnalyzer(uri=args.uri, user=args.user, password=args.password) as analyzer:
         results = analyzer.analyze_full_pipeline()
         
         qual = results["quality"]
         
         print(f"\n{BOLD}Top Critical Components (Overall Quality Score):{RESET}")
-        for c in qual.components:
+        for c in qual.components[:10]:
             print(f"{c.id:<20} | Q-Score: {c.scores.overall:.4f} | Level: {c.level.value}")
 
         print_problems(results["problems"])
