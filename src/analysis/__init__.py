@@ -28,7 +28,7 @@ Usage:
         app_layer = analyzer.analyze_layer("application")
         
         # Full analysis
-        result = analyzer.analyze_full()
+        result = analyzer.analyze()
 
 Author: Software-as-a-Graph Research Project
 Version: 6.0
@@ -46,17 +46,9 @@ from .classifier import (
     classify_items,
 )
 
-# Neo4j Client (data retrieval only)
-from .neo4j_client import (
-    Neo4jClient,
-    ComponentData,
-    EdgeData,
-    GraphData,
-)
-
 # NetworkX Analyzer (algorithms)
-from .networkx_analyzer import (
-    NetworkXAnalyzer,
+from .structural_analyzer import (
+    StructuralAnalyzer,
     CentralityMetrics,
     ComponentAnalysisResult,
     LayerAnalysisResult,
@@ -66,51 +58,13 @@ from .networkx_analyzer import (
 # Main Analyzer Facade
 from .analyzer import (
     GraphAnalyzer,
-    FullAnalysisResult,
+    AnalysisResult,
     analyze_graph,
 )
-
-# Constants
-COMPONENT_TYPES = ["Application", "Broker", "Node", "Topic"]
-
-DEPENDENCY_TYPES = ["app_to_app", "node_to_node", "app_to_broker", "node_to_broker"]
-
-LAYER_DEFINITIONS = {
-    "application": {
-        "name": "Application Layer",
-        "description": "Application-to-application dependencies",
-        "component_types": ["Application"],
-        "dependency_types": ["app_to_app"],
-    },
-    "infrastructure": {
-        "name": "Infrastructure Layer",
-        "description": "Node-to-node dependencies",
-        "component_types": ["Node"],
-        "dependency_types": ["node_to_node"],
-    },
-    "app_broker": {
-        "name": "Application-Broker Layer",
-        "description": "Application-to-broker connections",
-        "component_types": ["Application", "Broker"],
-        "dependency_types": ["app_to_broker"],
-    },
-    "node_broker": {
-        "name": "Node-Broker Layer",
-        "description": "Node-to-broker connections",
-        "component_types": ["Node", "Broker"],
-        "dependency_types": ["node_to_broker"],
-    },
-}
-
 
 __all__ = [
     # Version
     "__version__",
-    
-    # Constants
-    "COMPONENT_TYPES",
-    "DEPENDENCY_TYPES",
-    "LAYER_DEFINITIONS",
     
     # Classification
     "CriticalityLevel",
@@ -120,14 +74,8 @@ __all__ = [
     "BoxPlotClassifier",
     "classify_items",
     
-    # Neo4j Client
-    "Neo4jClient",
-    "ComponentData",
-    "EdgeData",
-    "GraphData",
-    
     # NetworkX Analyzer
-    "NetworkXAnalyzer",
+    "StructuralAnalyzer",
     "CentralityMetrics",
     "ComponentAnalysisResult",
     "LayerAnalysisResult",
@@ -135,6 +83,6 @@ __all__ = [
     
     # Main Analyzer
     "GraphAnalyzer",
-    "FullAnalysisResult",
+    "AnalysisResult",
     "analyze_graph",
 ]

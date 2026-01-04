@@ -12,7 +12,7 @@ Features:
 - NetworkX-based algorithms (PageRank, Betweenness, Articulation Points)
 
 Usage:
-    # Full analysis
+    # Run all analysis
     python analyze_graph.py
     
     # Analyze by component type
@@ -239,7 +239,7 @@ def print_edge_result(result: Dict[str, Any], verbose: bool = False) -> None:
             print(f"    {b['source']} → {b['target']}")
 
 
-def print_full_result(result: Dict[str, Any], verbose: bool = False) -> None:
+def print_result(result: Dict[str, Any], verbose: bool = False) -> None:
     """Print full analysis result."""
     summary = result.get("summary", {})
     graph = summary.get("graph", {})
@@ -293,7 +293,10 @@ def print_full_result(result: Dict[str, Any], verbose: bool = False) -> None:
 def run_analysis(args) -> int:
     """Run the analysis based on arguments."""
     from src.analysis import (
-        GraphAnalyzer,
+        GraphAnalyzer
+    )
+    
+    from src.core import (
         COMPONENT_TYPES,
         LAYER_DEFINITIONS,
     )
@@ -370,9 +373,9 @@ def run_analysis(args) -> int:
             
             else:
                 # Full analysis (default)
-                print_info("Running full analysis...")
-                result = analyzer.analyze_full(weighted=not args.unweighted)
-                print_full_result(result.to_dict(), verbose=args.verbose)
+                print_info("Running analysis...")
+                result = analyzer.analyze(weighted=not args.unweighted)
+                print_result(result.to_dict(), verbose=args.verbose)
             
             # Export if requested
             if args.output and result is not None:

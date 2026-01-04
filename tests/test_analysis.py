@@ -57,7 +57,7 @@ def create_test_scores() -> List[Dict[str, Any]]:
 
 def create_mock_graph_data():
     """Create mock GraphData for testing NetworkX analyzer."""
-    from src.analysis import ComponentData, EdgeData, GraphData
+    from src.core import ComponentData, EdgeData, GraphData
     
     components = [
         ComponentData(id="app_1", component_type="Application", weight=1.0),
@@ -382,7 +382,7 @@ class TestConstants:
 
     def test_component_types(self):
         """Test COMPONENT_TYPES constant."""
-        from src.analysis import COMPONENT_TYPES
+        from src.core import COMPONENT_TYPES
         
         assert "Application" in COMPONENT_TYPES
         assert "Broker" in COMPONENT_TYPES
@@ -392,7 +392,7 @@ class TestConstants:
 
     def test_dependency_types(self):
         """Test DEPENDENCY_TYPES constant."""
-        from src.analysis import DEPENDENCY_TYPES
+        from src.core import DEPENDENCY_TYPES
         
         assert "app_to_app" in DEPENDENCY_TYPES
         assert "node_to_node" in DEPENDENCY_TYPES
@@ -402,7 +402,7 @@ class TestConstants:
 
     def test_layer_definitions(self):
         """Test LAYER_DEFINITIONS constant."""
-        from src.analysis import LAYER_DEFINITIONS
+        from src.core import LAYER_DEFINITIONS
         
         assert "application" in LAYER_DEFINITIONS
         assert "infrastructure" in LAYER_DEFINITIONS
@@ -425,10 +425,10 @@ class TestNetworkXAnalyzer:
 
     def test_analyze_component_type(self):
         """Test component type analysis."""
-        from src.analysis import NetworkXAnalyzer
+        from src.analysis import StructuralAnalyzer
         
         graph_data = create_mock_graph_data()
-        analyzer = NetworkXAnalyzer(k_factor=1.5)
+        analyzer = StructuralAnalyzer(k_factor=1.5)
         
         result = analyzer.analyze_component_type(graph_data, "Application")
         
@@ -438,10 +438,10 @@ class TestNetworkXAnalyzer:
     
     def test_analyze_component_type_invalid(self):
         """Test invalid component type."""
-        from src.analysis import NetworkXAnalyzer
+        from src.analysis import StructuralAnalyzer
         
         graph_data = create_mock_graph_data()
-        analyzer = NetworkXAnalyzer()
+        analyzer = StructuralAnalyzer()
         
         try:
             analyzer.analyze_component_type(graph_data, "Invalid")
@@ -451,10 +451,10 @@ class TestNetworkXAnalyzer:
 
     def test_analyze_layer(self):
         """Test layer analysis."""
-        from src.analysis import NetworkXAnalyzer
+        from src.analysis import StructuralAnalyzer
         
         graph_data = create_mock_graph_data()
-        analyzer = NetworkXAnalyzer(k_factor=1.5)
+        analyzer = StructuralAnalyzer(k_factor=1.5)
         
         result = analyzer.analyze_layer(graph_data, "application")
         
@@ -464,10 +464,10 @@ class TestNetworkXAnalyzer:
     
     def test_analyze_layer_invalid(self):
         """Test invalid layer."""
-        from src.analysis import NetworkXAnalyzer
+        from src.analysis import StructuralAnalyzer
         
         graph_data = create_mock_graph_data()
-        analyzer = NetworkXAnalyzer()
+        analyzer = StructuralAnalyzer()
         
         try:
             analyzer.analyze_layer(graph_data, "invalid_layer")
@@ -477,10 +477,10 @@ class TestNetworkXAnalyzer:
 
     def test_analyze_edges(self):
         """Test edge analysis."""
-        from src.analysis import NetworkXAnalyzer
+        from src.analysis import StructuralAnalyzer
         
         graph_data = create_mock_graph_data()
-        analyzer = NetworkXAnalyzer(k_factor=1.5)
+        analyzer = StructuralAnalyzer(k_factor=1.5)
         
         result = analyzer.analyze_edges(graph_data)
         
@@ -489,10 +489,10 @@ class TestNetworkXAnalyzer:
 
     def test_metrics_calculation(self):
         """Test that metrics are calculated for components."""
-        from src.analysis import NetworkXAnalyzer
+        from src.analysis import StructuralAnalyzer
         
         graph_data = create_mock_graph_data()
-        analyzer = NetworkXAnalyzer()
+        analyzer = StructuralAnalyzer()
         
         result = analyzer.analyze_component_type(graph_data, "Application")
         
@@ -506,10 +506,10 @@ class TestNetworkXAnalyzer:
 
     def test_normalization(self):
         """Test metric normalization."""
-        from src.analysis import NetworkXAnalyzer
+        from src.analysis import StructuralAnalyzer
         
         graph_data = create_mock_graph_data()
-        analyzer = NetworkXAnalyzer()
+        analyzer = StructuralAnalyzer()
         
         result = analyzer.analyze_component_type(graph_data, "Application")
         
@@ -521,10 +521,10 @@ class TestNetworkXAnalyzer:
 
     def test_articulation_points(self):
         """Test articulation point detection."""
-        from src.analysis import NetworkXAnalyzer
+        from src.analysis import StructuralAnalyzer
         
         graph_data = create_mock_graph_data()
-        analyzer = NetworkXAnalyzer()
+        analyzer = StructuralAnalyzer()
         
         result = analyzer.analyze_component_type(graph_data, "Application")
         

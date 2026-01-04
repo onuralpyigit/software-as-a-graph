@@ -17,7 +17,7 @@ Example:
         app_layer = analyzer.analyze_layer("application")
         
         # Full analysis
-        result = analyzer.analyze_full()
+        result = analyzer.analyze()
 
 Author: Software-as-a-Graph Research Project
 Version: 6.0
@@ -29,14 +29,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-from .neo4j_client import (
-    Neo4jClient,
+from src.core.graph_exporter import (
+    GraphExporter,
     GraphData,
     COMPONENT_TYPES,
     LAYER_DEFINITIONS,
 )
-from .networkx_analyzer import (
-    NetworkXAnalyzer,
+from .structural_analyzer import (
+    StructuralAnalyzer,
     ComponentAnalysisResult,
     LayerAnalysisResult,
     EdgeAnalysisResult,
@@ -45,7 +45,7 @@ from .classifier import BoxPlotClassifier
 
 
 @dataclass
-class FullAnalysisResult:
+class AnalysisResult:
     """Complete analysis result combining all analyzers."""
     
     timestamp: str
@@ -113,7 +113,7 @@ class GraphAnalyzer:
     Example:
         # Context manager (recommended)
         with GraphAnalyzer(uri, user, password) as analyzer:
-            result = analyzer.analyze_full()
+            result = analyzer.analyze()
             print(f"Critical: {len(result.get_all_critical())}")
         
         # Manual management
@@ -144,8 +144,8 @@ class GraphAnalyzer:
             k_factor: Box-plot k factor for classification
             weights: Custom weights for composite score
         """
-        self.neo4j = Neo4jClient(uri, user, password, database)
-        self.nx_analyzer = NetworkXAnalyzer(k_factor=k_factor, weights=weights)
+        self.graph_exporter = GraphExporter(uri, user, password, database)
+        self.structural_analyzer = StructuralAnalyzer(k_factor=k_factor, weights=weights)
         self.k_factor = k_factor
         self.logger = logging.getLogger(__name__)
         
@@ -161,7 +161,7 @@ class GraphAnalyzer:
     
     def close(self) -> None:
         """Close the analyzer and cleanup resources."""
-        self.neo4j.close()
+        self.graph_exporter.close()
         self._graph_data = None
     
     # =========================================================================
@@ -179,12 +179,12 @@ class GraphAnalyzer:
             GraphData with all components and edges
         """
         if self._graph_data is None or refresh:
-            self._graph_data = self.neo4j.get_full_graph()
+            self._graph_data = self.graph_exporter.get_graph_data()
         return self._graph_data
     
     def get_graph_stats(self) -> Dict[str, Any]:
         """Get summary statistics about the graph."""
-        return self.neo4j.get_graph_stats()
+        return self.graph_exporter.get_graph_stats()
     
     # =========================================================================
     # Component Type Analysis
@@ -217,7 +217,7 @@ class GraphAnalyzer:
         self.logger.info(f"Analyzing component type: {component_type}")
         graph_data = self.get_graph_data()
         
-        return self.nx_analyzer.analyze_component_type(
+        return self.structural_analyzer.analyze_component_type(
             graph_data, 
             component_type, 
             weighted=weighted,
@@ -244,7 +244,7 @@ class GraphAnalyzer:
             # Check if there are components of this type
             type_comps = graph_data.get_components_by_type(comp_type)
             if type_comps:
-                results[comp_type] = self.nx_analyzer.analyze_component_type(
+                results[comp_type] = self.structural_analyzer.analyze_component_type(
                     graph_data, 
                     comp_type, 
                     weighted=weighted,
@@ -280,9 +280,9 @@ class GraphAnalyzer:
         self.logger.info(f"Analyzing layer: {layer_key}")
         
         # Get layer-specific data
-        layer_data = self.neo4j.get_layer(layer_key)
+        layer_data = self.graph_exporter.get_layer(layer_key)
         
-        return self.nx_analyzer.analyze_layer(
+        return self.structural_analyzer.analyze_layer(
             layer_data, 
             layer_key, 
             weighted=weighted,
@@ -305,9 +305,9 @@ class GraphAnalyzer:
         
         results = {}
         for layer_key in LAYER_DEFINITIONS:
-            layer_data = self.neo4j.get_layer(layer_key)
+            layer_data = self.graph_exporter.get_layer(layer_key)
             if layer_data.edges:  # Only analyze if there are edges
-                results[layer_key] = self.nx_analyzer.analyze_layer(
+                results[layer_key] = self.structural_analyzer.analyze_layer(
                     layer_data, 
                     layer_key, 
                     weighted=weighted,
@@ -329,19 +329,19 @@ class GraphAnalyzer:
         self.logger.info("Analyzing edges")
         graph_data = self.get_graph_data()
         
-        return self.nx_analyzer.analyze_edges(graph_data)
+        return self.structural_analyzer.analyze_edges(graph_data)
     
     # =========================================================================
     # Full Analysis
     # =========================================================================
     
-    def analyze_full(
+    def analyze(
         self,
         include_component_types: bool = True,
         include_layers: bool = True,
         include_edges: bool = True,
         weighted: bool = True,
-    ) -> FullAnalysisResult:
+    ) -> AnalysisResult:
         """
         Perform complete analysis.
         
@@ -352,7 +352,7 @@ class GraphAnalyzer:
             weighted: Use weighted algorithms
         
         Returns:
-            FullAnalysisResult with complete analysis
+            AnalysisResult with complete analysis
         """
         timestamp = datetime.now().isoformat()
         self.logger.info("Starting full analysis")
@@ -381,7 +381,7 @@ class GraphAnalyzer:
         # Build summary
         summary = self._build_summary(component_types, layers, edges, graph_stats)
         
-        return FullAnalysisResult(
+        return AnalysisResult(
             timestamp=timestamp,
             component_types=component_types,
             layers=layers,
@@ -453,7 +453,7 @@ def analyze_graph(
     database: str = "neo4j",
     k_factor: float = 1.5,
     weighted: bool = True,
-) -> FullAnalysisResult:
+) -> AnalysisResult:
     """
     Convenience function for full graph analysis.
     
@@ -466,7 +466,7 @@ def analyze_graph(
         weighted: Use weighted algorithms
     
     Returns:
-        FullAnalysisResult
+        AnalysisResult
     """
     with GraphAnalyzer(uri, user, password, database, k_factor) as analyzer:
-        return analyzer.analyze_full(weighted=weighted)
+        return analyzer.analyze(weighted=weighted)

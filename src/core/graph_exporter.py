@@ -150,7 +150,7 @@ class GraphData:
         }
 
 
-class Neo4jClient:
+class GraphExporter:
     """
     Neo4j client for graph data retrieval.
     
@@ -158,7 +158,7 @@ class Neo4jClient:
     any graph algorithms. All algorithms are handled by NetworkX.
     
     Example:
-        with Neo4jClient(uri, user, password) as client:
+        with GraphExporter(uri, user, password) as client:
             # Get all data
             graph = client.get_full_graph()
             
@@ -215,7 +215,7 @@ class Neo4jClient:
         except AuthError as e:
             raise ConnectionError(f"Authentication failed for Neo4j: {e}")
     
-    def __enter__(self) -> Neo4jClient:
+    def __enter__(self) -> GraphExporter:
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
@@ -228,7 +228,7 @@ class Neo4jClient:
             self.driver.close()
             self.logger.info("Neo4j connection closed")
     
-    def get_full_graph(self) -> GraphData:
+    def get_graph_data(self) -> GraphData:
         """
         Retrieve complete graph data from Neo4j.
         

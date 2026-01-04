@@ -1,7 +1,7 @@
 """
-NetworkX Analyzer - Version 6.0
+Structural Analyzer
 
-Graph analysis using NetworkX library.
+Structural graph analysis using NetworkX library.
 
 This module implements all graph algorithms:
 - PageRank
@@ -13,7 +13,6 @@ This module implements all graph algorithms:
 All algorithms operate on NetworkX graphs built from Neo4j data.
 
 Author: Software-as-a-Graph Research Project
-Version: 6.0
 """
 
 from __future__ import annotations
@@ -24,14 +23,13 @@ from typing import Dict, List, Any, Optional, Set, Tuple
 
 import networkx as nx
 
-from .neo4j_client import GraphData, ComponentData, EdgeData, COMPONENT_TYPES, LAYER_DEFINITIONS
+from src.core.graph_exporter import GraphData, ComponentData, EdgeData, COMPONENT_TYPES, LAYER_DEFINITIONS
 from .classifier import (
     BoxPlotClassifier,
     ClassificationResult,
     CriticalityLevel,
     ClassifiedItem,
 )
-
 
 @dataclass
 class CentralityMetrics:
@@ -218,7 +216,7 @@ class EdgeAnalysisResult:
         return [e for e in self.edges if e.is_bridge]
 
 
-class NetworkXAnalyzer:
+class StructuralAnalyzer:
     """
     Graph analyzer using NetworkX algorithms.
     
@@ -226,7 +224,7 @@ class NetworkXAnalyzer:
     components using box-plot statistical method.
     
     Example:
-        analyzer = NetworkXAnalyzer(k_factor=1.5)
+        analyzer = StructuralAnalyzer(k_factor=1.5)
         
         # Analyze by component type
         result = analyzer.analyze_component_type(graph_data, "Application")
@@ -289,7 +287,7 @@ class NetworkXAnalyzer:
         self.logger.info(f"Analyzing component type: {component_type}")
         
         # Build NetworkX graph
-        G = self._build_networkx_graph(graph_data, weighted=weighted)
+        G = self._build_graph(graph_data, weighted=weighted)
         
         if G.number_of_nodes() == 0:
             return self._empty_component_result(component_type, timestamp)
@@ -429,7 +427,7 @@ class NetworkXAnalyzer:
             metadata={"layer": layer_key},
         )
         
-        G = self._build_networkx_graph(layer_graph_data, weighted=weighted)
+        G = self._build_graph(layer_graph_data, weighted=weighted)
         
         # Compute centrality
         pagerank = self._compute_pagerank(G, weighted)
@@ -530,7 +528,7 @@ class NetworkXAnalyzer:
             return EdgeAnalysisResult(timestamp=timestamp)
         
         # Build graph
-        G = self._build_networkx_graph(graph_data, weighted=True)
+        G = self._build_graph(graph_data, weighted=True)
         
         # Find bridges and articulation points
         bridges = self._find_bridges(G)
@@ -606,16 +604,16 @@ class NetworkXAnalyzer:
         )
     
     # =========================================================================
-    # NetworkX Graph Algorithms
+    # Graph Algorithms
     # =========================================================================
     
-    def _build_networkx_graph(
+    def _build_graph(
         self,
         graph_data: GraphData,
         weighted: bool = True,
         directed: bool = True,
     ) -> nx.DiGraph:
-        """Build NetworkX graph from GraphData."""
+        """Build graph from GraphData."""
         G = nx.DiGraph() if directed else nx.Graph()
         
         # Add nodes

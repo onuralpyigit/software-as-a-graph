@@ -171,7 +171,7 @@ def run_demo_mode():
     
     # Create mock graph
     from src.analysis import (
-        NetworkXAnalyzer,
+        StructuralAnalyzer,
         ComponentData,
         EdgeData,
         GraphData,
@@ -197,7 +197,7 @@ def run_demo_mode():
     print(f"\n  Mock graph: {len(components)} components, {len(edges)} edges")
     
     # Analyze with NetworkX
-    analyzer = NetworkXAnalyzer(k_factor=1.5)
+    analyzer = StructuralAnalyzer(k_factor=1.5)
     app_result = analyzer.analyze_component_type(graph_data, "Application")
     
     print(f"\n  Application analysis results:")
@@ -277,7 +277,7 @@ with GraphAnalyzer(uri, user, password) as analyzer:
     app_layer = analyzer.analyze_layer("application")
     
     # Full analysis
-    result = analyzer.analyze_full()
+    result = analyzer.analyze()
     
     # Get critical components
     for comp in apps.get_critical():
@@ -310,7 +310,8 @@ def run_live_mode(args):
     """Run with actual Neo4j connection."""
     print_header("Graph Analysis - Live Mode")
     
-    from src.analysis import GraphAnalyzer, COMPONENT_TYPES
+    from src.analysis import GraphAnalyzer 
+    from src.core import COMPONENT_TYPES
     
     print_info(f"Connecting to Neo4j at {args.uri}")
     
@@ -330,7 +331,7 @@ def run_live_mode(args):
             
             # Run full analysis
             print_info("Running full analysis...")
-            result = analyzer.analyze_full()
+            result = analyzer.analyze()
             
             # Print results
             print_section("Analysis Results")

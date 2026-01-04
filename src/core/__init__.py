@@ -62,6 +62,17 @@ from .graph_importer import (
     GraphImporter,
 )
 
+# Graph Exporter (data retrieval only)
+from .graph_exporter import (
+    GraphExporter,
+    ComponentData,
+    EdgeData,
+    GraphData,
+    COMPONENT_TYPES,
+    LAYER_DEFINITIONS,
+    DEPENDENCY_TYPES
+)
+
 # Try to import graph generator if available
 try:
     from .graph_generator import (
@@ -98,6 +109,11 @@ __all__ = [
     "GraphModel",
     # Importer
     "GraphImporter",
+    # Exporter
+    "GraphExporter",
+    "ComponentData",
+    "EdgeData",
+    "GraphData",
 ]
 
 # Add generator exports if available
