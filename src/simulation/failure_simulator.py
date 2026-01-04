@@ -1,116 +1,93 @@
 """
 Failure Simulator
 
-Simulates cascading failures in the system.
-Uses probabilistic propagation based on edge weights.
+Simulates cascading structural failures.
+Logic:
+1. Node Failure -> Hosted Components (Apps/Brokers) Fail (RUNS_ON)
+2. Broker Failure -> Routed Topics become unreachable (ROUTES)
 """
 
-import random
 import logging
 from dataclasses import dataclass, field
-from typing import List, Set, Dict, Any
+from typing import List, Dict, Any, Set
 from .simulation_graph import SimulationGraph
 
 @dataclass
 class FailureScenario:
-    target_nodes: List[str]
+    target_node: str
     description: str
 
 @dataclass
 class FailureResult:
     scenario: str
-    initial_failures: List[str]
+    initial_failure: str
     cascaded_failures: List[str]
-    surviving_nodes: int
-    total_impact: int
-    propagation_steps: int
-    affected_components: Dict[str, List[str]] = field(default_factory=dict) # Grouped by type
+    impact_counts: Dict[str, int]
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "scenario": self.scenario,
-            "initial_failures": self.initial_failures,
-            "cascaded_failures": self.cascaded_failures,
-            "stats": {
-                "initial_count": len(self.initial_failures),
-                "cascade_count": len(self.cascaded_failures),
-                "total_impact": self.total_impact,
-                "steps": self.propagation_steps
-            },
-            "affected_by_type": self.affected_components
+            "initial": self.initial_failure,
+            "cascaded": self.cascaded_failures,
+            "impact": self.impact_counts
         }
 
 class FailureSimulator:
-    def __init__(self, graph: SimulationGraph, propagation_threshold: float = 0.5):
+    def __init__(self, graph: SimulationGraph):
         self.graph = graph
-        self.threshold = propagation_threshold
         self.logger = logging.getLogger(__name__)
 
     def simulate(self, scenario: FailureScenario) -> FailureResult:
-        """Run a cascading failure simulation."""
         self.graph.reset()
+        target = scenario.target_node
         G = self.graph.graph
         
-        # Initial failures
-        failed = set()
-        queue = []
-        
-        # Validate initial nodes
-        for node in scenario.target_nodes:
-            if node in G:
-                failed.add(node)
-                G.nodes[node]["state"] = "failed"
-                queue.append(node)
-            else:
-                self.logger.warning(f"Node {node} not found in graph.")
+        if target not in G:
+            return FailureResult(scenario.description, target, [], {})
 
-        initial_count = len(failed)
-        steps = 0
+        # Set initial state
+        G.nodes[target]["state"] = "failed"
+        failed_set = {target}
         cascaded = []
+        
+        # 1. Structural Cascade (Hard Dependencies)
+        # Find components that RUNS_ON the target
+        # Edge: (App)-[:RUNS_ON]->(Node)
+        # If Node fails, we look for Predecessors via RUNS_ON
+        hosted_components = self.graph.get_predecessors_by_type(target, "RUNS_ON")
+        
+        for comp in hosted_components:
+            if comp not in failed_set:
+                failed_set.add(comp)
+                cascaded.append(comp)
+                G.nodes[comp]["state"] = "failed"
+        
+        # 2. Functional Cascade (Broker -> Topic)
+        # If a Broker fails, Topics it ROUTES might be affected.
+        # Edge: (Broker)-[:ROUTES]->(Topic)
+        # If Broker fails, Successors via ROUTES are affected.
+        # Note: We don't mark Topic as "failed" (it's logical), but "unreachable".
+        # For this sim, we'll list them as cascaded impact.
+        if G.nodes[target].get("type") == "Broker" or any(G.nodes[c].get("type") == "Broker" for c in cascaded):
+            # Check for topics routed by failed brokers
+            failed_brokers = [n for n in failed_set if G.nodes[n].get("type") == "Broker"]
+            for b in failed_brokers:
+                routed_topics = self.graph.get_successors_by_type(b, "ROUTES")
+                for t in routed_topics:
+                    if t not in failed_set:
+                        failed_set.add(t)
+                        cascaded.append(t)
+                        G.nodes[t]["state"] = "unreachable"
 
-        # BFS for Cascade
-        while queue:
-            steps += 1
-            current_batch = queue[:]
-            queue = []
-            
-            for node in current_batch:
-                # Find dependents (who depends on 'node'?)
-                # In DEPENDS_ON (A -> B), A depends on B.
-                # If B fails, A might fail.
-                # So we look for predecessors in the directed graph (A -> node).
-                if G.is_directed():
-                    dependents = list(G.predecessors(node))
-                else:
-                    dependents = list(G.neighbors(node))
-                
-                for dep in dependents:
-                    if dep not in failed:
-                        # Probability logic: weight * random factor
-                        # High weight dependency = High chance of failure
-                        edge_weight = self.graph.get_edge_weight(dep, node)
-                        prob = edge_weight * random.uniform(0.5, 1.0)
-                        
-                        if prob > self.threshold:
-                            failed.add(dep)
-                            cascaded.append(dep)
-                            G.nodes[dep]["state"] = "failed"
-                            queue.append(dep)
-
-        # Categorize results
-        affected_by_type = {}
-        for f_node in failed:
-            n_type = G.nodes[f_node].get("type", "unknown")
-            if n_type not in affected_by_type:
-                affected_by_type[n_type] = []
-            affected_by_type[n_type].append(f_node)
+        # Categorize Impact
+        impact = {}
+        for n in failed_set:
+            ctype = G.nodes[n].get("type", "Unknown")
+            impact[ctype] = impact.get(ctype, 0) + 1
 
         return FailureResult(
             scenario=scenario.description,
-            initial_failures=scenario.target_nodes,
+            initial_failure=target,
             cascaded_failures=cascaded,
-            surviving_nodes=G.number_of_nodes() - len(failed),
-            total_impact=len(failed),
-            propagation_steps=steps,
-            affected_components=affected_by_type
+            impact_counts=impact
         )

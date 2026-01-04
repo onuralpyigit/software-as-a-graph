@@ -1,40 +1,35 @@
 """
 Event Simulator
 
-Simulates event propagation (Pub-Sub message flow).
-Identifies reachability and potential load bottlenecks.
+Simulates event propagation using raw Pub-Sub topology.
+Path: Publisher -> Topic -> Subscriber
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from dataclasses import dataclass
+from typing import List, Dict, Any, Set
 from .simulation_graph import SimulationGraph
 
 @dataclass
 class EventScenario:
     source_node: str
     description: str
-    event_payload_size: float = 1.0
 
 @dataclass
 class EventResult:
     scenario: str
     source: str
-    reached_nodes: List[str]
-    unreachable_nodes: List[str]
-    max_hops: int
-    bottlenecks: List[str] # Nodes with high fan-in in the path
+    reached_subscribers: List[str]
+    affected_topics: List[str]
+    hops: int
     
     def to_dict(self) -> Dict[str, Any]:
         return {
             "scenario": self.scenario,
             "source": self.source,
-            "coverage": {
-                "reached": len(self.reached_nodes),
-                "unreachable": len(self.unreachable_nodes)
-            },
-            "max_hops": self.max_hops,
-            "bottlenecks": self.bottlenecks
+            "reached_count": len(self.reached_subscribers),
+            "topics_traversed": len(self.affected_topics),
+            "max_hops": self.hops
         }
 
 class EventSimulator:
@@ -43,61 +38,44 @@ class EventSimulator:
         self.logger = logging.getLogger(__name__)
 
     def simulate(self, scenario: EventScenario) -> EventResult:
-        """Run an event propagation simulation."""
         self.graph.reset()
-        G = self.graph.graph
+        source = scenario.source_node
         
-        if scenario.source_node not in G:
-            self.logger.error(f"Source node {scenario.source_node} not found")
-            return EventResult(scenario.description, scenario.source_node, [], [], 0, [])
+        if source not in self.graph.graph:
+            self.logger.error(f"Source {source} not found")
+            return EventResult(scenario.description, source, [], [], 0)
 
-        # BFS for Event Reachability
-        # Flow follows direction of edges for message passing (Publisher -> Topic -> Subscriber)
-        # Note: If graph is DEPENDS_ON, flow might be reverse of dependency.
-        # Assuming DEPENDS_ON (A -> B) means A needs B.
-        # Data flow usually goes B -> A (Service B provides data to A).
-        # We will assume REVERSE of dependency for event flow unless strictly specified.
-        # For Pub-Sub: Publisher -> Topic (Depends? usually Pub depends on Topic to send)
-        # To be safe: We will assume standard graph direction is dependency. 
-        # Event flow = Reverse of Dependency (Data flows from dependency to dependent).
+        # 1. Identify Topics published to by the Source App
+        # (Source)-[:PUBLISHES_TO]->(Topic)
+        published_topics = self.graph.get_successors_by_type(source, "PUBLISHES_TO")
         
-        flow_graph = G.reverse() if G.is_directed() else G
+        reached_subscribers = set()
+        hops = 0
         
-        visited = {scenario.source_node}
-        queue = [(scenario.source_node, 0)]
-        reached_order = []
-        max_hops = 0
-        node_load = {n: 0 for n in G.nodes}
-        
-        while queue:
-            curr, dist = queue.pop(0)
-            max_hops = max(max_hops, dist)
-            reached_order.append(curr)
+        if published_topics:
+            hops = 1
+            # 2. Identify Subscribers for these Topics
+            # (Topic)<-[:SUBSCRIBES_TO]-(Subscriber)
+            # In our directed graph, the edge is usually Subscriber->Topic for 'SUBSCRIBES_TO'.
+            # We need to find nodes that have an outgoing SUBSCRIBES_TO edge to these topics.
+            # i.e., Predecessors of Topic via SUBSCRIBES_TO.
             
-            # Record load (Fan-in simulation)
-            node_load[curr] += scenario.event_payload_size
-            
-            for neighbor in flow_graph.neighbors(curr):
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    queue.append((neighbor, dist + 1))
-        
-        # Identify Bottlenecks (nodes in path with high degree/load)
-        # Simple heuristic: Top 10% of visited nodes by original in-degree (fan-in)
-        reached_nodes_set = set(reached_order)
-        unreachable = [n for n in G.nodes if n not in reached_nodes_set]
-        
-        # Bottleneck detection: High degree nodes in the flow path
-        potential_bottlenecks = []
-        for n in reached_order:
-            if G.degree(n) > 3: # Arbitrary threshold for demo
-                potential_bottlenecks.append(n)
+            for topic in published_topics:
+                # Mark Topic as active/loaded
+                self.graph.graph.nodes[topic]["load"] += 1
+                
+                subscribers = self.graph.get_predecessors_by_type(topic, "SUBSCRIBES_TO")
+                if subscribers:
+                    hops = 2
+                    reached_subscribers.update(subscribers)
+                    
+                    for sub in subscribers:
+                        self.graph.graph.nodes[sub]["load"] += 1
 
         return EventResult(
             scenario=scenario.description,
-            source=scenario.source_node,
-            reached_nodes=reached_order,
-            unreachable_nodes=unreachable,
-            max_hops=max_hops,
-            bottlenecks=potential_bottlenecks[:5] # Top 5
+            source=source,
+            reached_subscribers=list(reached_subscribers),
+            affected_topics=published_topics,
+            hops=hops
         )
