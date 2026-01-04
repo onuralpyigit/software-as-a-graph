@@ -47,6 +47,7 @@ class GraphImporter:
         self._import_rels(rels.get("routes", []), "ROUTES", "Broker", "Topic")
         self._import_rels(rels.get("publishes_to", []), "PUBLISHES_TO", "Application", "Topic")
         self._import_rels(rels.get("subscribes_to", []), "SUBSCRIBES_TO", "Application", "Topic")
+        self._import_rels(rels.get("connects_to", []), "CONNECTS_TO", "Node", "Node")
 
         # 3. Derive DEPENDS_ON Relationships (The Core Logic)
         self.logger.info("Deriving DEPENDS_ON relationships...")
@@ -116,68 +117,176 @@ class GraphImporter:
 
     # --- Derivation Logic (The "Smart" Part) ---
 
-    def _derive_app_to_app(self):
+    def _derive_app_to_app(self) -> int:
         """
-        Derives App->App dependency if Sub subscribes to topic Pub publishes.
-        Weight = Count(SharedTopics) + Sum(TopicQoS + TopicSizeFactor)
-        """
-        query = """
-        MATCH (pub:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(sub:Application)
-        WHERE pub <> sub
-        WITH pub, sub, t,
-             (CASE t.qos_reliability WHEN 'RELIABLE' THEN 0.3 ELSE 0.0 END +
-              CASE t.qos_durability WHEN 'PERSISTENT' THEN 0.4 WHEN 'TRANSIENT' THEN 0.2 ELSE 0.0 END +
-              CASE t.qos_transport_priority WHEN 'URGENT' THEN 0.3 WHEN 'HIGH' THEN 0.2 ELSE 0.0 END) as qos_score,
-             (t.size / 10000.0) as size_factor
-        WITH pub, sub, count(t) as shared_topics, sum(qos_score + size_factor) as weight_val
-        MERGE (sub)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(pub)
-        SET d.weight = shared_topics + weight_val
-        RETURN count(d) as c
-        """
-        return self._run_count(query)
-
-    def _derive_app_to_broker(self):
-        """
-        App depends on Broker if the Broker routes a topic the App uses.
+        Derive APP_TO_APP dependencies.
+        
+        Rule: subscriber DEPENDS_ON publisher if they share topics.
+        Weight = topic_count + sum(qos_scores) + sum(size_factors)
         """
         query = """
-        MATCH (app:Application)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(b:Broker)
-        WITH app, b, count(t) as topics
-        MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(b)
-        SET d.weight = topics * 1.0
-        RETURN count(d) as c
+            // Find publisher-subscriber pairs through shared topics
+            MATCH (pub:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(sub:Application)
+            WHERE pub <> sub
+            
+            // Calculate per-topic contributions
+            WITH pub, sub, t,
+                // QoS score
+                CASE t.qos_durability
+                    WHEN 'PERSISTENT' THEN 0.40
+                    WHEN 'TRANSIENT' THEN 0.25
+                    WHEN 'TRANSIENT_LOCAL' THEN 0.20
+                    ELSE 0.0
+                END +
+                CASE t.qos_reliability
+                    WHEN 'RELIABLE' THEN 0.30
+                    ELSE 0.0
+                END +
+                CASE t.qos_transport_priority
+                    WHEN 'URGENT' THEN 0.30
+                    WHEN 'HIGH' THEN 0.20
+                    WHEN 'MEDIUM' THEN 0.10
+                    ELSE 0.0
+                END AS qos_score,
+                // Size factor (normalized, capped at 0.5)
+                CASE 
+                    WHEN t.size IS NULL THEN 0.025
+                    ELSE toFloat(t.size) / 10000.0
+                END AS size_factor
+            
+            // Aggregate per pair
+            WITH sub, pub,
+                 collect(DISTINCT t.id) AS topics,
+                 sum(qos_score) AS total_qos,
+                 sum(CASE WHEN size_factor > 0.5 THEN 0.5 ELSE size_factor END) AS total_size
+            
+            // Calculate weight
+            WITH sub, pub, topics,
+                 size(topics) + total_qos + total_size AS weight
+            
+            // Create relationship
+            MERGE (sub)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(pub)
+            SET d.via = topics,
+                d.weight = weight
+            
+            RETURN count(*) AS count
         """
-        return self._run_count(query)
-
-    def _derive_node_to_node(self):
+        
+        with self.driver.session(database=self.database) as session:
+            result = session.run(query)
+            return result.single()["count"]
+        
+    def _derive_app_to_broker(self) -> int:
         """
-        Node A depends on Node B if an App on A depends on an App on B.
-        Weight sums the weights of the underlying app dependencies.
+        Derive APP_TO_BROKER dependencies.
+        
+        Rule: app DEPENDS_ON broker that routes topics the app uses.
+        Weight = topic_count + sum(qos_scores) + sum(size_factors)
         """
         query = """
-        MATCH (a1:Application)-[dep:DEPENDS_ON {dependency_type: 'app_to_app'}]->(a2:Application)
-        MATCH (a1)-[:RUNS_ON]->(n1:Node), (a2)-[:RUNS_ON]->(n2:Node)
-        WHERE n1 <> n2
-        WITH n1, n2, sum(dep.weight) as total_weight
-        MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
-        SET d.weight = total_weight
-        RETURN count(d) as c
+            // Find apps and brokers through topics
+            MATCH (app:Application)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
+            
+            // Calculate per-topic contributions
+            WITH app, broker, t,
+                CASE t.qos_durability
+                    WHEN 'PERSISTENT' THEN 0.40
+                    WHEN 'TRANSIENT' THEN 0.25
+                    WHEN 'TRANSIENT_LOCAL' THEN 0.20
+                    ELSE 0.0
+                END +
+                CASE t.qos_reliability
+                    WHEN 'RELIABLE' THEN 0.30
+                    ELSE 0.0
+                END +
+                CASE t.qos_transport_priority
+                    WHEN 'URGENT' THEN 0.30
+                    WHEN 'HIGH' THEN 0.20
+                    WHEN 'MEDIUM' THEN 0.10
+                    ELSE 0.0
+                END AS qos_score,
+                CASE 
+                    WHEN t.size IS NULL THEN 0.025
+                    ELSE toFloat(t.size) / 10000.0
+                END AS size_factor
+            
+            // Aggregate
+            WITH app, broker,
+                 collect(DISTINCT t.id) AS topics,
+                 sum(qos_score) AS total_qos,
+                 sum(CASE WHEN size_factor > 0.5 THEN 0.5 ELSE size_factor END) AS total_size
+            
+            WITH app, broker, topics,
+                 size(topics) + total_qos + total_size AS weight
+            
+            MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
+            SET d.via = topics,
+                d.weight = weight
+            
+            RETURN count(*) AS count
         """
-        return self._run_count(query)
-
-    def _derive_node_to_broker(self):
+        
+        with self.driver.session(database=self.database) as session:
+            result = session.run(query)
+            return result.single()["count"]
+        
+    def _derive_node_to_node(self) -> int:
         """
-        Node depends on Broker if an App on Node depends on that Broker.
+        Derive NODE_TO_NODE dependencies.
+        
+        Rule: node_A DEPENDS_ON node_B if app on node_A depends on app on node_B.
+        Weight = sum of underlying app_to_app weights.
         """
         query = """
-        MATCH (a:Application)-[dep:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(b:Broker)
-        MATCH (a)-[:RUNS_ON]->(n:Node)
-        WITH n, b, sum(dep.weight) as total_weight
-        MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(b)
-        SET d.weight = total_weight
-        RETURN count(d) as c
+            // Find app dependencies that cross nodes
+            MATCH (app1:Application)-[:RUNS_ON]->(n1:Node)
+            MATCH (app2:Application)-[:RUNS_ON]->(n2:Node)
+            MATCH (app1)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(app2)
+            WHERE n1 <> n2
+            
+            // Aggregate by node pair
+            WITH n1, n2,
+                 collect(DISTINCT {app1: app1.id, app2: app2.id}) AS app_pairs,
+                 sum(d.weight) AS total_weight
+            
+            MERGE (n1)-[dep:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
+            SET dep.via = [p IN app_pairs | p.app1 + '->' + p.app2],
+                dep.weight = total_weight
+            
+            RETURN count(*) AS count
         """
-        return self._run_count(query)
+        
+        with self.driver.session(database=self.database) as session:
+            result = session.run(query)
+            return result.single()["count"]
+        
+    def _derive_node_to_broker(self) -> int:
+        """
+        Derive NODE_TO_BROKER dependencies.
+        
+        Rule: node DEPENDS_ON broker if any app on node depends on that broker.
+        Weight = sum of underlying app_to_broker weights.
+        """
+        query = """
+            // Find node-to-broker dependencies through apps
+            MATCH (app:Application)-[:RUNS_ON]->(n:Node)
+            MATCH (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker:Broker)
+            
+            // Aggregate
+            WITH n, broker,
+                 collect(DISTINCT app.id) AS apps,
+                 sum(d.weight) AS total_weight
+            
+            MERGE (n)-[dep:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(broker)
+            SET dep.via = apps,
+                dep.weight = total_weight
+            
+            RETURN count(*) AS count
+        """
+        
+        with self.driver.session(database=self.database) as session:
+            result = session.run(query)
+            return result.single()["count"]
 
     def _calculate_component_weights(self):
         """
