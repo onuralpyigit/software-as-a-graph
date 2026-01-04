@@ -1,90 +1,63 @@
 """
 Problem Detector
 
-Identifies specific issues in Reliability, Maintainability, and Availability
-by analyzing quality scores and structural flags.
+Identifies problems using dynamic classification levels.
 """
 
 from dataclasses import dataclass
-from typing import List, Dict, Optional
+from typing import List
 from enum import Enum
 
-from .quality_analyzer import QualityAnalysisResult, ComponentQuality
-from .classifier import CriticalityLevel
-
-class Severity(Enum):
-    CRITICAL = "CRITICAL"
-    HIGH = "HIGH"
-    MEDIUM = "MEDIUM"
-    LOW = "LOW"
+from .quality_analyzer import QualityAnalysisResult, CriticalityLevel
 
 @dataclass
 class DetectedProblem:
-    component_id: str
-    category: str # Reliability, Maintainability, Availability
-    severity: Severity
+    entity_id: str
+    type: str # Component or Edge
+    category: str
+    severity: str
     description: str
-    symptoms: List[str]
     recommendation: str
 
 class ProblemDetector:
     def detect(self, quality_result: QualityAnalysisResult) -> List[DetectedProblem]:
         problems = []
         
-        for comp in quality_result.components:
-            # 1. Availability Problems
-            if comp.metrics.is_articulation_point:
+        # 1. Component Problems
+        for c in quality_result.components:
+            # Availability: SPOF
+            if c.scores.availability > 0.8 and c.level >= CriticalityLevel.HIGH:
                 problems.append(DetectedProblem(
-                    component_id=comp.id,
-                    category="Availability",
-                    severity=Severity.CRITICAL,
-                    description="Single Point of Failure (SPOF)",
-                    symptoms=["Component is an Articulation Point", "Removal disconnects graph"],
-                    recommendation="Add redundancy: Replicate this component or add bypass paths."
+                    c.id, "Component", "Availability", "CRITICAL",
+                    f"High Availability Risk (Score: {c.scores.availability:.2f})",
+                    "Add redundancy or bypass paths."
                 ))
             
-            if comp.scores.availability > 0.7: # Heuristic threshold or based on classification
+            # Maintainability: Bottleneck
+            # High Maintainability Score means POOR maintainability (high cost)
+            if c.scores.maintainability > 0.8 and c.level >= CriticalityLevel.HIGH:
                 problems.append(DetectedProblem(
-                    component_id=comp.id,
-                    category="Availability",
-                    severity=Severity.HIGH,
-                    description="High Availability Risk",
-                    symptoms=[f"Availability Score: {comp.scores.availability:.2f}"],
-                    recommendation="Ensure high uptime guarantees and rapid recovery mechanisms."
+                    c.id, "Component", "Maintainability", "HIGH",
+                    "Bottleneck / High Coupling",
+                    "Refactor to decouple responsibilities."
                 ))
 
-            # 2. Maintainability Problems
-            # High Coupling (High Betweenness)
-            if comp.metrics.betweenness > 0.5: # Threshold example
+            # Reliability: Propagation
+            if c.scores.reliability > 0.8 and c.level >= CriticalityLevel.HIGH:
                 problems.append(DetectedProblem(
-                    component_id=comp.id,
-                    category="Maintainability",
-                    severity=Severity.HIGH,
-                    description="Bottleneck Component (High Coupling)",
-                    symptoms=[f"Betweenness Centrality: {comp.metrics.betweenness:.2f}"],
-                    recommendation="Refactor to decouple responsibilities or split component."
-                ))
-            
-            # Poor Modularity (Low Clustering)
-            if comp.metrics.clustering_coefficient < 0.1 and comp.metrics.degree > 2:
-                problems.append(DetectedProblem(
-                    component_id=comp.id,
-                    category="Maintainability",
-                    severity=Severity.MEDIUM,
-                    description="Poor Modularity",
-                    symptoms=["Low Clustering Coefficient", "Neighbors not connected"],
-                    recommendation="Review cohesion; components may be loosely related utilities."
+                    c.id, "Component", "Reliability", "HIGH",
+                    "High Failure Propagation Risk",
+                    "Implement circuit breakers."
                 ))
 
-            # 3. Reliability Problems
-            if comp.metrics.failure_propagation > 0.5:
+        # 2. Edge Problems
+        for e in quality_result.edges:
+            # Critical Dependency
+            if e.level == CriticalityLevel.CRITICAL:
                 problems.append(DetectedProblem(
-                    component_id=comp.id,
-                    category="Reliability",
-                    severity=Severity.CRITICAL if comp.level == CriticalityLevel.CRITICAL else Severity.HIGH,
-                    description="High Cascade Failure Potential",
-                    symptoms=[f"Failure Propagation Score: {comp.metrics.failure_propagation:.2f}"],
-                    recommendation="Implement circuit breakers and strict isolation."
+                    e.id, "Edge", "Architecture", "CRITICAL",
+                    f"Critical Dependency ({e.type})",
+                    "Verify this dependency is necessary; optimize payload/QoS."
                 ))
 
         return problems
