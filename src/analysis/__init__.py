@@ -46,20 +46,14 @@ from .classifier import (
     classify_items,
 )
 
-# NetworkX Analyzer (algorithms)
+# Structural Analyzer
 from .structural_analyzer import (
-    StructuralAnalyzer,
-    CentralityMetrics,
-    ComponentAnalysisResult,
-    LayerAnalysisResult,
-    EdgeAnalysisResult,
+    StructuralAnalyzer
 )
 
 # Main Analyzer Facade
 from .analyzer import (
     GraphAnalyzer,
-    AnalysisResult,
-    analyze_graph,
 )
 
 __all__ = [
@@ -74,15 +68,9 @@ __all__ = [
     "BoxPlotClassifier",
     "classify_items",
     
-    # NetworkX Analyzer
+    # Structural Analyzer
     "StructuralAnalyzer",
-    "CentralityMetrics",
-    "ComponentAnalysisResult",
-    "LayerAnalysisResult",
-    "EdgeAnalysisResult",
     
     # Main Analyzer
     "GraphAnalyzer",
-    "AnalysisResult",
-    "analyze_graph",
 ]
