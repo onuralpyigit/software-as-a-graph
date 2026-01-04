@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Graph Analysis Example - Version 5.0
+Graph Analysis Example - Version 6.0
 
 Demonstrates the analysis module capabilities:
 1. Box-plot classification
-2. Multi-layer analysis
+2. NetworkX-based graph algorithms
 3. Component type analysis
-4. Edge criticality analysis
+4. Layer analysis
+5. Edge criticality analysis
 
 This example can run in demo mode (no Neo4j required) or
 live mode with an actual Neo4j connection.
@@ -19,7 +20,7 @@ Usage:
     python examples/example_analysis.py --password your_password
 
 Author: Software-as-a-Graph Research Project
-Version: 5.0
+Version: 6.0
 """
 
 import argparse
@@ -32,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 # =============================================================================
-# Terminal Output
+# Terminal Colors
 # =============================================================================
 
 BOLD = "\033[1m"
@@ -53,7 +54,7 @@ def print_header(title: str) -> None:
 
 def print_section(title: str) -> None:
     print(f"\n{BOLD}{title}{RESET}")
-    print(f"{'-' * 40}")
+    print("-" * 40)
 
 
 def print_success(msg: str) -> None:
@@ -75,7 +76,7 @@ def level_color(level: str) -> str:
 
 
 # =============================================================================
-# Demo Mode
+# Demo Mode (No Neo4j Required)
 # =============================================================================
 
 def run_demo_mode():
@@ -85,7 +86,7 @@ def run_demo_mode():
     print("This demo shows the analysis capabilities without Neo4j.")
     print("For live analysis, run with: --password <neo4j_password>")
     
-    # Import analysis module
+    # Import modules
     from src.analysis import (
         BoxPlotClassifier,
         CriticalityLevel,
@@ -108,7 +109,7 @@ def run_demo_mode():
     print("  LOW:      > Q1            (below average)")
     print("  MINIMAL:  ≤ Q1            (bottom quartile)")
     
-    # Create sample data
+    # Sample data
     sample_scores = [
         {"id": "app_order_svc", "type": "Application", "score": 0.95},
         {"id": "app_payment", "type": "Application", "score": 0.82},
@@ -156,63 +157,83 @@ def run_demo_mode():
         print(f"    {color}→{RESET} {item.id}: {item.score:.3f} [{item.level.value}]")
     
     # =========================================================================
-    # Demo 2: Multi-Layer Analysis Concept
+    # Demo 2: NetworkX Analyzer
     # =========================================================================
-    print_section("2. Multi-Layer Analysis")
+    print_section("2. NetworkX Graph Algorithms")
     
-    print("The system is analyzed by dependency layer:")
+    print("NetworkX algorithms compute centrality metrics:")
     print()
+    print("  • PageRank: Transitive importance via random walk")
+    print("  • Betweenness: How often node is on shortest paths")
+    print("  • Degree: Number of direct connections")
+    print("  • Articulation Points: Nodes whose removal disconnects graph")
+    print("  • Bridges: Edges whose removal disconnects graph")
     
+    # Create mock graph
+    from src.analysis import (
+        NetworkXAnalyzer,
+        ComponentData,
+        EdgeData,
+        GraphData,
+    )
+    
+    components = [
+        ComponentData(id="app_1", component_type="Application", weight=1.0),
+        ComponentData(id="app_2", component_type="Application", weight=1.5),
+        ComponentData(id="app_3", component_type="Application", weight=0.8),
+        ComponentData(id="broker_1", component_type="Broker", weight=2.0),
+    ]
+    
+    edges = [
+        EdgeData("app_1", "app_2", "Application", "Application", "app_to_app", 1.5),
+        EdgeData("app_2", "app_3", "Application", "Application", "app_to_app", 1.0),
+        EdgeData("app_1", "app_3", "Application", "Application", "app_to_app", 0.5),
+        EdgeData("app_1", "broker_1", "Application", "Broker", "app_to_broker", 2.0),
+        EdgeData("app_2", "broker_1", "Application", "Broker", "app_to_broker", 1.5),
+    ]
+    
+    graph_data = GraphData(components=components, edges=edges)
+    
+    print(f"\n  Mock graph: {len(components)} components, {len(edges)} edges")
+    
+    # Analyze with NetworkX
+    analyzer = NetworkXAnalyzer(k_factor=1.5)
+    app_result = analyzer.analyze_component_type(graph_data, "Application")
+    
+    print(f"\n  Application analysis results:")
+    for comp in app_result.components:
+        ap_mark = " [AP]" if comp.is_articulation_point else ""
+        color = level_color(comp.level.value)
+        print(f"    {color}{comp.component_id}{RESET}: "
+              f"PR={comp.pagerank:.4f}, BC={comp.betweenness:.4f}, "
+              f"Composite={comp.composite_score:.4f}{ap_mark}")
+    
+    # =========================================================================
+    # Demo 3: Layer Definitions
+    # =========================================================================
+    print_section("3. Multi-Layer Analysis")
+    
+    print("The system supports multiple dependency layers:")
+    print()
     for layer_key, layer_def in LAYER_DEFINITIONS.items():
-        print(f"  {BOLD}{layer_key:15}{RESET}: {layer_def['name']}")
-        print(f"    Components: {', '.join(layer_def['component_types'])}")
-        print(f"    Dependencies: {', '.join(layer_def['dependency_types'])}")
+        print(f"  {BOLD}{layer_key}{RESET}:")
+        print(f"    Name: {layer_def['name']}")
+        print(f"    Component Types: {layer_def['component_types']}")
+        print(f"    Dependency Types: {layer_def['dependency_types']}")
         print()
     
-    print("Each layer is analyzed independently with its own statistics.")
-    
     # =========================================================================
-    # Demo 3: Component Type Analysis Concept
+    # Demo 4: Component Types
     # =========================================================================
-    print_section("3. Component Type Analysis")
+    print_section("4. Component Types")
     
-    print("Components are compared within their type for fair evaluation:")
+    print("Components are analyzed separately by type for fair comparison:")
     print()
-    
     for comp_type in COMPONENT_TYPES:
-        print(f"  {BOLD}{comp_type}{RESET}")
-        print(f"    - Compared with other {comp_type}s only")
-        print(f"    - Gets own quartile statistics")
-        print(f"    - Fair classification within type")
+        print(f"  • {comp_type}")
     
-    print(f"\n  Why type-specific analysis?")
-    print(f"    - Brokers naturally have higher betweenness")
-    print(f"    - Topics have different connectivity patterns")
-    print(f"    - Cross-type comparison can be misleading")
-    
-    # =========================================================================
-    # Demo 4: Edge Criticality Concept
-    # =========================================================================
-    print_section("4. Edge Criticality Analysis")
-    
-    print("Edges are analyzed for criticality based on:")
-    print()
-    print("  {BOLD}Weight{RESET} (35%)")
-    print("    - QoS-based dependency weight")
-    print("    - Higher weight = more critical dependency")
-    print()
-    print("  {BOLD}Bridge Status{RESET} (40%)")
-    print("    - Only path between components")
-    print("    - Removal would disconnect the graph")
-    print()
-    print("  {BOLD}Endpoint Criticality{RESET} (25%)")
-    print("    - Connects to critical components")
-    print("    - Inherits importance from endpoints")
-    
-    print(f"\n  Criticality formula:")
-    print_code("""score = 0.35 × normalized_weight
-     + 0.40 × is_bridge
-     + 0.25 × connects_critical""")
+    print(f"\n  This ensures Applications are compared to Applications,")
+    print(f"  Brokers to Brokers, etc., using type-specific statistics.")
     
     # =========================================================================
     # Demo 5: CLI Usage
@@ -223,13 +244,13 @@ def run_demo_mode():
     print()
     
     examples = [
-        ("Full analysis", "python analyze_graph.py --full"),
+        ("Full analysis", "python analyze_graph.py"),
+        ("Single type", "python analyze_graph.py --type Application"),
+        ("All types", "python analyze_graph.py --all-types"),
         ("Single layer", "python analyze_graph.py --layer application"),
         ("All layers", "python analyze_graph.py --all-layers"),
-        ("Component type", "python analyze_graph.py --type Broker"),
-        ("All types", "python analyze_graph.py --all-types"),
         ("Edge analysis", "python analyze_graph.py --edges"),
-        ("Export JSON", "python analyze_graph.py --full --output results.json"),
+        ("Export JSON", "python analyze_graph.py --output results.json"),
     ]
     
     for desc, cmd in examples:
@@ -245,53 +266,53 @@ def run_demo_mode():
     print("Use the GraphAnalyzer class directly:")
     print()
     
-    print_code("""from src.analysis import GraphAnalyzer
+    print_code("""
+from src.analysis import GraphAnalyzer
 
 with GraphAnalyzer(uri, user, password) as analyzer:
+    # Analyze by component type
+    apps = analyzer.analyze_component_type("Application")
+    
+    # Analyze by layer
+    app_layer = analyzer.analyze_layer("application")
+    
     # Full analysis
     result = analyzer.analyze_full()
     
-    # Single layer
-    app_layer = analyzer.analyze_layer("application")
-    
-    # Component type
-    brokers = analyzer.analyze_component_type("Broker")
-    
     # Get critical components
-    for comp in brokers.get_critical():
-        print(f"{comp.component_id}: {comp.composite_score:.4f}")""")
+    for comp in apps.get_critical():
+        print(f"{comp.component_id}: {comp.composite_score:.4f}")
+""")
     
     print_header("Demo Complete")
     
     print("To run with Neo4j:")
-    print_code("""# 1. Start Neo4j with GDS
+    print_code("""
+# 1. Start Neo4j
 docker run -d --name neo4j \\
     -p 7474:7474 -p 7687:7687 \\
     -e NEO4J_AUTH=neo4j/password \\
-    -e NEO4J_PLUGINS='["graph-data-science"]' \\
     neo4j:latest
 
 # 2. Import graph data
 python import_graph.py --input graph.json
 
 # 3. Run analysis
-python analyze_graph.py --full""")
+python analyze_graph.py --password password
+""")
 
 
 # =============================================================================
-# Live Mode
+# Live Mode (With Neo4j)
 # =============================================================================
 
 def run_live_mode(args):
     """Run with actual Neo4j connection."""
     print_header("Graph Analysis - Live Mode")
     
-    try:
-        from src.analysis import GraphAnalyzer, CriticalityLevel
-    except ImportError as e:
-        print(f"{RED}✗{RESET} Import failed: {e}")
-        print_info("Install neo4j driver: pip install neo4j")
-        return 1
+    from src.analysis import GraphAnalyzer, COMPONENT_TYPES
+    
+    print_info(f"Connecting to Neo4j at {args.uri}")
     
     try:
         with GraphAnalyzer(
@@ -302,80 +323,66 @@ def run_live_mode(args):
             k_factor=args.k_factor,
         ) as analyzer:
             
-            print_success(f"Connected to {args.uri}")
-            
-            # Get graph stats
-            print_section("Graph Statistics")
+            # Get stats
             stats = analyzer.get_graph_stats()
-            print(f"  Total Nodes: {stats.get('total_nodes', 0)}")
-            print(f"  Total DEPENDS_ON: {stats.get('total_relationships', 0)}")
+            print_success(f"Connected. Found {stats.get('total_nodes', 0)} nodes, "
+                         f"{stats.get('total_edges', 0)} edges")
             
-            if stats.get("nodes"):
-                print("\n  By Node Type:")
-                for node_type, count in stats["nodes"].items():
-                    print(f"    {node_type}: {count}")
+            # Run full analysis
+            print_info("Running full analysis...")
+            result = analyzer.analyze_full()
             
-            # Analyze all component types
-            print_section("Component Type Analysis")
+            # Print results
+            print_section("Analysis Results")
             
-            all_types = analyzer.analyze_all_component_types()
-            
-            for comp_type, type_result in all_types.by_type.items():
-                critical_count = len(type_result.get_critical())
+            # Component types
+            print(f"\n{BOLD}Component Type Analysis:{RESET}")
+            for comp_type, type_result in result.component_types.items():
+                critical = len(type_result.get_critical())
                 total = len(type_result.components)
-                
-                print(f"\n  {BOLD}{comp_type}{RESET}: {total} components")
-                print(f"    Critical: {critical_count}")
-                
-                if type_result.get_critical():
-                    print(f"    Top critical:")
-                    for comp in type_result.get_critical()[:3]:
-                        ap = f" {YELLOW}[AP]{RESET}" if comp.is_articulation_point else ""
-                        print(f"      {comp.component_id}: {comp.composite_score:.4f}{ap}")
+                aps = len(type_result.articulation_points)
+                color = RED if critical > 0 else GREEN
+                print(f"  {comp_type:15}: {total:4} total, {color}{critical:3} critical{RESET}, {aps} APs")
             
-            # Analyze layers
-            print_section("Layer Analysis")
+            # Layers
+            print(f"\n{BOLD}Layer Analysis:{RESET}")
+            for layer_key, layer_result in result.layers.items():
+                critical = len(layer_result.get_critical())
+                total = len(layer_result.components)
+                bridges = len(layer_result.bridges)
+                color = RED if critical > 0 else GREEN
+                print(f"  {layer_key:15}: {total:4} total, {color}{critical:3} critical{RESET}, {bridges} bridges")
             
-            layers = analyzer.analyze_all_layers()
+            # Edges
+            if result.edges:
+                print(f"\n{BOLD}Edge Analysis:{RESET}")
+                critical_edges = len(result.edges.get_critical())
+                total_edges = len(result.edges.edges)
+                bridge_count = len(result.edges.get_bridges())
+                color = RED if critical_edges > 0 else GREEN
+                print(f"  Total: {total_edges}, {color}Critical: {critical_edges}{RESET}, Bridges: {bridge_count}")
             
-            for layer_key, layer_result in layers.layers.items():
-                critical_count = len(layer_result.get_critical_components())
-                total = len(layer_result.metrics)
-                
-                print(f"\n  {BOLD}{layer_key}{RESET}: {total} components")
-                print(f"    Critical: {critical_count}")
-            
-            # Edge analysis
-            print_section("Edge Analysis")
-            
-            edges = analyzer.analyze_edges()
-            
-            print(f"  Total Edges: {len(edges.edges)}")
-            print(f"  Critical: {len(edges.get_critical())}")
-            print(f"  Bridges: {len(edges.get_bridges())}")
-            
-            if edges.get_critical():
-                print(f"\n  Critical Edges:")
-                for edge in edges.get_critical()[:5]:
-                    bridge = f" {YELLOW}[BRIDGE]{RESET}" if edge.is_bridge else ""
-                    print(f"    {edge.source_id} → {edge.target_id}: {edge.criticality_score:.4f}{bridge}")
+            # Summary
+            print_section("Summary")
+            summary = result.summary
+            print(f"  {RED}Total Critical Components: {summary.get('total_critical_components', 0)}{RESET}")
+            print(f"  {RED}Total Critical Edges: {summary.get('total_critical_edges', 0)}{RESET}")
             
             # Export if requested
             if args.output:
-                result = analyzer.analyze_full()
                 output_path = Path(args.output)
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                
                 with open(output_path, "w") as f:
-                    json.dump(result.to_dict(), f, indent=2, default=str)
-                
+                    json.dump(result.to_dict(), f, indent=2)
                 print_success(f"Results exported to {output_path}")
             
             print_header("Analysis Complete")
             return 0
     
+    except ConnectionError as e:
+        print(f"{RED}Connection failed:{RESET} {e}")
+        return 1
     except Exception as e:
-        print(f"{RED}✗{RESET} Analysis failed: {e}")
+        print(f"{RED}Analysis failed:{RESET} {e}")
         if args.verbose:
             import traceback
             traceback.print_exc()

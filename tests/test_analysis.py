@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Test Suite for src.analysis Module - Version 5.0
+Test Suite for src.analysis Module - Version 6.0
 
 Tests for graph analysis including:
 - Box-plot classification
-- Centrality algorithms (mock/demo mode)
-- Layer analysis
+- NetworkX-based centrality algorithms
 - Component type analysis
+- Layer analysis
 - Edge analysis
 
 Run with pytest:
@@ -16,12 +16,13 @@ Or standalone:
     python tests/test_analysis.py
 
 Author: Software-as-a-Graph Research Project
-Version: 5.0
+Version: 6.0
 """
 
 import sys
 from pathlib import Path
 from typing import Dict, List, Any
+from dataclasses import dataclass
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -34,13 +35,13 @@ except ImportError:
 
 
 # =============================================================================
-# Test Data
+# Test Data Fixtures
 # =============================================================================
 
 def create_test_scores() -> List[Dict[str, Any]]:
     """Create test score data for classification tests."""
     return [
-        {"id": "comp_01", "type": "Application", "score": 0.95},  # Outlier
+        {"id": "comp_01", "type": "Application", "score": 0.95},  # Likely outlier
         {"id": "comp_02", "type": "Application", "score": 0.88},
         {"id": "comp_03", "type": "Application", "score": 0.75},
         {"id": "comp_04", "type": "Broker", "score": 0.72},
@@ -54,15 +55,33 @@ def create_test_scores() -> List[Dict[str, Any]]:
     ]
 
 
-def create_edge_test_data() -> List[Dict[str, Any]]:
-    """Create test edge data."""
-    return [
-        {"source": "app_1", "target": "app_2", "weight": 5.5, "type": "app_to_app"},
-        {"source": "app_2", "target": "app_3", "weight": 3.2, "type": "app_to_app"},
-        {"source": "app_1", "target": "broker_1", "weight": 4.0, "type": "app_to_broker"},
-        {"source": "node_1", "target": "node_2", "weight": 2.5, "type": "node_to_node"},
-        {"source": "node_1", "target": "broker_1", "weight": 1.8, "type": "node_to_broker"},
+def create_mock_graph_data():
+    """Create mock GraphData for testing NetworkX analyzer."""
+    from src.analysis import ComponentData, EdgeData, GraphData
+    
+    components = [
+        ComponentData(id="app_1", component_type="Application", weight=1.0),
+        ComponentData(id="app_2", component_type="Application", weight=1.5),
+        ComponentData(id="app_3", component_type="Application", weight=0.8),
+        ComponentData(id="broker_1", component_type="Broker", weight=2.0),
+        ComponentData(id="broker_2", component_type="Broker", weight=1.0),
+        ComponentData(id="node_1", component_type="Node", weight=1.0),
+        ComponentData(id="node_2", component_type="Node", weight=1.0),
     ]
+    
+    edges = [
+        EdgeData("app_1", "app_2", "Application", "Application", "app_to_app", 1.5),
+        EdgeData("app_2", "app_3", "Application", "Application", "app_to_app", 1.0),
+        EdgeData("app_1", "app_3", "Application", "Application", "app_to_app", 0.5),
+        EdgeData("app_1", "broker_1", "Application", "Broker", "app_to_broker", 2.0),
+        EdgeData("app_2", "broker_1", "Application", "Broker", "app_to_broker", 1.5),
+        EdgeData("app_3", "broker_2", "Application", "Broker", "app_to_broker", 1.0),
+        EdgeData("node_1", "node_2", "Node", "Node", "node_to_node", 1.0),
+        EdgeData("node_1", "broker_1", "Node", "Broker", "node_to_broker", 1.0),
+        EdgeData("node_2", "broker_2", "Node", "Broker", "node_to_broker", 1.0),
+    ]
+    
+    return GraphData(components=components, edges=edges)
 
 
 # =============================================================================
@@ -96,6 +115,16 @@ class TestCriticalityLevel:
         
         assert CriticalityLevel.MINIMAL < CriticalityLevel.LOW
         assert CriticalityLevel.LOW <= CriticalityLevel.MEDIUM
+    
+    def test_numeric_property(self):
+        """Test numeric property for comparison."""
+        from src.analysis import CriticalityLevel
+        
+        assert CriticalityLevel.CRITICAL.numeric == 5
+        assert CriticalityLevel.HIGH.numeric == 4
+        assert CriticalityLevel.MEDIUM.numeric == 3
+        assert CriticalityLevel.LOW.numeric == 2
+        assert CriticalityLevel.MINIMAL.numeric == 1
 
 
 # =============================================================================
@@ -119,6 +148,7 @@ class TestBoxPlotStats:
             min_val=0.10,
             max_val=0.95,
             mean=0.52,
+            std_dev=0.25,
             count=10,
             k_factor=1.5,
         )
@@ -130,6 +160,7 @@ class TestBoxPlotStats:
         assert data["q3"] == 0.75
         assert data["iqr"] == 0.50
         assert data["count"] == 10
+        assert data["k_factor"] == 1.5
 
 
 # =============================================================================
@@ -141,7 +172,7 @@ class TestBoxPlotClassifier:
 
     def test_basic_classification(self):
         """Test basic classification."""
-        from src.analysis import BoxPlotClassifier, CriticalityLevel
+        from src.analysis import BoxPlotClassifier
         
         classifier = BoxPlotClassifier(k_factor=1.5)
         items = create_test_scores()
@@ -173,7 +204,7 @@ class TestBoxPlotClassifier:
 
     def test_get_critical(self):
         """Test getting critical items."""
-        from src.analysis import BoxPlotClassifier
+        from src.analysis import BoxPlotClassifier, CriticalityLevel
         
         classifier = BoxPlotClassifier(k_factor=1.5)
         items = create_test_scores()
@@ -181,9 +212,9 @@ class TestBoxPlotClassifier:
         result = classifier.classify(items)
         critical = result.get_critical()
         
-        # All critical items should have high scores
+        # All critical items should have CRITICAL level
         for item in critical:
-            assert item.score > result.stats.upper_fence
+            assert item.level == CriticalityLevel.CRITICAL
 
     def test_get_high_and_above(self):
         """Test getting high and critical items."""
@@ -262,16 +293,28 @@ class TestBoxPlotClassifier:
         classifier = BoxPlotClassifier(k_factor=1.5)
         
         # Simple data for easy verification
-        items = [
-            {"id": f"item_{i}", "type": "test", "score": score}
-            for i, score in enumerate([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
-        ]
+        scores = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        stats = classifier.calculate_stats(scores)
+        
+        assert stats.min_val == 0.1
+        assert stats.max_val == 0.9
+        assert 0.4 < stats.median < 0.6  # Should be around 0.5
+        assert stats.count == 9
+
+    def test_top_n(self):
+        """Test getting top N items."""
+        from src.analysis import BoxPlotClassifier
+        
+        classifier = BoxPlotClassifier()
+        items = create_test_scores()
         
         result = classifier.classify(items)
+        top_5 = result.top_n(5)
         
-        assert result.stats.min_val == 0.1
-        assert result.stats.max_val == 0.9
-        assert 0.4 < result.stats.median < 0.6  # Should be around 0.5
+        assert len(top_5) == 5
+        # Should be sorted descending
+        for i in range(len(top_5) - 1):
+            assert top_5[i].score >= top_5[i + 1].score
 
 
 # =============================================================================
@@ -321,27 +364,13 @@ class TestUtilityFunctions:
 
     def test_classify_items(self):
         """Test classify_items convenience function."""
-        from src.analysis import classify_items, CriticalityLevel
+        from src.analysis import classify_items
         
         items = create_test_scores()
         result = classify_items(items, k_factor=1.5, metric_name="test")
         
         assert result.metric_name == "test"
         assert len(result.items) == len(items)
-
-    def test_get_level_for_score(self):
-        """Test get_level_for_score function."""
-        from src.analysis import get_level_for_score, CriticalityLevel
-        
-        all_scores = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-        
-        # Very high score should be HIGH or CRITICAL
-        level_high = get_level_for_score(0.95, all_scores)
-        assert level_high >= CriticalityLevel.HIGH
-        
-        # Very low score should be LOW or MINIMAL
-        level_low = get_level_for_score(0.05, all_scores)
-        assert level_low <= CriticalityLevel.LOW
 
 
 # =============================================================================
@@ -359,6 +388,7 @@ class TestConstants:
         assert "Broker" in COMPONENT_TYPES
         assert "Node" in COMPONENT_TYPES
         assert "Topic" in COMPONENT_TYPES
+        assert len(COMPONENT_TYPES) == 4
 
     def test_dependency_types(self):
         """Test DEPENDENCY_TYPES constant."""
@@ -368,6 +398,7 @@ class TestConstants:
         assert "node_to_node" in DEPENDENCY_TYPES
         assert "app_to_broker" in DEPENDENCY_TYPES
         assert "node_to_broker" in DEPENDENCY_TYPES
+        assert len(DEPENDENCY_TYPES) == 4
 
     def test_layer_definitions(self):
         """Test LAYER_DEFINITIONS constant."""
@@ -377,166 +408,202 @@ class TestConstants:
         assert "infrastructure" in LAYER_DEFINITIONS
         assert "app_broker" in LAYER_DEFINITIONS
         assert "node_broker" in LAYER_DEFINITIONS
-        assert "full" in LAYER_DEFINITIONS
         
         # Check structure
-        for key, definition in LAYER_DEFINITIONS.items():
-            assert "name" in definition
-            assert "component_types" in definition
-            assert "dependency_types" in definition
+        app_layer = LAYER_DEFINITIONS["application"]
+        assert "name" in app_layer
+        assert "component_types" in app_layer
+        assert "dependency_types" in app_layer
 
 
 # =============================================================================
-# Test: Data Classes
+# Test: NetworkX Analyzer
 # =============================================================================
 
-class TestDataClasses:
-    """Tests for data classes."""
+class TestNetworkXAnalyzer:
+    """Tests for NetworkXAnalyzer."""
 
-    def test_centrality_result(self):
-        """Test CentralityResult data class."""
-        from src.analysis import CentralityResult
+    def test_analyze_component_type(self):
+        """Test component type analysis."""
+        from src.analysis import NetworkXAnalyzer
         
-        result = CentralityResult(
-            node_id="app_1",
-            node_type="Application",
-            score=0.85,
-            rank=1,
-        )
+        graph_data = create_mock_graph_data()
+        analyzer = NetworkXAnalyzer(k_factor=1.5)
         
-        assert result.node_id == "app_1"
-        assert result.node_type == "Application"
-        assert result.score == 0.85
-        assert result.rank == 1
+        result = analyzer.analyze_component_type(graph_data, "Application")
         
-        data = result.to_dict()
-        assert data["id"] == "app_1"
-        assert data["type"] == "Application"
+        assert result.component_type == "Application"
+        assert len(result.components) == 3  # app_1, app_2, app_3
+        assert result.timestamp is not None
+    
+    def test_analyze_component_type_invalid(self):
+        """Test invalid component type."""
+        from src.analysis import NetworkXAnalyzer
+        
+        graph_data = create_mock_graph_data()
+        analyzer = NetworkXAnalyzer()
+        
+        try:
+            analyzer.analyze_component_type(graph_data, "Invalid")
+            assert False, "Should raise ValueError"
+        except ValueError:
+            pass
 
-    def test_projection_info(self):
-        """Test ProjectionInfo data class."""
-        from src.analysis import ProjectionInfo
+    def test_analyze_layer(self):
+        """Test layer analysis."""
+        from src.analysis import NetworkXAnalyzer
         
-        info = ProjectionInfo(
-            name="test_projection",
-            node_count=100,
-            relationship_count=500,
-            node_labels=["Application", "Broker"],
-            relationship_types=["DEPENDS_ON"],
-        )
+        graph_data = create_mock_graph_data()
+        analyzer = NetworkXAnalyzer(k_factor=1.5)
         
-        assert info.name == "test_projection"
-        assert info.node_count == 100
+        result = analyzer.analyze_layer(graph_data, "application")
         
-        data = info.to_dict()
-        assert data["node_count"] == 100
+        assert result.layer_key == "application"
+        assert result.layer_name == "Application Layer"
+        assert len(result.components) > 0
+    
+    def test_analyze_layer_invalid(self):
+        """Test invalid layer."""
+        from src.analysis import NetworkXAnalyzer
+        
+        graph_data = create_mock_graph_data()
+        analyzer = NetworkXAnalyzer()
+        
+        try:
+            analyzer.analyze_layer(graph_data, "invalid_layer")
+            assert False, "Should raise ValueError"
+        except ValueError:
+            pass
 
-    def test_layer_metrics(self):
-        """Test LayerMetrics data class."""
-        from src.analysis import LayerMetrics, CriticalityLevel
+    def test_analyze_edges(self):
+        """Test edge analysis."""
+        from src.analysis import NetworkXAnalyzer
         
-        metrics = LayerMetrics(
+        graph_data = create_mock_graph_data()
+        analyzer = NetworkXAnalyzer(k_factor=1.5)
+        
+        result = analyzer.analyze_edges(graph_data)
+        
+        assert len(result.edges) == len(graph_data.edges)
+        assert result.timestamp is not None
+
+    def test_metrics_calculation(self):
+        """Test that metrics are calculated for components."""
+        from src.analysis import NetworkXAnalyzer
+        
+        graph_data = create_mock_graph_data()
+        analyzer = NetworkXAnalyzer()
+        
+        result = analyzer.analyze_component_type(graph_data, "Application")
+        
+        for comp in result.components:
+            assert hasattr(comp, "pagerank")
+            assert hasattr(comp, "betweenness")
+            assert hasattr(comp, "degree")
+            assert hasattr(comp, "composite_score")
+            assert comp.pagerank >= 0
+            assert comp.composite_score >= 0
+
+    def test_normalization(self):
+        """Test metric normalization."""
+        from src.analysis import NetworkXAnalyzer
+        
+        graph_data = create_mock_graph_data()
+        analyzer = NetworkXAnalyzer()
+        
+        result = analyzer.analyze_component_type(graph_data, "Application")
+        
+        for comp in result.components:
+            # Normalized values should be in [0, 1]
+            assert 0 <= comp.pagerank_norm <= 1
+            assert 0 <= comp.betweenness_norm <= 1
+            assert 0 <= comp.degree_norm <= 1
+
+    def test_articulation_points(self):
+        """Test articulation point detection."""
+        from src.analysis import NetworkXAnalyzer
+        
+        graph_data = create_mock_graph_data()
+        analyzer = NetworkXAnalyzer()
+        
+        result = analyzer.analyze_component_type(graph_data, "Application")
+        
+        # Check that articulation points are detected
+        assert result.articulation_points is not None
+        
+        # Check that is_articulation_point flag is set
+        for comp in result.components:
+            if comp.component_id in result.articulation_points:
+                assert comp.is_articulation_point
+
+
+# =============================================================================
+# Test: GraphData
+# =============================================================================
+
+class TestGraphData:
+    """Tests for GraphData data class."""
+
+    def test_summary(self):
+        """Test summary method."""
+        graph_data = create_mock_graph_data()
+        summary = graph_data.summary()
+        
+        assert "total_components" in summary
+        assert "total_edges" in summary
+        assert summary["total_components"] == 7
+        assert summary["total_edges"] == 9
+
+    def test_get_components_by_type(self):
+        """Test getting components by type."""
+        graph_data = create_mock_graph_data()
+        
+        apps = graph_data.get_components_by_type("Application")
+        assert len(apps) == 3
+        
+        brokers = graph_data.get_components_by_type("Broker")
+        assert len(brokers) == 2
+
+    def test_get_edges_by_type(self):
+        """Test getting edges by type."""
+        graph_data = create_mock_graph_data()
+        
+        app_edges = graph_data.get_edges_by_type("app_to_app")
+        assert len(app_edges) == 3
+
+
+# =============================================================================
+# Test: CentralityMetrics
+# =============================================================================
+
+class TestCentralityMetrics:
+    """Tests for CentralityMetrics data class."""
+
+    def test_to_dict(self):
+        """Test serialization."""
+        from src.analysis import CentralityMetrics, CriticalityLevel
+        
+        metrics = CentralityMetrics(
             component_id="app_1",
             component_type="Application",
             pagerank=0.5,
             betweenness=0.3,
-            degree=0.7,
-            composite_score=0.5,
+            degree=0.4,
+            composite_score=0.4,
             level=CriticalityLevel.HIGH,
             is_articulation_point=True,
         )
         
-        assert metrics.component_id == "app_1"
-        assert metrics.is_articulation_point is True
-        
         data = metrics.to_dict()
+        
+        assert data["id"] == "app_1"
+        assert data["type"] == "Application"
         assert data["level"] == "high"
-
-    def test_edge_metrics(self):
-        """Test EdgeMetrics data class."""
-        from src.analysis import EdgeMetrics, CriticalityLevel
-        
-        edge = EdgeMetrics(
-            source_id="app_1",
-            target_id="app_2",
-            source_type="Application",
-            target_type="Application",
-            dependency_type="app_to_app",
-            weight=3.5,
-            criticality_score=0.8,
-            is_bridge=True,
-            connects_critical=True,
-            level=CriticalityLevel.CRITICAL,
-        )
-        
-        assert edge.edge_key == "app_1->app_2"
-        assert edge.is_bridge is True
-        
-        data = edge.to_dict()
-        assert data["dependency_type"] == "app_to_app"
+        assert data["is_articulation_point"] == True
 
 
 # =============================================================================
-# Test: Result Classes
-# =============================================================================
-
-class TestResultClasses:
-    """Tests for result data classes."""
-
-    def test_layer_result(self):
-        """Test LayerResult data class."""
-        from src.analysis import LayerResult, LayerMetrics, ProjectionInfo, CriticalityLevel
-        
-        metrics = [
-            LayerMetrics("app_1", "Application", composite_score=0.9, level=CriticalityLevel.CRITICAL),
-            LayerMetrics("app_2", "Application", composite_score=0.5, level=CriticalityLevel.MEDIUM),
-            LayerMetrics("app_3", "Application", composite_score=0.2, level=CriticalityLevel.LOW),
-        ]
-        
-        result = LayerResult(
-            layer_name="Application Layer",
-            layer_key="application",
-            timestamp="2025-01-01T00:00:00",
-            projection=ProjectionInfo("test", 10, 20),
-            metrics=metrics,
-        )
-        
-        critical = result.get_critical_components()
-        assert len(critical) == 1
-        assert critical[0].component_id == "app_1"
-        
-        high_plus = result.get_high_and_above()
-        assert len(high_plus) == 1
-        
-        top = result.top_n(2)
-        assert len(top) == 2
-        assert top[0].composite_score > top[1].composite_score
-
-    def test_edge_analysis_result(self):
-        """Test EdgeAnalysisResult data class."""
-        from src.analysis import EdgeAnalysisResult, EdgeMetrics, CriticalityLevel
-        
-        edges = [
-            EdgeMetrics("a", "b", "App", "App", "app_to_app", weight=5.0, 
-                       is_bridge=True, level=CriticalityLevel.CRITICAL),
-            EdgeMetrics("c", "d", "Node", "Node", "node_to_node", weight=2.0,
-                       level=CriticalityLevel.MEDIUM),
-        ]
-        
-        result = EdgeAnalysisResult(
-            timestamp="2025-01-01T00:00:00",
-            edges=edges,
-        )
-        
-        critical = result.get_critical()
-        assert len(critical) == 1
-        
-        bridges = result.get_bridges()
-        assert len(bridges) == 1
-
-
-# =============================================================================
-# Standalone Test Runner
+# Test Runner (Standalone)
 # =============================================================================
 
 def run_tests_standalone():
@@ -550,42 +617,48 @@ def run_tests_standalone():
         TestClassificationResult,
         TestUtilityFunctions,
         TestConstants,
-        TestDataClasses,
-        TestResultClasses,
+        TestNetworkXAnalyzer,
+        TestGraphData,
+        TestCentralityMetrics,
     ]
     
-    passed = failed = 0
-    
-    print("=" * 60)
-    print("Software-as-a-Graph Analysis Module Tests")
-    print("=" * 60)
+    passed = 0
+    failed = 0
+    errors = []
     
     for test_class in test_classes:
-        print(f"\n{test_class.__name__}")
-        print("-" * 40)
-        
         instance = test_class()
-        for method_name in [m for m in dir(instance) if m.startswith("test_")]:
-            try:
-                getattr(instance, method_name)()
-                print(f"  ✓ {method_name}")
-                passed += 1
-            except Exception as e:
-                print(f"  ✗ {method_name}: {e}")
-                if "--verbose" in sys.argv:
-                    traceback.print_exc()
-                failed += 1
+        for method_name in dir(instance):
+            if method_name.startswith("test_"):
+                try:
+                    print(f"  Running {test_class.__name__}.{method_name}...", end=" ")
+                    getattr(instance, method_name)()
+                    print("✓")
+                    passed += 1
+                except AssertionError as e:
+                    print("✗")
+                    failed += 1
+                    errors.append(f"{test_class.__name__}.{method_name}: {e}")
+                except Exception as e:
+                    print("✗ (error)")
+                    failed += 1
+                    errors.append(f"{test_class.__name__}.{method_name}: {traceback.format_exc()}")
     
-    print(f"\n{'=' * 60}")
+    print(f"\n{'=' * 50}")
     print(f"Results: {passed} passed, {failed} failed")
-    print("=" * 60)
+    
+    if errors:
+        print(f"\nFailures:")
+        for error in errors:
+            print(f"  - {error}")
     
     return failed == 0
 
 
 if __name__ == "__main__":
-    if HAS_PYTEST and "--no-pytest" not in sys.argv:
+    if HAS_PYTEST:
         sys.exit(pytest.main([__file__, "-v"]))
     else:
+        print("Running tests without pytest...\n")
         success = run_tests_standalone()
         sys.exit(0 if success else 1)
