@@ -1,8 +1,8 @@
 """
 Quality Analyzer
 
-Computes composite Quality Scores (Reliability, Maintainability, Availability)
-for Components AND Edges. Uses statistical classification.
+Computes Criticality Scores for Reliability (R), Maintainability (M), and Availability (A).
+Uses Box-Plot Classification (Dynamic Thresholds) to assign levels.
 """
 
 from dataclasses import dataclass
@@ -14,9 +14,13 @@ from .classifier import BoxPlotClassifier, CriticalityLevel, ClassificationResul
 
 @dataclass
 class QualityScores:
-    reliability: float
-    maintainability: float
-    availability: float
+    """
+    Scores represent Criticality/Importance.
+    Higher Score = Higher Criticality = Higher Risk if component fails.
+    """
+    reliability: float    # How critical is this for system reliability?
+    maintainability: float # How hard is this to maintain/change?
+    availability: float    # How critical is this for system availability?
     overall: float
 
 @dataclass
@@ -47,34 +51,37 @@ class QualityAnalysisResult:
 class QualityAnalyzer:
     def __init__(self, k_factor: float = 1.5):
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
-        # Weights from formulations
-        self.W_C = {
-            "R": {"pr": 0.45, "fp": 0.35, "id": 0.20},
-            "M": {"bt": 0.45, "cc": 0.25, "dc": 0.30},
-            "A": {"ap": 0.50, "br": 0.25, "cr": 0.25},
-            "Q": {"r": 0.35, "m": 0.30, "a": 0.35}
-        }
-        self.W_E = {
-            "R": {"w": 0.40, "ep": 0.60},
-            "A": {"br": 0.60, "ep": 0.40}
-        }
+        
+        # Coefficients for composite scores
+        # Reliability: Importance (PageRank) + Failure Impact (Reverse PR)
+        self.W_R = {"pr": 0.45, "fp": 0.35, "id": 0.20} 
+        
+        # Maintainability: Complexity (Betweenness) + Coupling (Degree)
+        # Note: High Score here means "Hard to Maintain / High Ripple Effect"
+        self.W_M = {"bt": 0.45, "cc": 0.25, "dc": 0.30}
+        
+        # Availability: Single Point of Failure potential
+        self.W_A = {"ap": 0.50, "br": 0.25, "cr": 0.25} 
 
     def analyze(self, struct: StructuralAnalysisResult) -> QualityAnalysisResult:
-        # 1. Component Analysis
         comp_results = []
+        edge_results = []
+        
+        # 1. Component Analysis
         if struct.components:
+            # Normalize metrics relative to the current dataset (Type or Full System)
             normalized = self._normalize_components(struct.components.values())
+            
             for c in struct.components.values():
                 scores = self._compute_component_scores(c, normalized[c.id])
                 comp_results.append(ComponentQuality(c.id, c.type, scores, CriticalityLevel.MINIMAL))
             
-            # Classify Components (Grouped by Type for fairness)
-            self._classify_items(comp_results, group_by_type=True)
+            # Classify dynamically based on distribution within this group
+            # We classify based on 'overall' score to set the main Level
+            self._classify_items(comp_results)
 
         # 2. Edge Analysis
-        edge_results = []
         if struct.edges:
-            # Need lookup for endpoint scores
             c_scores = {c.id: c.scores for c in comp_results}
             normalized_edges = self._normalize_edges(struct.edges.values())
             
@@ -83,8 +90,7 @@ class QualityAnalyzer:
                     scores = self._compute_edge_scores(e, normalized_edges[e_key], c_scores[e.source], c_scores[e.target])
                     edge_results.append(EdgeQuality(e.source, e.target, e.dependency_type, scores, CriticalityLevel.MINIMAL))
             
-            # Classify Edges
-            self._classify_items(edge_results, group_by_type=True)
+            self._classify_items(edge_results)
 
         return QualityAnalysisResult(
             timestamp=datetime.now().isoformat(),
@@ -94,83 +100,95 @@ class QualityAnalyzer:
         )
 
     def _compute_component_scores(self, raw, norm) -> QualityScores:
-        w = self.W_C
-        # Reliability (R)
-        r = w["R"]["pr"] * norm["pagerank"] + w["R"]["fp"] * norm["failure_propagation"] + w["R"]["id"] * norm["in_degree"]
+        # Reliability Criticality (R):
+        # High PR (Important) + High In-Degree (Dependents) = Critical for Reliability
+        r = self.W_R["pr"] * norm["pagerank"] + \
+            self.W_R["fp"] * norm["pagerank"] + \
+            self.W_R["id"] * norm["in_degree"]
         
-        # Maintainability (M) - Invert Clustering
-        m = w["M"]["bt"] * norm["betweenness"] + w["M"]["cc"] * (1 - norm["clustering"]) + w["M"]["dc"] * norm["degree"]
+        # Maintainability Criticality (M):
+        # High Betweenness (Central) + High Degree (Coupled) + Low Clustering = Hard to change safely
+        # Note: We use (1 - clustering) because low clustering usually implies higher structural bridge role
+        m = self.W_M["bt"] * norm["betweenness"] + \
+            self.W_M["cc"] * (1.0 - norm["clustering"]) + \
+            self.W_M["dc"] * norm["degree"]
         
-        # Availability (A) - Criticality proxy = PR * Degree
-        crit = norm["pagerank"] * norm["degree"]
-        a = w["A"]["ap"] * float(raw.is_articulation_point) + w["A"]["br"] * raw.bridge_ratio + w["A"]["cr"] * crit
+        # Availability Criticality (A):
+        # Is Articulation Point (SPOF) + Bridge Ratio + General Importance
+        crit_factor = norm["pagerank"] * norm["degree"]
+        a = self.W_A["ap"] * float(raw.is_articulation_point) + \
+            self.W_A["br"] * raw.bridge_ratio + \
+            self.W_A["cr"] * crit_factor
         
-        # Overall (Q)
-        q = w["Q"]["r"] * r + w["Q"]["m"] * m + w["Q"]["a"] * a
+        # Overall Criticality
+        q = 0.35 * r + 0.30 * m + 0.35 * a
         return QualityScores(r, m, a, q)
 
     def _compute_edge_scores(self, raw, norm, src_s, tgt_s) -> QualityScores:
-        w = self.W_E
-        # Edge Reliability: Weight + Avg Endpoint Reliability
+        # Edge Importance depends on:
+        # 1. Structural Betweenness (norm['betweenness'])
+        # 2. Importance of connected components (ep_r)
+        
         ep_r = (src_s.reliability + tgt_s.reliability) / 2
-        r = w["R"]["w"] * norm["weight"] + w["R"]["ep"] * ep_r
+        r = 0.4 * norm["weight"] + 0.6 * ep_r
         
-        # Edge Availability: Bridge Status + Avg Endpoint Availability (using Endpoint AP status as proxy)
-        # Note: Using Endpoint Availability Score is smoother than binary AP status
+        # Edge Availability Risk (Bridge status)
         ep_a = (src_s.availability + tgt_s.availability) / 2
-        a = w["A"]["br"] * float(raw.is_bridge) + w["A"]["ep"] * ep_a
+        a = 0.6 * float(raw.is_bridge) + 0.4 * ep_a
         
-        # Edge Overall
         q = 0.5 * r + 0.5 * a
         return QualityScores(r, 0.0, a, q)
 
-    def _classify_items(self, items: List[Any], group_by_type: bool = False):
+    def _classify_items(self, items: List[Any]):
         if not items: return
         
+        # Group by type to ensure fair comparison (Nodes vs Apps)
         groups = {}
-        if group_by_type:
-            for i in items: groups.setdefault(i.type, []).append(i)
-        else:
-            groups["all"] = items
+        for i in items: groups.setdefault(i.type, []).append(i)
 
         for g_name, g_items in groups.items():
-            if len(g_items) < 2: continue # Cannot classify single items statistically
+            if len(g_items) < 2: continue
             
-            # Prepare for classifier
+            # Use BoxPlotClassifier to set levels based on Overall Score
             to_classify = [{"id": x.id, "score": x.scores.overall} for x in g_items]
             result = self.classifier.classify(to_classify, metric_name=f"{g_name}_quality")
             
-            # Map back
             level_map = {item.id: item.level for item in result.items}
             for x in g_items:
                 if x.id in level_map: x.level = level_map[x.id]
 
     def _normalize_components(self, metrics):
-        return self._min_max_normalize(metrics, ["pagerank", "failure_propagation", "in_degree", "betweenness", "degree", "clustering_coefficient"])
+        return self._min_max_normalize(metrics, ["pagerank", "in_degree", "betweenness", "degree", "clustering_coefficient"])
 
     def _normalize_edges(self, metrics):
         return self._min_max_normalize(metrics, ["weight", "betweenness"])
 
     def _min_max_normalize(self, items, fields):
-        # Extract columns
-        values = {f: [getattr(i, f) for i in items] for f in fields}
+        # Safe normalization handling single-item or zero-variance cases
+        item_list = list(items)
+        if not item_list: return {}
+
+        values = {f: [getattr(i, f) for i in item_list] for f in fields}
         bounds = {f: (min(v), max(v)) for f, v in values.items()}
         
         normalized = {}
-        item_list = list(items) # items is a dict_values view, convert to list for indexing if needed, or iterate
-        
-        # Assuming items have 'id' or we map by object
-        # Since struct.components is a dict, values() are objects. 
-        # Need to map back to ID.
-        for item in items:
+        for item in item_list:
             key = getattr(item, 'id', None)
-            if not key: key = (item.source, item.target) # Edge case
+            if not key: key = (item.source, item.target)
             
             normalized[key] = {}
             for f in fields:
                 mn, mx = bounds[f]
                 val = getattr(item, f)
-                normalized[key][f.replace("_coefficient", "")] = (val - mn) / (mx - mn) if mx > mn else 0.5
+                diff = mx - mn
+                
+                # Normalize to 0-1
+                if diff == 0:
+                    norm_val = 0.0 # If all values are same, assume baseline
+                else:
+                    norm_val = (val - mn) / diff
+                
+                normalized[key][f.replace("_coefficient", "")] = norm_val
         return normalized
 
     def _summarize(self, comps, edges):

@@ -1,82 +1,76 @@
 #!/usr/bin/env python3
 """
-Analysis CLI
+Analysis CLI - Software-as-a-Graph
 """
 import argparse
 import sys
 from pathlib import Path
 
-# Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.analysis.analyzer import GraphAnalyzer
 
-# Colors
+# ANSI Colors
 RED = "\033[91m"; GREEN = "\033[92m"; YELLOW = "\033[93m"; BLUE = "\033[94m"; RESET = "\033[0m"
 BOLD = "\033[1m"
 
-def print_results(results, title="Analysis Results"):
-    print(f"\n{BOLD}=== {title} ==={RESET}")
-    print(f"Nodes: {results['stats']['nodes']}, Edges: {results['stats']['edges']}")
+def print_results(results):
+    print(f"\n{BOLD}=== Context: {results['context']} ==={RESET}")
+    print(f"Graph Summary: {results['stats']['nodes']} Nodes, {results['stats']['edges']} Edges")
     
-    qual = results["quality"]
+    qual = results["results"]
     
-    print(f"\n{BOLD}Top Critical Components:{RESET}")
+    print(f"\n{BOLD}Top Critical Components (Box-Plot Outliers):{RESET}")
+    # Filter for High/Critical items
     critical = [c for c in qual.components if c.level.value in ["critical", "high"]]
     critical.sort(key=lambda x: x.scores.overall, reverse=True)
     
     if not critical:
-        print("  None detected.")
+        print(f"  {GREEN}No critical outliers detected.{RESET}")
     else:
-        for c in critical[:5]:
-            print(f"  {c.id:<15} ({c.type:<10}) | Q: {c.scores.overall:.2f} | {RED}{c.level.value.upper()}{RESET}")
+        print(f"  {'ID':<20} {'Type':<12} {'Score':<8} {'Level':<10}")
+        print(f"  {'-'*50}")
+        for c in critical[:10]:
+            color = RED if c.level.value == "critical" else YELLOW
+            print(f"  {c.id:<20} {c.type:<12} {c.scores.overall:.2f}     {color}{c.level.value.upper()}{RESET}")
 
-    print(f"\n{BOLD}Top Critical Edges:{RESET}")
-    crit_edges = [e for e in qual.edges if e.level.value in ["critical", "high"]]
-    crit_edges.sort(key=lambda x: x.scores.overall, reverse=True)
-    
-    if not crit_edges:
-        print("  None detected.")
-    else:
-        for e in crit_edges[:5]:
-            print(f"  {e.source}->{e.target:<10} | Q: {e.scores.overall:.2f} | {RED}{e.level.value.upper()}{RESET}")
-
-    print(f"\n{BOLD}Detected Problems:{RESET}")
+    print(f"\n{BOLD}Detected Problems & Risks:{RESET}")
     if not results["problems"]:
-        print(f"  {GREEN}No specific problems detected.{RESET}")
+        print(f"  {GREEN}No structural problems detected.{RESET}")
     else:
         for p in results["problems"]:
             color = RED if p.severity == "CRITICAL" else YELLOW
-            print(f"  [{color}{p.severity:<8}{RESET}] {p.entity_id} ({p.category}): {p.description}")
+            print(f"  [{color}{p.severity:<8}{RESET}] {BOLD}{p.entity_id}{RESET} ({p.category})")
+            print(f"    Issue: {p.description}")
+            print(f"    Fix:   {p.recommendation}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Graph Analysis CLI")
-    parser.add_argument("--uri", default="bolt://localhost:7687")
+    parser = argparse.ArgumentParser(description="Multi-Layer Graph Analysis Tool")
+    parser.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
     parser.add_argument("--user", default="neo4j")
     parser.add_argument("--password", default="password")
     
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--type", help="Analyze specific component type (Application, Node, etc)")
+    group.add_argument("--type", help="Analyze specific component type (Application, Topic, Node, Broker)")
     group.add_argument("--layer", help="Analyze specific layer (application, infrastructure)")
     
     args = parser.parse_args()
+    
+    print(f"{BLUE}Connecting to {args.uri}...{RESET}")
     
     try:
         with GraphAnalyzer(uri=args.uri, user=args.user, password=args.password) as analyzer:
             if args.type:
                 results = analyzer.analyze_by_type(args.type)
-                title = f"Type: {args.type}"
             elif args.layer:
                 results = analyzer.analyze_layer(args.layer)
-                title = f"Layer: {args.layer}"
             else:
-                results = analyzer.analyze_full_system()
-                title = "Full System"
+                results = analyzer.analyze()
                 
-            print_results(results, title)
+            print_results(results)
             
     except Exception as e:
-        print(f"{RED}Error: {e}{RESET}")
+        print(f"{RED}Analysis Failed: {e}{RESET}")
         return 1
     
     return 0

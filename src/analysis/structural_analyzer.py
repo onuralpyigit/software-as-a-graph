@@ -7,7 +7,7 @@ Supports analysis of both Components (Nodes) and Dependencies (Edges).
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Tuple, Any
+from typing import Dict, Tuple, Any, Set
 
 import networkx as nx
 
@@ -19,21 +19,22 @@ class StructuralMetrics:
     id: str
     type: str
     
-    # Centrality
-    pagerank: float = 0.0
-    betweenness: float = 0.0
-    degree: float = 0.0
-    in_degree: float = 0.0
+    # Centrality (Importance)
+    pagerank: float = 0.0          # Global importance
+    betweenness: float = 0.0       # Bridge/Flow control
+    degree: float = 0.0            # Connectivity
+    in_degree: float = 0.0         # Dependents
+    out_degree: float = 0.0        # Dependencies
     
-    # Advanced
-    failure_propagation: float = 0.0  # Reverse PageRank
-    clustering_coefficient: float = 0.0
+    # Resilience
+    clustering_coefficient: float = 0.0  # Local redundancy
     
     # Criticality Flags
-    is_articulation_point: bool = False
+    is_articulation_point: bool = False  # If removed, graph disconnects
+    is_isolated: bool = False
     bridge_ratio: float = 0.0
     
-    weight: float = 1.0
+    weight: float = 1.0  # Intrinsic weight from Import
 
 @dataclass
 class EdgeMetrics:
@@ -61,92 +62,101 @@ class StructuralAnalyzer:
     def analyze(self, graph_data: GraphData) -> StructuralAnalysisResult:
         """Compute structural metrics for the provided GraphData."""
         G = self._build_graph(graph_data)
+        
         if len(G) == 0:
             return StructuralAnalysisResult({}, {}, {"nodes": 0, "edges": 0})
 
-        # 1. Node Metrics
+        # 1. Component Metrics (Directed)
         try:
             pagerank = nx.pagerank(G, alpha=self.damping_factor, weight="weight")
-            fail_prop = nx.pagerank(G.reverse(), alpha=self.damping_factor, weight="weight")
         except:
-            # Fallback for empty/disconnected graphs causing convergence issues
             pagerank = {n: 1.0/len(G) for n in G}
-            fail_prop = {n: 1.0/len(G) for n in G}
 
         betweenness = nx.betweenness_centrality(G, weight="weight")
         degree_cent = nx.degree_centrality(G)
         in_degree_cent = nx.in_degree_centrality(G)
-        
+        out_degree_cent = nx.out_degree_centrality(G)
+
+        # 2. Resilience Metrics (Undirected View)
         G_undir = G.to_undirected()
         clustering = nx.clustering(G_undir, weight="weight")
         
-        try:
-            articulation_points = set(nx.articulation_points(G_undir))
-            bridges = list(nx.bridges(G_undir))
-        except:
-            articulation_points = set()
-            bridges = []
+        # Articulation Points & Bridges (Connectivity Criticality)
+        # Note: Only valid for connected components, so we iterate over them
+        articulation_points: Set[str] = set()
+        bridges = []
+        
+        for component in nx.connected_components(G_undir):
+            subg = G_undir.subgraph(component)
+            if len(subg) > 2:
+                articulation_points.update(nx.articulation_points(subg))
+                bridges.extend(nx.bridges(subg))
 
-        # Bridge Ratio (fraction of incident edges that are bridges)
+        # Bridge Ratio calculation
         bridge_counts = {n: 0 for n in G}
         bridge_set = set(bridges)
         for u, v in bridges:
             bridge_counts[u] += 1
             bridge_counts[v] += 1
 
-        # 2. Edge Metrics
+        # 3. Edge Metrics
         edge_betweenness = nx.edge_betweenness_centrality(G, weight="weight")
 
-        # 3. Assembly - Components
+        # 4. Assembly - Components
         comp_metrics = {}
+        # Quick lookup for component raw data (type, intrinsic weight)
         comp_lookup = {c.id: c for c in graph_data.components}
         
         for n in G.nodes:
             deg = G_undir.degree(n)
-            comp_data = comp_lookup.get(n)
+            c_data = comp_lookup.get(n)
             
             comp_metrics[n] = StructuralMetrics(
                 id=n,
-                type=comp_data.component_type if comp_data else "Unknown",
+                type=c_data.component_type if c_data else "Unknown",
                 pagerank=pagerank.get(n, 0),
-                in_degree=in_degree_cent.get(n, 0),
-                failure_propagation=fail_prop.get(n, 0),
                 betweenness=betweenness.get(n, 0),
                 degree=degree_cent.get(n, 0),
+                in_degree=in_degree_cent.get(n, 0),
+                out_degree=out_degree_cent.get(n, 0),
                 clustering_coefficient=clustering.get(n, 0),
                 is_articulation_point=(n in articulation_points),
+                is_isolated=(deg == 0),
                 bridge_ratio=(bridge_counts[n] / deg) if deg > 0 else 0.0,
-                weight=comp_data.weight if comp_data else 1.0
+                weight=c_data.weight if c_data else 1.0
             )
 
-        # 4. Assembly - Edges
+        # 5. Assembly - Edges
         edge_metrics_dict = {}
         edge_lookup = {(e.source_id, e.target_id): e for e in graph_data.edges}
         
         for u, v in G.edges:
-            # Normalize edge key for lookup (directed)
             e_data = edge_lookup.get((u, v))
-            is_bridge = (u, v) in bridge_set or (v, u) in bridge_set
+            is_bridge_edge = (u, v) in bridge_set or (v, u) in bridge_set
             
             edge_metrics_dict[(u, v)] = EdgeMetrics(
                 source=u,
                 target=v,
-                dependency_type=e_data.dependency_type if e_data else "unknown",
+                dependency_type=e_data.dependency_type if e_data else "structural",
                 betweenness=edge_betweenness.get((u, v), 0),
-                is_bridge=is_bridge,
+                is_bridge=is_bridge_edge,
                 weight=e_data.weight if e_data else 1.0
             )
 
         return StructuralAnalysisResult(
             components=comp_metrics,
             edges=edge_metrics_dict,
-            graph_summary={"nodes": len(G.nodes), "edges": len(G.edges)}
+            graph_summary={
+                "nodes": len(G.nodes), 
+                "edges": len(G.edges),
+                "density": nx.density(G)
+            }
         )
 
     def _build_graph(self, data: GraphData) -> nx.DiGraph:
         G = nx.DiGraph()
         for c in data.components:
-            G.add_node(c.id)
+            G.add_node(c.id, weight=c.weight)
         for e in data.edges:
             G.add_edge(e.source_id, e.target_id, weight=e.weight)
         return G

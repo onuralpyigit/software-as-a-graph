@@ -1,19 +1,17 @@
 """
 Problem Detector
 
-Identifies problems using dynamic classification levels.
+Identifies problems using dynamic Criticality Levels and Structural flags.
 """
 
 from dataclasses import dataclass
 from typing import List
-from enum import Enum
-
 from .quality_analyzer import QualityAnalysisResult, CriticalityLevel
 
 @dataclass
 class DetectedProblem:
     entity_id: str
-    type: str # Component or Edge
+    type: str
     category: str
     severity: str
     description: str
@@ -25,29 +23,36 @@ class ProblemDetector:
         
         # 1. Component Problems
         for c in quality_result.components:
-            # Availability: SPOF
-            if c.scores.availability > 0.8 and c.level >= CriticalityLevel.HIGH:
-                problems.append(DetectedProblem(
-                    c.id, "Component", "Availability", "CRITICAL",
-                    f"High Availability Risk (Score: {c.scores.availability:.2f})",
-                    "Add redundancy or bypass paths."
-                ))
+            # We use >= HIGH because these are statistical outliers in the top quartiles
+            is_critical = c.level >= CriticalityLevel.HIGH
             
-            # Maintainability: Bottleneck
-            # High Maintainability Score means POOR maintainability (high cost)
-            if c.scores.maintainability > 0.8 and c.level >= CriticalityLevel.HIGH:
+            # --- Availability Problems ---
+            # SPOF: A critical node that is also an articulation point
+            # (Note: Requires structural data, but we infer from High Avail Score + Level)
+            if is_critical and c.scores.availability > 0.7: 
+                 # High Avail Score is heavily weighted by Articulation Point status
                 problems.append(DetectedProblem(
-                    c.id, "Component", "Maintainability", "HIGH",
-                    "Bottleneck / High Coupling",
-                    "Refactor to decouple responsibilities."
+                    c.id, c.type, "Availability", c.level.value.upper(),
+                    "Single Point of Failure (SPOF)",
+                    "Introduce redundancy; add parallel paths or backup nodes."
                 ))
 
-            # Reliability: Propagation
-            if c.scores.reliability > 0.8 and c.level >= CriticalityLevel.HIGH:
+            # --- Maintainability Problems ---
+            # God Object / Bottleneck: High Maintainability Score (High Complexity/Centrality)
+            if is_critical and c.scores.maintainability > 0.7:
                 problems.append(DetectedProblem(
-                    c.id, "Component", "Reliability", "HIGH",
-                    "High Failure Propagation Risk",
-                    "Implement circuit breakers."
+                    c.id, c.type, "Maintainability", c.level.value.upper(),
+                    "Structural Bottleneck / God Component",
+                    "Refactor to decouple responsibilities; split component."
+                ))
+
+            # --- Reliability Problems ---
+            # Propagation Node: High Reliability Score (High In-Degree/Usage)
+            if is_critical and c.scores.reliability > 0.7:
+                problems.append(DetectedProblem(
+                    c.id, c.type, "Reliability", c.level.value.upper(),
+                    "Failure Propagation Hub",
+                    "Implement Circuit Breakers and Bulkheads."
                 ))
 
         # 2. Edge Problems
@@ -55,9 +60,9 @@ class ProblemDetector:
             # Critical Dependency
             if e.level == CriticalityLevel.CRITICAL:
                 problems.append(DetectedProblem(
-                    e.id, "Edge", "Architecture", "CRITICAL",
-                    f"Critical Dependency ({e.type})",
-                    "Verify this dependency is necessary; optimize payload/QoS."
+                    e.id, "Dependency", "Architecture", "CRITICAL",
+                    f"Critical Path Dependency ({e.type})",
+                    "Optimize payload size; verify QoS requirements; ensure connection stability."
                 ))
 
         return problems
