@@ -4,6 +4,10 @@ Graph Validation CLI
 
 Compares the static Analysis predictions against dynamic Simulation results
 to validate the accuracy of the software graph model.
+
+Updates:
+- Targets aligned with PhD Progress Report Table 5.
+- Output formatted to show Spearman, F1, Precision, Recall.
 """
 
 import argparse
@@ -29,21 +33,28 @@ def print_result(result):
     
     print(f"\n{BOLD}Targets:{RESET}")
     for k, v in res_dict['targets'].items():
-        print(f"  {k}: {v}")
+        print(f"  {k:<15}: {v}")
 
     def _print_row(name, data):
         color = GREEN if data['passed'] else RED
         status = "PASS" if data['passed'] else "FAIL"
         m = data['metrics']
-        print(f"{name:<15} | N={data['n']:<4} | {color}{status:<4}{RESET} | "
-              f"Rho: {m['rho']:>5} | F1: {m['f1']:>5} | Overlap(10): {m['top10_overlap']:>5}")
+        
+        # Format string for metrics row
+        row = (
+            f"{name:<15} | N={data['n']:<4} | {color}{status:<4}{RESET} | "
+            f"Rho: {m['rho']:>5.3f} | F1: {m['f1']:>5.3f} | "
+            f"Prec: {m['precision']:>5.3f} | Rec: {m['recall']:>5.3f} | "
+            f"Top5: {m['top5_overlap']:>5.3f} | Top10: {m['top10_overlap']:>5.3f}"
+        )
+        print(row)
 
     print(f"\n{BOLD}{'Group':<15} | {'Size':<6} | {'Stat':<4} | {'Metrics'}{RESET}")
-    print("-" * 70)
+    print("-" * 100)
     
     # Overall
     _print_row("Overall", res_dict['overall'])
-    print("-" * 70)
+    print("-" * 100)
     
     # By Type
     for dtype, data in res_dict['by_type'].items():
@@ -56,16 +67,21 @@ def main():
     parser.add_argument("--password", default="password")
     parser.add_argument("--output", help="JSON output file")
     
-    # Custom Targets
-    parser.add_argument("--target-spearman", type=float, default=0.6)
-    parser.add_argument("--target-f1", type=float, default=0.6)
-    parser.add_argument("--target-overlap", type=float, default=0.5)
+    # Custom Targets (Defaults from Table 5)
+    parser.add_argument("--target-spearman", type=float, default=0.70)
+    parser.add_argument("--target-f1", type=float, default=0.80)
+    parser.add_argument("--target-precision", type=float, default=0.80)
+    parser.add_argument("--target-recall", type=float, default=0.80)
+    parser.add_argument("--target-overlap", type=float, default=0.60)
 
     args = parser.parse_args()
 
     targets = ValidationTargets(
         spearman=args.target_spearman,
         f1_score=args.target_f1,
+        precision=args.target_precision,
+        recall=args.target_recall,
+        top_5_overlap=args.target_overlap,
         top_10_overlap=args.target_overlap
     )
 
@@ -81,6 +97,8 @@ def main():
                 
     except Exception as e:
         print(f"\n{RED}Error: {e}{RESET}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == "__main__":
