@@ -49,6 +49,11 @@ def main():
             print(f"  Node->Node:  {stats.get('deps_node_node', 0)}")
             print(f"  Node->Broker:{stats.get('deps_node_broker', 0)}")
             print("-" * 30)
+            print("Weight Calculation:")
+            print("  - Intrinsic weights (QoS/Size) applied to Topics/Edges.")
+            print("  - Aggregate weights applied to Apps/Brokers/Nodes.")
+            print("  - Final criticality scores (Intrinsic + Centrality) updated.")
+            print("-" * 30)
             
     except Exception as e:
         print(f"Import failed: {e}")

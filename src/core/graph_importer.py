@@ -46,11 +46,16 @@ class GraphImporter:
         self._import_rels(rels.get("subscribes_to", []), "SUBSCRIBES_TO")
         self._import_rels(rels.get("connects_to", []), "CONNECTS_TO") # Physical links
 
-        # 3. Derive DEPENDS_ON Relationships
+        # 3. Calculate Intrinsic Weights (Topics, Apps, Explicit Edges)
+        self.logger.info("Calculating intrinsic weights...")
+        self._calculate_intrinsic_weights()
+
+        # 4. Derive DEPENDS_ON Relationships
         self.logger.info("Deriving DEPENDS_ON relationships...")
         stats.update(self._derive_dependencies())
         
-        # 4. Calculate Component Criticality (Weights)
+        # 5. Calculate Component Criticality (Total Weights)
+        self.logger.info("Calculating final component criticality...")
         self._calculate_component_weights()
         
         return stats
@@ -99,27 +104,75 @@ class GraphImporter:
         """
         return self._import_batch(data, query)
 
+    def _get_qos_weight_cypher(self, topic_var: str) -> str:
+        """
+        Returns the Cypher fragment to calculate weight based on QoS and Size.
+        Weight = Reliability + Durability + Priority + Normalized_Size
+        """
+        return f"""
+        (CASE {topic_var}.qos_reliability WHEN 'RELIABLE' THEN 0.3 ELSE 0.0 END +
+         CASE {topic_var}.qos_durability WHEN 'PERSISTENT' THEN 0.4 WHEN 'TRANSIENT' THEN 0.25 WHEN 'TRANSIENT_LOCAL' THEN 0.2 ELSE 0.0 END +
+         CASE {topic_var}.qos_transport_priority WHEN 'URGENT' THEN 0.3 WHEN 'HIGH' THEN 0.2 WHEN 'MEDIUM' THEN 0.1 ELSE 0.0 END +
+         ({topic_var}.size / 10000.0))
+        """
+
+    def _calculate_intrinsic_weights(self):
+        """
+        Calculates weights for Topics based on QoS and Size.
+        Propagates these weights to explicit edges (PUBLISHES_TO/SUBSCRIBES_TO)
+        and upstream components (Apps, Brokers, Nodes).
+        """
+        qos_calc = self._get_qos_weight_cypher("t")
+
+        # 1. Topic Weight
+        self._run_query(f"""
+            MATCH (t:Topic)
+            SET t.weight = {qos_calc}
+        """)
+
+        # 2. Edge Weights (Inherit from Topic)
+        self._run_query("""
+            MATCH ()-[r:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
+            SET r.weight = t.weight
+        """)
+        
+        # 3. Application Weight (Sum of Topic Weights it interacts with)
+        self._run_query("""
+            MATCH (a:Application)
+            OPTIONAL MATCH (a)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
+            WITH a, coalesce(sum(t.weight), 0.0) as load_weight
+            SET a.weight = load_weight
+        """)
+
+        # 4. Broker Weight (Sum of Routed Topic Weights)
+        self._run_query("""
+            MATCH (b:Broker)
+            OPTIONAL MATCH (b)-[:ROUTES]->(t:Topic)
+            WITH b, coalesce(sum(t.weight), 0.0) as routed_weight
+            SET b.weight = routed_weight
+        """)
+
+        # 5. Node Weight (Sum of Hosted App Weights)
+        self._run_query("""
+            MATCH (n:Node)
+            OPTIONAL MATCH (a:Application)-[:RUNS_ON]->(n)
+            WITH n, coalesce(sum(a.weight), 0.0) as host_weight
+            SET n.weight = host_weight
+        """)
+
     def _derive_dependencies(self) -> Dict[str, int]:
         stats = {}
+        qos_calc = self._get_qos_weight_cypher("t")
         
         # A. App->App
         # Logic: Sub depends on Pub via shared Topic.
-        # Weight = Count(Topics) + Sum(QoS_Score + Size_Factor)
-        # Size Factor: size / 10000 (normalized)
-        # QoS Score: 
-        #   Reliability: RELIABLE (0.3), BEST_EFFORT (0.0)
-        #   Durability: PERSISTENT (0.4), TRANSIENT (0.25), TRANSIENT_LOCAL (0.2), VOLATILE (0.0)
-        #   Priority: URGENT (0.3), HIGH (0.2), MEDIUM (0.1), LOW (0.0)
-        query_app_app = """
+        # Weight = Count(Topics) + Sum(Topic_Weight)
+        query_app_app = f"""
         MATCH (pub:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(sub:Application)
         WHERE pub <> sub
-        WITH pub, sub, t,
-             (CASE t.qos_reliability WHEN 'RELIABLE' THEN 0.3 ELSE 0.0 END +
-              CASE t.qos_durability WHEN 'PERSISTENT' THEN 0.4 WHEN 'TRANSIENT' THEN 0.25 WHEN 'TRANSIENT_LOCAL' THEN 0.2 ELSE 0.0 END +
-              CASE t.qos_transport_priority WHEN 'URGENT' THEN 0.3 WHEN 'HIGH' THEN 0.2 WHEN 'MEDIUM' THEN 0.1 ELSE 0.0 END) as qos_val,
-             (t.size / 10000.0) as size_val
-        WITH pub, sub, count(t) as shared_count, sum(qos_val + size_val) as importance_sum
-        MERGE (sub)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(pub)
+        WITH pub, sub, t, {qos_calc} as importance
+        WITH pub, sub, count(t) as shared_count, sum(importance) as importance_sum
+        MERGE (sub)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(pub)
         SET d.weight = shared_count + importance_sum
         RETURN count(d) as c
         """
@@ -127,11 +180,12 @@ class GraphImporter:
 
         # B. App->Broker
         # Logic: App depends on Broker if Broker routes a topic the App Publishes/Subscribes to.
-        query_app_broker = """
+        query_app_broker = f"""
         MATCH (app:Application)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(b:Broker)
-        WITH app, b, count(t) as topics
-        MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(b)
-        SET d.weight = topics * 1.0
+        WITH app, b, t, {qos_calc} as importance
+        WITH app, b, count(t) as topics, sum(importance) as importance_sum
+        MERGE (app)-[d:DEPENDS_ON {{dependency_type: 'app_to_broker'}}]->(b)
+        SET d.weight = topics + importance_sum
         RETURN count(d) as c
         """
         stats["deps_app_broker"] = self._run_count(query_app_broker)
@@ -166,15 +220,19 @@ class GraphImporter:
 
     def _calculate_component_weights(self):
         """
-        Calculates a centrality-based importance weight for every component.
-        This helps in simulation to determine failure impact.
+        Calculates the final importance weight for every component.
+        Final Weight = Intrinsic Weight + Structural Centrality (In-Degree + Out-Degree Weights)
         """
         query = """
         MATCH (n) WHERE n:Application OR n:Node OR n:Broker
         OPTIONAL MATCH (n)-[out:DEPENDS_ON]->()
         OPTIONAL MATCH ()-[inc:DEPENDS_ON]->(n)
-        WITH n, coalesce(sum(out.weight), 0) + coalesce(sum(inc.weight), 0) as score
-        SET n.weight = score
+        WITH n, 
+             n.weight as intrinsic_weight, 
+             coalesce(sum(out.weight), 0) + coalesce(sum(inc.weight), 0) as centrality_score
+        SET n.weight = intrinsic_weight + centrality_score,
+            n.intrinsic_weight = intrinsic_weight,
+            n.centrality_score = centrality_score
         """
         self._run_query(query)
 
