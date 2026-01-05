@@ -28,7 +28,6 @@ class Simulator:
                         depth: int = 5) -> FailureResult:
         """
         Runs a failure simulation with configurable cascade parameters.
-        Defaults are based on the PhD Progress Report Section 4.4.2.
         """
         data = self.exporter.get_structural_graph()
         sim_graph = SimulationGraph(data)

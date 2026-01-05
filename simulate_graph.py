@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Graph Simulation CLI
-Updated to support PhD Progress Report Methodology (Fall 2025).
 """
 
 import argparse

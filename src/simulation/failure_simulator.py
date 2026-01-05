@@ -2,7 +2,6 @@
 Failure Simulator
 
 Simulates cascading failures and calculates impact scores based on the PhD methodology.
-Reference: PhD Progress Report - Fall 2025, Section 4.4
 
 Logic:
 1. Cascade Propagation: Based on DEPENDS_ON weights, thresholds, and probabilities.

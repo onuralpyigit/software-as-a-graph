@@ -6,7 +6,6 @@ Compares the static Analysis predictions against dynamic Simulation results
 to validate the accuracy of the software graph model.
 
 Updates:
-- Targets aligned with PhD Progress Report Table 5.
 - Output formatted to show Spearman, F1, Precision, Recall.
 """
 

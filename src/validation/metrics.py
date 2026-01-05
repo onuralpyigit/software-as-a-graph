@@ -3,8 +3,6 @@ Validation Metrics
 
 Statistical metrics for comparing Predicted Importance (Analysis) 
 vs Actual Impact (Simulation).
-
-Reference: PhD Progress Report - Fall 2025, Section 4.5
 """
 
 import math
@@ -13,9 +11,6 @@ from typing import Sequence, Dict, List, Tuple
 
 @dataclass
 class ValidationTargets:
-    """
-    Target metrics defined in Table 5 of the PhD Progress Report.
-    """
     spearman: float = 0.70       # Rank correlation
     f1_score: float = 0.80       # Harmonic mean of precision/recall
     precision: float = 0.80      # TP / (TP + FP)

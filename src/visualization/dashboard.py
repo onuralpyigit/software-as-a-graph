@@ -17,50 +17,57 @@ HTML_TEMPLATE = """
     <title>{title}</title>
     <style>
         :root {{ --primary: #2c3e50; --secondary: #34495e; --accent: #3498db; --danger: #e74c3c; --light: #ecf0f1; }}
-        body {{ font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background: #f8f9fa; color: #333; }}
+        body {{ font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background: #f4f6f7; color: #2c3e50; }}
         .container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
         
-        header {{ background: var(--primary); color: white; padding: 2rem; border-radius: 8px 8px 0 0; margin-bottom: 2rem; }}
-        h1 {{ margin: 0; font-size: 2rem; }}
-        .subtitle {{ opacity: 0.8; margin-top: 0.5rem; }}
+        header {{ background: white; border-bottom: 4px solid var(--primary); padding: 2rem; margin-bottom: 2rem; text-align: center; }}
+        h1 {{ margin: 0; font-size: 2.2rem; color: var(--primary); }}
+        .subtitle {{ color: #7f8c8d; margin-top: 0.5rem; font-size: 1.1rem; }}
         
-        .section {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 2rem; }}
-        .section-title {{ border-bottom: 2px solid var(--accent); color: var(--primary); padding-bottom: 10px; margin-bottom: 20px; }}
+        .section {{ background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; }}
+        .section-title {{ border-left: 5px solid var(--accent); padding-left: 15px; color: var(--primary); margin-bottom: 25px; font-size: 1.5rem; }}
         
-        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }}
-        .kpi-card {{ background: var(--accent); color: white; padding: 15px; border-radius: 6px; text-align: center; }}
-        .kpi-val {{ font-size: 2rem; font-weight: bold; }}
-        .kpi-label {{ font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }}
+        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }}
+        .kpi-card {{ background: linear-gradient(135deg, var(--secondary), var(--primary)); color: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+        .kpi-val {{ font-size: 2.5rem; font-weight: 700; margin-bottom: 5px; }}
+        .kpi-label {{ font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; }}
         
-        .chart-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; }}
-        .chart-card {{ border: 1px solid #eee; padding: 10px; border-radius: 4px; text-align: center; }}
-        img {{ max-width: 100%; height: auto; }}
+        .chart-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 30px; }}
+        .chart-card {{ background: white; padding: 10px; text-align: center; }}
+        .chart-desc {{ color: #7f8c8d; font-style: italic; font-size: 0.9rem; margin-top: 10px; }}
+        img {{ max-width: 100%; height: auto; border: 1px solid #eee; border-radius: 4px; }}
         
-        table {{ width: 100%; border-collapse: collapse; font-size: 0.9rem; }}
-        th, td {{ padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }}
-        th {{ background: var(--secondary); color: white; }}
-        tr:hover {{ background: #f1f1f1; }}
-        .badge {{ padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }}
-        .bg-crit {{ background: #fadbd8; color: #c0392b; }}
-        .bg-high {{ background: #fdebd0; color: #d35400; }}
-        .bg-ok {{ background: #d4efdf; color: #27ae60; }}
+        table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+        th, td {{ padding: 12px 15px; text-align: left; border-bottom: 1px solid #ecf0f1; }}
+        th {{ background: var(--light); color: var(--primary); font-weight: 600; text-transform: uppercase; font-size: 0.85rem; }}
+        tr:hover {{ background: #f8f9fa; }}
         
-        footer {{ text-align: center; color: #7f8c8d; padding: 20px; font-size: 0.85rem; }}
+        .badge {{ padding: 5px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; color: white; }}
+        .bg-critical {{ background-color: #e74c3c; }}
+        .bg-high {{ background-color: #e67e22; }}
+        .bg-medium {{ background-color: #f1c40f; color: #333; }}
+        .bg-low {{ background-color: #2ecc71; }}
+        .bg-minimal {{ background-color: #95a5a6; }}
+        
+        footer {{ text-align: center; color: #95a5a6; padding: 30px; border-top: 1px solid #ddd; margin-top: 40px; }}
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
+    <header>
+        <div class="container">
             <h1>{title}</h1>
-            <div class="subtitle">Software-as-a-Graph Analysis Report | Generated: {timestamp}</div>
-        </header>
-        
+            <div class="subtitle">Multi-Layer Graph Modeling and Analysis Report</div>
+            <div style="font-size: 0.9rem; margin-top: 10px; color: #95a5a6;">Generated: {timestamp}</div>
+        </div>
+    </header>
+    
+    <div class="container">
         {content}
-        
-        <footer>
-            Generated by Software-as-a-Graph Visualization Module
-        </footer>
     </div>
+    
+    <footer>
+        Software-as-a-Graph
+    </footer>
 </body>
 </html>
 """
@@ -96,7 +103,7 @@ class DashboardGenerator:
                 <div class="chart-card">
                     <h3>{chart.title}</h3>
                     <img src="data:image/png;base64,{chart.png_base64}" alt="{chart.title}"/>
-                    <p>{chart.description}</p>
+                    <div class="chart-desc">{chart.description}</div>
                 </div>
             """)
         html.append('</div>')
@@ -112,11 +119,14 @@ class DashboardGenerator:
             html.append('<tr>')
             for cell in row:
                 val_str = str(cell)
-                # Badge logic for Criticality
+                # Badge logic for Criticality (Report Colors)
                 badge_class = ""
-                if val_str == "CRITICAL": badge_class = "badge bg-crit"
-                elif val_str == "HIGH": badge_class = "badge bg-high"
-                elif val_str == "MINIMAL": badge_class = "badge bg-ok"
+                upper_val = val_str.upper()
+                if upper_val == "CRITICAL": badge_class = "badge bg-critical"
+                elif upper_val == "HIGH": badge_class = "badge bg-high"
+                elif upper_val == "MEDIUM": badge_class = "badge bg-medium"
+                elif upper_val == "LOW": badge_class = "badge bg-low"
+                elif upper_val == "MINIMAL": badge_class = "badge bg-minimal"
                 
                 content = f'<span class="{badge_class}">{val_str}</span>' if badge_class else val_str
                 html.append(f'<td>{content}</td>')

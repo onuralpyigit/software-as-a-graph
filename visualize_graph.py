@@ -18,6 +18,7 @@ from src.visualization.visualizer import GraphVisualizer
 
 # Colors
 GREEN = "\033[92m"; BLUE = "\033[94m"; RED = "\033[91m"; RESET = "\033[0m"
+BOLD = "\033[1m"
 
 def main():
     parser = argparse.ArgumentParser(description="Generate Analysis Dashboard")
@@ -30,21 +31,23 @@ def main():
     args = parser.parse_args()
     
     try:
-        print(f"{BLUE}Initializing Visualization Pipeline...{RESET}")
-        print(f"Connecting to {args.uri}...")
+        print(f"{BLUE}{BOLD}=== Software-as-a-Graph Visualization Module ==={RESET}")
+        print(f"Connecting to Neo4j at {args.uri}...")
         
         with GraphVisualizer(uri=args.uri, user=args.user, password=args.password) as viz:
+            print(f"Running Multi-Layer Analysis & Validation Pipeline...")
             output_path = viz.generate_dashboard(args.output)
             
             print(f"\n{GREEN}Success! Dashboard generated at: {os.path.abspath(output_path)}{RESET}")
             
             if not args.no_browser:
-                print("Opening in default browser...")
+                print("Opening dashboard in default browser...")
                 webbrowser.open(f"file://{os.path.abspath(output_path)}")
                 
     except Exception as e:
         print(f"\n{RED}Error: {e}{RESET}")
-        print("Tip: Ensure Neo4j is running and data has been imported.")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
     
     return 0

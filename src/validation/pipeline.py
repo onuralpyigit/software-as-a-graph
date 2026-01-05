@@ -5,8 +5,6 @@ Orchestrates the validation process:
 1. Analysis (Prediction): Uses topological metrics (Formula 6) to predict criticality.
 2. Simulation (Ground Truth): Uses failure injection (Formula 7) to measure actual impact.
 3. Comparison: Validates model accuracy using statistical framework.
-
-Reference: PhD Progress Report - Section 6.3 (Separation of Prediction and Validation)
 """
 
 import logging
