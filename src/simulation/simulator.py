@@ -16,17 +16,29 @@ class Simulator:
     def close(self): self.exporter.close()
 
     def run_event_sim(self, source_id: str) -> EventResult:
-        # Load Raw Structural Graph
         data = self.exporter.get_structural_graph()
         sim_graph = SimulationGraph(data)
         
         sim = EventSimulator(sim_graph)
         return sim.simulate(EventScenario(source_id, f"Event from {source_id}"))
 
-    def run_failure_sim(self, target_id: str) -> FailureResult:
-        # Load Raw Structural Graph
+    def run_failure_sim(self, target_id: str, 
+                        threshold: float = 0.5, 
+                        probability: float = 0.7, 
+                        depth: int = 5) -> FailureResult:
+        """
+        Runs a failure simulation with configurable cascade parameters.
+        Defaults are based on the PhD Progress Report Section 4.4.2.
+        """
         data = self.exporter.get_structural_graph()
         sim_graph = SimulationGraph(data)
         
         sim = FailureSimulator(sim_graph)
-        return sim.simulate(FailureScenario(target_id, f"Failure of {target_id}"))
+        scenario = FailureScenario(
+            target_node=target_id,
+            description=f"Failure of {target_id}",
+            cascade_threshold=threshold,
+            cascade_probability=probability,
+            max_depth=depth
+        )
+        return sim.simulate(scenario)
