@@ -2,23 +2,20 @@
 """
 Software-as-a-Graph Pipeline Runner
 
-Orchestrates the complete end-to-end workflow:
-1. Generate Data (Optional) -> JSON
-2. Build Model (Import)     -> Neo4j
-3. Analyze Model            -> Neo4j -> Analysis Results
-4. Simulate Failures        -> Neo4j -> Simulation Results
-5. Validate Model           -> Neo4j -> Validation Report
-6. Visualize Results        -> Neo4j -> Dashboard HTML
-
-This script acts as the master controller, invoking the specialized CLI tools
-for each stage of the graph data science lifecycle.
+Orchestrates the complete PhD research methodology workflow:
+1. Data Generation (Synthetic Topologies)
+2. Model Construction (Graph Import & Dependency Derivation)
+3. Structural Analysis (Centrality, Criticality Scoring)
+4. Failure Simulation (Cascade Propagation & Impact Assessment)
+5. Model Validation (Prediction vs. Ground Truth Correlation)
+6. Visualization (Multi-Layer Dashboarding)
 
 Usage:
-    # Full pipeline
+    # Run full end-to-end pipeline with default settings
     python run.py --all
 
-    # Specific stages
-    python run.py --import-data --analyze --visualize
+    # Run specific stages with custom simulation parameters
+    python run.py --import-data --analyze --simulate --cascade-threshold 0.4
 
 Author: Software-as-a-Graph Research Project
 """
@@ -28,11 +25,10 @@ import sys
 import subprocess
 import time
 import logging
-import shutil
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
-# --- Configuration ---
+# --- Configuration & Defaults ---
 DEFAULT_CONFIG = {
     "uri": "bolt://localhost:7687",
     "user": "neo4j",
@@ -42,7 +38,7 @@ DEFAULT_CONFIG = {
     "scale": "medium"
 }
 
-# --- ANSI Colors ---
+# --- ANSI Colors for CLI ---
 GREEN = "\033[92m"
 BLUE = "\033[94m"
 YELLOW = "\033[93m"
@@ -64,7 +60,7 @@ class PipelineRunner:
         self.output_path = Path(args.output_dir)
         self.output_path.mkdir(parents=True, exist_ok=True)
         
-        # Base arguments for all Neo4j-connected scripts
+        # Common Neo4j arguments
         self.neo4j_args = [
             "--uri", args.uri,
             "--user", args.user,
@@ -72,126 +68,157 @@ class PipelineRunner:
         ]
 
     def run(self):
-        """Execute the pipeline stages based on arguments."""
+        """Execute the pipeline stages based on provided arguments."""
         self._print_banner()
 
-        # 0. Pre-flight Checks
+        # 0. Connectivity Check
         if self._requires_neo4j():
             if not self._check_connection():
                 logger.error("Aborting pipeline: Neo4j is unreachable.")
                 sys.exit(1)
 
-        # 1. Generate
+        # 1. Generate Data
         if self.args.all or self.args.generate:
-            self._run_step("Generate Graph Data", [
-                "generate_graph.py",
-                "--scale", self.args.scale,
-                "--output", self.args.input
-            ])
+            self._run_stage_generate()
 
-        # 2. Import
+        # 2. Import & Build Model
         if self.args.all or self.args.do_import:
-            self._run_step("Import to Neo4j", [
-                "import_graph.py",
-                "--input", self.args.input,
-                "--clear"
-            ] + self.neo4j_args)
+            self._run_stage_import()
 
-        # 3. Analyze
+        # 3. Analyze Model (Topological & Quality)
         if self.args.all or self.args.analyze:
-            self._run_step("Analyze Graph Model", [
-                "analyze_graph.py"
-            ] + self.neo4j_args)
+            self._run_stage_analyze()
 
-        # 4. Simulate
+        # 4. Simulate Failures (Demonstration)
         if self.args.all or self.args.simulate:
-            self._run_simulation_step()
+            self._run_stage_simulate()
 
-        # 5. Validate
+        # 5. Validate Model (Statistical Correlation)
         if self.args.all or self.args.validate:
-            output_file = self.output_path / "validation_results.json"
-            self._run_step("Validate Model", [
-                "validate_graph.py",
-                "--output", str(output_file)
-            ] + self.neo4j_args)
+            self._run_stage_validate()
 
-        # 6. Visualize
+        # 6. Visualize Results (Dashboard)
         if self.args.all or self.args.visualize:
-            dashboard_file = self.output_path / "dashboard.html"
-            self._run_step("Generate Dashboard", [
-                "visualize_graph.py",
-                "--output", str(dashboard_file),
-                "--no-browser" 
-            ] + self.neo4j_args)
-            print(f"\n{GREEN}Dashboard available at: {dashboard_file.absolute()}{RESET}")
+            self._run_stage_visualize()
 
-        print(f"\n{GREEN}{'='*60}")
-        print(f"PIPELINE COMPLETE")
-        print(f"{'='*60}{RESET}\n")
+        self._print_footer()
 
-    def _run_step(self, name: str, command: List[str]) -> bool:
-        """Helper to run a CLI script."""
+    # --- Stage Implementations ---
+
+    def _run_stage_generate(self):
+        """Stage 1: Generate Synthetic Graph Data"""
+        self._run_subprocess("Generate Graph Data", [
+            "generate_graph.py",
+            "--scale", self.args.scale,
+            "--output", self.args.input,
+            "--seed", str(self.args.seed)
+        ])
+
+    def _run_stage_import(self):
+        """Stage 2: Import Data to Neo4j"""
+        cmd = [
+            "import_graph.py",
+            "--input", self.args.input,
+            "--clear"
+        ] + self.neo4j_args
+        self._run_subprocess("Import & Build Model", cmd)
+
+    def _run_stage_analyze(self):
+        """Stage 3: Analyze Graph Model"""
+        # runs analyze_graph.py which triggers Structural & Quality Analyzers
+        self._run_subprocess("Analyze Graph Model", ["analyze_graph.py"] + self.neo4j_args)
+
+    def _run_stage_simulate(self):
+        """Stage 4: Simulate Failures (Demo)"""
         print(f"\n{BLUE}{'-'*60}")
-        print(f"STEP: {name}")
+        print(f"STEP: System Simulation (Demo)")
         print(f"{'-'*60}{RESET}")
+        
+        # 4a. Event Simulation (Data Flow)
+        source_node = self._get_smart_target("Application", criteria="publisher")
+        print(f"Simulating Event propagation from publisher: {BOLD}{source_node}{RESET}")
+        self._run_subprocess("Event Simulation", [
+            "simulate_graph.py", 
+            "--event", source_node
+        ] + self.neo4j_args)
+
+        # 4b. Failure Simulation (Cascade)
+        # Find a critical hub to fail for maximum impact demonstration
+        target_node = self._get_smart_target("Broker", criteria="hub")
+        if target_node == "N/A":
+             target_node = self._get_smart_target("Node", criteria="hub")
+             
+        print(f"Simulating Failure cascade from critical hub: {BOLD}{target_node}{RESET}")
+        print(f"Params: Threshold={self.args.cascade_threshold}, Prob={self.args.cascade_prob}")
+        
+        self._run_subprocess("Failure Simulation", [
+            "simulate_graph.py", 
+            "--failure", target_node,
+            "--threshold", str(self.args.cascade_threshold),
+            "--probability", str(self.args.cascade_prob),
+            "--depth", str(self.args.cascade_depth)
+        ] + self.neo4j_args)
+
+    def _run_stage_validate(self):
+        """Stage 5: Validate Model"""
+        output_file = self.output_path / "validation_results.json"
+        cmd = [
+            "validate_graph.py",
+            "--output", str(output_file),
+            "--target-spearman", str(self.args.target_spearman),
+            "--target-f1", str(self.args.target_f1)
+        ] + self.neo4j_args
+        self._run_subprocess("Validate Model", cmd)
+
+    def _run_stage_visualize(self):
+        """Stage 6: Visualize Results"""
+        dashboard_file = self.output_path / "dashboard.html"
+        cmd = [
+            "visualize_graph.py",
+            "--output", str(dashboard_file),
+            "--no-browser" 
+        ] + self.neo4j_args
+        
+        self._run_subprocess("Generate Dashboard", cmd)
+        print(f"\n{GREEN}>> Dashboard available at: {dashboard_file.absolute()}{RESET}")
+
+    # --- Helpers ---
+
+    def _run_subprocess(self, name: str, command: List[str]):
+        """Helper to run a CLI script safely."""
+        print(f"\n{BLUE}[Running] {name}...{RESET}")
         
         full_cmd = [self.python_exe] + command
         start_time = time.time()
         
         try:
-            # We allow stdout to flow to the terminal so user sees progress of sub-scripts
             result = subprocess.run(full_cmd, check=False)
-            
             duration = time.time() - start_time
+            
             if result.returncode == 0:
-                print(f"{GREEN}✓ Completed in {duration:.2f}s{RESET}")
-                return True
+                print(f"{GREEN}✓ {name} completed ({duration:.2f}s){RESET}")
             else:
-                print(f"{RED}✗ Failed with code {result.returncode}{RESET}")
-                sys.exit(result.returncode) # Fail fast
+                print(f"{RED}✗ {name} failed with code {result.returncode}{RESET}")
+                sys.exit(result.returncode)
                 
         except Exception as e:
             print(f"{RED}✗ Execution Error: {e}{RESET}")
             sys.exit(1)
 
-    def _run_simulation_step(self):
-        """Special handling for simulation to pick smart targets."""
-        print(f"\n{BLUE}{'-'*60}")
-        print(f"STEP: System Simulation")
-        print(f"{'-'*60}{RESET}")
-
-        # 1. Event Simulation (Find a Publisher)
-        source_node = self._get_smart_target("Application", criteria="publisher")
-        print(f"Running Event Simulation from Source: {BOLD}{source_node}{RESET}")
-        self._run_step("Event Sim", [
-            "simulate_graph.py", "--event", source_node
-        ] + self.neo4j_args)
-
-        # 2. Failure Simulation (Find a Central Hub or Critical Node)
-        # We try to find a Broker or a highly connected Node
-        target_node = self._get_smart_target("Broker", criteria="hub")
-        if target_node == "N/A":
-             target_node = self._get_smart_target("Node", criteria="hub")
-             
-        print(f"Running Failure Simulation on Target: {BOLD}{target_node}{RESET}")
-        self._run_step("Failure Sim", [
-            "simulate_graph.py", "--failure", target_node
-        ] + self.neo4j_args)
-
     def _get_smart_target(self, label: str, criteria: str = "random") -> str:
         """
         Connects to Neo4j to find a relevant node ID for simulation
-        rather than picking blindly.
+        (e.g., a highly connected Broker) rather than a random ID.
         """
         try:
             from neo4j import GraphDatabase
             
             query = ""
             if criteria == "publisher":
-                # Find an app that actually publishes to something
+                # Find an app that has outgoing PUBLISHES_TO edges
                 query = f"MATCH (n:{label})-[:PUBLISHES_TO]->() RETURN n.id as id LIMIT 1"
             elif criteria == "hub":
-                # Find a node with high degree
+                # Find the node with the highest degree
                 query = f"MATCH (n:{label}) WITH n, count{{(n)--()}} as degree ORDER BY degree DESC LIMIT 1 RETURN n.id as id"
             else:
                 query = f"MATCH (n:{label}) RETURN n.id as id LIMIT 1"
@@ -203,11 +230,12 @@ class PipelineRunner:
                     if record:
                         return record["id"]
         except ImportError:
-            logger.warning("neo4j driver not installed. Using default ID.")
-        except Exception as e:
-            logger.warning(f"Could not query Neo4j for target: {e}")
+            pass # neo4j driver might not be installed in the env running the wrapper
+        except Exception:
+            pass 
         
-        return "A0" if label == "Application" else "B0"
+        # Fallback defaults if query fails
+        return "A1" if label == "Application" else "B1"
 
     def _check_connection(self) -> bool:
         """Verify Neo4j connectivity."""
@@ -219,10 +247,10 @@ class PipelineRunner:
             logger.info("Neo4j connection verified.")
             return True
         except ImportError:
-            logger.warning("neo4j library not found. Skipping connection check (scripts might fail).")
-            return True # Assume user knows what they are doing
+            logger.warning("Neo4j python driver not found. Skipping connection check.")
+            return True 
         except Exception as e:
-            logger.error(f"Connection failed: {e}")
+            logger.error(f"Could not connect to Neo4j: {e}")
             return False
 
     def _requires_neo4j(self) -> bool:
@@ -233,8 +261,8 @@ class PipelineRunner:
     def _print_banner(self):
         print(f"""{BLUE}
    _____       ______                                  
-  / ___/____ _/ ____/      Run Pipeline               
-  \__ \/ __ `/ / __        v2.0                       
+  / ___/____ _/ ____/      Software-as-a-Graph        
+  \__ \/ __ `/ / __        Research Pipeline v2.0     
  ___/ / /_/ / /_/ /                                   
 /____/\__,_/\____/                                    
 {RESET}""")
@@ -242,29 +270,50 @@ class PipelineRunner:
         print(f"  URI:    {self.args.uri}")
         print(f"  Input:  {self.args.input}")
         print(f"  Output: {self.args.output_dir}")
+        print(f"  Scale:  {self.args.scale}")
         print("")
+
+    def _print_footer(self):
+        print(f"\n{GREEN}{'='*60}")
+        print(f"PIPELINE EXECUTION COMPLETE")
+        print(f"{'='*60}{RESET}\n")
 
 def main():
     parser = argparse.ArgumentParser(description="Software-as-a-Graph Pipeline Runner")
     
-    # Actions
+    # --- Pipeline Actions ---
     g = parser.add_argument_group("Pipeline Stages")
-    g.add_argument("--all", action="store_true", help="Run full end-to-end pipeline")
+    g.add_argument("--all", action="store_true", help="Run full end-to-end research pipeline")
     g.add_argument("--generate", action="store_true", help="1. Generate Synthetic Data")
     g.add_argument("--import-data", dest="do_import", action="store_true", help="2. Import Data to Neo4j")
-    g.add_argument("--analyze", action="store_true", help="3. Analyze Graph Model")
-    g.add_argument("--simulate", action="store_true", help="4. Simulate Failures & Events")
-    g.add_argument("--validate", action="store_true", help="5. Validate Model Accuracy")
+    g.add_argument("--analyze", action="store_true", help="3. Analyze Graph Model (Structure & Quality)")
+    g.add_argument("--simulate", action="store_true", help="4. Simulate Failures (Demo)")
+    g.add_argument("--validate", action="store_true", help="5. Validate Model (Stats & Correlation)")
     g.add_argument("--visualize", action="store_true", help="6. Generate Dashboard")
 
-    # Config
-    c = parser.add_argument_group("Configuration")
+    # --- Configuration ---
+    c = parser.add_argument_group("System Configuration")
     c.add_argument("--uri", default=DEFAULT_CONFIG["uri"], help="Neo4j URI")
     c.add_argument("--user", default=DEFAULT_CONFIG["user"], help="Neo4j User")
     c.add_argument("--password", default=DEFAULT_CONFIG["password"], help="Neo4j Password")
     c.add_argument("--input", default=DEFAULT_CONFIG["input_file"], help="Input JSON path")
     c.add_argument("--output-dir", default=DEFAULT_CONFIG["output_dir"], help="Output directory")
-    c.add_argument("--scale", default=DEFAULT_CONFIG["scale"], help="Generation scale (tiny, small, medium, large)")
+    
+    # --- Generation Params ---
+    p = parser.add_argument_group("Generation Parameters")
+    p.add_argument("--scale", default=DEFAULT_CONFIG["scale"], choices=["tiny", "small", "medium", "large", "xlarge"], help="Graph scale")
+    p.add_argument("--seed", type=int, default=42, help="Random seed")
+
+    # --- Simulation Params ---
+    s = parser.add_argument_group("Simulation Parameters")
+    s.add_argument("--cascade-threshold", type=float, default=0.5, help="Dependency weight threshold for cascade")
+    s.add_argument("--cascade-prob", type=float, default=0.7, help="Probability of cascade propagation")
+    s.add_argument("--cascade-depth", type=int, default=5, help="Maximum cascade depth")
+
+    # --- Validation Params ---
+    v = parser.add_argument_group("Validation Targets")
+    v.add_argument("--target-spearman", type=float, default=0.70, help="Target Spearman Correlation")
+    v.add_argument("--target-f1", type=float, default=0.80, help="Target F1 Score")
 
     args = parser.parse_args()
 
