@@ -7,16 +7,17 @@ vs Actual Impact (Simulation).
 
 import math
 from dataclasses import dataclass
-from typing import Sequence, Dict, List, Tuple
+from typing import Sequence, Dict, List, Any
 
 @dataclass
 class ValidationTargets:
+    """Targets defined in the research methodology."""
     spearman: float = 0.70       # Rank correlation
-    f1_score: float = 0.80       # Harmonic mean of precision/recall
-    precision: float = 0.80      # TP / (TP + FP)
-    recall: float = 0.80         # TP / (TP + FN)
-    top_5_overlap: float = 0.60  # Agreement on most critical components
-    top_10_overlap: float = 0.50 # Agreement on top 10% components
+    f1_score: float = 0.80       # Classification accuracy
+    precision: float = 0.80      
+    recall: float = 0.80         
+    top_5_overlap: float = 0.60  # Identification of most critical
+    top_10_overlap: float = 0.50 
 
 @dataclass
 class CorrelationMetrics:
@@ -39,7 +40,7 @@ class RankingMetrics:
     ndcg_10: float
 
 def spearman_correlation(x: Sequence[float], y: Sequence[float]) -> float:
-    """Calculate Spearman rank correlation (Formula 8)."""
+    """Calculate Spearman rank correlation."""
     if len(x) != len(y) or len(x) < 2: return 0.0
     xr, yr = _rank(x), _rank(y)
     return pearson_correlation(xr, yr)
@@ -73,7 +74,7 @@ def kendall_correlation(x: Sequence[float], y: Sequence[float]) -> float:
     return (concordant - discordant) / denom if denom > 0 else 0.0
 
 def _rank(x: Sequence[float]) -> List[float]:
-    """Helper to rank data (handles ties by averaging)."""
+    """Helper to rank data handling ties."""
     pairs = sorted([(v, i) for i, v in enumerate(x)])
     ranks = [0.0] * len(x)
     
@@ -90,10 +91,7 @@ def _rank(x: Sequence[float]) -> List[float]:
     return ranks
 
 def calculate_classification_metrics(pred_critical: Sequence[bool], actual_critical: Sequence[bool]) -> ClassificationMetrics:
-    """
-    Calculate Precision, Recall, F1 based on binary 'Critical' classification.
-    True = Critical, False = Not Critical.
-    """
+    """Calculate Precision, Recall, F1 based on binary 'Critical' classification."""
     if len(pred_critical) != len(actual_critical) or not pred_critical:
         return ClassificationMetrics(0, 0, 0, 0, {})
 

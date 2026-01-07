@@ -7,7 +7,7 @@ Path: Publisher -> Topic -> Subscriber
 
 import logging
 from dataclasses import dataclass
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any
 from .simulation_graph import SimulationGraph
 
 @dataclass
@@ -29,7 +29,8 @@ class EventResult:
             "source": self.source,
             "reached_count": len(self.reached_subscribers),
             "topics_traversed": len(self.affected_topics),
-            "max_hops": self.hops
+            "max_hops": self.hops,
+            "reached_subscribers": self.reached_subscribers
         }
 
 class EventSimulator:
@@ -45,8 +46,11 @@ class EventSimulator:
             self.logger.error(f"Source {source} not found")
             return EventResult(scenario.description, source, [], [], 0)
 
-        # 1. Identify Topics published to by the Source App
+        # Logic: Publisher -> Topic -> Subscriber
+        # 1. Find Topics the source PUBLISHES_TO
         # (Source)-[:PUBLISHES_TO]->(Topic)
+        # Note: In SimulationGraph.get_successors_by_type, we look for outgoing edges.
+        # Graph Model: (App)-[:PUBLISHES_TO]->(Topic)
         published_topics = self.graph.get_successors_by_type(source, "PUBLISHES_TO")
         
         reached_subscribers = set()
@@ -54,23 +58,22 @@ class EventSimulator:
         
         if published_topics:
             hops = 1
-            # 2. Identify Subscribers for these Topics
-            # (Topic)<-[:SUBSCRIBES_TO]-(Subscriber)
-            # In our directed graph, the edge is usually Subscriber->Topic for 'SUBSCRIBES_TO'.
-            # We need to find nodes that have an outgoing SUBSCRIBES_TO edge to these topics.
-            # i.e., Predecessors of Topic via SUBSCRIBES_TO.
-            
             for topic in published_topics:
-                # Mark Topic as active/loaded
+                # Mark load
                 self.graph.graph.nodes[topic]["load"] += 1
                 
+                # 2. Find Subscribers that SUBSCRIBE_TO this Topic
+                # Graph Model: (App)-[:SUBSCRIBES_TO]->(Topic)
+                # So we look for PREDECESSORS of the Topic via SUBSCRIBES_TO
                 subscribers = self.graph.get_predecessors_by_type(topic, "SUBSCRIBES_TO")
+                
                 if subscribers:
                     hops = 2
-                    reached_subscribers.update(subscribers)
-                    
                     for sub in subscribers:
-                        self.graph.graph.nodes[sub]["load"] += 1
+                        # Don't count the source if it subscribes to its own topic (echo)
+                        if sub != source:
+                            reached_subscribers.add(sub)
+                            self.graph.graph.nodes[sub]["load"] += 1
 
         return EventResult(
             scenario=scenario.description,

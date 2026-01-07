@@ -3,6 +3,7 @@
 Visualize Graph CLI
 
 Generates a multi-layer analysis dashboard for the Software-as-a-Graph system.
+Visualizes Modeling, Analysis, Simulation, and Validation results.
 """
 
 import argparse
@@ -30,24 +31,25 @@ def main():
     
     args = parser.parse_args()
     
+    print(f"{BLUE}{BOLD}=== Software-as-a-Graph Visualization Module ==={RESET}")
+    print(f"Connecting to {args.uri}...")
+    
     try:
-        print(f"{BLUE}{BOLD}=== Software-as-a-Graph Visualization Module ==={RESET}")
-        print(f"Connecting to Neo4j at {args.uri}...")
-        
         with GraphVisualizer(uri=args.uri, user=args.user, password=args.password) as viz:
-            print(f"Running Multi-Layer Analysis & Validation Pipeline...")
+            print("Running Analysis & Validation Pipeline (this may take a moment)...")
             output_path = viz.generate_dashboard(args.output)
             
-            print(f"\n{GREEN}Success! Dashboard generated at: {os.path.abspath(output_path)}{RESET}")
+            abs_path = os.path.abspath(output_path)
+            print(f"\n{GREEN}Success! Dashboard generated at: {abs_path}{RESET}")
             
             if not args.no_browser:
-                print("Opening dashboard in default browser...")
-                webbrowser.open(f"file://{os.path.abspath(output_path)}")
+                print("Opening dashboard...")
+                webbrowser.open(f"file://{abs_path}")
                 
     except Exception as e:
-        print(f"\n{RED}Error: {e}{RESET}")
-        import traceback
-        traceback.print_exc()
+        print(f"\n{RED}Error generating dashboard: {e}{RESET}")
+        # import traceback
+        # traceback.print_exc()
         sys.exit(1)
     
     return 0

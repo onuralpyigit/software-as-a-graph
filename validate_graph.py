@@ -2,11 +2,8 @@
 """
 Graph Validation CLI
 
-Compares the static Analysis predictions against dynamic Simulation results
-to validate the accuracy of the software graph model.
-
-Updates:
-- Output formatted to show Spearman, F1, Precision, Recall.
+Compares static Analysis predictions against dynamic Simulation results
+for specific graph layers.
 """
 
 import argparse
@@ -29,31 +26,35 @@ def print_result(result):
     
     print(f"\n{BOLD}=== Validation Report ==={RESET}")
     print(f"Timestamp: {res_dict['timestamp']}")
+    print(f"Context:   {res_dict['context']}")
     
     print(f"\n{BOLD}Targets:{RESET}")
     for k, v in res_dict['targets'].items():
         print(f"  {k:<15}: {v}")
 
     def _print_row(name, data):
+        if data['n'] == 0:
+            print(f"{name:<15} | N=0    | N/A")
+            return
+
         color = GREEN if data['passed'] else RED
         status = "PASS" if data['passed'] else "FAIL"
         m = data['metrics']
         
-        # Format string for metrics row
         row = (
             f"{name:<15} | N={data['n']:<4} | {color}{status:<4}{RESET} | "
             f"Rho: {m['rho']:>5.3f} | F1: {m['f1']:>5.3f} | "
             f"Prec: {m['precision']:>5.3f} | Rec: {m['recall']:>5.3f} | "
-            f"Top5: {m['top5_overlap']:>5.3f} | Top10: {m['top10_overlap']:>5.3f}"
+            f"Top5: {m['top5_overlap']:>5.3f}"
         )
         print(row)
 
     print(f"\n{BOLD}{'Group':<15} | {'Size':<6} | {'Stat':<4} | {'Metrics'}{RESET}")
-    print("-" * 100)
+    print("-" * 105)
     
     # Overall
     _print_row("Overall", res_dict['overall'])
-    print("-" * 100)
+    print("-" * 105)
     
     # By Type
     for dtype, data in res_dict['by_type'].items():
@@ -66,7 +67,11 @@ def main():
     parser.add_argument("--password", default="password")
     parser.add_argument("--output", help="JSON output file")
     
-    # Custom Targets (Defaults from Table 5)
+    # Layer Scope
+    parser.add_argument("--layer", choices=["application", "infrastructure", "complete"],
+                        default="complete", help="Layer to validate (default: complete)")
+    
+    # Custom Targets
     parser.add_argument("--target-spearman", type=float, default=0.70)
     parser.add_argument("--target-f1", type=float, default=0.80)
     parser.add_argument("--target-precision", type=float, default=0.80)
@@ -84,9 +89,11 @@ def main():
         top_10_overlap=args.target_overlap
     )
 
+    print(f"{CYAN}Starting validation for layer: {args.layer.upper()}...{RESET}")
+    
     try:
         with ValidationPipeline(args.uri, args.user, args.password) as pipeline:
-            result = pipeline.run(targets)
+            result = pipeline.run(layer=args.layer, targets=targets)
             print_result(result)
             
             if args.output:

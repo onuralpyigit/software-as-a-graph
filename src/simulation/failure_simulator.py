@@ -1,11 +1,12 @@
 """
 Failure Simulator
 
-Simulates cascading failures and calculates impact scores based on the PhD methodology.
+Simulates cascading failures using RAW structural relationships.
 
-Logic:
-1. Cascade Propagation: Based on DEPENDS_ON weights, thresholds, and probabilities.
-2. Impact Calculation: Reachability Loss, Fragmentation, Cascade Extent.
+Propagation Logic:
+1. Physical Propagation (Hard): Node Failure -> Hosted Apps Failure (RUNS_ON).
+2. Network Propagation (Soft/Probabilistic): Node -> Connected Node (CONNECTS_TO).
+3. Impact Analysis: Evaluates Reachability Loss (Pub-Sub paths) and Fragmentation.
 """
 
 import logging
@@ -18,34 +19,48 @@ from .simulation_graph import SimulationGraph
 class FailureScenario:
     target_node: str
     description: str
-    cascade_threshold: float = 0.5  # Default from Report Section 4.4.2
-    cascade_probability: float = 0.7 # Default from Report Section 4.4.2
-    max_depth: int = 5               # Default from Report Section 4.4.2
+    layer: str = "complete" # application, infrastructure, complete
+    cascade_threshold: float = 0.5
+    cascade_probability: float = 0.7
+    max_depth: int = 5
 
 @dataclass
 class FailureResult:
     scenario: str
     initial_failure: str
+    failure_type: str  # e.g., "Node", "Application"
     cascaded_failures: List[str]
-    
-    # Metrics from Report Section 4.4.1 [Formula 7]
     reachability_loss: float
     fragmentation: float
-    cascade_extent: float
     impact_score: float
+    params: Dict[str, Any] # Store simulation params for dataset completeness
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "scenario": self.scenario,
             "initial_failure": self.initial_failure,
-            "cascaded_count": len(self.cascaded_failures),
+            "failure_type": self.failure_type,
             "metrics": {
                 "reachability_loss": round(self.reachability_loss, 4),
                 "fragmentation": round(self.fragmentation, 4),
-                "cascade_extent": round(self.cascade_extent, 4),
                 "total_impact_score": round(self.impact_score, 4)
             },
-            "cascaded_nodes": self.cascaded_failures
+            "cascaded_nodes": self.cascaded_failures,
+            "cascaded_count": len(self.cascaded_failures)
+        }
+    
+    def to_flat_dict(self) -> Dict[str, Any]:
+        """Flattens result for CSV/DataFrame export."""
+        return {
+            "node_id": self.initial_failure,
+            "node_type": self.failure_type,
+            "reachability_loss": round(self.reachability_loss, 4),
+            "fragmentation": round(self.fragmentation, 4),
+            "impact_score": round(self.impact_score, 4),
+            "cascaded_count": len(self.cascaded_failures),
+            "cascade_threshold": self.params.get("threshold"),
+            "cascade_probability": self.params.get("probability"),
+            "cascade_depth": self.params.get("depth")
         }
 
 class FailureSimulator:
@@ -58,71 +73,66 @@ class FailureSimulator:
         target = scenario.target_node
         G = self.graph.graph
         
+        # Check if target exists
         if target not in G:
             self.logger.warning(f"Target node {target} not found in graph.")
-            return FailureResult(scenario.description, target, [], 0.0, 0.0, 0.0, 0.0)
+            return FailureResult(scenario.description, target, "unknown", [], 0.0, 0.0, 0.0, {})
 
-        # --- 1. Cascade Propagation (Report Section 4.4.2) ---
+        # Determine target type
+        target_type = G.nodes[target].get("type", "unknown")
+
         failed_set = set()
-        queue = [(target, 0)] # (node_id, depth)
-        
-        # Mark initial failure
+        queue = [(target, 0)] 
         failed_set.add(target)
         G.nodes[target]["state"] = "failed"
         
         cascaded_failures = []
 
         while queue:
-            current_node, depth = queue.pop(0)
+            curr, depth = queue.pop(0)
             
-            if depth >= scenario.max_depth:
-                continue
+            # --- 1. Physical Propagation (Hard Dependency) ---
+            # If 'curr' is a Node, everything running on it fails immediately.
+            # (App)-[:RUNS_ON]->(Node) => Node fails, App fails.
+            hosted_apps = self.graph.get_hosted_components(curr)
+            for app in hosted_apps:
+                if app not in failed_set:
+                    failed_set.add(app)
+                    cascaded_failures.append(app)
+                    G.nodes[app]["state"] = "failed"
+                    # Apps generally don't physically host things, so no queue append
+                    # unless implementing App->App logical cascades here.
 
-            # Check dependencies: If 'current_node' fails, who depends on it?
-            # In dependency graph: Dependent -> Dependency.
-            # If Dependency (current_node) fails, Dependent (predecessor) might fail.
-            dependents = self.graph.get_predecessors_by_type(current_node, "DEPENDS_ON")
-            
-            for dep in dependents:
-                if dep in failed_set:
-                    continue
+            # --- 2. Network/Structural Propagation (Soft/Probabilistic) ---
+            if depth < scenario.max_depth:
+                # Use CONNECTS_TO for infrastructure cascades
+                neighbors = self.graph.get_successors_by_type(curr, "CONNECTS_TO")
                 
-                # Get Dependency Strength (Formula 1) stored on edge
-                weight = self.graph.get_edge_weight(dep, current_node)
-                
-                # Cascade Logic: Threshold & Probability
-                if weight >= scenario.cascade_threshold:
-                    if random.random() < scenario.cascade_probability:
-                        failed_set.add(dep)
-                        cascaded_failures.append(dep)
-                        G.nodes[dep]["state"] = "failed"
-                        queue.append((dep, depth + 1))
+                for neighbor in neighbors:
+                    if neighbor in failed_set: continue
+                    
+                    # Check edge weight for threshold
+                    edge_data = G.get_edge_data(curr, neighbor)
+                    weight = edge_data.get("weight", 1.0) if edge_data else 1.0
+                    
+                    if weight >= scenario.cascade_threshold:
+                        if random.random() < scenario.cascade_probability:
+                            failed_set.add(neighbor)
+                            cascaded_failures.append(neighbor)
+                            G.nodes[neighbor]["state"] = "failed"
+                            queue.append((neighbor, depth + 1))
 
-        # --- 2. Impact Calculation (Report Section 4.4.1) ---
-        total_nodes = G.number_of_nodes()
-        remaining_components = total_nodes - 1 # Excluding the initial failure trigger
-        
-        if remaining_components <= 0:
-            cascade_extent = 1.0
-        else:
-            # Cascade Extent = |cascade_failures| / |remaining_components|
-            cascade_extent = len(cascaded_failures) / remaining_components
-
-        # Reachability Loss = |broken_paths| / |total_paths|
-        initial_paths = self.graph.initial_paths
-        total_paths_count = len(initial_paths)
-        
-        if total_paths_count == 0:
+        # --- 3. Impact Calculation ---
+        # 3a. Reachability Loss (App Layer Impact)
+        total_paths = len(self.graph.initial_paths)
+        if total_paths == 0:
             reachability_loss = 0.0
         else:
-            # A path is broken if any node in the (Pub, Topic, Sub) triple is failed
-            broken_paths = 0
-            for pub, topic, sub in initial_paths:
-                if pub in failed_set or topic in failed_set or sub in failed_set:
-                    broken_paths += 1
-            reachability_loss = broken_paths / total_paths_count
+            current_paths = self.graph.get_pub_sub_paths(active_only=True)
+            reachability_loss = 1.0 - (len(current_paths) / total_paths)
 
-        # Fragmentation = (C_after - C_before) / (n - 1)
+        # 3b. Fragmentation (Infra/System Layer Impact)
+        total_nodes = G.number_of_nodes()
         c_before = self.graph.initial_component_count
         c_after = self.graph.get_connected_components_count(active_only=True)
         
@@ -131,18 +141,20 @@ class FailureSimulator:
         else:
             fragmentation = max(0, (c_after - c_before) / (total_nodes - 1))
 
-        # Composite Impact Score (Formula 7)
-        # Impact(v) = 0.5 * reachability + 0.3 * fragmentation + 0.2 * cascade
-        impact_score = (0.5 * reachability_loss) + \
-                       (0.3 * fragmentation) + \
-                       (0.2 * cascade_extent)
+        # 3c. Composite Score
+        impact_score = (0.6 * reachability_loss) + (0.4 * fragmentation)
 
         return FailureResult(
             scenario=scenario.description,
             initial_failure=target,
+            failure_type=target_type,
             cascaded_failures=cascaded_failures,
             reachability_loss=reachability_loss,
             fragmentation=fragmentation,
-            cascade_extent=cascade_extent,
-            impact_score=impact_score
+            impact_score=impact_score,
+            params={
+                "threshold": scenario.cascade_threshold,
+                "probability": scenario.cascade_probability,
+                "depth": scenario.max_depth
+            }
         )

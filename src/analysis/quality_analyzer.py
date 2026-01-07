@@ -2,33 +2,39 @@
 Quality Analyzer
 
 Computes Criticality Scores for Reliability (R), Maintainability (M), and Availability (A).
-Uses Box-Plot Classification (Dynamic Thresholds) to assign levels.
+Uses Box-Plot Classification (Dynamic Thresholds) to assign levels for EACH dimension.
 """
 
-from dataclasses import dataclass
-from typing import Dict, List, Any
+from dataclasses import dataclass, field
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 
-from .structural_analyzer import StructuralAnalysisResult
+from .structural_analyzer import StructuralAnalysisResult, StructuralMetrics
 from .classifier import BoxPlotClassifier, CriticalityLevel, ClassificationResult
 
 @dataclass
 class QualityScores:
-    """
-    Scores represent Criticality/Importance.
-    Higher Score = Higher Criticality = Higher Risk if component fails.
-    """
-    reliability: float    # How critical is this for system reliability?
-    maintainability: float # How hard is this to maintain/change?
-    availability: float    # How critical is this for system availability?
+    """Raw scores for quality dimensions."""
+    reliability: float
+    maintainability: float
+    availability: float
     overall: float
+
+@dataclass
+class QualityLevels:
+    """Classified levels for each quality dimension."""
+    reliability: CriticalityLevel = CriticalityLevel.MINIMAL
+    maintainability: CriticalityLevel = CriticalityLevel.MINIMAL
+    availability: CriticalityLevel = CriticalityLevel.MINIMAL
+    overall: CriticalityLevel = CriticalityLevel.MINIMAL
 
 @dataclass
 class ComponentQuality:
     id: str
     type: str
     scores: QualityScores
-    level: CriticalityLevel
+    levels: QualityLevels
+    structural: StructuralMetrics # Carried forward for context-aware detection
 
 @dataclass
 class EdgeQuality:
@@ -44,6 +50,7 @@ class EdgeQuality:
 @dataclass
 class QualityAnalysisResult:
     timestamp: str
+    context: str
     components: List[ComponentQuality]
     edges: List[EdgeQuality]
     classification_summary: Dict[str, Any]
@@ -53,146 +60,192 @@ class QualityAnalyzer:
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
         
         # Coefficients for composite scores
-        # Reliability: Importance (PageRank) + Failure Impact (Reverse PR)
-        self.W_R = {"pr": 0.45, "fp": 0.35, "id": 0.20} 
+        # Reliability: Global Importance (PageRank) + Inward Dependency (In-Degree)
+        self.W_R = {"pagerank": 0.45, "reverse_pagerank": 0.35, "in_degree": 0.20} 
         
-        # Maintainability: Complexity (Betweenness) + Coupling (Degree)
-        # Note: High Score here means "Hard to Maintain / High Ripple Effect"
-        self.W_M = {"bt": 0.45, "cc": 0.25, "dc": 0.30}
+        # Maintainability: Structural Centrality (Betweenness) + Coupling + (1-Clustering)
+        self.W_M = {"betweenness": 0.45, "degree": 0.30, "clustering": 0.25}
         
-        # Availability: Single Point of Failure potential
-        self.W_A = {"ap": 0.50, "br": 0.25, "cr": 0.25} 
+        # Availability: Bridge Status + Articulation Point + Global Importance
+        self.W_A = {"articulation": 0.50, "bridge_ratio": 0.25, "importance": 0.25} 
 
-    def analyze(self, struct: StructuralAnalysisResult) -> QualityAnalysisResult:
+    def analyze(self, struct: StructuralAnalysisResult, context: str = "System") -> QualityAnalysisResult:
         comp_results = []
         edge_results = []
         
         # 1. Component Analysis
         if struct.components:
-            # Normalize metrics relative to the current dataset (Type or Full System)
+            # Normalize metrics relative to the current dataset
             normalized = self._normalize_components(struct.components.values())
             
+            # Compute raw scores
+            temp_components = []
             for c in struct.components.values():
-                scores = self._compute_component_scores(c, normalized[c.id])
-                comp_results.append(ComponentQuality(c.id, c.type, scores, CriticalityLevel.MINIMAL))
+                scores = self._compute_component_scores(c, normalized.get(c.id, {}))
+                temp_components.append({
+                    "data": c,
+                    "scores": scores
+                })
             
-            # Classify dynamically based on distribution within this group
-            # We classify based on 'overall' score to set the main Level
-            self._classify_items(comp_results)
+            # Classify EACH dimension separately (R, M, A, Overall)
+            # This allows us to say "Critical for Availability" specifically.
+            levels_map = self._classify_multi_dimensional(temp_components)
+
+            # Assemble final objects
+            for item in temp_components:
+                c = item["data"]
+                scores = item["scores"]
+                comp_results.append(ComponentQuality(
+                    id=c.id,
+                    type=c.type,
+                    scores=scores,
+                    levels=levels_map[c.id],
+                    structural=c
+                ))
 
         # 2. Edge Analysis
         if struct.edges:
-            c_scores = {c.id: c.scores for c in comp_results}
+            # Quick lookup for endpoint scores
+            c_lookup = {c.id: c.scores for c in comp_results}
             normalized_edges = self._normalize_edges(struct.edges.values())
             
             for e_key, e in struct.edges.items():
-                if e.source in c_scores and e.target in c_scores:
-                    scores = self._compute_edge_scores(e, normalized_edges[e_key], c_scores[e.source], c_scores[e.target])
-                    edge_results.append(EdgeQuality(e.source, e.target, e.dependency_type, scores, CriticalityLevel.MINIMAL))
+                if e.source in c_lookup and e.target in c_lookup:
+                    scores = self._compute_edge_scores(
+                        e, 
+                        normalized_edges.get(e_key, {}), 
+                        c_lookup[e.source], 
+                        c_lookup[e.target]
+                    )
+                    edge_results.append(EdgeQuality(
+                        e.source, e.target, e.dependency_type, 
+                        scores, CriticalityLevel.MINIMAL
+                    ))
             
-            self._classify_items(edge_results)
+            # Classify edges based on Overall score
+            self._classify_edges(edge_results)
 
         return QualityAnalysisResult(
             timestamp=datetime.now().isoformat(),
+            context=context,
             components=comp_results,
             edges=edge_results,
             classification_summary=self._summarize(comp_results, edge_results)
         )
 
-    def _compute_component_scores(self, raw, norm) -> QualityScores:
-        # Reliability Criticality (R):
-        # High PR (Important) + High In-Degree (Dependents) = Critical for Reliability
-        r = self.W_R["pr"] * norm["pagerank"] + \
-            self.W_R["fp"] * norm["pagerank"] + \
-            self.W_R["id"] * norm["in_degree"]
+    def _compute_component_scores(self, raw: StructuralMetrics, norm: Dict[str, float]) -> QualityScores:
+        # Default to 0.0 if metric missing
+        get_n = lambda k: norm.get(k, 0.0)
+
+        # Reliability (R): High usage + High importance
+        r = self.W_R["pagerank"] * get_n("pagerank") + \
+            self.W_R["reverse_pagerank"] * get_n("pagerank") + \
+            self.W_R["in_degree"] * get_n("in_degree")
         
-        # Maintainability Criticality (M):
-        # High Betweenness (Central) + High Degree (Coupled) + Low Clustering = Hard to change safely
-        # Note: We use (1 - clustering) because low clustering usually implies higher structural bridge role
-        m = self.W_M["bt"] * norm["betweenness"] + \
-            self.W_M["cc"] * (1.0 - norm["clustering"]) + \
-            self.W_M["dc"] * norm["degree"]
+        # Maintainability (M): High centrality + High coupling + Low clustering (structural bridge)
+        # Note: (1 - clustering) implies the node connects disparate groups
+        m = self.W_M["betweenness"] * get_n("betweenness") + \
+            self.W_M["degree"] * get_n("degree") + \
+            self.W_M["clustering"] * (1.0 - get_n("clustering_coefficient"))
         
-        # Availability Criticality (A):
-        # Is Articulation Point (SPOF) + Bridge Ratio + General Importance
-        crit_factor = norm["pagerank"] * norm["degree"]
-        a = self.W_A["ap"] * float(raw.is_articulation_point) + \
-            self.W_A["br"] * raw.bridge_ratio + \
-            self.W_A["cr"] * crit_factor
+        # Availability (A): SPOF characteristics
+        # Articulation Point is binary in raw, but we weight it heavily
+        is_ap = 1.0 if raw.is_articulation_point else 0.0
+        # Importance factor for availability
+        imp = (get_n("pagerank") + get_n("degree")) / 2
+        
+        a = self.W_A["articulation"] * is_ap + \
+            self.W_A["bridge_ratio"] * raw.bridge_ratio + \
+            self.W_A["importance"] * imp
         
         # Overall Criticality
-        q = 0.35 * r + 0.30 * m + 0.35 * a
-        return QualityScores(r, m, a, q)
+        overall = 0.35 * r + 0.30 * m + 0.35 * a
+        return QualityScores(r, m, a, overall)
 
-    def _compute_edge_scores(self, raw, norm, src_s, tgt_s) -> QualityScores:
-        # Edge Importance depends on:
-        # 1. Structural Betweenness (norm['betweenness'])
-        # 2. Importance of connected components (ep_r)
+    def _compute_edge_scores(self, raw, norm, src_s: QualityScores, tgt_s: QualityScores) -> QualityScores:
+        # Edge Importance
+        end_point_avg = (src_s.reliability + tgt_s.reliability) / 2
+        r = 0.4 * norm.get("weight", 0) + 0.6 * end_point_avg
         
-        ep_r = (src_s.reliability + tgt_s.reliability) / 2
-        r = 0.4 * norm["weight"] + 0.6 * ep_r
-        
-        # Edge Availability Risk (Bridge status)
-        ep_a = (src_s.availability + tgt_s.availability) / 2
-        a = 0.6 * float(raw.is_bridge) + 0.4 * ep_a
+        # Edge Risk (Bridge)
+        is_br = 1.0 if raw.is_bridge else 0.0
+        a = 0.6 * is_br + 0.4 * ((src_s.availability + tgt_s.availability) / 2)
         
         q = 0.5 * r + 0.5 * a
         return QualityScores(r, 0.0, a, q)
 
-    def _classify_items(self, items: List[Any]):
-        if not items: return
+    def _classify_multi_dimensional(self, items: List[Dict]) -> Dict[str, QualityLevels]:
+        """Runs the Box-Plot classifier on R, M, A, and Overall scores separately."""
+        if not items: return {}
         
-        # Group by type to ensure fair comparison (Nodes vs Apps)
-        groups = {}
-        for i in items: groups.setdefault(i.type, []).append(i)
+        # Helper to extract scores
+        extract = lambda dim: [{"id": i["data"].id, "score": getattr(i["scores"], dim)} for i in items]
+        
+        # Run classification for each dimension
+        results = {}
+        for dim in ["reliability", "maintainability", "availability", "overall"]:
+            # We group by type implicitly because we pass the whole list. 
+            # If strictly by type is needed, filter `items` first. 
+            # Here we classify against the passed context (Layer or Type).
+            dataset = extract(dim)
+            classified = self.classifier.classify(dataset, metric_name=dim)
+            results[dim] = {item.id: item.level for item in classified.items}
+            
+        # Map back to QualityLevels objects
+        final_map = {}
+        for item in items:
+            uid = item["data"].id
+            final_map[uid] = QualityLevels(
+                reliability=results["reliability"].get(uid, CriticalityLevel.MINIMAL),
+                maintainability=results["maintainability"].get(uid, CriticalityLevel.MINIMAL),
+                availability=results["availability"].get(uid, CriticalityLevel.MINIMAL),
+                overall=results["overall"].get(uid, CriticalityLevel.MINIMAL),
+            )
+        return final_map
 
-        for g_name, g_items in groups.items():
-            if len(g_items) < 2: continue
-            
-            # Use BoxPlotClassifier to set levels based on Overall Score
-            to_classify = [{"id": x.id, "score": x.scores.overall} for x in g_items]
-            result = self.classifier.classify(to_classify, metric_name=f"{g_name}_quality")
-            
-            level_map = {item.id: item.level for item in result.items}
-            for x in g_items:
-                if x.id in level_map: x.level = level_map[x.id]
+    def _classify_edges(self, edges: List[EdgeQuality]):
+        if not edges: return
+        data = [{"id": e.id, "score": e.scores.overall} for e in edges]
+        res = self.classifier.classify(data, metric_name="edge_quality")
+        mapping = {item.id: item.level for item in res.items}
+        for e in edges:
+            e.level = mapping.get(e.id, CriticalityLevel.MINIMAL)
 
     def _normalize_components(self, metrics):
-        return self._min_max_normalize(metrics, ["pagerank", "in_degree", "betweenness", "degree", "clustering_coefficient"])
+        fields = ["pagerank", "in_degree", "betweenness", "degree", "clustering_coefficient"]
+        return self._min_max_normalize(metrics, fields)
 
     def _normalize_edges(self, metrics):
         return self._min_max_normalize(metrics, ["weight", "betweenness"])
 
     def _min_max_normalize(self, items, fields):
-        # Safe normalization handling single-item or zero-variance cases
         item_list = list(items)
         if not item_list: return {}
 
-        values = {f: [getattr(i, f) for i in item_list] for f in fields}
+        # Extract values
+        values = {f: [getattr(i, f, 0.0) for i in item_list] for f in fields}
         bounds = {f: (min(v), max(v)) for f, v in values.items()}
         
         normalized = {}
         for item in item_list:
             key = getattr(item, 'id', None)
-            if not key: key = (item.source, item.target)
+            if not key: key = (item.source, item.target) # Edge tuple key
             
             normalized[key] = {}
             for f in fields:
                 mn, mx = bounds[f]
-                val = getattr(item, f)
+                val = getattr(item, f, 0.0)
                 diff = mx - mn
                 
-                # Normalize to 0-1
                 if diff == 0:
-                    norm_val = 0.0 # If all values are same, assume baseline
+                    # If no variance, check if value is significant
+                    normalized[key][f] = 1.0 if val > 0 else 0.0
                 else:
-                    norm_val = (val - mn) / diff
-                
-                normalized[key][f.replace("_coefficient", "")] = norm_val
+                    normalized[key][f] = (val - mn) / diff
         return normalized
 
     def _summarize(self, comps, edges):
         return {
-            "components": {l.value: len([c for c in comps if c.level == l]) for l in CriticalityLevel},
+            "components": {l.value: len([c for c in comps if c.levels.overall == l]) for l in CriticalityLevel},
             "edges": {l.value: len([e for e in edges if e.level == l]) for l in CriticalityLevel}
         }

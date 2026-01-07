@@ -1,7 +1,8 @@
 """
 Problem Detector
 
-Identifies problems using dynamic Criticality Levels and Structural flags.
+Identifies problems using granular Criticality Levels (R, M, A)
+and structural context. Uses NO static thresholds.
 """
 
 from dataclasses import dataclass
@@ -23,46 +24,52 @@ class ProblemDetector:
         
         # 1. Component Problems
         for c in quality_result.components:
-            # We use >= HIGH because these are statistical outliers in the top quartiles
-            is_critical = c.level >= CriticalityLevel.HIGH
+            # We focus on items that are statistical outliers (HIGH or CRITICAL)
+            # in specific dimensions.
             
-            # --- Availability Problems ---
-            # SPOF: A critical node that is also an articulation point
-            # (Note: Requires structural data, but we infer from High Avail Score + Level)
-            if is_critical and c.scores.availability > 0.7: 
-                 # High Avail Score is heavily weighted by Articulation Point status
-                problems.append(DetectedProblem(
-                    c.id, c.type, "Availability", c.level.value.upper(),
-                    "Single Point of Failure (SPOF)",
-                    "Introduce redundancy; add parallel paths or backup nodes."
+            # --- Availability: Single Point of Failure (SPOF) ---
+            # Criteria: High Availability Criticality + Structural Articulation Point
+            if c.levels.availability >= CriticalityLevel.HIGH:
+                if c.structural.is_articulation_point:
+                    problems.append(DetectedProblem(
+                        c.id, c.type, "Availability", "CRITICAL",
+                        "Single Point of Failure (SPOF)",
+                        "Node is a cut-vertex. Add redundant paths or backup instances to bypass this node."
+                    ))
+                elif c.structural.bridge_ratio > 0:
+                     problems.append(DetectedProblem(
+                        c.id, c.type, "Availability", "HIGH",
+                        "Structural Bridge",
+                        "Node connects disparate clusters. Failure splits the network."
+                    ))
+
+            # --- Maintainability: God Object / Bottleneck ---
+            # Criteria: High Maintainability Criticality (High Complexity + Centrality)
+            if c.levels.maintainability >= CriticalityLevel.HIGH:
+                 problems.append(DetectedProblem(
+                    c.id, c.type, "Maintainability", c.levels.maintainability.value.upper(),
+                    "God Component / Structural Bottleneck",
+                    f"High Betweenness & Coupling. Refactor to split responsibilities. (Score: {c.scores.maintainability:.2f})"
                 ))
 
-            # --- Maintainability Problems ---
-            # God Object / Bottleneck: High Maintainability Score (High Complexity/Centrality)
-            if is_critical and c.scores.maintainability > 0.7:
+            # --- Reliability: Failure Propagation Hub ---
+            # Criteria: High Reliability Criticality (High Fan-In / Importance)
+            if c.levels.reliability >= CriticalityLevel.HIGH:
                 problems.append(DetectedProblem(
-                    c.id, c.type, "Maintainability", c.level.value.upper(),
-                    "Structural Bottleneck / God Component",
-                    "Refactor to decouple responsibilities; split component."
-                ))
-
-            # --- Reliability Problems ---
-            # Propagation Node: High Reliability Score (High In-Degree/Usage)
-            if is_critical and c.scores.reliability > 0.7:
-                problems.append(DetectedProblem(
-                    c.id, c.type, "Reliability", c.level.value.upper(),
+                    c.id, c.type, "Reliability", c.levels.reliability.value.upper(),
                     "Failure Propagation Hub",
-                    "Implement Circuit Breakers and Bulkheads."
+                    "High downstream dependency count. Implement Circuit Breakers and Bulkheads here."
                 ))
 
         # 2. Edge Problems
         for e in quality_result.edges:
-            # Critical Dependency
-            if e.level == CriticalityLevel.CRITICAL:
+            # Critical Dependencies
+            if e.level >= CriticalityLevel.HIGH:
+                issue_type = "Critical Bridge" if "bridge" in e.type.lower() or "structural" in e.type.lower() else "Critical Dependency"
                 problems.append(DetectedProblem(
-                    e.id, "Dependency", "Architecture", "CRITICAL",
-                    f"Critical Path Dependency ({e.type})",
-                    "Optimize payload size; verify QoS requirements; ensure connection stability."
+                    e.id, "Dependency", "Architecture", e.level.value.upper(),
+                    f"{issue_type} ({e.type})",
+                    "Optimize payload, ensure high bandwidth, and verify asynchronous handling."
                 ))
 
         return problems

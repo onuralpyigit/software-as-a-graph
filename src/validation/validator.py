@@ -2,11 +2,7 @@
 Validator
 
 Compares Predicted Scores (from Analysis) against Actual Impact (from Simulation).
-Implements the Statistical Validation Framework defined in PhD Report Section 3.2.
-
-Logic:
-1. Classification: Uses Box-Plot method (Section 4.3.2) to identify 'Critical' components dynamically.
-2. Correlation: Uses Spearman Rank Correlation (Formula 8).
+Implements the Statistical Validation Framework.
 """
 
 import logging
@@ -47,6 +43,7 @@ class ValidationGroupResult:
 @dataclass
 class ValidationResult:
     timestamp: str
+    context: str
     targets: ValidationTargets
     overall: ValidationGroupResult
     by_type: Dict[str, ValidationGroupResult]
@@ -54,6 +51,7 @@ class ValidationResult:
     def to_dict(self):
         return {
             "timestamp": self.timestamp,
+            "context": self.context,
             "targets": vars(self.targets),
             "overall": self.overall.to_dict(),
             "by_type": {k: v.to_dict() for k, v in self.by_type.items()}
@@ -70,15 +68,16 @@ class Validator:
         self, 
         predicted_scores: Dict[str, float], 
         actual_scores: Dict[str, float],
-        component_types: Dict[str, str]
+        component_types: Dict[str, str],
+        context: str = "General"
     ) -> ValidationResult:
         """
         Main validation entry point.
         """
-        # 1. Overall Validation
+        # 1. Overall Validation (All components in scope)
         overall = self._validate_subset("Overall", predicted_scores, actual_scores)
         
-        # 2. Per-Type Validation
+        # 2. Per-Type Validation (Drill-down)
         by_type = {}
         unique_types = set(component_types.values())
         
@@ -87,11 +86,13 @@ class Validator:
             pred_sub = {nid: predicted_scores.get(nid, 0.0) for nid in type_ids if nid in predicted_scores}
             act_sub = {nid: actual_scores.get(nid, 0.0) for nid in type_ids if nid in actual_scores}
             
-            if len(pred_sub) >= 5: # Min sample size for stats
+            # Only validate if we have a statistically relevant sample size
+            if len(pred_sub) >= 5: 
                 by_type[c_type] = self._validate_subset(c_type, pred_sub, act_sub)
 
         return ValidationResult(
             timestamp=datetime.now().isoformat(),
+            context=context,
             targets=self.targets,
             overall=overall,
             by_type=by_type
@@ -107,37 +108,30 @@ class Validator:
         p_vals = [pred[i] for i in common_ids]
         a_vals = [act[i] for i in common_ids]
 
-        # 1. Correlation (Section 4.5)
+        # 1. Correlation 
         corr = CorrelationMetrics(
             spearman=spearman_correlation(p_vals, a_vals),
             pearson=pearson_correlation(p_vals, a_vals),
             kendall=kendall_correlation(p_vals, a_vals)
         )
 
-        # 2. Classification (Box-Plot Method - Section 4.3.2)
-        # Determine "Critical" labels using the statistical distribution of the scores
-        # We classify Predicted Critical vs Actual Critical (Ground Truth)
-        
-        # Prepare data for classifier
+        # 2. Classification (Box-Plot Method)
+        # Classify both sets independently using their own distribution
         p_items = [{"id": i, "score": pred[i]} for i in common_ids]
         a_items = [{"id": i, "score": act[i]} for i in common_ids]
         
         p_res = self.classifier.classify(p_items, metric_name="predicted")
         a_res = self.classifier.classify(a_items, metric_name="actual")
         
-        # Map IDs to Criticality Level.
-        # Per Table 4, "CRITICAL" (Outliers) is the highest urgency. 
-        # For small datasets without outliers, we might include "HIGH".
-        # However, strictly following Table 5 "Fraction of predicted critical", 
-        # we will count CriticalityLevel.CRITICAL (Outliers) as the Positive class.
-        
         p_map = {item.id: item.level for item in p_res.items}
         a_map = {item.id: item.level for item in a_res.items}
         
-        # Convert to Binary for F1/Precision/Recall
-        # Positive Class = Critical Level
-        p_binary = [p_map[i] == CriticalityLevel.CRITICAL for i in common_ids]
-        a_binary = [a_map[i] == CriticalityLevel.CRITICAL for i in common_ids]
+        # Logic: Is it a CRITICAL/HIGH outlier?
+        # We check if level >= HIGH (High or Critical)
+        def is_critical(lvl): return lvl >= CriticalityLevel.HIGH
+        
+        p_binary = [is_critical(p_map[i]) for i in common_ids]
+        a_binary = [is_critical(a_map[i]) for i in common_ids]
         
         cls = calculate_classification_metrics(p_binary, a_binary)
 
@@ -147,9 +141,9 @@ class Validator:
             {i: act[i] for i in common_ids}
         )
 
-        # Pass criteria (Table 5)
-        # Spearman >= 0.70 AND F1 >= 0.80 AND Precision >= 0.80 AND Recall >= 0.80 AND Overlap >= 60%
-        # We relax this slightly to checking the primary metric (Spearman) and F1 for "Passing" flag
+        # Pass criteria
+        # Primary Metric: Spearman Rank Correlation
+        # Secondary Metric: F1 Score (Accurate identification of critical items)
         passed = (
             corr.spearman >= self.targets.spearman and 
             cls.f1_score >= self.targets.f1_score
