@@ -175,7 +175,7 @@ $$A_e(e) = \omega_{br} \cdot BR_e(e) + \omega_{ap} \cdot \frac{AP(u) + AP(v)}{2}
 | Symbol | Range | Description |
 |--------|-------|-------------|
 | $BR_e(e)$ | {0, 1} | Bridge indicator (1 if bridge, 0 otherwise) |
-| $AP(u), AP(v)$ | {0, 1} | Endpoint Availability Scores (from Formula 3)* |
+| $AP(u), AP(v)$ | {0, 1} | Endpoint Availability Scores (from Formula 3) |
 | $\omega_{br}$ | [0, 1] | Bridge weight (default: 0.60) |
 | $\omega_{ap}$ | [0, 1] | Articulation point weight (default: 0.40) |
 
