@@ -60,7 +60,7 @@ class QualityAnalyzer:
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
         
         # Coefficients for composite scores
-        # Reliability: Global Importance (PageRank) + Inward Dependency (In-Degree)
+        # Reliability: Global Importance (PageRank) + Failure Propagation (Reverse PR) + In-Degree
         self.W_R = {"pagerank": 0.45, "reverse_pagerank": 0.35, "in_degree": 0.20} 
         
         # Maintainability: Structural Centrality (Betweenness) + Coupling + (1-Clustering)
@@ -87,8 +87,7 @@ class QualityAnalyzer:
                     "scores": scores
                 })
             
-            # Classify EACH dimension separately (R, M, A, Overall)
-            # This allows us to say "Critical for Availability" specifically.
+            # Classify EACH dimension separately
             levels_map = self._classify_multi_dimensional(temp_components)
 
             # Assemble final objects
@@ -105,7 +104,6 @@ class QualityAnalyzer:
 
         # 2. Edge Analysis
         if struct.edges:
-            # Quick lookup for endpoint scores
             c_lookup = {c.id: c.scores for c in comp_results}
             normalized_edges = self._normalize_edges(struct.edges.values())
             
@@ -137,22 +135,22 @@ class QualityAnalyzer:
         # Default to 0.0 if metric missing
         get_n = lambda k: norm.get(k, 0.0)
 
-        # Reliability (R): High usage + High importance
+        # Reliability (R): Importance + Propagation + Dependents
         r = self.W_R["pagerank"] * get_n("pagerank") + \
-            self.W_R["reverse_pagerank"] * get_n("pagerank") + \
+            self.W_R["reverse_pagerank"] * get_n("reverse_pagerank") + \
             self.W_R["in_degree"] * get_n("in_degree")
         
-        # Maintainability (M): High centrality + High coupling + Low clustering (structural bridge)
-        # Note: (1 - clustering) implies the node connects disparate groups
+        # Maintainability (M): Centrality + Complexity + Poor Modularity
         m = self.W_M["betweenness"] * get_n("betweenness") + \
             self.W_M["degree"] * get_n("degree") + \
             self.W_M["clustering"] * (1.0 - get_n("clustering_coefficient"))
         
         # Availability (A): SPOF characteristics
-        # Articulation Point is binary in raw, but we weight it heavily
         is_ap = 1.0 if raw.is_articulation_point else 0.0
-        # Importance factor for availability
-        imp = (get_n("pagerank") + get_n("degree")) / 2
+        
+        # Importance factor for availability (Formula 3: PR * Degree)
+        # Using multiplication highlights nodes that are BOTH important AND highly connected
+        imp = get_n("pagerank") * get_n("degree")
         
         a = self.W_A["articulation"] * is_ap + \
             self.W_A["bridge_ratio"] * raw.bridge_ratio + \
@@ -169,29 +167,22 @@ class QualityAnalyzer:
         
         # Edge Risk (Bridge)
         is_br = 1.0 if raw.is_bridge else 0.0
+        # Uses Endpoint Availability Scores (A) instead of just Articulation Points
         a = 0.6 * is_br + 0.4 * ((src_s.availability + tgt_s.availability) / 2)
         
         q = 0.5 * r + 0.5 * a
         return QualityScores(r, 0.0, a, q)
 
     def _classify_multi_dimensional(self, items: List[Dict]) -> Dict[str, QualityLevels]:
-        """Runs the Box-Plot classifier on R, M, A, and Overall scores separately."""
         if not items: return {}
-        
-        # Helper to extract scores
         extract = lambda dim: [{"id": i["data"].id, "score": getattr(i["scores"], dim)} for i in items]
         
-        # Run classification for each dimension
         results = {}
         for dim in ["reliability", "maintainability", "availability", "overall"]:
-            # We group by type implicitly because we pass the whole list. 
-            # If strictly by type is needed, filter `items` first. 
-            # Here we classify against the passed context (Layer or Type).
             dataset = extract(dim)
             classified = self.classifier.classify(dataset, metric_name=dim)
             results[dim] = {item.id: item.level for item in classified.items}
             
-        # Map back to QualityLevels objects
         final_map = {}
         for item in items:
             uid = item["data"].id
@@ -212,7 +203,8 @@ class QualityAnalyzer:
             e.level = mapping.get(e.id, CriticalityLevel.MINIMAL)
 
     def _normalize_components(self, metrics):
-        fields = ["pagerank", "in_degree", "betweenness", "degree", "clustering_coefficient"]
+        # Added reverse_pagerank
+        fields = ["pagerank", "reverse_pagerank", "in_degree", "betweenness", "degree", "clustering_coefficient"]
         return self._min_max_normalize(metrics, fields)
 
     def _normalize_edges(self, metrics):
@@ -222,23 +214,20 @@ class QualityAnalyzer:
         item_list = list(items)
         if not item_list: return {}
 
-        # Extract values
         values = {f: [getattr(i, f, 0.0) for i in item_list] for f in fields}
         bounds = {f: (min(v), max(v)) for f, v in values.items()}
         
         normalized = {}
         for item in item_list:
             key = getattr(item, 'id', None)
-            if not key: key = (item.source, item.target) # Edge tuple key
+            if not key: key = (item.source, item.target) 
             
             normalized[key] = {}
             for f in fields:
                 mn, mx = bounds[f]
                 val = getattr(item, f, 0.0)
                 diff = mx - mn
-                
                 if diff == 0:
-                    # If no variance, check if value is significant
                     normalized[key][f] = 1.0 if val > 0 else 0.0
                 else:
                     normalized[key][f] = (val - mn) / diff

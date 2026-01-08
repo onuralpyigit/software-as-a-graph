@@ -113,7 +113,7 @@ class GraphImporter:
         (CASE {topic_var}.qos_reliability WHEN 'RELIABLE' THEN 0.3 ELSE 0.0 END +
          CASE {topic_var}.qos_durability WHEN 'PERSISTENT' THEN 0.4 WHEN 'TRANSIENT' THEN 0.25 WHEN 'TRANSIENT_LOCAL' THEN 0.2 ELSE 0.0 END +
          CASE {topic_var}.qos_transport_priority WHEN 'URGENT' THEN 0.3 WHEN 'HIGH' THEN 0.2 WHEN 'MEDIUM' THEN 0.1 ELSE 0.0 END +
-         ({topic_var}.size / 10000.0))
+         ({topic_var}.size / (8 * 1024)))
         """
 
     def _calculate_intrinsic_weights(self):

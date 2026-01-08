@@ -21,6 +21,7 @@ class StructuralMetrics:
     
     # Centrality (Importance)
     pagerank: float = 0.0          # Global importance
+    reverse_pagerank: float = 0.0  # Failure Propagation (Influence)
     betweenness: float = 0.0       # Bridge/Flow control
     degree: float = 0.0            # Connectivity
     in_degree: float = 0.0         # Dependents
@@ -69,8 +70,11 @@ class StructuralAnalyzer:
         # 1. Component Metrics (Directed)
         try:
             pagerank = nx.pagerank(G, alpha=self.damping_factor, weight="weight")
+            # Reverse PageRank estimates "Failure Propagation" (Outgoing Influence)
+            reverse_pagerank = nx.pagerank(G.reverse(), alpha=self.damping_factor, weight="weight")
         except:
             pagerank = {n: 1.0/len(G) for n in G}
+            reverse_pagerank = {n: 1.0/len(G) for n in G}
 
         betweenness = nx.betweenness_centrality(G, weight="weight")
         degree_cent = nx.degree_centrality(G)
@@ -82,7 +86,6 @@ class StructuralAnalyzer:
         clustering = nx.clustering(G_undir, weight="weight")
         
         # Articulation Points & Bridges (Connectivity Criticality)
-        # Note: Only valid for connected components, so we iterate over them
         articulation_points: Set[str] = set()
         bridges = []
         
@@ -104,7 +107,6 @@ class StructuralAnalyzer:
 
         # 4. Assembly - Components
         comp_metrics = {}
-        # Quick lookup for component raw data (type, intrinsic weight)
         comp_lookup = {c.id: c for c in graph_data.components}
         
         for n in G.nodes:
@@ -115,6 +117,7 @@ class StructuralAnalyzer:
                 id=n,
                 type=c_data.component_type if c_data else "Unknown",
                 pagerank=pagerank.get(n, 0),
+                reverse_pagerank=reverse_pagerank.get(n, 0),
                 betweenness=betweenness.get(n, 0),
                 degree=degree_cent.get(n, 0),
                 in_degree=in_degree_cent.get(n, 0),

@@ -53,7 +53,7 @@ $$R(v) = \omega_{PR} \cdot PR_{norm}(v) + \omega_{FP} \cdot FP_{norm}(v) + \omeg
 | Symbol | Range | Description |
 |--------|-------|-------------|
 | $PR_{norm}(v)$ | [0, 1] | Normalized PageRank (transitive influence) |
-| $FP_{norm}(v)$ | [0, 1] | Normalized failure propagation potential |
+| $FP_{norm}(v)$ | [0, 1] | Normalized Reverse PageRank (Failure Propagation) |
 | $ID_{norm}(v)$ | [0, 1] | Normalized in-degree (dependency count) |
 | $\omega_{PR}$ | [0, 1] | PageRank weight (default: 0.45) |
 | $\omega_{FP}$ | [0, 1] | Failure propagation weight (default: 0.35) |
@@ -106,7 +106,7 @@ $$A(v) = \omega_{AP} \cdot AP(v) + \omega_{BR} \cdot BR(v) + \omega_{CR} \cdot C
 |--------|-------|-------------|
 | $AP(v)$ | {0, 1} | Articulation point indicator (structural SPOF) |
 | $BR(v)$ | [0, 1] | Bridge ratio (bridge edges / total incident edges) |
-| $CR_{norm}(v)$ | [0, 1] | Normalized criticality (PageRank × degree) |
+| $CR_{norm}(v)$ | [0, 1] | Normalized Criticality ($PR_{norm} \times Degree_{norm}$) |
 | $\omega_{AP}$ | [0, 1] | Articulation point weight (default: 0.50) |
 | $\omega_{BR}$ | [0, 1] | Bridge ratio weight (default: 0.25) |
 | $\omega_{CR}$ | [0, 1] | Criticality weight (default: 0.25) |
@@ -175,7 +175,7 @@ $$A_e(e) = \omega_{br} \cdot BR_e(e) + \omega_{ap} \cdot \frac{AP(u) + AP(v)}{2}
 | Symbol | Range | Description |
 |--------|-------|-------------|
 | $BR_e(e)$ | {0, 1} | Bridge indicator (1 if bridge, 0 otherwise) |
-| $AP(u), AP(v)$ | {0, 1} | Endpoint articulation point indicators |
+| $AP(u), AP(v)$ | {0, 1} | Endpoint Availability Scores (from Formula 3)* |
 | $\omega_{br}$ | [0, 1] | Bridge weight (default: 0.60) |
 | $\omega_{ap}$ | [0, 1] | Articulation point weight (default: 0.40) |
 
