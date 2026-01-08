@@ -2,8 +2,8 @@
 """
 Graph Validation CLI
 
-Compares static Analysis predictions against dynamic Simulation results
-for specific graph layers.
+Compares static Analysis predictions against dynamic Simulation results.
+Supports validating Application, Infrastructure, or Complete layers.
 """
 
 import argparse
@@ -17,20 +17,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.validation.pipeline import ValidationPipeline
 from src.validation.metrics import ValidationTargets
 
-# Colors
-GREEN = "\033[92m"; RED = "\033[91m"; CYAN = "\033[96m"; RESET = "\033[0m"
+# ANSI Colors
+GREEN = "\033[92m"; RED = "\033[91m"; CYAN = "\033[96m"; YELLOW = "\033[93m"; RESET = "\033[0m"
 BOLD = "\033[1m"
 
-def print_result(result):
+def print_result_table(result):
     res_dict = result.to_dict()
     
-    print(f"\n{BOLD}=== Validation Report ==={RESET}")
-    print(f"Timestamp: {res_dict['timestamp']}")
-    print(f"Context:   {res_dict['context']}")
-    
-    print(f"\n{BOLD}Targets:{RESET}")
-    for k, v in res_dict['targets'].items():
-        print(f"  {k:<15}: {v}")
+    print(f"\n{BOLD}Context: {res_dict['context']} {RESET} ({res_dict['timestamp']})")
+    print(f"{BOLD}{'Group':<15} | {'Size':<6} | {'Stat':<4} | {'Metrics'}{RESET}")
+    print("-" * 115)
 
     def _print_row(name, data):
         if data['n'] == 0:
@@ -43,69 +39,83 @@ def print_result(result):
         
         row = (
             f"{name:<15} | N={data['n']:<4} | {color}{status:<4}{RESET} | "
-            f"Rho: {m['rho']:>5.3f} | F1: {m['f1']:>5.3f} | "
-            f"Prec: {m['precision']:>5.3f} | Rec: {m['recall']:>5.3f} | "
-            f"Top5: {m['top5_overlap']:>5.3f}"
+            f"Rho: {m['rho']:>5.3f} | "
+            f"F1: {m['f1']:>5.3f} | "
+            f"RMSE: {m['rmse']:>5.3f} | "
+            f"Top5 Overlap: {m['top5_overlap']:>5.3f} | "
+            f"Top10 Overlap: {m['top10_overlap']:>5.3f}"
         )
         print(row)
-
-    print(f"\n{BOLD}{'Group':<15} | {'Size':<6} | {'Stat':<4} | {'Metrics'}{RESET}")
-    print("-" * 105)
     
     # Overall
     _print_row("Overall", res_dict['overall'])
-    print("-" * 105)
     
     # By Type
     for dtype, data in res_dict['by_type'].items():
-        _print_row(dtype, data)
+        _print_row(f"  .{dtype}", data)
+    print("-" * 115)
 
 def main():
     parser = argparse.ArgumentParser(description="Software-as-a-Graph Validation")
     parser.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
     parser.add_argument("--user", default="neo4j")
     parser.add_argument("--password", default="password")
-    parser.add_argument("--output", help="JSON output file")
     
-    # Layer Scope
-    parser.add_argument("--layer", choices=["application", "infrastructure", "complete"],
-                        default="complete", help="Layer to validate (default: complete)")
+    # Scope
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--layer", choices=["application", "infrastructure", "complete"], 
+                        help="Validate specific layer")
+    group.add_argument("--all", action="store_true", help="Validate ALL layers sequentially")
     
-    # Custom Targets
+    parser.add_argument("--output", help="JSON output file (e.g. results/validation.json)")
+    
+    # Targets (Optional override)
     parser.add_argument("--target-spearman", type=float, default=0.70)
     parser.add_argument("--target-f1", type=float, default=0.80)
-    parser.add_argument("--target-precision", type=float, default=0.80)
-    parser.add_argument("--target-recall", type=float, default=0.80)
-    parser.add_argument("--target-overlap", type=float, default=0.60)
 
     args = parser.parse_args()
+    
+    # Default to 'complete' if nothing specified
+    if not args.all and not args.layer:
+        args.layer = "complete"
 
     targets = ValidationTargets(
         spearman=args.target_spearman,
-        f1_score=args.target_f1,
-        precision=args.target_precision,
-        recall=args.target_recall,
-        top_5_overlap=args.target_overlap,
-        top_10_overlap=args.target_overlap
+        f1_score=args.target_f1
     )
 
-    print(f"{CYAN}Starting validation for layer: {args.layer.upper()}...{RESET}")
+    print(f"{CYAN}Initializing Validation Pipeline...{RESET}")
+    print(f"Targets: Spearman >= {targets.spearman}, F1 >= {targets.f1_score}")
+    
+    full_report = {}
     
     try:
         with ValidationPipeline(args.uri, args.user, args.password) as pipeline:
-            result = pipeline.run(layer=args.layer, targets=targets)
-            print_result(result)
             
+            layers_to_run = []
+            if args.all:
+                layers_to_run = ["application", "infrastructure", "complete"]
+            else:
+                layers_to_run = [args.layer]
+            
+            for layer in layers_to_run:
+                print(f"\n{YELLOW}>> Running Validation for Layer: {layer.upper()}{RESET}")
+                
+                result = pipeline.run(layer=layer, targets=targets)
+                print_result_table(result)
+                full_report[layer] = result.to_dict()
+            
+            # Export
             if args.output:
                 with open(args.output, "w") as f:
-                    json.dump(result.to_dict(), f, indent=2)
-                print(f"\nResults saved to {args.output}")
+                    json.dump(full_report, f, indent=2)
+                print(f"\n{GREEN}Full validation report saved to {args.output}{RESET}")
                 
     except Exception as e:
-        print(f"\n{RED}Error: {e}{RESET}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+        print(f"\n{RED}Validation Error: {e}{RESET}")
+        return 1
+
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main())

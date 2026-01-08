@@ -2,10 +2,11 @@
 Dashboard Generator
 
 Constructs a responsive HTML dashboard.
+Includes layout for KPIs, Charts, Tables, and Validation Metrics.
 """
 
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from .charts import ChartOutput
 
 HTML_TEMPLATE = """
@@ -16,7 +17,7 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     <style>
-        :root {{ --primary: #2c3e50; --secondary: #34495e; --accent: #3498db; --danger: #e74c3c; }}
+        :root {{ --primary: #2c3e50; --secondary: #34495e; --accent: #3498db; --danger: #e74c3c; --success: #2ecc71; }}
         body {{ font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f6f7; color: #2c3e50; }}
         .container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
         
@@ -42,6 +43,12 @@ HTML_TEMPLATE = """
         .badge {{ padding: 3px 8px; border-radius: 12px; color: white; font-size: 0.75rem; font-weight: bold; }}
         
         .footer {{ text-align: center; color: #bdc3c7; padding: 20px; font-size: 0.8rem; }}
+        
+        .metric-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #eee; }}
+        .metric-name {{ font-weight: 500; }}
+        .metric-val {{ font-family: monospace; font-weight: bold; color: var(--accent); }}
+        .pass {{ color: var(--success); }}
+        .fail {{ color: var(--danger); }}
     </style>
 </head>
 <body>
@@ -77,6 +84,24 @@ class DashboardGenerator:
         html.append('</div>')
         self.sections.append("".join(html))
 
+    def add_metrics_table(self, metrics: Dict[str, Any], title: str = "Validation Metrics"):
+        html = [f'<h3>{title}</h3><div style="background:#f9f9f9; padding:15px; border-radius:4px; margin-bottom:20px;">']
+        for k, v in metrics.items():
+            val_display = v
+            # Formatting floats
+            if isinstance(v, float):
+                val_display = f"{v:.3f}"
+            
+            # Color coding Pass/Fail
+            cls = ""
+            if k.lower() == "passed":
+                cls = "pass" if v else "fail"
+                val_display = "PASSED" if v else "FAILED"
+
+            html.append(f'<div class="metric-row"><span class="metric-name">{k}</span><span class="metric-val {cls}">{val_display}</span></div>')
+        html.append('</div>')
+        self.sections.append("".join(html))
+
     def add_charts(self, charts: List[ChartOutput]):
         if not charts: return
         html = ['<div class="chart-grid">']
@@ -95,7 +120,7 @@ class DashboardGenerator:
             html.append('<tr>')
             for cell in row:
                 val = str(cell)
-                # Simple badge coloring logic
+                # Badge coloring logic
                 style = ""
                 if val == "CRITICAL": style = "background:#e74c3c"
                 elif val == "HIGH": style = "background:#e67e22"

@@ -22,14 +22,18 @@ class EventResult:
     reached_subscribers: List[str]
     affected_topics: List[str]
     hops: int
+    subscriber_coverage: float # % of total subscribers in system
     
     def to_dict(self) -> Dict[str, Any]:
         return {
             "scenario": self.scenario,
             "source": self.source,
-            "reached_count": len(self.reached_subscribers),
-            "topics_traversed": len(self.affected_topics),
-            "max_hops": self.hops,
+            "metrics": {
+                "reached_count": len(self.reached_subscribers),
+                "topics_traversed": len(self.affected_topics),
+                "max_hops": self.hops,
+                "subscriber_coverage": round(self.subscriber_coverage, 4)
+            },
             "reached_subscribers": self.reached_subscribers
         }
 
@@ -43,14 +47,9 @@ class EventSimulator:
         source = scenario.source_node
         
         if source not in self.graph.graph:
-            self.logger.error(f"Source {source} not found")
-            return EventResult(scenario.description, source, [], [], 0)
+            return EventResult(scenario.description, source, [], [], 0, 0.0)
 
-        # Logic: Publisher -> Topic -> Subscriber
-        # 1. Find Topics the source PUBLISHES_TO
-        # (Source)-[:PUBLISHES_TO]->(Topic)
-        # Note: In SimulationGraph.get_successors_by_type, we look for outgoing edges.
-        # Graph Model: (App)-[:PUBLISHES_TO]->(Topic)
+        # 1. Identify Published Topics (Publisher -> Topic)
         published_topics = self.graph.get_successors_by_type(source, "PUBLISHES_TO")
         
         reached_subscribers = set()
@@ -59,26 +58,29 @@ class EventSimulator:
         if published_topics:
             hops = 1
             for topic in published_topics:
-                # Mark load
-                self.graph.graph.nodes[topic]["load"] += 1
-                
-                # 2. Find Subscribers that SUBSCRIBE_TO this Topic
-                # Graph Model: (App)-[:SUBSCRIBES_TO]->(Topic)
-                # So we look for PREDECESSORS of the Topic via SUBSCRIBES_TO
+                # 2. Identify Subscribers (Topic -> Subscriber)
+                # Note: In our model, SUBSCRIBES_TO is (Sub)->(Topic), so we look for predecessors of Topic
                 subscribers = self.graph.get_predecessors_by_type(topic, "SUBSCRIBES_TO")
                 
                 if subscribers:
                     hops = 2
                     for sub in subscribers:
-                        # Don't count the source if it subscribes to its own topic (echo)
-                        if sub != source:
+                        if sub != source: # Avoid echo
                             reached_subscribers.add(sub)
-                            self.graph.graph.nodes[sub]["load"] += 1
+        
+        # Calculate coverage
+        all_apps = [n for n, d in self.graph.graph.nodes(data=True) if d.get("type") == "Application"]
+        total_potential_subs = len(all_apps) - 1 # Exclude self
+        
+        coverage = 0.0
+        if total_potential_subs > 0:
+            coverage = len(reached_subscribers) / total_potential_subs
 
         return EventResult(
             scenario=scenario.description,
             source=source,
             reached_subscribers=list(reached_subscribers),
             affected_topics=published_topics,
-            hops=hops
+            hops=hops,
+            subscriber_coverage=coverage
         )

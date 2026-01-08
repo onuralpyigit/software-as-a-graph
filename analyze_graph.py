@@ -8,6 +8,7 @@ Supports JSON export and batch processing of layers.
 import argparse
 import sys
 import os
+import json
 from pathlib import Path
 
 # Add project root to path

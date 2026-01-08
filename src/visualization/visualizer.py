@@ -2,17 +2,18 @@
 Graph Visualizer
 
 Orchestrates the multi-layer analysis and visualization pipeline.
-Combines Analysis (Prediction) and Simulation (Ground Truth) to create a comprehensive dashboard.
+Integrates Analysis (Prediction), Simulation (Ground Truth), and Validation (Statistics).
+Generates a comprehensive dashboard for Application, Infrastructure, and Complete levels.
 """
 
 import logging
-import os
 from typing import Dict, Any, List
 
-from src.core.graph_exporter import GraphExporter
 from src.analysis.analyzer import GraphAnalyzer
 from src.simulation.simulator import Simulator
 from src.analysis.quality_analyzer import CriticalityLevel
+from src.validation.validator import Validator
+from src.validation.metrics import ValidationTargets
 
 from .charts import ChartGenerator
 from .dashboard import DashboardGenerator
@@ -29,114 +30,156 @@ class GraphVisualizer:
     def __exit__(self, exc_type, exc_val, exc_tb): pass
 
     def generate_dashboard(self, output_file: str = "dashboard.html"):
-        dash = DashboardGenerator("Software-as-a-Graph Analysis Report")
+        dash = DashboardGenerator("Software-as-a-Graph Analysis & Validation Report")
         
-        # We use context managers properly for the analyzers/simulators
+        # Use context managers for robust resource handling
         with GraphAnalyzer(self.uri, self.user, self.password) as analyzer, \
              Simulator(self.uri, self.user, self.password) as simulator:
             
-            # --- 1. Complete System Overview & Validation ---
-            self.logger.info("Generating System Overview...")
-            self._generate_system_overview(dash, analyzer, simulator)
+            validator = Validator(ValidationTargets()) # Default targets
             
-            # --- 2. Application Layer Detail ---
-            self.logger.info("Generating Application Layer View...")
-            self._generate_layer_view(dash, analyzer, "application", "Application Layer")
+            # --- 1. Complete System Level ---
+            self.logger.info("Processing [Complete System] layer...")
+            self._process_layer(
+                dash=dash, 
+                analyzer=analyzer, 
+                simulator=simulator, 
+                validator=validator,
+                layer="complete", 
+                title="1. Complete System Overview"
+            )
             
-            # --- 3. Infrastructure Layer Detail ---
-            self.logger.info("Generating Infrastructure Layer View...")
-            self._generate_layer_view(dash, analyzer, "infrastructure", "Infrastructure Layer")
+            # --- 2. Application Level ---
+            self.logger.info("Processing [Application] layer...")
+            self._process_layer(
+                dash=dash, 
+                analyzer=analyzer, 
+                simulator=simulator, 
+                validator=validator,
+                layer="application", 
+                title="2. Application Layer Analysis"
+            )
+            
+            # --- 3. Infrastructure Level ---
+            self.logger.info("Processing [Infrastructure] layer...")
+            self._process_layer(
+                dash=dash, 
+                analyzer=analyzer, 
+                simulator=simulator, 
+                validator=validator,
+                layer="infrastructure", 
+                title="3. Infrastructure Layer Analysis"
+            )
             
         # Save output
         with open(output_file, "w") as f:
             f.write(dash.generate())
-        self.logger.info(f"Dashboard saved to {output_file}")
+        self.logger.info(f"Dashboard generated successfully: {output_file}")
         return output_file
 
-    def _generate_system_overview(self, dash: DashboardGenerator, analyzer: GraphAnalyzer, simulator: Simulator):
-        """Generates the main system stats and validation section."""
-        dash.start_section("System Overview & Validation")
-        
-        # A. Analysis
-        full_res = analyzer.analyze() # Default context is complete system
-        stats = full_res["stats"]
-        qual = full_res["results"]
-        
-        # B. Validation (Run Simulation)
-        self.logger.info("Running validation simulation (Exhaustive)...")
-        # Note: In a huge graph, we might want to sample, but for project scale exhaustive is fine.
-        sim_results = simulator.run_exhaustive_failure_sim(layer="complete")
-        
-        # Map Actual Impacts
-        impact_map = {res.initial_failure: res.impact_score for res in sim_results}
-        
-        # Prepare Validation Data
-        pred_scores = []
-        actual_scores = []
-        ids = []
-        
-        for comp in qual.components:
-            if comp.id in impact_map:
-                pred_scores.append(comp.scores.overall)
-                actual_scores.append(impact_map[comp.id])
-                ids.append(comp.id)
-
-        # C. KPIs
-        avg_impact = sum(actual_scores) / len(actual_scores) if actual_scores else 0
-        dash.add_kpis({
-            "Total Nodes": stats["nodes"],
-            "Total Edges": stats["edges"],
-            "Critical Components": len([c for c in qual.components if c.levels.overall == CriticalityLevel.CRITICAL]),
-            "Avg System Impact": f"{avg_impact:.3f}"
-        })
-        
-        # D. Charts
-        # 1. Criticality Distribution
-        level_counts = {l.name: 0 for l in CriticalityLevel}
-        for c in qual.components:
-            level_counts[c.levels.overall.name] += 1
-            
-        # 2. Validation Scatter
-        charts = [
-            self.charts.plot_graph_statistics({"Nodes": stats["nodes"], "Edges": stats["edges"]}, "Graph Topology"),
-            self.charts.plot_criticality_distribution(level_counts, "Predicted Criticality Distribution"),
-            self.charts.plot_validation_scatter(pred_scores, actual_scores, ids, "Validation: Prediction vs Reality")
-        ]
-        dash.add_charts(charts)
-        dash.end_section()
-
-    def _generate_layer_view(self, dash: DashboardGenerator, analyzer: GraphAnalyzer, layer: str, title: str):
-        """Generates details for a specific layer."""
+    def _process_layer(self, dash: DashboardGenerator, analyzer: GraphAnalyzer, simulator: Simulator, validator: Validator, layer: str, title: str):
+        """
+        Executes Analysis, Simulation, and Validation for a specific layer.
+        Populates a dashboard section with KPIs, Charts, and Tables.
+        """
         dash.start_section(title)
         
-        # Analysis for specific layer
-        res = analyzer.analyze_layer(layer)
-        components = res["results"].components
+        # A. Analysis (Prediction)
+        if layer == "complete":
+            analysis_res = analyzer.analyze()
+        else:
+            analysis_res = analyzer.analyze_layer(layer)
         
+        components = analysis_res["results"].components
         if not components:
             dash.add_kpis({"Status": "No Data Found"})
             dash.end_section()
             return
 
-        # Top Critical Components
-        critical = sorted(components, key=lambda x: x.scores.overall, reverse=True)
-        top_5 = critical[:5]
+        # B. Simulation (Ground Truth)
+        # We run simulation for the specific layer to get relevant impact metrics
+        # (Reachability for App, Fragmentation for Infra)
+        sim_results = simulator.run_exhaustive_failure_sim(layer=layer)
+        impact_map = {res.initial_failure: res.impact_score for res in sim_results}
         
-        # Charts
+        # C. Validation (Comparison)
+        # Align data
+        pred_scores = {c.id: c.scores.overall for c in components}
+        actual_scores = impact_map # Already id->score
+        comp_types = {c.id: c.type for c in components}
+        
+        val_result = validator.validate(pred_scores, actual_scores, comp_types, context=layer)
+        overall_stats = val_result.overall
+        
+        # D. Dashboard Population
+        
+        # 1. KPIs
+        critical_count = len([c for c in components if c.levels.overall == CriticalityLevel.CRITICAL])
+        avg_impact = sum(impact_map.values()) / len(impact_map) if impact_map else 0
+        
+        dash.add_kpis({
+            "Nodes Analyzed": len(components),
+            "Critical Components": critical_count,
+            "Avg Predicted Score": f"{sum(pred_scores.values())/len(pred_scores):.3f}" if pred_scores else "0.00",
+            "Avg Actual Impact": f"{avg_impact:.3f}"
+        })
+        
+        # 2. Validation Metrics Table
+        dash.add_metrics_table({
+            "Status": "PASSED" if overall_stats.passed else "FAILED",
+            "Spearman Correlation (Rho)": overall_stats.correlation.spearman,
+            "F1 Score (Classification)": overall_stats.classification.f1_score,
+            "RMSE (Error)": overall_stats.error.rmse,
+            "Top-5 Overlap": overall_stats.ranking.top_5_overlap
+        })
+
+        # 3. Charts
+        # Data prep for scatter
+        scatter_ids = []
+        scatter_pred = []
+        scatter_act = []
+        for cid in pred_scores:
+            if cid in actual_scores:
+                scatter_ids.append(cid)
+                scatter_pred.append(pred_scores[cid])
+                scatter_act.append(actual_scores[cid])
+        
         charts = [
-            self.charts.plot_quality_comparison(top_5, f"Top 5 Critical {layer.capitalize()} Components")
+            self.charts.plot_criticality_distribution(
+                {l.name: len([c for c in components if c.levels.overall == l]) for l in CriticalityLevel}, 
+                "Predicted Criticality"
+            ),
+            self.charts.plot_validation_scatter(
+                scatter_pred, scatter_act, scatter_ids, f"{layer.capitalize()} Layer Validation"
+            ),
+            self.charts.plot_validation_metrics(
+                {
+                    "Rho": overall_stats.correlation.spearman, 
+                    "F1": overall_stats.classification.f1_score, 
+                    "RMSE": overall_stats.error.rmse
+                }, 
+                "Statistical Performance"
+            )
         ]
-        dash.add_charts(charts)
         
-        # Table
-        headers = ["ID", "Type", "Reliability", "Maintainability", "Availability", "Risk Level"]
+        # Layer specific charts (Top Critical Quality Breakdown)
+        top_critical = sorted(components, key=lambda x: x.scores.overall, reverse=True)[:5]
+        charts.append(self.charts.plot_quality_comparison(top_critical, "Top 5 Critical Components Quality"))
+        
+        dash.add_charts(charts)
+
+        # 4. Detailed Table (Top 10)
+        headers = ["ID", "Type", "Predicted Score", "Actual Impact", "Reliability", "Maintainability", "Risk"]
         rows = []
-        for c in top_5:
+        for c in top_critical: # Using top 5 here, could be top 10
+            act = impact_map.get(c.id, 0.0)
             rows.append([
-                c.id, c.type,
+                c.id, 
+                c.type,
+                f"{c.scores.overall:.3f}",
+                f"{act:.3f}",
                 f"{c.scores.reliability:.2f}",
                 f"{c.scores.maintainability:.2f}",
-                f"{c.scores.availability:.2f}",
                 c.levels.overall.value.upper()
             ])
             

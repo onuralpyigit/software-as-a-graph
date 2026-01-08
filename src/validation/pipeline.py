@@ -8,7 +8,7 @@ Orchestrates the validation process for specific graph layers.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from src.analysis.analyzer import GraphAnalyzer
 from src.simulation.simulator import Simulator
@@ -16,7 +16,7 @@ from src.validation.validator import Validator, ValidationResult, ValidationTarg
 
 class ValidationPipeline:
     def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="password"):
-        # We use the Facades to ensure we validate the exact logic used in production
+        # Use Facades to ensure exact logic match with production/reporting
         self.analyzer = GraphAnalyzer(uri, user, password)
         self.simulator = Simulator(uri, user, password)
         self.logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class ValidationPipeline:
             layer: 'application', 'infrastructure', or 'complete'
             targets: Validation success criteria
         """
-        self.logger.info(f"Initializing Validation Pipeline for Layer: {layer.upper()}")
+        self.logger.info(f"--- Starting Validation Pipeline: {layer.upper()} LAYER ---")
         
         # --- Phase 1: Prediction (Analysis Module) ---
         self.logger.info("[1/3] Generating Predictions (Analysis)...")
@@ -47,31 +47,33 @@ class ValidationPipeline:
         else:
             analysis_res = self.analyzer.analyze_layer(layer)
             
-        # 2. Extract Scores
-        # We validate the 'Overall' criticality score against total impact.
-        # Structure: analysis_res['results'] -> QualityAnalysisResult -> components -> ComponentQuality
+        # 2. Extract Predicted Scores
+        # We validate the 'Overall' criticality score.
         components = analysis_res["results"].components
+        
+        # Map: ID -> Overall Score
         predicted_scores = {c.id: c.scores.overall for c in components}
         component_types = {c.id: c.type for c in components}
         
-        self.logger.info(f"      Obtained predictions for {len(predicted_scores)} components.")
+        self.logger.info(f"      Predictions generated for {len(predicted_scores)} components.")
 
         # --- Phase 2: Ground Truth (Simulation Module) ---
         self.logger.info("[2/3] Generating Ground Truth (Exhaustive Simulation)...")
         
         # 1. Run Exhaustive Simulation
-        # This will simulate failure for every node in the target layer
+        # This simulates failure for every node in the target layer and measures impact
         sim_results = self.simulator.run_exhaustive_failure_sim(
             layer=layer,
-            threshold=0.5, # Standard validation params
+            threshold=0.5, 
             probability=0.7,
             depth=5
         )
         
-        # 2. Extract Impact Scores
+        # 2. Extract Actual Impact Scores
+        # Map: ID -> System Impact Score (0.0 - 1.0)
         actual_scores = {res.initial_failure: res.impact_score for res in sim_results}
         
-        self.logger.info(f"      Obtained ground truth for {len(actual_scores)} components.")
+        self.logger.info(f"      Ground truth simulated for {len(actual_scores)} components.")
 
         # --- Phase 3: Validation (Comparison) ---
         self.logger.info("[3/3] Validating Model Accuracy...")
@@ -84,4 +86,5 @@ class ValidationPipeline:
             context=f"Layer: {layer.capitalize()}"
         )
         
+        self.logger.info(f"Validation Complete. Passed: {result.overall.passed}")
         return result

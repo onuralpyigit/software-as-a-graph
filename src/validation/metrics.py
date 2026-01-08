@@ -6,17 +6,17 @@ vs Actual Impact (Simulation).
 """
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Sequence, Dict, List, Any
 
 @dataclass
 class ValidationTargets:
     """Targets defined in the research methodology."""
-    spearman: float = 0.70       # Rank correlation
-    f1_score: float = 0.80       # Classification accuracy
+    spearman: float = 0.70       # Strong positive correlation
+    f1_score: float = 0.80       # Accurate classification of Critical nodes
     precision: float = 0.80      
     recall: float = 0.80         
-    top_5_overlap: float = 0.60  # Identification of most critical
+    top_5_overlap: float = 0.60  # Identification of top outliers
     top_10_overlap: float = 0.50 
 
 @dataclass
@@ -24,6 +24,11 @@ class CorrelationMetrics:
     spearman: float
     pearson: float
     kendall: float
+
+@dataclass
+class ErrorMetrics:
+    rmse: float  # Root Mean Square Error
+    mae: float   # Mean Absolute Error
 
 @dataclass
 class ClassificationMetrics:
@@ -73,8 +78,17 @@ def kendall_correlation(x: Sequence[float], y: Sequence[float]) -> float:
     denom = n * (n - 1) / 2
     return (concordant - discordant) / denom if denom > 0 else 0.0
 
+def calculate_error_metrics(pred: Sequence[float], actual: Sequence[float]) -> ErrorMetrics:
+    """Calculate RMSE and MAE."""
+    if len(pred) != len(actual) or not pred:
+        return ErrorMetrics(0.0, 0.0)
+    
+    mse = sum((p - a)**2 for p, a in zip(pred, actual)) / len(pred)
+    mae = sum(abs(p - a) for p, a in zip(pred, actual)) / len(pred)
+    return ErrorMetrics(math.sqrt(mse), mae)
+
 def _rank(x: Sequence[float]) -> List[float]:
-    """Helper to rank data handling ties."""
+    """Helper to rank data handling ties using fractional ranking."""
     pairs = sorted([(v, i) for i, v in enumerate(x)])
     ranks = [0.0] * len(x)
     

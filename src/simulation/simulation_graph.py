@@ -2,8 +2,7 @@
 Simulation Graph
 
 Wraps GraphData into a NetworkX graph for simulation.
-Operates on RAW relationships (PUBLISHES_TO, SUBSCRIBES_TO, RUNS_ON, CONNECTS_TO)
-without relying on derived dependencies.
+Strictly operates on RAW relationships to avoid using derived dependencies.
 """
 
 import networkx as nx
@@ -12,19 +11,30 @@ from typing import Dict, List, Set, Tuple, Optional
 from src.core.graph_exporter import GraphData
 
 class SimulationGraph:
+    # Explicitly define allowed RAW relationship types
+    ALLOWED_RELATIONS = {
+        "PUBLISHES_TO", 
+        "SUBSCRIBES_TO", 
+        "RUNS_ON", 
+        "CONNECTS_TO", 
+        "ROUTES"
+    }
+
     def __init__(self, graph_data: GraphData):
-        self.raw_data = graph_data
-        self.graph = self._build_graph(graph_data)
         self.logger = logging.getLogger(__name__)
+        self.graph = self._build_graph(graph_data)
         
         # Cache initial state for impact calculations
         self.initial_paths = self.get_pub_sub_paths()
+        self.initial_node_count = self.graph.number_of_nodes()
         self.initial_component_count = self.get_connected_components_count()
+        
+        self.logger.debug(f"Simulation Graph initialized: {self.graph.number_of_nodes()} nodes, {self.graph.number_of_edges()} edges.")
 
     def _build_graph(self, data: GraphData) -> nx.DiGraph:
         G = nx.DiGraph()
         
-        # Add Nodes with Type and State
+        # 1. Add Nodes
         for c in data.components:
             G.add_node(
                 c.id, 
@@ -34,35 +44,24 @@ class SimulationGraph:
                 load=0.0
             )
             
-        # Add Edges with Relation Type
+        # 2. Add Edges (Filtering for Raw Types only)
+        count = 0
         for e in data.edges:
-            G.add_edge(
-                e.source_id,
-                e.target_id,
-                relation_type=e.relation_type,
-                weight=e.weight
-            )
+            if e.relation_type in self.ALLOWED_RELATIONS:
+                G.add_edge(
+                    e.source_id,
+                    e.target_id,
+                    relation_type=e.relation_type,
+                    weight=e.weight
+                )
+                count += 1
+        
         return G
 
     def reset(self):
         """Reset simulation state to initial healthy state."""
         nx.set_node_attributes(self.graph, "active", "state")
         nx.set_node_attributes(self.graph, 0.0, "load")
-
-    def get_subgraph_by_layer(self, layer: str) -> nx.DiGraph:
-        """Extract a subgraph relevant to the specific layer."""
-        if layer == "complete":
-            return self.graph
-        
-        relevant_types = set()
-        if layer == "application":
-            relevant_types = {"Application", "Topic", "Broker"}
-        elif layer == "infrastructure":
-            relevant_types = {"Node"}
-            
-        nodes = [n for n, attr in self.graph.nodes(data=True) 
-                 if attr.get("type") in relevant_types]
-        return self.graph.subgraph(nodes)
 
     def get_successors_by_type(self, node: str, relation_type: str) -> List[str]:
         """Get outgoing neighbors connected by a specific relationship type."""
@@ -102,7 +101,7 @@ class SimulationGraph:
             # (Publisher)-[:PUBLISHES_TO]->(Topic)
             publishers = self.get_predecessors_by_type(topic, "PUBLISHES_TO")
             
-            # (Subscriber)-[:SUBSCRIBES_TO]->(Topic) (Standard Neo4j modeling direction)
+            # (Subscriber)-[:SUBSCRIBES_TO]->(Topic)
             subscribers = self.get_predecessors_by_type(topic, "SUBSCRIBES_TO")
             
             for pub in publishers:
@@ -116,6 +115,7 @@ class SimulationGraph:
         """Calculate fragmentation using Weakly Connected Components."""
         if active_only:
             active_nodes = [n for n, attr in self.graph.nodes(data=True) if attr.get("state") == "active"]
+            if not active_nodes: return 0
             subgraph = self.graph.subgraph(active_nodes)
             return nx.number_weakly_connected_components(subgraph)
         return nx.number_weakly_connected_components(self.graph)

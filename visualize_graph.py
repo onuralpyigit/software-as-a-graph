@@ -36,7 +36,7 @@ def main():
     
     try:
         with GraphVisualizer(uri=args.uri, user=args.user, password=args.password) as viz:
-            print("Running Analysis & Validation Pipeline (this may take a moment)...")
+            print(f"Running Analysis & Validation Pipeline... {BLUE}(This involves exhaustive simulation){RESET}")
             output_path = viz.generate_dashboard(args.output)
             
             abs_path = os.path.abspath(output_path)
@@ -48,8 +48,8 @@ def main():
                 
     except Exception as e:
         print(f"\n{RED}Error generating dashboard: {e}{RESET}")
-        # import traceback
-        # traceback.print_exc()
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
     
     return 0
