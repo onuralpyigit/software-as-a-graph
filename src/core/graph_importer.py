@@ -107,13 +107,29 @@ class GraphImporter:
     def _get_qos_weight_cypher(self, topic_var: str) -> str:
         """
         Returns the Cypher fragment to calculate weight based on QoS and Size.
-        Weight = Reliability + Durability + Priority + Normalized_Size
+        
+        Weight = Reliability + Durability + Priority + Size_Score
+        
+        Size Score uses logarithmic scaling with soft cap to prevent
+        large messages from dominating the weight calculation:
+            S_size = min(log2(1 + size/1024) / 10, 1.0)
+        
+        This normalizes typical message sizes to [0, 1] range:
+            - 256 bytes  → 0.032
+            - 1 KB       → 0.100
+            - 8 KB       → 0.317
+            - 64 KB      → 0.604
+            - 250 KB     → 0.800
+            - 1 MB+      → 1.000 (capped)
         """
         return f"""
         (CASE {topic_var}.qos_reliability WHEN 'RELIABLE' THEN 0.3 ELSE 0.0 END +
          CASE {topic_var}.qos_durability WHEN 'PERSISTENT' THEN 0.4 WHEN 'TRANSIENT' THEN 0.25 WHEN 'TRANSIENT_LOCAL' THEN 0.2 ELSE 0.0 END +
          CASE {topic_var}.qos_transport_priority WHEN 'URGENT' THEN 0.3 WHEN 'HIGH' THEN 0.2 WHEN 'MEDIUM' THEN 0.1 ELSE 0.0 END +
-         ({topic_var}.size / (8 * 1024)))
+         CASE WHEN {topic_var}.size <= 0 THEN 0.0
+                WHEN (log(1 + {topic_var}.size / 1024.0) / (log(2) * 10)) > 1.0 THEN 1.0
+                ELSE (log(1 + {topic_var}.size / 1024.0) / (log(2) * 10))
+         END)
         """
 
     def _calculate_intrinsic_weights(self):
@@ -136,6 +152,12 @@ class GraphImporter:
             SET r.weight = t.weight
         """)
         
+        # 2b. ROUTES Edge Weights (Broker -> Topic)
+        self._run_query("""
+            MATCH ()-[r:ROUTES]->(t:Topic)
+            SET r.weight = t.weight
+        """)
+        
         # 3. Application Weight (Sum of Topic Weights it interacts with)
         self._run_query("""
             MATCH (a:Application)
@@ -152,11 +174,12 @@ class GraphImporter:
             SET b.weight = routed_weight
         """)
 
-        # 5. Node Weight (Sum of Hosted App Weights)
+        # 5. Node Weight (Sum of Hosted App and Broker Weights)
         self._run_query("""
             MATCH (n:Node)
             OPTIONAL MATCH (a:Application)-[:RUNS_ON]->(n)
-            WITH n, coalesce(sum(a.weight), 0.0) as host_weight
+            OPTIONAL MATCH (b:Broker)-[:RUNS_ON]->(n)
+            WITH n, coalesce(sum(a.weight), 0.0) + coalesce(sum(b.weight), 0.0) as host_weight
             SET n.weight = host_weight
         """)
 
