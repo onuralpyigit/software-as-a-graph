@@ -100,7 +100,7 @@ class GraphAnalyzer:
     
     def __init__(
         self,
-        uri: Optional[str] = "bolt://localhost:7687",
+        uri: str = "bolt://localhost:7687",
         user: str = "neo4j",
         password: str = "password",
         damping_factor: float = 0.85,

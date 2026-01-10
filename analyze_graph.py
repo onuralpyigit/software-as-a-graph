@@ -367,6 +367,12 @@ Examples:
     
     # Neo4j authentication
     parser.add_argument(
+        "--uri", "-n",
+        default="bolt://localhost:7687",
+        help="Neo4j connection URI (default: bolt://localhost:7687)"
+    )
+
+    parser.add_argument(
         "--user", "-u",
         default="neo4j",
         help="Neo4j username (default: neo4j)"
@@ -428,7 +434,7 @@ def main() -> int:
             "damping_factor": args.damping,
             "k_factor": args.k_factor,
         }
-        
+        analyzer_kwargs["uri"] = args.uri
         analyzer_kwargs["user"] = args.user
         analyzer_kwargs["password"] = args.password
         

@@ -341,3 +341,157 @@ class GraphExporter:
                 stats[f"{dep_type}_count"] = result.single()["c"]
         
         return stats
+    
+    def get_raw_structural_graph(self) -> Dict[str, Any]:
+        """
+        Retrieve raw structural graph data for simulation.
+        
+        Retrieves all components and raw structural relationships:
+        - PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO
+        
+        Returns:
+            Dict in the same format as JSON input for SimulationGraph
+        """
+        data = {
+            "nodes": [],
+            "brokers": [],
+            "applications": [],
+            "topics": [],
+            "publications": [],
+            "subscriptions": [],
+            "routes": [],
+            "runs_on": [],
+            "connections": [],
+        }
+        
+        with self.driver.session() as session:
+            # 1. Get Nodes (infrastructure)
+            result = session.run("""
+                MATCH (n:Node)
+                RETURN n.id as id, n.name as name, coalesce(n.weight, 1.0) as weight
+            """)
+            for record in result:
+                data["nodes"].append({
+                    "id": record["id"],
+                    "name": record["name"] or record["id"],
+                    "weight": float(record["weight"]),
+                })
+            
+            # 2. Get Brokers
+            result = session.run("""
+                MATCH (b:Broker)
+                RETURN b.id as id, b.name as name, coalesce(b.weight, 1.0) as weight
+            """)
+            for record in result:
+                data["brokers"].append({
+                    "id": record["id"],
+                    "name": record["name"] or record["id"],
+                    "weight": float(record["weight"]),
+                })
+            
+            # 3. Get Applications
+            result = session.run("""
+                MATCH (a:Application)
+                RETURN a.id as id, a.name as name, a.role as role, 
+                       coalesce(a.weight, 1.0) as weight
+            """)
+            for record in result:
+                data["applications"].append({
+                    "id": record["id"],
+                    "name": record["name"] or record["id"],
+                    "role": record["role"] or "pubsub",
+                    "weight": float(record["weight"]),
+                })
+            
+            # 4. Get Topics with QoS
+            result = session.run("""
+                MATCH (t:Topic)
+                RETURN t.id as id, t.name as name, 
+                       coalesce(t.size, 0) as size,
+                       coalesce(t.reliability, 'BEST_EFFORT') as reliability,
+                       coalesce(t.durability, 'VOLATILE') as durability,
+                       coalesce(t.transport_priority, 'LOW') as priority
+            """)
+            for record in result:
+                data["topics"].append({
+                    "id": record["id"],
+                    "name": record["name"] or record["id"],
+                    "size": int(record["size"]),
+                    "qos": {
+                        "reliability": record["reliability"],
+                        "durability": record["durability"],
+                        "transport_priority": record["priority"],
+                    }
+                })
+            
+            # 5. Get PUBLISHES_TO relationships
+            result = session.run("""
+                MATCH (a:Application)-[r:PUBLISHES_TO]->(t:Topic)
+                RETURN a.id as app_id, t.id as topic_id
+            """)
+            for record in result:
+                data["publications"].append({
+                    "application": record["app_id"],
+                    "topic": record["topic_id"],
+                })
+            
+            # 6. Get SUBSCRIBES_TO relationships
+            result = session.run("""
+                MATCH (a:Application)-[r:SUBSCRIBES_TO]->(t:Topic)
+                RETURN a.id as app_id, t.id as topic_id
+            """)
+            for record in result:
+                data["subscriptions"].append({
+                    "application": record["app_id"],
+                    "topic": record["topic_id"],
+                })
+            
+            # 7. Get ROUTES relationships (Broker -> Topic)
+            result = session.run("""
+                MATCH (b:Broker)-[r:ROUTES]->(t:Topic)
+                RETURN b.id as broker_id, t.id as topic_id
+            """)
+            for record in result:
+                data["routes"].append({
+                    "broker": record["broker_id"],
+                    "topic": record["topic_id"],
+                })
+            
+            # 8. Get RUNS_ON relationships (App/Broker -> Node)
+            result = session.run("""
+                MATCH (c)-[r:RUNS_ON]->(n:Node)
+                WHERE c:Application OR c:Broker
+                RETURN c.id as comp_id, n.id as node_id, labels(c)[0] as comp_type
+            """)
+            for record in result:
+                if record["comp_type"] == "Application":
+                    data["runs_on"].append({
+                        "application": record["comp_id"],
+                        "node": record["node_id"],
+                    })
+                else:
+                    data["runs_on"].append({
+                        "broker": record["comp_id"],
+                        "node": record["node_id"],
+                    })
+            
+            # 9. Get CONNECTS_TO relationships (Node -> Node)
+            result = session.run("""
+                MATCH (n1:Node)-[r:CONNECTS_TO]->(n2:Node)
+                RETURN n1.id as source, n2.id as target, 
+                       coalesce(r.weight, 1.0) as weight
+            """)
+            for record in result:
+                data["connections"].append({
+                    "source": record["source"],
+                    "target": record["target"],
+                    "weight": float(record["weight"]),
+                })
+        
+        self.logger.info(
+            f"Retrieved raw graph: {len(data['nodes'])} nodes, "
+            f"{len(data['brokers'])} brokers, {len(data['applications'])} apps, "
+            f"{len(data['topics'])} topics"
+        )
+        
+        return data
