@@ -1,10 +1,8 @@
 """
-Box-Plot Classifier - Version 6.0
+Box-Plot Classifier
 
 Statistical classification using box-plot method with adaptive thresholds.
-
-The box-plot method avoids arbitrary static thresholds by using the
-actual distribution of scores to determine criticality levels.
+Provides data-driven criticality classification without arbitrary cutoffs.
 
 Classification Levels:
     CRITICAL : score > Q3 + k*IQR (upper outliers)
@@ -14,14 +12,13 @@ Classification Levels:
     MINIMAL  : score <= Q1 (bottom quartile)
 
 Author: Software-as-a-Graph Research Project
-Version: 6.0
 """
 
 from __future__ import annotations
 import statistics
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Any, Sequence, Optional
+from typing import Dict, List, Any, Sequence, Optional, Callable
 
 
 class CriticalityLevel(Enum):
@@ -37,6 +34,22 @@ class CriticalityLevel(Enum):
     def numeric(self) -> int:
         """Numeric value for comparison (higher = more critical)."""
         return {"critical": 5, "high": 4, "medium": 3, "low": 2, "minimal": 1}[self.value]
+    
+    @property
+    def symbol(self) -> str:
+        """Single-character symbol for compact display."""
+        return {"critical": "C", "high": "H", "medium": "M", "low": "L", "minimal": "-"}[self.value]
+    
+    @property
+    def color_code(self) -> str:
+        """ANSI color code for terminal output."""
+        return {
+            "critical": "\033[91m",  # Red
+            "high": "\033[93m",      # Yellow
+            "medium": "\033[94m",    # Blue
+            "low": "\033[37m",       # White
+            "minimal": "\033[90m"    # Gray
+        }[self.value]
     
     def __ge__(self, other: CriticalityLevel) -> bool:
         return self.numeric >= other.numeric
@@ -55,12 +68,12 @@ class CriticalityLevel(Enum):
 class BoxPlotStats:
     """Box-plot statistics for a score distribution."""
     
-    q1: float
-    median: float
-    q3: float
-    iqr: float
-    lower_fence: float
-    upper_fence: float
+    q1: float = 0.0
+    median: float = 0.0
+    q3: float = 0.0
+    iqr: float = 0.0
+    lower_fence: float = 0.0
+    upper_fence: float = 0.0
     min_val: float = 0.0
     max_val: float = 0.0
     mean: float = 0.0
@@ -83,6 +96,14 @@ class BoxPlotStats:
             "count": self.count,
             "k_factor": self.k_factor,
         }
+    
+    def describe(self) -> str:
+        """Human-readable description of thresholds."""
+        return (
+            f"Thresholds: CRITICAL>{self.upper_fence:.3f}, "
+            f"HIGH>{self.q3:.3f}, MEDIUM>{self.median:.3f}, "
+            f"LOW>{self.q1:.3f}, MINIMAL≤{self.q1:.3f}"
+        )
 
 
 @dataclass
@@ -90,303 +111,277 @@ class ClassifiedItem:
     """A single classified item with its criticality level."""
     
     id: str
-    item_type: str
     score: float
     level: CriticalityLevel
-    is_outlier: bool = False
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    percentile: float = 0.0
+    z_score: float = 0.0
     
     def to_dict(self) -> Dict[str, Any]:
-        result = {
+        return {
             "id": self.id,
-            "type": self.item_type,
             "score": round(self.score, 6),
             "level": self.level.value,
-            "is_outlier": self.is_outlier,
+            "percentile": round(self.percentile, 2),
+            "z_score": round(self.z_score, 3),
         }
-        if self.metadata:
-            result["metadata"] = self.metadata
-        return result
 
 
 @dataclass
 class ClassificationResult:
-    """Complete classification result with statistics."""
+    """Result of classifying a set of items."""
     
     metric_name: str
     items: List[ClassifiedItem]
     stats: BoxPlotStats
-    by_level: Dict[CriticalityLevel, List[ClassifiedItem]] = field(default_factory=dict)
-    
-    def __post_init__(self):
-        if not self.by_level:
-            self.by_level = {level: [] for level in CriticalityLevel}
-            for item in self.items:
-                self.by_level[item.level].append(item)
+    distribution: Dict[str, int] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "metric": self.metric_name,
-            "stats": self.stats.to_dict(),
-            "count": len(self.items),
-            "by_level": {level.value: len(items) for level, items in self.by_level.items()},
+            "metric_name": self.metric_name,
+            "statistics": self.stats.to_dict(),
+            "distribution": self.distribution,
             "items": [item.to_dict() for item in self.items],
         }
     
-    def get_critical(self) -> List[ClassifiedItem]:
-        """Get items classified as CRITICAL."""
-        return self.by_level.get(CriticalityLevel.CRITICAL, [])
+    def get_by_level(self, level: CriticalityLevel) -> List[ClassifiedItem]:
+        """Get all items at a specific criticality level."""
+        return [item for item in self.items if item.level == level]
     
-    def get_high_and_above(self) -> List[ClassifiedItem]:
-        """Get items classified as HIGH or CRITICAL."""
-        return (
-            self.by_level.get(CriticalityLevel.CRITICAL, []) +
-            self.by_level.get(CriticalityLevel.HIGH, [])
-        )
+    def get_critical_and_high(self) -> List[ClassifiedItem]:
+        """Get items requiring attention (CRITICAL or HIGH)."""
+        return [item for item in self.items if item.level >= CriticalityLevel.HIGH]
     
-    def get_outliers(self) -> List[ClassifiedItem]:
-        """Get statistical outliers (both upper and lower)."""
-        return [item for item in self.items if item.is_outlier]
+    @property
+    def critical_count(self) -> int:
+        return self.distribution.get("critical", 0)
     
-    def summary(self) -> Dict[str, int]:
-        """Get count summary by level."""
-        return {level.value: len(items) for level, items in self.by_level.items()}
-    
-    def top_n(self, n: int = 10) -> List[ClassifiedItem]:
-        """Get top N items by score."""
-        return sorted(self.items, key=lambda x: x.score, reverse=True)[:n]
+    @property
+    def high_count(self) -> int:
+        return self.distribution.get("high", 0)
 
 
 class BoxPlotClassifier:
     """
-    Statistical classifier using box-plot method.
+    Classifier using box-plot statistics for adaptive threshold determination.
     
-    Uses quartiles and IQR to determine adaptive thresholds
-    based on the actual distribution of scores.
+    The box-plot method determines criticality levels based on the actual
+    distribution of scores rather than arbitrary fixed thresholds.
     
-    Example:
-        classifier = BoxPlotClassifier(k_factor=1.5)
-        
-        items = [
-            {"id": "app1", "type": "Application", "score": 0.95},
-            {"id": "app2", "type": "Application", "score": 0.45},
-        ]
-        
-        result = classifier.classify(items)
-        
-        for item in result.get_critical():
-            print(f"{item.id}: {item.score:.4f}")
+    Attributes:
+        k_factor: Multiplier for IQR to determine outlier fence (default: 1.5)
     """
     
     def __init__(self, k_factor: float = 1.5):
         """
-        Initialize classifier.
+        Initialize the classifier.
         
         Args:
-            k_factor: IQR multiplier for outlier detection.
-                     1.5 = standard (mild outliers)
-                     3.0 = extreme outliers only
+            k_factor: IQR multiplier for outlier detection. 
+                      1.5 = standard outliers, 3.0 = extreme outliers
         """
         self.k_factor = k_factor
     
-    def classify(
-        self,
-        items: Sequence[Dict[str, Any]],
-        metric_name: str = "score",
-        score_key: str = "score",
-        id_key: str = "id",
-        type_key: str = "type",
-    ) -> ClassificationResult:
+    def compute_stats(self, scores: Sequence[float]) -> BoxPlotStats:
         """
-        Classify items based on their scores.
+        Compute box-plot statistics for a sequence of scores.
         
         Args:
-            items: Sequence of dicts with id, type, and score
-            metric_name: Name for this classification
-            score_key: Key for score value
-            id_key: Key for item ID
-            type_key: Key for item type
-        
-        Returns:
-            ClassificationResult with classified items and statistics
-        """
-        if not items:
-            return self._empty_result(metric_name)
-        
-        # Extract scores
-        scores = [float(item.get(score_key, 0.0)) for item in items]
-        
-        # Calculate statistics
-        stats = self.calculate_stats(scores)
-        
-        # Classify each item
-        classified = []
-        for item in items:
-            score = float(item.get(score_key, 0.0))
-            level, is_outlier = self.classify_score(score, stats)
+            scores: Sequence of numeric scores
             
-            # Extract any additional metadata
-            metadata = {k: v for k, v in item.items() 
-                       if k not in {score_key, id_key, type_key}}
-            
-            classified.append(ClassifiedItem(
-                id=str(item.get(id_key, "")),
-                item_type=str(item.get(type_key, "unknown")),
-                score=score,
-                level=level,
-                is_outlier=is_outlier,
-                metadata=metadata,
-            ))
-        
-        # Sort by score descending
-        classified.sort(key=lambda x: x.score, reverse=True)
-        
-        return ClassificationResult(
-            metric_name=metric_name,
-            items=classified,
-            stats=stats,
-        )
-    
-    def classify_scores(
-        self,
-        scores: Dict[str, float],
-        item_type: str = "component",
-        metric_name: str = "score",
-    ) -> ClassificationResult:
-        """
-        Classify a dictionary of id -> score mappings.
-        
-        Args:
-            scores: Dict mapping IDs to scores
-            item_type: Type label for all items
-            metric_name: Name for classification
-        
         Returns:
-            ClassificationResult
+            BoxPlotStats containing quartiles, fences, and descriptive stats
         """
-        items = [{"id": id_, "type": item_type, "score": score} 
-                 for id_, score in scores.items()]
-        return self.classify(items, metric_name=metric_name)
-    
-    def calculate_stats(self, scores: List[float]) -> BoxPlotStats:
-        """Calculate box-plot statistics for a list of scores."""
-        if not scores:
-            return BoxPlotStats(
-                q1=0, median=0, q3=0, iqr=0,
-                lower_fence=0, upper_fence=0,
-                k_factor=self.k_factor,
-            )
+        if not scores or len(scores) == 0:
+            return BoxPlotStats(k_factor=self.k_factor)
         
         sorted_scores = sorted(scores)
         n = len(sorted_scores)
         
-        # Quartiles
-        q1 = self._percentile(sorted_scores, 25)
-        median = self._percentile(sorted_scores, 50)
-        q3 = self._percentile(sorted_scores, 75)
+        # Handle edge cases
+        if n == 1:
+            val = sorted_scores[0]
+            return BoxPlotStats(
+                q1=val, median=val, q3=val, iqr=0.0,
+                lower_fence=val, upper_fence=val,
+                min_val=val, max_val=val, mean=val, std_dev=0.0,
+                count=1, k_factor=self.k_factor
+            )
         
-        # IQR and fences
+        # Compute quartiles using linear interpolation
+        def percentile(p: float) -> float:
+            k = (n - 1) * p
+            f = int(k)
+            c = f + 1 if f + 1 < n else f
+            return sorted_scores[f] + (k - f) * (sorted_scores[c] - sorted_scores[f])
+        
+        q1 = percentile(0.25)
+        median = percentile(0.50)
+        q3 = percentile(0.75)
         iqr = q3 - q1
+        
+        # Compute fences
         lower_fence = q1 - self.k_factor * iqr
         upper_fence = q3 + self.k_factor * iqr
         
-        # Additional statistics
-        mean = statistics.mean(scores)
-        std_dev = statistics.stdev(scores) if n > 1 else 0.0
+        # Descriptive stats
+        mean = statistics.mean(sorted_scores)
+        std_dev = statistics.stdev(sorted_scores) if n > 1 else 0.0
         
         return BoxPlotStats(
-            q1=q1,
-            median=median,
-            q3=q3,
-            iqr=iqr,
-            lower_fence=lower_fence,
-            upper_fence=upper_fence,
-            min_val=min(sorted_scores),
-            max_val=max(sorted_scores),
-            mean=mean,
-            std_dev=std_dev,
-            count=n,
-            k_factor=self.k_factor,
+            q1=q1, median=median, q3=q3, iqr=iqr,
+            lower_fence=lower_fence, upper_fence=upper_fence,
+            min_val=sorted_scores[0], max_val=sorted_scores[-1],
+            mean=mean, std_dev=std_dev, count=n, k_factor=self.k_factor
         )
     
-    def classify_score(
-        self,
-        score: float,
-        stats: BoxPlotStats,
-    ) -> tuple[CriticalityLevel, bool]:
+    def classify_score(self, score: float, stats: BoxPlotStats) -> CriticalityLevel:
         """
-        Classify a single score given statistics.
+        Classify a single score based on box-plot statistics.
         
         Args:
-            score: Score to classify
-            stats: Pre-calculated box-plot statistics
-        
+            score: The score to classify
+            stats: Pre-computed box-plot statistics
+            
         Returns:
-            Tuple of (CriticalityLevel, is_outlier)
+            CriticalityLevel for the score
         """
-        # Check for outliers
-        is_upper_outlier = score > stats.upper_fence
-        is_lower_outlier = score < stats.lower_fence
-        is_outlier = is_upper_outlier or is_lower_outlier
+        if stats.count == 0:
+            return CriticalityLevel.MINIMAL
         
-        # Determine level
-        if is_upper_outlier:
-            level = CriticalityLevel.CRITICAL
+        # Handle uniform distribution (all same values)
+        if stats.iqr == 0:
+            if score > stats.median:
+                return CriticalityLevel.HIGH
+            return CriticalityLevel.MEDIUM
+        
+        if score > stats.upper_fence:
+            return CriticalityLevel.CRITICAL
         elif score > stats.q3:
-            level = CriticalityLevel.HIGH
+            return CriticalityLevel.HIGH
         elif score > stats.median:
-            level = CriticalityLevel.MEDIUM
+            return CriticalityLevel.MEDIUM
         elif score > stats.q1:
-            level = CriticalityLevel.LOW
+            return CriticalityLevel.LOW
         else:
-            level = CriticalityLevel.MINIMAL
-        
-        return level, is_outlier
+            return CriticalityLevel.MINIMAL
     
-    def _percentile(self, sorted_data: List[float], p: float) -> float:
-        """Calculate percentile using linear interpolation."""
-        if not sorted_data:
-            return 0.0
+    def classify(
+        self, 
+        data: List[Dict[str, Any]], 
+        metric_name: str = "score",
+        id_key: str = "id",
+        score_key: str = "score"
+    ) -> ClassificationResult:
+        """
+        Classify a list of items based on their scores.
         
-        n = len(sorted_data)
-        if n == 1:
-            return sorted_data[0]
+        Args:
+            data: List of dicts containing id and score
+            metric_name: Name of the metric being classified
+            id_key: Key for item identifier in data dicts
+            score_key: Key for score value in data dicts
+            
+        Returns:
+            ClassificationResult with classified items and statistics
+        """
+        if not data:
+            return ClassificationResult(
+                metric_name=metric_name,
+                items=[],
+                stats=BoxPlotStats(k_factor=self.k_factor),
+                distribution={level.value: 0 for level in CriticalityLevel}
+            )
         
-        # Linear interpolation
-        k = (n - 1) * p / 100
-        f = int(k)
-        c = min(f + 1, n - 1)
+        # Extract scores
+        scores = [item[score_key] for item in data]
+        stats = self.compute_stats(scores)
         
-        return sorted_data[f] + (k - f) * (sorted_data[c] - sorted_data[f])
-    
-    def _empty_result(self, metric_name: str) -> ClassificationResult:
-        """Create empty result for edge cases."""
+        # Classify each item
+        classified_items = []
+        distribution = {level.value: 0 for level in CriticalityLevel}
+        
+        for item in data:
+            item_id = item[id_key]
+            score = item[score_key]
+            level = self.classify_score(score, stats)
+            
+            # Compute percentile and z-score
+            percentile = self._compute_percentile(score, scores)
+            z_score = (score - stats.mean) / stats.std_dev if stats.std_dev > 0 else 0.0
+            
+            classified_items.append(ClassifiedItem(
+                id=item_id,
+                score=score,
+                level=level,
+                percentile=percentile,
+                z_score=z_score
+            ))
+            distribution[level.value] += 1
+        
+        # Sort by score descending (most critical first)
+        classified_items.sort(key=lambda x: x.score, reverse=True)
+        
         return ClassificationResult(
             metric_name=metric_name,
-            items=[],
-            stats=BoxPlotStats(
-                q1=0, median=0, q3=0, iqr=0,
-                lower_fence=0, upper_fence=0,
-                k_factor=self.k_factor,
-            ),
+            items=classified_items,
+            stats=stats,
+            distribution=distribution
         )
+    
+    def _compute_percentile(self, score: float, all_scores: List[float]) -> float:
+        """Compute the percentile rank of a score."""
+        below = sum(1 for s in all_scores if s < score)
+        equal = sum(1 for s in all_scores if s == score)
+        return 100.0 * (below + 0.5 * equal) / len(all_scores)
+    
+    def classify_multi_dimensional(
+        self,
+        items: List[Dict[str, Any]],
+        dimensions: List[str],
+        id_key: str = "id"
+    ) -> Dict[str, ClassificationResult]:
+        """
+        Classify items across multiple score dimensions.
+        
+        Args:
+            items: List of dicts with id and multiple score dimensions
+            dimensions: List of score dimension names to classify
+            id_key: Key for item identifier
+            
+        Returns:
+            Dict mapping dimension name to ClassificationResult
+        """
+        results = {}
+        for dim in dimensions:
+            data = [{"id": item[id_key], "score": item.get(dim, 0.0)} for item in items]
+            results[dim] = self.classify(data, metric_name=dim)
+        return results
 
 
-def classify_items(
-    items: Sequence[Dict[str, Any]],
-    k_factor: float = 1.5,
-    metric_name: str = "score",
-) -> ClassificationResult:
+def combine_levels(levels: List[CriticalityLevel], method: str = "max") -> CriticalityLevel:
     """
-    Convenience function to classify items.
+    Combine multiple criticality levels into a single level.
     
     Args:
-        items: Items to classify
-        k_factor: Box-plot k factor
-        metric_name: Name for the classification
-    
+        levels: List of CriticalityLevel values
+        method: Combination method ('max', 'min', 'avg')
+        
     Returns:
-        ClassificationResult
+        Combined CriticalityLevel
     """
-    classifier = BoxPlotClassifier(k_factor=k_factor)
-    return classifier.classify(items, metric_name=metric_name)
+    if not levels:
+        return CriticalityLevel.MINIMAL
+    
+    if method == "max":
+        return max(levels, key=lambda x: x.numeric)
+    elif method == "min":
+        return min(levels, key=lambda x: x.numeric)
+    elif method == "avg":
+        avg_numeric = sum(l.numeric for l in levels) / len(levels)
+        for level in [CriticalityLevel.CRITICAL, CriticalityLevel.HIGH, 
+                      CriticalityLevel.MEDIUM, CriticalityLevel.LOW]:
+            if avg_numeric >= level.numeric:
+                return level
+        return CriticalityLevel.MINIMAL
+    else:
+        raise ValueError(f"Unknown combination method: {method}")
