@@ -2,30 +2,29 @@
 Simulation Graph
 
 Graph representation for simulation using RAW structural relationships.
-Works directly on PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON relationships
-without deriving DEPENDS_ON.
+Works directly on PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO
+relationships without deriving DEPENDS_ON.
 
 Supports:
-- Event propagation simulation (pub-sub message flow)
-- Failure cascade simulation (component/infrastructure failures)
-- Runtime metrics extraction (throughput, latency, drops)
+    - Event propagation simulation (pub-sub message flow)
+    - Failure cascade simulation (component/infrastructure failures)
+    - Runtime metrics extraction (throughput, latency, drops)
 
-Author: Software-as-a-Graph Research Project
+Retrieves graph data directly from Neo4j for simulation.
 """
 
 from __future__ import annotations
-import json
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple, Any, Optional, Iterator
-from pathlib import Path
 from enum import Enum
+from collections import defaultdict
 
 import networkx as nx
 
 
 class ComponentState(Enum):
-    """State of a component in simulation."""
+    """State of a component during simulation."""
     ACTIVE = "active"
     FAILED = "failed"
     DEGRADED = "degraded"
@@ -33,7 +32,7 @@ class ComponentState(Enum):
 
 
 class RelationType(Enum):
-    """Structural relationship types in the raw graph."""
+    """RAW structural relationship types in the pub-sub graph."""
     PUBLISHES_TO = "PUBLISHES_TO"
     SUBSCRIBES_TO = "SUBSCRIBES_TO"
     ROUTES = "ROUTES"
@@ -45,23 +44,36 @@ class RelationType(Enum):
 class ComponentInfo:
     """Information about a component in the simulation."""
     id: str
-    type: str
+    type: str  # Application, Topic, Broker, Node
     state: ComponentState = ComponentState.ACTIVE
     weight: float = 1.0
     properties: Dict[str, Any] = field(default_factory=dict)
     
-    # Runtime metrics
+    # Runtime metrics (accumulated during simulation)
     messages_sent: int = 0
     messages_received: int = 0
     messages_dropped: int = 0
-    processing_time: float = 0.0
+    messages_routed: int = 0
+    total_latency: float = 0.0
     
-    def reset_metrics(self):
-        """Reset runtime metrics for new simulation run."""
+    def reset_metrics(self) -> None:
+        """Reset runtime metrics for a new simulation run."""
         self.messages_sent = 0
         self.messages_received = 0
         self.messages_dropped = 0
-        self.processing_time = 0.0
+        self.messages_routed = 0
+        self.total_latency = 0.0
+    
+    @property
+    def avg_latency(self) -> float:
+        """Average latency per message processed."""
+        total = self.messages_received + self.messages_routed
+        return self.total_latency / total if total > 0 else 0.0
+    
+    @property
+    def throughput(self) -> int:
+        """Total messages processed (sent + routed)."""
+        return self.messages_sent + self.messages_routed
 
 
 @dataclass
@@ -69,10 +81,10 @@ class TopicInfo:
     """Information about a topic including QoS settings."""
     id: str
     name: str
-    size: int = 0
-    qos_reliability: str = "BEST_EFFORT"
-    qos_durability: str = "VOLATILE"
-    qos_priority: str = "LOW"
+    message_size: int = 1024
+    qos_reliability: str = "BEST_EFFORT"  # BEST_EFFORT, RELIABLE
+    qos_durability: str = "VOLATILE"      # VOLATILE, TRANSIENT, PERSISTENT
+    qos_priority: str = "LOW"             # LOW, MEDIUM, HIGH, URGENT
     weight: float = 1.0
     
     @property
@@ -82,532 +94,423 @@ class TopicInfo:
     
     @property
     def priority_value(self) -> int:
-        """Numeric priority value for scheduling."""
+        """Numeric priority for scheduling."""
         return {"URGENT": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}.get(self.qos_priority, 1)
+    
+    @property
+    def persistence_factor(self) -> float:
+        """Factor for persistence overhead."""
+        return {"PERSISTENT": 1.5, "TRANSIENT": 1.2, "VOLATILE": 1.0}.get(self.qos_durability, 1.0)
 
 
 class SimulationGraph:
     """
     Graph representation for pub-sub system simulation.
     
-    Uses RAW structural relationships without DEPENDS_ON derivation:
-    - PUBLISHES_TO: Application -> Topic (publishing)
-    - SUBSCRIBES_TO: Application -> Topic (subscribing)
-    - ROUTES: Broker -> Topic (message routing)
-    - RUNS_ON: Application/Broker -> Node (deployment)
-    - CONNECTS_TO: Node -> Node (network connectivity)
+    Works on RAW structural relationships:
+        - Application -[PUBLISHES_TO]-> Topic
+        - Application -[SUBSCRIBES_TO]-> Topic
+        - Topic -[ROUTES]-> Broker (or Broker -[ROUTES]-> Topic)
+        - Application -[RUNS_ON]-> Node
+        - Broker -[RUNS_ON]-> Node
+        - Node -[CONNECTS_TO]-> Node
     
-    Attributes:
-        graph: NetworkX DiGraph with raw structural edges
-        components: Dict of component ID -> ComponentInfo
-        topics: Dict of topic ID -> TopicInfo
+    Retrieves data directly from Neo4j for simulation.
     """
     
     def __init__(
-        self, 
-        data: Optional[Dict] = None,
-        uri: str = "bolt://localhost:7687",
+        self,
+        uri: Optional[str] = None,
         user: str = "neo4j",
-        password: str = "password"
+        password: str = "password",
+        graph_data: Optional[Any] = None
     ):
         """
-        Initialize simulation graph from JSON file, dict, or Neo4j.
+        Initialize simulation graph.
         
         Args:
-            data: Dict containing system definition
-            uri: Neo4j connection URI
-            user: Neo4j username (when using uri)
-            password: Neo4j password (when using uri)
-        """
-        self.graph = nx.DiGraph()
-        self.components: Dict[str, ComponentInfo] = {}
-        self.topics: Dict[str, TopicInfo] = {}
-        self.logger = logging.getLogger(__name__)
-        
-        # Cache for performance
-        self._pub_sub_paths: Optional[List[Tuple[str, str, str]]] = None
-        self._initial_state: Optional[Dict[str, ComponentState]] = None
-        
-        # Track data source
-        self._load_from_neo4j(uri, user, password)
-    
-    @classmethod
-    def from_neo4j(
-        cls,
-        uri: str,
-        user: str = "neo4j",
-        password: str = "password"
-    ) -> "SimulationGraph":
-        """
-        Create SimulationGraph from Neo4j database.
-        
-        Args:
-            uri: Neo4j connection URI (e.g., "bolt://localhost:7687")
+            uri: Neo4j connection URI (if loading from database)
             user: Neo4j username
             password: Neo4j password
-            
-        Returns:
-            SimulationGraph instance loaded from Neo4j
+            graph_data: Pre-loaded GraphData object (alternative to Neo4j)
         """
-        return cls(uri=uri, user=user, password=password)
+        self.logger = logging.getLogger(__name__)
+        
+        # NetworkX graph for structural queries
+        self.graph = nx.DiGraph()
+        
+        # Component registries
+        self.components: Dict[str, ComponentInfo] = {}
+        self.topics: Dict[str, TopicInfo] = {}
+        
+        # Relationship indices for fast lookups
+        self._publishers: Dict[str, List[str]] = defaultdict(list)   # topic -> [apps]
+        self._subscribers: Dict[str, List[str]] = defaultdict(list)  # topic -> [apps]
+        self._routing: Dict[str, List[str]] = defaultdict(list)      # topic -> [brokers]
+        self._hosted_on: Dict[str, str] = {}                         # comp -> node
+        self._hosts: Dict[str, List[str]] = defaultdict(list)        # node -> [comps]
+        self._connections: Dict[str, List[str]] = defaultdict(list)  # node -> [nodes]
+        
+        # Load graph
+        if graph_data:
+            self._load_from_data(graph_data)
+        elif uri:
+            self._load_from_neo4j(uri, user, password)
     
     def _load_from_neo4j(self, uri: str, user: str, password: str) -> None:
-        """Load graph from Neo4j database."""
-        # Import here to avoid circular dependency
-        import sys
-        from pathlib import Path
-        sys.path.insert(0, str(Path(__file__).parent.parent))
+        """Load graph data directly from Neo4j."""
+        try:
+            from neo4j import GraphDatabase
+        except ImportError:
+            raise ImportError("neo4j driver required. Install with: pip install neo4j")
+        
+        self.logger.info(f"Loading simulation graph from Neo4j: {uri}")
+        
+        driver = GraphDatabase.driver(uri, auth=(user, password))
         
         try:
-            from core.graph_exporter import GraphExporter
-        except ImportError:
-            from src.core.graph_exporter import GraphExporter
+            with driver.session() as session:
+                # Load all components
+                self._load_components_from_neo4j(session)
+                
+                # Load all relationships
+                self._load_relationships_from_neo4j(session)
+        finally:
+            driver.close()
         
-        self.logger.info(f"Connecting to Neo4j at {uri}...")
-        
-        with GraphExporter(uri, user, password) as client:
-            data = client.get_raw_structural_graph()
-        
-        self._load_from_dict(data)
+        self.logger.info(
+            f"Loaded: {len(self.components)} components, "
+            f"{len(self.topics)} topics, "
+            f"{self.graph.number_of_edges()} edges"
+        )
     
-    def _load_from_dict(self, data: Dict[str, Any]) -> None:
-        """Load graph from dictionary."""
-        # Clear existing data
-        self.graph.clear()
-        self.components.clear()
-        self.topics.clear()
-        
-        # 1. Load Nodes (Infrastructure)
-        for node in data.get("nodes", []):
-            node_id = node["id"]
-            self.graph.add_node(
-                node_id,
-                type="Node",
-                name=node.get("name", node_id),
-                weight=node.get("weight", 1.0),
-                state=ComponentState.ACTIVE.value,
-            )
-            self.components[node_id] = ComponentInfo(
-                id=node_id,
-                type="Node",
-                weight=node.get("weight", 1.0),
-                properties={"name": node.get("name", node_id)}
-            )
-        
-        # 2. Load Brokers
-        for broker in data.get("brokers", []):
-            broker_id = broker["id"]
-            self.graph.add_node(
-                broker_id,
-                type="Broker",
-                name=broker.get("name", broker_id),
-                weight=broker.get("weight", 1.0),
-                state=ComponentState.ACTIVE.value,
-            )
-            self.components[broker_id] = ComponentInfo(
-                id=broker_id,
-                type="Broker",
-                weight=broker.get("weight", 1.0),
-                properties={"name": broker.get("name", broker_id)}
-            )
-        
-        # 3. Load Applications
-        for app in data.get("applications", []):
-            app_id = app["id"]
-            self.graph.add_node(
-                app_id,
-                type="Application",
-                name=app.get("name", app_id),
-                role=app.get("role", "pubsub"),
-                weight=app.get("weight", 1.0),
-                state=ComponentState.ACTIVE.value,
-            )
-            self.components[app_id] = ComponentInfo(
-                id=app_id,
-                type="Application",
-                weight=app.get("weight", 1.0),
-                properties={
-                    "name": app.get("name", app_id),
-                    "role": app.get("role", "pubsub"),
-                }
-            )
-        
-        # 4. Load Topics
-        for topic in data.get("topics", []):
-            topic_id = topic["id"]
-            qos = topic.get("qos", {})
-            weight = self._compute_topic_weight(topic)
+    def _load_components_from_neo4j(self, session) -> None:
+        """Load components from Neo4j."""
+        # Load Applications, Brokers, Nodes
+        query = """
+        MATCH (n)
+        WHERE n:Application OR n:Broker OR n:Node
+        RETURN n.id as id, labels(n)[0] as type, properties(n) as props
+        """
+        result = session.run(query)
+        for record in result:
+            comp_id = record["id"]
+            comp_type = record["type"]
+            props = dict(record["props"])
+            props.pop("id", None)
             
-            self.graph.add_node(
-                topic_id,
-                type="Topic",
-                name=topic.get("name", topic_id),
-                size=topic.get("size", 0),
-                weight=weight,
-                state=ComponentState.ACTIVE.value,
+            self.components[comp_id] = ComponentInfo(
+                id=comp_id,
+                type=comp_type,
+                weight=props.pop("weight", 1.0),
+                properties=props
             )
+            self.graph.add_node(comp_id, type=comp_type, **props)
+        
+        # Load Topics separately (with QoS info)
+        topic_query = """
+        MATCH (t:Topic)
+        RETURN t.id as id, t.name as name, properties(t) as props
+        """
+        result = session.run(topic_query)
+        for record in result:
+            topic_id = record["id"]
+            props = dict(record["props"])
             
             self.topics[topic_id] = TopicInfo(
                 id=topic_id,
-                name=topic.get("name", topic_id),
-                size=topic.get("size", 0),
-                qos_reliability=qos.get("reliability", "BEST_EFFORT"),
-                qos_durability=qos.get("durability", "VOLATILE"),
-                qos_priority=qos.get("transport_priority", "LOW"),
-                weight=weight,
+                name=record["name"] or topic_id,
+                message_size=props.get("message_size", 1024),
+                qos_reliability=props.get("qos_reliability", "BEST_EFFORT"),
+                qos_durability=props.get("qos_durability", "VOLATILE"),
+                qos_priority=props.get("qos_priority", "LOW"),
+                weight=props.get("weight", 1.0),
             )
             
-            # Also add to components for unified access
+            # Also add to components
             self.components[topic_id] = ComponentInfo(
                 id=topic_id,
                 type="Topic",
-                weight=weight,
-                properties={
-                    "name": topic.get("name", topic_id),
-                    "size": topic.get("size", 0),
-                    "qos": qos,
-                }
+                weight=self.topics[topic_id].weight,
+                properties=props
             )
-        
-        # 5. Load Relationships
-        
-        # PUBLISHES_TO: Application -> Topic
-        for pub in data.get("publications", []):
-            app_id = pub.get("application") or pub.get("app")
-            topic_id = pub.get("topic")
-            if app_id and topic_id:
-                topic_weight = self.topics[topic_id].weight if topic_id in self.topics else 1.0
-                self.graph.add_edge(
-                    app_id, topic_id,
-                    relation=RelationType.PUBLISHES_TO.value,
-                    weight=topic_weight,
-                )
-        
-        # SUBSCRIBES_TO: Application -> Topic
-        for sub in data.get("subscriptions", []):
-            app_id = sub.get("application") or sub.get("app")
-            topic_id = sub.get("topic")
-            if app_id and topic_id:
-                topic_weight = self.topics[topic_id].weight if topic_id in self.topics else 1.0
-                self.graph.add_edge(
-                    app_id, topic_id,
-                    relation=RelationType.SUBSCRIBES_TO.value,
-                    weight=topic_weight,
-                )
-        
-        # ROUTES: Broker -> Topic
-        for route in data.get("routes", []):
-            broker_id = route.get("broker")
-            topic_id = route.get("topic")
-            if broker_id and topic_id:
-                topic_weight = self.topics[topic_id].weight if topic_id in self.topics else 1.0
-                self.graph.add_edge(
-                    broker_id, topic_id,
-                    relation=RelationType.ROUTES.value,
-                    weight=topic_weight,
-                )
-        
-        # RUNS_ON: Application/Broker -> Node
-        for runs in data.get("runs_on", []):
-            comp_id = runs.get("component") or runs.get("application") or runs.get("broker")
-            node_id = runs.get("node")
-            if comp_id and node_id:
-                self.graph.add_edge(
-                    comp_id, node_id,
-                    relation=RelationType.RUNS_ON.value,
-                    weight=1.0,
-                )
-        
-        # CONNECTS_TO: Node -> Node (if provided)
-        for conn in data.get("connections", data.get("connects_to", [])):
-            src_node = conn.get("source") or conn.get("from")
-            tgt_node = conn.get("target") or conn.get("to")
-            if src_node and tgt_node:
-                self.graph.add_edge(
-                    src_node, tgt_node,
-                    relation=RelationType.CONNECTS_TO.value,
-                    weight=conn.get("weight", 1.0),
-                )
-        
-        # Save initial state for reset
-        self._save_initial_state()
-        
-        self.logger.info(
-            f"Loaded graph: {len(self.components)} components, "
-            f"{len(self.topics)} topics, {self.graph.number_of_edges()} edges"
-        )
+            self.graph.add_node(topic_id, type="Topic", **props)
     
-    def _compute_topic_weight(self, topic: Dict[str, Any]) -> float:
-        """Compute topic weight from QoS and size."""
-        import math
-        qos = topic.get("qos", {})
+    def _load_relationships_from_neo4j(self, session) -> None:
+        """Load relationships from Neo4j."""
+        # PUBLISHES_TO: App -> Topic
+        query = """
+        MATCH (a:Application)-[r:PUBLISHES_TO]->(t:Topic)
+        RETURN a.id as source, t.id as target, properties(r) as props
+        """
+        result = session.run(query)
+        for record in result:
+            src, tgt = record["source"], record["target"]
+            self._publishers[tgt].append(src)
+            self.graph.add_edge(src, tgt, relation=RelationType.PUBLISHES_TO.value)
         
-        # Reliability score
-        rel_map = {"RELIABLE": 0.3, "BEST_EFFORT": 0.0}
-        s_rel = rel_map.get(qos.get("reliability", "BEST_EFFORT"), 0.0)
+        # SUBSCRIBES_TO: App -> Topic
+        query = """
+        MATCH (a:Application)-[r:SUBSCRIBES_TO]->(t:Topic)
+        RETURN a.id as source, t.id as target, properties(r) as props
+        """
+        result = session.run(query)
+        for record in result:
+            src, tgt = record["source"], record["target"]
+            self._subscribers[tgt].append(src)
+            self.graph.add_edge(src, tgt, relation=RelationType.SUBSCRIBES_TO.value)
         
-        # Durability score
-        dur_map = {"PERSISTENT": 0.4, "TRANSIENT": 0.25, "TRANSIENT_LOCAL": 0.2, "VOLATILE": 0.0}
-        s_dur = dur_map.get(qos.get("durability", "VOLATILE"), 0.0)
+        # ROUTES: Broker <-> Topic (direction may vary)
+        query = """
+        MATCH (b:Broker)-[r:ROUTES]->(t:Topic)
+        RETURN b.id as broker, t.id as topic
+        UNION
+        MATCH (t:Topic)-[r:ROUTES]->(b:Broker)
+        RETURN b.id as broker, t.id as topic
+        """
+        result = session.run(query)
+        for record in result:
+            broker, topic = record["broker"], record["topic"]
+            if broker not in self._routing[topic]:
+                self._routing[topic].append(broker)
+            self.graph.add_edge(topic, broker, relation=RelationType.ROUTES.value)
         
-        # Priority score
-        pri_map = {"URGENT": 0.3, "HIGH": 0.2, "MEDIUM": 0.1, "LOW": 0.0}
-        s_pri = pri_map.get(qos.get("transport_priority", "LOW"), 0.0)
+        # RUNS_ON: App/Broker -> Node
+        query = """
+        MATCH (c)-[r:RUNS_ON]->(n:Node)
+        WHERE c:Application OR c:Broker
+        RETURN c.id as comp, n.id as node
+        """
+        result = session.run(query)
+        for record in result:
+            comp, node = record["comp"], record["node"]
+            self._hosted_on[comp] = node
+            self._hosts[node].append(comp)
+            self.graph.add_edge(comp, node, relation=RelationType.RUNS_ON.value)
         
-        # Size score (logarithmic)
-        size = topic.get("size", 0)
-        s_size = min(math.log2(1 + size / 1024) / 10, 1.0) if size > 0 else 0.0
-        
-        return 1.0 + s_rel + s_dur + s_pri + s_size
+        # CONNECTS_TO: Node -> Node
+        query = """
+        MATCH (n1:Node)-[r:CONNECTS_TO]->(n2:Node)
+        RETURN n1.id as source, n2.id as target
+        """
+        result = session.run(query)
+        for record in result:
+            src, tgt = record["source"], record["target"]
+            self._connections[src].append(tgt)
+            self.graph.add_edge(src, tgt, relation=RelationType.CONNECTS_TO.value)
     
-    def _save_initial_state(self) -> None:
-        """Save initial state for reset."""
-        self._initial_state = {}
-        for node_id in self.graph.nodes():
-            self._initial_state[node_id] = ComponentState.ACTIVE
-        self._pub_sub_paths = None  # Will be computed on demand
+    def _load_from_data(self, graph_data: Any) -> None:
+        """Load from pre-loaded GraphData object."""
+        self.logger.info("Loading simulation graph from GraphData")
+        
+        # Load components
+        for comp in graph_data.components:
+            comp_id = comp.id if hasattr(comp, 'id') else comp.get('id')
+            comp_type = comp.component_type if hasattr(comp, 'component_type') else comp.get('type')
+            props = comp.properties if hasattr(comp, 'properties') else {}
+            
+            if comp_type == "Topic":
+                self.topics[comp_id] = TopicInfo(
+                    id=comp_id,
+                    name=props.get("name", comp_id),
+                    message_size=props.get("message_size", 1024),
+                    qos_reliability=props.get("qos_reliability", "BEST_EFFORT"),
+                    qos_durability=props.get("qos_durability", "VOLATILE"),
+                    qos_priority=props.get("qos_priority", "LOW"),
+                    weight=props.get("weight", 1.0),
+                )
+            
+            self.components[comp_id] = ComponentInfo(
+                id=comp_id,
+                type=comp_type,
+                weight=props.get("weight", 1.0),
+                properties=props
+            )
+            self.graph.add_node(comp_id, type=comp_type)
+        
+        # Load edges
+        for edge in graph_data.edges:
+            src = edge.source_id if hasattr(edge, 'source_id') else edge.get('source')
+            tgt = edge.target_id if hasattr(edge, 'target_id') else edge.get('target')
+            rel = edge.relation_type if hasattr(edge, 'relation_type') else edge.get('relation_type', 'UNKNOWN')
+            
+            self.graph.add_edge(src, tgt, relation=rel)
+            
+            # Index by relationship type
+            if rel == "PUBLISHES_TO":
+                self._publishers[tgt].append(src)
+            elif rel == "SUBSCRIBES_TO":
+                self._subscribers[tgt].append(src)
+            elif rel == "ROUTES":
+                self._routing[tgt].append(src)
+            elif rel == "RUNS_ON":
+                self._hosted_on[src] = tgt
+                self._hosts[tgt].append(src)
+            elif rel == "CONNECTS_TO":
+                self._connections[src].append(tgt)
+    
+    # =========================================================================
+    # State Management
+    # =========================================================================
     
     def reset(self) -> None:
-        """Reset all components to initial state."""
-        if self._initial_state:
-            for node_id, state in self._initial_state.items():
-                self.graph.nodes[node_id]["state"] = state.value
-                if node_id in self.components:
-                    self.components[node_id].state = state
-                    self.components[node_id].reset_metrics()
-        self._pub_sub_paths = None
-    
-    # =========================================================================
-    # Component State Management
-    # =========================================================================
-    
-    def set_state(self, comp_id: str, state: ComponentState) -> None:
-        """Set the state of a component."""
-        if comp_id in self.graph:
-            self.graph.nodes[comp_id]["state"] = state.value
-        if comp_id in self.components:
-            self.components[comp_id].state = state
-    
-    def get_state(self, comp_id: str) -> ComponentState:
-        """Get the state of a component."""
-        if comp_id in self.graph:
-            state_str = self.graph.nodes[comp_id].get("state", "active")
-            return ComponentState(state_str)
-        return ComponentState.FAILED
-    
-    def is_active(self, comp_id: str) -> bool:
-        """Check if a component is active."""
-        return self.get_state(comp_id) == ComponentState.ACTIVE
+        """Reset all component states and metrics for a new simulation."""
+        for comp in self.components.values():
+            comp.state = ComponentState.ACTIVE
+            comp.reset_metrics()
     
     def fail_component(self, comp_id: str) -> None:
         """Mark a component as failed."""
-        self.set_state(comp_id, ComponentState.FAILED)
+        if comp_id in self.components:
+            self.components[comp_id].state = ComponentState.FAILED
+    
+    def recover_component(self, comp_id: str) -> None:
+        """Recover a failed component."""
+        if comp_id in self.components:
+            self.components[comp_id].state = ComponentState.ACTIVE
+    
+    def is_active(self, comp_id: str) -> bool:
+        """Check if a component is active."""
+        comp = self.components.get(comp_id)
+        return comp is not None and comp.state == ComponentState.ACTIVE
+    
+    def set_degraded(self, comp_id: str) -> None:
+        """Mark a component as degraded."""
+        if comp_id in self.components:
+            self.components[comp_id].state = ComponentState.DEGRADED
     
     # =========================================================================
     # Graph Queries
     # =========================================================================
     
-    def get_components_by_type(self, comp_type: str) -> List[str]:
-        """Get all component IDs of a specific type."""
-        return [
-            n for n, d in self.graph.nodes(data=True)
-            if d.get("type") == comp_type
-        ]
-    
-    def get_active_components(self, comp_type: Optional[str] = None) -> List[str]:
-        """Get all active components, optionally filtered by type."""
-        result = []
-        for n, d in self.graph.nodes(data=True):
-            if d.get("state") != ComponentState.ACTIVE.value:
-                continue
-            if comp_type is None or d.get("type") == comp_type:
-                result.append(n)
-        return result
-    
     def get_publishers(self, topic_id: str) -> List[str]:
-        """Get all applications publishing to a topic."""
-        publishers = []
-        for src, tgt, data in self.graph.in_edges(topic_id, data=True):
-            if data.get("relation") == RelationType.PUBLISHES_TO.value:
-                publishers.append(src)
-        return publishers
+        """Get all publishers for a topic."""
+        return [p for p in self._publishers.get(topic_id, []) if self.is_active(p)]
     
     def get_subscribers(self, topic_id: str) -> List[str]:
-        """Get all applications subscribing to a topic."""
-        subscribers = []
-        for src, tgt, data in self.graph.in_edges(topic_id, data=True):
-            if data.get("relation") == RelationType.SUBSCRIBES_TO.value:
-                subscribers.append(src)
-        return subscribers
+        """Get all subscribers for a topic."""
+        return [s for s in self._subscribers.get(topic_id, []) if self.is_active(s)]
     
     def get_routing_brokers(self, topic_id: str) -> List[str]:
-        """Get all brokers routing a topic."""
-        brokers = []
-        for src, tgt, data in self.graph.in_edges(topic_id, data=True):
-            if data.get("relation") == RelationType.ROUTES.value:
-                brokers.append(src)
-        return brokers
-    
-    def get_host_node(self, comp_id: str) -> Optional[str]:
-        """Get the node that hosts a component."""
-        for src, tgt, data in self.graph.out_edges(comp_id, data=True):
-            if data.get("relation") == RelationType.RUNS_ON.value:
-                return tgt
-        return None
+        """Get all brokers that route a topic."""
+        return [b for b in self._routing.get(topic_id, []) if self.is_active(b)]
     
     def get_hosted_components(self, node_id: str) -> List[str]:
         """Get all components hosted on a node."""
-        hosted = []
-        for src, tgt, data in self.graph.in_edges(node_id, data=True):
-            if data.get("relation") == RelationType.RUNS_ON.value:
-                hosted.append(src)
-        return hosted
+        return self._hosts.get(node_id, [])
+    
+    def get_host_node(self, comp_id: str) -> Optional[str]:
+        """Get the node that hosts a component."""
+        return self._hosted_on.get(comp_id)
+    
+    def get_connected_nodes(self, node_id: str) -> List[str]:
+        """Get nodes connected to a given node."""
+        return [n for n in self._connections.get(node_id, []) if self.is_active(n)]
     
     def get_app_topics(self, app_id: str) -> Tuple[List[str], List[str]]:
         """Get topics an application publishes to and subscribes from."""
         publishes = []
         subscribes = []
-        for src, tgt, data in self.graph.out_edges(app_id, data=True):
-            if data.get("relation") == RelationType.PUBLISHES_TO.value:
-                publishes.append(tgt)
-            elif data.get("relation") == RelationType.SUBSCRIBES_TO.value:
-                subscribes.append(tgt)
+        
+        for topic_id, publishers in self._publishers.items():
+            if app_id in publishers:
+                publishes.append(topic_id)
+        
+        for topic_id, subscribers in self._subscribers.items():
+            if app_id in subscribers:
+                subscribes.append(topic_id)
+        
         return publishes, subscribes
     
-    # =========================================================================
-    # Pub-Sub Path Analysis
-    # =========================================================================
-    
-    def get_pub_sub_paths(self, active_only: bool = False) -> List[Tuple[str, str, str]]:
+    def get_pub_sub_paths(self, active_only: bool = True) -> List[Tuple[str, str, str]]:
         """
         Get all publisher -> topic -> subscriber paths.
         
         Returns:
-            List of (publisher_id, topic_id, subscriber_id) tuples
+            List of (publisher, topic, subscriber) tuples
         """
-        if self._pub_sub_paths is not None and not active_only:
-            return self._pub_sub_paths
-        
         paths = []
+        
         for topic_id in self.topics:
-            publishers = self.get_publishers(topic_id)
-            subscribers = self.get_subscribers(topic_id)
+            publishers = self._publishers.get(topic_id, [])
+            subscribers = self._subscribers.get(topic_id, [])
+            
+            if active_only:
+                publishers = [p for p in publishers if self.is_active(p)]
+                subscribers = [s for s in subscribers if self.is_active(s)]
             
             for pub in publishers:
-                if active_only and not self.is_active(pub):
-                    continue
                 for sub in subscribers:
-                    if active_only and not self.is_active(sub):
-                        continue
-                    if pub != sub:  # Exclude self-loops
-                        paths.append((pub, topic_id, sub))
-        
-        if not active_only:
-            self._pub_sub_paths = paths
+                    paths.append((pub, topic_id, sub))
         
         return paths
     
-    def get_message_path(
-        self, 
-        publisher: str, 
-        topic_id: str, 
-        subscriber: str
-    ) -> List[str]:
+    def get_message_path(self, publisher: str, topic_id: str) -> List[Tuple[str, str]]:
         """
-        Get the full message path from publisher to subscriber.
+        Get the path a message takes from publisher to subscribers.
         
-        Path: Publisher -> Topic -> Broker(s) -> Subscriber
+        Returns:
+            List of (from, to) tuples representing the path
         """
-        path = [publisher, topic_id]
+        path = []
         
-        # Get routing brokers
+        # Publisher -> Topic
+        path.append((publisher, topic_id))
+        
+        # Topic -> Broker(s)
         brokers = self.get_routing_brokers(topic_id)
-        if brokers:
-            path.extend(brokers)
+        for broker in brokers:
+            path.append((topic_id, broker))
         
-        path.append(subscriber)
+        # Broker(s) -> Subscribers
+        subscribers = self.get_subscribers(topic_id)
+        for broker in brokers:
+            for sub in subscribers:
+                path.append((broker, sub))
+        
         return path
     
-    def is_path_active(self, path: List[str]) -> bool:
-        """Check if all components in a path are active."""
-        for comp_id in path:
-            if not self.is_active(comp_id):
-                return False
-        return True
-    
     # =========================================================================
-    # Infrastructure Analysis
+    # Layer Filtering
     # =========================================================================
     
-    def get_node_graph(self) -> nx.Graph:
-        """Extract undirected node connectivity graph."""
-        node_graph = nx.Graph()
+    def get_components_by_layer(self, layer: str) -> List[str]:
+        """
+        Get component IDs for a specific layer.
         
-        for node_id in self.get_components_by_type("Node"):
-            node_graph.add_node(node_id)
+        Layers:
+            - app: Application components
+            - infra: Node components
+            - mw-app: Application + Broker components
+            - mw-infra: Node + Broker components
+            - system: All components
+        """
+        layer_types = {
+            "app": {"Application"},
+            "infra": {"Node"},
+            "mw-app": {"Application", "Broker"},
+            "mw-infra": {"Node", "Broker"},
+            "system": {"Application", "Broker", "Node", "Topic"},
+        }
         
-        for src, tgt, data in self.graph.edges(data=True):
-            if data.get("relation") == RelationType.CONNECTS_TO.value:
-                node_graph.add_edge(src, tgt, weight=data.get("weight", 1.0))
-        
-        return node_graph
-    
-    def get_connected_components_count(self, active_only: bool = False) -> int:
-        """Get number of connected components in node graph."""
-        node_graph = self.get_node_graph()
-        
-        if active_only:
-            inactive_nodes = [
-                n for n in node_graph.nodes() 
-                if not self.is_active(n)
-            ]
-            node_graph.remove_nodes_from(inactive_nodes)
-        
-        if len(node_graph) == 0:
-            return 0
-        
-        return nx.number_connected_components(node_graph)
+        types = layer_types.get(layer, layer_types["system"])
+        return [c.id for c in self.components.values() if c.type in types]
     
     # =========================================================================
-    # Metrics
+    # Summary Statistics
     # =========================================================================
-    
-    @property
-    def node_count(self) -> int:
-        """Total number of nodes in the graph."""
-        return self.graph.number_of_nodes()
-    
-    @property
-    def edge_count(self) -> int:
-        """Total number of edges in the graph."""
-        return self.graph.number_of_edges()
-    
-    @property
-    def topic_count(self) -> int:
-        """Total number of topics."""
-        return len(self.topics)
-    
-    @property
-    def initial_path_count(self) -> int:
-        """Total number of pub-sub paths."""
-        return len(self.get_pub_sub_paths())
     
     def get_summary(self) -> Dict[str, Any]:
-        """Get summary statistics of the graph."""
-        type_counts = {}
-        for n, d in self.graph.nodes(data=True):
-            t = d.get("type", "Unknown")
-            type_counts[t] = type_counts.get(t, 0) + 1
-        
-        rel_counts = {}
-        for _, _, d in self.graph.edges(data=True):
-            r = d.get("relation", "Unknown")
-            rel_counts[r] = rel_counts.get(r, 0) + 1
+        """Get summary statistics for the graph."""
+        type_counts = defaultdict(int)
+        for comp in self.components.values():
+            type_counts[comp.type] += 1
         
         return {
-            "total_nodes": self.node_count,
-            "total_edges": self.edge_count,
-            "component_types": type_counts,
-            "relationship_types": rel_counts,
-            "pub_sub_paths": self.initial_path_count,
+            "total_nodes": len(self.components),
+            "total_edges": self.graph.number_of_edges(),
+            "component_types": dict(type_counts),
+            "topics": len(self.topics),
+            "pub_sub_paths": len(self.get_pub_sub_paths()),
+            "active_components": sum(1 for c in self.components.values() if c.state == ComponentState.ACTIVE),
         }
