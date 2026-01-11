@@ -1,240 +1,249 @@
 #!/usr/bin/env python3
 """
-Software-as-a-Graph Analysis CLI
+Graph Analysis CLI
 
-Analyzes multi-layer graph models to identify critical components,
-dependencies, and architectural risks in distributed pub-sub systems.
+Multi-layer graph analysis for distributed pub-sub systems.
+Identifies critical components, detects architectural problems,
+and assesses reliability, maintainability, and availability.
+
+Layers:
+    app      : Application layer (app_to_app dependencies)
+    infra    : Infrastructure layer (node_to_node dependencies)
+    mw-app   : Middleware-Application (app_to_broker dependencies)
+    mw-infra : Middleware-Infrastructure (node_to_broker dependencies)
+    system   : Complete system (all layers)
 
 Usage:
-    python analyze_graph.py --layer application
+    python analyze_graph.py --layer app
     python analyze_graph.py --all
-    python analyze_graph.py --layer complete
-    python analyze_graph.py --output results/analysis.json
+    python analyze_graph.py --layer system --output results.json
 
 Author: Software-as-a-Graph Research Project
 """
 
 import argparse
-import sys
 import json
 import logging
-from pathlib import Path
+import sys
 from datetime import datetime
-from typing import Optional, List
+from pathlib import Path
+from typing import List, Optional
 
-# Add project root to path
+# Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.analysis import (
     GraphAnalyzer,
+    AnalysisLayer,
     LayerAnalysisResult,
     MultiLayerAnalysisResult,
     CriticalityLevel,
-    AnalysisLayer,
+    get_all_layers,
 )
 
-# ============================================================================
-# ANSI Color Codes
-# ============================================================================
-COLORS = {
-    "RED": "\033[91m",
-    "GREEN": "\033[92m",
-    "YELLOW": "\033[93m",
-    "BLUE": "\033[94m",
-    "MAGENTA": "\033[95m",
-    "CYAN": "\033[96m",
-    "WHITE": "\033[97m",
-    "GRAY": "\033[90m",
-    "BOLD": "\033[1m",
-    "RESET": "\033[0m",
-}
 
-# Disable colors if not a TTY
-if not sys.stdout.isatty():
-    COLORS = {k: "" for k in COLORS}
+# =============================================================================
+# Terminal Colors
+# =============================================================================
 
-RED = COLORS["RED"]
-GREEN = COLORS["GREEN"]
-YELLOW = COLORS["YELLOW"]
-BLUE = COLORS["BLUE"]
-MAGENTA = COLORS["MAGENTA"]
-CYAN = COLORS["CYAN"]
-WHITE = COLORS["WHITE"]
-GRAY = COLORS["GRAY"]
-BOLD = COLORS["BOLD"]
-RESET = COLORS["RESET"]
+class Colors:
+    """ANSI color codes for terminal output."""
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    MAGENTA = "\033[95m"
+    CYAN = "\033[96m"
+    WHITE = "\033[97m"
+    GRAY = "\033[90m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+    RESET = "\033[0m"
 
 
-# ============================================================================
-# Display Functions
-# ============================================================================
-
-def print_header(title: str, char: str = "=") -> None:
-    """Print a section header."""
-    width = 70
-    print(f"\n{BOLD}{char * width}{RESET}")
-    print(f"{BOLD} {title}{RESET}")
-    print(f"{BOLD}{char * width}{RESET}")
-
-
-def print_subheader(title: str) -> None:
-    """Print a subsection header."""
-    print(f"\n{BOLD}>> {title}{RESET}")
+def colored(text: str, color: str, bold: bool = False) -> str:
+    """Apply color to text."""
+    style = Colors.BOLD if bold else ""
+    return f"{style}{color}{text}{Colors.RESET}"
 
 
 def level_color(level: CriticalityLevel) -> str:
     """Get color for criticality level."""
     return {
-        CriticalityLevel.CRITICAL: RED,
-        CriticalityLevel.HIGH: YELLOW,
-        CriticalityLevel.MEDIUM: BLUE,
-        CriticalityLevel.LOW: WHITE,
-        CriticalityLevel.MINIMAL: GRAY,
-    }.get(level, RESET)
+        CriticalityLevel.CRITICAL: Colors.RED,
+        CriticalityLevel.HIGH: Colors.YELLOW,
+        CriticalityLevel.MEDIUM: Colors.BLUE,
+        CriticalityLevel.LOW: Colors.WHITE,
+        CriticalityLevel.MINIMAL: Colors.GRAY,
+    }.get(level, Colors.RESET)
 
 
-def format_level(level: CriticalityLevel) -> str:
-    """Format criticality level with color."""
-    color = level_color(level)
-    return f"{color}{level.value.upper():8}{RESET}"
+def severity_color(severity: str) -> str:
+    """Get color for severity string."""
+    return {
+        "CRITICAL": Colors.RED,
+        "HIGH": Colors.YELLOW,
+        "MEDIUM": Colors.BLUE,
+        "LOW": Colors.GRAY,
+    }.get(severity, Colors.RESET)
+
+
+# =============================================================================
+# Display Functions
+# =============================================================================
+
+def print_header(title: str, char: str = "=", width: int = 78) -> None:
+    """Print a formatted header."""
+    print(f"\n{colored(char * width, Colors.CYAN)}")
+    print(f"{colored(f' {title} '.center(width), Colors.CYAN, bold=True)}")
+    print(f"{colored(char * width, Colors.CYAN)}")
+
+
+def print_subheader(title: str, char: str = "-", width: int = 78) -> None:
+    """Print a formatted subheader."""
+    print(f"\n{colored(f' {title} ', Colors.WHITE, bold=True)}")
+    print(f"{colored(char * width, Colors.GRAY)}")
 
 
 def display_graph_summary(result: LayerAnalysisResult) -> None:
-    """Display graph topology summary."""
-    summary = result.structural.graph_summary
+    """Display graph structure summary."""
+    print_subheader("Graph Summary")
     
-    print(f"\n  {CYAN}Layer:{RESET}        {result.layer_name}")
-    print(f"  {CYAN}Description:{RESET}  {result.description}")
-    print(f"  {CYAN}Nodes:{RESET}        {summary.nodes}")
-    print(f"  {CYAN}Edges:{RESET}        {summary.edges}")
-    print(f"  {CYAN}Density:{RESET}      {summary.density:.4f}")
-    print(f"  {CYAN}Connected:{RESET}    {GREEN if summary.is_connected else RED}{'Yes' if summary.is_connected else 'No'}{RESET}")
-    print(f"  {CYAN}Components:{RESET}   {summary.num_components}")
+    gs = result.structural.graph_summary
     
-    if summary.num_articulation_points > 0:
-        print(f"  {CYAN}SPOFs:{RESET}        {RED}{summary.num_articulation_points}{RESET}")
-    if summary.num_bridges > 0:
-        print(f"  {CYAN}Bridges:{RESET}      {YELLOW}{summary.num_bridges}{RESET}")
+    # Basic stats
+    print(f"  {'Nodes:':<20} {gs.nodes}")
+    print(f"  {'Edges:':<20} {gs.edges}")
+    print(f"  {'Density:':<20} {gs.density:.4f}")
+    print(f"  {'Avg Degree:':<20} {gs.avg_degree:.2f}")
+    print(f"  {'Avg Clustering:':<20} {gs.avg_clustering:.4f}")
     
-    # Node type breakdown
-    if summary.node_types:
-        types_str = ", ".join(f"{k}: {v}" for k, v in summary.node_types.items())
-        print(f"  {CYAN}Node Types:{RESET}   {types_str}")
+    # Connectivity
+    status = colored("Yes", Colors.GREEN) if gs.is_connected else colored("No", Colors.RED)
+    print(f"  {'Connected:':<20} {status}")
+    print(f"  {'Components:':<20} {gs.num_components}")
     
-    # Edge type breakdown
-    if summary.edge_types:
-        types_str = ", ".join(f"{k}: {v}" for k, v in summary.edge_types.items())
-        print(f"  {CYAN}Edge Types:{RESET}   {types_str}")
+    # Resilience indicators
+    ap_color = Colors.RED if gs.num_articulation_points > 0 else Colors.GREEN
+    br_color = Colors.RED if gs.num_bridges > 0 else Colors.GREEN
+    print(f"  {'Articulation Pts:':<20} {colored(str(gs.num_articulation_points), ap_color)}")
+    print(f"  {'Bridges:':<20} {colored(str(gs.num_bridges), br_color)}")
+    
+    # Health indicator
+    health = gs.connectivity_health
+    health_color = {
+        "ROBUST": Colors.GREEN,
+        "MODERATE": Colors.YELLOW,
+        "FRAGILE": Colors.RED,
+        "DISCONNECTED": Colors.RED,
+    }.get(health, Colors.WHITE)
+    print(f"  {'Health:':<20} {colored(health, health_color, bold=True)}")
+    
+    # Node types
+    if gs.node_types:
+        print(f"\n  Node Types: ", end="")
+        print(", ".join(f"{t}: {c}" for t, c in gs.node_types.items()))
+    
+    # Edge types
+    if gs.edge_types:
+        print(f"  Edge Types: ", end="")
+        print(", ".join(f"{t}: {c}" for t, c in gs.edge_types.items()))
 
 
 def display_classification_summary(result: LayerAnalysisResult) -> None:
     """Display classification distribution."""
+    print_subheader("Classification Summary")
+    
     summary = result.quality.classification_summary
     
-    print_subheader("Classification Distribution")
-    
     # Component distribution
-    comp_dist = summary.component_distribution
-    total = sum(comp_dist.values())
-    
-    print(f"\n  Components ({total} total):")
-    for level in [CriticalityLevel.CRITICAL, CriticalityLevel.HIGH, 
-                  CriticalityLevel.MEDIUM, CriticalityLevel.LOW, CriticalityLevel.MINIMAL]:
-        count = comp_dist.get(level.value, 0)
-        pct = count / total * 100 if total > 0 else 0
-        bar_len = int(pct / 5)  # Scale to max 20 chars
-        bar = "█" * bar_len
-        color = level_color(level)
-        print(f"    {color}{level.value.upper():8}{RESET} {count:3}  ({pct:5.1f}%)  {color}{bar}{RESET}")
+    print(f"\n  Components ({summary.total_components} total):")
+    for level in CriticalityLevel:
+        count = summary.component_distribution.get(level.value, 0)
+        if count > 0:
+            bar_len = min(count * 2, 40)
+            bar = "█" * bar_len
+            color = level_color(level)
+            print(f"    {level.value:10} {colored(bar, color)} {count}")
     
     # Edge distribution
-    edge_dist = summary.edge_distribution
-    total_edges = sum(edge_dist.values())
-    
-    if total_edges > 0:
-        print(f"\n  Dependencies ({total_edges} total):")
-        for level in [CriticalityLevel.CRITICAL, CriticalityLevel.HIGH]:
-            count = edge_dist.get(level.value, 0)
+    if summary.total_edges > 0:
+        print(f"\n  Edges ({summary.total_edges} total):")
+        for level in CriticalityLevel:
+            count = summary.edge_distribution.get(level.value, 0)
             if count > 0:
+                bar_len = min(count * 2, 40)
+                bar = "█" * bar_len
                 color = level_color(level)
-                print(f"    {color}{level.value.upper():8}{RESET} {count:3}")
+                print(f"    {level.value:10} {colored(bar, color)} {count}")
 
 
 def display_critical_components(result: LayerAnalysisResult, limit: int = 15) -> None:
     """Display top critical components."""
-    critical = [c for c in result.quality.components if c.levels.overall >= CriticalityLevel.HIGH]
-    critical.sort(key=lambda x: x.scores.overall, reverse=True)
+    print_subheader("Top Components by Criticality")
     
-    print_subheader(f"Critical Components (Box-Plot Outliers)")
+    components = result.quality.components[:limit]
     
-    if not critical:
-        print(f"  {GREEN}✓ No critical components detected.{RESET}")
+    if not components:
+        print(f"  {colored('No components found.', Colors.GRAY)}")
         return
     
     # Header
-    print(f"\n  {'-' * 78}")
-    print(f"  {'ID':<20} {'Type':<12} {'Overall':<8} {'R':<8} {'M':<8} {'A':<8} {'Flags':<10}")
-    print(f"  {'-' * 78}")
+    header = f"  {'ID':<25} {'Type':<12} {'R':<7} {'M':<7} {'A':<7} {'Q':<7} {'Level':<10}"
+    print(colored(header, Colors.WHITE, bold=True))
+    print(f"  {'-' * 75}")
     
-    for c in critical[:limit]:
-        # Build flags
-        flags = []
-        if c.structural.is_articulation_point:
-            flags.append(f"{RED}SPOF{RESET}")
-        if c.structural.bridge_ratio > 0.3:
-            flags.append(f"{YELLOW}BR{RESET}")
-        flags_str = " ".join(flags) if flags else "-"
-        
-        # Color by overall level
+    for c in components:
+        level_str = c.levels.overall.value.upper()
         color = level_color(c.levels.overall)
         
-        # Level indicators
-        r_mark = level_color(c.levels.reliability) + c.levels.reliability.symbol + RESET
-        m_mark = level_color(c.levels.maintainability) + c.levels.maintainability.symbol + RESET
-        a_mark = level_color(c.levels.availability) + c.levels.availability.symbol + RESET
+        # Indicator symbols
+        ap_flag = colored("●", Colors.RED) if c.structural.is_articulation_point else " "
         
         print(
-            f"  {c.id:<20} {c.type:<12} "
-            f"{color}{c.scores.overall:.3f}{RESET}    "
-            f"{r_mark:<8} {m_mark:<8} {a_mark:<8} {flags_str}"
+            f"  {c.id:<25} {c.type:<12} "
+            f"{c.scores.reliability:.3f}  {c.scores.maintainability:.3f}  "
+            f"{c.scores.availability:.3f}  {colored(f'{c.scores.overall:.3f}', color)}  "
+            f"{colored(level_str, color):<10} {ap_flag}"
         )
     
-    if len(critical) > limit:
-        print(f"\n  {GRAY}... and {len(critical) - limit} more{RESET}")
+    if len(result.quality.components) > limit:
+        print(f"\n  {colored(f'... and {len(result.quality.components) - limit} more', Colors.GRAY)}")
+    
+    # Legend
+    print(f"\n  Legend: R=Reliability, M=Maintainability, A=Availability, Q=Overall")
+    print(f"          {colored('●', Colors.RED)} = Articulation Point (SPOF)")
 
 
 def display_critical_edges(result: LayerAnalysisResult, limit: int = 10) -> None:
-    """Display critical edges/dependencies."""
-    critical_edges = [e for e in result.quality.edges if e.level >= CriticalityLevel.HIGH]
-    critical_edges.sort(key=lambda x: x.scores.overall, reverse=True)
+    """Display top critical edges."""
+    print_subheader("Critical Edges")
+    
+    critical_edges = [e for e in result.quality.edges if e.level >= CriticalityLevel.HIGH][:limit]
     
     if not critical_edges:
+        print(f"  {colored('No critical edges detected.', Colors.GREEN)}")
         return
     
-    print_subheader("Critical Dependencies")
-    
-    print(f"\n  {'-' * 65}")
-    print(f"  {'Source':<15} {'→':<3} {'Target':<15} {'Type':<12} {'Score':<8} {'Bridge'}")
-    print(f"  {'-' * 65}")
-    
-    for e in critical_edges[:limit]:
+    for e in critical_edges:
         color = level_color(e.level)
-        bridge_mark = f"{RED}Yes{RESET}" if e.is_bridge else f"{GRAY}No{RESET}"
-        
+        bridge_flag = colored("🌉", Colors.RED) if e.structural and e.structural.is_bridge else ""
         print(
-            f"  {e.source:<15} → {e.target:<15} "
-            f"{e.type:<12} {color}{e.scores.overall:.3f}{RESET}    {bridge_mark}"
+            f"  {e.source} → {e.target} "
+            f"[{e.dependency_type}] "
+            f"Score: {colored(f'{e.scores.overall:.3f}', color)} "
+            f"{colored(e.level.value.upper(), color)} {bridge_flag}"
         )
 
 
-def display_problems(result: LayerAnalysisResult, limit: int = 20) -> None:
+def display_problems(result: LayerAnalysisResult, limit: int = 10) -> None:
     """Display detected problems."""
+    print_subheader("Detected Problems")
+    
     problems = result.problems
     
-    print_subheader("Detected Problems & Risks")
-    
     if not problems:
-        print(f"  {GREEN}✓ No architectural problems detected.{RESET}")
+        print(f"  {colored('✓ No architectural problems detected.', Colors.GREEN)}")
         return
     
     # Summary
@@ -244,8 +253,8 @@ def display_problems(result: LayerAnalysisResult, limit: int = 20) -> None:
     for sev in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
         count = summary.by_severity.get(sev, 0)
         if count > 0:
-            color = RED if sev == "CRITICAL" else (YELLOW if sev == "HIGH" else BLUE)
-            print(f"{color}{sev}: {count}{RESET}  ", end="")
+            color = severity_color(sev)
+            print(f"{colored(f'{sev}: {count}', color)}  ", end="")
     print()
     
     # Details
@@ -255,53 +264,26 @@ def display_problems(result: LayerAnalysisResult, limit: int = 20) -> None:
         if i > 0:
             print(f"  {'-' * 75}")
         
-        sev_color = RED if p.severity == "CRITICAL" else (YELLOW if p.severity == "HIGH" else BLUE)
+        sev_color = severity_color(p.severity)
         
-        print(f"  [{sev_color}{p.severity:8}{RESET}] {BOLD}{p.name}{RESET}")
-        print(f"             Entity: {CYAN}{p.entity_id}{RESET} ({p.entity_type})")
-        print(f"             Category: {p.category}")
+        print(f"  [{colored(p.severity, sev_color, bold=True):>8}] {colored(p.name, Colors.WHITE, bold=True)}")
+        print(f"           Entity: {colored(p.entity_id, Colors.CYAN)} ({p.entity_type})")
+        print(f"           Category: {p.category}")
         
         # Wrap description
-        desc_lines = _wrap_text(p.description, 55)
-        print(f"             Issue: {desc_lines[0]}")
+        desc_lines = _wrap_text(p.description, 60)
+        print(f"           Issue: {desc_lines[0]}")
         for line in desc_lines[1:]:
-            print(f"                    {line}")
+            print(f"                  {line}")
         
         # Wrap recommendation
-        rec_lines = _wrap_text(p.recommendation, 55)
-        print(f"             Fix: {GREEN}{rec_lines[0]}{RESET}")
+        rec_lines = _wrap_text(p.recommendation, 60)
+        print(f"           Fix: {colored(rec_lines[0], Colors.GREEN)}")
         for line in rec_lines[1:]:
-            print(f"                  {GREEN}{line}{RESET}")
+            print(f"                {colored(line, Colors.GREEN)}")
     
     if len(problems) > limit:
-        print(f"\n  {GRAY}... and {len(problems) - limit} more{RESET}")
-
-
-def display_layer_result(result: LayerAnalysisResult) -> None:
-    """Display complete analysis result for a single layer."""
-    print_header(f"Analysis: {result.layer_name}")
-    
-    display_graph_summary(result)
-    display_classification_summary(result)
-    display_critical_components(result)
-    display_critical_edges(result)
-    display_problems(result)
-
-
-def display_multi_layer_result(results: MultiLayerAnalysisResult) -> None:
-    """Display analysis results for multiple layers."""
-    print_header("Multi-Layer Analysis Results", "═")
-    print(f"\n  Timestamp: {results.timestamp}")
-    print(f"  Layers analyzed: {', '.join(results.layers.keys())}")
-    
-    for layer_name, layer_result in results.layers.items():
-        display_layer_result(layer_result)
-    
-    # Cross-layer insights
-    if results.cross_layer_insights:
-        print_header("Cross-Layer Insights", "-")
-        for insight in results.cross_layer_insights:
-            print(f"  • {insight}")
+        print(f"\n  {colored(f'... and {len(problems) - limit} more', Colors.GRAY)}")
 
 
 def _wrap_text(text: str, width: int) -> List[str]:
@@ -327,51 +309,130 @@ def _wrap_text(text: str, width: int) -> List[str]:
     return lines or [""]
 
 
-# ============================================================================
-# Main Entry Point
-# ============================================================================
+def display_layer_result(result: LayerAnalysisResult) -> None:
+    """Display complete analysis result for a single layer."""
+    print_header(f"{result.layer_name} Analysis")
+    print(f"  {colored(result.description, Colors.GRAY)}")
+    
+    display_graph_summary(result)
+    display_classification_summary(result)
+    display_critical_components(result)
+    display_critical_edges(result)
+    display_problems(result)
+
+
+def display_multi_layer_result(results: MultiLayerAnalysisResult) -> None:
+    """Display analysis results for multiple layers."""
+    print_header("Multi-Layer Analysis Results", "═")
+    print(f"\n  Timestamp: {results.timestamp}")
+    print(f"  Layers: {', '.join(results.layers.keys())}")
+    
+    for layer_name, layer_result in results.layers.items():
+        display_layer_result(layer_result)
+    
+    # Cross-layer insights
+    if results.cross_layer_insights:
+        print_subheader("Cross-Layer Insights")
+        for insight in results.cross_layer_insights:
+            print(f"  • {insight}")
+    
+    # Overall summary
+    print_subheader("Overall Summary")
+    summary = results.summary
+    print(f"  Layers analyzed:     {summary['layers_analyzed']}")
+    print(f"  Total components:    {summary['total_components']}")
+    print(f"  Total problems:      {summary['total_problems']}")
+    if summary['critical_problems'] > 0:
+        print(f"  Critical problems:   {colored(str(summary['critical_problems']), Colors.RED, bold=True)}")
+
+
+def display_final_summary(results: MultiLayerAnalysisResult) -> None:
+    """Display final summary with actionable items."""
+    print_header("Action Items", "-")
+    
+    all_problems = results.get_all_problems()
+    critical_count = sum(1 for p in all_problems if p.severity == "CRITICAL")
+    high_count = sum(1 for p in all_problems if p.severity == "HIGH")
+    
+    if critical_count > 0:
+        print(f"\n  {colored(f'⚠ {critical_count} CRITICAL issues require immediate attention', Colors.RED, bold=True)}")
+        for p in all_problems:
+            if p.severity == "CRITICAL":
+                print(f"    • {p.entity_id}: {p.name}")
+    
+    if high_count > 0:
+        print(f"\n  {colored(f'⚠ {high_count} HIGH priority issues should be reviewed', Colors.YELLOW)}")
+    
+    if critical_count == 0 and high_count == 0:
+        print(f"\n  {colored('✓ No high-priority issues detected. System looks healthy!', Colors.GREEN, bold=True)}")
+    
+    print()
+
+
+# =============================================================================
+# CLI Entry Point
+# =============================================================================
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Analyze multi-layer graph models for distributed pub-sub systems.",
+        description="Multi-layer graph analysis for distributed pub-sub systems.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Layers:
+  app        Application layer (app_to_app dependencies)
+  infra      Infrastructure layer (node_to_node dependencies)
+  mw-app     Middleware-Application (app_to_broker dependencies)
+  mw-infra   Middleware-Infrastructure (node_to_broker dependencies)
+  system     Complete system (all dependencies)
+
 Examples:
-  %(prog)s --layer application
-  %(prog)s --all
-  %(prog)s --output results/analysis.json
-  %(prog)s --layer complete
+  %(prog)s --layer app
+  %(prog)s --layer system --output results.json
+  %(prog)s --all --include-middleware
+  %(prog)s --all --json
         """
     )
+    
     # Layer selection
     layer_group = parser.add_mutually_exclusive_group()
     layer_group.add_argument(
         "--layer", "-l",
-        choices=["application", "infrastructure", "complete", "app_broker", "node_broker"],
-        default="complete",
-        help="Analysis layer (default: complete)"
+        choices=["app", "infra", "mw-app", "mw-infra", "system"],
+        default="system",
+        help="Analysis layer (default: system)"
     )
     layer_group.add_argument(
         "--all", "-a",
         action="store_true",
-        help="Analyze all primary layers (application, infrastructure, complete)"
+        help="Analyze all primary layers (app, infra, system)"
     )
     
-    # Output
+    # Additional options
+    parser.add_argument(
+        "--include-middleware",
+        action="store_true",
+        help="Include middleware layers when using --all"
+    )
+    
+    # Output options
     parser.add_argument(
         "--output", "-o",
         metavar="FILE",
         help="Export results to JSON file"
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON to stdout"
+    )
     
-    # Neo4j authentication
+    # Neo4j connection
     parser.add_argument(
         "--uri", "-n",
         default="bolt://localhost:7687",
         help="Neo4j connection URI (default: bolt://localhost:7687)"
     )
-
     parser.add_argument(
         "--user", "-u",
         default="neo4j",
@@ -383,12 +444,12 @@ Examples:
         help="Neo4j password (default: password)"
     )
     
-    # Analysis options
+    # Analysis parameters
     parser.add_argument(
         "--k-factor", "-k",
         type=float,
         default=1.5,
-        help="Box-plot IQR multiplier for outlier detection (default: 1.5)"
+        help="Box-plot IQR multiplier for classification (default: 1.5)"
     )
     parser.add_argument(
         "--damping", "-d",
@@ -408,11 +469,6 @@ Examples:
         action="store_true",
         help="Verbose output with debug information"
     )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output results as JSON to stdout"
-    )
     
     return parser.parse_args()
 
@@ -425,23 +481,23 @@ def main() -> int:
     log_level = logging.DEBUG if args.verbose else (logging.WARNING if args.quiet else logging.INFO)
     logging.basicConfig(
         level=log_level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S"
     )
     
     try:
         # Create analyzer
-        analyzer_kwargs = {
-            "damping_factor": args.damping,
-            "k_factor": args.k_factor,
-        }
-        analyzer_kwargs["uri"] = args.uri
-        analyzer_kwargs["user"] = args.user
-        analyzer_kwargs["password"] = args.password
-        
-        with GraphAnalyzer(**analyzer_kwargs) as analyzer:
+        with GraphAnalyzer(
+            uri=args.uri,
+            user=args.user,
+            password=args.password,
+            damping_factor=args.damping,
+            k_factor=args.k_factor,
+        ) as analyzer:
+            
             # Run analysis
             if args.all:
-                results = analyzer.analyze_all_layers()
+                results = analyzer.analyze_all_layers(include_middleware=args.include_middleware)
             else:
                 layer_result = analyzer.analyze_layer(args.layer)
                 results = MultiLayerAnalysisResult(
@@ -454,11 +510,11 @@ def main() -> int:
             if args.output:
                 analyzer.export_results(results, args.output)
                 if not args.quiet:
-                    print(f"\n{GREEN}Results exported to: {args.output}{RESET}")
+                    print(f"\n{colored(f'Results exported to: {args.output}', Colors.GREEN)}")
             
             # Output
             if args.json:
-                print(json.dumps(results.to_dict(), indent=2))
+                print(json.dumps(results.to_dict(), indent=2, default=str))
             elif not args.quiet:
                 if args.all or len(results.layers) > 1:
                     display_multi_layer_result(results)
@@ -466,29 +522,22 @@ def main() -> int:
                     layer_result = list(results.layers.values())[0]
                     display_layer_result(layer_result)
                 
-                # Final summary
-                all_problems = results.get_all_problems()
-                critical_count = sum(1 for p in all_problems if p.severity == "CRITICAL")
-                high_count = sum(1 for p in all_problems if p.severity == "HIGH")
-                
-                print_header("Summary", "-")
-                if critical_count > 0:
-                    print(f"\n  {RED}⚠ {critical_count} CRITICAL issues require immediate attention{RESET}")
-                if high_count > 0:
-                    print(f"  {YELLOW}⚠ {high_count} HIGH priority issues should be reviewed{RESET}")
-                if critical_count == 0 and high_count == 0:
-                    print(f"\n  {GREEN}✓ No high-priority issues detected{RESET}")
-                
-                print()
+                # Final action items
+                display_final_summary(results)
         
         return 0
     
+    except KeyboardInterrupt:
+        print(f"\n{colored('Analysis interrupted.', Colors.YELLOW)}")
+        return 130
+    
     except FileNotFoundError as e:
-        print(f"{RED}Error: {e}{RESET}", file=sys.stderr)
+        print(f"{colored(f'Error: {e}', Colors.RED)}", file=sys.stderr)
         return 1
+    
     except Exception as e:
         logging.exception("Analysis failed")
-        print(f"{RED}Error: {e}{RESET}", file=sys.stderr)
+        print(f"{colored(f'Error: {e}', Colors.RED)}", file=sys.stderr)
         return 1
 
 

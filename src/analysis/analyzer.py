@@ -1,15 +1,24 @@
 """
 Graph Analyzer
 
-Main orchestrator for multi-layer graph analysis.
-Coordinates structural analysis, quality scoring, and problem detection.
+Main orchestrator for multi-layer graph analysis of distributed pub-sub systems.
 
-Supports analysis layers:
-- Application: Service-level reliability (app-to-app dependencies)
-- Infrastructure: Network topology resilience (node-to-node dependencies)
-- Complete: System-wide analysis across all layers
+Coordinates:
+    - Structural analysis (topological metrics via NetworkX)
+    - Quality analysis (R, M, A scores)
+    - Problem detection (architectural issues and risks)
+    - Multi-layer comparison (app, infra, middleware, system)
 
-Author: Software-as-a-Graph Research Project
+Usage:
+    with GraphAnalyzer(uri="bolt://localhost:7687") as analyzer:
+        # Analyze single layer
+        result = analyzer.analyze_layer(AnalysisLayer.APP)
+        
+        # Analyze all layers
+        results = analyzer.analyze_all_layers()
+        
+        # Export results
+        analyzer.export_results(results, "output/analysis.json")
 """
 
 from __future__ import annotations
@@ -17,25 +26,29 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass, asdict
+from typing import Dict, List, Any, Optional, Union
 
-from .structural_analyzer import (
-    StructuralAnalyzer, 
-    StructuralAnalysisResult, 
-    AnalysisLayer,
-    LAYER_DEFINITIONS
+from .layers import (
+    AnalysisLayer, 
+    LAYER_DEFINITIONS, 
+    get_layer_definition,
+    get_all_layers,
+    get_primary_layers
 )
+from .structural_analyzer import StructuralAnalyzer, StructuralAnalysisResult
 from .quality_analyzer import QualityAnalyzer, QualityAnalysisResult
 from .problem_detector import ProblemDetector, DetectedProblem, ProblemSummary
 from .classifier import CriticalityLevel
 
-from src.core.graph_exporter import GraphExporter
 
 @dataclass
 class LayerAnalysisResult:
-    """Complete analysis result for a single layer."""
+    """
+    Complete analysis result for a single layer.
     
+    Contains structural metrics, quality scores, and detected problems.
+    """
     layer: str
     layer_name: str
     description: str
@@ -54,12 +67,25 @@ class LayerAnalysisResult:
             "problems": [p.to_dict() for p in self.problems],
             "problem_summary": self.problem_summary.to_dict(),
         }
+    
+    @property
+    def is_healthy(self) -> bool:
+        """Check if layer has no critical issues."""
+        return self.problem_summary.by_severity.get("CRITICAL", 0) == 0
+    
+    @property
+    def requires_attention(self) -> bool:
+        """Check if layer has critical or high severity issues."""
+        return self.problem_summary.requires_attention > 0
 
 
 @dataclass
 class MultiLayerAnalysisResult:
-    """Complete analysis result across multiple layers."""
+    """
+    Complete analysis result across multiple layers.
     
+    Enables cross-layer comparison and system-wide insights.
+    """
     timestamp: str
     layers: Dict[str, LayerAnalysisResult]
     cross_layer_insights: List[str]
@@ -72,11 +98,11 @@ class MultiLayerAnalysisResult:
         }
     
     def get_all_problems(self) -> List[DetectedProblem]:
-        """Get all problems across all layers."""
+        """Get all problems across all layers, sorted by severity."""
         all_problems = []
         for layer_result in self.layers.values():
             all_problems.extend(layer_result.problems)
-        return sorted(all_problems, key=lambda p: -p.priority)
+        return sorted(all_problems, key=lambda p: (-p.priority, p.entity_id))
     
     def get_all_critical_components(self) -> List[str]:
         """Get IDs of all critical components across layers."""
@@ -85,16 +111,39 @@ class MultiLayerAnalysisResult:
             for comp in layer_result.quality.get_critical_components():
                 critical.add(comp.id)
         return sorted(critical)
+    
+    def get_layer(self, layer: Union[str, AnalysisLayer]) -> Optional[LayerAnalysisResult]:
+        """Get result for a specific layer."""
+        key = layer.value if isinstance(layer, AnalysisLayer) else layer
+        return self.layers.get(key)
+    
+    @property
+    def summary(self) -> Dict[str, Any]:
+        """Get a summary across all layers."""
+        total_components = 0
+        total_problems = 0
+        critical_count = 0
+        
+        for layer_result in self.layers.values():
+            total_components += layer_result.quality.classification_summary.total_components
+            total_problems += layer_result.problem_summary.total_problems
+            critical_count += layer_result.problem_summary.by_severity.get("CRITICAL", 0)
+        
+        return {
+            "layers_analyzed": len(self.layers),
+            "total_components": total_components,
+            "total_problems": total_problems,
+            "critical_problems": critical_count,
+            "cross_layer_insights": len(self.cross_layer_insights),
+        }
 
 
 class GraphAnalyzer:
     """
     Main analyzer for multi-layer graph analysis.
     
-    Coordinates:
-    - Structural analysis (graph metrics)
-    - Quality analysis (R, M, A scores)
-    - Problem detection (architectural issues)
+    Coordinates structural analysis, quality scoring, and problem detection
+    across all layers of the pub-sub system graph model.
     
     Supports both Neo4j database and JSON file data sources.
     """
@@ -111,11 +160,11 @@ class GraphAnalyzer:
         Initialize the analyzer.
         
         Args:
-            uri: Neo4j connection URI (e.g., "bolt://localhost:7687")
+            uri: Neo4j connection URI
             user: Neo4j username
             password: Neo4j password
-            damping_factor: PageRank damping factor
-            k_factor: Box-plot IQR multiplier for classification
+            damping_factor: PageRank damping factor (default: 0.85)
+            k_factor: Box-plot IQR multiplier for classification (default: 1.5)
         """
         self.uri = uri
         self.user = user
@@ -130,8 +179,8 @@ class GraphAnalyzer:
         self.quality = QualityAnalyzer(k_factor=k_factor)
         self.detector = ProblemDetector()
         
-        # Data source
-        self._client = GraphExporter(self.uri, self.user, self.password)
+        # Data source (lazy initialization)
+        self._client = None
         self._graph_data = None
     
     def __enter__(self):
@@ -143,24 +192,38 @@ class GraphAnalyzer:
         if self._client:
             self._client.close()
     
+    def _get_client(self):
+        """Lazy initialization of database client."""
+        if self._client is None:
+            # Import here to avoid circular dependency
+            try:
+                from src.core.graph_exporter import GraphExporter
+                self._client = GraphExporter(self.uri, self.user, self.password)
+            except ImportError:
+                self.logger.error("GraphExporter not available. Install neo4j driver.")
+                raise
+        return self._client
+    
     def _load_data(self, layer: AnalysisLayer) -> Any:
-        # Load from Neo4j
-        layer_def = LAYER_DEFINITIONS[layer]
-        return self._client.get_graph_data(
-            component_types=list(layer_def["component_types"]) if layer != AnalysisLayer.COMPLETE else None,
-            dependency_types=list(layer_def["dependency_types"]) if layer != AnalysisLayer.COMPLETE else None,
+        """Load graph data for the specified layer."""
+        client = self._get_client()
+        layer_def = get_layer_definition(layer)
+        
+        return client.get_graph_data(
+            component_types=list(layer_def.component_types) if layer != AnalysisLayer.SYSTEM else None,
+            dependency_types=list(layer_def.dependency_types) if layer != AnalysisLayer.SYSTEM else None,
         )
     
     def analyze_layer(
-        self, 
-        layer: Union[str, AnalysisLayer] = AnalysisLayer.COMPLETE,
+        self,
+        layer: Union[str, AnalysisLayer] = AnalysisLayer.SYSTEM,
         context: Optional[str] = None
     ) -> LayerAnalysisResult:
         """
         Analyze a single layer of the graph.
         
         Args:
-            layer: Analysis layer (application, infrastructure, complete)
+            layer: Analysis layer (app, infra, mw-app, mw-infra, system)
             context: Optional context label for the analysis
             
         Returns:
@@ -168,20 +231,20 @@ class GraphAnalyzer:
         """
         # Convert string to enum if needed
         if isinstance(layer, str):
-            layer = AnalysisLayer(layer.lower())
+            layer = AnalysisLayer.from_string(layer)
         
-        layer_def = LAYER_DEFINITIONS[layer]
-        context = context or layer_def["name"]
+        layer_def = get_layer_definition(layer)
+        context = context or layer_def.name
         
-        self.logger.info(f"Analyzing layer: {layer.value}")
+        self.logger.info(f"Analyzing layer: {layer.value} ({layer_def.name})")
         
-        # 1. Load graph data for this layer
+        # 1. Load graph data
         graph_data = self._load_data(layer)
         
-        # 2. Structural analysis
+        # 2. Structural analysis (compute metrics)
         structural_result = self.structural.analyze(graph_data, layer=layer)
         
-        # 3. Quality analysis
+        # 3. Quality analysis (compute R, M, A scores and classify)
         quality_result = self.quality.analyze(structural_result, context=context)
         
         # 4. Problem detection
@@ -190,31 +253,37 @@ class GraphAnalyzer:
         
         return LayerAnalysisResult(
             layer=layer.value,
-            layer_name=layer_def["name"],
-            description=layer_def["description"],
+            layer_name=layer_def.name,
+            description=layer_def.description,
             structural=structural_result,
             quality=quality_result,
             problems=problems,
             problem_summary=problem_summary,
         )
     
-    def analyze_all_layers(self) -> MultiLayerAnalysisResult:
+    def analyze_all_layers(
+        self,
+        include_middleware: bool = False
+    ) -> MultiLayerAnalysisResult:
         """
-        Analyze all primary layers (Application, Infrastructure, Complete).
+        Analyze multiple layers.
         
+        Args:
+            include_middleware: Include middleware layers (mw-app, mw-infra)
+            
         Returns:
             MultiLayerAnalysisResult with analysis for each layer
         """
-        layers_to_analyze = [
-            AnalysisLayer.APPLICATION,
-            AnalysisLayer.INFRASTRUCTURE,
-            AnalysisLayer.COMPLETE,
-        ]
+        if include_middleware:
+            layers_to_analyze = get_all_layers()
+        else:
+            layers_to_analyze = get_primary_layers()
         
         results: Dict[str, LayerAnalysisResult] = {}
         
         for layer in layers_to_analyze:
             try:
+                self.logger.info(f"Analyzing {layer.value}...")
                 results[layer.value] = self.analyze_layer(layer)
             except Exception as e:
                 self.logger.warning(f"Failed to analyze layer {layer.value}: {e}")
@@ -229,63 +298,73 @@ class GraphAnalyzer:
         )
     
     def _generate_cross_layer_insights(
-        self, 
+        self,
         results: Dict[str, LayerAnalysisResult]
     ) -> List[str]:
         """Generate insights by comparing analysis across layers."""
         insights = []
         
-        app_result = results.get("application")
-        infra_result = results.get("infrastructure")
-        complete_result = results.get("complete")
+        if len(results) < 2:
+            return insights
         
-        # Insight 1: Compare component counts
-        if app_result and infra_result:
-            app_nodes = app_result.structural.graph_summary.nodes
-            infra_nodes = infra_result.structural.graph_summary.nodes
-            
-            if app_nodes > 0 and infra_nodes > 0:
-                ratio = app_nodes / infra_nodes
-                if ratio > 5:
-                    insights.append(
-                        f"High application density: {app_nodes} applications across {infra_nodes} nodes "
-                        f"(ratio: {ratio:.1f}:1). Consider infrastructure scaling."
-                    )
+        # Compare critical component counts
+        layer_criticals = {
+            name: len(r.quality.get_critical_components())
+            for name, r in results.items()
+        }
         
-        # Insight 2: Compare SPOF counts
-        if app_result and infra_result:
-            app_spofs = app_result.structural.graph_summary.num_articulation_points
-            infra_spofs = infra_result.structural.graph_summary.num_articulation_points
-            
-            if infra_spofs > app_spofs and infra_spofs > 0:
-                insights.append(
-                    f"Infrastructure has more SPOFs ({infra_spofs}) than application layer ({app_spofs}). "
-                    f"Infrastructure topology may be the bottleneck."
-                )
+        max_critical_layer = max(layer_criticals, key=layer_criticals.get) if layer_criticals else None
+        if max_critical_layer and layer_criticals[max_critical_layer] > 0:
+            insights.append(
+                f"Layer '{max_critical_layer}' has the most critical components "
+                f"({layer_criticals[max_critical_layer]}). Focus remediation here first."
+            )
         
-        # Insight 3: Critical component overlap
-        if app_result and complete_result:
-            app_critical = {c.id for c in app_result.quality.get_high_priority()}
-            complete_critical = {c.id for c in complete_result.quality.get_high_priority()}
-            
-            app_only = app_critical - complete_critical
-            if app_only:
-                insights.append(
-                    f"Components critical in application layer but not system-wide: {', '.join(list(app_only)[:3])}. "
-                    f"May be local hotspots."
-                )
+        # Compare SPOF counts
+        layer_spofs = {}
+        for name, r in results.items():
+            spofs = [c for c in r.quality.components if c.structural.is_articulation_point]
+            layer_spofs[name] = len(spofs)
         
-        # Insight 4: Connectivity comparison
+        total_spofs = sum(layer_spofs.values())
+        if total_spofs > 0:
+            worst_layer = max(layer_spofs, key=layer_spofs.get)
+            insights.append(
+                f"System has {total_spofs} single points of failure across all layers. "
+                f"Layer '{worst_layer}' has the most ({layer_spofs[worst_layer]})."
+            )
+        
+        # App vs Infra comparison
+        app_result = results.get(AnalysisLayer.APP.value)
+        infra_result = results.get(AnalysisLayer.INFRA.value)
+        
         if app_result and infra_result:
             app_density = app_result.structural.graph_summary.density
             infra_density = infra_result.structural.graph_summary.density
             
-            if app_density > 0 and infra_density > 0:
-                if app_density > 2 * infra_density:
-                    insights.append(
-                        f"Application layer is much denser ({app_density:.3f}) than infrastructure ({infra_density:.3f}). "
-                        f"Many app dependencies share few infrastructure links."
-                    )
+            if app_density > 2 * infra_density:
+                insights.append(
+                    f"Application layer is much denser ({app_density:.3f}) than infrastructure "
+                    f"({infra_density:.3f}). Consider if infrastructure can support the connectivity needs."
+                )
+            elif infra_density > 2 * app_density:
+                insights.append(
+                    f"Infrastructure is denser ({infra_density:.3f}) than application layer "
+                    f"({app_density:.3f}). Good redundancy at network level."
+                )
+        
+        # Problem concentration
+        all_problems = []
+        for r in results.values():
+            all_problems.extend(r.problems)
+        
+        if all_problems:
+            critical_count = sum(1 for p in all_problems if p.severity == "CRITICAL")
+            if critical_count > 5:
+                insights.append(
+                    f"System has {critical_count} CRITICAL issues across layers. "
+                    f"Recommend comprehensive architecture review."
+                )
         
         if not insights:
             insights.append("No significant cross-layer anomalies detected.")
@@ -293,7 +372,7 @@ class GraphAnalyzer:
         return insights
     
     def export_results(
-        self, 
+        self,
         results: Union[LayerAnalysisResult, MultiLayerAnalysisResult],
         output_path: str,
         include_structural: bool = False
@@ -318,67 +397,44 @@ class GraphAnalyzer:
                 for layer_data in data["layers"].values():
                     if "structural" in layer_data:
                         del layer_data["structural"]
+            elif "structural" in data:
+                del data["structural"]
         
         with open(path, 'w') as f:
             json.dump(data, f, indent=2, default=str)
         
         self.logger.info(f"Results exported to: {path.absolute()}")
-    
-    # Legacy method for backward compatibility
-    def analyze(
-        self,
-        layer: str = "complete",
-        component_type: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Legacy analyze method for backward compatibility.
-        
-        Returns dict format matching previous implementation.
-        """
-        result = self.analyze_layer(layer)
-        
-        # Filter by component type if specified
-        if component_type:
-            result.quality.components = [
-                c for c in result.quality.components if c.type == component_type
-            ]
-        
-        return {
-            "timestamp": result.quality.timestamp,
-            "context": result.layer_name,
-            "summary": result.quality.classification_summary.to_dict(),
-            "stats": result.structural.graph_summary.to_dict(),
-            "problems": [p.to_dict() for p in result.problems],
-            "results": result.quality,
-        }
 
 
-# Convenience function for quick analysis
+# =============================================================================
+# Convenience Functions
+# =============================================================================
+
 def analyze_graph(
-    layer: str = "complete",
+    layer: str = "system",
+    uri: str = "bolt://localhost:7687",
+    user: str = "neo4j",
+    password: str = "password",
     output: Optional[str] = None
-) -> MultiLayerAnalysisResult:
+) -> Union[LayerAnalysisResult, MultiLayerAnalysisResult]:
     """
     Convenience function for quick graph analysis.
     
     Args:
-        source: Neo4j URI or path to JSON file
-        layer: Layer to analyze ("application", "infrastructure", "complete", "all")
+        layer: Layer to analyze ("app", "infra", "system", "all")
+        uri: Neo4j connection URI
+        user: Neo4j username
+        password: Neo4j password
         output: Optional path to export results
         
     Returns:
         Analysis results
     """
-    with GraphAnalyzer() as analyzer:
-        if layer == "all":
+    with GraphAnalyzer(uri=uri, user=user, password=password) as analyzer:
+        if layer.lower() == "all":
             results = analyzer.analyze_all_layers()
         else:
-            single_result = analyzer.analyze_layer(layer)
-            results = MultiLayerAnalysisResult(
-                timestamp=datetime.now().isoformat(),
-                layers={single_result.layer: single_result},
-                cross_layer_insights=[],
-            )
+            results = analyzer.analyze_layer(layer)
         
         if output:
             analyzer.export_results(results, output)
