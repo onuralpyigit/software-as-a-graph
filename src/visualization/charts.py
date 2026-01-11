@@ -30,7 +30,8 @@ COLORS = {
     "APP": "#3498db",      # Blue
     "INFRA": "#9b59b6",    # Purple
     "PRED": "#34495e",     # Dark Blue
-    "ACTUAL": "#16a085"    # Teal
+    "ACTUAL": "#16a085",   # Teal
+    "PROBLEM": "#8e44ad"   # Purple for problems
 }
 
 @dataclass
@@ -44,7 +45,6 @@ class ChartGenerator:
         self.logger = logging.getLogger(__name__)
         if HAS_MATPLOTLIB:
             plt.style.use('ggplot')
-            # Set global font sizes
             plt.rc('font', size=10) 
             plt.rc('axes', titlesize=12) 
             plt.rc('axes', labelsize=10)
@@ -97,10 +97,29 @@ class ChartGenerator:
         
         return ChartOutput(title, self._fig_to_base64(fig), "Distribution of components across criticality levels.")
 
+    def plot_problem_severity(self, counts: Dict[str, int], title: str) -> Optional[ChartOutput]:
+        """Donut chart for problem severity distribution."""
+        if not HAS_MATPLOTLIB or not counts: return None
+        
+        labels = list(counts.keys())
+        values = list(counts.values())
+        colors = [COLORS.get(l, COLORS["PROBLEM"]) for l in labels]
+        
+        fig, ax = plt.subplots(figsize=(6, 4))
+        wedges, texts, autotexts = ax.pie(values, labels=labels, autopct='%1.1f%%', 
+                                          startangle=90, colors=colors, pctdistance=0.85)
+        
+        # Draw circle for donut
+        centre_circle = plt.Circle((0,0),0.70,fc='white')
+        fig.gca().add_artist(centre_circle)
+        
+        ax.axis('equal')  
+        ax.set_title(title)
+        
+        return ChartOutput(title, self._fig_to_base64(fig), "Breakdown of detected architectural problems by severity.")
+
     def plot_validation_scatter(self, predicted: List[float], actual: List[float], ids: List[str], title: str) -> Optional[ChartOutput]:
-        """
-        Scatter plot: Predicted Score vs Actual Impact.
-        """
+        """Scatter plot: Predicted Score vs Actual Impact."""
         if not HAS_MATPLOTLIB or not predicted: return None
         
         fig, ax = plt.subplots(figsize=(6, 6))
@@ -116,24 +135,27 @@ class ChartGenerator:
         ax.set_ylim(0, 1.05)
         ax.grid(True, linestyle='--', alpha=0.5)
         
-        # Annotate outliers (high error)
-        # for i, txt in enumerate(ids):
-        #     if abs(predicted[i] - actual[i]) > 0.4:
-        #         ax.annotate(txt, (predicted[i], actual[i]), fontsize=8)
-
         return ChartOutput(title, self._fig_to_base64(fig), "Correlation check: Do predicted critical nodes actually cause high impact?")
 
     def plot_validation_metrics(self, metrics: Dict[str, float], title: str) -> Optional[ChartOutput]:
-        """Bar chart for statistical validation metrics (Spearman, F1, etc.)."""
+        """Bar chart for statistical validation metrics."""
         if not HAS_MATPLOTLIB or not metrics: return None
         
         labels = list(metrics.keys())
         values = list(metrics.values())
         
         fig, ax = plt.subplots(figsize=(6, 4))
-        bars = ax.bar(labels, values, color=[COLORS["ACTUAL"] if v > 0.7 else COLORS["CRITICAL"] for v in values])
+        # Color code: High is good (Green), except for RMSE/Error (Red)
+        colors = []
+        for k, v in metrics.items():
+            if "error" in k.lower() or "rmse" in k.lower():
+                colors.append(COLORS["CRITICAL"])
+            else:
+                colors.append(COLORS["ACTUAL"] if v > 0.6 else COLORS["HIGH"])
+                
+        bars = ax.bar(labels, values, color=colors)
         
-        ax.set_ylim(0, 1.0)
+        ax.set_ylim(0, 1.05)
         ax.set_title(title)
         ax.grid(axis='y', linestyle='--', alpha=0.3)
         
@@ -148,6 +170,7 @@ class ChartGenerator:
         """Grouped bar chart for R/M/A scores of top components."""
         if not HAS_MATPLOTLIB or not components: return None
         
+        # Truncate long IDs
         names = [c.id[:10]+".." if len(c.id)>12 else c.id for c in components]
         r_scores = [c.scores.reliability for c in components]
         m_scores = [c.scores.maintainability for c in components]

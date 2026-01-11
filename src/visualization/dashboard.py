@@ -17,50 +17,74 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     <style>
-        :root {{ --primary: #2c3e50; --secondary: #34495e; --accent: #3498db; --danger: #e74c3c; --success: #2ecc71; }}
-        body {{ font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f6f7; color: #2c3e50; }}
-        .container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
+        :root {{ --primary: #2c3e50; --secondary: #34495e; --accent: #3498db; --danger: #e74c3c; --success: #2ecc71; --bg: #f4f6f7; }}
+        body {{ font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; background: var(--bg); color: #2c3e50; padding-top: 60px; }}
         
-        header {{ background: white; border-bottom: 4px solid var(--primary); padding: 2rem; text-align: center; margin-bottom: 2rem; }}
-        h1 {{ margin: 0; color: var(--primary); }}
-        .meta {{ color: #7f8c8d; font-size: 0.9rem; margin-top: 10px; }}
+        /* Navigation */
+        nav {{ position: fixed; top: 0; width: 100%; background: var(--primary); color: white; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }}
+        .nav-container {{ max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; height: 60px; }}
+        .nav-logo {{ font-weight: bold; font-size: 1.2rem; }}
+        .nav-links a {{ color: #bdc3c7; text-decoration: none; margin-left: 20px; font-size: 0.9rem; transition: color 0.3s; }}
+        .nav-links a:hover {{ color: white; }}
         
-        .section {{ background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 2rem; }}
-        .section-header {{ border-left: 5px solid var(--accent); padding-left: 15px; margin-bottom: 20px; color: var(--primary); }}
+        .container {{ max-width: 1200px; margin: 2rem auto; padding: 0 20px; }}
         
-        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px; }}
-        .kpi-card {{ background: var(--secondary); color: white; padding: 15px; border-radius: 6px; text-align: center; }}
-        .kpi-val {{ font-size: 2rem; font-weight: bold; }}
-        .kpi-label {{ font-size: 0.8rem; text-transform: uppercase; opacity: 0.9; }}
+        h1 {{ text-align: center; color: var(--primary); margin-bottom: 0.5rem; }}
+        .meta {{ text-align: center; color: #7f8c8d; font-size: 0.9rem; margin-bottom: 2rem; }}
         
-        .chart-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; }}
-        .chart-card {{ border: 1px solid #eee; padding: 15px; border-radius: 6px; text-align: center; }}
-        img {{ max-width: 100%; height: auto; }}
+        .section {{ background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 2rem; scroll-margin-top: 80px; }}
+        .section-header {{ border-left: 5px solid var(--accent); padding-left: 15px; margin-top: 0; margin-bottom: 25px; color: var(--primary); font-size: 1.5rem; }}
         
+        /* KPIs */
+        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }}
+        .kpi-card {{ background: linear-gradient(135deg, var(--secondary), var(--primary)); color: white; padding: 20px; border-radius: 8px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+        .kpi-val {{ font-size: 2.2rem; font-weight: 700; margin-bottom: 5px; }}
+        .kpi-label {{ font-size: 0.85rem; text-transform: uppercase; opacity: 0.9; letter-spacing: 1px; }}
+        
+        /* Charts */
+        .chart-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 30px; margin-bottom: 30px; }}
+        .chart-card {{ border: 1px solid #ecf0f1; padding: 15px; border-radius: 8px; text-align: center; background: #fff; }}
+        .chart-card h4 {{ margin-top: 0; color: var(--secondary); font-size: 1.1rem; }}
+        img {{ max-width: 100%; height: auto; border-radius: 4px; }}
+        
+        /* Tables */
         table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }}
-        th, td {{ padding: 10px; border-bottom: 1px solid #eee; text-align: left; }}
-        th {{ background: #ecf0f1; }}
-        .badge {{ padding: 3px 8px; border-radius: 12px; color: white; font-size: 0.75rem; font-weight: bold; }}
+        th, td {{ padding: 12px 15px; border-bottom: 1px solid #ecf0f1; text-align: left; }}
+        th {{ background: #f8f9fa; color: var(--secondary); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }}
+        tr:hover {{ background-color: #f9f9f9; }}
+        .badge {{ padding: 4px 10px; border-radius: 20px; color: white; font-size: 0.75rem; font-weight: bold; display: inline-block; }}
         
-        .footer {{ text-align: center; color: #bdc3c7; padding: 20px; font-size: 0.8rem; }}
-        
-        .metric-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #eee; }}
-        .metric-name {{ font-weight: 500; }}
-        .metric-val {{ font-family: monospace; font-weight: bold; color: var(--accent); }}
+        /* Metrics Box */
+        .metrics-box {{ background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef; margin-bottom: 30px; }}
+        .metric-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #dee2e6; }}
+        .metric-row:last-child {{ border-bottom: none; }}
+        .metric-name {{ font-weight: 600; color: #555; }}
+        .metric-val {{ font-family: 'Consolas', monospace; font-weight: bold; color: var(--accent); }}
         .pass {{ color: var(--success); }}
         .fail {{ color: var(--danger); }}
+        
+        .footer {{ text-align: center; color: #bdc3c7; padding: 40px 0; font-size: 0.8rem; }}
     </style>
 </head>
 <body>
-    <header>
-        <div class="container">
-            <h1>{title}</h1>
-            <div class="meta">Generated: {timestamp}</div>
+    <nav>
+        <div class="nav-container">
+            <div class="nav-logo">SaaG Dashboard</div>
+            <div class="nav-links">
+                <a href="#stats">Statistics</a>
+                <a href="#complete">Complete System</a>
+                <a href="#application">Application</a>
+                <a href="#infrastructure">Infrastructure</a>
+            </div>
         </div>
-    </header>
+    </nav>
+    
     <div class="container">
+        <h1>{title}</h1>
+        <div class="meta">Generated: {timestamp}</div>
         {content}
     </div>
+    
     <div class="footer">Generated by Software-as-a-Graph Visualization Module</div>
 </body>
 </html>
@@ -71,8 +95,9 @@ class DashboardGenerator:
         self.title = title
         self.sections = []
 
-    def start_section(self, title: str):
-        self.sections.append(f'<div class="section"><h2 class="section-header">{title}</h2>')
+    def start_section(self, title: str, anchor_id: str = ""):
+        id_attr = f' id="{anchor_id}"' if anchor_id else ""
+        self.sections.append(f'<div class="section"{id_attr}><h2 class="section-header">{title}</h2>')
 
     def end_section(self):
         self.sections.append('</div>')
@@ -85,29 +110,34 @@ class DashboardGenerator:
         self.sections.append("".join(html))
 
     def add_metrics_table(self, metrics: Dict[str, Any], title: str = "Validation Metrics"):
-        html = [f'<h3>{title}</h3><div style="background:#f9f9f9; padding:15px; border-radius:4px; margin-bottom:20px;">']
+        html = [f'<h3>{title}</h3><div class="metrics-box">']
         for k, v in metrics.items():
             val_display = v
-            # Formatting floats
-            if isinstance(v, float):
-                val_display = f"{v:.3f}"
-            
-            # Color coding Pass/Fail
             cls = ""
-            if k.lower() == "passed":
-                cls = "pass" if v else "fail"
-                val_display = "PASSED" if v else "FAILED"
-
+            
+            if isinstance(v, float):
+                val_display = f"{v:.4f}"
+            
+            if k.lower() == "status":
+                cls = "pass" if v == "PASSED" else "fail"
+            
             html.append(f'<div class="metric-row"><span class="metric-name">{k}</span><span class="metric-val {cls}">{val_display}</span></div>')
         html.append('</div>')
         self.sections.append("".join(html))
 
     def add_charts(self, charts: List[ChartOutput]):
-        if not charts: return
+        valid_charts = [c for c in charts if c]
+        if not valid_charts: return
+        
         html = ['<div class="chart-grid">']
-        for c in charts:
-            if c:
-                html.append(f'<div class="chart-card"><h4>{c.title}</h4><img src="data:image/png;base64,{c.png_base64}"><p style="color:#777;font-size:0.8rem">{c.description}</p></div>')
+        for c in valid_charts:
+            html.append(
+                f'<div class="chart-card">'
+                f'<h4>{c.title}</h4>'
+                f'<img src="data:image/png;base64,{c.png_base64}" alt="{c.title}">'
+                f'<p style="color:#7f8c8d;font-size:0.8rem;margin-top:10px">{c.description}</p>'
+                f'</div>'
+            )
         html.append('</div>')
         self.sections.append("".join(html))
 

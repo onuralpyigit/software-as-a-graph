@@ -7,7 +7,7 @@ Generates a comprehensive dashboard for Application, Infrastructure, and Complet
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from src.analysis.analyzer import GraphAnalyzer
 from src.simulation.simulator import Simulator
@@ -29,8 +29,16 @@ class GraphVisualizer:
     def __enter__(self): return self
     def __exit__(self, exc_type, exc_val, exc_tb): pass
 
-    def generate_dashboard(self, output_file: str = "dashboard.html"):
+    def generate_dashboard(self, output_file: str = "dashboard.html", layers: List[str] = None):
+        """
+        Generates the analysis dashboard.
+        
+        Args:
+            output_file: Path to save HTML file
+            layers: List of layers to analyze ["application", "infrastructure", "complete"]
+        """
         dash = DashboardGenerator("Software-as-a-Graph Analysis & Validation Report")
+        layers = layers or ["complete", "application", "infrastructure"]
         
         # Use context managers for robust resource handling
         with GraphAnalyzer(self.uri, self.user, self.password) as analyzer, \
@@ -38,39 +46,25 @@ class GraphVisualizer:
             
             validator = Validator(ValidationTargets()) # Default targets
             
-            # --- 1. Complete System Level ---
-            self.logger.info("Processing [Complete System] layer...")
-            self._process_layer(
-                dash=dash, 
-                analyzer=analyzer, 
-                simulator=simulator, 
-                validator=validator,
-                layer="complete", 
-                title="1. Complete System Overview"
-            )
-            
-            # --- 2. Application Level ---
-            self.logger.info("Processing [Application] layer...")
-            self._process_layer(
-                dash=dash, 
-                analyzer=analyzer, 
-                simulator=simulator, 
-                validator=validator,
-                layer="application", 
-                title="2. Application Layer Analysis"
-            )
-            
-            # --- 3. Infrastructure Level ---
-            self.logger.info("Processing [Infrastructure] layer...")
-            self._process_layer(
-                dash=dash, 
-                analyzer=analyzer, 
-                simulator=simulator, 
-                validator=validator,
-                layer="infrastructure", 
-                title="3. Infrastructure Layer Analysis"
-            )
-            
+            for i, layer in enumerate(layers, 1):
+                title = f"{i}. {layer.title()} System Analysis"
+                self.logger.info(f"Processing [{layer}] layer...")
+                
+                try:
+                    self._process_layer(
+                        dash=dash, 
+                        analyzer=analyzer, 
+                        simulator=simulator, 
+                        validator=validator,
+                        layer=layer, 
+                        title=title
+                    )
+                except Exception as e:
+                    self.logger.error(f"Failed to process layer {layer}: {e}", exc_info=True)
+                    dash.start_section(title)
+                    dash.add_kpis({"Error": "Analysis Failed"})
+                    dash.end_section()
+
         # Save output
         with open(output_file, "w") as f:
             f.write(dash.generate())
@@ -84,94 +78,107 @@ class GraphVisualizer:
         """
         dash.start_section(title)
         
-        # A. Analysis (Prediction)
-        if layer == "complete":
-            analysis_res = analyzer.analyze()
-        else:
-            analysis_res = analyzer.analyze_layer(layer)
+        # 1. Analysis (Prediction)
+        # Always use analyze_layer to get standardized LayerAnalysisResult dataclass
+        analysis_res = analyzer.analyze_layer(layer)
         
-        components = analysis_res["results"].components
+        structural = analysis_res.structural
+        quality = analysis_res.quality
+        problems = analysis_res.problems
+        components = quality.components
+
         if not components:
-            dash.add_kpis({"Status": "No Data Found"})
+            dash.add_kpis({"Status": "No Components Found"})
             dash.end_section()
             return
 
-        # B. Simulation (Ground Truth)
-        # We run simulation for the specific layer to get relevant impact metrics
-        # (Reachability for App, Fragmentation for Infra)
-        sim_results = simulator.run_exhaustive_failure_sim(layer=layer)
-        impact_map = {res.initial_failure: res.impact_score for res in sim_results}
+        # 2. Simulation (Ground Truth)
+        # Run exhaustive failure simulation to get actual impact scores
+        sim_results = simulator.run_failure_simulation_exhaustive(layer=layer)
+        impact_map = {res.target_id: res.impact.composite_impact for res in sim_results}
         
-        # C. Validation (Comparison)
-        # Align data
+        # 3. Validation (Comparison)
         pred_scores = {c.id: c.scores.overall for c in components}
-        actual_scores = impact_map # Already id->score
+        actual_scores = impact_map 
         comp_types = {c.id: c.type for c in components}
         
         val_result = validator.validate(pred_scores, actual_scores, comp_types, context=layer)
         overall_stats = val_result.overall
         
-        # D. Dashboard Population
+        # 4. Dashboard Population
         
-        # 1. KPIs
+        # --- Section A: KPIs ---
         critical_count = len([c for c in components if c.levels.overall == CriticalityLevel.CRITICAL])
         avg_impact = sum(impact_map.values()) / len(impact_map) if impact_map else 0
+        density = structural.graph_summary.density
         
         dash.add_kpis({
-            "Nodes Analyzed": len(components),
-            "Critical Components": critical_count,
-            "Avg Predicted Score": f"{sum(pred_scores.values())/len(pred_scores):.3f}" if pred_scores else "0.00",
-            "Avg Actual Impact": f"{avg_impact:.3f}"
+            "Nodes / Edges": f"{structural.graph_summary.nodes} / {structural.graph_summary.edges}",
+            "Graph Density": f"{density:.3f}",
+            "Critical Nodes": critical_count,
+            "Problems Found": len(problems),
+            "Avg Impact (Sim)": f"{avg_impact:.3f}"
         })
         
-        # 2. Validation Metrics Table
-        dash.add_metrics_table({
-            "Status": "PASSED" if overall_stats.passed else "FAILED",
-            "Spearman Correlation (Rho)": overall_stats.correlation.spearman,
-            "F1 Score (Classification)": overall_stats.classification.f1_score,
-            "RMSE (Error)": overall_stats.error.rmse,
-            "Top-5 Overlap": overall_stats.ranking.top_5_overlap
-        })
+        # --- Section B: Structural & Quality Charts ---
+        charts = []
+        
+        # Topology stats
+        charts.append(self.charts.plot_graph_statistics({
+            "Nodes": structural.graph_summary.nodes,
+            "Edges": structural.graph_summary.edges,
+            "SPOFs": structural.graph_summary.num_articulation_points
+        }, "Graph Topology Stats"))
 
-        # 3. Charts
-        # Data prep for scatter
-        scatter_ids = []
-        scatter_pred = []
-        scatter_act = []
+        # Criticality Distribution
+        crit_counts = {l.name: len([c for c in components if c.levels.overall == l]) for l in CriticalityLevel}
+        charts.append(self.charts.plot_criticality_distribution(crit_counts, "Predicted Criticality Distribution"))
+
+        # Problem Severity
+        if problems:
+            severity_counts = {}
+            for p in problems:
+                severity_counts[p.severity] = severity_counts.get(p.severity, 0) + 1
+            charts.append(self.charts.plot_problem_severity(severity_counts, "Architectural Problems by Severity"))
+
+        # --- Section C: Validation Charts ---
+        scatter_ids, scatter_pred, scatter_act = [], [], []
         for cid in pred_scores:
             if cid in actual_scores:
                 scatter_ids.append(cid)
                 scatter_pred.append(pred_scores[cid])
                 scatter_act.append(actual_scores[cid])
         
-        charts = [
-            self.charts.plot_criticality_distribution(
-                {l.name: len([c for c in components if c.levels.overall == l]) for l in CriticalityLevel}, 
-                "Predicted Criticality"
-            ),
-            self.charts.plot_validation_scatter(
-                scatter_pred, scatter_act, scatter_ids, f"{layer.capitalize()} Layer Validation"
-            ),
-            self.charts.plot_validation_metrics(
-                {
-                    "Rho": overall_stats.correlation.spearman, 
-                    "F1": overall_stats.classification.f1_score, 
-                    "RMSE": overall_stats.error.rmse
-                }, 
-                "Statistical Performance"
-            )
-        ]
+        charts.append(self.charts.plot_validation_scatter(
+            scatter_pred, scatter_act, scatter_ids, f"Prediction vs Reality ({layer})"
+        ))
         
-        # Layer specific charts (Top Critical Quality Breakdown)
-        top_critical = sorted(components, key=lambda x: x.scores.overall, reverse=True)[:5]
-        charts.append(self.charts.plot_quality_comparison(top_critical, "Top 5 Critical Components Quality"))
-        
-        dash.add_charts(charts)
+        charts.append(self.charts.plot_validation_metrics({
+            "Spearman (Rho)": overall_stats.correlation.spearman, 
+            "F1 Score": overall_stats.classification.f1_score, 
+            "RMSE": overall_stats.error.rmse,
+            "Ranking Overlap": overall_stats.ranking.top_5_overlap
+        }, "Validation Metrics"))
 
-        # 4. Detailed Table (Top 10)
-        headers = ["ID", "Type", "Predicted Score", "Actual Impact", "Reliability", "Maintainability", "Risk"]
+        dash.add_charts([c for c in charts if c])
+
+        # --- Section D: Metrics Table ---
+        dash.add_metrics_table({
+            "Validation Status": "PASSED" if overall_stats.passed else "FAILED",
+            "Samples Validated": overall_stats.sample_size,
+            "Spearman Correlation": overall_stats.correlation.spearman,
+            "F1 Score": overall_stats.classification.f1_score,
+            "RMSE (Error)": overall_stats.error.rmse,
+            "Top-5 Overlap": overall_stats.ranking.top_5_overlap
+        })
+
+        # --- Section E: Top Critical Components Table ---
+        # Sort by predicted score
+        top_critical = sorted(components, key=lambda x: x.scores.overall, reverse=True)[:10]
+        
+        headers = ["ID", "Type", "Pred Score", "Actual Impact", "Reliability", "Maintainability", "Risk"]
         rows = []
-        for c in top_critical: # Using top 5 here, could be top 10
+        for c in top_critical:
             act = impact_map.get(c.id, 0.0)
             rows.append([
                 c.id, 
@@ -182,6 +189,23 @@ class GraphVisualizer:
                 f"{c.scores.maintainability:.2f}",
                 c.levels.overall.value.upper()
             ])
-            
+        
         dash.add_table(headers, rows)
+        
+        # --- Section F: Detected Problems Table ---
+        if problems:
+            dash.sections.append("<h3>Top Detected Architectural Problems</h3>")
+            prob_headers = ["Component", "Problem Type", "Severity", "Description"]
+            prob_rows = []
+            # Sort by priority/severity
+            sorted_probs = sorted(problems, key=lambda p: p.priority, reverse=True)[:10]
+            for p in sorted_probs:
+                prob_rows.append([
+                    p.entity_id,
+                    p.entity_type,
+                    p.severity,
+                    p.description
+                ])
+            dash.add_table(prob_headers, prob_rows)
+
         dash.end_section()

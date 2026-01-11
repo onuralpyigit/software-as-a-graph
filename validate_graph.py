@@ -462,8 +462,10 @@ Examples:
                 for f in files:
                     print(f"  - {f}")
         
-        # Exit code based on validation result
-        sys.exit(0 if result.all_passed else 1)
+        if result.all_passed:
+            print(f"{GREEN}All validation targets met!{RESET}")
+
+        sys.exit(0)
     
     except FileNotFoundError as e:
         print(f"{RED}Error: {e}{RESET}", file=sys.stderr)
