@@ -30,6 +30,7 @@ from .quality_analyzer import QualityAnalyzer, QualityAnalysisResult
 from .problem_detector import ProblemDetector, DetectedProblem, ProblemSummary
 from .classifier import CriticalityLevel
 
+from src.core.graph_exporter import GraphExporter
 
 @dataclass
 class LayerAnalysisResult:
@@ -130,13 +131,11 @@ class GraphAnalyzer:
         self.detector = ProblemDetector()
         
         # Data source
-        self._client = None
+        self._client = GraphExporter(self.uri, self.user, self.password)
         self._graph_data = None
     
     def __enter__(self):
         """Context manager entry."""
-        from src.core.graph_exporter import GraphExporter
-        self._client = GraphExporter(self.uri, self.user, self.password)
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
