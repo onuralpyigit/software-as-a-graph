@@ -91,6 +91,7 @@ class BenchmarkRecord:
     f1_score: float
     rmse: float
     top5_overlap: float
+    top10_overlap: float
     
     # Status
     passed: bool
@@ -184,7 +185,8 @@ class BenchmarkRunner:
             scale=scale, layer=layer, seed=seed,
             nodes=0, edges=0, density=0.0,
             time_analysis=0.0, time_simulation=0.0, time_total=0.0,
-            spearman_rho=0.0, f1_score=0.0, rmse=0.0, top5_overlap=0.0,
+            spearman_rho=0.0, f1_score=0.0, rmse=0.0, 
+            top5_overlap=0.0, top10_overlap=0.0,
             passed=False
         )
 
@@ -223,6 +225,7 @@ class BenchmarkRunner:
             record.f1_score = metrics.classification.f1_score
             record.rmse = metrics.error.rmse
             record.top5_overlap = metrics.ranking.top_5_overlap
+            record.top10_overlap = metrics.ranking.top_10_overlap
             record.passed = val_res.passed
             
             self.results.append(record)

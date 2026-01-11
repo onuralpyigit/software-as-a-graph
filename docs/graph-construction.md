@@ -1888,8 +1888,3 @@ With the graph model constructed, proceed to:
 - [Neo4j Cypher Manual](https://neo4j.com/docs/cypher-manual/)
 - [JSON Schema Specification](https://json-schema.org/)
 
----
-
-**Last Updated**: January 2025  
-**Part of**: Software-as-a-Graph Research Project  
-**Institution**: Istanbul Technical University

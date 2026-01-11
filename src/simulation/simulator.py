@@ -549,10 +549,10 @@ class Simulator:
         """Get component IDs for a layer."""
         if layer == "application":
             apps = set(self.graph.get_components_by_type("Application"))
-            brokers = set(self.graph.get_components_by_type("Broker"))
-            return apps | brokers
+            return apps
         elif layer == "infrastructure":
-            return set(self.graph.get_components_by_type("Node"))
+            nodes = set(self.graph.get_components_by_type("Node"))
+            return nodes
         else:
             return set(self.graph.components.keys())
     

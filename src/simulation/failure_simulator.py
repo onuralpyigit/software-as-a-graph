@@ -286,7 +286,7 @@ class FailureSimulator:
         
         # Determine targets based on layer
         if scenario_template.layer == "application":
-            component_types = component_types or ["Application", "Broker"]
+            component_types = component_types or ["Application"]
         elif scenario_template.layer == "infrastructure":
             component_types = component_types or ["Node"]
         else:
