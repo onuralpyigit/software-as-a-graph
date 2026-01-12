@@ -1,194 +1,494 @@
 """
-Visualization Charts
+Chart Generator
 
-Generates publication-ready static charts (Base64 encoded PNGs) for the dashboard.
-Handles graceful degradation if Matplotlib is not available.
+Creates matplotlib-based charts for dashboard visualization.
+Generates PNG images encoded as base64 for embedding in HTML.
+
+Chart Types:
+    - Bar charts (metrics, rankings)
+    - Pie charts (distributions)
+    - Scatter plots (correlation)
+    - Heatmaps (confusion matrices)
 """
 
-import io
+from __future__ import annotations
 import base64
+import io
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any, Optional, Tuple
 
+# Check for matplotlib availability
 try:
     import matplotlib
-    matplotlib.use('Agg') # Non-interactive backend
+    matplotlib.use('Agg')  # Non-interactive backend
     import matplotlib.pyplot as plt
-    import numpy as np
+    import matplotlib.patches as mpatches
     HAS_MATPLOTLIB = True
 except ImportError:
     HAS_MATPLOTLIB = False
+    plt = None
 
-# Consistent Color Scheme
-COLORS = {
-    "CRITICAL": "#e74c3c", # Red
-    "HIGH": "#e67e22",     # Orange
-    "MEDIUM": "#f1c40f",   # Yellow
-    "LOW": "#2ecc71",      # Green
-    "MINIMAL": "#95a5a6",  # Gray
-    "APP": "#3498db",      # Blue
-    "INFRA": "#9b59b6",    # Purple
-    "PRED": "#34495e",     # Dark Blue
-    "ACTUAL": "#16a085",   # Teal
-    "PROBLEM": "#8e44ad"   # Purple for problems
-}
 
 @dataclass
 class ChartOutput:
+    """Output from chart generation."""
     title: str
     png_base64: str
     description: str = ""
+    width: int = 600
+    height: int = 400
+
+
+# Color schemes
+COLORS = {
+    "primary": "#3498db",
+    "secondary": "#2c3e50",
+    "success": "#2ecc71",
+    "warning": "#f39c12",
+    "danger": "#e74c3c",
+    "info": "#17a2b8",
+    "light": "#ecf0f1",
+    "dark": "#34495e",
+}
+
+CRITICALITY_COLORS = {
+    "CRITICAL": "#e74c3c",
+    "HIGH": "#e67e22",
+    "MEDIUM": "#f1c40f",
+    "LOW": "#2ecc71",
+    "MINIMAL": "#95a5a6",
+}
+
+LAYER_COLORS = {
+    "app": "#3498db",
+    "infra": "#9b59b6",
+    "mw-app": "#1abc9c",
+    "mw-infra": "#e67e22",
+    "system": "#2c3e50",
+}
+
 
 class ChartGenerator:
-    def __init__(self):
+    """
+    Generates matplotlib charts as base64-encoded PNG images.
+    
+    All charts are rendered to in-memory buffers and returned
+    as base64 strings for HTML embedding.
+    """
+    
+    def __init__(self, style: str = "seaborn-v0_8-whitegrid"):
         self.logger = logging.getLogger(__name__)
-        if HAS_MATPLOTLIB:
-            plt.style.use('ggplot')
-            plt.rc('font', size=10) 
-            plt.rc('axes', titlesize=12) 
-            plt.rc('axes', labelsize=10)
-
+        
+        if not HAS_MATPLOTLIB:
+            self.logger.warning("matplotlib not available, charts will be disabled")
+            return
+        
+        # Try to set style, fall back to default
+        try:
+            plt.style.use(style)
+        except OSError:
+            try:
+                plt.style.use("ggplot")
+            except OSError:
+                pass  # Use default
+    
     def _fig_to_base64(self, fig) -> str:
         """Convert matplotlib figure to base64 string."""
         buf = io.BytesIO()
-        fig.savefig(buf, format='png', bbox_inches='tight', dpi=100)
+        fig.savefig(buf, format='png', dpi=100, bbox_inches='tight',
+                   facecolor='white', edgecolor='none')
         buf.seek(0)
-        img_str = base64.b64encode(buf.read()).decode('utf-8')
+        b64 = base64.b64encode(buf.read()).decode('utf-8')
         plt.close(fig)
-        return img_str
-
-    def plot_graph_statistics(self, stats: Dict[str, int], title: str) -> Optional[ChartOutput]:
-        """Bar chart for node/edge counts."""
-        if not HAS_MATPLOTLIB or not stats: return None
+        return b64
+    
+    # =========================================================================
+    # Bar Charts
+    # =========================================================================
+    
+    def bar_chart(
+        self,
+        data: Dict[str, float],
+        title: str,
+        xlabel: str = "",
+        ylabel: str = "",
+        color: str = None,
+        horizontal: bool = False,
+        description: str = ""
+    ) -> Optional[ChartOutput]:
+        """Create a bar chart."""
+        if not HAS_MATPLOTLIB or not data:
+            return None
         
-        labels = list(stats.keys())
-        values = list(stats.values())
+        fig, ax = plt.subplots(figsize=(8, 5))
         
-        fig, ax = plt.subplots(figsize=(6, 4))
-        bars = ax.bar(labels, values, color="#34495e", width=0.5)
+        labels = list(data.keys())
+        values = list(data.values())
+        bar_color = color or COLORS["primary"]
         
-        ax.set_title(title)
-        ax.set_ylabel("Count")
-        ax.grid(axis='y', linestyle='--', alpha=0.5)
+        if horizontal:
+            bars = ax.barh(labels, values, color=bar_color, edgecolor='white')
+            ax.set_xlabel(ylabel or "Value")
+            ax.set_ylabel(xlabel or "")
+        else:
+            bars = ax.bar(labels, values, color=bar_color, edgecolor='white')
+            ax.set_xlabel(xlabel or "")
+            ax.set_ylabel(ylabel or "Value")
+            plt.xticks(rotation=45, ha='right')
         
-        # Add labels on top
-        for bar in bars:
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height,
-                    f'{int(height)}', ha='center', va='bottom')
-            
-        return ChartOutput(title, self._fig_to_base64(fig), "Overview of graph topology size and complexity.")
-
-    def plot_criticality_distribution(self, counts: Dict[str, int], title: str) -> Optional[ChartOutput]:
-        """Bar chart showing distribution of Criticality Levels."""
-        if not HAS_MATPLOTLIB or not counts: return None
+        ax.set_title(title, fontsize=12, fontweight='bold', pad=10)
         
-        levels = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "MINIMAL"]
-        values = [counts.get(l, 0) for l in levels]
-        colors = [COLORS.get(l, "#333") for l in levels]
-        
-        fig, ax = plt.subplots(figsize=(7, 4))
-        bars = ax.bar(levels, values, color=colors)
-        
-        ax.set_ylabel('Component Count')
-        ax.set_title(title)
-        ax.grid(axis='y', linestyle='--', alpha=0.3)
-        
-        return ChartOutput(title, self._fig_to_base64(fig), "Distribution of components across criticality levels.")
-
-    def plot_problem_severity(self, counts: Dict[str, int], title: str) -> Optional[ChartOutput]:
-        """Donut chart for problem severity distribution."""
-        if not HAS_MATPLOTLIB or not counts: return None
-        
-        labels = list(counts.keys())
-        values = list(counts.values())
-        colors = [COLORS.get(l, COLORS["PROBLEM"]) for l in labels]
-        
-        fig, ax = plt.subplots(figsize=(6, 4))
-        wedges, texts, autotexts = ax.pie(values, labels=labels, autopct='%1.1f%%', 
-                                          startangle=90, colors=colors, pctdistance=0.85)
-        
-        # Draw circle for donut
-        centre_circle = plt.Circle((0,0),0.70,fc='white')
-        fig.gca().add_artist(centre_circle)
-        
-        ax.axis('equal')  
-        ax.set_title(title)
-        
-        return ChartOutput(title, self._fig_to_base64(fig), "Breakdown of detected architectural problems by severity.")
-
-    def plot_validation_scatter(self, predicted: List[float], actual: List[float], ids: List[str], title: str) -> Optional[ChartOutput]:
-        """Scatter plot: Predicted Score vs Actual Impact."""
-        if not HAS_MATPLOTLIB or not predicted: return None
-        
-        fig, ax = plt.subplots(figsize=(6, 6))
-        ax.scatter(predicted, actual, alpha=0.6, c=COLORS["APP"], edgecolors='w', s=60)
-        
-        # Reference diagonal
-        ax.plot([0, 1], [0, 1], 'k--', alpha=0.3, label="Ideal Prediction")
-        
-        ax.set_xlabel('Predicted Criticality (Cscore)')
-        ax.set_ylabel('Actual Failure Impact')
-        ax.set_title(title)
-        ax.set_xlim(0, 1.05)
-        ax.set_ylim(0, 1.05)
-        ax.grid(True, linestyle='--', alpha=0.5)
-        
-        return ChartOutput(title, self._fig_to_base64(fig), "Correlation check: Do predicted critical nodes actually cause high impact?")
-
-    def plot_validation_metrics(self, metrics: Dict[str, float], title: str) -> Optional[ChartOutput]:
-        """Bar chart for statistical validation metrics."""
-        if not HAS_MATPLOTLIB or not metrics: return None
-        
-        labels = list(metrics.keys())
-        values = list(metrics.values())
-        
-        fig, ax = plt.subplots(figsize=(6, 4))
-        # Color code: High is good (Green), except for RMSE/Error (Red)
-        colors = []
-        for k, v in metrics.items():
-            if "error" in k.lower() or "rmse" in k.lower():
-                colors.append(COLORS["CRITICAL"])
+        # Add value labels
+        for bar, val in zip(bars, values):
+            if horizontal:
+                ax.text(bar.get_width() + 0.01, bar.get_y() + bar.get_height()/2,
+                       f'{val:.3f}' if isinstance(val, float) else str(val),
+                       va='center', fontsize=9)
             else:
-                colors.append(COLORS["ACTUAL"] if v > 0.6 else COLORS["HIGH"])
-                
-        bars = ax.bar(labels, values, color=colors)
+                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                       f'{val:.3f}' if isinstance(val, float) else str(val),
+                       ha='center', fontsize=9)
         
-        ax.set_ylim(0, 1.05)
-        ax.set_title(title)
-        ax.grid(axis='y', linestyle='--', alpha=0.3)
+        plt.tight_layout()
+        return ChartOutput(
+            title=title,
+            png_base64=self._fig_to_base64(fig),
+            description=description
+        )
+    
+    def grouped_bar_chart(
+        self,
+        data: Dict[str, Dict[str, float]],
+        title: str,
+        xlabel: str = "",
+        ylabel: str = "",
+        description: str = ""
+    ) -> Optional[ChartOutput]:
+        """Create a grouped bar chart for comparing metrics across groups."""
+        if not HAS_MATPLOTLIB or not data:
+            return None
         
-        for bar in bars:
-            height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2., height + 0.02,
-                    f'{height:.2f}', ha='center', va='bottom', fontsize=9)
-            
-        return ChartOutput(title, self._fig_to_base64(fig), "Statistical validation of the graph model's predictive power.")
-
-    def plot_quality_comparison(self, components: List[any], title: str) -> Optional[ChartOutput]:
-        """Grouped bar chart for R/M/A scores of top components."""
-        if not HAS_MATPLOTLIB or not components: return None
+        import numpy as np
         
-        # Truncate long IDs
-        names = [c.id[:10]+".." if len(c.id)>12 else c.id for c in components]
-        r_scores = [c.scores.reliability for c in components]
-        m_scores = [c.scores.maintainability for c in components]
-        a_scores = [c.scores.availability for c in components]
+        fig, ax = plt.subplots(figsize=(10, 6))
         
-        x = np.arange(len(names))
-        width = 0.25
+        groups = list(data.keys())
+        metrics = list(data[groups[0]].keys()) if groups else []
         
-        fig, ax = plt.subplots(figsize=(9, 5))
-        ax.bar(x - width, r_scores, width, label='Reliability', color='#e74c3c')
-        ax.bar(x, m_scores, width, label='Maintainability', color='#3498db')
-        ax.bar(x + width, a_scores, width, label='Availability', color='#2ecc71')
-
-        ax.set_ylabel('Score (0-1)')
-        ax.set_title(title)
+        x = np.arange(len(groups))
+        width = 0.8 / len(metrics) if metrics else 0.8
+        
+        colors = list(LAYER_COLORS.values())[:len(metrics)]
+        
+        for i, metric in enumerate(metrics):
+            values = [data[g].get(metric, 0) for g in groups]
+            offset = (i - len(metrics)/2 + 0.5) * width
+            bars = ax.bar(x + offset, values, width, label=metric, color=colors[i % len(colors)])
+        
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.set_title(title, fontsize=12, fontweight='bold', pad=10)
         ax.set_xticks(x)
-        ax.set_xticklabels(names, rotation=30, ha='right')
-        ax.legend()
-        ax.set_ylim(0, 1.1)
+        ax.set_xticklabels(groups)
+        ax.legend(loc='upper right')
         
-        return ChartOutput(title, self._fig_to_base64(fig), "Multi-dimensional quality assessment for top critical components.")
+        plt.tight_layout()
+        return ChartOutput(
+            title=title,
+            png_base64=self._fig_to_base64(fig),
+            description=description
+        )
+    
+    # =========================================================================
+    # Pie Charts
+    # =========================================================================
+    
+    def pie_chart(
+        self,
+        data: Dict[str, int],
+        title: str,
+        colors: Dict[str, str] = None,
+        description: str = ""
+    ) -> Optional[ChartOutput]:
+        """Create a pie chart."""
+        if not HAS_MATPLOTLIB or not data:
+            return None
+        
+        # Filter out zero values
+        data = {k: v for k, v in data.items() if v > 0}
+        if not data:
+            return None
+        
+        fig, ax = plt.subplots(figsize=(7, 7))
+        
+        labels = list(data.keys())
+        values = list(data.values())
+        
+        if colors:
+            pie_colors = [colors.get(l, COLORS["light"]) for l in labels]
+        else:
+            pie_colors = plt.cm.Set3.colors[:len(labels)]
+        
+        wedges, texts, autotexts = ax.pie(
+            values,
+            labels=labels,
+            autopct='%1.1f%%',
+            colors=pie_colors,
+            startangle=90,
+            explode=[0.02] * len(values)
+        )
+        
+        for autotext in autotexts:
+            autotext.set_fontsize(10)
+            autotext.set_fontweight('bold')
+        
+        ax.set_title(title, fontsize=12, fontweight='bold', pad=10)
+        
+        return ChartOutput(
+            title=title,
+            png_base64=self._fig_to_base64(fig),
+            description=description
+        )
+    
+    def criticality_distribution(
+        self,
+        counts: Dict[str, int],
+        title: str = "Criticality Distribution",
+        description: str = ""
+    ) -> Optional[ChartOutput]:
+        """Create a pie chart for criticality level distribution."""
+        return self.pie_chart(counts, title, CRITICALITY_COLORS, description)
+    
+    # =========================================================================
+    # Scatter Plots
+    # =========================================================================
+    
+    def scatter_plot(
+        self,
+        x_values: List[float],
+        y_values: List[float],
+        labels: List[str] = None,
+        title: str = "",
+        xlabel: str = "Predicted",
+        ylabel: str = "Actual",
+        add_diagonal: bool = True,
+        description: str = ""
+    ) -> Optional[ChartOutput]:
+        """Create a scatter plot for correlation visualization."""
+        if not HAS_MATPLOTLIB or not x_values or not y_values:
+            return None
+        
+        fig, ax = plt.subplots(figsize=(8, 8))
+        
+        ax.scatter(x_values, y_values, c=COLORS["primary"], alpha=0.7, s=60, edgecolors='white')
+        
+        if add_diagonal:
+            min_val = min(min(x_values), min(y_values))
+            max_val = max(max(x_values), max(y_values))
+            ax.plot([min_val, max_val], [min_val, max_val], 'r--', alpha=0.5, label='Perfect correlation')
+        
+        # Add labels for outliers
+        if labels:
+            for i, (x, y, label) in enumerate(zip(x_values, y_values, labels)):
+                error = abs(x - y)
+                if error > 0.15:  # Label significant outliers
+                    ax.annotate(label, (x, y), fontsize=8, alpha=0.7)
+        
+        ax.set_xlabel(xlabel, fontsize=11)
+        ax.set_ylabel(ylabel, fontsize=11)
+        ax.set_title(title, fontsize=12, fontweight='bold', pad=10)
+        ax.legend(loc='lower right')
+        
+        plt.tight_layout()
+        return ChartOutput(
+            title=title,
+            png_base64=self._fig_to_base64(fig),
+            description=description
+        )
+    
+    # =========================================================================
+    # Heatmaps
+    # =========================================================================
+    
+    def confusion_matrix(
+        self,
+        tp: int, fp: int, fn: int, tn: int,
+        title: str = "Confusion Matrix",
+        description: str = ""
+    ) -> Optional[ChartOutput]:
+        """Create a confusion matrix heatmap."""
+        if not HAS_MATPLOTLIB:
+            return None
+        
+        import numpy as np
+        
+        fig, ax = plt.subplots(figsize=(6, 5))
+        
+        matrix = np.array([[tp, fp], [fn, tn]])
+        
+        im = ax.imshow(matrix, cmap='Blues')
+        
+        # Labels
+        ax.set_xticks([0, 1])
+        ax.set_yticks([0, 1])
+        ax.set_xticklabels(['Critical', 'Non-Critical'])
+        ax.set_yticklabels(['Critical', 'Non-Critical'])
+        ax.set_xlabel('Actual', fontsize=11)
+        ax.set_ylabel('Predicted', fontsize=11)
+        
+        # Add text annotations
+        labels = [['TP', 'FP'], ['FN', 'TN']]
+        for i in range(2):
+            for j in range(2):
+                color = 'white' if matrix[i, j] > matrix.max()/2 else 'black'
+                ax.text(j, i, f'{labels[i][j]}\n{matrix[i, j]}',
+                       ha='center', va='center', color=color, fontsize=12, fontweight='bold')
+        
+        ax.set_title(title, fontsize=12, fontweight='bold', pad=10)
+        
+        plt.tight_layout()
+        return ChartOutput(
+            title=title,
+            png_base64=self._fig_to_base64(fig),
+            description=description
+        )
+    
+    # =========================================================================
+    # Specialized Charts
+    # =========================================================================
+    
+    def impact_ranking(
+        self,
+        components: List[Tuple[str, float, str]],
+        title: str = "Top Components by Impact",
+        max_items: int = 10,
+        description: str = ""
+    ) -> Optional[ChartOutput]:
+        """
+        Create a horizontal bar chart for component impact ranking.
+        
+        Args:
+            components: List of (id, impact, level) tuples
+        """
+        if not HAS_MATPLOTLIB or not components:
+            return None
+        
+        # Sort and limit
+        components = sorted(components, key=lambda x: x[1], reverse=True)[:max_items]
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        ids = [c[0] for c in components]
+        impacts = [c[1] for c in components]
+        levels = [c[2] for c in components]
+        colors = [CRITICALITY_COLORS.get(l.upper(), COLORS["light"]) for l in levels]
+        
+        bars = ax.barh(range(len(ids)), impacts, color=colors, edgecolor='white')
+        ax.set_yticks(range(len(ids)))
+        ax.set_yticklabels(ids)
+        ax.invert_yaxis()
+        
+        ax.set_xlabel('Impact Score')
+        ax.set_title(title, fontsize=12, fontweight='bold', pad=10)
+        
+        # Add value labels
+        for bar, impact in zip(bars, impacts):
+            ax.text(bar.get_width() + 0.01, bar.get_y() + bar.get_height()/2,
+                   f'{impact:.3f}', va='center', fontsize=9)
+        
+        # Legend
+        legend_handles = [mpatches.Patch(color=c, label=l) 
+                         for l, c in CRITICALITY_COLORS.items()]
+        ax.legend(handles=legend_handles, loc='lower right', fontsize=8)
+        
+        plt.tight_layout()
+        return ChartOutput(
+            title=title,
+            png_base64=self._fig_to_base64(fig),
+            description=description
+        )
+    
+    def layer_comparison(
+        self,
+        layer_data: Dict[str, Dict[str, float]],
+        metric: str,
+        title: str = "",
+        description: str = ""
+    ) -> Optional[ChartOutput]:
+        """Create a bar chart comparing a metric across layers."""
+        if not HAS_MATPLOTLIB or not layer_data:
+            return None
+        
+        data = {layer: metrics.get(metric, 0) for layer, metrics in layer_data.items()}
+        colors = [LAYER_COLORS.get(l, COLORS["primary"]) for l in data.keys()]
+        
+        fig, ax = plt.subplots(figsize=(8, 5))
+        
+        bars = ax.bar(data.keys(), data.values(), color=colors, edgecolor='white')
+        
+        ax.set_ylabel(metric.replace('_', ' ').title())
+        ax.set_title(title or f'{metric.replace("_", " ").title()} by Layer',
+                    fontsize=12, fontweight='bold', pad=10)
+        
+        for bar, val in zip(bars, data.values()):
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                   f'{val:.3f}' if isinstance(val, float) else str(val),
+                   ha='center', fontsize=9)
+        
+        plt.tight_layout()
+        return ChartOutput(
+            title=title,
+            png_base64=self._fig_to_base64(fig),
+            description=description
+        )
+    
+    def validation_summary(
+        self,
+        metrics: Dict[str, Tuple[float, float, bool]],
+        title: str = "Validation Metrics",
+        description: str = ""
+    ) -> Optional[ChartOutput]:
+        """
+        Create a horizontal bar chart for validation metrics with targets.
+        
+        Args:
+            metrics: Dict mapping metric name to (value, target, passed)
+        """
+        if not HAS_MATPLOTLIB or not metrics:
+            return None
+        
+        fig, ax = plt.subplots(figsize=(10, 5))
+        
+        names = list(metrics.keys())
+        values = [m[0] for m in metrics.values()]
+        targets = [m[1] for m in metrics.values()]
+        passed = [m[2] for m in metrics.values()]
+        
+        y_pos = range(len(names))
+        colors = [COLORS["success"] if p else COLORS["danger"] for p in passed]
+        
+        bars = ax.barh(y_pos, values, color=colors, alpha=0.7, label='Actual')
+        
+        # Add target markers
+        for i, (target, name) in enumerate(zip(targets, names)):
+            ax.axvline(x=target, ymin=(i)/len(names), ymax=(i+1)/len(names),
+                      color='black', linestyle='--', linewidth=2)
+        
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(names)
+        ax.set_xlabel('Value')
+        ax.set_title(title, fontsize=12, fontweight='bold', pad=10)
+        
+        # Add value labels
+        for bar, val, p in zip(bars, values, passed):
+            icon = "✓" if p else "✗"
+            ax.text(bar.get_width() + 0.02, bar.get_y() + bar.get_height()/2,
+                   f'{val:.3f} {icon}', va='center', fontsize=9)
+        
+        plt.tight_layout()
+        return ChartOutput(
+            title=title,
+            png_base64=self._fig_to_base64(fig),
+            description=description
+        )
