@@ -345,10 +345,10 @@ Validation Targets:
   Top-5 Overlap ≥ 0.60 (ranking agreement)
 
 Examples:
-  %(prog)s --layers app,infra,system
+  %(prog)s --layer app,infra,system
   %(prog)s --all
   %(prog)s --quick predicted.json actual.json
-  %(prog)s --layers system --output results/validation.json
+  %(prog)s --layer system --output results/validation.json
         """
     )
     
@@ -356,7 +356,7 @@ Examples:
     action_group = parser.add_argument_group("Action")
     action_mutex = action_group.add_mutually_exclusive_group(required=True)
     action_mutex.add_argument(
-        "--layers", "-l",
+        "--layer", "-l",
         help="Comma-separated layers to validate (e.g., app,infra,system)"
     )
     action_mutex.add_argument(
@@ -500,7 +500,7 @@ def main() -> int:
         if args.all:
             layers = list(LAYER_DEFINITIONS.keys())
         else:
-            layers = [l.strip() for l in args.layers.split(",")]
+            layers = [l.strip() for l in args.layer.split(",")]
         
         # Create and run pipeline
         pipeline = ValidationPipeline(
