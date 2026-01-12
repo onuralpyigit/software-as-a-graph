@@ -54,7 +54,7 @@ class PipelineConfig:
     password: str = "password"
     
     # Paths
-    input_file: str = "input/system.json"
+    input_file: str = "output/system.json"
     output_dir: str = "output"
     scripts_dir: str = "scripts"
     
