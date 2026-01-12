@@ -1,92 +1,102 @@
 """
 Validation Module
 
-Validates graph-based criticality predictions against simulation results.
+Statistical validation for comparing graph analysis predictions
+against failure simulation results.
 
-Components:
-- ValidationTargets: Target thresholds for validation success
-- Validator: Compares predicted vs actual scores
-- ValidationPipeline: Orchestrates analysis + simulation + validation
-- QuickValidator: Validates pre-computed scores
+This module validates that topological metrics can reliably predict
+critical components by comparing:
+    - Predicted criticality scores (from graph analysis)
+    - Actual impact scores (from failure simulation)
 
-Metrics:
-- Correlation: Spearman, Pearson, Kendall
-- Classification: Precision, Recall, F1, Accuracy
-- Ranking: Top-K overlap, NDCG
-- Error: RMSE, MAE
+Validation Metrics:
+    - Correlation: Spearman ρ, Pearson r, Kendall τ
+    - Classification: Precision, Recall, F1, Accuracy
+    - Ranking: Top-K overlap, NDCG
+    - Error: RMSE, MAE
 
-Author: Software-as-a-Graph Research Project
+Validation Targets (defaults):
+    - Spearman ρ ≥ 0.70 (strong rank correlation)
+    - F1 Score ≥ 0.80 (balanced classification)
+    - Top-5 Overlap ≥ 0.60 (ranking agreement)
+
+Layers:
+    - app: Application layer
+    - infra: Infrastructure layer
+    - mw-app: Middleware-Application layer
+    - mw-infra: Middleware-Infrastructure layer
+    - system: Complete system
+
+Example:
+    >>> from src.validation import ValidationPipeline
+    >>> 
+    >>> pipeline = ValidationPipeline(uri="bolt://localhost:7687")
+    >>> result = pipeline.run(layers=["app", "infra", "system"])
+    >>> 
+    >>> print(f"All passed: {result.all_passed}")
+    >>> for layer, layer_result in result.layers.items():
+    ...     print(f"  {layer}: ρ={layer_result.spearman:.3f}, F1={layer_result.f1_score:.3f}")
 """
 
+# Metrics
 from .metrics import (
-    # Target thresholds
     ValidationTargets,
-    
-    # Metric result classes
     CorrelationMetrics,
     ErrorMetrics,
     ClassificationMetrics,
     RankingMetrics,
-    ValidationSummary,
-    
-    # Metric calculation functions
     spearman_correlation,
     pearson_correlation,
     kendall_correlation,
     calculate_error_metrics,
     calculate_classification_metrics,
     calculate_ranking_metrics,
-    calculate_all_metrics,
 )
 
+# Validator
 from .validator import (
     Validator,
-    MultiLayerValidator,
     ValidationResult,
     ValidationGroupResult,
+    ComponentComparison,
 )
 
+# Pipeline
 from .pipeline import (
     ValidationPipeline,
-    QuickValidator,
     PipelineResult,
     LayerValidationResult,
-    ComponentComparison,
+    QuickValidator,
     LAYER_DEFINITIONS,
 )
 
 
 __all__ = [
-    # Targets
+    # Metrics
     "ValidationTargets",
-    
-    # Metric classes
     "CorrelationMetrics",
     "ErrorMetrics",
     "ClassificationMetrics",
     "RankingMetrics",
-    "ValidationSummary",
-    
-    # Metric functions
     "spearman_correlation",
     "pearson_correlation",
     "kendall_correlation",
     "calculate_error_metrics",
     "calculate_classification_metrics",
     "calculate_ranking_metrics",
-    "calculate_all_metrics",
     
     # Validator
     "Validator",
-    "MultiLayerValidator",
     "ValidationResult",
     "ValidationGroupResult",
+    "ComponentComparison",
     
     # Pipeline
     "ValidationPipeline",
-    "QuickValidator",
     "PipelineResult",
     "LayerValidationResult",
-    "ComponentComparison",
+    "QuickValidator",
     "LAYER_DEFINITIONS",
 ]
+
+__version__ = "2.0.0"
