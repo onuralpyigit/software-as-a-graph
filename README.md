@@ -14,10 +14,11 @@ This framework predicts **which components in a distributed system are most crit
 
 **The key insight**: Graph topological metrics computed on system architecture can reliably predict component criticality *before* deployment, without expensive runtime monitoring or actual failures.
 
-**Validation results**:
-- Spearman correlation: **0.876** (predicted vs. actual impact)
-- F1-score: **0.943** for critical component classification
-- Analysis is **10-50x faster** than exhaustive failure simulation
+**Validation Results**:
+- **Spearman Correlation**: **0.85** (Application Layer, Large Scale)
+- **Classification Accuracy**: **0.83** F1-score for critical components
+- **Performance**: Analysis is **2.2x faster** than discrete-event simulation
+- **Scalability**: Verified on **XLarge systems (500+ components)**
 
 ---
 
@@ -64,7 +65,7 @@ In distributed publish-subscribe systems (ROS 2, Kafka, MQTT, microservices), id
 │           Compute centrality metrics (PageRank, Betweenness)    │
 │                           ↓                                     │
 │   Step 3: QUALITY SCORING                                       │
-│           Calculate R(v), M(v), A(v) → Q(v) criticality score  │
+│           Calculate R(v), M(v), A(v) → Q(v) criticality score   │
 │                           ↓                                     │
 │   Step 4: FAILURE SIMULATION                                    │
 │           Test each component's actual failure impact I(v)      │
@@ -164,14 +165,18 @@ For each component v:
 
 ### Step 5: Validation
 
-Compare predicted criticality Q(v) against actual impact I(v):
+The framework was rigorously validated against a ground-truth simulator across multiple scales (Small to XLarge) and domains.
 
-| Metric | Target | What It Measures |
-|--------|--------|------------------|
-| Spearman ρ | ≥ 0.70 | Rank correlation |
-| F1-Score | ≥ 0.80 | Classification accuracy |
-| Precision | ≥ 0.80 | Predicted criticals are truly critical |
-| Recall | ≥ 0.80 | Truly critical components are identified |
+### Latest Benchmark Results (Jan 2026)
+
+| Metric | Application Layer | Infrastructure Layer | Notes |
+| :--- | :--- | :--- | :--- |
+| **Spearman $\rho$** | **0.85** (Strong) | 0.54 (Moderate) | Model excels at logical software dependencies. |
+| **F1-Score** | **0.83** | 0.68 | High precision in identifying critical apps. |
+| **Top-5 Overlap** | **62%** | 40% | Successfully finds the most critical nodes. |
+| **Speedup** | **2.2x** | 1.2x | Significantly faster than simulation. |
+
+> **Key Insight**: The topological metrics are highly effective for the **Application Layer**, correctly identifying critical software components. Infrastructure prediction is currently limited by physical redundancy patterns not fully captured in the graph.
 
 ### Step 6: Visualization
 

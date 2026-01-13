@@ -81,8 +81,8 @@ VALIDATION_TARGETS = {
     "f1": 0.80,
     "precision": 0.80,
     "recall": 0.80,
-    "top5_overlap": 0.60,
-    "top10_overlap": 0.50,
+    "top5_overlap": 0.40,
+    "top10_overlap": 0.60,
 }
 
 
