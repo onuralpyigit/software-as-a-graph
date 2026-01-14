@@ -1,4 +1,4 @@
-# Step 4: Failure Simulation
+# Failure Simulation
 
 **Validating predictions through empirical Fault Injection and Event-Driven Analysis.**
 
@@ -144,7 +144,7 @@ The `simulate_graph.py` tool calculates specific metrics to quantify "Impact" ()
 
 ## Next Step
 
-Once you have the **Impact Scores** () from this step, you compare them against the **Predicted Quality Scores** () from Step 3 to validate the model's accuracy.
+Once you have the **Impact Scores** from this step, you compare them against the **Predicted Quality Scores** from analysis step to validate the model's accuracy.
 
-* **See:** `docs/validation-comparison.md`
+* **See:** `validation-comparison.md`
 * **Run:** `python validate_graph.py`

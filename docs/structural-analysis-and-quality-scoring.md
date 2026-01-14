@@ -1,4 +1,4 @@
-# Step 2: Structural Analysis
+# Structural Analysis & Quality Scoring
 
 **Compute topological metrics and quality scores to identify critical components**
 
@@ -860,7 +860,7 @@ MINIMAL:   Q ≤ Q1            (bottom quartile)
 
 ## Next Step
 
-After structural analysis, proceed to **Step 3: Failure Simulation** to validate predictions against actual failure impact.
+After structural analysis, proceed to **Failure Simulation** to validate predictions against actual failure impact.
 
 ```bash
 python simulate_graph.py --exhaustive --layer system
@@ -870,6 +870,6 @@ python simulate_graph.py --exhaustive --layer system
 
 ## Navigation
 
-- **Previous**: [Step 1: Graph Model Construction](step1-graph-model-construction.md)
-- **Next**: [Step 3: Failure Simulation](step3-failure-simulation.md)
-- **See Also**: [Step 4: Validation](step4-validation.md)
+- **Previous**: [Graph Model Construction](graph-model-construction.md)
+- **Next**: [Failure Simulation](failure-simulation.md)
+- **See Also**: [Validation & Comparison](validation-comparison.md)

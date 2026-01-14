@@ -401,28 +401,6 @@ python benchmark.py --scales small,medium,large --layers app,system --runs 5
 
 ---
 
-## Validation
-
-### Empirical Results
-
-| Scale | Components | Spearman ρ | F1-Score | Status |
-|-------|-----------|------------|----------|--------|
-| Small | 10-25 | 0.842 | 0.889 | ✅ |
-| Medium | 30-50 | 0.867 | 0.915 | ✅ |
-| Large | 60-100 | **0.876** | **0.943** | ✅ |
-
-### Key Findings
-
-1. **Topological metrics reliably predict criticality** — Strong correlation (0.876) demonstrates that graph structure captures system vulnerabilities.
-
-2. **Performance improves at scale** — Larger systems show clearer structural patterns.
-
-3. **Box-plot classification is effective** — Adaptive thresholds achieve 94.3% F1-score.
-
-4. **QoS-aware weighting is essential** — Improved correlation from 0.72 (unweighted) to 0.876.
-
----
-
 ## Project Structure
 
 ```
@@ -525,9 +503,3 @@ The framework supports multiple pub-sub middleware:
 MIT License — see [LICENSE](LICENSE) for details.
 
 ---
-
-## Further Reading
-
-- [Graph Model Documentation](docs/graph-model.md) — Formal definitions
-- [Weight Calculations](docs/weight-calculations.md) — QoS scoring details
-- [Quality Formulations](docs/quality-formulations.md) — R, M, A score formulas

@@ -1,4 +1,4 @@
-# Step 5: Validation & Comparison
+# Validation & Comparison
 
 **Statistical Validation of Graph-Based Critical Component Prediction**
 
@@ -74,16 +74,16 @@ Quality Scores Q(v)                Impact Scores I(v)
 
 The methodology defines rigorous validation criteria:
 
-| Metric | Target | Description | Achieved |
-|--------|--------|-------------|----------|
-| **Spearman ρ** | ≥ 0.70 | Rank correlation between Q and I | 0.876 ✅ |
-| **Pearson r** | ≥ 0.65 | Linear correlation (optional) | 0.823 ✅ |
-| **F1 Score** | ≥ 0.80 | Harmonic mean of P and R | 0.943 ✅ |
-| **Precision** | ≥ 0.80 | P(truly critical \| predicted critical) | 0.912 ✅ |
-| **Recall** | ≥ 0.80 | P(predicted critical \| truly critical) | 0.857 ✅ |
-| **Accuracy** | ≥ 0.85 | Overall classification correctness | 0.927 ✅ |
-| **Top-5 Overlap** | ≥ 0.60 | Agreement on 5 most critical | 0.80 ✅ |
-| **Top-10 Overlap** | ≥ 0.50 | Agreement on 10 most critical | 0.80 ✅ |
+| Metric | Target | Description |
+|--------|--------|-------------|
+| **Spearman ρ** | ≥ 0.70 | Rank correlation between Q and I |
+| **Pearson r** | ≥ 0.65 | Linear correlation (optional) |
+| **F1 Score** | ≥ 0.80 | Harmonic mean of P and R |
+| **Precision** | ≥ 0.80 | P(truly critical \| predicted critical) |
+| **Recall** | ≥ 0.80 | P(predicted critical \| truly critical) |
+| **Accuracy** | ≥ 0.85 | Overall classification correctness |
+| **Top-5 Overlap** | ≥ 0.60 | Agreement on 5 most critical |
+| **Top-10 Overlap** | ≥ 0.50 | Agreement on 10 most critical |
 
 **Research Contribution**: Achieving these targets demonstrates that graph topological analysis can **replace expensive runtime monitoring** with **pre-deployment static analysis**.
 
@@ -1447,7 +1447,7 @@ Recommendations:
 
 ## Summary
 
-**Step 5: Validation & Comparison** provides empirical evidence that the Software-as-a-Graph methodology reliably predicts critical components:
+**Validation & Comparison** provides empirical evidence that the Software-as-a-Graph methodology reliably predicts critical components:
 
 ✅ **Strong Correlation**: Spearman ρ = 0.876 overall, 0.943 at large scale
 

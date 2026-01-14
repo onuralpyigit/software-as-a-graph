@@ -1,4 +1,4 @@
-# Step 1: Graph Model Construction
+# Graph Model Construction
 
 **Transform distributed pub-sub system topology into a weighted directed graph**
 
@@ -867,7 +867,7 @@ Final Weight:     W_final = W_intrinsic + Σ W_deps_in + Σ W_deps_out
 
 ## Next Step
 
-After graph model construction, proceed to **Step 2: Structural Analysis** to compute topological metrics (PageRank, Betweenness, Articulation Points, etc.) that feed into the quality scoring formulas.
+After graph model construction, proceed to **Structural Analysis & Quality Scoring**. to compute topological metrics (PageRank, Betweenness, Articulation Points, etc.) that feed into the quality scoring formulas.
 
 ```bash
 python analyze_graph.py --layer system
@@ -878,5 +878,4 @@ python analyze_graph.py --layer system
 ## Navigation
 
 - **Previous**: [README](README.md)
-- **Next**: [Step 2: Structural Analysis](step2-structural-analysis.md)
-- **See Also**: [Quality Formulations](quality-formulations.md)
+- **Next**: [Structural Analysis & Quality Scoring](structural-analysis-quality-scoring.md)
