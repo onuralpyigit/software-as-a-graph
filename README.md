@@ -65,7 +65,7 @@ In distributed publish-subscribe systems (ROS 2, Kafka, MQTT, microservices), id
 │           Compute centrality metrics (PageRank, Betweenness)    │
 │                           ↓                                     │
 │   Step 3: QUALITY SCORING                                       │
-│           Calculate R(v), M(v), A(v) → Q(v) criticality score   │
+│           Calculate R(v), M(v), A(v), V(v) → Q(v)               │
 │                           ↓                                     │
 │   Step 4: FAILURE SIMULATION                                    │
 │           Test each component's actual failure impact I(v)      │
@@ -140,9 +140,14 @@ M(v) = 0.45·Betweenness + 0.25·(1-Clustering) + 0.30·Degree
 A(v) = 0.50·ArticulationPoint + 0.25·BridgeRatio + 0.25·Criticality
 ```
 
+**Vulnerability V(v)** — Exposure and attack surface risk:
+```
+V(v) = 0.40·Eigenvector + 0.30·Closeness + 0.30·InDegree
+```
+
 **Overall Quality Q(v)**:
 ```
-Q(v) = 0.35·R(v) + 0.30·M(v) + 0.35·A(v)
+Q(v) = 0.25·R(v) + 0.25·M(v) + 0.25·A(v) + 0.25·V(v)
 ```
 
 Components are classified using **box-plot statistics** (adaptive thresholds):
@@ -245,15 +250,18 @@ Node-1 ──DEPENDS_ON──▶ Node-2
 | **R** (Reliability) | Fault propagation | What happens if this fails? |
 | **M** (Maintainability) | Coupling | How hard is it to change this? |
 | **A** (Availability) | SPOF risk | Is this irreplaceable? |
+| **V** (Vulnerability) | Security | Is this vulnerable to attacks? |
+
 
 ### Interpretation Guide
 
-| Pattern | R | M | A | Interpretation |
-|---------|---|---|---|----------------|
-| **Hub** | High | High | High | Critical integration point |
-| **Bottleneck** | Low | High | Med | Coupling problem — refactor |
-| **SPOF** | Med | Low | High | Add redundancy |
-| **Leaf** | Low | Low | Low | Low concern |
+| Pattern | R | M | A | V | Interpretation |
+|---------|---|---|---|---|----------------|
+| **Hub** | High | High | High | High | Critical integration point |
+| **Bottleneck** | Low | High | Med | Med | Coupling problem — refactor |
+| **SPOF** | Med | Low | High | Low | Add redundancy |
+| **Target** | Low | Low | Low | High | Security risk — harden |
+| **Leaf** | Low | Low | Low | Low | Low concern |
 
 ### Classification Thresholds
 

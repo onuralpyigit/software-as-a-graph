@@ -51,7 +51,9 @@ Structural Analysis transforms the graph model into actionable criticality asses
    ├── Clustering Coefficient (modularity)
    ├── Degree Centrality (interface complexity)
    ├── Articulation Points (SPOFs)
-   └── Bridge Edges (critical paths)
+   ├── Bridge Edges (critical paths)
+   ├── Eigenvector Centrality (strategic importance)
+   └── Closeness Centrality (propagation speed)
 
 3. Normalize Metrics
    └── Min-max scaling to [0, 1]
@@ -60,6 +62,7 @@ Structural Analysis transforms the graph model into actionable criticality asses
    ├── R(v) - Reliability score
    ├── M(v) - Maintainability score
    ├── A(v) - Availability score
+   ├── V(v) - Vulnerability score
    └── Q(v) - Overall criticality
 
 5. Classify Components
@@ -99,6 +102,8 @@ The analysis computes seven core metrics that capture different aspects of compo
 | **Degree** | Connection count | Complex interface |
 | **Articulation Point** | Graph connectivity | Single point of failure |
 | **Bridge Ratio** | Critical edges | Irreplaceable connections |
+| **Eigenvector** | Neighbor influence | Connected to other VIPs (High Value Target) |
+| **Closeness** | Propagation speed | Can reach/affect others quickly |
 
 ### PageRank
 
@@ -182,6 +187,26 @@ Bridge Ratio = (bridge edges incident to v) / degree(v)
 
 **Interpretation**: High bridge ratio means most of a component's connections are irreplaceable.
 
+### Eigenvector Centrality
+
+Measures influence based on the concept that connections to high-scoring nodes contribute more to the score than equal connections to low-scoring nodes.
+
+```
+Ax = λx
+```
+
+**Interpretation**: High eigenvector centrality means a component is connected to other highly important components, making it a "High Value Target" strategically.
+
+### Closeness Centrality
+
+Measures the reciprocal of the sum of the shortest path distances from a node to all other nodes.
+
+```
+C(v) = (N-1) / Σ d(v, u)
+```
+
+**Interpretation**: High closeness means a component can communicate with (or propagate faults/attacks to) other components very quickly.
+
 ---
 
 ## 3. Quality Scoring (RMA)
@@ -195,6 +220,7 @@ Metrics are combined into three orthogonal quality dimensions plus an overall sc
 | **R(v)** Reliability | What happens when this fails? | Failure cascade potential |
 | **M(v)** Maintainability | How hard is this to change? | Change propagation risk |
 | **A(v)** Availability | Is this a single point of failure? | Service continuity risk |
+| **V(v)** Vulnerability | Is this a strategic target? | Security/Exposure risk |
 | **Q(v)** Overall | How critical is this component? | Combined priority |
 
 ### Reliability Score R(v)
@@ -249,19 +275,36 @@ where CR = PR_norm × DC_norm  (criticality = influence × connectivity)
 
 **Interpretation**: Higher A(v) → Higher availability risk (more likely SPOF).
 
+### Vulnerability Score V(v)
+
+**Purpose**: Measures security exposure and strategic value as a target.
+
+```
+V(v) = 0.40 × EV_norm + 0.30 × CL_norm + 0.30 × InDegree_norm
+```
+
+| Component | Weight | Why |
+|-----------|--------|-----|
+| Eigenvector (EV) | 0.40 | Strategic Importance—connected to other VIPs (High Value Target) |
+| Closeness (CL) | 0.30 | Propagation Speed—can reach/affect others quickly |
+| In-Degree | 0.30 | Attack Surface—high exposure to incoming connections |
+
+**Interpretation**: Higher V(v) → Higher security risk (attractive target or high exposure).  
+
 ### Overall Quality Score Q(v)
 
 **Purpose**: Single criticality measure combining all dimensions.
 
 ```
-Q(v) = 0.35 × R(v) + 0.30 × M(v) + 0.35 × A(v)
+Q(v) = 0.25 × R(v) + 0.25 × M(v) + 0.25 × A(v) + 0.25 × V(v)
 ```
 
 | Dimension | Weight | Rationale |
 |-----------|--------|-----------|
-| Reliability | 0.35 | Runtime stability |
-| Maintainability | 0.30 | Development effort (slightly lower) |
-| Availability | 0.35 | Runtime stability |
+| Reliability | 0.25 | Runtime stability |
+| Maintainability | 0.25 | Development effort |
+| Availability | 0.25 | Runtime stability |
+| Vulnerability | 0.25 | Security exposure |
 
 **Interpretation**: Higher Q(v) → Higher overall criticality requiring attention.
 
@@ -294,10 +337,16 @@ WEIGHTS = {
         "bridge_ratio": 0.25,
         "criticality": 0.25
     },
+    "vulnerability": {
+        "eigenvector": 0.40,
+        "closeness": 0.30,
+        "in_degree": 0.30
+    }
     "overall": {
-        "reliability": 0.35,
-        "maintainability": 0.30,
-        "availability": 0.35
+        "reliability": 0.25,
+        "maintainability": 0.25,
+        "availability": 0.25,
+        "vulnerability": 0.25
     }
 }
 ```
@@ -693,6 +742,7 @@ The analyzer automatically detects architectural anti-patterns.
 | **Availability** | SPOFs, articulation points, bridge edges |
 | **Maintainability** | Excessive coupling, low modularity, hub components |
 | **Reliability** | High failure propagation, concentrated dependencies |
+| **Security** | High Value Target (High Eigenvector), High Exposure (High Closeness) |
 | **Structural** | Disconnected components, isolated nodes |
 
 ### Problem Severity Levels
@@ -713,6 +763,7 @@ The analyzer automatically detects architectural anti-patterns.
 | **Communication Bottleneck** | High betweenness | Distribute responsibility |
 | **Critical Path** | Bridge edge | Add alternative route |
 | **Hub Overload** | High in-degree + out-degree | Split into smaller components |
+| **High Value Target** | High Eigenvector | Harden security, Zero Trust, Audit logs |
 
 ---
 
@@ -747,7 +798,7 @@ For PageRank: min=0.20, max=0.45, range=0.25
 | Fusion | 0.60 | 1.00 | 1.00 | 1.00 | 0.50 | 1.00 |
 | Display | 0.00 | 0.33 | 0.50 | 0.00 | 0.50 | 0.33 |
 
-### Step 3: RMA Calculation for Fusion
+### Step 3: RMAV Calculation for Fusion
 
 **Reliability:**
 ```
@@ -770,11 +821,17 @@ A(Fusion) = 0.50 × 1.0 + 0.25 × 1.00 + 0.25 × 0.60
           = 0.90
 ```
 
+**Vulnerability:**
+```
+V(Fusion) = 0.40 × 0.00 + 0.30 × 0.50 + 0.30 × 1.00
+          = 0.12 + 0.15 + 0.30
+          = 0.52
+```
+
 **Overall:**
 ```
-Q(Fusion) = 0.35 × 0.82 + 0.30 × 0.875 + 0.35 × 0.90
-          = 0.287 + 0.263 + 0.315
-          = 0.865
+Q(Fusion) = 0.25 × 0.82 + 0.25 × 0.875 + 0.25 × 0.90 + 0.25 × 0.52
+          = 
 ```
 
 ### Step 4: Classification
@@ -829,6 +886,7 @@ python analyze_graph.py --layer system --k-factor 1.0
 R(v) = 0.45×PR + 0.35×RP + 0.20×ID         (Reliability)
 M(v) = 0.45×BT + 0.25×(1-CC) + 0.30×DC     (Maintainability)
 A(v) = 0.50×AP + 0.25×BR + 0.25×CR         (Availability)
+V(v) = 0.40×EV + 0.30×CL + 0.30×ID         (Vulnerability)
 Q(v) = 0.35×R + 0.30×M + 0.35×A            (Overall)
 ```
 
@@ -855,6 +913,9 @@ MINIMAL:   Q ≤ Q1            (bottom quartile)
 | Articulation Point | A | Structural SPOF |
 | Bridge Ratio | A | Critical connections |
 | Criticality (PR×DC) | A | Important hub |
+| Eigenvector | V | Strategic importance |
+| Closeness | V | Propagation speed |
+| In-Degree | V | Attack surface |
 
 ---
 
