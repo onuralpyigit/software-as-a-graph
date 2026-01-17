@@ -189,9 +189,9 @@ def display_critical_components(result: LayerAnalysisResult, limit: int = 15) ->
         return
     
     # Header
-    header = f"  {'ID':<25} {'Type':<12} {'R':<7} {'M':<7} {'A':<7} {'Q':<7} {'Level':<10}"
+    header = f"  {'ID':<25} {'Type':<12} {'R':<6} {'M':<6} {'A':<6} {'V':<6} {'Q':<6} {'Level':<10}"
     print(colored(header, Colors.WHITE, bold=True))
-    print(f"  {'-' * 75}")
+    print(f"  {'-' * 82}")
     
     for c in components:
         level_str = c.levels.overall.value.upper()
@@ -200,10 +200,12 @@ def display_critical_components(result: LayerAnalysisResult, limit: int = 15) ->
         # Indicator symbols
         ap_flag = colored("●", Colors.RED) if c.structural.is_articulation_point else " "
         
+        # Component details
         print(
             f"  {c.id:<25} {c.type:<12} "
             f"{c.scores.reliability:.3f}  {c.scores.maintainability:.3f}  "
-            f"{c.scores.availability:.3f}  {colored(f'{c.scores.overall:.3f}', color)}  "
+            f"{c.scores.availability:.3f}  {c.scores.vulnerability:.3f}  "
+            f"{colored(f'{c.scores.overall:.3f}', color)}  "
             f"{colored(level_str, color):<10} {ap_flag}"
         )
     
@@ -211,7 +213,8 @@ def display_critical_components(result: LayerAnalysisResult, limit: int = 15) ->
         print(f"\n  {colored(f'... and {len(result.quality.components) - limit} more', Colors.GRAY)}")
     
     # Legend
-    print(f"\n  Legend: R=Reliability, M=Maintainability, A=Availability, Q=Overall")
+    print(f"\n  Legend: R=Reliability, M=Maintainability, A=Availability, V=Vulnerability, "
+          f"Q=Overall")
     print(f"          {colored('●', Colors.RED)} = Articulation Point (SPOF)")
 
 

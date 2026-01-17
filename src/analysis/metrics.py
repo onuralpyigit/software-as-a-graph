@@ -8,7 +8,7 @@ Components:
     - StructuralMetrics: Raw topological metrics for nodes
     - EdgeMetrics: Raw topological metrics for edges
     - GraphSummary: Overall graph statistics
-    - QualityScores: R, M, A quality scores
+    - QualityScores: R, M, A, V quality scores
     - QualityLevels: Classification levels for quality dimensions
 """
 
@@ -181,11 +181,13 @@ class QualityScores:
         R(v) = w_pr·PR + w_rpr·RPR + w_in·InDeg      (Reliability)
         M(v) = w_bt·BC + w_dg·Deg + w_cl·(1-CC)      (Maintainability)
         A(v) = w_ap·AP + w_br·BR + w_imp·Imp         (Availability)
+        V(v) = w_ev·Eig + w_cl·Close + w_in·InDeg    (Vulnerability)
         Q(v) = w_r·R + w_m·M + w_a·A                 (Overall)
     """
     reliability: float = 0.0        # Fault propagation risk
     maintainability: float = 0.0    # Change/coupling complexity
     availability: float = 0.0       # Single point of failure risk
+    vulnerability: float = 0.0      # Exposure and attack surface risk
     overall: float = 0.0            # Combined criticality
     
     def to_dict(self) -> Dict[str, float]:
@@ -193,6 +195,7 @@ class QualityScores:
             "reliability": round(self.reliability, 4),
             "maintainability": round(self.maintainability, 4),
             "availability": round(self.availability, 4),
+            "vulnerability": round(self.vulnerability, 4),
             "overall": round(self.overall, 4),
         }
 
@@ -208,6 +211,7 @@ class QualityLevels:
     reliability: CriticalityLevel = CriticalityLevel.MINIMAL
     maintainability: CriticalityLevel = CriticalityLevel.MINIMAL
     availability: CriticalityLevel = CriticalityLevel.MINIMAL
+    vulnerability: CriticalityLevel = CriticalityLevel.MINIMAL
     overall: CriticalityLevel = CriticalityLevel.MINIMAL
     
     def to_dict(self) -> Dict[str, str]:
@@ -215,13 +219,14 @@ class QualityLevels:
             "reliability": self.reliability.value,
             "maintainability": self.maintainability.value,
             "availability": self.availability.value,
+            "vulnerability": self.vulnerability.value,
             "overall": self.overall.value,
         }
     
     def max_level(self) -> CriticalityLevel:
         """Return the highest criticality level across all dimensions."""
         return max(
-            [self.reliability, self.maintainability, self.availability],
+            [self.reliability, self.maintainability, self.availability, self.vulnerability],
             key=lambda x: x.numeric
         )
     

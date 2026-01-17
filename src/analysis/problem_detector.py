@@ -32,6 +32,7 @@ class ProblemCategory(Enum):
     AVAILABILITY = "Availability"
     RELIABILITY = "Reliability"
     MAINTAINABILITY = "Maintainability"
+    SECURITY = "Security"
     ARCHITECTURE = "Architecture"
 
 
@@ -378,6 +379,56 @@ class ProblemDetector:
                         "is_isolated": True,
                         "in_degree": c.structural.in_degree_raw,
                         "out_degree": c.structural.out_degree_raw,
+                    }
+                ))
+
+            # === SECURITY / VULNERABILITY PROBLEMS ===
+
+            # High Value Target (High Eigenvector + Critical Importance)
+            if c.levels.vulnerability >= CriticalityLevel.CRITICAL:
+                problems.append(DetectedProblem(
+                    entity_id=c.id,
+                    entity_type="Component",
+                    category=ProblemCategory.SECURITY.value,
+                    severity="CRITICAL",
+                    name="High Value Target",
+                    description=(
+                        f"'{c.id}' has critical vulnerability metrics (score: {c.scores.vulnerability:.3f}). "
+                        f"It is highly connected to other important components (Eigenvector Centrality), "
+                        f"making it a strategic target for attackers to compromise the system core."
+                    ),
+                    recommendation=(
+                        "Harden security posture: (1) Implement strict Zero Trust policies, "
+                        "(2) Enable comprehensive audit logging, (3) Isolate in a secure subnet, "
+                        "(4) Apply highest priority patching schedule."
+                    ),
+                    evidence={
+                        "vulnerability_score": c.scores.vulnerability,
+                        "eigenvector": c.structural.eigenvector,
+                        "in_degree": c.structural.in_degree_raw,
+                    }
+                ))
+
+            # High Exposure (High Closeness + High In-Degree)
+            elif (c.levels.vulnerability == CriticalityLevel.HIGH and 
+                  c.structural.closeness > 0.6):
+                problems.append(DetectedProblem(
+                    entity_id=c.id,
+                    entity_type="Component",
+                    category=ProblemCategory.SECURITY.value,
+                    severity="HIGH",
+                    name="High Exposure Surface",
+                    description=(
+                        f"'{c.id}' is easily reachable from many parts of the system "
+                        f"(Closeness: {c.structural.closeness:.2f}) and has a large attack surface."
+                    ),
+                    recommendation=(
+                        "Reduce attack surface: (1) Restrict incoming connections to allow-list only, "
+                        "(2) Validate all inputs rigorously, (3) Use API gateways for traffic control."
+                    ),
+                    evidence={
+                        "closeness": c.structural.closeness,
+                        "in_degree": c.structural.in_degree_raw,
                     }
                 ))
         

@@ -10,6 +10,7 @@ Formulas:
     R(v) = w_pr·PR + w_rpr·RPR + w_in·InDeg         (Reliability)
     M(v) = w_bt·BC + w_dg·Deg + w_cl·(1-CC)         (Maintainability)  
     A(v) = w_ap·AP + w_br·BridgeRatio + w_imp·Imp   (Availability)
+    V(v) = w_ev·Eig + w_cl·Close + w_in·InDeg       (Vulnerability)
     Q(v) = w_r·R + w_m·M + w_a·A                    (Overall Quality)
 
 Each dimension measures different aspects:
@@ -53,11 +54,17 @@ class QualityWeights:
     a_articulation: float = 0.5
     a_bridge_ratio: float = 0.3
     a_importance: float = 0.2  # Combined pagerank
+
+    # Vulnerability weights (exposure risk)
+    v_eigenvector: float = 0.4
+    v_closeness: float = 0.3
+    v_in_degree: float = 0.3
     
     # Overall quality weights
-    q_reliability: float = 0.35
-    q_maintainability: float = 0.30
-    q_availability: float = 0.35
+    q_reliability: float = 0.25
+    q_maintainability: float = 0.25
+    q_availability: float = 0.25
+    q_vulnerability: float = 0.25
 
 
 @dataclass
@@ -211,6 +218,8 @@ class QualityAnalyzer:
             "in_degree": max(m.in_degree for m in metrics) or 1.0,
             "clustering": 1.0,  # Already normalized [0, 1]
             "bridge_ratio": max(m.bridge_ratio for m in metrics) or 1.0,
+            "eigenvector": max(m.eigenvector for m in metrics) or 1.0,
+            "closeness": max(m.closeness for m in metrics) or 1.0,
         }
     
     def _compute_scores(
@@ -225,6 +234,7 @@ class QualityAnalyzer:
             R(v) = w_pr·PR_norm + w_rpr·RPR_norm + w_in·InDeg_norm
             M(v) = w_bt·BC_norm + w_dg·Deg_norm + w_cl·(1 - CC)
             A(v) = w_ap·AP + w_br·BR_norm + w_imp·(PR + RPR)/2
+            V(v) = w_ev·Eig + w_cl·Close + w_in·InDeg
             Q(v) = w_r·R + w_m·M + w_a·A
         """
         w = self.weights
@@ -238,6 +248,8 @@ class QualityAnalyzer:
         cc = m.clustering_coefficient
         br = m.bridge_ratio / norm["bridge_ratio"] if norm["bridge_ratio"] > 0 else 0
         ap = 1.0 if m.is_articulation_point else 0.0
+        ev = m.eigenvector / norm["eigenvector"] if norm["eigenvector"] > 0 else 0
+        cl = m.closeness / norm["closeness"] if norm["closeness"] > 0 else 0
         
         # Compute R: Reliability (fault propagation risk)
         reliability = (
@@ -262,17 +274,26 @@ class QualityAnalyzer:
             w.a_importance * importance
         )
         
+        # Compute V: Vulnerability
+        vulnerability = (
+            w.v_eigenvector * ev +
+            w.v_closeness * cl +
+            w.v_in_degree * ind
+        )
+        
         # Compute Q: Overall Quality Score
         overall = (
             w.q_reliability * reliability +
             w.q_maintainability * maintainability +
-            w.q_availability * availability
+            w.q_availability * availability +
+            w.q_vulnerability * vulnerability
         )
         
         return QualityScores(
             reliability=reliability,
             maintainability=maintainability,
             availability=availability,
+            vulnerability=vulnerability,
             overall=overall,
         )
     
@@ -295,7 +316,7 @@ class QualityAnalyzer:
         # Classify each dimension
         classifications: Dict[str, Dict[str, CriticalityLevel]] = {}
         
-        for dim in ["reliability", "maintainability", "availability", "overall"]:
+        for dim in ["reliability", "maintainability", "availability", "vulnerability", "overall"]:
             result = self.classifier.classify(extract(dim), metric_name=dim)
             classifications[dim] = {item.id: item.level for item in result.items}
         
@@ -308,6 +329,7 @@ class QualityAnalyzer:
                 reliability=classifications["reliability"].get(comp_id, CriticalityLevel.MINIMAL),
                 maintainability=classifications["maintainability"].get(comp_id, CriticalityLevel.MINIMAL),
                 availability=classifications["availability"].get(comp_id, CriticalityLevel.MINIMAL),
+                vulnerability=classifications["vulnerability"].get(comp_id, CriticalityLevel.MINIMAL),
                 overall=classifications["overall"].get(comp_id, CriticalityLevel.MINIMAL),
             )
             
