@@ -46,6 +46,7 @@ G = (V, E, τ, w)
 | **Broker** | Message routing middleware | DDS Participant, Kafka Broker |
 | **Topic** | Message channel with QoS | `/sensors/lidar`, `orders.created` |
 | **Application** | Service that pub/sub to topics | ROS Node, Microservice |
+| **Library** | Shared code dependency that pub/sub to topics | Navigation Library, Data Processing Library|
 
 ### Hierarchy
 
@@ -54,6 +55,7 @@ Node (Infrastructure)
   └── Broker (Middleware)
         └── Topic (Data Channel)
               └── Application (Software)
+                    └── Library (Shared Code)
 ```
 
 ---
@@ -69,6 +71,7 @@ Node (Infrastructure)
 | `PUBLISHES_TO` | App → Topic | Sends messages |
 | `SUBSCRIBES_TO` | App → Topic | Receives messages |
 | `CONNECTS_TO` | Node → Node | Network connection |
+| `USES` | App/Lib -> Lib | Shared code |
 
 ### Derived Edges (Computed)
 
@@ -118,6 +121,7 @@ Topic QoS → Topic Weight → Edge Weight → Component Weight → Dependency W
 
 - **Edge weight** = Topic weight
 - **App weight** = Sum of connected topic weights
+- **Lib weight** = Sum of shared topic weights
 - **Broker weight** = Sum of routed topic weights
 - **Node weight** = Sum of hosted component weights
 - **Dependency weight** = Shared topics count × average topic weight
@@ -135,44 +139,6 @@ The graph supports multi-layer analysis by filtering dependencies:
 | **mw-app** | Apps, Brokers | app_to_app, app_to_broker | Middleware impact |
 | **mw-infra** | Nodes, Brokers | node_to_node, node_to_broker | Middleware infrastructure |
 | **system** | All | All | Complete view |
-
----
-
-## Input Format
-
-System topology is defined in JSON:
-
-```json
-{
-  "nodes": [
-    { "id": "N0", "name": "Server-1" }
-  ],
-  "brokers": [
-    { "id": "B0", "name": "MainBroker" }
-  ],
-  "topics": [
-    {
-      "id": "T0",
-      "name": "/sensors/lidar",
-      "size": 256,
-      "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "RELIABLE",
-        "priority": "NORMAL"
-      }
-    }
-  ],
-  "applications": [
-    {
-      "id": "A0",
-      "name": "SensorFusion",
-      "node": "N0",
-      "publishes": ["T0"],
-      "subscribes": ["T1", "T2"]
-    }
-  ]
-}
-```
 
 ---
 
