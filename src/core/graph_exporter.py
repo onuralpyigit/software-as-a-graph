@@ -236,8 +236,14 @@ class GraphExporter:
                     props = dict(record["props"])
                     # Special handling for Application role
                     role = props.get("role", "pubsub") if label == "Application" else None
+                    app_type = props.get("app_type") if label == "Application" else None
+                    criticality = props.get("criticality") if label == "Application" else None
+                    version = props.get("version") if label == "Application" or label == "Library" else None
                     item = {"id": record["id"], "name": record["name"] or record["id"], "weight": float(record["weight"])}
                     if role: item["role"] = role
+                    if app_type: item["app_type"] = app_type
+                    if criticality: item["criticality"] = criticality
+                    if version: item["version"] = version
                     data[key].append(item)
 
             # Topics
