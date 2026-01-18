@@ -460,7 +460,12 @@ Examples:
         default=0.85,
         help="PageRank damping factor (default: 0.85)"
     )
-    
+    parser.add_argument(
+        "--ahp",
+        action="store_true",
+        help="Use Analytic Hierarchy Process (AHP) for calculating quality weights"
+    )
+
     # Display options
     parser.add_argument(
         "--quiet", "-q",
@@ -496,6 +501,7 @@ def main() -> int:
             password=args.password,
             damping_factor=args.damping,
             k_factor=args.k_factor,
+            use_ahp=args.ahp
         ) as analyzer:
             
             # Run analysis

@@ -155,6 +155,7 @@ class GraphAnalyzer:
         password: str = "password",
         damping_factor: float = 0.85,
         k_factor: float = 1.5,
+        use_ahp: bool = False
     ):
         """
         Initialize the analyzer.
@@ -176,7 +177,7 @@ class GraphAnalyzer:
         
         # Initialize analyzers
         self.structural = StructuralAnalyzer(damping_factor=damping_factor)
-        self.quality = QualityAnalyzer(k_factor=k_factor)
+        self.quality = QualityAnalyzer(k_factor=k_factor, use_ahp=use_ahp)
         self.detector = ProblemDetector()
         
         # Data source (lazy initialization)
@@ -415,7 +416,8 @@ def analyze_graph(
     uri: str = "bolt://localhost:7687",
     user: str = "neo4j",
     password: str = "password",
-    output: Optional[str] = None
+    output: Optional[str] = None,
+    use_ahp: bool = False
 ) -> Union[LayerAnalysisResult, MultiLayerAnalysisResult]:
     """
     Convenience function for quick graph analysis.
@@ -430,7 +432,7 @@ def analyze_graph(
     Returns:
         Analysis results
     """
-    with GraphAnalyzer(uri=uri, user=user, password=password) as analyzer:
+    with GraphAnalyzer(uri=uri, user=user, password=password, use_ahp=use_ahp) as analyzer:
         if layer.lower() == "all":
             results = analyzer.analyze_all_layers()
         else:

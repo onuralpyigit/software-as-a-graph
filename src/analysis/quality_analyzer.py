@@ -31,40 +31,7 @@ from .metrics import (
 )
 from .structural_analyzer import StructuralAnalysisResult
 from .layers import AnalysisLayer
-
-
-@dataclass
-class QualityWeights:
-    """
-    Configurable weights for quality score computation.
-    
-    All weights should sum to 1.0 within each dimension.
-    """
-    # Reliability weights (fault propagation)
-    r_pagerank: float = 0.4
-    r_reverse_pagerank: float = 0.35
-    r_in_degree: float = 0.25
-    
-    # Maintainability weights (coupling complexity)
-    m_betweenness: float = 0.4
-    m_degree: float = 0.35
-    m_clustering: float = 0.25  # Note: (1 - clustering) is used
-    
-    # Availability weights (SPOF risk)
-    a_articulation: float = 0.5
-    a_bridge_ratio: float = 0.3
-    a_importance: float = 0.2  # Combined pagerank
-
-    # Vulnerability weights (exposure risk)
-    v_eigenvector: float = 0.4
-    v_closeness: float = 0.3
-    v_in_degree: float = 0.3
-    
-    # Overall quality weights
-    q_reliability: float = 0.25
-    q_maintainability: float = 0.25
-    q_availability: float = 0.25
-    q_vulnerability: float = 0.25
+from .weight_calculator import AHPProcessor, QualityWeights
 
 
 @dataclass
@@ -128,7 +95,8 @@ class QualityAnalyzer:
     def __init__(
         self,
         k_factor: float = 1.5,
-        weights: Optional[QualityWeights] = None
+        weights: Optional[QualityWeights] = None,
+        use_ahp: bool = False
     ):
         """
         Initialize the quality analyzer.
@@ -138,7 +106,12 @@ class QualityAnalyzer:
             weights: Custom weights for quality formulas (default: balanced)
         """
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
-        self.weights = weights or QualityWeights()
+
+        if use_ahp:
+            processor = AHPProcessor()
+            self.weights = processor.compute_weights()
+        else:
+            self.weights = weights or QualityWeights()
     
     def analyze(
         self,

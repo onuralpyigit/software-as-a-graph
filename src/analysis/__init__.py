@@ -57,6 +57,13 @@ from .classifier import (
     weighted_combine,
 )
 
+# Weight calculator
+from .weight_calculator import (
+    QualityWeights,
+    AHPProcessor,
+    AHPMatrices,
+)
+
 # Metrics data classes
 from .metrics import (
     StructuralMetrics,
@@ -80,7 +87,6 @@ from .structural_analyzer import (
 from .quality_analyzer import (
     QualityAnalyzer,
     QualityAnalysisResult,
-    QualityWeights,
 )
 
 # Problem detector
@@ -119,6 +125,11 @@ __all__ = [
     "ClassificationResult",
     "combine_levels",
     "weighted_combine",
+
+    # Weight Calculator
+    "QualityWeights",
+    "AHPProcessor",
+    "AHPMatrices",
     
     # Metrics
     "StructuralMetrics",
@@ -138,7 +149,6 @@ __all__ = [
     # Quality Analyzer
     "QualityAnalyzer",
     "QualityAnalysisResult",
-    "QualityWeights",
     
     # Problem Detector
     "ProblemDetector",
