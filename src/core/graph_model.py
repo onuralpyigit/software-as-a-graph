@@ -181,10 +181,8 @@ class Library(GraphEntity):
     Libraries can also depend on other libraries (USES relationship).
     
     Attributes:
-        role: Derived from PUBLISHES_TO/SUBSCRIBES_TO relationships
-              - pub: Only publishes to topics
-              - sub: Only subscribes to topics  
-              - pubsub: Both publishes and subscribes
+        id: Unique identifier for the library
+        name: Name of the library
         version: Optional version string for the library
     
     Communication Patterns:
@@ -192,14 +190,12 @@ class Library(GraphEntity):
         Indirect: App -> Lib -> Topic
         Chained:  App -> Lib -> Lib -> Topic
     """
-    role: str = "pubsub"  # pub, sub, pubsub (derived from relationships)
     version: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         result = {
             "id": self.id,
             "name": self.name,
-            "role": self.role
         }
         if self.version:
             result["version"] = self.version

@@ -35,8 +35,8 @@ class GraphImporter:
         stats = {}
         stats["nodes"] = self._import_batch(data.get("nodes", []), "MERGE (n:Node {id: row.id}) SET n.name=row.name, n.weight=0.0")
         stats["brokers"] = self._import_batch(data.get("brokers", []), "MERGE (n:Broker {id: row.id}) SET n.name=row.name, n.weight=0.0")
-        stats["apps"] = self._import_batch(data.get("applications", []), "MERGE (n:Application {id: row.id}) SET n.name=row.name, n.role=row.role, n.weight=0.0")
-        stats["libraries"] = self._import_batch(data.get("libraries", []), "MERGE (n:Library {id: row.id}) SET n.name=row.name, n.weight=0.0")
+        stats["apps"] = self._import_batch(data.get("applications", []), "MERGE (n:Application {id: row.id}) SET n.name=row.name, n.role=row.role, n.app_type=row.app_type, n.version=row.version, n.criticality=row.criticality, n.weight=0.0")
+        stats["libraries"] = self._import_batch(data.get("libraries", []), "MERGE (n:Library {id: row.id}) SET n.name=row.name, n.version=row.version, n.weight=0.0")
         stats["topics"] = self._import_topics(data.get("topics", []))
         
         # 2. Import Relationships
@@ -158,7 +158,13 @@ class GraphImporter:
             SET l.weight = load_weight
         """)
 
-        # 6. Broker Weight (Sum of Routed Topic Weights)
+        # 6. USES Edge Weights (App/Library -> Library)
+        self._run_query("""
+            MATCH ()-[r:USES]->(l:Library)
+            SET r.weight = l.weight
+        """)
+
+        # 7. Broker Weight (Sum of Routed Topic Weights)
         self._run_query("""
             MATCH (b:Broker)
             OPTIONAL MATCH (b)-[:ROUTES]->(t:Topic)
@@ -166,7 +172,7 @@ class GraphImporter:
             SET b.weight = routed_weight
         """)
 
-        # 7. Node Weight (Sum of Hosted App and Broker Weights)
+        # 8. Node Weight (Sum of Hosted App and Broker Weights)
         self._run_query("""
             MATCH (n:Node)
             OPTIONAL MATCH (a:Application)-[:RUNS_ON]->(n)
@@ -229,7 +235,7 @@ class GraphImporter:
         RETURN count(d) as c
         """
         count_deps_app_broker_via_lib = self._run_count(query_app_broker_via_lib)
-        
+
         stats["deps_app_broker"] = count_deps_app_broker + count_deps_app_broker_via_lib
 
         # C. Node->Node

@@ -1,7 +1,7 @@
 {
   "metadata": {
     "scale": "{'apps': 15, 'topics': 10, 'brokers': 2, 'nodes': 4, 'libs': 5}",
-    "seed": "602078388"
+    "seed": "3229233394"
   },
   "nodes": [
     {
@@ -35,7 +35,7 @@
     {
       "id": "T0",
       "name": "Topic-0",
-      "size": 2070,
+      "size": 16113,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
@@ -45,7 +45,7 @@
     {
       "id": "T1",
       "name": "Topic-1",
-      "size": 5607,
+      "size": 44412,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
@@ -55,7 +55,7 @@
     {
       "id": "T2",
       "name": "Topic-2",
-      "size": 308,
+      "size": 2016,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
@@ -65,7 +65,7 @@
     {
       "id": "T3",
       "name": "Topic-3",
-      "size": 4203,
+      "size": 33182,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
@@ -75,7 +75,7 @@
     {
       "id": "T4",
       "name": "Topic-4",
-      "size": 1869,
+      "size": 14510,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
@@ -85,7 +85,7 @@
     {
       "id": "T5",
       "name": "Topic-5",
-      "size": 6280,
+      "size": 49793,
       "qos": {
         "durability": "PERSISTENT",
         "reliability": "RELIABLE",
@@ -95,7 +95,7 @@
     {
       "id": "T6",
       "name": "Topic-6",
-      "size": 2340,
+      "size": 18274,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
@@ -105,7 +105,7 @@
     {
       "id": "T7",
       "name": "Topic-7",
-      "size": 901,
+      "size": 6762,
       "qos": {
         "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
@@ -115,7 +115,7 @@
     {
       "id": "T8",
       "name": "Topic-8",
-      "size": 3004,
+      "size": 23590,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "RELIABLE",
@@ -125,7 +125,7 @@
     {
       "id": "T9",
       "name": "Topic-9",
-      "size": 6041,
+      "size": 47887,
       "qos": {
         "durability": "TRANSIENT",
         "reliability": "RELIABLE",
@@ -138,140 +138,155 @@
       "id": "A0",
       "name": "App-0",
       "role": "sub",
-      "app_type": "service",
-      "criticality": false
+      "app_type": "logger",
+      "criticality": true,
+      "version": "2.1.8"
     },
     {
       "id": "A1",
       "name": "App-1",
-      "role": "pubsub",
-      "app_type": "service",
-      "criticality": false
+      "role": "sub",
+      "app_type": "ui",
+      "criticality": false,
+      "version": "3.3.1"
     },
     {
       "id": "A2",
       "name": "App-2",
       "role": "pub",
-      "app_type": "service",
-      "criticality": false
+      "app_type": "gateway",
+      "criticality": false,
+      "version": "1.3.1"
     },
     {
       "id": "A3",
       "name": "App-3",
       "role": "sub",
-      "app_type": "service",
-      "criticality": false
+      "app_type": "processor",
+      "criticality": false,
+      "version": "3.5.2"
     },
     {
       "id": "A4",
       "name": "App-4",
-      "role": "pub",
-      "app_type": "service",
-      "criticality": false
+      "role": "sub",
+      "app_type": "monitor",
+      "criticality": true,
+      "version": "3.4.1"
     },
     {
       "id": "A5",
       "name": "App-5",
       "role": "pubsub",
-      "app_type": "service",
-      "criticality": false
+      "app_type": "controller",
+      "criticality": true,
+      "version": "1.7.6"
     },
     {
       "id": "A6",
       "name": "App-6",
       "role": "sub",
-      "app_type": "service",
-      "criticality": false
+      "app_type": "logger",
+      "criticality": true,
+      "version": "3.5.0"
     },
     {
       "id": "A7",
       "name": "App-7",
-      "role": "pubsub",
+      "role": "pub",
       "app_type": "service",
-      "criticality": false
+      "criticality": false,
+      "version": "2.4.1"
     },
     {
       "id": "A8",
       "name": "App-8",
-      "role": "pubsub",
-      "app_type": "service",
-      "criticality": false
+      "role": "pub",
+      "app_type": "ui",
+      "criticality": false,
+      "version": "1.7.6"
     },
     {
       "id": "A9",
       "name": "App-9",
-      "role": "sub",
-      "app_type": "service",
-      "criticality": false
+      "role": "pubsub",
+      "app_type": "scheduler",
+      "criticality": true,
+      "version": "2.2.3"
     },
     {
       "id": "A10",
       "name": "App-10",
       "role": "pubsub",
-      "app_type": "service",
-      "criticality": false
+      "app_type": "logger",
+      "criticality": false,
+      "version": "3.9.6"
     },
     {
       "id": "A11",
       "name": "App-11",
-      "role": "pub",
-      "app_type": "service",
-      "criticality": false
+      "role": "pubsub",
+      "app_type": "aggregator",
+      "criticality": false,
+      "version": "1.2.8"
     },
     {
       "id": "A12",
       "name": "App-12",
-      "role": "pubsub",
-      "app_type": "service",
-      "criticality": false
+      "role": "sub",
+      "app_type": "driver",
+      "criticality": true,
+      "version": "1.2.2"
     },
     {
       "id": "A13",
       "name": "App-13",
-      "role": "pub",
-      "app_type": "service",
-      "criticality": false
+      "role": "pubsub",
+      "app_type": "aggregator",
+      "criticality": true,
+      "version": "2.6.9"
     },
     {
       "id": "A14",
       "name": "App-14",
-      "role": "pub",
-      "app_type": "service",
-      "criticality": false
+      "role": "sub",
+      "app_type": "logger",
+      "criticality": false,
+      "version": "3.0.1"
     }
   ],
   "libraries": [
     {
       "id": "L0",
       "name": "Lib-0",
-      "role": "pubsub"
+      "version": "2.8.4"
     },
     {
       "id": "L1",
       "name": "Lib-1",
-      "role": "pubsub"
+      "version": "2.5.1"
     },
     {
       "id": "L2",
       "name": "Lib-2",
-      "role": "pubsub"
+      "version": "1.6.2"
     },
     {
       "id": "L3",
       "name": "Lib-3",
-      "role": "pubsub"
+      "version": "1.0.4"
     },
     {
       "id": "L4",
       "name": "Lib-4",
-      "role": "pubsub"
+      "version": "2.2.8"
     }
   ],
   "relationships": {
     "runs_on": [
       {
         "from": "A0",
-        "to": "N1"
+        "to": "N0"
       },
       {
         "from": "A1",
@@ -279,7 +294,7 @@
       },
       {
         "from": "A2",
-        "to": "N0"
+        "to": "N1"
       },
       {
         "from": "A3",
@@ -287,31 +302,31 @@
       },
       {
         "from": "A4",
-        "to": "N0"
+        "to": "N2"
       },
       {
         "from": "A5",
-        "to": "N3"
-      },
-      {
-        "from": "A6",
-        "to": "N2"
-      },
-      {
-        "from": "A7",
-        "to": "N3"
-      },
-      {
-        "from": "A8",
-        "to": "N2"
-      },
-      {
-        "from": "A9",
         "to": "N1"
       },
       {
-        "from": "A10",
+        "from": "A6",
+        "to": "N0"
+      },
+      {
+        "from": "A7",
         "to": "N2"
+      },
+      {
+        "from": "A8",
+        "to": "N3"
+      },
+      {
+        "from": "A9",
+        "to": "N0"
+      },
+      {
+        "from": "A10",
+        "to": "N0"
       },
       {
         "from": "A11",
@@ -319,11 +334,11 @@
       },
       {
         "from": "A12",
-        "to": "N1"
+        "to": "N2"
       },
       {
         "from": "A13",
-        "to": "N2"
+        "to": "N1"
       },
       {
         "from": "A14",
@@ -335,7 +350,7 @@
       },
       {
         "from": "B1",
-        "to": "N1"
+        "to": "N0"
       }
     ],
     "routes": [
@@ -348,11 +363,11 @@
         "to": "T1"
       },
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T2"
       },
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T3"
       },
       {
@@ -368,65 +383,81 @@
         "to": "T6"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T7"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T8"
       },
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T9"
       }
     ],
     "publishes_to": [
       {
-        "from": "A2",
+        "from": "A9",
         "to": "T0"
       },
       {
-        "from": "A6",
+        "from": "A12",
         "to": "T0"
       },
       {
-        "from": "A10",
+        "from": "A11",
+        "to": "T0"
+      },
+      {
+        "from": "A14",
+        "to": "T0"
+      },
+      {
+        "from": "L1",
         "to": "T0"
       },
       {
         "from": "L3",
-        "to": "T0"
+        "to": "T1"
       },
       {
         "from": "L2",
         "to": "T1"
       },
       {
-        "from": "L4",
+        "from": "A7",
         "to": "T1"
-      },
-      {
-        "from": "A4",
-        "to": "T2"
-      },
-      {
-        "from": "L1",
-        "to": "T2"
-      },
-      {
-        "from": "L0",
-        "to": "T2"
-      },
-      {
-        "from": "L4",
-        "to": "T3"
       },
       {
         "from": "A2",
+        "to": "T2"
+      },
+      {
+        "from": "A1",
+        "to": "T2"
+      },
+      {
+        "from": "A10",
         "to": "T3"
       },
       {
-        "from": "L2",
+        "from": "A8",
+        "to": "T4"
+      },
+      {
+        "from": "L0",
+        "to": "T4"
+      },
+      {
+        "from": "A6",
+        "to": "T4"
+      },
+      {
+        "from": "A4",
+        "to": "T4"
+      },
+      {
+        "from": "L3",
         "to": "T4"
       },
       {
@@ -434,11 +465,113 @@
         "to": "T5"
       },
       {
-        "from": "A9",
+        "from": "A1",
         "to": "T6"
       },
       {
-        "from": "L1",
+        "from": "A3",
+        "to": "T6"
+      },
+      {
+        "from": "L4",
+        "to": "T6"
+      },
+      {
+        "from": "A12",
+        "to": "T6"
+      },
+      {
+        "from": "A8",
+        "to": "T7"
+      },
+      {
+        "from": "A14",
+        "to": "T7"
+      },
+      {
+        "from": "A7",
+        "to": "T7"
+      },
+      {
+        "from": "A2",
+        "to": "T7"
+      },
+      {
+        "from": "A2",
+        "to": "T8"
+      },
+      {
+        "from": "L0",
+        "to": "T9"
+      },
+      {
+        "from": "L4",
+        "to": "T9"
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "A3",
+        "to": "T0"
+      },
+      {
+        "from": "A7",
+        "to": "T0"
+      },
+      {
+        "from": "L3",
+        "to": "T0"
+      },
+      {
+        "from": "A2",
+        "to": "T0"
+      },
+      {
+        "from": "L3",
+        "to": "T1"
+      },
+      {
+        "from": "A7",
+        "to": "T2"
+      },
+      {
+        "from": "A2",
+        "to": "T3"
+      },
+      {
+        "from": "A7",
+        "to": "T4"
+      },
+      {
+        "from": "L0",
+        "to": "T4"
+      },
+      {
+        "from": "A13",
+        "to": "T4"
+      },
+      {
+        "from": "A6",
+        "to": "T4"
+      },
+      {
+        "from": "A11",
+        "to": "T5"
+      },
+      {
+        "from": "A13",
+        "to": "T5"
+      },
+      {
+        "from": "A10",
+        "to": "T6"
+      },
+      {
+        "from": "A3",
+        "to": "T6"
+      },
+      {
+        "from": "A7",
         "to": "T6"
       },
       {
@@ -446,231 +579,69 @@
         "to": "T6"
       },
       {
-        "from": "A4",
+        "from": "L1",
         "to": "T6"
       },
       {
-        "from": "A11",
+        "from": "A8",
         "to": "T6"
       },
       {
-        "from": "L4",
+        "from": "L2",
+        "to": "T6"
+      },
+      {
+        "from": "A2",
+        "to": "T6"
+      },
+      {
+        "from": "A14",
         "to": "T7"
       },
       {
-        "from": "A10",
-        "to": "T7"
-      },
-      {
-        "from": "L0",
-        "to": "T7"
-      },
-      {
-        "from": "A0",
+        "from": "L2",
         "to": "T7"
       },
       {
         "from": "A3",
         "to": "T7"
-      },
-      {
-        "from": "A1",
-        "to": "T8"
       },
       {
         "from": "A7",
         "to": "T8"
       },
       {
-        "from": "A2",
-        "to": "T8"
-      },
-      {
-        "from": "L2",
-        "to": "T9"
-      },
-      {
-        "from": "A5",
-        "to": "T9"
-      }
-    ],
-    "subscribes_to": [
-      {
-        "from": "L0",
-        "to": "T0"
-      },
-      {
-        "from": "A12",
-        "to": "T0"
-      },
-      {
-        "from": "A14",
-        "to": "T0"
-      },
-      {
-        "from": "A4",
-        "to": "T0"
-      },
-      {
-        "from": "A8",
-        "to": "T0"
-      },
-      {
-        "from": "A8",
-        "to": "T1"
-      },
-      {
-        "from": "L3",
-        "to": "T1"
-      },
-      {
-        "from": "A13",
-        "to": "T1"
-      },
-      {
-        "from": "A12",
-        "to": "T1"
-      },
-      {
-        "from": "A2",
-        "to": "T2"
-      },
-      {
-        "from": "A1",
-        "to": "T2"
-      },
-      {
-        "from": "A3",
-        "to": "T2"
-      },
-      {
-        "from": "A4",
-        "to": "T2"
-      },
-      {
-        "from": "A12",
-        "to": "T3"
-      },
-      {
-        "from": "L4",
-        "to": "T3"
-      },
-      {
-        "from": "A14",
-        "to": "T3"
-      },
-      {
-        "from": "L1",
-        "to": "T3"
-      },
-      {
-        "from": "A8",
-        "to": "T3"
-      },
-      {
-        "from": "L0",
-        "to": "T3"
-      },
-      {
-        "from": "A13",
-        "to": "T3"
-      },
-      {
-        "from": "A8",
-        "to": "T4"
-      },
-      {
-        "from": "A10",
-        "to": "T4"
-      },
-      {
-        "from": "A5",
-        "to": "T5"
-      },
-      {
-        "from": "A14",
-        "to": "T5"
-      },
-      {
-        "from": "A0",
-        "to": "T5"
-      },
-      {
-        "from": "A8",
-        "to": "T5"
-      },
-      {
-        "from": "L4",
-        "to": "T5"
-      },
-      {
-        "from": "A5",
-        "to": "T6"
-      },
-      {
-        "from": "L2",
-        "to": "T6"
-      },
-      {
-        "from": "A11",
-        "to": "T7"
-      },
-      {
-        "from": "A2",
-        "to": "T8"
-      },
-      {
-        "from": "L0",
-        "to": "T8"
-      },
-      {
-        "from": "L4",
-        "to": "T8"
-      },
-      {
-        "from": "A4",
-        "to": "T8"
-      },
-      {
-        "from": "A8",
-        "to": "T9"
-      },
-      {
-        "from": "L1",
-        "to": "T9"
-      },
-      {
-        "from": "A13",
-        "to": "T9"
-      },
-      {
         "from": "A6",
         "to": "T9"
       },
       {
+        "from": "A12",
+        "to": "T9"
+      },
+      {
+        "from": "A1",
+        "to": "T9"
+      },
+      {
+        "from": "A5",
+        "to": "T9"
+      },
+      {
         "from": "L3",
         "to": "T9"
       },
       {
-        "from": "A11",
+        "from": "A0",
         "to": "T9"
       },
       {
-        "from": "A4",
-        "to": "T9"
-      },
-      {
-        "from": "L0",
+        "from": "L4",
         "to": "T9"
       }
     ],
     "connects_to": [
       {
         "from": "N0",
-        "to": "N1"
-      },
-      {
-        "from": "N1",
         "to": "N2"
       },
       {
@@ -685,22 +656,46 @@
       },
       {
         "from": "A0",
+        "to": "L2"
+      },
+      {
+        "from": "A1",
         "to": "L4"
       },
       {
-        "from": "A2",
-        "to": "L1"
+        "from": "A1",
+        "to": "L3"
       },
       {
-        "from": "A4",
+        "from": "A1",
         "to": "L0"
       },
       {
-        "from": "A4",
-        "to": "L1"
+        "from": "A2",
+        "to": "L2"
+      },
+      {
+        "from": "A3",
+        "to": "L0"
       },
       {
         "from": "A5",
+        "to": "L0"
+      },
+      {
+        "from": "A5",
+        "to": "L4"
+      },
+      {
+        "from": "A6",
+        "to": "L4"
+      },
+      {
+        "from": "A6",
+        "to": "L1"
+      },
+      {
+        "from": "A6",
         "to": "L0"
       },
       {
@@ -709,47 +704,11 @@
       },
       {
         "from": "A10",
-        "to": "L0"
-      },
-      {
-        "from": "A10",
-        "to": "L1"
-      },
-      {
-        "from": "A11",
         "to": "L3"
-      },
-      {
-        "from": "A11",
-        "to": "L1"
       },
       {
         "from": "A12",
         "to": "L4"
-      },
-      {
-        "from": "A13",
-        "to": "L1"
-      },
-      {
-        "from": "A13",
-        "to": "L3"
-      },
-      {
-        "from": "A13",
-        "to": "L4"
-      },
-      {
-        "from": "A14",
-        "to": "L0"
-      },
-      {
-        "from": "L0",
-        "to": "L3"
-      },
-      {
-        "from": "L4",
-        "to": "L0"
       }
     ]
   }

@@ -5,6 +5,7 @@ Generates realistic pub-sub system graphs with QoS properties
 to enable weight calculation during import.
 """
 
+import numpy as np
 import random
 from typing import Dict, Any, List
 from .graph_model import Application, Broker, Node, Topic, Library, QoSPolicy
@@ -44,7 +45,7 @@ class GraphGenerator:
             topics.append(Topic(
                 id=f"T{i}", 
                 name=f"Topic-{i}", 
-                size=self.rng.randint(64, 8192), 
+                size=self.rng.randint(64, 65536), # Size between 64B and 64KB 
                 qos=qos
             ))
 
@@ -53,10 +54,19 @@ class GraphGenerator:
             apps.append(Application(
                 id=f"A{i}", 
                 name=f"App-{i}", 
-                role=self.rng.choice(["pub", "sub", "pubsub"])
+                role=self.rng.choice(["pub", "sub", "pubsub"]),
+                app_type=self.rng.choice(["service", "driver", "controller", "gateway", "processor", "monitor", "aggregator", "scheduler", "logger", "ui"]),
+                criticality=self.rng.choice([True, False]),
+                version=f"{self.rng.randint(1,3)}.{self.rng.randint(0,9)}.{self.rng.randint(0,9)}"
             ))
 
-        libs = [Library(id=f"L{i}", name=f"Lib-{i}") for i in range(c["libs"])]
+        libs = []
+        for i in range(c["libs"]):
+            libs.append(Library(
+                id=f"L{i}",
+                name=f"Lib-{i}",
+                version=f"{self.rng.randint(0,2)}.{self.rng.randint(0,9)}.{self.rng.randint(0,9)}"
+            ))
 
         # 2. Generate Basic Relationships
         # Helper to simplify edge creation
