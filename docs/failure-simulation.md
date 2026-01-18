@@ -1,150 +1,305 @@
-# Failure Simulation
+# Step 4: Failure Simulation
 
-**Validating predictions through empirical Fault Injection and Event-Driven Analysis.**
-
-After predicting critical components using topological metrics (Step 2 & 3), Step 4 moves from *theory* to *practice*. We use the `simulate_graph.py` CLI to perform **Failure Impact Assessment**—injecting faults and simulating message flows to measure the *actual* impact on the system.
-
-This step provides the "Ground Truth" () used to validate our predictive Criticality Scores ().
+**Measure actual failure impact to establish ground truth for validation**
 
 ---
 
-## 1. The Dual Simulation Approach
+## Overview
 
-Distributed pub-sub systems fail in two distinct ways: structurally (disconnections) and behaviorally (message loss/latency). Therefore, the framework provides two simulation engines:
-
-| Simulation Type | Engine | Focus | Key Question |
-| --- | --- | --- | --- |
-| **Failure Simulation** | `FailureSimulator` | **Structural** | "If Component X vanishes, how many parts of the system become unreachable?" |
-| **Event Simulation** | `EventSimulator` | **Behavioral** | "If App A publishes 1,000 messages, how many arrive, and how fast?" |
-
----
-
-## 2. Running Failure Simulations (Structural)
-
-This mode simulates the complete removal of a component (crash failure) and measures the cascading effects on the graph topology. It handles physical cascades (Node crash  App crash) and logical cascades (Broker crash  Topic unreachable).
-
-### CLI Usage
-
-To simulate the failure of a specific component:
-
-```bash
-python simulate_graph.py --failure <COMPONENT_ID>
+Failure Simulation injects faults into the system graph and measures the actual impact. This provides ground truth I(v) to validate our predicted quality scores Q(v).
 
 ```
+┌─────────────────────┐          ┌─────────────────────┐
+│  Graph Model        │          │  Impact Scores      │
+│                     │    →     │                     │
+│  For each v:        │          │  I(v) = actual      │
+│    - Remove v       │          │  failure impact     │
+│    - Measure impact │          │                     │
+│    - Restore v      │          │  (Ground Truth)     │
+└─────────────────────┘          └─────────────────────┘
+```
 
-**Example:**
+---
+
+## Why Simulate Failures?
+
+| Predicted Q(v) | Simulated I(v) |
+|----------------|----------------|
+| Based on graph topology | Based on actual failure effects |
+| Fast to compute | Slower but accurate |
+| Theoretical importance | Empirical impact |
+
+**Validation**: Compare Q(v) rankings with I(v) rankings to verify predictions.
+
+---
+
+## Simulation Process
+
+For each component v:
+
+```
+1. Capture baseline state
+   └── Count paths, components, throughput
+
+2. Inject failure
+   └── Remove component v from graph
+
+3. Propagate cascade
+   ├── Physical: Node → hosted Apps fail
+   ├── Logical: Broker → Topics unreachable
+   └── Network: Partitions propagate
+
+4. Measure impact
+   ├── Reachability loss (broken paths)
+   ├── Fragmentation (disconnected islands)
+   └── Throughput loss (capacity reduction)
+
+5. Compute I(v)
+   └── Composite impact score
+
+6. Restore component v
+```
+
+---
+
+## Cascade Rules
+
+### Physical Cascade
+
+When a **Node** fails, all hosted components fail:
+
+```
+Node-1 fails
+   ↓
+App-A (on Node-1) fails
+Broker-1 (on Node-1) fails
+```
+
+### Logical Cascade
+
+When a **Broker** fails, its topics become unreachable:
+
+```
+Broker-1 fails
+   ↓
+Topic-X (routed by Broker-1) unreachable
+   ↓
+Subscribers to Topic-X affected
+```
+
+### Application Cascade
+
+When a **Publisher** fails, subscribers may be starved:
+
+```
+App-A (publisher) fails
+   ↓
+Topic-X has no publishers
+   ↓
+App-B, App-C (subscribers) receive no data
+```
+
+---
+
+## Impact Metrics
+
+### Reachability Loss
+
+Percentage of pub-sub paths broken by the failure.
+
+```
+Reachability Loss = (initial_paths - remaining_paths) / initial_paths
+```
+
+### Fragmentation
+
+Increase in disconnected graph components.
+
+```
+Fragmentation = failed_components / initial_components
+```
+
+### Throughput Loss
+
+Reduction in message delivery capacity (based on topic weights).
+
+```
+Throughput Loss = lost_weight / total_weight
+```
+
+### Composite Impact Score I(v)
+
+```
+I(v) = 0.4×Reachability + 0.3×Fragmentation + 0.3×Throughput
+```
+
+---
+
+## Commands
+
+### Single Component Failure
 
 ```bash
 python simulate_graph.py --failure main_broker --layer system
-
-```
-
-### Understanding the Output
-
-The CLI provides a color-coded impact assessment:
-
-* **Composite Impact:** A score (0.0 - 1.0) combining reachability loss, fragmentation, and throughput loss.
-* `> 0.5`: **CRITICAL** (Red)
-* `> 0.2`: **HIGH** (Yellow)
-
-
-* **Reachability Loss:** Percentage of broken Pub-Sub paths.
-* **Cascade Analysis:** A trace of other components that failed due to the initial target (e.g., Apps failing because their host Node crashed).
-
----
-
-## 3. Running Event-Driven Simulations (Behavioral)
-
-This mode launches a discrete event simulation (DES) that models the flow of messages from a Publisher through Topics and Brokers to Subscribers. It enforces QoS policies (Reliability, Priority) and tracks runtime metrics.
-
-### CLI Usage
-
-To simulate traffic generation from a specific source application:
-
-```bash
-python simulate_graph.py --event <APP_ID> --messages 100 --duration 10.0
-
-```
-
-**Example:**
-
-```bash
-# Simulate 500 messages from 'sensing_node' over 20 seconds
-python simulate_graph.py --event sensing_node --messages 500 --duration 20.0
-
-```
-
-### Understanding the Output
-
-The simulator reports runtime performance metrics:
-
-* **Delivery Rate:** % of messages successfully acknowledged.
-* **Drop Rate:** % of messages lost (due to queue overflows, timeouts, or lack of routes).
-* **Latency Metrics:** Min, Max, Average, P50, and **P99 Latency**.
-* **Path Analysis:** Which Brokers and Topics were utilized during transmission.
-
----
-
-## 4. Exhaustive Analysis & Reporting
-
-To validate the entire system model, you can run simulations on **all components** or generate a comprehensive system report.
-
-### Exhaustive Failure Analysis
-
-This runs a failure simulation for *every single component* in the specified layer and ranks them by impact. This is the "Ground Truth" list of critical components.
-
-```bash
-python simulate_graph.py --exhaustive --layer system
-
 ```
 
 **Output:**
+```
+═══════════════════════════════════════════════════════════════
+  FAILURE SIMULATION: main_broker
+═══════════════════════════════════════════════════════════════
 
-```text
-Exhaustive Failure Analysis
-  Total Components Analyzed: 45
+  Target:       main_broker (Broker)
   
-  Top 15 Components by Impact:
-  Component            Type         Impact      Cascade    Reach Loss
-  -----------------------------------------------------------------
-  main_broker          Broker       0.9125      4          85.0%
-  sensor_fusion        Application  0.8420      2          60.0%
-  ...
+  Impact Metrics:
+    Composite Impact:  0.9125  [CRITICAL]
+    
+    Reachability Loss: 85.0%
+      Initial Paths:   127
+      Remaining Paths: 19
+    
+    Fragmentation:     33.3%
+      Failed Components: 4
+    
+    Throughput Loss:   78.5%
+      Affected Topics: 12
 
+  Cascade Analysis:
+    Cascade Count:     4
+    Cascade Depth:     2
+    
+  Cascaded Failures:
+    1. Topic-sensor-data
+    2. Topic-control-cmd
+    3. App-fusion
+    4. App-planning
 ```
 
-### Full Simulation Report
+### Exhaustive Analysis
 
-Generates a summary combining event metrics (throughput/health) and failure resilience stats for all layers.
+Simulate failure of every component and rank by impact:
 
 ```bash
-python simulate_graph.py --report --layers app,infra,system --output results/sim_report.json
+python simulate_graph.py --exhaustive --layer system
+```
 
+**Output:**
+```
+═══════════════════════════════════════════════════════════════
+  EXHAUSTIVE FAILURE ANALYSIS
+═══════════════════════════════════════════════════════════════
+
+  Total Components: 48
+  
+  Top 15 by Impact:
+  
+  Component          Type         Impact    Cascade   Reach Loss
+  ─────────────────────────────────────────────────────────────
+  main_broker        Broker       0.9125    4         85.0%
+  sensor_fusion      Application  0.8420    2         60.0%
+  gateway_node       Node         0.7856    6         55.0%
+  planning_app       Application  0.6234    1         42.0%
+  control_node       Node         0.5891    3         38.0%
+  ...
 ```
 
 ---
 
-## 5. Metrics Definition
+## Impact Classification
 
-The `simulate_graph.py` tool calculates specific metrics to quantify "Impact" ():
+| Impact | Level | Interpretation |
+|--------|-------|----------------|
+| > 0.50 | CRITICAL | Catastrophic system failure |
+| > 0.30 | HIGH | Significant degradation |
+| > 0.10 | MEDIUM | Noticeable impact |
+| ≤ 0.10 | LOW | Minor or localized |
 
-### Structural Metrics (Failure Sim)
+---
 
-* **Reachability Loss:** The percentage of pub-sub paths that no longer exist.
-* **Fragmentation:** The increase in isolated graph islands (connected components).
-* **Cascade Depth:** How many "hops" the failure propagated (e.g., Node  Broker  Topic  Subscriber).
+## Simulation Modes
 
-### Runtime Metrics (Event Sim)
+### Failure Mode: Crash
 
-* **Throughput:** Messages delivered per second.
-* **End-to-End Latency:** Time from `publish` event to `deliver` event.
-* **Drop Reasons:** Specific categorization of failures (e.g., `no_subscribers`, `broker_failed`, `delivery_timeout`).
+Complete component removal (default).
+
+```bash
+python simulate_graph.py --failure X --mode crash
+```
+
+### Failure Mode: Degraded
+
+Partial failure—reduced capacity.
+
+```bash
+python simulate_graph.py --failure X --mode degraded
+```
+
+### Failure Mode: Partition
+
+Network partition—component unreachable but running.
+
+```bash
+python simulate_graph.py --failure X --mode partition
+```
+
+---
+
+## Layer-Specific Analysis
+
+```bash
+# Application layer only
+python simulate_graph.py --exhaustive --layer app
+
+# Infrastructure layer only
+python simulate_graph.py --exhaustive --layer infra
+
+# Complete system
+python simulate_graph.py --exhaustive --layer system
+```
+
+---
+
+## Export Results
+
+```bash
+# Export to JSON for validation
+python simulate_graph.py --exhaustive --layer system --output results/simulation.json
+```
+
+**JSON Structure:**
+```json
+{
+  "results": [
+    {
+      "target_id": "main_broker",
+      "target_type": "Broker",
+      "impact": {
+        "composite_impact": 0.9125,
+        "reachability_loss": 0.85,
+        "fragmentation": 0.333,
+        "throughput_loss": 0.785
+      },
+      "cascade_count": 4,
+      "cascaded_failures": ["Topic-1", "App-A", ...]
+    }
+  ]
+}
+```
+
+---
+
+## Key Insights
+
+1. **Ground Truth**: I(v) provides empirical validation for Q(v) predictions.
+
+2. **Cascade Effects**: Physical infrastructure failures often cascade more severely than application failures.
+
+3. **SPOF Detection**: Components with I(v) > 0.5 are true single points of failure.
+
+4. **Layer Differences**: Application layer predictions correlate better (ρ=0.85) than infrastructure (ρ=0.54).
 
 ---
 
 ## Next Step
 
-Once you have the **Impact Scores** from this step, you compare them against the **Predicted Quality Scores** from analysis step to validate the model's accuracy.
-
-* **See:** `validation-comparison.md`
-* **Run:** `python validate_graph.py`
+→ [Step 5: Validation](validation.md)
