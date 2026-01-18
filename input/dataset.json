@@ -1,6 +1,7 @@
 {
   "metadata": {
-    "scale": "{'apps': 15, 'topics': 10, 'brokers': 2, 'nodes': 4}"
+    "scale": "{'apps': 15, 'topics': 10, 'brokers': 2, 'nodes': 4, 'libs': 5}",
+    "seed": "602078388"
   },
   "nodes": [
     {
@@ -34,66 +35,56 @@
     {
       "id": "T0",
       "name": "Topic-0",
-      "size": 6138,
+      "size": 2070,
       "qos": {
-        "durability": "PERSISTENT",
+        "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
+        "transport_priority": "HIGH"
       }
     },
     {
       "id": "T1",
       "name": "Topic-1",
-      "size": 1207,
+      "size": 5607,
       "qos": {
-        "durability": "TRANSIENT",
+        "durability": "TRANSIENT_LOCAL",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "MEDIUM"
+        "transport_priority": "LOW"
       }
     },
     {
       "id": "T2",
       "name": "Topic-2",
-      "size": 4901,
+      "size": 308,
       "qos": {
-        "durability": "PERSISTENT",
-        "reliability": "BEST_EFFORT",
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
         "transport_priority": "LOW"
       }
     },
     {
       "id": "T3",
       "name": "Topic-3",
-      "size": 831,
+      "size": 4203,
       "qos": {
-        "durability": "TRANSIENT",
+        "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
+        "transport_priority": "MEDIUM"
       }
     },
     {
       "id": "T4",
       "name": "Topic-4",
-      "size": 4661,
+      "size": 1869,
       "qos": {
         "durability": "VOLATILE",
         "reliability": "BEST_EFFORT",
-        "transport_priority": "LOW"
+        "transport_priority": "URGENT"
       }
     },
     {
       "id": "T5",
       "name": "Topic-5",
-      "size": 3743,
-      "qos": {
-        "durability": "VOLATILE",
-        "reliability": "RELIABLE",
-        "transport_priority": "MEDIUM"
-      }
-    },
-    {
-      "id": "T6",
-      "name": "Topic-6",
       "size": 6280,
       "qos": {
         "durability": "PERSISTENT",
@@ -102,31 +93,41 @@
       }
     },
     {
-      "id": "T7",
-      "name": "Topic-7",
+      "id": "T6",
+      "name": "Topic-6",
       "size": 2340,
       "qos": {
-        "durability": "VOLATILE",
+        "durability": "TRANSIENT_LOCAL",
         "reliability": "RELIABLE",
+        "transport_priority": "HIGH"
+      }
+    },
+    {
+      "id": "T7",
+      "name": "Topic-7",
+      "size": 901,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "BEST_EFFORT",
         "transport_priority": "HIGH"
       }
     },
     {
       "id": "T8",
       "name": "Topic-8",
-      "size": 901,
+      "size": 3004,
       "qos": {
         "durability": "VOLATILE",
-        "reliability": "BEST_EFFORT",
-        "transport_priority": "HIGH"
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW"
       }
     },
     {
       "id": "T9",
       "name": "Topic-9",
-      "size": 3004,
+      "size": 6041,
       "qos": {
-        "durability": "VOLATILE",
+        "durability": "TRANSIENT",
         "reliability": "RELIABLE",
         "transport_priority": "LOW"
       }
@@ -136,77 +137,134 @@
     {
       "id": "A0",
       "name": "App-0",
-      "role": "sub"
+      "role": "sub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A1",
       "name": "App-1",
-      "role": "pubsub"
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A2",
       "name": "App-2",
-      "role": "sub"
+      "role": "pub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A3",
       "name": "App-3",
-      "role": "pub"
+      "role": "sub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A4",
       "name": "App-4",
-      "role": "pubsub"
+      "role": "pub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A5",
       "name": "App-5",
-      "role": "sub"
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A6",
       "name": "App-6",
-      "role": "pubsub"
+      "role": "sub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A7",
       "name": "App-7",
-      "role": "pub"
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A8",
       "name": "App-8",
-      "role": "sub"
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A9",
       "name": "App-9",
-      "role": "pub"
+      "role": "sub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A10",
       "name": "App-10",
-      "role": "pubsub"
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A11",
       "name": "App-11",
-      "role": "sub"
+      "role": "pub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A12",
       "name": "App-12",
-      "role": "pubsub"
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A13",
       "name": "App-13",
-      "role": "pubsub"
+      "role": "pub",
+      "app_type": "service",
+      "criticality": false
     },
     {
       "id": "A14",
       "name": "App-14",
-      "role": "sub"
+      "role": "pub",
+      "app_type": "service",
+      "criticality": false
+    }
+  ],
+  "libraries": [
+    {
+      "id": "L0",
+      "name": "Lib-0",
+      "role": "pubsub"
+    },
+    {
+      "id": "L1",
+      "name": "Lib-1",
+      "role": "pubsub"
+    },
+    {
+      "id": "L2",
+      "name": "Lib-2",
+      "role": "pubsub"
+    },
+    {
+      "id": "L3",
+      "name": "Lib-3",
+      "role": "pubsub"
+    },
+    {
+      "id": "L4",
+      "name": "Lib-4",
+      "role": "pubsub"
     }
   ],
   "relationships": {
@@ -217,7 +275,7 @@
       },
       {
         "from": "A1",
-        "to": "N0"
+        "to": "N2"
       },
       {
         "from": "A2",
@@ -229,31 +287,31 @@
       },
       {
         "from": "A4",
-        "to": "N2"
+        "to": "N0"
       },
       {
         "from": "A5",
-        "to": "N0"
+        "to": "N3"
       },
       {
         "from": "A6",
-        "to": "N1"
-      },
-      {
-        "from": "A7",
-        "to": "N0"
-      },
-      {
-        "from": "A8",
-        "to": "N3"
-      },
-      {
-        "from": "A9",
         "to": "N2"
       },
       {
-        "from": "A10",
+        "from": "A7",
         "to": "N3"
+      },
+      {
+        "from": "A8",
+        "to": "N2"
+      },
+      {
+        "from": "A9",
+        "to": "N1"
+      },
+      {
+        "from": "A10",
+        "to": "N2"
       },
       {
         "from": "A11",
@@ -269,7 +327,7 @@
       },
       {
         "from": "A14",
-        "to": "N2"
+        "to": "N0"
       },
       {
         "from": "B0",
@@ -277,7 +335,7 @@
       },
       {
         "from": "B1",
-        "to": "N2"
+        "to": "N1"
       }
     ],
     "routes": [
@@ -286,19 +344,19 @@
         "to": "T0"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T1"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T2"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T3"
       },
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T4"
       },
       {
@@ -306,7 +364,7 @@
         "to": "T5"
       },
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T6"
       },
       {
@@ -314,155 +372,223 @@
         "to": "T7"
       },
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T8"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T9"
       }
     ],
     "publishes_to": [
       {
-        "from": "A13",
+        "from": "A2",
         "to": "T0"
       },
       {
         "from": "A6",
-        "to": "T1"
-      },
-      {
-        "from": "A4",
-        "to": "T1"
-      },
-      {
-        "from": "A14",
-        "to": "T2"
-      },
-      {
-        "from": "A11",
-        "to": "T2"
-      },
-      {
-        "from": "A5",
-        "to": "T2"
-      },
-      {
-        "from": "A14",
-        "to": "T3"
-      },
-      {
-        "from": "A10",
-        "to": "T3"
-      },
-      {
-        "from": "A8",
-        "to": "T4"
-      },
-      {
-        "from": "A14",
-        "to": "T4"
-      },
-      {
-        "from": "A4",
-        "to": "T4"
-      },
-      {
-        "from": "A8",
-        "to": "T5"
-      },
-      {
-        "from": "A10",
-        "to": "T6"
-      },
-      {
-        "from": "A9",
-        "to": "T7"
-      },
-      {
-        "from": "A1",
-        "to": "T7"
-      },
-      {
-        "from": "A8",
-        "to": "T8"
-      },
-      {
-        "from": "A13",
-        "to": "T8"
-      },
-      {
-        "from": "A1",
-        "to": "T9"
-      },
-      {
-        "from": "A10",
-        "to": "T9"
-      },
-      {
-        "from": "A8",
-        "to": "T9"
-      }
-    ],
-    "subscribes_to": [
-      {
-        "from": "A12",
         "to": "T0"
       },
       {
-        "from": "A3",
+        "from": "A10",
+        "to": "T0"
+      },
+      {
+        "from": "L3",
+        "to": "T0"
+      },
+      {
+        "from": "L2",
         "to": "T1"
       },
       {
-        "from": "A10",
+        "from": "L4",
+        "to": "T1"
+      },
+      {
+        "from": "A4",
         "to": "T2"
       },
       {
-        "from": "A7",
+        "from": "L1",
         "to": "T2"
+      },
+      {
+        "from": "L0",
+        "to": "T2"
+      },
+      {
+        "from": "L4",
+        "to": "T3"
       },
       {
         "from": "A2",
         "to": "T3"
       },
       {
-        "from": "A4",
-        "to": "T3"
-      },
-      {
-        "from": "A14",
-        "to": "T3"
-      },
-      {
-        "from": "A3",
-        "to": "T3"
-      },
-      {
-        "from": "A6",
+        "from": "L2",
         "to": "T4"
+      },
+      {
+        "from": "A13",
+        "to": "T5"
       },
       {
         "from": "A9",
-        "to": "T4"
+        "to": "T6"
+      },
+      {
+        "from": "L1",
+        "to": "T6"
+      },
+      {
+        "from": "A6",
+        "to": "T6"
+      },
+      {
+        "from": "A4",
+        "to": "T6"
+      },
+      {
+        "from": "A11",
+        "to": "T6"
+      },
+      {
+        "from": "L4",
+        "to": "T7"
+      },
+      {
+        "from": "A10",
+        "to": "T7"
+      },
+      {
+        "from": "L0",
+        "to": "T7"
+      },
+      {
+        "from": "A0",
+        "to": "T7"
+      },
+      {
+        "from": "A3",
+        "to": "T7"
+      },
+      {
+        "from": "A1",
+        "to": "T8"
+      },
+      {
+        "from": "A7",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T8"
+      },
+      {
+        "from": "L2",
+        "to": "T9"
+      },
+      {
+        "from": "A5",
+        "to": "T9"
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "L0",
+        "to": "T0"
+      },
+      {
+        "from": "A12",
+        "to": "T0"
       },
       {
         "from": "A14",
+        "to": "T0"
+      },
+      {
+        "from": "A4",
+        "to": "T0"
+      },
+      {
+        "from": "A8",
+        "to": "T0"
+      },
+      {
+        "from": "A8",
+        "to": "T1"
+      },
+      {
+        "from": "L3",
+        "to": "T1"
+      },
+      {
+        "from": "A13",
+        "to": "T1"
+      },
+      {
+        "from": "A12",
+        "to": "T1"
+      },
+      {
+        "from": "A2",
+        "to": "T2"
+      },
+      {
+        "from": "A1",
+        "to": "T2"
+      },
+      {
+        "from": "A3",
+        "to": "T2"
+      },
+      {
+        "from": "A4",
+        "to": "T2"
+      },
+      {
+        "from": "A12",
+        "to": "T3"
+      },
+      {
+        "from": "L4",
+        "to": "T3"
+      },
+      {
+        "from": "A14",
+        "to": "T3"
+      },
+      {
+        "from": "L1",
+        "to": "T3"
+      },
+      {
+        "from": "A8",
+        "to": "T3"
+      },
+      {
+        "from": "L0",
+        "to": "T3"
+      },
+      {
+        "from": "A13",
+        "to": "T3"
+      },
+      {
+        "from": "A8",
+        "to": "T4"
+      },
+      {
+        "from": "A10",
         "to": "T4"
       },
       {
         "from": "A5",
-        "to": "T4"
-      },
-      {
-        "from": "A3",
-        "to": "T4"
-      },
-      {
-        "from": "A1",
         "to": "T5"
       },
       {
-        "from": "A12",
+        "from": "A14",
         "to": "T5"
       },
       {
@@ -470,47 +596,71 @@
         "to": "T5"
       },
       {
-        "from": "A14",
+        "from": "A8",
         "to": "T5"
       },
       {
-        "from": "A12",
-        "to": "T6"
-      },
-      {
-        "from": "A10",
-        "to": "T6"
-      },
-      {
-        "from": "A6",
-        "to": "T7"
-      },
-      {
-        "from": "A9",
-        "to": "T7"
-      },
-      {
-        "from": "A7",
-        "to": "T7"
-      },
-      {
-        "from": "A8",
-        "to": "T7"
-      },
-      {
-        "from": "A10",
-        "to": "T8"
-      },
-      {
-        "from": "A12",
-        "to": "T9"
-      },
-      {
-        "from": "A10",
-        "to": "T9"
+        "from": "L4",
+        "to": "T5"
       },
       {
         "from": "A5",
+        "to": "T6"
+      },
+      {
+        "from": "L2",
+        "to": "T6"
+      },
+      {
+        "from": "A11",
+        "to": "T7"
+      },
+      {
+        "from": "A2",
+        "to": "T8"
+      },
+      {
+        "from": "L0",
+        "to": "T8"
+      },
+      {
+        "from": "L4",
+        "to": "T8"
+      },
+      {
+        "from": "A4",
+        "to": "T8"
+      },
+      {
+        "from": "A8",
+        "to": "T9"
+      },
+      {
+        "from": "L1",
+        "to": "T9"
+      },
+      {
+        "from": "A13",
+        "to": "T9"
+      },
+      {
+        "from": "A6",
+        "to": "T9"
+      },
+      {
+        "from": "L3",
+        "to": "T9"
+      },
+      {
+        "from": "A11",
+        "to": "T9"
+      },
+      {
+        "from": "A4",
+        "to": "T9"
+      },
+      {
+        "from": "L0",
         "to": "T9"
       }
     ],
@@ -520,8 +670,86 @@
         "to": "N1"
       },
       {
-        "from": "N2",
+        "from": "N1",
+        "to": "N2"
+      },
+      {
+        "from": "N1",
         "to": "N3"
+      }
+    ],
+    "uses": [
+      {
+        "from": "A0",
+        "to": "L3"
+      },
+      {
+        "from": "A0",
+        "to": "L4"
+      },
+      {
+        "from": "A2",
+        "to": "L1"
+      },
+      {
+        "from": "A4",
+        "to": "L0"
+      },
+      {
+        "from": "A4",
+        "to": "L1"
+      },
+      {
+        "from": "A5",
+        "to": "L0"
+      },
+      {
+        "from": "A8",
+        "to": "L0"
+      },
+      {
+        "from": "A10",
+        "to": "L0"
+      },
+      {
+        "from": "A10",
+        "to": "L1"
+      },
+      {
+        "from": "A11",
+        "to": "L3"
+      },
+      {
+        "from": "A11",
+        "to": "L1"
+      },
+      {
+        "from": "A12",
+        "to": "L4"
+      },
+      {
+        "from": "A13",
+        "to": "L1"
+      },
+      {
+        "from": "A13",
+        "to": "L3"
+      },
+      {
+        "from": "A13",
+        "to": "L4"
+      },
+      {
+        "from": "A14",
+        "to": "L0"
+      },
+      {
+        "from": "L0",
+        "to": "L3"
+      },
+      {
+        "from": "L4",
+        "to": "L0"
       }
     ]
   }

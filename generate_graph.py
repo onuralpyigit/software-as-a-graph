@@ -28,7 +28,12 @@ def main():
             json.dump(data, f, indent=2)
             
         print(f"Success! Saved to {args.output}")
-        print(f"Stats: {len(data['nodes'])} Nodes, {len(data['applications'])} Apps, {len(data['topics'])} Topics, {len(data['brokers'])} Brokers")
+        print(f"Stats: "
+              f"{len(data['nodes'])} Nodes, "
+              f"{len(data['applications'])} Apps, "
+              f"{len(data.get('libraries', []))} Libs, "
+              f"{len(data['topics'])} Topics, "
+              f"{len(data['brokers'])} Brokers")
         
     except Exception as e:
         print(f"Error generating graph: {e}")

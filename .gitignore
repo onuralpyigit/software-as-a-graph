@@ -135,8 +135,5 @@ software_system_env/
 # Test output files
 test_outputs/
 
-#Ignore input files
-input/
-
 # Ignore output directories
 output/

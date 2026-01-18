@@ -7,7 +7,7 @@ to enable weight calculation during import.
 
 import random
 from typing import Dict, Any, List
-from .graph_model import Application, Broker, Node, Topic, QoSPolicy
+from .graph_model import Application, Broker, Node, Topic, Library, QoSPolicy
 
 class GraphGenerator:
     def __init__(self, scale: str = "medium", seed: int = 42):
@@ -15,12 +15,15 @@ class GraphGenerator:
         self.scale_config = self._get_scale_config(scale)
 
     def _get_scale_config(self, scale: str) -> Dict[str, int]:
+        """
+        Returns configuration for graph generation based on scale.
+        """
         presets = {
-            "tiny":   {"apps": 5,   "topics": 5,   "brokers": 1, "nodes": 2},
-            "small":  {"apps": 15,  "topics": 10,  "brokers": 2, "nodes": 4},
-            "medium": {"apps": 50,  "topics": 30,  "brokers": 3, "nodes": 8},
-            "large":  {"apps": 150, "topics": 100, "brokers": 6, "nodes": 20},
-            "xlarge": {"apps": 500, "topics": 300, "brokers": 10, "nodes": 50},
+            "tiny":   {"apps": 5,   "topics": 5,   "brokers": 1, "nodes": 2,  "libs": 2},
+            "small":  {"apps": 15,  "topics": 10,  "brokers": 2, "nodes": 4,  "libs": 5},
+            "medium": {"apps": 50,  "topics": 30,  "brokers": 3, "nodes": 8,  "libs": 10},
+            "large":  {"apps": 150, "topics": 100, "brokers": 6, "nodes": 20, "libs": 30},
+            "xlarge": {"apps": 500, "topics": 300, "brokers": 10, "nodes": 50, "libs": 100},
         }
         return presets.get(scale, presets["medium"])
 
@@ -53,6 +56,8 @@ class GraphGenerator:
                 role=self.rng.choice(["pub", "sub", "pubsub"])
             ))
 
+        libs = [Library(id=f"L{i}", name=f"Lib-{i}") for i in range(c["libs"])]
+
         # 2. Generate Basic Relationships
         # Helper to simplify edge creation
         def make_edge(src, tgt): return {"from": src.id, "to": tgt.id}
@@ -69,15 +74,42 @@ class GraphGenerator:
             broker = self.rng.choice(brokers)
             routes.append(make_edge(broker, topic))
 
-        # PUB/SUB: Apps -> Topics
+        # PUB/SUB: Apps/Libraries -> Topics
         publishes = []
         subscribes = []
+
+        # Both Applications and Libraries can publish/subscribe
+        potential_clients = apps + libs
+        
         for topic in topics:
-            pubs = self.rng.sample(apps, k=self.rng.randint(1, min(3, len(apps))))
-            subs = self.rng.sample(apps, k=self.rng.randint(1, min(5, len(apps))))
+            # Randomly select a subset of clients for this topic
+            k_pubs = self.rng.randint(1, max(2, min(5, len(potential_clients))))
+            k_subs = self.rng.randint(1, max(2, min(8, len(potential_clients))))
+            
+            pubs = self.rng.sample(potential_clients, k=k_pubs)
+            subs = self.rng.sample(potential_clients, k=k_subs)
             
             for p in pubs: publishes.append(make_edge(p, topic))
             for s in subs: subscribes.append(make_edge(s, topic))
+
+        # USES: Application -> Library, Library -> Library
+        uses = []
+        
+        # Apps using Libraries
+        for app in apps:
+            # Each app uses between 0 and 3 libraries
+            if libs:
+                n_uses = self.rng.randint(0, min(3, len(libs)))
+                targets = self.rng.sample(libs, k=n_uses)
+                for t in targets:
+                    uses.append(make_edge(app, t))
+
+        # Libraries using other Libraries (simple random edges, potential cycles allowed for stress test)
+        for lib in libs:
+            if len(libs) > 1 and self.rng.random() < 0.2:
+                other = self.rng.choice(libs)
+                if other != lib:
+                    uses.append(make_edge(lib, other))
 
         # CONNECTS_TO: Mesh links between Nodes
         connects = []
@@ -93,12 +125,14 @@ class GraphGenerator:
             "brokers": [b.to_dict() for b in brokers], 
             "topics": [t.to_dict() for t in topics], 
             "applications": [a.to_dict() for a in apps],
+            "libraries": [l.to_dict() for l in libs],
             "relationships": {
                 "runs_on": runs_on, 
                 "routes": routes,
                 "publishes_to": publishes, 
                 "subscribes_to": subscribes,
-                "connects_to": connects
+                "connects_to": connects,
+                "uses": uses
             }
         }
 
