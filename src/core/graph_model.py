@@ -66,11 +66,13 @@ class QoSPolicy:
             transport_priority=data.get("transport_priority", "MEDIUM")
         )
     
-    def calculate_weight(self, message_size: int = 256) -> float:
+    def calculate_weight(self) -> float:
         """
         Calculate QoS-based weight for a topic.
         
-        Formula: W = S_reliability + S_durability + S_priority + S_size
+        Formula: W_qos = S_reliability + S_durability + S_priority
+        
+        Note: S_size is calculated separately in Topic.calculate_weight()
         """
         # Reliability score
         reliability_scores = {"BEST_EFFORT": 0.0, "RELIABLE": 0.3}
@@ -90,6 +92,7 @@ class QoSPolicy:
         s_priority = priority_scores.get(self.transport_priority, 0.0)
         
         return s_reliability + s_durability + s_priority
+
 
 @dataclass
 class GraphEntity:

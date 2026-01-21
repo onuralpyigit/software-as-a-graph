@@ -111,7 +111,18 @@ W_topic = S_reliability + S_durability + S_priority + S_size
 | Reliability | RELIABLE | +0.30 |
 | Durability | PERSISTENT | +0.40 |
 | Priority | URGENT | +0.30 |
-| Message Size | > 64KB | +0.60 |
+| Message Size | Logarithmic | 0.0 - 1.0 |
+
+**Size Score Formula:**
+```
+S_size = min(log₂(1 + size_bytes / 1024) / 10, 1.0)
+```
+
+Example values:
+- 1 KB → 0.10
+- 8 KB → 0.32
+- 64 KB → 0.60
+- 1 MB → 1.00 (capped)
 
 ### Step 2: Weight Propagation
 
@@ -120,11 +131,12 @@ Topic QoS → Topic Weight → Edge Weight → Component Weight → Dependency W
 ```
 
 - **Edge weight** = Topic weight
-- **App weight** = Sum of connected topic weights
+- **App weight** = Sum of connected topic weights + Sum of used library weights
 - **Lib weight** = Sum of shared topic weights
 - **Broker weight** = Sum of routed topic weights
-- **Node weight** = Sum of hosted component weights
+- **Node weight** = Sum of hosted component weights (Apps + Brokers)
 - **Dependency weight** = Shared topics count × average topic weight
+
 
 ---
 

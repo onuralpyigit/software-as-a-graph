@@ -142,13 +142,16 @@ class GraphImporter:
             SET r.weight = t.weight
         """)
         
-        # 4. Application Weight (Sum of Topic Weights it interacts with)
+        # 4. Application Weight (Sum of Topic Weights + Library Weights via USES)
         self._run_query("""
             MATCH (a:Application)
             OPTIONAL MATCH (a)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
-            WITH a, coalesce(sum(t.weight), 0.0) as load_weight
-            SET a.weight = load_weight
+            OPTIONAL MATCH (a)-[:USES]->(l:Library)
+            WITH a, coalesce(sum(DISTINCT t.weight), 0.0) as topic_weight, 
+                 coalesce(sum(DISTINCT l.weight), 0.0) as lib_weight
+            SET a.weight = topic_weight + lib_weight
         """)
+
 
         # 5. Library Weight (Sum of Topic Weights it interacts with)
         self._run_query("""
