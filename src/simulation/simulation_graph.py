@@ -490,7 +490,7 @@ class SimulationGraph:
             "infra": {"Node"},
             "mw-app": {"Application", "Broker"},
             "mw-infra": {"Node", "Broker"},
-            "system": {"Application", "Broker", "Node", "Topic"},
+            "system": {"Application", "Broker", "Node", "Topic", "Library"},
         }
         
         types = layer_types.get(layer, layer_types["system"])

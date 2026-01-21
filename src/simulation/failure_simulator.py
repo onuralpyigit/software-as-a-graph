@@ -28,11 +28,33 @@ from .simulation_graph import SimulationGraph, ComponentState, RelationType
 
 
 class FailureMode(Enum):
-    """Types of component failure modes."""
+    """
+    Types of component failure modes.
+    
+    CRASH (Fully Implemented):
+        Complete component failure. The component stops functioning entirely.
+        Cascade: Physical (Node→hosted), Logical (Broker→topics), Network
+    
+    DEGRADED (Partial Implementation):
+        Partial failure where component operates at reduced capacity.
+        Use Case: Simulate slow responses, memory pressure, CPU throttling.
+        TODO: Implement capacity reduction factor and partial message delivery.
+    
+    PARTITION (Partial Implementation):
+        Network isolation where component is unreachable from some nodes.
+        Use Case: Simulate network splits, firewall rules, zone failures.
+        TODO: Implement reachability matrices and partition detection.
+    
+    OVERLOAD (Partial Implementation):
+        Resource exhaustion where component cannot handle additional load.
+        Use Case: Simulate queue overflow, connection limits, memory OOM.
+        TODO: Implement backpressure and queue depth tracking.
+    """
     CRASH = "crash"           # Complete failure - component stops
     DEGRADED = "degraded"     # Partial failure - reduced capacity
     PARTITION = "partition"   # Network partition - unreachable
     OVERLOAD = "overload"     # Resource exhaustion
+
 
 
 class CascadeRule(Enum):
@@ -96,18 +118,31 @@ class ImpactMetrics:
     cascade_depth: int = 0
     cascade_by_type: Dict[str, int] = field(default_factory=dict)
     
+    # Configurable impact weights (can be overridden by subclass or instance)
+    # These weights determine how much each dimension contributes to composite impact
+    #   - reachability_weight: Impact of broken pub-sub paths
+    #   - fragmentation_weight: Impact of infrastructure loss
+    #   - throughput_weight: Impact of message delivery capacity loss
+    impact_weights: Dict[str, float] = field(default_factory=lambda: {
+        "reachability": 0.4,
+        "fragmentation": 0.3, 
+        "throughput": 0.3
+    })
+    
     @property
     def composite_impact(self) -> float:
         """
         Composite impact score combining all metrics.
         
         Formula: I(v) = w_r * reachability + w_f * fragmentation + w_t * throughput
+        
+        Weights are configurable via impact_weights dict.
         """
-        w_r, w_f, w_t = 0.4, 0.3, 0.3
+        w = self.impact_weights
         return (
-            w_r * self.reachability_loss +
-            w_f * self.fragmentation +
-            w_t * self.throughput_loss
+            w.get("reachability", 0.4) * self.reachability_loss +
+            w.get("fragmentation", 0.3) * self.fragmentation +
+            w.get("throughput", 0.3) * self.throughput_loss
         )
     
     def to_dict(self) -> Dict[str, Any]:
