@@ -559,6 +559,39 @@ class DashboardGenerator:
         """
         Add an interactive vis.js network graph.
         
+        Uses vis.js Network (https://visjs.github.io/vis-network/docs/network/)
+        for interactive graph visualization with the following configuration:
+        
+        vis.js Options:
+            nodes:
+                - shape: 'dot' - circular nodes for clarity
+                - font: {size: 12, face: 'Segoe UI'} - readable labels
+                - borderWidth: 2 - visible node borders
+                - shadow: true - depth perception
+                
+            edges:
+                - arrows: {to: {enabled: true, scaleFactor: 0.5}} - directed edges
+                - smooth: {type: 'continuous'} - curved edges to avoid overlap
+                - color: {opacity: 0.7} - semi-transparent for readability
+                
+            physics:
+                - stabilization: {iterations: 100} - initial layout stabilization
+                - barnesHut: {gravitationalConstant: -2000, springLength: 150}
+                  Barnes-Hut algorithm for efficient force-directed layout
+                  
+            interaction:
+                - hover: true - highlight on mouse hover
+                - tooltipDelay: 100 - quick tooltip display
+                
+            groups:
+                Pre-defined color groups for component types and criticality:
+                - Application: Blue (#3498db)
+                - Broker: Purple (#9b59b6)
+                - Node: Green (#2ecc71)
+                - Topic: Yellow (#f1c40f)
+                - Library: Teal (#1abc9c)
+                - CRITICAL/HIGH/MEDIUM/LOW/MINIMAL: Red to Gray gradient
+        
         Args:
             graph_id: Unique ID for the graph container
             nodes: List of node dicts with id, label, group, etc.
@@ -586,6 +619,7 @@ class DashboardGenerator:
             var container = document.getElementById('{graph_id}');
             var data = {{ nodes: nodes, edges: edges }};
             
+            // vis.js Network options - see method docstring for details
             var options = {{
                 nodes: {{
                     shape: 'dot',
@@ -614,6 +648,7 @@ class DashboardGenerator:
                     Broker: {{ color: {{ background: '#9b59b6', border: '#8e44ad' }} }},
                     Node: {{ color: {{ background: '#2ecc71', border: '#27ae60' }} }},
                     Topic: {{ color: {{ background: '#f1c40f', border: '#f39c12' }} }},
+                    Library: {{ color: {{ background: '#1abc9c', border: '#16a085' }} }},
                     CRITICAL: {{ color: {{ background: '#e74c3c', border: '#c0392b' }} }},
                     HIGH: {{ color: {{ background: '#e67e22', border: '#d35400' }} }},
                     MEDIUM: {{ color: {{ background: '#f1c40f', border: '#f39c12' }} }},

@@ -9,13 +9,17 @@ Chart Types:
     - Pie charts (distributions)
     - Scatter plots (correlation)
     - Heatmaps (confusion matrices)
+
+Color Configuration:
+    Colors can be customized via the ColorTheme dataclass.
+    Use predefined themes or create custom themes for accessibility/branding.
 """
 
 from __future__ import annotations
 import base64
 import io
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Tuple
 
 # Check for matplotlib availability
@@ -32,41 +36,118 @@ except ImportError:
 
 @dataclass
 class ChartOutput:
-    """Output from chart generation."""
+    """
+    Output from chart generation.
+    
+    Attributes:
+        title: Chart title
+        png_base64: Base64-encoded PNG image data
+        description: Human-readable description of what the chart shows
+        alt_text: Accessibility text for screen readers (should describe chart content)
+        width: Display width in pixels
+        height: Display height in pixels
+    """
     title: str
     png_base64: str
     description: str = ""
+    alt_text: str = ""  # Added for accessibility
     width: int = 600
     height: int = 400
 
 
-# Color schemes
-COLORS = {
-    "primary": "#3498db",
-    "secondary": "#2c3e50",
-    "success": "#2ecc71",
-    "warning": "#f39c12",
-    "danger": "#e74c3c",
-    "info": "#17a2b8",
-    "light": "#ecf0f1",
-    "dark": "#34495e",
-}
+@dataclass
+class ColorTheme:
+    """
+    Configurable color theme for charts.
+    
+    Provides semantic color names that can be customized for:
+        - Accessibility (high contrast themes)
+        - Branding (corporate color schemes)
+        - Printing (grayscale-friendly colors)
+    
+    Example:
+        >>> theme = ColorTheme(primary="#1a73e8", success="#34a853")
+        >>> charts = ChartGenerator(color_theme=theme)
+    """
+    # Primary semantic colors
+    primary: str = "#3498db"
+    secondary: str = "#2c3e50"
+    success: str = "#2ecc71"
+    warning: str = "#f39c12"
+    danger: str = "#e74c3c"
+    info: str = "#17a2b8"
+    light: str = "#ecf0f1"
+    dark: str = "#34495e"
+    
+    # Criticality level colors (for quality classifications)
+    critical: str = "#e74c3c"
+    high: str = "#e67e22"
+    medium: str = "#f1c40f"
+    low: str = "#2ecc71"
+    minimal: str = "#95a5a6"
+    
+    # Layer-specific colors
+    layer_app: str = "#3498db"
+    layer_infra: str = "#9b59b6"
+    layer_mw_app: str = "#1abc9c"
+    layer_mw_infra: str = "#e67e22"
+    layer_system: str = "#2c3e50"
+    
+    def to_colors_dict(self) -> Dict[str, str]:
+        """Convert to COLORS dictionary format for backwards compatibility."""
+        return {
+            "primary": self.primary,
+            "secondary": self.secondary,
+            "success": self.success,
+            "warning": self.warning,
+            "danger": self.danger,
+            "info": self.info,
+            "light": self.light,
+            "dark": self.dark,
+        }
+    
+    def to_criticality_dict(self) -> Dict[str, str]:
+        """Convert to CRITICALITY_COLORS dictionary format."""
+        return {
+            "CRITICAL": self.critical,
+            "HIGH": self.high,
+            "MEDIUM": self.medium,
+            "LOW": self.low,
+            "MINIMAL": self.minimal,
+        }
+    
+    def to_layer_dict(self) -> Dict[str, str]:
+        """Convert to LAYER_COLORS dictionary format."""
+        return {
+            "app": self.layer_app,
+            "infra": self.layer_infra,
+            "mw-app": self.layer_mw_app,
+            "mw-infra": self.layer_mw_infra,
+            "system": self.layer_system,
+        }
 
-CRITICALITY_COLORS = {
-    "CRITICAL": "#e74c3c",
-    "HIGH": "#e67e22",
-    "MEDIUM": "#f1c40f",
-    "LOW": "#2ecc71",
-    "MINIMAL": "#95a5a6",
-}
 
-LAYER_COLORS = {
-    "app": "#3498db",
-    "infra": "#9b59b6",
-    "mw-app": "#1abc9c",
-    "mw-infra": "#e67e22",
-    "system": "#2c3e50",
-}
+# Predefined themes
+DEFAULT_THEME = ColorTheme()
+
+HIGH_CONTRAST_THEME = ColorTheme(
+    primary="#0066cc",
+    secondary="#000000",
+    success="#008000",
+    warning="#ff8c00",
+    danger="#cc0000",
+    critical="#cc0000",
+    high="#ff8c00",
+    medium="#cccc00",
+    low="#008000",
+)
+
+
+# Backwards-compatible color dictionaries (use DEFAULT_THEME)
+COLORS = DEFAULT_THEME.to_colors_dict()
+CRITICALITY_COLORS = DEFAULT_THEME.to_criticality_dict()
+LAYER_COLORS = DEFAULT_THEME.to_layer_dict()
+
 
 
 class ChartGenerator:
@@ -77,8 +158,13 @@ class ChartGenerator:
     as base64 strings for HTML embedding.
     """
     
-    def __init__(self, style: str = "seaborn-v0_8-whitegrid"):
+    def __init__(
+        self, 
+        style: str = "seaborn-v0_8-whitegrid",
+        color_theme: ColorTheme = None
+    ):
         self.logger = logging.getLogger(__name__)
+        self.theme = color_theme or DEFAULT_THEME
         
         if not HAS_MATPLOTLIB:
             self.logger.warning("matplotlib not available, charts will be disabled")
@@ -125,7 +211,7 @@ class ChartGenerator:
         
         labels = list(data.keys())
         values = list(data.values())
-        bar_color = color or COLORS["primary"]
+        bar_color = color or self.theme.primary
         
         if horizontal:
             bars = ax.barh(labels, values, color=bar_color, edgecolor='white')
@@ -154,7 +240,8 @@ class ChartGenerator:
         return ChartOutput(
             title=title,
             png_base64=self._fig_to_base64(fig),
-            description=description
+            description=description,
+            alt_text=f"Bar chart titled '{title}' showing values for {', '.join(labels[:3])}..."
         )
     
     def grouped_bar_chart(
@@ -179,7 +266,9 @@ class ChartGenerator:
         x = np.arange(len(groups))
         width = 0.8 / len(metrics) if metrics else 0.8
         
-        colors = list(LAYER_COLORS.values())[:len(metrics)]
+        # Use layer colors for consistency if metrics match layer names, else cycle
+        layer_colors = list(self.theme.to_layer_dict().values())
+        colors = layer_colors[:len(metrics)]
         
         for i, metric in enumerate(metrics):
             values = [data[g].get(metric, 0) for g in groups]
@@ -197,7 +286,8 @@ class ChartGenerator:
         return ChartOutput(
             title=title,
             png_base64=self._fig_to_base64(fig),
-            description=description
+            description=description,
+            alt_text=f"Grouped bar chart titled '{title}' comparing {', '.join(metrics)} across groups"
         )
     
     # =========================================================================
@@ -226,7 +316,7 @@ class ChartGenerator:
         values = list(data.values())
         
         if colors:
-            pie_colors = [colors.get(l, COLORS["light"]) for l in labels]
+            pie_colors = [colors.get(l, self.theme.light) for l in labels]
         else:
             pie_colors = plt.cm.Set3.colors[:len(labels)]
         
@@ -248,7 +338,8 @@ class ChartGenerator:
         return ChartOutput(
             title=title,
             png_base64=self._fig_to_base64(fig),
-            description=description
+            description=description,
+            alt_text=f"Pie chart titled '{title}' showing distribution of {', '.join(labels)}"
         )
     
     def criticality_distribution(
@@ -258,7 +349,7 @@ class ChartGenerator:
         description: str = ""
     ) -> Optional[ChartOutput]:
         """Create a pie chart for criticality level distribution."""
-        return self.pie_chart(counts, title, CRITICALITY_COLORS, description)
+        return self.pie_chart(counts, title, self.theme.to_criticality_dict(), description)
     
     # =========================================================================
     # Scatter Plots
@@ -281,7 +372,7 @@ class ChartGenerator:
         
         fig, ax = plt.subplots(figsize=(8, 8))
         
-        ax.scatter(x_values, y_values, c=COLORS["primary"], alpha=0.7, s=60, edgecolors='white')
+        ax.scatter(x_values, y_values, c=self.theme.primary, alpha=0.7, s=60, edgecolors='white')
         
         if add_diagonal:
             min_val = min(min(x_values), min(y_values))
@@ -304,7 +395,8 @@ class ChartGenerator:
         return ChartOutput(
             title=title,
             png_base64=self._fig_to_base64(fig),
-            description=description
+            description=description,
+            alt_text=f"Scatter plot titled '{title}' showing correlation between {xlabel} and {ylabel}"
         )
     
     # =========================================================================
@@ -351,7 +443,8 @@ class ChartGenerator:
         return ChartOutput(
             title=title,
             png_base64=self._fig_to_base64(fig),
-            description=description
+            description=description,
+            alt_text=f"Confusion matrix heat map with TP={tp}, FP={fp}, FN={fn}, TN={tn}"
         )
     
     # =========================================================================
@@ -382,7 +475,9 @@ class ChartGenerator:
         ids = [c[0] for c in components]
         impacts = [c[1] for c in components]
         levels = [c[2] for c in components]
-        colors = [CRITICALITY_COLORS.get(l.upper(), COLORS["light"]) for l in levels]
+        
+        crit_colors = self.theme.to_criticality_dict()
+        colors = [crit_colors.get(l.upper(), self.theme.light) for l in levels]
         
         bars = ax.barh(range(len(ids)), impacts, color=colors, edgecolor='white')
         ax.set_yticks(range(len(ids)))
@@ -399,14 +494,15 @@ class ChartGenerator:
         
         # Legend
         legend_handles = [mpatches.Patch(color=c, label=l) 
-                         for l, c in CRITICALITY_COLORS.items()]
+                         for l, c in crit_colors.items()]
         ax.legend(handles=legend_handles, loc='lower right', fontsize=8)
         
         plt.tight_layout()
         return ChartOutput(
             title=title,
             png_base64=self._fig_to_base64(fig),
-            description=description
+            description=description,
+            alt_text=f"Ranking chart showing top {len(components)} components by impact"
         )
     
     def layer_comparison(
