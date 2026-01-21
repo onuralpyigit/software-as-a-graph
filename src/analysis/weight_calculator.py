@@ -19,6 +19,15 @@ class QualityWeights:
     Configurable weights for quality score computation.
     
     All weights should sum to 1.0 within each dimension.
+    
+    Note on Overall Weights (q_* parameters):
+        Default equal weights (0.25 each) represent a balanced approach where
+        all four dimensions are considered equally important. Adjust these
+        based on system priorities:
+        - Security-critical systems: Increase q_vulnerability
+        - High-availability systems: Increase q_availability
+        - Fast-iteration systems: Increase q_maintainability
+        - Mission-critical systems: Increase q_reliability
     """
     # Reliability weights (fault propagation)
     r_pagerank: float = 0.4
@@ -40,11 +49,18 @@ class QualityWeights:
     v_closeness: float = 0.3
     v_in_degree: float = 0.3
     
-    # Overall quality weights
+    # Overall quality weights (sum should be 1.0)
     q_reliability: float = 0.25
     q_maintainability: float = 0.25
     q_availability: float = 0.25
     q_vulnerability: float = 0.25
+    
+    # Edge quality weights (sum should be 1.0)
+    e_betweenness: float = 0.35      # Path importance
+    e_bridge: float = 0.30           # SPOF risk
+    e_endpoint: float = 0.20         # Connected node importance
+    e_vulnerability: float = 0.15   # Endpoint vulnerability exposure
+
 
 # Scale of Relative Importance (Saaty's Scale)
 # 1: Equal importance

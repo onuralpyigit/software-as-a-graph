@@ -247,3 +247,99 @@ class TestQualityAnalyzer:
         scores = {c.id: c.scores.overall for c in qual_res.components}
         # B is the central node, should have higher overall score
         assert scores["B"] >= scores["A"]
+    
+    def test_all_dimensions_computed(self, mock_graph_data):
+        """Test that all four quality dimensions are computed."""
+        struct_an = StructuralAnalyzer()
+        struct_res = struct_an.analyze(mock_graph_data)
+        
+        qual_an = QualityAnalyzer()
+        qual_res = qual_an.analyze(struct_res)
+        
+        for comp in qual_res.components:
+            # All dimensions should be non-negative
+            assert comp.scores.reliability >= 0
+            assert comp.scores.maintainability >= 0
+            assert comp.scores.availability >= 0
+            assert comp.scores.vulnerability >= 0
+            assert comp.scores.overall >= 0
+    
+    def test_edge_vulnerability_computed(self, mock_graph_data):
+        """Test that edge vulnerability is now computed."""
+        struct_an = StructuralAnalyzer()
+        struct_res = struct_an.analyze(mock_graph_data)
+        
+        qual_an = QualityAnalyzer()
+        qual_res = qual_an.analyze(struct_res)
+        
+        # Edges should have vulnerability scores
+        for edge in qual_res.edges:
+            assert hasattr(edge.scores, 'vulnerability')
+            assert edge.scores.vulnerability >= 0
+    
+    def test_custom_weights(self, mock_graph_data):
+        """Test that custom weights affect scoring."""
+        from src.analysis.weight_calculator import QualityWeights
+        
+        struct_an = StructuralAnalyzer()
+        struct_res = struct_an.analyze(mock_graph_data)
+        
+        # Default weights
+        qual_default = QualityAnalyzer()
+        res_default = qual_default.analyze(struct_res)
+        
+        # Custom weights emphasizing reliability
+        custom_weights = QualityWeights(
+            q_reliability=0.7,
+            q_maintainability=0.1,
+            q_availability=0.1,
+            q_vulnerability=0.1
+        )
+        qual_custom = QualityAnalyzer(weights=custom_weights)
+        res_custom = qual_custom.analyze(struct_res)
+        
+        # Results should differ when using different weights
+        default_scores = {c.id: c.scores.overall for c in res_default.components}
+        custom_scores = {c.id: c.scores.overall for c in res_custom.components}
+        
+        # At least one score should differ
+        assert any(
+            abs(default_scores[id] - custom_scores[id]) > 0.001
+            for id in default_scores
+        )
+    
+    def test_classification_summary(self, mock_graph_data):
+        """Test that classification summary is properly built."""
+        struct_an = StructuralAnalyzer()
+        struct_res = struct_an.analyze(mock_graph_data)
+        
+        qual_an = QualityAnalyzer()
+        qual_res = qual_an.analyze(struct_res)
+        
+        summary = qual_res.classification_summary
+        
+        assert summary.total_components == 3
+        assert summary.total_edges == 2
+        # Distribution values should be non-negative integers
+        assert all(v >= 0 for v in summary.component_distribution.values())
+        assert all(v >= 0 for v in summary.edge_distribution.values())
+    
+    def test_edge_weights_configurable(self, mock_graph_data):
+        """Test that edge quality weights are configurable."""
+        from src.analysis.weight_calculator import QualityWeights
+        
+        struct_an = StructuralAnalyzer()
+        struct_res = struct_an.analyze(mock_graph_data)
+        
+        # Custom edge weights emphasizing bridge factor
+        custom_weights = QualityWeights(
+            e_betweenness=0.1,
+            e_bridge=0.7,
+            e_endpoint=0.1,
+            e_vulnerability=0.1
+        )
+        qual_custom = QualityAnalyzer(weights=custom_weights)
+        res_custom = qual_custom.analyze(struct_res)
+        
+        # Results should be computed without error
+        assert len(res_custom.edges) == 2

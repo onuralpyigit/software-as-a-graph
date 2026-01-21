@@ -329,27 +329,42 @@ class QualityAnalyzer:
         if not edge_metrics:
             return []
         
-        # Compute edge scores
+        # Compute edge scores using configurable weights
+        w = self.weights
         edges = []
         max_betweenness = max(e.betweenness for e in edge_metrics.values()) or 1.0
         
         for key, em in edge_metrics.items():
-            # Edge score based on betweenness and bridge status
-            source_score = component_metrics.get(em.source)
-            target_score = component_metrics.get(em.target)
+            # Get connected component metrics for endpoint analysis
+            source_metrics = component_metrics.get(em.source)
+            target_metrics = component_metrics.get(em.target)
             
-            # Importance of connected nodes
+            # Endpoint importance (average PageRank of connected nodes)
             endpoint_importance = 0.0
-            if source_score and target_score:
+            if source_metrics and target_metrics:
                 endpoint_importance = (
-                    source_score.pagerank + target_score.pagerank
+                    source_metrics.pagerank + target_metrics.pagerank
                 ) / 2
             
-            # Edge criticality
+            # Edge vulnerability (exposure through connected nodes)
+            # Average of endpoint eigenvector and closeness centrality
+            endpoint_vulnerability = 0.0
+            if source_metrics and target_metrics:
+                avg_eigenvector = (source_metrics.eigenvector + target_metrics.eigenvector) / 2
+                avg_closeness = (source_metrics.closeness + target_metrics.closeness) / 2
+                endpoint_vulnerability = (avg_eigenvector + avg_closeness) / 2
+            
+            # Normalized edge metrics
             bridge_factor = 1.0 if em.is_bridge else 0.0
             betweenness_norm = em.betweenness / max_betweenness if max_betweenness > 0 else 0
             
-            overall = 0.4 * betweenness_norm + 0.4 * bridge_factor + 0.2 * endpoint_importance
+            # Compute overall edge score using configurable weights
+            overall = (
+                w.e_betweenness * betweenness_norm +
+                w.e_bridge * bridge_factor +
+                w.e_endpoint * endpoint_importance +
+                w.e_vulnerability * endpoint_vulnerability
+            )
             
             edges.append(EdgeQuality(
                 source=em.source,
@@ -361,6 +376,7 @@ class QualityAnalyzer:
                     reliability=endpoint_importance,
                     maintainability=betweenness_norm,
                     availability=bridge_factor,
+                    vulnerability=endpoint_vulnerability,
                     overall=overall,
                 ),
                 structural=em,
@@ -378,6 +394,7 @@ class QualityAnalyzer:
         edges.sort(key=lambda x: x.scores.overall, reverse=True)
         
         return edges
+
     
     def _build_summary(
         self,
