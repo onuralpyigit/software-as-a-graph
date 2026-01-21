@@ -136,11 +136,12 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     AnalysisLayer.SYSTEM: LayerDefinition(
         name="Complete System",
         description="System-wide analysis across all layers and dependency types",
-        component_types=frozenset({"Application", "Broker", "Node", "Topic"}),
+        component_types=frozenset({"Application", "Broker", "Node", "Topic", "Library"}),
         dependency_types=frozenset({"app_to_app", "app_to_broker", "node_to_node", "node_to_broker"}),
         focus_metrics=("pagerank", "betweenness", "articulation_point", "clustering"),
         quality_focus="overall",
     ),
+
 }
 
 

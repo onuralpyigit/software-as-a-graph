@@ -172,35 +172,39 @@ class StructuralAnalyzer:
         
         # === Centrality Metrics ===
         
-        # PageRank (importance based on incoming links)
+        # Forward PageRank: Measures importance as a dependency target.
+        # High PageRank = many components depend on this (directly or indirectly).
         try:
             pagerank = nx.pagerank(G, alpha=self.damping_factor, weight='weight')
-        except:
+        except nx.NetworkXError:
             pagerank = {n: 1.0 / n_nodes for n in G}
         
-        # Reverse PageRank (failure propagation influence)
+        # Reverse PageRank: Measures importance as a dependency source.
+        # High Reverse PageRank = this component depends on many others.
+        # Useful for identifying components vulnerable to upstream failures.
         G_rev = G.reverse()
         try:
             reverse_pagerank = nx.pagerank(G_rev, alpha=self.damping_factor, weight='weight')
-        except:
+        except nx.NetworkXError:
             reverse_pagerank = {n: 1.0 / n_nodes for n in G}
         
         # Betweenness centrality (bottleneck/bridge importance)
         try:
             betweenness = nx.betweenness_centrality(G, weight='weight', normalized=True)
-        except:
+        except nx.NetworkXError:
             betweenness = {n: 0.0 for n in G}
         
         # Closeness centrality (average distance to others)
+        # Using edge weights as distance (higher weight = shorter path = more important)
         try:
-            closeness = nx.closeness_centrality(G)
-        except:
+            closeness = nx.closeness_centrality(G, distance='weight')
+        except nx.NetworkXError:
             closeness = {n: 0.0 for n in G}
         
         # Eigenvector centrality (influence via neighbors)
         try:
             eigenvector = nx.eigenvector_centrality(G, max_iter=1000, weight='weight')
-        except:
+        except (nx.NetworkXError, nx.PowerIterationFailedConvergence):
             eigenvector = {n: 0.0 for n in G}
         
         # === Degree Metrics ===
@@ -216,7 +220,7 @@ class StructuralAnalyzer:
             degree_centrality = nx.degree_centrality(G)
             in_degree_centrality = nx.in_degree_centrality(G)
             out_degree_centrality = nx.out_degree_centrality(G)
-        except:
+        except nx.NetworkXError:
             degree_centrality = {n: 0.0 for n in G}
             in_degree_centrality = {n: 0.0 for n in G}
             out_degree_centrality = {n: 0.0 for n in G}
@@ -229,19 +233,19 @@ class StructuralAnalyzer:
         # Clustering coefficient (local redundancy)
         try:
             clustering = nx.clustering(G_undirected)
-        except:
+        except nx.NetworkXError:
             clustering = {n: 0.0 for n in G}
         
         # Articulation points (single points of failure)
         try:
             articulation_points = set(nx.articulation_points(G_undirected))
-        except:
+        except nx.NetworkXError:
             articulation_points = set()
         
         # Bridges
         try:
             bridges = set(nx.bridges(G_undirected))
-        except:
+        except nx.NetworkXError:
             bridges = set()
         
         # Count bridges per node
