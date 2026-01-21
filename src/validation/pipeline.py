@@ -52,8 +52,8 @@ LAYER_DEFINITIONS = {
     },
     "system": {
         "name": "Complete System",
-        "description": "All components",
-        "component_types": {"Application", "Broker", "Node"},
+        "description": "All components including Libraries",
+        "component_types": {"Application", "Broker", "Node", "Library"},
     },
 }
 
