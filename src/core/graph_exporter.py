@@ -243,70 +243,132 @@ class GraphExporter:
                 stats[f"{dep_type}_count"] = result.single()["c"]
         return stats
     
-    def get_raw_structural_graph(self) -> Dict[str, Any]:
-        """Retrieve the full structural graph in raw dictionary format."""
-        data: Dict[str, List[Any]] = {
-            "nodes": [], "brokers": [], "applications": [], "topics": [], "libraries": [],
-            "publications": [], "subscriptions": [], "routes": [], "runs_on": [], "connections": [], "uses": []
+    def get_graph_data(self) -> Dict[str, Any]:
+        """Export graph in the same format as input files (compatible with GraphImporter).
+        
+        This produces a JSON structure matching the format of input/dataset.json,
+        suitable for re-importing with import_graph.py.
+        """
+        data: Dict[str, Any] = {
+            "metadata": {},
+            "nodes": [],
+            "brokers": [],
+            "topics": [],
+            "applications": [],
+            "libraries": [],
+            "relationships": {
+                "runs_on": [],
+                "routes": [],
+                "publishes_to": [],
+                "subscribes_to": [],
+                "connects_to": [],
+                "uses": [],
+            },
         }
         
         with self.driver.session() as session:
-            # Entities
-            for label, key in [("Node", "nodes"), ("Broker", "brokers"), ("Application", "applications"), ("Library", "libraries")]:
-                result = session.run(f"MATCH (n:{label}) RETURN n.id as id, n.name as name, coalesce(n.weight, 1.0) as weight, properties(n) as props")
-                for record in result:
-                    props = dict(record["props"])
-                    # Special handling for Application role
-                    role = props.get("role", "pubsub") if label == "Application" else None
-                    app_type = props.get("app_type") if label == "Application" else None
-                    criticality = props.get("criticality") if label == "Application" else None
-                    version = props.get("version") if label == "Application" or label == "Library" else None
-                    item = {"id": record["id"], "name": record["name"] or record["id"], "weight": float(record["weight"])}
-                    if role: item["role"] = role
-                    if app_type: item["app_type"] = app_type
-                    if criticality: item["criticality"] = criticality
-                    if version: item["version"] = version
-                    data[key].append(item)
-
-            # Topics
+            # Nodes
+            result = session.run("MATCH (n:Node) RETURN n.id as id, n.name as name")
+            for record in result:
+                data["nodes"].append({
+                    "id": record["id"],
+                    "name": record["name"] or record["id"],
+                })
+            
+            # Brokers
+            result = session.run("MATCH (b:Broker) RETURN b.id as id, b.name as name")
+            for record in result:
+                data["brokers"].append({
+                    "id": record["id"],
+                    "name": record["name"] or record["id"],
+                })
+            
+            # Topics (with QoS properties using correct qos_ prefix)
             result = session.run("""
                 MATCH (t:Topic)
-                RETURN t.id as id, t.name as name, coalesce(t.size, 0) as size,
-                       coalesce(t.reliability, 'BEST_EFFORT') as reliability,
-                       coalesce(t.durability, 'VOLATILE') as durability,
-                       coalesce(t.transport_priority, 'LOW') as priority
+                RETURN t.id as id, t.name as name, coalesce(t.size, 256) as size,
+                       coalesce(t.qos_durability, 'VOLATILE') as durability,
+                       coalesce(t.qos_reliability, 'BEST_EFFORT') as reliability,
+                       coalesce(t.qos_transport_priority, 'MEDIUM') as transport_priority
             """)
             for record in result:
                 data["topics"].append({
-                    "id": record["id"], "name": record["name"] or record["id"], "size": int(record["size"]),
-                    "qos": {"reliability": record["reliability"], "durability": record["durability"], "transport_priority": record["priority"]}
+                    "id": record["id"],
+                    "name": record["name"] or record["id"],
+                    "size": int(record["size"]),
+                    "qos": {
+                        "durability": record["durability"],
+                        "reliability": record["reliability"],
+                        "transport_priority": record["transport_priority"],
+                    },
                 })
             
-            # Relationships
-            # PUBLISHES_TO (Apps and Libs)
-            result = session.run("MATCH (n)-[:PUBLISHES_TO]->(t:Topic) RETURN n.id as src, t.id as tgt")
-            for r in result: data["publications"].append({"source": r["src"], "topic": r["tgt"]})
+            # Applications
+            result = session.run("""
+                MATCH (a:Application)
+                RETURN a.id as id, a.name as name, 
+                       coalesce(a.role, 'pubsub') as role,
+                       a.app_type as app_type,
+                       a.criticality as criticality,
+                       a.version as version
+            """)
+            for record in result:
+                app = {
+                    "id": record["id"],
+                    "name": record["name"] or record["id"],
+                    "role": record["role"],
+                }
+                if record["app_type"]:
+                    app["app_type"] = record["app_type"]
+                if record["criticality"] is not None:
+                    app["criticality"] = record["criticality"]
+                if record["version"]:
+                    app["version"] = record["version"]
+                data["applications"].append(app)
             
-            # SUBSCRIBES_TO (Apps and Libs)
-            result = session.run("MATCH (n)-[:SUBSCRIBES_TO]->(t:Topic) RETURN n.id as src, t.id as tgt")
-            for r in result: data["subscriptions"].append({"source": r["src"], "topic": r["tgt"]})
+            # Libraries
+            result = session.run("""
+                MATCH (l:Library)
+                RETURN l.id as id, l.name as name, l.version as version
+            """)
+            for record in result:
+                lib = {
+                    "id": record["id"],
+                    "name": record["name"] or record["id"],
+                }
+                if record["version"]:
+                    lib["version"] = record["version"]
+                data["libraries"].append(lib)
+            
+            # Relationships - all use {from, to} format
+            # RUNS_ON
+            result = session.run("MATCH (c)-[:RUNS_ON]->(n:Node) RETURN c.id as src, n.id as tgt")
+            for r in result:
+                data["relationships"]["runs_on"].append({"from": r["src"], "to": r["tgt"]})
             
             # ROUTES
             result = session.run("MATCH (b:Broker)-[:ROUTES]->(t:Topic) RETURN b.id as src, t.id as tgt")
-            for r in result: data["routes"].append({"broker": r["src"], "topic": r["tgt"]})
+            for r in result:
+                data["relationships"]["routes"].append({"from": r["src"], "to": r["tgt"]})
             
-            # RUNS_ON
-            result = session.run("MATCH (c)-[:RUNS_ON]->(n:Node) RETURN c.id as src, n.id as tgt, labels(c)[0] as type")
-            for r in result: 
-                key = "application" if r["type"] == "Application" else "broker"
-                data["runs_on"].append({key: r["src"], "node": r["tgt"]})
-                
+            # PUBLISHES_TO
+            result = session.run("MATCH (n)-[:PUBLISHES_TO]->(t:Topic) RETURN n.id as src, t.id as tgt")
+            for r in result:
+                data["relationships"]["publishes_to"].append({"from": r["src"], "to": r["tgt"]})
+            
+            # SUBSCRIBES_TO
+            result = session.run("MATCH (n)-[:SUBSCRIBES_TO]->(t:Topic) RETURN n.id as src, t.id as tgt")
+            for r in result:
+                data["relationships"]["subscribes_to"].append({"from": r["src"], "to": r["tgt"]})
+            
             # CONNECTS_TO
-            result = session.run("MATCH (n1:Node)-[r:CONNECTS_TO]->(n2:Node) RETURN n1.id as src, n2.id as tgt, coalesce(r.weight, 1.0) as w")
-            for r in result: data["connections"].append({"source": r["src"], "target": r["tgt"], "weight": float(r["w"])})
-
+            result = session.run("MATCH (n1:Node)-[:CONNECTS_TO]->(n2:Node) RETURN n1.id as src, n2.id as tgt")
+            for r in result:
+                data["relationships"]["connects_to"].append({"from": r["src"], "to": r["tgt"]})
+            
             # USES
             result = session.run("MATCH (a)-[:USES]->(b) RETURN a.id as src, b.id as tgt")
-            for r in result: data["uses"].append({"source": r["src"], "target": r["tgt"]})
+            for r in result:
+                data["relationships"]["uses"].append({"from": r["src"], "to": r["tgt"]})
         
         return data
