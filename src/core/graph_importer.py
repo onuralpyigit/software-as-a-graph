@@ -5,21 +5,42 @@ Imports graph data into Neo4j and performs advanced post-processing:
 1. Imports entities (Nodes, Brokers, Apps, Topics, Libraries) and structural relationships.
 2. Derives DEPENDS_ON relationships (App->App, Node->Node, etc.)
 3. Calculates Relationship Weights based on Topic QoS and Message Size.
+
+The importer uses the QoS scoring constants from QoSPolicy for consistent
+weight calculations between Python and Cypher.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+
 from neo4j import GraphDatabase
 
+from .graph_model import QoSPolicy
+
+
 class GraphImporter:
-    def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="password", database="neo4j"):
+    """Imports graph data into Neo4j with dependency derivation and weight calculation."""
+
+    def __init__(
+        self,
+        uri: str = "bolt://localhost:7687",
+        user: str = "neo4j",
+        password: str = "password",
+        database: str = "neo4j",
+    ) -> None:
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
         self.database = database
         self.logger = logging.getLogger(__name__)
 
-    def __enter__(self): return self
-    def __exit__(self, exc_type, exc_val, exc_tb): self.close()
-    def close(self): self.driver.close()
+    def __enter__(self) -> "GraphImporter":
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.close()
+
+    def close(self) -> None:
+        """Close the Neo4j driver connection."""
+        self.driver.close()
 
     def import_graph(self, data: Dict[str, Any], clear: bool = False) -> Dict[str, int]:
         """
@@ -62,19 +83,27 @@ class GraphImporter:
         
         return stats
 
-    def _create_constraints(self):
+    def _create_constraints(self) -> None:
+        """Create uniqueness constraints on node IDs."""
         with self.driver.session(database=self.database) as session:
             for label in ["Application", "Broker", "Topic", "Node", "Library"]:
-                session.run(f"CREATE CONSTRAINT IF NOT EXISTS FOR (n:{label}) REQUIRE n.id IS UNIQUE")
+                session.run(
+                    f"CREATE CONSTRAINT IF NOT EXISTS FOR (n:{label}) REQUIRE n.id IS UNIQUE"
+                )
 
-    def _import_batch(self, data: List[Dict], query: str, batch_size: int = 1000) -> int:
-        if not data: return 0
+    def _import_batch(
+        self, data: List[Dict[str, Any]], query: str, batch_size: int = 1000
+    ) -> int:
+        """Import data in batches using the given Cypher query."""
+        if not data:
+            return 0
         with self.driver.session(database=self.database) as session:
             for i in range(0, len(data), batch_size):
-                session.run(f"UNWIND $batch AS row {query}", batch=data[i:i+batch_size])
+                session.run(f"UNWIND $batch AS row {query}", batch=data[i : i + batch_size])
         return len(data)
 
-    def _import_topics(self, data: List[Dict]) -> int:
+    def _import_topics(self, data: List[Dict[str, Any]]) -> int:
+        """Import topics with flattened QoS structure."""
         # Flatten QoS structure for easier Cypher ingestion
         flattened = []
         for t in data:
@@ -99,7 +128,8 @@ class GraphImporter:
         """
         return self._import_batch(flattened, query)
 
-    def _import_rels(self, data: List[Dict], rel_type: str):
+    def _import_rels(self, data: List[Dict[str, str]], rel_type: str) -> int:
+        """Import relationships of the given type."""
         query = f"""
         MATCH (a {{id: row.from}}), (b {{id: row.to}})
         MERGE (a)-[:{rel_type}]->(b)
@@ -107,17 +137,35 @@ class GraphImporter:
         return self._import_batch(data, query)
 
     def _get_qos_weight_cypher(self, topic_var: str) -> str:
+        """Generate Cypher expression for QoS weight calculation.
+        
+        Uses the same scoring constants as QoSPolicy.calculate_weight() to ensure
+        consistency between Python and Cypher calculations.
+        """
+        # Build CASE expressions from QoSPolicy scoring constants
+        rel_scores = QoSPolicy.RELIABILITY_SCORES
+        dur_scores = QoSPolicy.DURABILITY_SCORES
+        pri_scores = QoSPolicy.PRIORITY_SCORES
+        
         return f"""
-        (CASE {topic_var}.qos_reliability WHEN 'RELIABLE' THEN 0.3 ELSE 0.0 END +
-         CASE {topic_var}.qos_durability WHEN 'PERSISTENT' THEN 0.4 WHEN 'TRANSIENT' THEN 0.25 WHEN 'TRANSIENT_LOCAL' THEN 0.2 ELSE 0.0 END +
-         CASE {topic_var}.qos_transport_priority WHEN 'URGENT' THEN 0.3 WHEN 'HIGH' THEN 0.2 WHEN 'MEDIUM' THEN 0.1 ELSE 0.0 END +
+        (CASE {topic_var}.qos_reliability WHEN 'RELIABLE' THEN {rel_scores['RELIABLE']} ELSE 0.0 END +
+         CASE {topic_var}.qos_durability 
+             WHEN 'PERSISTENT' THEN {dur_scores['PERSISTENT']} 
+             WHEN 'TRANSIENT' THEN {dur_scores['TRANSIENT']} 
+             WHEN 'TRANSIENT_LOCAL' THEN {dur_scores['TRANSIENT_LOCAL']} 
+             ELSE 0.0 END +
+         CASE {topic_var}.qos_transport_priority 
+             WHEN 'URGENT' THEN {pri_scores['URGENT']} 
+             WHEN 'HIGH' THEN {pri_scores['HIGH']} 
+             WHEN 'MEDIUM' THEN {pri_scores['MEDIUM']} 
+             ELSE 0.0 END +
          CASE WHEN {topic_var}.size <= 0 THEN 0.0
-                WHEN (log(1 + {topic_var}.size / 1024.0) / (log(2) * 10)) > 1.0 THEN 1.0
-                ELSE (log(1 + {topic_var}.size / 1024.0) / (log(2) * 10))
+              WHEN (log(1 + {topic_var}.size / 1024.0) / (log(2) * 10)) > 1.0 THEN 1.0
+              ELSE (log(1 + {topic_var}.size / 1024.0) / (log(2) * 10))
          END)
         """
 
-    def _calculate_intrinsic_weights(self):
+    def _calculate_intrinsic_weights(self) -> None:
         """
         Calculates weights for Topics based on QoS and Size.
         Propagates these weights to explicit edges and upstream components.
@@ -185,6 +233,7 @@ class GraphImporter:
         """)
 
     def _derive_dependencies(self) -> Dict[str, int]:
+        """Derive DEPENDS_ON relationships from structural graph patterns."""
         stats = {}
         qos_calc = self._get_qos_weight_cypher("t")
         
@@ -266,7 +315,7 @@ class GraphImporter:
 
         return stats
 
-    def _calculate_component_weights(self):
+    def _calculate_component_weights(self) -> None:
         """
         Calculates the final importance weight for every component (Apps, Nodes, Brokers, Libraries).
         """
@@ -283,11 +332,13 @@ class GraphImporter:
         """
         self._run_query(query)
 
-    def _run_query(self, query):
+    def _run_query(self, query: str) -> None:
+        """Execute a Cypher query."""
         with self.driver.session(database=self.database) as session:
             session.run(query)
 
-    def _run_count(self, query):
+    def _run_count(self, query: str) -> int:
+        """Execute a Cypher query and return the count result."""
         with self.driver.session(database=self.database) as session:
             res = session.run(query)
             try:

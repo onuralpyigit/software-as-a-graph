@@ -1,7 +1,10 @@
 """
-Graph Exporter - Version 7.1
+Graph Exporter
 
-Neo4j client for graph data retrieval.
+Neo4j client for graph data retrieval and export.
+
+Provides data structures and methods for exporting graph data from Neo4j,
+including components, edges, and layer-based filtering.
 """
 
 from __future__ import annotations
@@ -135,16 +138,27 @@ class GraphExporter:
         if hasattr(self, 'driver'):
             self.driver.close()
     
-    def __enter__(self): return self
-    def __exit__(self, exc_type, exc_val, exc_tb): self.close()
-    
-    def get_graph_data(self, component_types: Optional[List[str]] = None, dependency_types: Optional[List[str]] = None) -> GraphData:
+    def __enter__(self) -> "GraphExporter":
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.close()
+
+    def get_graph_data(
+        self,
+        component_types: Optional[List[str]] = None,
+        dependency_types: Optional[List[str]] = None,
+    ) -> GraphData:
+        """Retrieve graph data with optional type filtering."""
         components = self._get_components(component_types)
         component_ids = {c.id for c in components}
         edges = self._get_edges(dependency_types, component_ids)
         return GraphData(components=components, edges=edges)
     
-    def _get_components(self, component_types: Optional[List[str]] = None) -> List[ComponentData]:
+    def _get_components(
+        self, component_types: Optional[List[str]] = None
+    ) -> List[ComponentData]:
+        """Retrieve components from Neo4j, optionally filtered by type."""
         types = component_types or COMPONENT_TYPES
         types_str = ", ".join(f"'{t}'" for t in types)
         
@@ -169,7 +183,12 @@ class GraphExporter:
                 ))
         return components
     
-    def _get_edges(self, dependency_types: Optional[List[str]] = None, component_ids: Optional[Set[str]] = None) -> List[EdgeData]:
+    def _get_edges(
+        self,
+        dependency_types: Optional[List[str]] = None,
+        component_ids: Optional[Set[str]] = None,
+    ) -> List[EdgeData]:
+        """Retrieve DEPENDS_ON edges from Neo4j, optionally filtered."""
         types = dependency_types or DEPENDENCY_TYPES
         types_str = ", ".join(f"'{t}'" for t in types)
         
@@ -204,6 +223,7 @@ class GraphExporter:
         return edges
     
     def get_layer_data(self, layer: str) -> GraphData:
+        """Retrieve graph data for a specific architectural layer."""
         if layer not in LAYER_DEFINITIONS:
             raise ValueError(f"Unknown layer: {layer}")
         return self.get_graph_data(
@@ -211,7 +231,8 @@ class GraphExporter:
             dependency_types=LAYER_DEFINITIONS[layer]["dependency_types"],
         )
     
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> Dict[str, int]:
+        """Retrieve counts of components and dependencies by type."""
         stats = {}
         with self.driver.session() as session:
             for comp_type in COMPONENT_TYPES:
@@ -223,7 +244,8 @@ class GraphExporter:
         return stats
     
     def get_raw_structural_graph(self) -> Dict[str, Any]:
-        data = {
+        """Retrieve the full structural graph in raw dictionary format."""
+        data: Dict[str, List[Any]] = {
             "nodes": [], "brokers": [], "applications": [], "topics": [], "libraries": [],
             "publications": [], "subscriptions": [], "routes": [], "runs_on": [], "connections": [], "uses": []
         }
