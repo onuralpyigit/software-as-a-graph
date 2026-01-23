@@ -70,6 +70,15 @@ from .pipeline import (
     LAYER_DEFINITIONS,
 )
 
+# Display Functions
+from .display import (
+    display_pipeline_result,
+    display_layer_result,
+    status_icon,
+    status_text,
+    metric_color,
+)
+
 
 __all__ = [
     # Metrics
@@ -97,6 +106,13 @@ __all__ = [
     "LayerValidationResult",
     "QuickValidator",
     "LAYER_DEFINITIONS",
+    
+    # Display Functions
+    "display_pipeline_result",
+    "display_layer_result",
+    "status_icon",
+    "status_text",
+    "metric_color",
 ]
 
 __version__ = "2.0.0"

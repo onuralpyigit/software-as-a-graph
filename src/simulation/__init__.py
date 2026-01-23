@@ -82,6 +82,15 @@ from .simulator import (
     ComponentCriticality,
 )
 
+# Display Functions
+from .display import (
+    display_event_result,
+    display_failure_result,
+    display_exhaustive_results,
+    display_report,
+    level_color,
+)
+
 
 __all__ = [
     # Simulation Graph
@@ -114,4 +123,11 @@ __all__ = [
     "SimulationReport",
     "LayerMetrics",
     "ComponentCriticality",
+    
+    # Display Functions
+    "display_event_result",
+    "display_failure_result",
+    "display_exhaustive_results",
+    "display_report",
+    "level_color",
 ]
