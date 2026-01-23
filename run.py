@@ -24,7 +24,6 @@ Usage:
     python run.py --all                          # Full pipeline
     python run.py --generate --import --analyze  # Partial pipeline
     python run.py --layer app                    # Specific layers
-    python run.py --programmatic                 # Direct API calls
 
 Author: Software-as-a-Graph Research Project
 """
@@ -32,14 +31,13 @@ Author: Software-as-a-Graph Research Project
 import argparse
 import json
 import logging
-import os
 import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 
 # =============================================================================
 # Configuration
@@ -209,11 +207,7 @@ class PipelineResult:
 
 class PipelineRunner:
     """
-    Orchestrates the end-to-end pipeline execution.
-    
-    Supports two execution modes:
-        - Subprocess: Calls CLI scripts via subprocess
-        - Programmatic: Direct API calls (faster, more detailed)
+    Orchestrates the end-to-end pipeline execution using CLI scripts.
     """
     
     def __init__(self, config: PipelineConfig):
@@ -223,15 +217,7 @@ class PipelineRunner:
         self.input_file = Path(config.input_file).resolve()
         
         self.logger = logging.getLogger("Pipeline")
-        
-        # Execution mode
-        self._use_programmatic = False
-        
-        # Lazy-loaded modules
-        self._analyzer = None
-        self._simulator = None
-        self._validator = None
-    
+
     # =========================================================================
     # Setup & Validation
     # =========================================================================
@@ -244,10 +230,6 @@ class PipelineRunner:
         missing = self._verify_scripts()
         if missing:
             print_error(f"Missing scripts: {', '.join(missing)}")
-            return False
-        
-        # Check Neo4j connection
-        if not self._check_neo4j():
             return False
         
         return True
@@ -272,32 +254,6 @@ class PipelineRunner:
                     missing.append(script)
         
         return missing
-    
-    def _check_neo4j(self) -> bool:
-        """Check Neo4j connectivity."""
-        print_step("Checking Neo4j connection...")
-        
-        try:
-            from neo4j import GraphDatabase
-            
-            driver = GraphDatabase.driver(
-                self.config.uri,
-                auth=(self.config.user, self.config.password)
-            )
-            driver.verify_connectivity()
-            driver.close()
-            
-            print_success("Neo4j connection successful")
-            return True
-        
-        except ImportError:
-            print_warning("neo4j driver not installed, skipping pre-check")
-            return True
-        
-        except Exception as e:
-            print_error(f"Neo4j connection failed: {e}")
-            print_warning("Ensure Neo4j is running and credentials are correct")
-            return False
     
     def _get_script_path(self, script: str) -> Path:
         """Get path to a script."""
@@ -348,57 +304,6 @@ class PipelineRunner:
             return False, "", str(e)
     
     # =========================================================================
-    # Programmatic Execution
-    # =========================================================================
-    
-    @property
-    def analyzer(self):
-        """Lazy-load analyzer."""
-        if self._analyzer is None:
-            try:
-                from src.analysis import GraphAnalyzer
-                self._analyzer = GraphAnalyzer(
-                    uri=self.config.uri,
-                    user=self.config.user,
-                    password=self.config.password,
-                )
-            except ImportError:
-                pass
-        return self._analyzer
-    
-    @property
-    def simulator(self):
-        """Lazy-load simulator."""
-        if self._simulator is None:
-            try:
-                from src.simulation import Simulator
-                self._simulator = Simulator(
-                    uri=self.config.uri,
-                    user=self.config.user,
-                    password=self.config.password,
-                )
-            except ImportError:
-                pass
-        return self._simulator
-    
-    @property
-    def validator(self):
-        """Lazy-load validator."""
-        if self._validator is None:
-            try:
-                from src.validation import Validator, ValidationTargets
-                targets = ValidationTargets(
-                    spearman=self.config.target_spearman,
-                    f1_score=self.config.target_f1,
-                    precision=self.config.target_precision,
-                    recall=self.config.target_recall,
-                )
-                self._validator = Validator(targets)
-            except ImportError:
-                pass
-        return self._validator
-    
-    # =========================================================================
     # Pipeline Stages
     # =========================================================================
     
@@ -423,6 +328,7 @@ class PipelineRunner:
         
         if success:
             print_success(f"Graph data saved to: {self.input_file}")
+            # Optional: parse stdout for stats if needed
         else:
             print_error(f"Generation failed: {stderr}")
         
@@ -432,6 +338,7 @@ class PipelineRunner:
             duration=time.time() - start,
             message=f"Generated {self.config.scale} graph",
             data={"output_file": str(self.input_file)},
+            errors=[stderr] if not success else []
         )
     
     def run_import(self) -> StageResult:
@@ -461,7 +368,6 @@ class PipelineRunner:
         )
         
         if success:
-            # Parse component counts from output
             print_success("Graph model built in Neo4j")
         else:
             print_error(f"Import failed: {stderr}")
@@ -472,71 +378,54 @@ class PipelineRunner:
             duration=time.time() - start,
             message="Graph imported to Neo4j",
             data={"input_file": str(self.input_file)},
+            errors=[stderr] if not success else []
         )
     
-    def run_analyze(self, programmatic: bool = False) -> StageResult:
+    def run_analyze(self) -> StageResult:
         """Stage 3: Analyze graph model."""
         start = time.time()
         
         layers_str = ",".join(self.config.layers)
         print_step(f"Analyzing layers: {layers_str}")
         
-        analysis_results = {}
+        output_file = self.output_path / "analysis_results.json"
         
-        if programmatic and self.analyzer:
-            # Programmatic execution
-            for layer in self.config.layers:
-                layer_def = LAYER_DEFINITIONS.get(layer, {"name": layer, "icon": "📊"})
-                print_step(f"  {layer_def['icon']} {layer_def['name']}...")
-                
-                try:
-                    result = self.analyzer.analyze_layer(layer)
-                    
-                    analysis_results[layer] = {
-                        "nodes": result.structural.graph_summary.nodes,
-                        "edges": result.structural.graph_summary.edges,
-                        "density": result.structural.graph_summary.density,
-                        "critical_count": len([
-                            c for c in result.quality.components
-                            if hasattr(c.levels.overall, 'name') and c.levels.overall.name == "CRITICAL"
-                        ]),
-                        "problems": len(result.problems),
-                    }
-                    
-                    print_result(
-                        f"{layer}",
-                        f"N={result.structural.graph_summary.nodes}, "
-                        f"E={result.structural.graph_summary.edges}, "
-                        f"Problems={len(result.problems)}"
-                    )
-                
-                except Exception as e:
-                    print_error(f"Analysis failed for {layer}: {e}")
-                    analysis_results[layer] = {"error": str(e)}
-            
-            success = all("error" not in r for r in analysis_results.values())
-        
-        else:
-            # Subprocess execution
-            output_file = self.output_path / "analysis_results.json"
-            
-            args = [
-                "--layer", layers_str,
-                "--output", str(output_file),
-            ] + self._neo4j_args()
+        args = [
+            "--layer", layers_str,
+            "--output", str(output_file),
+        ] + self._neo4j_args()
 
-            if self.config.verbose:
-                args.append("--verbose")
+        if self.config.verbose:
+            args.append("--verbose")
+        
+        success, stdout, stderr = self._run_subprocess(
+            "analyze_graph.py", args, "Running analysis"
+        )
+        
+        analysis_results = {}
+        if success:
+            print_success(f"Analysis results saved to: {output_file}")
+            analysis_results["output_file"] = str(output_file)
             
-            success, stdout, stderr = self._run_subprocess(
-                "analyze_graph.py", args, "Running analysis"
-            )
-            
-            if success:
-                print_success(f"Analysis results saved to: {output_file}")
-                analysis_results["output_file"] = str(output_file)
-            else:
-                print_error(f"Analysis failed: {stderr}")
+            # Try to load and print summary stats
+            if output_file.exists():
+                try:
+                    with open(output_file, 'r') as f:
+                        data = json.load(f)
+                        if "layers" in data:
+                            for layer_name, layer_data in data["layers"].items():
+                                if "structural" in layer_data:
+                                    summary = layer_data["structural"].get("graph_summary", {})
+                                    problems = len(layer_data.get("problems", []))
+                                    print_result(
+                                        layer_name,
+                                        f"N={summary.get('nodes', '?')}, E={summary.get('edges', '?')}, Problems={problems}"
+                                    )
+                except Exception as e:
+                    print_warning(f"Could not read analysis summary: {e}")
+
+        else:
+            print_error(f"Analysis failed: {stderr}")
         
         return StageResult(
             stage="analyze",
@@ -544,71 +433,34 @@ class PipelineRunner:
             duration=time.time() - start,
             message=f"Analyzed {len(self.config.layers)} layers",
             data=analysis_results,
+            errors=[stderr] if not success else []
         )
     
-    def run_simulate(self, programmatic: bool = False) -> StageResult:
+    def run_simulate(self) -> StageResult:
         """Stage 4: Run failure simulation."""
         start = time.time()
         
         layers_str = ",".join(self.config.layers)
         print_step(f"Simulating failures for layers: {layers_str}")
         
+        output_file = self.output_path / "simulation_results.json"
+        
+        args = [
+            "--layer", layers_str,
+            "--exhaustive",
+            "--output", str(output_file),
+        ] + self._neo4j_args()
+        
+        success, stdout, stderr = self._run_subprocess(
+            "simulate_graph.py", args, "Running simulation"
+        )
+        
         simulation_results = {}
-        
-        if programmatic and self.simulator:
-            # Programmatic execution
-            for layer in self.config.layers:
-                layer_def = LAYER_DEFINITIONS.get(layer, {"name": layer, "icon": "📊"})
-                print_step(f"  {layer_def['icon']} {layer_def['name']}...")
-                
-                try:
-                    # Run exhaustive failure simulation
-                    results = self.simulator.run_failure_simulation_exhaustive(layer=layer)
-                    
-                    if results:
-                        avg_impact = sum(r.impact.composite_impact for r in results) / len(results)
-                        max_impact = max(r.impact.composite_impact for r in results)
-                        
-                        simulation_results[layer] = {
-                            "components_tested": len(results),
-                            "avg_impact": avg_impact,
-                            "max_impact": max_impact,
-                        }
-                        
-                        print_result(
-                            f"{layer}",
-                            f"Tested={len(results)}, "
-                            f"AvgImpact={avg_impact:.3f}, "
-                            f"MaxImpact={max_impact:.3f}"
-                        )
-                    else:
-                        simulation_results[layer] = {"components_tested": 0}
-                
-                except Exception as e:
-                    print_error(f"Simulation failed for {layer}: {e}")
-                    simulation_results[layer] = {"error": str(e)}
-            
-            success = all("error" not in r for r in simulation_results.values())
-        
+        if success:
+            print_success(f"Simulation results saved to: {output_file}")
+            simulation_results["output_file"] = str(output_file)
         else:
-            # Subprocess execution
-            output_file = self.output_path / "simulation_results.json"
-            
-            args = [
-                "--layer", layers_str,
-                "--exhaustive",
-                "--output", str(output_file),
-            ] + self._neo4j_args()
-            
-            success, stdout, stderr = self._run_subprocess(
-                "simulate_graph.py", args, "Running simulation"
-            )
-            
-            if success:
-                print_success(f"Simulation results saved to: {output_file}")
-                simulation_results["output_file"] = str(output_file)
-            else:
-                print_error(f"Simulation failed: {stderr}")
+            print_error(f"Simulation failed: {stderr}")
         
         return StageResult(
             stage="simulate",
@@ -616,9 +468,10 @@ class PipelineRunner:
             duration=time.time() - start,
             message=f"Simulated failures for {len(self.config.layers)} layers",
             data=simulation_results,
+            errors=[stderr] if not success else []
         )
     
-    def run_validate(self, programmatic: bool = False) -> StageResult:
+    def run_validate(self) -> StageResult:
         """Stage 5: Validate analysis vs simulation."""
         start = time.time()
         
@@ -626,97 +479,62 @@ class PipelineRunner:
         print_step(f"Validating predictions for layers: {layers_str}")
         print_step(f"Targets: ρ≥{self.config.target_spearman}, F1≥{self.config.target_f1}")
         
+        output_file = self.output_path / "validation_results.json"
+        
+        args = [
+            "--layer", layers_str,
+            "--spearman", str(self.config.target_spearman),
+            "--f1", str(self.config.target_f1),
+            "--output", str(output_file),
+        ] + self._neo4j_args()
+        
+        success, stdout, stderr = self._run_subprocess(
+            "validate_graph.py", args, "Running validation"
+        )
+        
         validation_results = {}
-        all_passed = True
+        all_passed = False
         
-        if programmatic and self.analyzer and self.simulator and self.validator:
-            # Programmatic execution
-            for layer in self.config.layers:
-                layer_def = LAYER_DEFINITIONS.get(layer, {"name": layer, "icon": "📊"})
-                print_step(f"  {layer_def['icon']} {layer_def['name']}...")
-                
+        if success:
+            print_success(f"Validation results saved to: {output_file}")
+            validation_results["output_file"] = str(output_file)
+            
+            # Try to read results to see if passed
+            if output_file.exists():
                 try:
-                    # Get predictions from analysis
-                    analysis = self.analyzer.analyze_layer(layer)
-                    predicted = {c.id: c.scores.overall for c in analysis.quality.components}
-                    types = {c.id: c.type for c in analysis.quality.components}
-                    
-                    # Get actual from simulation
-                    sim_results = self.simulator.run_failure_simulation_exhaustive(layer=layer)
-                    actual = {r.target_id: r.impact.composite_impact for r in sim_results}
-                    
-                    # Validate
-                    val_result = self.validator.validate(
-                        predicted_scores=predicted,
-                        actual_scores=actual,
-                        component_types=types,
-                        layer=layer,
-                    )
-                    
-                    passed = val_result.passed
-                    if not passed:
-                        all_passed = False
-                    
-                    validation_results[layer] = {
-                        "spearman": val_result.overall.correlation.spearman,
-                        "f1_score": val_result.overall.classification.f1_score,
-                        "precision": val_result.overall.classification.precision,
-                        "recall": val_result.overall.classification.recall,
-                        "passed": passed,
-                    }
-                    
-                    status = colored("PASS", Colors.GREEN) if passed else colored("FAIL", Colors.RED)
-                    print_result(
-                        f"{layer}",
-                        f"ρ={val_result.overall.correlation.spearman:.3f}, "
-                        f"F1={val_result.overall.classification.f1_score:.3f} [{status}]",
-                        passed=passed
-                    )
-                
+                    with open(output_file) as f:
+                        data = json.load(f)
+                        all_passed = data.get("all_passed", False)
+                        
+                        # Print summary per layer
+                        if "layers" in data:
+                            for layer_name, layer_res in data["layers"].items():
+                                passed = layer_res.get("passed", False)
+                                status = colored("PASS", Colors.GREEN) if passed else colored("FAIL", Colors.RED)
+                                overall = layer_res.get("overall", {})
+                                spearman = overall.get("correlation", {}).get("spearman", 0)
+                                f1 = overall.get("classification", {}).get("f1_score", 0)
+                                
+                                print_result(
+                                    f"{layer_name}",
+                                    f"ρ={spearman:.3f}, F1={f1:.3f} [{status}]",
+                                    passed=passed
+                                )
+                                
                 except Exception as e:
-                    print_error(f"Validation failed for {layer}: {e}")
-                    validation_results[layer] = {"error": str(e)}
-                    all_passed = False
-            
-            success = True  # Stage succeeded even if validation failed
-        
+                    print_warning(f"Could not read validation summary: {e}")
         else:
-            # Subprocess execution
-            output_file = self.output_path / "validation_results.json"
-            
-            args = [
-                "--layer", layers_str,
-                "--spearman", str(self.config.target_spearman),
-                "--f1", str(self.config.target_f1),
-                "--output", str(output_file),
-            ] + self._neo4j_args()
-            
-            success, stdout, stderr = self._run_subprocess(
-                "validate_graph.py", args, "Running validation"
-            )
-            
-            if success:
-                print_success(f"Validation results saved to: {output_file}")
-                validation_results["output_file"] = str(output_file)
-                # Try to read results
-                if output_file.exists():
-                    try:
-                        with open(output_file) as f:
-                            data = json.load(f)
-                            all_passed = data.get("all_passed", False)
-                    except:
-                        pass
-            else:
-                print_error(f"Validation failed: {stderr}")
+            print_error(f"Validation failed: {stderr}")
         
         validation_results["all_passed"] = all_passed
         
         return StageResult(
             stage="validate",
-            success=success,
+            success=success, # The execution of validation script succeeded
             duration=time.time() - start,
             message=f"Validation {'PASSED' if all_passed else 'FAILED'}",
             data=validation_results,
+            errors=[stderr] if not success else []
         )
     
     def run_visualize(self) -> StageResult:
@@ -754,6 +572,7 @@ class PipelineRunner:
             duration=time.time() - start,
             message="Dashboard generated",
             data={"output_file": str(output_file)},
+            errors=[stderr] if not success else []
         )
     
     # =========================================================================
@@ -769,7 +588,6 @@ class PipelineRunner:
         validate: bool = False,
         visualize: bool = False,
         all_stages: bool = False,
-        programmatic: bool = False,
     ) -> PipelineResult:
         """
         Execute the pipeline.
@@ -782,7 +600,6 @@ class PipelineRunner:
             validate: Run validation stage
             visualize: Run visualization stage
             all_stages: Run all stages
-            programmatic: Use direct API calls instead of subprocess
             
         Returns:
             PipelineResult with all stage results
@@ -796,20 +613,13 @@ class PipelineRunner:
         if all_stages:
             generate = do_import = analyze = simulate = validate = visualize = True
         
-        # Count stages
         stages = []
-        if generate:
-            stages.append("generate")
-        if do_import:
-            stages.append("import")
-        if analyze:
-            stages.append("analyze")
-        if simulate:
-            stages.append("simulate")
-        if validate:
-            stages.append("validate")
-        if visualize:
-            stages.append("visualize")
+        if generate: stages.append("generate")
+        if do_import: stages.append("import")
+        if analyze: stages.append("analyze")
+        if simulate: stages.append("simulate")
+        if validate: stages.append("validate")
+        if visualize: stages.append("visualize")
         
         total_stages = len(stages)
         
@@ -827,16 +637,16 @@ class PipelineRunner:
         # Print header
         if not self.config.quiet:
             print_header("SOFTWARE-AS-A-GRAPH PIPELINE", "═")
-            print(f"\n  {colored('Mode:', Colors.CYAN)} {'Programmatic' if programmatic else 'Subprocess'}")
+            print(f"\n  {colored('Mode:', Colors.CYAN)} Subprocess (CLI)")
             print(f"  {colored('Layers:', Colors.CYAN)} {', '.join(self.config.layers)}")
             print(f"  {colored('Output:', Colors.CYAN)} {self.output_path}")
         
-        current_stage = 0
+        current_stage_idx = 0
         
         # Stage 1: Generate
         if generate:
-            current_stage += 1
-            print_stage(current_stage, total_stages, "Data Generation", "🔧")
+            current_stage_idx += 1
+            print_stage(current_stage_idx, total_stages, "Data Generation", "🔧")
             stage_result = self.run_generate()
             result.add_stage(stage_result)
             
@@ -846,8 +656,8 @@ class PipelineRunner:
         
         # Stage 2: Import
         if do_import:
-            current_stage += 1
-            print_stage(current_stage, total_stages, "Model Construction", "📥")
+            current_stage_idx += 1
+            print_stage(current_stage_idx, total_stages, "Model Construction", "📥")
             stage_result = self.run_import()
             result.add_stage(stage_result)
             
@@ -857,29 +667,29 @@ class PipelineRunner:
         
         # Stage 3: Analyze
         if analyze:
-            current_stage += 1
-            print_stage(current_stage, total_stages, "Graph Analysis", "📊")
-            stage_result = self.run_analyze(programmatic=programmatic)
+            current_stage_idx += 1
+            print_stage(current_stage_idx, total_stages, "Graph Analysis", "📊")
+            stage_result = self.run_analyze()
             result.add_stage(stage_result)
         
         # Stage 4: Simulate
         if simulate:
-            current_stage += 1
-            print_stage(current_stage, total_stages, "Failure Simulation", "💥")
-            stage_result = self.run_simulate(programmatic=programmatic)
+            current_stage_idx += 1
+            print_stage(current_stage_idx, total_stages, "Failure Simulation", "💥")
+            stage_result = self.run_simulate()
             result.add_stage(stage_result)
         
         # Stage 5: Validate
         if validate:
-            current_stage += 1
-            print_stage(current_stage, total_stages, "Statistical Validation", "✅")
-            stage_result = self.run_validate(programmatic=programmatic)
+            current_stage_idx += 1
+            print_stage(current_stage_idx, total_stages, "Statistical Validation", "✅")
+            stage_result = self.run_validate()
             result.add_stage(stage_result)
         
         # Stage 6: Visualize
         if visualize:
-            current_stage += 1
-            print_stage(current_stage, total_stages, "Dashboard Visualization", "📈")
+            current_stage_idx += 1
+            print_stage(current_stage_idx, total_stages, "Dashboard Visualization", "📈")
             stage_result = self.run_visualize()
             result.add_stage(stage_result)
         
@@ -941,7 +751,6 @@ Examples:
   %(prog)s --generate --import --analyze     # Generate, import, analyze
   %(prog)s --analyze --simulate --validate   # Analysis and validation only
   %(prog)s --all --layers app,system         # Full pipeline, specific layers
-  %(prog)s --all --programmatic              # Direct API calls (faster)
         """
     )
     
@@ -1013,8 +822,8 @@ Examples:
     paths = parser.add_argument_group("Paths")
     paths.add_argument(
         "--input", "-i",
-        default="input/system.json",
-        help="Input JSON file (default: input/system.json)"
+        default="output/system.json",
+        help="Input JSON file (default: output/system.json)"
     )
     paths.add_argument(
         "--output-dir", "-o",
@@ -1056,14 +865,9 @@ Examples:
         default=0.80,
         help="Target F1 score (default: 0.80)"
     )
-    
+
     # Execution options
     exec_opts = parser.add_argument_group("Execution Options")
-    exec_opts.add_argument(
-        "--programmatic",
-        action="store_true",
-        help="Use direct API calls instead of subprocess"
-    )
     exec_opts.add_argument(
         "--open-browser",
         action="store_true",
@@ -1119,7 +923,7 @@ def main() -> int:
     valid_layers = [l for l in layers if l in LAYER_DEFINITIONS]
     
     if not valid_layers:
-        print(f"No valid layers specified: {args.layers}")
+        print(f"No valid layers specified: {layers}")
         print(f"Valid layers: {', '.join(LAYER_DEFINITIONS.keys())}")
         return 1
     
@@ -1153,7 +957,6 @@ def main() -> int:
             validate=args.validate,
             visualize=args.visualize,
             all_stages=args.all,
-            programmatic=args.programmatic,
         )
         
         return 0 if result.success else 1
