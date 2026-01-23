@@ -54,7 +54,7 @@ def main() -> None:
             password=args.password,
         ) as exporter:
             print("Exporting graph data...")
-            data = exporter.get_graph_data()
+            data = exporter.export_graph_json()
 
             # Ensure output directory exists
             output_path = Path(args.output)

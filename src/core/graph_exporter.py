@@ -243,7 +243,7 @@ class GraphExporter:
                 stats[f"{dep_type}_count"] = result.single()["c"]
         return stats
     
-    def get_graph_data(self) -> Dict[str, Any]:
+    def export_graph_json(self) -> Dict[str, Any]:
         """Export graph in the same format as input files (compatible with GraphImporter).
         
         This produces a JSON structure matching the format of input/dataset.json,

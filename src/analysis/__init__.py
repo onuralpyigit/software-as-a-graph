@@ -106,6 +106,17 @@ from .analyzer import (
     analyze_graph,
 )
 
+# Display functions
+from .display import (
+    Colors,
+    colored,
+    level_color,
+    severity_color,
+    display_layer_result,
+    display_multi_layer_result,
+    display_final_summary,
+)
+
 
 __all__ = [
     # Layers
@@ -162,4 +173,13 @@ __all__ = [
     "LayerAnalysisResult",
     "MultiLayerAnalysisResult",
     "analyze_graph",
+    
+    # Display
+    "Colors",
+    "colored",
+    "level_color",
+    "severity_color",
+    "display_layer_result",
+    "display_multi_layer_result",
+    "display_final_summary",
 ]

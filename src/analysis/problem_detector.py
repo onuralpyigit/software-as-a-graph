@@ -109,6 +109,29 @@ class ProblemDetector:
         >>> critical = [p for p in problems if p.severity == "CRITICAL"]
     """
     
+    def _problem(
+        self,
+        entity_id: str,
+        entity_type: str,
+        category: ProblemCategory,
+        severity: str,
+        name: str,
+        description: str,
+        recommendation: str,
+        **evidence
+    ) -> DetectedProblem:
+        """Factory method for creating DetectedProblem instances."""
+        return DetectedProblem(
+            entity_id=entity_id,
+            entity_type=entity_type,
+            category=category.value,
+            severity=severity,
+            name=name,
+            description=description,
+            recommendation=recommendation,
+            evidence=evidence,
+        )
+    
     def detect(self, quality_result: QualityAnalysisResult) -> List[DetectedProblem]:
         """
         Detect all problems from quality analysis results.
