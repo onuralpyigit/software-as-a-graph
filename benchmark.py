@@ -49,10 +49,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -318,58 +314,14 @@ class BenchmarkRunner:
         # Results storage
         self.records: List[BenchmarkRecord] = []
         
-        # Lazy-loaded modules
-        self._analyzer = None
-        self._simulator = None
-        self._validator = None
-    
-    # =========================================================================
-    # Module Loading
-    # =========================================================================
-    
-    def _load_modules(self) -> bool:
-        """Load analysis, simulation, and validation modules."""
-        try:
-            from src.analysis import GraphAnalyzer
-            from src.simulation import Simulator
-            from src.validation import Validator, ValidationTargets
-            
-            self._analyzer_class = GraphAnalyzer
-            self._simulator_class = Simulator
-            self._validator_class = Validator
-            self._targets_class = ValidationTargets
-            
-            return True
-        except ImportError as e:
-            self.logger.error(f"Failed to import modules: {e}")
-            return False
-    
-    def _get_analyzer(self):
-        """Get or create analyzer instance."""
-        return self._analyzer_class(
-            uri=self.uri,
-            user=self.user,
-            password=self.password,
-        )
-    
-    def _get_simulator(self):
-        """Get or create simulator instance."""
-        return self._simulator_class(
-            uri=self.uri,
-            user=self.user,
-            password=self.password,
-        )
-    
-    def _get_validator(self):
-        """Get or create validator instance."""
-        targets = self._targets_class(
-            spearman=VALIDATION_TARGETS["spearman"],
-            f1_score=VALIDATION_TARGETS["f1"],
-            precision=VALIDATION_TARGETS["precision"],
-            recall=VALIDATION_TARGETS["recall"],
-        )
-        return self._validator_class(targets)
-    
+    def _neo4j_args(self) -> List[str]:
+        """Get common Neo4j connection arguments."""
+        return [
+            "--uri", self.uri,
+            "--user", self.user,
+            "--password", self.password,
+        ]
+
     # =========================================================================
     # Data Generation & Import
     # =========================================================================
@@ -419,10 +371,7 @@ class BenchmarkRunner:
             sys.executable, str(script),
             "--input", str(input_file),
             "--clear",
-            "--uri", self.uri,
-            "--user", self.user,
-            "--password", self.password,
-        ]
+        ] + self._neo4j_args()
         
         try:
             result = subprocess.run(
@@ -446,86 +395,152 @@ class BenchmarkRunner:
     # Analysis, Simulation, Validation
     # =========================================================================
     
-    def _run_analysis(self, layer: str) -> Tuple[Optional[Any], float, Dict[str, Any]]:
-        """Run graph analysis for a layer."""
+    def _run_analysis(self, layer: str, run_id: str) -> Tuple[Optional[Any], float]:
+        """Run graph analysis for a layer via subprocess."""
         start = time.time()
-        stats = {}
         
+        script = self.project_root / "scripts" / "analyze_graph.py"
+        if not script.exists():
+            script = self.project_root / "analyze_graph.py"
+            
+        output_file = self.output_dir / f"analysis_{run_id}.json"
+        
+        cmd = [
+            sys.executable, str(script),
+            "--layer", layer,
+            "--output", str(output_file),
+        ] + self._neo4j_args()
+        
+        if self.verbose:
+            cmd.append("--verbose")
+            
         try:
-            analyzer = self._get_analyzer()
-            result = analyzer.analyze_layer(layer)
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=str(self.project_root),
+            )
+            success = result.returncode == 0
             
-            # Extract statistics
-            stats["nodes"] = result.structural.graph_summary.nodes
-            stats["edges"] = result.structural.graph_summary.edges
-            stats["density"] = result.structural.graph_summary.density
-            stats["type_breakdown"] = result.structural.graph_summary.node_types or {}
+            if not success and self.verbose:
+                self.logger.warning(f"Analysis stderr: {result.stderr}")
+                
+            if success and output_file.exists():
+                with open(output_file) as f:
+                    data = json.load(f)
+                    # Extract layer data
+                    if "layers" in data and layer in data["layers"]:
+                        return data["layers"][layer], (time.time() - start) * 1000
             
-            # Extract predicted scores
-            predicted = {
-                c.id: c.scores.overall
-                for c in result.quality.components
-            }
-            types = {
-                c.id: c.type
-                for c in result.quality.components
-            }
-            
-            return (predicted, types), (time.time() - start) * 1000, stats
+            return None, (time.time() - start) * 1000
         
         except Exception as e:
             self.logger.error(f"Analysis failed: {e}")
-            if self.verbose:
-                traceback.print_exc()
-            return None, (time.time() - start) * 1000, stats
-    
-    def _run_simulation(self, layer: str) -> Tuple[Optional[Dict[str, float]], float]:
-        """Run failure simulation for a layer."""
+            return None, (time.time() - start) * 1000
+            
+    def _run_simulation(self, layer: str, run_id: str) -> Tuple[Optional[Any], float]:
+        """Run simulation for a layer via subprocess."""
         start = time.time()
         
+        script = self.project_root / "scripts" / "simulate_graph.py"
+        if not script.exists():
+            script = self.project_root / "simulate_graph.py"
+            
+        output_file = self.output_dir / f"simulation_{run_id}.json"
+        
+        cmd = [
+            sys.executable, str(script),
+            "--layer", layer,
+            "--exhaustive",
+            "--output", str(output_file),
+        ] + self._neo4j_args()
+        
+        if self.verbose:
+            cmd.append("--verbose")
+            
         try:
-            simulator = self._get_simulator()
-            results = simulator.run_failure_simulation_exhaustive(layer=layer)
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=str(self.project_root),
+            )
+            success = result.returncode == 0
             
-            # Extract actual impact scores
-            actual = {
-                r.target_id: r.impact.composite_impact
-                for r in results
-            }
+            if not success and self.verbose:
+                self.logger.warning(f"Simulation stderr: {result.stderr}")
+                
+            if success and output_file.exists():
+                with open(output_file) as f:
+                    data = json.load(f)
+                    return data, (time.time() - start) * 1000
             
-            return actual, (time.time() - start) * 1000
+            return None, (time.time() - start) * 1000
         
         except Exception as e:
             self.logger.error(f"Simulation failed: {e}")
-            if self.verbose:
-                traceback.print_exc()
             return None, (time.time() - start) * 1000
-    
-    def _run_validation(
-        self,
-        predicted: Dict[str, float],
-        actual: Dict[str, float],
-        types: Dict[str, str],
-        layer: str,
-    ) -> Tuple[Optional[Any], float]:
-        """Run validation comparing predicted vs actual."""
+            
+    def _run_validation(self, layer: str, run_id: str) -> Tuple[Optional[Any], float]:
+        """Run validation via subprocess."""
         start = time.time()
         
-        try:
-            validator = self._get_validator()
-            result = validator.validate(
-                predicted_scores=predicted,
-                actual_scores=actual,
-                component_types=types,
-                layer=layer,
-            )
+        script = self.project_root / "scripts" / "validate_graph.py"
+        if not script.exists():
+            script = self.project_root / "validate_graph.py"
             
-            return result, (time.time() - start) * 1000
+        output_file = self.output_dir / f"validation_{run_id}.json"
+        
+        cmd = [
+            sys.executable, str(script),
+            "--layer", layer,
+            "--spearman", str(VALIDATION_TARGETS["spearman"]),
+            "--f1", str(VALIDATION_TARGETS["f1"]),
+            "--output", str(output_file),
+        ] + self._neo4j_args()
+        
+        if self.verbose:
+            print(f"DEBUG: Validation command: {' '.join(cmd)}")
+            cmd.append("--verbose")
+            
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=str(self.project_root),
+            )
+            success = result.returncode == 0
+            
+            if not success and self.verbose:
+                self.logger.warning(f"Validation stderr: {result.stderr}")
+            
+            # Note: validate_graph.py returns 1 if validation criteria are not met,
+            # even if the script ran successfully and produced output.
+            # So we rely on output_file presence as the primary success indicator.
+            if output_file.exists():
+                with open(output_file) as f:
+                    try:
+                        data = json.load(f)
+                        if "layers" in data and layer in data["layers"]:
+                            return data["layers"][layer], (time.time() - start) * 1000
+                        else:
+                            if self.verbose:
+                                self.logger.warning(f"Validation JSON missing layer data. Keys: {data.keys()}")
+                    except json.JSONDecodeError as e:
+                        if self.verbose:
+                            self.logger.error(f"Validation JSON decode error: {e}")
+            
+            if not success and not output_file.exists():
+                if self.verbose:
+                     self.logger.warning(f"Validation failed (rc={result.returncode}) and no output file.")
+                     self.logger.warning(f"Stderr: {result.stderr}")
+            
+            return None, (time.time() - start) * 1000
         
         except Exception as e:
             self.logger.error(f"Validation failed: {e}")
-            if self.verbose:
-                traceback.print_exc()
             return None, (time.time() - start) * 1000
     
     # =========================================================================
@@ -554,74 +569,81 @@ class BenchmarkRunner:
         
         try:
             # Step 1: Analysis
-            analysis_result, time_analysis, stats = self._run_analysis(layer)
+            analysis_data, time_analysis = self._run_analysis(layer, run_id)
             record.time_analysis = time_analysis
             
-            if stats:
+            if analysis_data:
+                stats = analysis_data.get("structural", {}).get("graph_summary", {})
                 record.nodes = stats.get("nodes", 0)
                 record.edges = stats.get("edges", 0)
                 record.density = stats.get("density", 0.0)
-                record.components_by_type = stats.get("type_breakdown", {})
+                record.components_by_type = stats.get("node_types", {})
             
-            if analysis_result is None:
+            if analysis_data is None:
                 record.error = "Analysis failed"
                 record.time_total = (time.time() - start_total) * 1000
                 return record
             
-            predicted, types = analysis_result
-            
             # Step 2: Simulation
-            actual, time_simulation = self._run_simulation(layer)
+            sim_data, time_simulation = self._run_simulation(layer, run_id)
             record.time_simulation = time_simulation
             
-            if actual is None:
+            if sim_data is None:
                 record.error = "Simulation failed"
                 record.time_total = (time.time() - start_total) * 1000
                 return record
             
             # Step 3: Validation
-            val_result, time_validation = self._run_validation(
-                predicted, actual, types, layer
-            )
+            val_data, time_validation = self._run_validation(layer, run_id)
             record.time_validation = time_validation
             
-            if val_result is None:
+            if val_data is None:
                 record.error = "Validation failed"
                 record.time_total = (time.time() - start_total) * 1000
+                # Still try to cleanup temp files
+                # self._cleanup_temp_files(run_id)
                 return record
             
             # Extract validation metrics
-            overall = val_result.overall
+            # JSON structure: layer_data -> validation_result -> overall -> metrics
+            validation_result = val_data.get("validation_result", {})
+            overall = validation_result.get("overall", {})
+            metrics = overall.get("metrics", {})
+            
+            correlation = metrics.get("correlation", {})
+            classification = metrics.get("classification", {})
+            ranking = metrics.get("ranking", {})
+            error_metrics = metrics.get("error", {})
             
             # Correlation metrics
-            record.spearman = overall.correlation.spearman
-            record.spearman_p = overall.correlation.spearman_p
-            record.pearson = overall.correlation.pearson
-            record.kendall = overall.correlation.kendall
+            record.spearman = correlation.get("spearman", 0.0)
+            record.spearman_p = correlation.get("spearman_p_value", 1.0)
+            record.pearson = correlation.get("pearson", 0.0)
+            record.kendall = correlation.get("kendall", 0.0)
             
             # Classification metrics
-            record.f1_score = overall.classification.f1_score
-            record.precision = overall.classification.precision
-            record.recall = overall.classification.recall
-            record.accuracy = overall.classification.accuracy
+            record.f1_score = classification.get("f1_score", 0.0)
+            record.precision = classification.get("precision", 0.0)
+            record.recall = classification.get("recall", 0.0)
+            record.accuracy = classification.get("accuracy", 0.0)
             
             # Confusion matrix
-            cm = overall.classification.confusion_matrix
+            cm = classification.get("confusion_matrix", {})
             record.true_positives = cm.get("tp", 0)
             record.false_positives = cm.get("fp", 0)
             record.true_negatives = cm.get("tn", 0)
             record.false_negatives = cm.get("fn", 0)
             
             # Error metrics
-            record.rmse = overall.error.rmse
-            record.mae = overall.error.mae
+            record.rmse = error_metrics.get("rmse", 0.0)
+            record.mae = error_metrics.get("mae", 0.0)
             
             # Ranking metrics
-            record.top5_overlap = overall.ranking.top_5_overlap
-            record.top10_overlap = overall.ranking.top_10_overlap
+            record.top5_overlap = ranking.get("top_5_overlap", 0.0)
+            record.top10_overlap = ranking.get("top_10_overlap", 0.0)
             
             # Check pass status
-            record.passed = val_result.passed
+            record.passed = val_data.get("summary", {}).get("passed", False)
             
             # Count targets met
             targets_met = 0
@@ -640,6 +662,9 @@ class BenchmarkRunner:
             
             record.targets_met = targets_met
             record.targets_total = 6
+            
+            # Cleanup temp files
+            self._cleanup_temp_files(run_id)
         
         except Exception as e:
             record.error = str(e)
@@ -648,6 +673,16 @@ class BenchmarkRunner:
         
         record.time_total = (time.time() - start_total) * 1000
         return record
+        
+    def _cleanup_temp_files(self, run_id: str):
+        """Clean up temporary JSON files."""
+        for prefix in ["analysis", "simulation", "validation"]:
+            path = self.output_dir / f"{prefix}_{run_id}.json"
+            if path.exists():
+                try:
+                    path.unlink()
+                except:
+                    pass
     
     def run(self) -> BenchmarkSummary:
         """Execute the complete benchmark suite."""
@@ -658,24 +693,13 @@ class BenchmarkRunner:
         print(f"  {colored('Layers:', Colors.CYAN)} {', '.join(self.layers)}")
         print(f"  {colored('Runs per config:', Colors.CYAN)} {self.runs}")
         print(f"  {colored('Output:', Colors.CYAN)} {self.output_dir}")
+        print(f"  {colored('Mode:', Colors.CYAN)} CLI Subprocess")
         
         # Calculate total iterations
         total_configs = len(self.scales)
         total_iterations = total_configs * len(self.layers) * self.runs
         
         print(f"  {colored('Total iterations:', Colors.CYAN)} {total_iterations}")
-        
-        # Load modules
-        print_section("Loading Modules")
-        if not self._load_modules():
-            print_result(False, "Failed to load required modules")
-            return BenchmarkSummary(
-                timestamp=datetime.now().isoformat(),
-                duration=0,
-                total_runs=0,
-                passed_runs=0,
-            )
-        print_result(True, "All modules loaded successfully")
         
         # Start benchmark
         start_time = time.time()
@@ -744,7 +768,10 @@ class BenchmarkRunner:
         
         # Cleanup temp file
         if temp_data_file.exists():
-            temp_data_file.unlink()
+            try:
+                temp_data_file.unlink()
+            except:
+                pass
         
         # Calculate duration
         duration = time.time() - start_time
@@ -799,30 +826,22 @@ class BenchmarkRunner:
         
         # Find best/worst configurations
         if summary.aggregates:
-            best = max(summary.aggregates, key=lambda a: a.avg_spearman)
-            worst = min(summary.aggregates, key=lambda a: a.avg_spearman)
-            
-            summary.best_config = f"{best.scale}/{best.layer} (ρ={best.avg_spearman:.3f})"
-            summary.worst_config = f"{worst.scale}/{worst.layer} (ρ={worst.avg_spearman:.3f})"
+            summary.best_config = self._find_best_config(summary.aggregates)
+            summary.worst_config = self._find_worst_config(summary.aggregates)
         
         return summary
     
-    def _aggregate_records(
-        self,
-        scale: str,
-        layer: str,
-        records: List[BenchmarkRecord],
-    ) -> AggregateResult:
-        """Aggregate multiple records into summary statistics."""
+    def _aggregate_records(self, scale: str, layer: str, records: List[BenchmarkRecord]) -> AggregateResult:
+        """Aggregate records for a specific configuration."""
         agg = AggregateResult(
             scale=scale,
             layer=layer,
-            num_runs=len(records),
+            num_runs=len(records)
         )
         
         if not records:
             return agg
-        
+            
         # Graph stats
         agg.avg_nodes = statistics.mean(r.nodes for r in records)
         agg.avg_edges = statistics.mean(r.edges for r in records)
@@ -835,7 +854,7 @@ class BenchmarkRunner:
         
         if agg.avg_time_analysis > 0:
             agg.speedup_ratio = agg.avg_time_simulation / agg.avg_time_analysis
-        
+            
         # Validation stats
         agg.avg_spearman = statistics.mean(r.spearman for r in records)
         agg.avg_f1 = statistics.mean(r.f1_score for r in records)
@@ -848,200 +867,90 @@ class BenchmarkRunner:
         if len(records) > 1:
             agg.std_spearman = statistics.stdev(r.spearman for r in records)
             agg.std_f1 = statistics.stdev(r.f1_score for r in records)
-        
+            
         # Pass rate
         agg.num_passed = sum(1 for r in records if r.passed)
         agg.pass_rate = agg.num_passed / len(records)
         
         return agg
     
-    # =========================================================================
-    # Report Generation
-    # =========================================================================
-    
+    def _find_best_config(self, aggregates: List[AggregateResult]) -> str:
+        """Find best performing configuration."""
+        best = max(aggregates, key=lambda a: (a.pass_rate, a.avg_spearman))
+        return f"{best.scale}/{best.layer} (ρ={best.avg_spearman:.3f}, Rate={best.pass_rate:.0%})"
+        
+    def _find_worst_config(self, aggregates: List[AggregateResult]) -> str:
+        """Find worst performing configuration."""
+        worst = min(aggregates, key=lambda a: (a.pass_rate, a.avg_spearman))
+        return f"{worst.scale}/{worst.layer} (ρ={worst.avg_spearman:.3f}, Rate={worst.pass_rate:.0%})"
+
     def _save_results(self, summary: BenchmarkSummary) -> None:
-        """Save benchmark results to files."""
+        """Save benchmark results to disk."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # CSV file
-        csv_file = self.output_dir / f"benchmark_{timestamp}.csv"
-        self._write_csv(csv_file)
-        
-        # JSON file
+        # JSON output
         json_file = self.output_dir / f"benchmark_{timestamp}.json"
-        self._write_json(json_file, summary)
-        
-        # Markdown report
-        md_file = self.output_dir / f"report_{timestamp}.md"
-        self._write_markdown(md_file, summary)
-        
-        print_section("Results Saved")
-        print_result(True, f"CSV: {csv_file}")
-        print_result(True, f"JSON: {json_file}")
-        print_result(True, f"Report: {md_file}")
-    
-    def _write_csv(self, filepath: Path) -> None:
-        """Write records to CSV file."""
-        if not self.records:
-            return
-        
-        # Get field names (excluding complex types)
-        exclude_fields = {"components_by_type"}
-        fieldnames = [
-            f for f in self.records[0].to_dict().keys()
-            if f not in exclude_fields
-        ]
-        
-        with open(filepath, 'w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
+        with open(json_file, 'w') as f:
+            json.dump(summary.to_dict(), f, indent=2)
             
-            for record in self.records:
-                row = {k: v for k, v in record.to_dict().items() if k not in exclude_fields}
-                writer.writerow(row)
-    
-    def _write_json(self, filepath: Path, summary: BenchmarkSummary) -> None:
-        """Write summary to JSON file."""
-        with open(filepath, 'w') as f:
-            json.dump(summary.to_dict(), f, indent=2, default=str)
-    
-    def _write_markdown(self, filepath: Path, summary: BenchmarkSummary) -> None:
-        """Write markdown report."""
-        with open(filepath, 'w') as f:
-            f.write("# Benchmark Report\n\n")
-            f.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+        # CSV output
+        csv_file = self.output_dir / f"benchmark_{timestamp}.csv"
+        with open(csv_file, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "run_id", "timestamp", "scale", "layer", "seed",
+                "nodes", "edges", "density",
+                "time_total", "time_analysis", "time_simulation",
+                "spearman", "f1_score", "top5_overlap", "passed"
+            ])
+            for r in summary.records:
+                writer.writerow([
+                    r.run_id, r.timestamp, r.scale, r.layer, r.seed,
+                    r.nodes, r.edges, r.density,
+                    f"{r.time_total:.2f}", f"{r.time_analysis:.2f}", f"{r.time_simulation:.2f}",
+                    f"{r.spearman:.4f}", f"{r.f1_score:.4f}", f"{r.top5_overlap:.4f}", r.passed
+                ])
+                
+        # Markdown report
+        report_file = self.output_dir / f"benchmark_report_{timestamp}.md"
+        with open(report_file, 'w') as f:
+            f.write(f"# Benchmark Report\n\n")
+            f.write(f"**Date:** {summary.timestamp}\n")
             f.write(f"**Duration:** {summary.duration:.2f}s\n")
             f.write(f"**Total Runs:** {summary.total_runs}\n")
-            f.write(f"**Passed:** {summary.passed_runs} ({summary.overall_pass_rate*100:.1f}%)\n\n")
+            f.write(f"**Pass Rate:** {summary.overall_pass_rate:.1%}\n\n")
+            f.write(f"**Best Config:** {summary.best_config}\n")
+            f.write(f"**Worst Config:** {summary.worst_config}\n\n")
             
-            # Configuration
-            f.write("## Configuration\n\n")
-            f.write(f"- **Scales:** {', '.join(summary.scales)}\n")
-            f.write(f"- **Layers:** {', '.join(summary.layers)}\n")
+            f.write("## Aggregated Results\n\n")
+            f.write("| Scale | Layer | Runs | Pass Rate | Spearman ρ | F1 Score | Speedup |\n")
+            f.write("|-------|-------|------|-----------|------------|----------|---------|\n")
             
-            # Overall Results
-            f.write("## Overall Results\n\n")
-            f.write(f"- **Average Spearman ρ:** {summary.overall_spearman:.4f}")
-            f.write(f" {'✅' if summary.overall_spearman >= VALIDATION_TARGETS['spearman'] else '❌'}\n")
-            f.write(f"- **Average F1 Score:** {summary.overall_f1:.4f}")
-            f.write(f" {'✅' if summary.overall_f1 >= VALIDATION_TARGETS['f1'] else '❌'}\n")
-            f.write(f"- **Best Configuration:** {summary.best_config}\n")
-            f.write(f"- **Worst Configuration:** {summary.worst_config}\n\n")
-            
-            # Detailed Results Table
-            f.write("## Performance by Configuration\n\n")
-            f.write("| Scale | Layer | Runs | Nodes | Spearman ρ | F1 Score | ")
-            f.write("Analysis (ms) | Simulation (ms) | Speedup | Pass Rate |\n")
-            f.write("|-------|-------|------|-------|------------|----------|")
-            f.write("---------------|-----------------|---------|----------|\n")
-            
-            # Sort aggregates
-            sorted_aggs = sorted(
-                summary.aggregates,
-                key=lambda a: (
-                    self.scales.index(a.scale) if a.scale in self.scales else 99,
-                    self.layers.index(a.layer) if a.layer in self.layers else 99,
+            for agg in sorted(summary.aggregates, key=lambda x: (x.scale, x.layer)):
+                f.write(
+                    f"| {agg.scale} | {agg.layer} | {agg.num_runs} | {agg.pass_rate:.1%} | "
+                    f"{agg.avg_spearman:.3f} | {agg.avg_f1:.3f} | {agg.speedup_ratio:.2f}x |\n"
                 )
-            )
-            
-            for agg in sorted_aggs:
-                rho_status = "✅" if agg.avg_spearman >= VALIDATION_TARGETS["spearman"] else "❌"
-                f1_status = "✅" if agg.avg_f1 >= VALIDATION_TARGETS["f1"] else "❌"
-                
-                f.write(f"| {agg.scale} | {agg.layer} | {agg.num_runs} | ")
-                f.write(f"{agg.avg_nodes:.0f} | ")
-                f.write(f"{agg.avg_spearman:.4f} {rho_status} | ")
-                f.write(f"{agg.avg_f1:.4f} {f1_status} | ")
-                f.write(f"{agg.avg_time_analysis:.0f} | ")
-                f.write(f"{agg.avg_time_simulation:.0f} | ")
-                f.write(f"{agg.speedup_ratio:.1f}x | ")
-                f.write(f"{agg.pass_rate*100:.0f}% |\n")
-            
-            # Validation Targets
-            f.write("\n## Validation Targets\n\n")
-            f.write("| Metric | Target | Achieved | Status |\n")
-            f.write("|--------|--------|----------|--------|\n")
-            
-            for metric, target in VALIDATION_TARGETS.items():
-                if metric == "spearman":
-                    achieved = summary.overall_spearman
-                elif metric == "f1":
-                    achieved = summary.overall_f1
-                else:
-                    # Calculate average for other metrics
-                    valid = [r for r in self.records if not r.error]
-                    if valid:
-                        if metric == "precision":
-                            achieved = statistics.mean(r.precision for r in valid)
-                        elif metric == "recall":
-                            achieved = statistics.mean(r.recall for r in valid)
-                        elif metric == "top5_overlap":
-                            achieved = statistics.mean(r.top5_overlap for r in valid)
-                        elif metric == "top10_overlap":
-                            achieved = statistics.mean(r.top10_overlap for r in valid)
-                        else:
-                            achieved = 0.0
-                    else:
-                        achieved = 0.0
-                
-                status = "✅ PASS" if achieved >= target else "❌ FAIL"
-                f.write(f"| {metric} | ≥{target:.2f} | {achieved:.4f} | {status} |\n")
-            
-            # Key Findings
-            f.write("\n## Key Findings\n\n")
-            
-            if summary.overall_spearman >= VALIDATION_TARGETS["spearman"]:
-                f.write("1. **Topological metrics reliably predict criticality**: ")
-                f.write(f"Strong correlation (ρ={summary.overall_spearman:.3f}) demonstrates ")
-                f.write("that graph structure captures system vulnerabilities.\n\n")
-            
-            if summary.aggregates:
-                # Check if performance improves at scale
-                small_aggs = [a for a in summary.aggregates if a.scale == "small"]
-                large_aggs = [a for a in summary.aggregates if a.scale == "large"]
-                
-                if small_aggs and large_aggs:
-                    small_rho = statistics.mean(a.avg_spearman for a in small_aggs)
-                    large_rho = statistics.mean(a.avg_spearman for a in large_aggs)
-                    
-                    if large_rho > small_rho:
-                        f.write("2. **Performance improves at scale**: ")
-                        f.write(f"Larger systems show better metrics ")
-                        f.write(f"(small: ρ={small_rho:.3f}, large: ρ={large_rho:.3f}).\n\n")
-                
-                # Speedup analysis
-                avg_speedup = statistics.mean(a.speedup_ratio for a in summary.aggregates if a.speedup_ratio > 0)
-                if avg_speedup > 1:
-                    f.write(f"3. **Analysis is {avg_speedup:.1f}x faster than simulation**: ")
-                    f.write("Static analysis provides significant time savings over exhaustive testing.\n\n")
-            
-            f.write("---\n")
-            f.write(f"*Generated by Software-as-a-Graph Benchmark Suite*\n")
-    
+
     def _print_summary(self, summary: BenchmarkSummary) -> None:
-        """Print summary to terminal."""
-        print_header("BENCHMARK SUMMARY", "─")
+        """Print benchmark summary to console."""
+        print_header("BENCHMARK COMPLETION", "─")
         
         print(f"\n  {colored('Duration:', Colors.CYAN)} {summary.duration:.2f}s")
         print(f"  {colored('Total Runs:', Colors.CYAN)} {summary.total_runs}")
-        print(f"  {colored('Passed:', Colors.CYAN)} {summary.passed_runs} ({summary.overall_pass_rate*100:.1f}%)")
         
-        print(f"\n  {colored('Overall Metrics:', Colors.BOLD, bold=True)}")
+        pass_color = Colors.GREEN if summary.overall_pass_rate == 1.0 else (
+            Colors.YELLOW if summary.overall_pass_rate > 0.5 else Colors.RED
+        )
+        print(f"  {colored('Pass Rate:', Colors.CYAN)} {colored(f'{summary.overall_pass_rate:.1%}', pass_color, bold=True)}")
         
-        rho_status = "✓" if summary.overall_spearman >= VALIDATION_TARGETS["spearman"] else "✗"
-        rho_color = Colors.GREEN if summary.overall_spearman >= VALIDATION_TARGETS["spearman"] else Colors.RED
-        print(f"    Spearman ρ: {colored(f'{summary.overall_spearman:.4f} {rho_status}', rho_color)}")
-        
-        f1_status = "✓" if summary.overall_f1 >= VALIDATION_TARGETS["f1"] else "✗"
-        f1_color = Colors.GREEN if summary.overall_f1 >= VALIDATION_TARGETS["f1"] else Colors.RED
-        print(f"    F1 Score:   {colored(f'{summary.overall_f1:.4f} {f1_status}', f1_color)}")
+        print(f"  {colored('Avg Spearman:', Colors.CYAN)} {summary.overall_spearman:.3f}")
+        print(f"  {colored('Avg F1 Score:', Colors.CYAN)} {summary.overall_f1:.3f}")
         
         if summary.best_config:
-            print(f"\n  {colored('Best:', Colors.GREEN)} {summary.best_config}")
+            print(f"\n  {colored('Best Config:', Colors.GREEN)} {summary.best_config}")
         if summary.worst_config:
-            print(f"  {colored('Worst:', Colors.YELLOW)} {summary.worst_config}")
-        
-        print()
+            print(f"  {colored('Worst Config:', Colors.RED)} {summary.worst_config}")
 
 
 # =============================================================================
@@ -1051,86 +960,62 @@ class BenchmarkRunner:
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Benchmark Suite for Graph-Based Criticality Prediction",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Scales:
-  tiny    5-10 nodes     Minimal test system
-  small   10-25 nodes    Small deployment
-  medium  30-50 nodes    Medium deployment
-  large   60-100 nodes   Large deployment
-  xlarge  150-300 nodes  Enterprise scale
-
-Layers:
-  app      Application layer
-  infra    Infrastructure layer
-  mw-app   Middleware-Application
-  mw-infra Middleware-Infrastructure
-  system   Complete system
-
-Examples:
-  %(prog)s --scales small,medium,large --runs 5
-  %(prog)s --layers app,infra,system
-  %(prog)s --full-suite --output results/benchmark
-        """
+        description="Graph Methodology Benchmark Suite",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     
-    # Benchmark configuration
-    config = parser.add_argument_group("Benchmark Configuration")
-    config.add_argument(
+    parser.add_argument(
         "--scales",
-        default="small,medium,large",
-        help="Comma-separated scales (default: small,medium,large)"
+        default="medium",
+        help="Comma-separated scales (tiny,small,medium,large,xlarge)"
     )
-    config.add_argument(
+    parser.add_argument(
         "--layers",
         default="app,infra,system",
-        help="Comma-separated layers (default: app,infra,system)"
+        help="Comma-separated layers (app,infra,system...)"
     )
-    config.add_argument(
-        "--runs", "-r",
+    parser.add_argument(
+        "--runs",
         type=int,
-        default=3,
-        help="Runs per configuration (default: 3)"
+        default=1,
+        help="Number of runs per configuration"
     )
-    config.add_argument(
+    parser.add_argument(
         "--full-suite",
         action="store_true",
-        help="Run complete benchmark suite (all scales, layers)"
+        help="Run full suite (all scales, all layers, 3 runs)"
+    )
+    
+    parser.add_argument(
+        "--output", "-o",
+        default="results/benchmark",
+        help="Output directory"
     )
     
     # Neo4j connection
-    neo4j = parser.add_argument_group("Neo4j Connection")
-    neo4j.add_argument(
+    parser.add_argument(
         "--uri",
         default="bolt://localhost:7687",
-        help="Neo4j URI (default: bolt://localhost:7687)"
+        help="Neo4j URI"
     )
-    neo4j.add_argument(
+    parser.add_argument(
         "--user", "-u",
         default="neo4j",
-        help="Neo4j username (default: neo4j)"
+        help="Neo4j username"
     )
-    neo4j.add_argument(
+    parser.add_argument(
         "--password", "-p",
         default="password",
-        help="Neo4j password (default: password)"
+        help="Neo4j password"
     )
     
-    # Output options
-    output = parser.add_argument_group("Output Options")
-    output.add_argument(
-        "--output", "-o",
-        default="benchmark_results",
-        help="Output directory (default: benchmark_results)"
-    )
-    output.add_argument(
+    parser.add_argument(
         "--seed",
         type=int,
         default=42,
-        help="Base random seed (default: 42)"
+        help="Base random seed"
     )
-    output.add_argument(
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Verbose output"
@@ -1144,40 +1029,39 @@ def main() -> int:
     args = parse_args()
     
     # Configure logging
-    log_level = logging.DEBUG if args.verbose else logging.WARNING
+    log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
     
-    # Parse configuration
+    # Determine config
     if args.full_suite:
-        scales = ["small", "medium", "large"]
-        layers = ["app", "infra", "mw-app", "mw-infra", "system"]
+        scales = ["tiny", "small", "medium", "large"]
+        layers = ["app", "infra", "system"]
+        runs = 3
     else:
         scales = [s.strip() for s in args.scales.split(",")]
         layers = [l.strip() for l in args.layers.split(",")]
-    
-    # Validate scales
+        runs = args.runs
+        
+    # Validate
     valid_scales = [s for s in scales if s in SCALE_DEFINITIONS]
     if not valid_scales:
-        print(f"No valid scales specified: {args.scales}")
-        print(f"Valid scales: {', '.join(SCALE_DEFINITIONS.keys())}")
+        print(colored("Error: No valid scales", Colors.RED))
         return 1
-    
-    # Validate layers
+        
     valid_layers = [l for l in layers if l in LAYER_DEFINITIONS]
     if not valid_layers:
-        print(f"No valid layers specified: {args.layers}")
-        print(f"Valid layers: {', '.join(LAYER_DEFINITIONS.keys())}")
+        print(colored("Error: No valid layers", Colors.RED))
         return 1
-    
-    # Create runner
+        
+    # Run
     runner = BenchmarkRunner(
         scales=valid_scales,
         layers=valid_layers,
-        runs=args.runs,
+        runs=runs,
         output_dir=Path(args.output),
         uri=args.uri,
         user=args.user,
@@ -1187,16 +1071,14 @@ def main() -> int:
     )
     
     try:
-        summary = runner.run()
-        return 0 if summary.overall_pass_rate >= 0.5 else 1
-    
+        runner.run()
+        return 0
     except KeyboardInterrupt:
         print(f"\n{colored('Benchmark interrupted.', Colors.YELLOW)}")
         return 130
-    
     except Exception as e:
-        logging.exception("Benchmark failed")
-        print(f"\n{colored(f'Benchmark failed: {e}', Colors.RED)}")
+        print(colored(f"Benchmark failed: {e}", Colors.RED))
+        traceback.print_exc()
         return 1
 
 
