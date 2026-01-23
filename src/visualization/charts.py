@@ -536,7 +536,8 @@ class ChartGenerator:
         return ChartOutput(
             title=title,
             png_base64=self._fig_to_base64(fig),
-            description=description
+            description=description,
+            alt_text=f"Bar chart comparing {metric} across {len(layer_data)} layers"
         )
     
     def validation_summary(
@@ -586,5 +587,6 @@ class ChartGenerator:
         return ChartOutput(
             title=title,
             png_base64=self._fig_to_base64(fig),
-            description=description
+            description=description,
+            alt_text=f"Validation summary chart showing {len(metrics)} metrics with pass/fail status"
         )

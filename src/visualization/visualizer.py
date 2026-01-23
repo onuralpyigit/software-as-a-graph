@@ -75,6 +75,8 @@ class LayerData:
     critical_count: int = 0
     high_count: int = 0
     medium_count: int = 0
+    low_count: int = 0
+    minimal_count: int = 0
     spof_count: int = 0
     problems_count: int = 0
     
@@ -263,10 +265,10 @@ class GraphVisualizer:
                 data.nodes = analysis.structural.graph_summary.nodes
                 data.edges = analysis.structural.graph_summary.edges
                 data.density = analysis.structural.graph_summary.density
-                data.connected_components = analysis.structural.graph_summary.connected_components
+                data.connected_components = analysis.structural.graph_summary.num_components
                 
                 # Component breakdown
-                data.component_counts = analysis.structural.graph_summary.type_breakdown or {}
+                data.component_counts = analysis.structural.graph_summary.node_types or {}
                 
                 # Criticality counts
                 for comp in analysis.quality.components:
@@ -277,6 +279,10 @@ class GraphVisualizer:
                         data.high_count += 1
                     elif level == "MEDIUM":
                         data.medium_count += 1
+                    elif level == "LOW":
+                        data.low_count += 1
+                    elif level == "MINIMAL":
+                        data.minimal_count += 1
                 
                 # SPOF count
                 data.spof_count = analysis.structural.graph_summary.num_articulation_points
@@ -302,16 +308,24 @@ class GraphVisualizer:
                 ]
                 
                 # Network graph data
-                data.network_nodes = [
-                    {
+                data.network_nodes = []
+                for c in analysis.quality.components:
+                    # Sanitize score
+                    score = c.scores.overall if c.scores.overall is not None else 0.0
+                    # Check for NaN (float('nan') != float('nan'))
+                    if score != score:
+                        score = 0.0
+                    
+                    # Calculate value based on sanitized score
+                    value = score * 30 + 10
+                    
+                    data.network_nodes.append({
                         "id": c.id,
                         "label": c.id,
                         "group": c.levels.overall.name if hasattr(c.levels.overall, 'name') else c.type,
-                        "value": c.scores.overall * 30 + 10,
-                        "title": f"{c.id}<br>Type: {c.type}<br>Score: {c.scores.overall:.3f}",
-                    }
-                    for c in analysis.quality.components
-                ]
+                        "value": value,
+                        "title": f"{c.id}<br>Type: {c.type}<br>Score: {score:.3f}",
+                    })
                 
                 # Build edges from structural data
                 data.network_edges = self._build_network_edges(analysis)
@@ -367,15 +381,23 @@ class GraphVisualizer:
         edges = []
         
         # Try to get edges from structural analysis
+        # edges is a Dict[Tuple[str, str], EdgeMetrics]
         try:
-            for edge in analysis.structural.edges:
-                edges.append({
-                    "from": edge.source,
-                    "to": edge.target,
-                    "title": f"Weight: {edge.weight:.3f}" if hasattr(edge, 'weight') else "",
-                })
-        except:
-            pass
+            for (source, target), edge_metrics in analysis.structural.edges.items():
+                edge_data = {
+                    "source": source,
+                    "target": target,
+                }
+                # Add title with weight if available
+                if hasattr(edge_metrics, 'weight') and edge_metrics.weight is not None:
+                    weight = edge_metrics.weight
+                    # Check for NaN
+                    if weight != weight:
+                        weight = 0.0
+                    edge_data["title"] = f"Weight: {weight:.3f}"
+                edges.append(edge_data)
+        except Exception as e:
+            self.logger.error(f"Could not build network edges: {e}", exc_info=True)
         
         return edges
     
@@ -550,7 +572,8 @@ class GraphVisualizer:
             "CRITICAL": data.critical_count,
             "HIGH": data.high_count,
             "MEDIUM": data.medium_count,
-            "LOW": data.nodes - data.critical_count - data.high_count - data.medium_count,
+            "LOW": data.low_count,
+            "MINIMAL": data.minimal_count,
         }
         chart = self.charts.criticality_distribution(
             crit_counts,

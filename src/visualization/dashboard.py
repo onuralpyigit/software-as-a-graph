@@ -30,7 +30,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/vis-network.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         :root {{
             --primary: #2c3e50;
@@ -44,6 +44,39 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             --border: #dee2e6;
             --text: #2c3e50;
             --text-muted: #7f8c8d;
+        }}
+        
+        /* D3 Graph Styles */
+        .node {{
+            stroke: #fff;
+            stroke-width: 1.5px;
+            cursor: move;
+        }}
+        
+        .link {{
+            stroke: #999;
+            stroke-opacity: 0.6;
+        }}
+        
+        .label {{
+            font-size: 10px;
+            font-family: 'Segoe UI', sans-serif;
+            pointer-events: none;
+            fill: #555;
+        }}
+        
+        .tooltip {{
+            position: absolute;
+            text-align: center;
+            padding: 8px;
+            font: 12px sans-serif;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1000;
         }}
         
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -458,7 +491,7 @@ class DashboardGenerator:
             html.append(
                 f'<div class="chart-card">'
                 f'<h4>{chart.title}</h4>'
-                f'<img src="data:image/png;base64,{chart.png_base64}" alt="{chart.title}">'
+                f'<img src="data:image/png;base64,{chart.png_base64}" alt="{chart.alt_text or chart.title}">'
             )
             if chart.description:
                 html.append(f'<div class="description">{chart.description}</div>')
@@ -606,58 +639,157 @@ class DashboardGenerator:
         ]
         self.sections.append(''.join(html))
         
-        # Add vis.js initialization script
+        # Add D3.js initialization script
         nodes_json = json.dumps(nodes)
         edges_json = json.dumps(edges)
         
         script = f"""
         <script>
         (function() {{
-            var nodes = new vis.DataSet({nodes_json});
-            var edges = new vis.DataSet({edges_json});
+            const nodes = {nodes_json};
+            const links = {edges_json};
+            const containerId = '{graph_id}';
             
-            var container = document.getElementById('{graph_id}');
-            var data = {{ nodes: nodes, edges: edges }};
+            // Get container dimensions
+            const container = document.getElementById(containerId);
+            const width = container.clientWidth;
+            const height = 500; // Fixed height from CSS
             
-            // vis.js Network options - see method docstring for details
-            var options = {{
-                nodes: {{
-                    shape: 'dot',
-                    font: {{ size: 12, face: 'Segoe UI' }},
-                    borderWidth: 2,
-                    shadow: true
-                }},
-                edges: {{
-                    arrows: {{ to: {{ enabled: true, scaleFactor: 0.5 }} }},
-                    smooth: {{ type: 'continuous' }},
-                    color: {{ opacity: 0.7 }}
-                }},
-                physics: {{
-                    stabilization: {{ iterations: 100 }},
-                    barnesHut: {{
-                        gravitationalConstant: -2000,
-                        springLength: 150
-                    }}
-                }},
-                interaction: {{
-                    hover: true,
-                    tooltipDelay: 100
-                }},
-                groups: {{
-                    Application: {{ color: {{ background: '#3498db', border: '#2980b9' }} }},
-                    Broker: {{ color: {{ background: '#9b59b6', border: '#8e44ad' }} }},
-                    Node: {{ color: {{ background: '#2ecc71', border: '#27ae60' }} }},
-                    Topic: {{ color: {{ background: '#f1c40f', border: '#f39c12' }} }},
-                    Library: {{ color: {{ background: '#1abc9c', border: '#16a085' }} }},
-                    CRITICAL: {{ color: {{ background: '#e74c3c', border: '#c0392b' }} }},
-                    HIGH: {{ color: {{ background: '#e67e22', border: '#d35400' }} }},
-                    MEDIUM: {{ color: {{ background: '#f1c40f', border: '#f39c12' }} }},
-                    LOW: {{ color: {{ background: '#2ecc71', border: '#27ae60' }} }},
-                    MINIMAL: {{ color: {{ background: '#95a5a6', border: '#7f8c8d' }} }}
+            // Clear existing SVG if any
+            d3.select("#" + containerId).selectAll("*").remove();
+
+            const svg = d3.select("#" + containerId)
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", [0, 0, width, height])
+                .attr("style", "max-width: 100%; height: auto;");
+
+            // Color scale
+            const color = d3.scaleOrdinal()
+                .domain(["Application", "Broker", "Node", "Topic", "Library", "CRITICAL", "HIGH", "MEDIUM", "LOW", "MINIMAL"])
+                .range(['#3498db', '#9b59b6', '#2ecc71', '#f1c40f', '#1abc9c', '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#95a5a6']);
+
+            // Simulation setup
+            const simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+                .force("charge", d3.forceManyBody().strength(-300))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collide", d3.forceCollide().radius(20));
+
+            // Tooltip
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
+            // Add arrow marker
+            svg.append("defs").selectAll("marker")
+                .data(["end"])
+                .enter().append("marker")
+                .attr("id", "arrow")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 15)
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M0,-5L10,0L0,5")
+                .attr("fill", "#999");
+
+            // Render links
+            const link = svg.append("g")
+                .attr("stroke", "#999")
+                .attr("stroke-opacity", 0.6)
+                .selectAll("line")
+                .data(links)
+                .join("line")
+                .attr("stroke-width", d => Math.sqrt(d.weight || 1))
+                .attr("marker-end", "url(#arrow)")
+                .on("mouseover", function(event, d) {{
+                    tooltip.transition().duration(200).style("opacity", .9);
+                    tooltip.html(d.title || "")
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                    d3.select(this).attr("stroke", "#333").attr("stroke-opacity", 1);
+                }})
+                .on("mouseout", function(d) {{
+                    tooltip.transition().duration(500).style("opacity", 0);
+                    d3.select(this).attr("stroke", "#999").attr("stroke-opacity", 0.6);
+                }});
+
+            // Render nodes
+            const node = svg.append("g")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 1.5)
+                .selectAll("circle")
+                .data(nodes)
+                .join("circle")
+                .attr("r", 8) // Fixed radius for simplicity, could use d.value
+                .attr("fill", d => color(d.group))
+                .call(drag(simulation))
+                .on("mouseover", function(event, d) {{
+                    tooltip.transition().duration(200).style("opacity", .9);
+                    tooltip.html(d.title)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                    d3.select(this).attr("stroke", "#000").attr("stroke-width", 2);
+                }})
+                .on("mouseout", function(d) {{
+                    tooltip.transition().duration(500).style("opacity", 0);
+                    d3.select(this).attr("stroke", "#fff").attr("stroke-width", 1.5);
+                }});
+
+            // Render labels
+            const label = svg.append("g")
+                .attr("class", "label")
+                .selectAll("text")
+                .data(nodes)
+                .join("text")
+                .attr("dx", 12)
+                .attr("dy", ".35em")
+                .text(d => d.label);
+
+            simulation.on("tick", () => {{
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+                
+                label
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            }});
+
+            // Drag behavior
+            function drag(simulation) {{
+                function dragstarted(event) {{
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    event.subject.fx = event.subject.x;
+                    event.subject.fy = event.subject.y;
                 }}
-            }};
-            
-            new vis.Network(container, data, options);
+                
+                function dragged(event) {{
+                    event.subject.fx = event.x;
+                    event.subject.fy = event.y;
+                }}
+                
+                function dragended(event) {{
+                    if (!event.active) simulation.alphaTarget(0);
+                    event.subject.fx = null;
+                    event.subject.fy = null;
+                }}
+                
+                return d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended);
+            }}
         }})();
         </script>
         """

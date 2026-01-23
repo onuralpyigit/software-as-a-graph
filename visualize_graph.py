@@ -40,39 +40,12 @@ from src.visualization import (
     ChartGenerator,
     LAYER_DEFINITIONS,
 )
+from src.analysis.display import Colors, colored, print_header
 
 
 # =============================================================================
-# Terminal Colors
+# CLI Output Utilities
 # =============================================================================
-
-class Colors:
-    """ANSI color codes for terminal output."""
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    MAGENTA = "\033[95m"
-    CYAN = "\033[96m"
-    WHITE = "\033[97m"
-    GRAY = "\033[90m"
-    BOLD = "\033[1m"
-    DIM = "\033[2m"
-    RESET = "\033[0m"
-
-
-def colored(text: str, color: str, bold: bool = False) -> str:
-    """Apply color to text."""
-    style = Colors.BOLD if bold else ""
-    return f"{style}{color}{text}{Colors.RESET}"
-
-
-def print_header(title: str, char: str = "=", width: int = 70) -> None:
-    """Print a formatted header."""
-    print(f"\n{colored(char * width, Colors.CYAN)}")
-    print(f"{colored(f' {title} '.center(width), Colors.CYAN, bold=True)}")
-    print(f"{colored(char * width, Colors.CYAN)}")
-
 
 def print_step(step: int, total: int, message: str) -> None:
     """Print a step indicator."""
