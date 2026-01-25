@@ -100,6 +100,9 @@ class LayerData:
     network_nodes: List[Dict[str, Any]] = field(default_factory=list)
     network_edges: List[Dict[str, Any]] = field(default_factory=list)
 
+    # Name mapping
+    component_names: Dict[str, str] = field(default_factory=dict)
+
 
 class GraphVisualizer:
     """
@@ -307,6 +310,9 @@ class GraphVisualizer:
                     for c in sorted_comps[:10]
                 ]
                 
+                # Extract names
+                data.component_names = {c.id: c.structural.name for c in analysis.quality.components}
+                
                 # Network graph data
                 data.network_nodes = []
                 for c in analysis.quality.components:
@@ -321,10 +327,10 @@ class GraphVisualizer:
                     
                     data.network_nodes.append({
                         "id": c.id,
-                        "label": c.id,
+                        "label": f"{c.id}\n({c.structural.name})",
                         "group": c.levels.overall.name if hasattr(c.levels.overall, 'name') else c.type,
                         "value": value,
-                        "title": f"{c.id}<br>Type: {c.type}<br>Score: {score:.3f}",
+                        "title": f"{c.id}<br>Name: {c.structural.name}<br>Type: {c.type}<br>Score: {score:.3f}",
                     })
                 
                 # Build edges from structural data
@@ -596,7 +602,8 @@ class GraphVisualizer:
             top_data = [(c["id"], c["score"], c["level"]) for c in data.top_components]
             chart = self.charts.impact_ranking(
                 top_data,
-                f"Top Components - {layer_def['name']}"
+                f"Top Components - {layer_def['name']}",
+                names=data.component_names
             )
             if chart:
                 charts.append(chart)
@@ -607,9 +614,9 @@ class GraphVisualizer:
         if data.top_components:
             dash.add_subsection("Top Components by Quality Score")
             
-            headers = ["Component", "Type", "Score", "Level"]
+            headers = ["Component", "Name", "Type", "Score", "Level"]
             rows = [
-                [c["id"], c["type"], f"{c['score']:.4f}", c["level"]]
+                [c["id"], data.component_names.get(c["id"], c["id"]), c["type"], f"{c['score']:.4f}", c["level"]]
                 for c in data.top_components
             ]
             

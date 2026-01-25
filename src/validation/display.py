@@ -221,10 +221,15 @@ def display_layer_result(result: "LayerValidationResult", targets: "ValidationTa
     
     # Top-5 agreement
     if overall.ranking.top_5_predicted:
+        # Helpers for name resolution
+        names = result.component_names
+        def get_name(comp_id: str) -> str:
+            return f"{comp_id} ({names.get(comp_id, comp_id)})" if comp_id in names else comp_id
+
         print(f"\n    {colored('Top-5 Agreement:', Colors.GRAY)}")
-        print(f"      Predicted:  {', '.join(overall.ranking.top_5_predicted[:5])}")
-        print(f"      Actual:     {', '.join(overall.ranking.top_5_actual[:5])}")
-        print(f"      Common:     {', '.join(overall.ranking.top_5_common) or 'None'}")
+        print(f"      Predicted:  {', '.join(get_name(c) for c in overall.ranking.top_5_predicted[:5])}")
+        print(f"      Actual:     {', '.join(get_name(c) for c in overall.ranking.top_5_actual[:5])}")
+        print(f"      Common:     {', '.join(get_name(c) for c in overall.ranking.top_5_common) or 'None'}")
     
     # Error metrics
     print(f"\n  {colored('Error Metrics:', Colors.CYAN)}")
@@ -235,14 +240,18 @@ def display_layer_result(result: "LayerValidationResult", targets: "ValidationTa
     
     # Top mismatches (if available)
     if result.comparisons:
+        # Helpers for name resolution
+        names = result.component_names
+        
         print(f"\n  {colored('Top Mismatches (by error):', Colors.CYAN)}")
-        print(f"    {'Component':<20} {'Type':<12} {'Predicted':<10} {'Actual':<10} {'Error':<10} {'Class':<6}")
-        print(f"    {'-' * 70}")
+        print(f"    {'Component':<35} {'Type':<12} {'Predicted':<10} {'Actual':<10} {'Error':<10} {'Class':<6}")
+        print(f"    {'-' * 85}")
         
         for comp in result.comparisons[:5]:
             cls_color = Colors.GREEN if comp.classification in ("TP", "TN") else Colors.RED
+            c_name = f"{comp.id} ({names.get(comp.id, comp.id)})" if comp.id in names else comp.id
             print(
-                f"    {comp.id:<20} {comp.type:<12} "
+                f"    {c_name:<35} {comp.type:<12} "
                 f"{comp.predicted:>8.4f}   {comp.actual:>8.4f}   "
                 f"{comp.error:>8.4f}   {colored(comp.classification, cls_color)}"
             )

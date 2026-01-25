@@ -89,6 +89,9 @@ class LayerValidationResult:
     # Warnings
     warnings: List[str] = field(default_factory=list)
     
+    # Name mapping
+    component_names: Dict[str, str] = field(default_factory=dict)
+    
     def to_dict(self) -> Dict[str, Any]:
         return {
             "layer": self.layer,
@@ -130,6 +133,9 @@ class PipelineResult:
     
     # Configuration
     targets: ValidationTargets = field(default_factory=ValidationTargets)
+    
+    # Name mapping
+    component_names: Dict[str, str] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -299,6 +305,7 @@ class ValidationPipeline:
             all_passed=all_passed,
             cross_layer_insights=insights,
             targets=self.targets,
+            component_names={k: v for r in layer_results.values() for k, v in r.component_names.items()},
         )
     
     def _validate_layer(
@@ -362,6 +369,7 @@ class ValidationPipeline:
             passed=overall.passed,
             comparisons=overall.components if include_comparisons else [],
             warnings=validation_result.warnings,
+            component_names=analysis_data.get("names", {}),
         )
         
         return result
@@ -383,10 +391,11 @@ class ValidationPipeline:
             return {
                 "predicted": predicted,
                 "types": types,
+                "names": {c.id: c.structural.name for c in result.quality.components},
             }
         except Exception as e:
             self.logger.error(f"Analysis failed: {e}")
-            return {"predicted": {}, "types": {}}
+            return {"predicted": {}, "types": {}, "names": {}}
     
     def _run_simulation(self, layer: str) -> Dict[str, Any]:
         """Run failure simulation for a layer."""

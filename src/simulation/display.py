@@ -48,7 +48,12 @@ def level_color(level: str) -> str:
 
 def display_event_result(result: "EventResult") -> None:
     """Display event simulation results."""
-    print_header(f"Event Simulation: {result.source_app}")
+    # Helpers for name resolution
+    names = result.component_names
+    def get_name(comp_id: str) -> str:
+        return f"{comp_id} ({names.get(comp_id, comp_id)})" if comp_id in names else comp_id
+
+    print_header(f"Event Simulation: {get_name(result.source_app)}")
     
     print(f"\n  {colored('Scenario:', Colors.CYAN)}     {result.scenario}")
     print(f"  {colored('Duration:', Colors.CYAN)}     {result.duration * 1000:.2f} ms")
@@ -81,12 +86,12 @@ def display_event_result(result: "EventResult") -> None:
     # Path analysis
     if result.affected_topics:
         print_subheader("Path Analysis")
-        print(f"\n  Affected Topics:     {', '.join(result.affected_topics)}")
-        print(f"  Brokers Used:        {', '.join(result.brokers_used) or 'None'}")
+        print(f"\n  Affected Topics:     {', '.join(get_name(t) for t in result.affected_topics)}")
+        print(f"  Brokers Used:        {', '.join(get_name(b) for b in result.brokers_used) or 'None'}")
         print(f"  Reached Subscribers: {len(result.reached_subscribers)}")
         if result.reached_subscribers:
             subs = result.reached_subscribers[:5]
-            print(f"                       {', '.join(subs)}")
+            print(f"                       {', '.join(get_name(s) for s in subs)}")
             if len(result.reached_subscribers) > 5:
                 print(f"                       ... and {len(result.reached_subscribers) - 5} more")
     
@@ -105,10 +110,10 @@ def display_event_result(result: "EventResult") -> None:
             reverse=True
         )[:5]
         
-        print(f"\n  {'Component':<25} {'Impact Score':<15}")
-        print(f"  {'-' * 40}")
+        print(f"\n  {'Component':<35} {'Impact Score':<15}")
+        print(f"  {'-' * 50}")
         for comp_id, impact in sorted_impacts:
-            print(f"  {comp_id:<25} {impact:.4f}")
+            print(f"  {get_name(comp_id):<35} {impact:.4f}")
 
 
 # =============================================================================
@@ -117,9 +122,14 @@ def display_event_result(result: "EventResult") -> None:
 
 def display_failure_result(result: "FailureResult") -> None:
     """Display failure simulation results."""
-    print_header(f"Failure Simulation: {result.target_id}")
+    # Helpers for name resolution
+    names = result.component_names
+    def get_name(comp_id: str) -> str:
+        return f"{comp_id} ({names.get(comp_id, comp_id)})" if comp_id in names else comp_id
+
+    print_header(f"Failure Simulation: {get_name(result.target_id)}")
     
-    print(f"\n  {colored('Target:', Colors.CYAN)}       {result.target_id} ({result.target_type})")
+    print(f"\n  {colored('Target:', Colors.CYAN)}       {get_name(result.target_id)} ({result.target_type})")
     print(f"  {colored('Scenario:', Colors.CYAN)}     {result.scenario}")
     
     # Impact metrics
@@ -162,7 +172,7 @@ def display_failure_result(result: "FailureResult") -> None:
     if result.cascaded_failures:
         print_subheader("Cascaded Failures")
         for i, comp_id in enumerate(result.cascaded_failures[:10]):
-            print(f"  {i+1}. {comp_id}")
+            print(f"  {i+1}. {get_name(comp_id)}")
         if len(result.cascaded_failures) > 10:
             print(f"  ... and {len(result.cascaded_failures) - 10} more")
     
@@ -215,17 +225,22 @@ def display_exhaustive_results(results: List["FailureResult"], limit: int = 15) 
     # Top components
     print_subheader(f"Top {limit} Components by Impact")
     
-    print(f"\n  {'Component':<20} {'Type':<12} {'Impact':<10} {'Cascade':<10} {'Reach Loss':<10}")
-    print(f"  {'-' * 65}")
+    print(f"\n  {'Component':<30} {'Type':<12} {'Impact':<10} {'Cascade':<10} {'Reach Loss':<10}")
+    print(f"  {'-' * 75}")
     
     for r in results[:limit]:
+        # Resolve name provided by result's own map (assuming all results share context or first one covers it)
+        # Note: display_exhaustive_results takes List[FailureResult], each has its own component_names map.
+        # But we can assume the target_id is present in result.component_names.
+        r_name = f"{r.target_id} ({r.component_names.get(r.target_id, r.target_id)})"
+        
         imp = r.impact.composite_impact
         color = Colors.RED if imp > 0.5 else (
             Colors.YELLOW if imp > 0.2 else Colors.GREEN
         )
         
         print(
-            f"  {r.target_id:<20} {r.target_type:<12} "
+            f"  {r_name:<30} {r.target_type:<12} "
             f"{colored(f'{imp:.4f}', color):<10} "
             f"{r.impact.cascade_count:<10} "
             f"{r.impact.reachability_loss*100:.1f}%"
@@ -284,13 +299,16 @@ def display_report(report: "SimulationReport") -> None:
     if report.top_critical:
         print_subheader("Top Critical Components")
         
-        print(f"\n  {'ID':<20} {'Type':<12} {'Level':<10} {'Impact':<10} {'Cascade':<10}")
-        print(f"  {'-' * 65}")
+        names = report.component_names
+        print(f"\n  {'ID':<30} {'Type':<12} {'Level':<10} {'Impact':<10} {'Cascade':<10}")
+        print(f"  {'-' * 75}")
         
         for c in report.top_critical:
+            cid = c['id']
+            c_name = f"{cid} ({names.get(cid, cid)})" if cid in names else cid
             color = level_color(c['level'])
             print(
-                f"  {c['id']:<20} {c['type']:<12} "
+                f"  {c_name:<30} {c['type']:<12} "
                 f"{colored(c['level'], color):<10} "
                 f"{c['combined_impact']:.4f}     "
                 f"{c['cascade_count']:>3}"

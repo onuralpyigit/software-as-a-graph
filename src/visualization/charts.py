@@ -456,6 +456,7 @@ class ChartGenerator:
         components: List[Tuple[str, float, str]],
         title: str = "Top Components by Impact",
         max_items: int = 10,
+        names: Dict[str, str] = None,
         description: str = ""
     ) -> Optional[ChartOutput]:
         """
@@ -463,6 +464,7 @@ class ChartGenerator:
         
         Args:
             components: List of (id, impact, level) tuples
+            names: Optional map of ID to display name
         """
         if not HAS_MATPLOTLIB or not components:
             return None
@@ -473,6 +475,9 @@ class ChartGenerator:
         fig, ax = plt.subplots(figsize=(10, 6))
         
         ids = [c[0] for c in components]
+        # Use names if available
+        labels = [f"{c[0]} ({names.get(c[0], '')})" if names and c[0] in names else c[0] for c in components]
+        
         impacts = [c[1] for c in components]
         levels = [c[2] for c in components]
         
@@ -481,7 +486,7 @@ class ChartGenerator:
         
         bars = ax.barh(range(len(ids)), impacts, color=colors, edgecolor='white')
         ax.set_yticks(range(len(ids)))
-        ax.set_yticklabels(ids)
+        ax.set_yticklabels(labels)
         ax.invert_yaxis()
         
         ax.set_xlabel('Impact Score')

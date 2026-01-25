@@ -161,6 +161,9 @@ class SimulationReport:
     # Recommendations
     recommendations: List[str]
     
+    # Name mapping for display
+    component_names: Dict[str, str] = field(default_factory=dict)
+    
     def to_dict(self) -> Dict[str, Any]:
         return {
             "timestamp": self.timestamp,
@@ -599,6 +602,7 @@ class Simulator:
             component_criticality=component_criticality,
             top_critical=top_critical,
             recommendations=recommendations,
+            component_names={c.id: c.properties.get("name", c.id) for c in self.graph.components.values()},
         )
     
     def _generate_recommendations(

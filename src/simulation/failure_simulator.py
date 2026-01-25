@@ -198,6 +198,9 @@ class FailureResult:
     # Per-layer impact
     layer_impacts: Dict[str, float] = field(default_factory=dict)
     
+    # Name mapping for display
+    component_names: Dict[str, str] = field(default_factory=dict)
+    
     def to_dict(self) -> Dict[str, Any]:
         return {
             "target_id": self.target_id,
@@ -311,6 +314,7 @@ class FailureSimulator:
             cascaded_failures=[c for c in failed_set if c != scenario.target_id],
             cascade_sequence=cascade_sequence,
             layer_impacts=layer_impacts,
+            component_names={c.id: c.properties.get("name", c.id) for c in self.graph.components.values()},
         )
     
     def simulate_exhaustive(

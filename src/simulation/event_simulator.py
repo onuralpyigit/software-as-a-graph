@@ -197,7 +197,11 @@ class EventResult:
     
     # Failures
     failed_components: List[str] = field(default_factory=list)
+    failed_components: List[str] = field(default_factory=list)
     drop_reasons: Dict[str, int] = field(default_factory=dict)
+    
+    # Name mapping for display
+    component_names: Dict[str, str] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -592,4 +596,5 @@ class EventSimulator:
                 if c.state == ComponentState.FAILED
             ],
             drop_reasons=dict(self._drop_reasons),
+            component_names={c.id: c.properties.get("name", c.id) for c in self.graph.components.values()},
         )
