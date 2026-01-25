@@ -261,6 +261,7 @@ class StructuralAnalyzer:
         
         for node in G.nodes():
             comp = component_map.get(node)
+            comp_name = comp.properties.get('name', node) if comp else node
             comp_type = G.nodes[node].get('type', 'Unknown')
             comp_weight = G.nodes[node].get('weight', 1.0)
             
@@ -276,6 +277,7 @@ class StructuralAnalyzer:
             
             metrics[node] = StructuralMetrics(
                 id=node,
+                name=comp_name,
                 type=comp_type,
                 pagerank=pagerank.get(node, 0.0),
                 reverse_pagerank=reverse_pagerank.get(node, 0.0),

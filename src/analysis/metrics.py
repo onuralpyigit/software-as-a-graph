@@ -35,6 +35,7 @@ class StructuralMetrics:
     - Weights: Component and dependency weights
     """
     id: str
+    name: str  # Human-readable name
     type: str  # Application, Node, Broker, Topic
     
     # === Centrality Metrics ===

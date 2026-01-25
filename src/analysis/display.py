@@ -184,7 +184,7 @@ def display_classification_summary(result: "LayerAnalysisResult") -> None:
 
 def display_critical_components(result: "LayerAnalysisResult", limit: int = 15) -> None:
     """Display top critical components."""
-    print_subheader("Top Components by Criticality")
+    print_subheader("Top Components by Criticality", width=96)
     
     components = result.quality.components[:limit]
     
@@ -193,9 +193,9 @@ def display_critical_components(result: "LayerAnalysisResult", limit: int = 15) 
         return
     
     # Header
-    header = f"  {'ID':<25} {'Type':<12} {'R':<6} {'M':<6} {'A':<6} {'V':<6} {'Q':<6} {'Level':<10}"
+    header = f"  {'ID':<20} {'Name':<20} {'Type':<10} {'R':<6} {'M':<6} {'A':<6} {'V':<6} {'Q':<6} {'Level':<10}"
     print(colored(header, Colors.WHITE, bold=True))
-    print(f"  {'-' * 82}")
+    print(f"  {'-' * 96}")
     
     for c in components:
         level_str = c.levels.overall.value.upper()
@@ -206,7 +206,7 @@ def display_critical_components(result: "LayerAnalysisResult", limit: int = 15) 
         
         # Component details
         print(
-            f"  {c.id:<25} {c.type:<12} "
+            f"  {c.id:<20} {c.structural.name[:20]:<20} {c.type:<10} "
             f"{c.scores.reliability:.3f}  {c.scores.maintainability:.3f}  "
             f"{c.scores.availability:.3f}  {c.scores.vulnerability:.3f}  "
             f"{colored(f'{c.scores.overall:.3f}', color)}  "
@@ -224,7 +224,7 @@ def display_critical_components(result: "LayerAnalysisResult", limit: int = 15) 
 
 def display_critical_edges(result: "LayerAnalysisResult", limit: int = 10) -> None:
     """Display top critical edges."""
-    print_subheader("Critical Edges")
+    print_subheader("Critical Edges", width=96)
     
     critical_edges = [e for e in result.quality.edges if e.level >= CriticalityLevel.HIGH][:limit]
     
@@ -232,11 +232,21 @@ def display_critical_edges(result: "LayerAnalysisResult", limit: int = 10) -> No
         print(f"  {colored('No critical edges detected.', Colors.GREEN)}")
         return
     
+    # Map IDs to names
+    node_names = {c.id: c.structural.name for c in result.quality.components}
+
     for e in critical_edges:
         color = level_color(e.level)
         bridge_flag = colored("🌉", Colors.RED) if e.structural and e.structural.is_bridge else ""
+        
+        src_name = node_names.get(e.source, e.source)
+        tgt_name = node_names.get(e.target, e.target)
+        
+        src_display = f"{e.source} ({src_name})" if src_name != e.source else e.source
+        tgt_display = f"{e.target} ({tgt_name})" if tgt_name != e.target else e.target
+
         print(
-            f"  {e.source} → {e.target} "
+            f"  {src_display} → {tgt_display} "
             f"[{e.dependency_type}] "
             f"Score: {colored(f'{e.scores.overall:.3f}', color)} "
             f"{colored(e.level.value.upper(), color)} {bridge_flag}"
@@ -246,6 +256,9 @@ def display_critical_edges(result: "LayerAnalysisResult", limit: int = 10) -> No
 def display_problems(result: "LayerAnalysisResult", limit: int = 10) -> None:
     """Display detected problems."""
     print_subheader("Detected Problems")
+    
+    # Create name lookup map
+    node_names = {c.id: c.structural.name for c in result.quality.components}
     
     problems = result.problems
     
@@ -274,7 +287,25 @@ def display_problems(result: "LayerAnalysisResult", limit: int = 10) -> None:
         sev_color = severity_color(p.severity)
         
         print(f"  [{colored(p.severity, sev_color, bold=True):>8}] {colored(p.name, Colors.WHITE, bold=True)}")
-        print(f"           Entity: {colored(p.entity_id, Colors.CYAN)} ({p.entity_type})")
+        
+        # Resolve entity display name
+        entity_display = p.entity_id
+        if p.entity_type == "Component":
+            name = node_names.get(p.entity_id)
+            if name and name != p.entity_id:
+                entity_display = f"{p.entity_id} ({name})"
+        elif p.entity_type == "Edge" and "->" in p.entity_id:
+            try:
+                src, tgt = p.entity_id.split("->", 1)
+                src_name = node_names.get(src, src)
+                tgt_name = node_names.get(tgt, tgt)
+                src_disp = f"{src} ({src_name})" if src_name != src else src
+                tgt_disp = f"{tgt} ({tgt_name})" if tgt_name != tgt else tgt
+                entity_display = f"{src_disp} -> {tgt_disp}"
+            except ValueError:
+                pass
+
+        print(f"           Entity: {colored(entity_display, Colors.CYAN)} ({p.entity_type})")
         print(f"           Category: {p.category}")
         
         # Wrap description
@@ -338,11 +369,34 @@ def display_final_summary(results: "MultiLayerAnalysisResult") -> None:
     critical_count = sum(1 for p in all_problems if p.severity == "CRITICAL")
     high_count = sum(1 for p in all_problems if p.severity == "HIGH")
     
+    # Collect all component names across layers
+    all_names = {}
+    for layer in results.layers.values():
+        for c in layer.quality.components:
+            all_names[c.id] = c.structural.name
+
     if critical_count > 0:
         print(f"\n  {colored(f'⚠ {critical_count} CRITICAL issues require immediate attention', Colors.RED, bold=True)}")
         for p in all_problems:
             if p.severity == "CRITICAL":
-                print(f"    • {p.entity_id}: {p.name}")
+                # Resolve entity display name
+                entity_display = p.entity_id
+                if p.entity_type == "Component":
+                    name = all_names.get(p.entity_id)
+                    if name and name != p.entity_id:
+                        entity_display = f"{p.entity_id} ({name})"
+                elif p.entity_type == "Edge" and "->" in p.entity_id:
+                    try:
+                        src, tgt = p.entity_id.split("->", 1)
+                        src_name = all_names.get(src, src)
+                        tgt_name = all_names.get(tgt, tgt)
+                        src_disp = f"{src} ({src_name})" if src_name != src else src
+                        tgt_disp = f"{tgt} ({tgt_name})" if tgt_name != tgt else tgt
+                        entity_display = f"{src_disp} -> {tgt_disp}"
+                    except ValueError:
+                        pass
+                
+                print(f"    • {entity_display}: {p.name}")
     
     if high_count > 0:
         print(f"\n  {colored(f'⚠ {high_count} HIGH priority issues should be reviewed', Colors.YELLOW)}")
