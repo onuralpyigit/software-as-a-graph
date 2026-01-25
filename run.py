@@ -919,7 +919,7 @@ def main() -> int:
         return 1
     
     # Parse layers
-    layers = [args.layer]
+    layers = [l.strip() for l in args.layer.split(",")]
     valid_layers = [l for l in layers if l in LAYER_DEFINITIONS]
     
     if not valid_layers:
