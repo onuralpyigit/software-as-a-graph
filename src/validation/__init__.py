@@ -71,9 +71,9 @@ from .pipeline import (
 )
 
 # Display Functions
-from .display import (
-    display_pipeline_result,
-    display_layer_result,
+from ..visualization.display import (
+    display_pipeline_validation_result as display_pipeline_result,
+    display_layer_validation_result as display_layer_result,
     status_icon,
     status_text,
     metric_color,

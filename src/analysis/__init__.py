@@ -107,14 +107,14 @@ from .analyzer import (
 )
 
 # Display functions
-from .display import (
+from ..visualization.display import (
     Colors,
     colored,
     level_color,
     severity_color,
     display_layer_result,
-    display_multi_layer_result,
-    display_final_summary,
+    display_multi_layer_analysis_result as display_multi_layer_result,
+    display_final_analysis_summary as display_final_summary,
 )
 
 

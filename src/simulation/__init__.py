@@ -83,11 +83,11 @@ from .simulator import (
 )
 
 # Display Functions
-from .display import (
+from ..visualization.display import (
     display_event_result,
     display_failure_result,
     display_exhaustive_results,
-    display_report,
+    display_simulation_report as display_report,
     level_color,
 )
 

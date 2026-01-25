@@ -40,7 +40,7 @@ from src.visualization import (
     ChartGenerator,
     LAYER_DEFINITIONS,
 )
-from src.analysis.display import Colors, colored, print_header
+from src.visualization.display import Colors, colored, print_header
 
 
 # =============================================================================

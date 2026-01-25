@@ -36,12 +36,12 @@ from src.analysis import (
     AnalysisLayer,
     MultiLayerAnalysisResult,
 )
-from src.analysis.display import (
+from src.visualization.display import (
     Colors,
     colored,
     display_layer_result,
-    display_multi_layer_result,
-    display_final_summary,
+    display_multi_layer_analysis_result as display_multi_layer_result,
+    display_final_analysis_summary as display_final_summary,
 )
 
 

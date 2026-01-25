@@ -42,13 +42,13 @@ from src.validation import (
     ValidationTargets,
     LAYER_DEFINITIONS,
 )
-from src.validation.display import (
-    display_pipeline_result,
-    display_layer_result,
+from src.visualization.display import (
+    display_pipeline_validation_result as display_pipeline_result,
+    display_layer_validation_result as display_layer_result,
     status_icon,
     status_text,
 )
-from src.analysis.display import Colors, colored, print_header
+from src.visualization.display import Colors, colored, print_header
 
 
 # =============================================================================

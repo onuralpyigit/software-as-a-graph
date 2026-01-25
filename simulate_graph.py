@@ -41,13 +41,13 @@ from src.simulation import (
     FailureResult,
     SimulationReport,
 )
-from src.simulation.display import (
+from src.visualization.display import (
     display_event_result,
     display_failure_result,
     display_exhaustive_results,
-    display_report,
+    display_simulation_report as display_report,
 )
-from src.analysis.display import Colors, colored
+from src.visualization.display import Colors, colored
 
 
 # =============================================================================
