@@ -1,0 +1,502 @@
+{
+  "metadata": {
+    "scale": "{'apps': 10, 'topics': 13, 'brokers': 0, 'nodes': 4, 'libs': 3}",
+    "seed": "6e59c70644",
+    "source": "sierra_nevada"
+  },
+  "nodes": [
+    {
+      "id": "N0",
+      "name": "Node-0"
+    },
+    {
+      "id": "N1",
+      "name": "Node-1"
+    },
+    {
+      "id": "N2",
+      "name": "Node-2"
+    },
+    {
+      "id": "N3",
+      "name": "Node-3"
+    }
+  ],
+  "brokers": [],
+  "topics": [
+    {
+      "id": "T0",
+      "name": "amazon",
+      "size": 44,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T1",
+      "name": "arkansas",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T2",
+      "name": "congo",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T3",
+      "name": "danube",
+      "size": 16,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T4",
+      "name": "ganges",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T5",
+      "name": "lena",
+      "size": 50,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T6",
+      "name": "mekong",
+      "size": 100,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T7",
+      "name": "missouri",
+      "size": 10000,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T8",
+      "name": "nile",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T9",
+      "name": "parana",
+      "size": 20,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T10",
+      "name": "salween",
+      "size": 56,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T11",
+      "name": "tigris",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T12",
+      "name": "volga",
+      "size": 16,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    }
+  ],
+  "applications": [
+    {
+      "id": "A0",
+      "name": "montreal",
+      "role": "pub",
+      "app_type": "processor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A1",
+      "name": "lyon",
+      "role": "pubsub",
+      "app_type": "controller",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A2",
+      "name": "hamburg",
+      "role": "pubsub",
+      "app_type": "monitor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A3",
+      "name": "osaka",
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A4",
+      "name": "mandalay",
+      "role": "pubsub",
+      "app_type": "gateway",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A5",
+      "name": "ponce",
+      "role": "pubsub",
+      "app_type": "processor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A6",
+      "name": "barcelona",
+      "role": "pubsub",
+      "app_type": "controller",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A7",
+      "name": "georgetown",
+      "role": "pubsub",
+      "app_type": "monitor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A8",
+      "name": "geneva",
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A9",
+      "name": "arequipa",
+      "role": "sub",
+      "app_type": "gateway",
+      "criticality": false,
+      "version": "1.0.0"
+    }
+  ],
+  "libraries": [
+    {
+      "id": "L0",
+      "name": "Lib-0",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L1",
+      "name": "Lib-1",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L2",
+      "name": "Lib-2",
+      "version": "1.0.0"
+    }
+  ],
+  "relationships": {
+    "runs_on": [
+      {
+        "from": "A0",
+        "to": "N0"
+      },
+      {
+        "from": "A1",
+        "to": "N1"
+      },
+      {
+        "from": "A2",
+        "to": "N2"
+      },
+      {
+        "from": "A3",
+        "to": "N3"
+      },
+      {
+        "from": "A4",
+        "to": "N0"
+      },
+      {
+        "from": "A5",
+        "to": "N1"
+      },
+      {
+        "from": "A6",
+        "to": "N2"
+      },
+      {
+        "from": "A7",
+        "to": "N3"
+      },
+      {
+        "from": "A8",
+        "to": "N0"
+      },
+      {
+        "from": "A9",
+        "to": "N1"
+      }
+    ],
+    "routes": [],
+    "publishes_to": [
+      {
+        "from": "A0",
+        "to": "T0"
+      },
+      {
+        "from": "A0",
+        "to": "T8"
+      },
+      {
+        "from": "A0",
+        "to": "T4"
+      },
+      {
+        "from": "A0",
+        "to": "T3"
+      },
+      {
+        "from": "A1",
+        "to": "T11"
+      },
+      {
+        "from": "A2",
+        "to": "T9"
+      },
+      {
+        "from": "A3",
+        "to": "T10"
+      },
+      {
+        "from": "A4",
+        "to": "T7"
+      },
+      {
+        "from": "A5",
+        "to": "T6"
+      },
+      {
+        "from": "A5",
+        "to": "T2"
+      },
+      {
+        "from": "A6",
+        "to": "T5"
+      },
+      {
+        "from": "A7",
+        "to": "T12"
+      },
+      {
+        "from": "A8",
+        "to": "T1"
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "A1",
+        "to": "T0"
+      },
+      {
+        "from": "A2",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T11"
+      },
+      {
+        "from": "A2",
+        "to": "T4"
+      },
+      {
+        "from": "A2",
+        "to": "T3"
+      },
+      {
+        "from": "A3",
+        "to": "T9"
+      },
+      {
+        "from": "A4",
+        "to": "T10"
+      },
+      {
+        "from": "A4",
+        "to": "T3"
+      },
+      {
+        "from": "A5",
+        "to": "T7"
+      },
+      {
+        "from": "A5",
+        "to": "T3"
+      },
+      {
+        "from": "A5",
+        "to": "T12"
+      },
+      {
+        "from": "A6",
+        "to": "T6"
+      },
+      {
+        "from": "A7",
+        "to": "T5"
+      },
+      {
+        "from": "A8",
+        "to": "T2"
+      },
+      {
+        "from": "A8",
+        "to": "T3"
+      },
+      {
+        "from": "A8",
+        "to": "T9"
+      },
+      {
+        "from": "A9",
+        "to": "T1"
+      }
+    ],
+    "connects_to": [
+      {
+        "from": "N0",
+        "to": "N1"
+      },
+      {
+        "from": "N1",
+        "to": "N2"
+      },
+      {
+        "from": "N2",
+        "to": "N3"
+      }
+    ],
+    "uses": [
+      {
+        "from": "A0",
+        "to": "L0"
+      },
+      {
+        "from": "A0",
+        "to": "L1"
+      },
+      {
+        "from": "A1",
+        "to": "L1"
+      },
+      {
+        "from": "A2",
+        "to": "L2"
+      },
+      {
+        "from": "A2",
+        "to": "L0"
+      },
+      {
+        "from": "A3",
+        "to": "L0"
+      },
+      {
+        "from": "A4",
+        "to": "L1"
+      },
+      {
+        "from": "A4",
+        "to": "L2"
+      },
+      {
+        "from": "A5",
+        "to": "L2"
+      },
+      {
+        "from": "A6",
+        "to": "L0"
+      },
+      {
+        "from": "A6",
+        "to": "L1"
+      },
+      {
+        "from": "A7",
+        "to": "L1"
+      },
+      {
+        "from": "A8",
+        "to": "L2"
+      },
+      {
+        "from": "A8",
+        "to": "L0"
+      },
+      {
+        "from": "A9",
+        "to": "L0"
+      }
+    ]
+  }
+}

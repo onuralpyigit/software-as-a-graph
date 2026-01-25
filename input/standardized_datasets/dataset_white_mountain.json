@@ -1,0 +1,912 @@
+{
+  "metadata": {
+    "scale": "{'apps': 20, 'topics': 23, 'brokers': 0, 'nodes': 5, 'libs': 5}",
+    "seed": "47ef517adc",
+    "source": "white_mountain"
+  },
+  "nodes": [
+    {
+      "id": "N0",
+      "name": "Node-0"
+    },
+    {
+      "id": "N1",
+      "name": "Node-1"
+    },
+    {
+      "id": "N2",
+      "name": "Node-2"
+    },
+    {
+      "id": "N3",
+      "name": "Node-3"
+    },
+    {
+      "id": "N4",
+      "name": "Node-4"
+    }
+  ],
+  "brokers": [],
+  "topics": [
+    {
+      "id": "T0",
+      "name": "amazon",
+      "size": 44,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T1",
+      "name": "arkansas",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T2",
+      "name": "brazos",
+      "size": 25000,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T3",
+      "name": "chenab",
+      "size": 1024,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T4",
+      "name": "colorado",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T5",
+      "name": "columbia",
+      "size": 614400,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T6",
+      "name": "congo",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T7",
+      "name": "danube",
+      "size": 16,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T8",
+      "name": "ganges",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T9",
+      "name": "godavari",
+      "size": 5000,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T10",
+      "name": "lena",
+      "size": 50,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T11",
+      "name": "loire",
+      "size": 1000,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T12",
+      "name": "mekong",
+      "size": 100,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T13",
+      "name": "missouri",
+      "size": 10000,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T14",
+      "name": "murray",
+      "size": 1000,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T15",
+      "name": "nile",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T16",
+      "name": "ohio",
+      "size": 100,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T17",
+      "name": "parana",
+      "size": 20,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T18",
+      "name": "salween",
+      "size": 56,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T19",
+      "name": "tagus",
+      "size": 50000,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T20",
+      "name": "tigris",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T21",
+      "name": "volga",
+      "size": 16,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T22",
+      "name": "yamuna",
+      "size": 24,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    }
+  ],
+  "applications": [
+    {
+      "id": "A0",
+      "name": "cordoba",
+      "role": "pub",
+      "app_type": "processor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A1",
+      "name": "freeport",
+      "role": "pub",
+      "app_type": "controller",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A2",
+      "name": "medellin",
+      "role": "pub",
+      "app_type": "monitor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A3",
+      "name": "portsmouth",
+      "role": "pub",
+      "app_type": "service",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A4",
+      "name": "lyon",
+      "role": "pubsub",
+      "app_type": "gateway",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A5",
+      "name": "hamburg",
+      "role": "pubsub",
+      "app_type": "processor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A6",
+      "name": "delhi",
+      "role": "pub",
+      "app_type": "controller",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A7",
+      "name": "taipei",
+      "role": "pubsub",
+      "app_type": "monitor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A8",
+      "name": "osaka",
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A9",
+      "name": "tripoli",
+      "role": "pubsub",
+      "app_type": "gateway",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A10",
+      "name": "kingston",
+      "role": "pub",
+      "app_type": "processor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A11",
+      "name": "hebron",
+      "role": "pub",
+      "app_type": "controller",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A12",
+      "name": "mandalay",
+      "role": "pubsub",
+      "app_type": "monitor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A13",
+      "name": "ponce",
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A14",
+      "name": "barcelona",
+      "role": "pubsub",
+      "app_type": "gateway",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A15",
+      "name": "monaco",
+      "role": "pubsub",
+      "app_type": "processor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A16",
+      "name": "georgetown",
+      "role": "pubsub",
+      "app_type": "controller",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A17",
+      "name": "rotterdam",
+      "role": "pubsub",
+      "app_type": "monitor",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A18",
+      "name": "geneva",
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A19",
+      "name": "arequipa",
+      "role": "sub",
+      "app_type": "gateway",
+      "criticality": false,
+      "version": "1.0.0"
+    }
+  ],
+  "libraries": [
+    {
+      "id": "L0",
+      "name": "Lib-0",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L1",
+      "name": "Lib-1",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L2",
+      "name": "Lib-2",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L3",
+      "name": "Lib-3",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L4",
+      "name": "Lib-4",
+      "version": "1.0.0"
+    }
+  ],
+  "relationships": {
+    "runs_on": [
+      {
+        "from": "A0",
+        "to": "N0"
+      },
+      {
+        "from": "A1",
+        "to": "N1"
+      },
+      {
+        "from": "A2",
+        "to": "N2"
+      },
+      {
+        "from": "A3",
+        "to": "N3"
+      },
+      {
+        "from": "A4",
+        "to": "N4"
+      },
+      {
+        "from": "A5",
+        "to": "N0"
+      },
+      {
+        "from": "A6",
+        "to": "N1"
+      },
+      {
+        "from": "A7",
+        "to": "N2"
+      },
+      {
+        "from": "A8",
+        "to": "N3"
+      },
+      {
+        "from": "A9",
+        "to": "N4"
+      },
+      {
+        "from": "A10",
+        "to": "N0"
+      },
+      {
+        "from": "A11",
+        "to": "N1"
+      },
+      {
+        "from": "A12",
+        "to": "N2"
+      },
+      {
+        "from": "A13",
+        "to": "N3"
+      },
+      {
+        "from": "A14",
+        "to": "N4"
+      },
+      {
+        "from": "A15",
+        "to": "N0"
+      },
+      {
+        "from": "A16",
+        "to": "N1"
+      },
+      {
+        "from": "A17",
+        "to": "N2"
+      },
+      {
+        "from": "A18",
+        "to": "N3"
+      },
+      {
+        "from": "A19",
+        "to": "N4"
+      }
+    ],
+    "routes": [],
+    "publishes_to": [
+      {
+        "from": "A0",
+        "to": "T0"
+      },
+      {
+        "from": "A1",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T15"
+      },
+      {
+        "from": "A3",
+        "to": "T7"
+      },
+      {
+        "from": "A4",
+        "to": "T20"
+      },
+      {
+        "from": "A5",
+        "to": "T17"
+      },
+      {
+        "from": "A6",
+        "to": "T5"
+      },
+      {
+        "from": "A7",
+        "to": "T4"
+      },
+      {
+        "from": "A8",
+        "to": "T18"
+      },
+      {
+        "from": "A8",
+        "to": "T9"
+      },
+      {
+        "from": "A9",
+        "to": "T11"
+      },
+      {
+        "from": "A10",
+        "to": "T22"
+      },
+      {
+        "from": "A11",
+        "to": "T3"
+      },
+      {
+        "from": "A12",
+        "to": "T13"
+      },
+      {
+        "from": "A12",
+        "to": "T19"
+      },
+      {
+        "from": "A12",
+        "to": "T2"
+      },
+      {
+        "from": "A13",
+        "to": "T12"
+      },
+      {
+        "from": "A13",
+        "to": "T6"
+      },
+      {
+        "from": "A14",
+        "to": "T10"
+      },
+      {
+        "from": "A15",
+        "to": "T16"
+      },
+      {
+        "from": "A16",
+        "to": "T21"
+      },
+      {
+        "from": "A17",
+        "to": "T14"
+      },
+      {
+        "from": "A18",
+        "to": "T1"
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "A4",
+        "to": "T0"
+      },
+      {
+        "from": "A5",
+        "to": "T15"
+      },
+      {
+        "from": "A5",
+        "to": "T20"
+      },
+      {
+        "from": "A5",
+        "to": "T8"
+      },
+      {
+        "from": "A5",
+        "to": "T7"
+      },
+      {
+        "from": "A7",
+        "to": "T5"
+      },
+      {
+        "from": "A8",
+        "to": "T17"
+      },
+      {
+        "from": "A8",
+        "to": "T4"
+      },
+      {
+        "from": "A9",
+        "to": "T5"
+      },
+      {
+        "from": "A9",
+        "to": "T9"
+      },
+      {
+        "from": "A12",
+        "to": "T18"
+      },
+      {
+        "from": "A12",
+        "to": "T7"
+      },
+      {
+        "from": "A12",
+        "to": "T9"
+      },
+      {
+        "from": "A12",
+        "to": "T22"
+      },
+      {
+        "from": "A12",
+        "to": "T11"
+      },
+      {
+        "from": "A12",
+        "to": "T3"
+      },
+      {
+        "from": "A13",
+        "to": "T13"
+      },
+      {
+        "from": "A13",
+        "to": "T7"
+      },
+      {
+        "from": "A13",
+        "to": "T21"
+      },
+      {
+        "from": "A13",
+        "to": "T9"
+      },
+      {
+        "from": "A13",
+        "to": "T22"
+      },
+      {
+        "from": "A13",
+        "to": "T11"
+      },
+      {
+        "from": "A13",
+        "to": "T19"
+      },
+      {
+        "from": "A13",
+        "to": "T2"
+      },
+      {
+        "from": "A13",
+        "to": "T16"
+      },
+      {
+        "from": "A14",
+        "to": "T12"
+      },
+      {
+        "from": "A15",
+        "to": "T6"
+      },
+      {
+        "from": "A16",
+        "to": "T10"
+      },
+      {
+        "from": "A16",
+        "to": "T14"
+      },
+      {
+        "from": "A17",
+        "to": "T12"
+      },
+      {
+        "from": "A18",
+        "to": "T6"
+      },
+      {
+        "from": "A18",
+        "to": "T7"
+      },
+      {
+        "from": "A18",
+        "to": "T17"
+      },
+      {
+        "from": "A18",
+        "to": "T19"
+      },
+      {
+        "from": "A19",
+        "to": "T1"
+      }
+    ],
+    "connects_to": [
+      {
+        "from": "N0",
+        "to": "N1"
+      },
+      {
+        "from": "N1",
+        "to": "N2"
+      },
+      {
+        "from": "N2",
+        "to": "N3"
+      },
+      {
+        "from": "N3",
+        "to": "N4"
+      }
+    ],
+    "uses": [
+      {
+        "from": "A0",
+        "to": "L0"
+      },
+      {
+        "from": "A0",
+        "to": "L1"
+      },
+      {
+        "from": "A1",
+        "to": "L1"
+      },
+      {
+        "from": "A2",
+        "to": "L2"
+      },
+      {
+        "from": "A2",
+        "to": "L3"
+      },
+      {
+        "from": "A3",
+        "to": "L3"
+      },
+      {
+        "from": "A4",
+        "to": "L4"
+      },
+      {
+        "from": "A4",
+        "to": "L0"
+      },
+      {
+        "from": "A5",
+        "to": "L0"
+      },
+      {
+        "from": "A6",
+        "to": "L1"
+      },
+      {
+        "from": "A6",
+        "to": "L2"
+      },
+      {
+        "from": "A7",
+        "to": "L2"
+      },
+      {
+        "from": "A8",
+        "to": "L3"
+      },
+      {
+        "from": "A8",
+        "to": "L4"
+      },
+      {
+        "from": "A9",
+        "to": "L4"
+      },
+      {
+        "from": "A10",
+        "to": "L0"
+      },
+      {
+        "from": "A10",
+        "to": "L1"
+      },
+      {
+        "from": "A11",
+        "to": "L1"
+      },
+      {
+        "from": "A12",
+        "to": "L2"
+      },
+      {
+        "from": "A12",
+        "to": "L3"
+      },
+      {
+        "from": "A13",
+        "to": "L3"
+      },
+      {
+        "from": "A14",
+        "to": "L4"
+      },
+      {
+        "from": "A14",
+        "to": "L0"
+      },
+      {
+        "from": "A15",
+        "to": "L0"
+      },
+      {
+        "from": "A16",
+        "to": "L1"
+      },
+      {
+        "from": "A16",
+        "to": "L2"
+      },
+      {
+        "from": "A17",
+        "to": "L2"
+      },
+      {
+        "from": "A18",
+        "to": "L3"
+      },
+      {
+        "from": "A18",
+        "to": "L4"
+      },
+      {
+        "from": "A19",
+        "to": "L4"
+      }
+    ]
+  }
+}

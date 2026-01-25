@@ -1,0 +1,87 @@
+{
+  "metadata": {
+    "scale": "{'apps': 2, 'topics': 2, 'brokers': 0, 'nodes': 2, 'libs': 1}",
+    "seed": "automotive_rti",
+    "source": "rticonnextdds-automotive-cases-window-controller"
+  },
+  "nodes": [
+    {
+      "id": "N0",
+      "name": "CockpitNode"
+    },
+    {
+      "id": "N1",
+      "name": "ZonalControllerNode"
+    }
+  ],
+  "brokers": [],
+  "topics": [
+    {
+      "id": "T0",
+      "name": "WindowCommand",
+      "size": 4,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T1",
+      "name": "WindowUpdate",
+      "size": 4,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW"
+      }
+    }
+  ],
+  "applications": [
+    {
+      "id": "A0",
+      "name": "UserInterface",
+      "role": "pubsub",
+      "app_type": "ui",
+      "criticality": false,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A1",
+      "name": "ZonalController",
+      "role": "pubsub",
+      "app_type": "controller",
+      "criticality": true,
+      "version": "1.0.0"
+    }
+  ],
+  "libraries": [
+    {
+      "id": "L0",
+      "name": "WindowSupport",
+      "version": "1.0.0"
+    }
+  ],
+  "relationships": {
+    "runs_on": [
+      {"from": "A0", "to": "N0"},
+      {"from": "A1", "to": "N1"}
+    ],
+    "routes": [],
+    "publishes_to": [
+      {"from": "A0", "to": "T0"},
+      {"from": "A1", "to": "T1"}
+    ],
+    "subscribes_to": [
+      {"from": "A0", "to": "T1"},
+      {"from": "A1", "to": "T0"}
+    ],
+    "connects_to": [
+      {"from": "N0", "to": "N1"}
+    ],
+    "uses": [
+      {"from": "A0", "to": "L0"},
+      {"from": "A1", "to": "L0"}
+    ]
+  }
+}
