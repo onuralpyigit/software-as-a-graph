@@ -1,0 +1,178 @@
+{
+  "metadata": {
+    "scale": "{'apps': 5, 'topics': 5, 'brokers': 0, 'nodes': 3, 'libs': 2}",
+    "seed": "medtech_rti",
+    "source": "rticonnextdds-medtech-reference-architecture"
+  },
+  "nodes": [
+    {
+      "id": "N0",
+      "name": "OperatingRoomServer"
+    },
+    {
+      "id": "N1",
+      "name": "SurgicalRobotNode"
+    },
+    {
+      "id": "N2",
+      "name": "PatientMonitoringNode"
+    }
+  ],
+  "brokers": [],
+  "topics": [
+    {
+      "id": "T0",
+      "name": "MotorControl",
+      "size": 8,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T1",
+      "name": "DeviceStatus",
+      "size": 8,
+      "qos": {
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T2",
+      "name": "DeviceHeartbeat",
+      "size": 4,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T3",
+      "name": "DeviceCommand",
+      "size": 8,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "RELIABLE",
+        "transport_priority": "LOW"
+      }
+    },
+    {
+      "id": "T4",
+      "name": "Vitals",
+      "size": 28,
+      "qos": {
+        "durability": "VOLATILE",
+        "reliability": "BEST_EFFORT",
+        "transport_priority": "LOW"
+      }
+    }
+  ],
+  "applications": [
+    {
+      "id": "A0",
+      "name": "Arm",
+      "role": "pubsub",
+      "app_type": "controller",
+      "criticality": true,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A1",
+      "name": "ArmController",
+      "role": "pubsub",
+      "app_type": "controller",
+      "criticality": true,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A2",
+      "name": "Orchestrator",
+      "role": "pubsub",
+      "app_type": "service",
+      "criticality": true,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A3",
+      "name": "PatientSensor",
+      "role": "pubsub",
+      "app_type": "sensor",
+      "criticality": true,
+      "version": "1.0.0"
+    },
+    {
+      "id": "A4",
+      "name": "PatientMonitor",
+      "role": "pubsub",
+      "app_type": "monitor",
+      "criticality": false,
+      "version": "1.0.0"
+    }
+  ],
+  "libraries": [
+    {
+      "id": "L0",
+      "name": "DdsUtils",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L1",
+      "name": "Types",
+      "version": "1.0.0"
+    }
+  ],
+  "relationships": {
+    "runs_on": [
+      {"from": "A0", "to": "N1"},
+      {"from": "A1", "to": "N1"},
+      {"from": "A2", "to": "N0"},
+      {"from": "A3", "to": "N2"},
+      {"from": "A4", "to": "N2"}
+    ],
+    "routes": [],
+    "publishes_to": [
+      {"from": "A0", "to": "T1"},
+      {"from": "A0", "to": "T2"},
+      {"from": "A1", "to": "T0"},
+      {"from": "A1", "to": "T1"},
+      {"from": "A1", "to": "T2"},
+      {"from": "A2", "to": "T3"},
+      {"from": "A3", "to": "T4"},
+      {"from": "A3", "to": "T1"},
+      {"from": "A3", "to": "T2"},
+      {"from": "A4", "to": "T1"},
+      {"from": "A4", "to": "T2"}
+    ],
+    "subscribes_to": [
+      {"from": "A0", "to": "T0"},
+      {"from": "A0", "to": "T3"},
+      {"from": "A1", "to": "T3"},
+      {"from": "A2", "to": "T1"},
+      {"from": "A2", "to": "T2"},
+      {"from": "A3", "to": "T3"},
+      {"from": "A4", "to": "T4"},
+      {"from": "A4", "to": "T3"}
+    ],
+    "connects_to": [
+      {"from": "N0", "to": "N1"},
+      {"from": "N0", "to": "N2"},
+      {"from": "N1", "to": "N2"}
+    ],
+    "uses": [
+      {"from": "A0", "to": "L0"},
+      {"from": "A0", "to": "L1"},
+      {"from": "A1", "to": "L0"},
+      {"from": "A1", "to": "L1"},
+      {"from": "A2", "to": "L0"},
+      {"from": "A2", "to": "L1"},
+      {"from": "A3", "to": "L0"},
+      {"from": "A3", "to": "L1"},
+      {"from": "A4", "to": "L0"},
+      {"from": "A4", "to": "L1"}
+    ]
+  }
+}
