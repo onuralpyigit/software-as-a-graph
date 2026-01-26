@@ -333,8 +333,130 @@
       }
     ],
     "routes": [],
-    "publishes_to": [],
-    "subscribes_to": [],
+    "publishes_to": [
+      {
+        "from": "L0",
+        "to": "T0"
+      },
+      {
+        "from": "L0",
+        "to": "T8"
+      },
+      {
+        "from": "L0",
+        "to": "T4"
+      },
+      {
+        "from": "L0",
+        "to": "T3"
+      },
+      {
+        "from": "L1",
+        "to": "T11"
+      },
+      {
+        "from": "L2",
+        "to": "T9"
+      },
+      {
+        "from": "L3",
+        "to": "T10"
+      },
+      {
+        "from": "L4",
+        "to": "T7"
+      },
+      {
+        "from": "L5",
+        "to": "T6"
+      },
+      {
+        "from": "L5",
+        "to": "T2"
+      },
+      {
+        "from": "L6",
+        "to": "T5"
+      },
+      {
+        "from": "L7",
+        "to": "T12"
+      },
+      {
+        "from": "L8",
+        "to": "T1"
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "L1",
+        "to": "T0"
+      },
+      {
+        "from": "L2",
+        "to": "T8"
+      },
+      {
+        "from": "L2",
+        "to": "T11"
+      },
+      {
+        "from": "L2",
+        "to": "T4"
+      },
+      {
+        "from": "L2",
+        "to": "T3"
+      },
+      {
+        "from": "L3",
+        "to": "T9"
+      },
+      {
+        "from": "L4",
+        "to": "T10"
+      },
+      {
+        "from": "L4",
+        "to": "T3"
+      },
+      {
+        "from": "L5",
+        "to": "T7"
+      },
+      {
+        "from": "L5",
+        "to": "T3"
+      },
+      {
+        "from": "L5",
+        "to": "T12"
+      },
+      {
+        "from": "L6",
+        "to": "T6"
+      },
+      {
+        "from": "L7",
+        "to": "T5"
+      },
+      {
+        "from": "L8",
+        "to": "T2"
+      },
+      {
+        "from": "L8",
+        "to": "T3"
+      },
+      {
+        "from": "L8",
+        "to": "T9"
+      },
+      {
+        "from": "L9",
+        "to": "T1"
+      }
+    ],
     "connects_to": [
       {
         "from": "N0",
