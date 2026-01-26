@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "scale": "{'apps': 10, 'topics': 13, 'brokers': 0, 'nodes': 4, 'libs': 10}",
+    "scale": "{'apps': 10, 'topics': 13, 'brokers': 0, 'nodes': 4, 'libs': 3}",
     "seed": "6e59c70644",
     "source": "sierra_nevada"
   },
@@ -158,31 +158,31 @@
   "applications": [
     {
       "id": "A0",
-      "name": "App-0",
-      "role": "pubsub",
-      "app_type": "service",
+      "name": "montreal",
+      "role": "pub",
+      "app_type": "processor",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A1",
-      "name": "App-1",
+      "name": "lyon",
       "role": "pubsub",
-      "app_type": "service",
+      "app_type": "controller",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A2",
-      "name": "App-2",
+      "name": "hamburg",
       "role": "pubsub",
-      "app_type": "service",
+      "app_type": "monitor",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A3",
-      "name": "App-3",
+      "name": "osaka",
       "role": "pubsub",
       "app_type": "service",
       "criticality": false,
@@ -190,39 +190,39 @@
     },
     {
       "id": "A4",
-      "name": "App-4",
+      "name": "mandalay",
       "role": "pubsub",
-      "app_type": "service",
+      "app_type": "gateway",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A5",
-      "name": "App-5",
+      "name": "ponce",
       "role": "pubsub",
-      "app_type": "service",
+      "app_type": "processor",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A6",
-      "name": "App-6",
+      "name": "barcelona",
       "role": "pubsub",
-      "app_type": "service",
+      "app_type": "controller",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A7",
-      "name": "App-7",
+      "name": "georgetown",
       "role": "pubsub",
-      "app_type": "service",
+      "app_type": "monitor",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A8",
-      "name": "App-8",
+      "name": "geneva",
       "role": "pubsub",
       "app_type": "service",
       "criticality": false,
@@ -230,9 +230,9 @@
     },
     {
       "id": "A9",
-      "name": "App-9",
-      "role": "pubsub",
-      "app_type": "service",
+      "name": "arequipa",
+      "role": "sub",
+      "app_type": "gateway",
       "criticality": false,
       "version": "1.0.0"
     }
@@ -240,52 +240,17 @@
   "libraries": [
     {
       "id": "L0",
-      "name": "montreal",
+      "name": "Lib-0",
       "version": "1.0.0"
     },
     {
       "id": "L1",
-      "name": "lyon",
+      "name": "Lib-1",
       "version": "1.0.0"
     },
     {
       "id": "L2",
-      "name": "hamburg",
-      "version": "1.0.0"
-    },
-    {
-      "id": "L3",
-      "name": "osaka",
-      "version": "1.0.0"
-    },
-    {
-      "id": "L4",
-      "name": "mandalay",
-      "version": "1.0.0"
-    },
-    {
-      "id": "L5",
-      "name": "ponce",
-      "version": "1.0.0"
-    },
-    {
-      "id": "L6",
-      "name": "barcelona",
-      "version": "1.0.0"
-    },
-    {
-      "id": "L7",
-      "name": "georgetown",
-      "version": "1.0.0"
-    },
-    {
-      "id": "L8",
-      "name": "geneva",
-      "version": "1.0.0"
-    },
-    {
-      "id": "L9",
-      "name": "arequipa",
+      "name": "Lib-2",
       "version": "1.0.0"
     }
   ],
@@ -333,8 +298,130 @@
       }
     ],
     "routes": [],
-    "publishes_to": [],
-    "subscribes_to": [],
+    "publishes_to": [
+      {
+        "from": "A0",
+        "to": "T0"
+      },
+      {
+        "from": "A0",
+        "to": "T8"
+      },
+      {
+        "from": "A0",
+        "to": "T4"
+      },
+      {
+        "from": "A0",
+        "to": "T3"
+      },
+      {
+        "from": "A1",
+        "to": "T11"
+      },
+      {
+        "from": "A2",
+        "to": "T9"
+      },
+      {
+        "from": "A3",
+        "to": "T10"
+      },
+      {
+        "from": "A4",
+        "to": "T7"
+      },
+      {
+        "from": "A5",
+        "to": "T6"
+      },
+      {
+        "from": "A5",
+        "to": "T2"
+      },
+      {
+        "from": "A6",
+        "to": "T5"
+      },
+      {
+        "from": "A7",
+        "to": "T12"
+      },
+      {
+        "from": "A8",
+        "to": "T1"
+      }
+    ],
+    "subscribes_to": [
+      {
+        "from": "A1",
+        "to": "T0"
+      },
+      {
+        "from": "A2",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T11"
+      },
+      {
+        "from": "A2",
+        "to": "T4"
+      },
+      {
+        "from": "A2",
+        "to": "T3"
+      },
+      {
+        "from": "A3",
+        "to": "T9"
+      },
+      {
+        "from": "A4",
+        "to": "T10"
+      },
+      {
+        "from": "A4",
+        "to": "T3"
+      },
+      {
+        "from": "A5",
+        "to": "T7"
+      },
+      {
+        "from": "A5",
+        "to": "T3"
+      },
+      {
+        "from": "A5",
+        "to": "T12"
+      },
+      {
+        "from": "A6",
+        "to": "T6"
+      },
+      {
+        "from": "A7",
+        "to": "T5"
+      },
+      {
+        "from": "A8",
+        "to": "T2"
+      },
+      {
+        "from": "A8",
+        "to": "T3"
+      },
+      {
+        "from": "A8",
+        "to": "T9"
+      },
+      {
+        "from": "A9",
+        "to": "T1"
+      }
+    ],
     "connects_to": [
       {
         "from": "N0",
@@ -355,6 +442,10 @@
         "to": "L0"
       },
       {
+        "from": "A0",
+        "to": "L1"
+      },
+      {
         "from": "A1",
         "to": "L1"
       },
@@ -363,32 +454,48 @@
         "to": "L2"
       },
       {
+        "from": "A2",
+        "to": "L0"
+      },
+      {
         "from": "A3",
-        "to": "L3"
+        "to": "L0"
       },
       {
         "from": "A4",
-        "to": "L4"
+        "to": "L1"
+      },
+      {
+        "from": "A4",
+        "to": "L2"
       },
       {
         "from": "A5",
-        "to": "L5"
+        "to": "L2"
       },
       {
         "from": "A6",
-        "to": "L6"
+        "to": "L0"
+      },
+      {
+        "from": "A6",
+        "to": "L1"
       },
       {
         "from": "A7",
-        "to": "L7"
+        "to": "L1"
       },
       {
         "from": "A8",
-        "to": "L8"
+        "to": "L2"
+      },
+      {
+        "from": "A8",
+        "to": "L0"
       },
       {
         "from": "A9",
-        "to": "L9"
+        "to": "L0"
       }
     ]
   }
