@@ -35,10 +35,20 @@ The following fields were not present in the original sources and were assigned 
 | Field | Assignment Rule |
 |-------|-----------------|
 | **nodes** | Auto-generated based on application count (roughly √n nodes) |
-| **libraries** | Auto-generated placeholder libraries |
 | **runs_on** | Round-robin distribution of applications across nodes |
 | **connects_to** | Ring topology for node connections |
-| **uses** | Balanced distribution of library dependencies |
+
+### Libraries and Uses Relationships
+
+**ROS2 datasets** (cedar, mont_blanc, sierra_nevada, white_mountain):
+- Original ROS2 node definitions are stored as **libraries** (preserving node names like "cordoba", "hamburg", etc.)
+- **Dummy applications** (App-0, App-1, ...) are created with 1-to-1 mapping to libraries
+- Each application uses exactly one library: `A0 → L0`, `A1 → L1`, etc.
+- `publishes_to` and `subscribes_to` relationships are cleared (dummy apps don't participate in pub/sub)
+
+**RTI datasets** (rti_automotive, rti_medtech):
+- Applications and libraries maintain their original relationships
+- Multiple applications can share the same library
 
 ### Topic Size
 - **ROS datasets**: Estimated from `msg_type` field (e.g., `stamped4_int32` → 24 bytes) or used explicit `msg_size` when available
