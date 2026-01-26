@@ -237,7 +237,8 @@ class GraphImporter:
         stats = {}
         qos_calc = self._get_qos_weight_cypher("t")
         
-        # A. App->App
+        # A. App->App (direct)
+        # Pattern: pub:App -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- sub:App
         query_app_app = f"""
         MATCH (pub:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(sub:Application)
         WHERE pub <> sub
@@ -249,12 +250,11 @@ class GraphImporter:
         """
         count_deps_app_app = self._run_count(query_app_app)
 
-        # A. App->App (indirect via library)
-        # App A uses Lib that publishes to Topic that App B subscribes to
-        query_app_app_via_lib = f"""
+        # B. App->Lib->App (publisher via library)
+        # Pattern: appA -[:USES]-> lib -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- appB
+        query_app_lib_app_pub = f"""
         MATCH (appA:Application)-[:USES]->(lib:Library)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(appB:Application)
         WHERE appA <> appB
-        // Skip if direct dependency already exists
         WITH appA, appB, t, {qos_calc} as importance
         WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
         MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
@@ -262,9 +262,72 @@ class GraphImporter:
         ON MATCH SET d.weight = d.weight + shared_count + importance_sum
         RETURN count(d) as c
         """
-        count_deps_app_app_via_lib = self._run_count(query_app_app_via_lib)
+        count_deps_app_lib_app_pub = self._run_count(query_app_lib_app_pub)
 
-        stats["deps_app_app"] = count_deps_app_app + count_deps_app_app_via_lib
+        # C. App->Lib->App (subscriber via library)
+        # Pattern: appA -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- lib <-[:USES]- appB
+        query_app_lib_app_sub = f"""
+        MATCH (appA:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(lib:Library)<-[:USES]-(appB:Application)
+        WHERE appA <> appB
+        WITH appA, appB, t, {qos_calc} as importance
+        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
+        MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
+        ON CREATE SET d.weight = shared_count + importance_sum
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        RETURN count(d) as c
+        """
+        count_deps_app_lib_app_sub = self._run_count(query_app_lib_app_sub)
+
+        # D. App->Lib->Lib->App (two-level library chain, publisher side)
+        # Pattern: appA -[:USES]-> lib1 -[:USES]-> lib2 -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- appB
+        query_app_lib_lib_app_pub = f"""
+        MATCH (appA:Application)-[:USES]->(lib1:Library)-[:USES]->(lib2:Library)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(appB:Application)
+        WHERE appA <> appB
+        WITH appA, appB, t, {qos_calc} as importance
+        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
+        MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
+        ON CREATE SET d.weight = shared_count + importance_sum
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        RETURN count(d) as c
+        """
+        count_deps_app_lib_lib_app_pub = self._run_count(query_app_lib_lib_app_pub)
+
+        # E. App->Lib->Lib->App (two-level library chain, subscriber side)
+        # Pattern: appA -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- lib2 <-[:USES]- lib1 <-[:USES]- appB
+        query_app_lib_lib_app_sub = f"""
+        MATCH (appA:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(lib2:Library)<-[:USES]-(lib1:Library)<-[:USES]-(appB:Application)
+        WHERE appA <> appB
+        WITH appA, appB, t, {qos_calc} as importance
+        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
+        MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
+        ON CREATE SET d.weight = shared_count + importance_sum
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        RETURN count(d) as c
+        """
+        count_deps_app_lib_lib_app_sub = self._run_count(query_app_lib_lib_app_sub)
+
+        # F. App->Lib->Lib->App (mixed: publisher via lib, subscriber via lib)
+        # Pattern: appA -[:USES]-> lib1 -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- lib2 <-[:USES]- appB
+        query_app_lib_lib_app_mixed = f"""
+        MATCH (appA:Application)-[:USES]->(lib1:Library)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(lib2:Library)<-[:USES]-(appB:Application)
+        WHERE appA <> appB
+        WITH appA, appB, t, {qos_calc} as importance
+        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
+        MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
+        ON CREATE SET d.weight = shared_count + importance_sum
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        RETURN count(d) as c
+        """
+        count_deps_app_lib_lib_app_mixed = self._run_count(query_app_lib_lib_app_mixed)
+
+        stats["deps_app_app"] = (
+            count_deps_app_app +
+            count_deps_app_lib_app_pub +
+            count_deps_app_lib_app_sub +
+            count_deps_app_lib_lib_app_pub +
+            count_deps_app_lib_lib_app_sub +
+            count_deps_app_lib_lib_app_mixed
+        )
 
         # B. App->Broker
         query_app_broker = f"""
