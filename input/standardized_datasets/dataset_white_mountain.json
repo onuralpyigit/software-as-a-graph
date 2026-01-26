@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "scale": "{'apps': 20, 'topics': 23, 'brokers': 0, 'nodes': 5, 'libs': 5}",
+    "scale": "{'apps': 20, 'topics': 23, 'brokers': 0, 'nodes': 5, 'libs': 20}",
     "seed": "47ef517adc",
     "source": "white_mountain"
   },
@@ -262,71 +262,71 @@
   "applications": [
     {
       "id": "A0",
-      "name": "cordoba",
-      "role": "pub",
-      "app_type": "processor",
+      "name": "App-0",
+      "role": "pubsub",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A1",
-      "name": "freeport",
-      "role": "pub",
-      "app_type": "controller",
+      "name": "App-1",
+      "role": "pubsub",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A2",
-      "name": "medellin",
-      "role": "pub",
-      "app_type": "monitor",
+      "name": "App-2",
+      "role": "pubsub",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A3",
-      "name": "portsmouth",
-      "role": "pub",
+      "name": "App-3",
+      "role": "pubsub",
       "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A4",
-      "name": "lyon",
+      "name": "App-4",
       "role": "pubsub",
-      "app_type": "gateway",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A5",
-      "name": "hamburg",
+      "name": "App-5",
       "role": "pubsub",
-      "app_type": "processor",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A6",
-      "name": "delhi",
-      "role": "pub",
-      "app_type": "controller",
+      "name": "App-6",
+      "role": "pubsub",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A7",
-      "name": "taipei",
+      "name": "App-7",
       "role": "pubsub",
-      "app_type": "monitor",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A8",
-      "name": "osaka",
+      "name": "App-8",
       "role": "pubsub",
       "app_type": "service",
       "criticality": false,
@@ -334,39 +334,39 @@
     },
     {
       "id": "A9",
-      "name": "tripoli",
+      "name": "App-9",
       "role": "pubsub",
-      "app_type": "gateway",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A10",
-      "name": "kingston",
-      "role": "pub",
-      "app_type": "processor",
+      "name": "App-10",
+      "role": "pubsub",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A11",
-      "name": "hebron",
-      "role": "pub",
-      "app_type": "controller",
+      "name": "App-11",
+      "role": "pubsub",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A12",
-      "name": "mandalay",
+      "name": "App-12",
       "role": "pubsub",
-      "app_type": "monitor",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A13",
-      "name": "ponce",
+      "name": "App-13",
       "role": "pubsub",
       "app_type": "service",
       "criticality": false,
@@ -374,39 +374,39 @@
     },
     {
       "id": "A14",
-      "name": "barcelona",
+      "name": "App-14",
       "role": "pubsub",
-      "app_type": "gateway",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A15",
-      "name": "monaco",
+      "name": "App-15",
       "role": "pubsub",
-      "app_type": "processor",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A16",
-      "name": "georgetown",
+      "name": "App-16",
       "role": "pubsub",
-      "app_type": "controller",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A17",
-      "name": "rotterdam",
+      "name": "App-17",
       "role": "pubsub",
-      "app_type": "monitor",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     },
     {
       "id": "A18",
-      "name": "geneva",
+      "name": "App-18",
       "role": "pubsub",
       "app_type": "service",
       "criticality": false,
@@ -414,9 +414,9 @@
     },
     {
       "id": "A19",
-      "name": "arequipa",
-      "role": "sub",
-      "app_type": "gateway",
+      "name": "App-19",
+      "role": "pubsub",
+      "app_type": "service",
       "criticality": false,
       "version": "1.0.0"
     }
@@ -424,27 +424,102 @@
   "libraries": [
     {
       "id": "L0",
-      "name": "Lib-0",
+      "name": "cordoba",
       "version": "1.0.0"
     },
     {
       "id": "L1",
-      "name": "Lib-1",
+      "name": "freeport",
       "version": "1.0.0"
     },
     {
       "id": "L2",
-      "name": "Lib-2",
+      "name": "medellin",
       "version": "1.0.0"
     },
     {
       "id": "L3",
-      "name": "Lib-3",
+      "name": "portsmouth",
       "version": "1.0.0"
     },
     {
       "id": "L4",
-      "name": "Lib-4",
+      "name": "lyon",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L5",
+      "name": "hamburg",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L6",
+      "name": "delhi",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L7",
+      "name": "taipei",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L8",
+      "name": "osaka",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L9",
+      "name": "tripoli",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L10",
+      "name": "kingston",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L11",
+      "name": "hebron",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L12",
+      "name": "mandalay",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L13",
+      "name": "ponce",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L14",
+      "name": "barcelona",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L15",
+      "name": "monaco",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L16",
+      "name": "georgetown",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L17",
+      "name": "rotterdam",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L18",
+      "name": "geneva",
+      "version": "1.0.0"
+    },
+    {
+      "id": "L19",
+      "name": "arequipa",
       "version": "1.0.0"
     }
   ],
@@ -532,242 +607,8 @@
       }
     ],
     "routes": [],
-    "publishes_to": [
-      {
-        "from": "A0",
-        "to": "T0"
-      },
-      {
-        "from": "A1",
-        "to": "T8"
-      },
-      {
-        "from": "A2",
-        "to": "T15"
-      },
-      {
-        "from": "A3",
-        "to": "T7"
-      },
-      {
-        "from": "A4",
-        "to": "T20"
-      },
-      {
-        "from": "A5",
-        "to": "T17"
-      },
-      {
-        "from": "A6",
-        "to": "T5"
-      },
-      {
-        "from": "A7",
-        "to": "T4"
-      },
-      {
-        "from": "A8",
-        "to": "T18"
-      },
-      {
-        "from": "A8",
-        "to": "T9"
-      },
-      {
-        "from": "A9",
-        "to": "T11"
-      },
-      {
-        "from": "A10",
-        "to": "T22"
-      },
-      {
-        "from": "A11",
-        "to": "T3"
-      },
-      {
-        "from": "A12",
-        "to": "T13"
-      },
-      {
-        "from": "A12",
-        "to": "T19"
-      },
-      {
-        "from": "A12",
-        "to": "T2"
-      },
-      {
-        "from": "A13",
-        "to": "T12"
-      },
-      {
-        "from": "A13",
-        "to": "T6"
-      },
-      {
-        "from": "A14",
-        "to": "T10"
-      },
-      {
-        "from": "A15",
-        "to": "T16"
-      },
-      {
-        "from": "A16",
-        "to": "T21"
-      },
-      {
-        "from": "A17",
-        "to": "T14"
-      },
-      {
-        "from": "A18",
-        "to": "T1"
-      }
-    ],
-    "subscribes_to": [
-      {
-        "from": "A4",
-        "to": "T0"
-      },
-      {
-        "from": "A5",
-        "to": "T15"
-      },
-      {
-        "from": "A5",
-        "to": "T20"
-      },
-      {
-        "from": "A5",
-        "to": "T8"
-      },
-      {
-        "from": "A5",
-        "to": "T7"
-      },
-      {
-        "from": "A7",
-        "to": "T5"
-      },
-      {
-        "from": "A8",
-        "to": "T17"
-      },
-      {
-        "from": "A8",
-        "to": "T4"
-      },
-      {
-        "from": "A9",
-        "to": "T5"
-      },
-      {
-        "from": "A9",
-        "to": "T9"
-      },
-      {
-        "from": "A12",
-        "to": "T18"
-      },
-      {
-        "from": "A12",
-        "to": "T7"
-      },
-      {
-        "from": "A12",
-        "to": "T9"
-      },
-      {
-        "from": "A12",
-        "to": "T22"
-      },
-      {
-        "from": "A12",
-        "to": "T11"
-      },
-      {
-        "from": "A12",
-        "to": "T3"
-      },
-      {
-        "from": "A13",
-        "to": "T13"
-      },
-      {
-        "from": "A13",
-        "to": "T7"
-      },
-      {
-        "from": "A13",
-        "to": "T21"
-      },
-      {
-        "from": "A13",
-        "to": "T9"
-      },
-      {
-        "from": "A13",
-        "to": "T22"
-      },
-      {
-        "from": "A13",
-        "to": "T11"
-      },
-      {
-        "from": "A13",
-        "to": "T19"
-      },
-      {
-        "from": "A13",
-        "to": "T2"
-      },
-      {
-        "from": "A13",
-        "to": "T16"
-      },
-      {
-        "from": "A14",
-        "to": "T12"
-      },
-      {
-        "from": "A15",
-        "to": "T6"
-      },
-      {
-        "from": "A16",
-        "to": "T10"
-      },
-      {
-        "from": "A16",
-        "to": "T14"
-      },
-      {
-        "from": "A17",
-        "to": "T12"
-      },
-      {
-        "from": "A18",
-        "to": "T6"
-      },
-      {
-        "from": "A18",
-        "to": "T7"
-      },
-      {
-        "from": "A18",
-        "to": "T17"
-      },
-      {
-        "from": "A18",
-        "to": "T19"
-      },
-      {
-        "from": "A19",
-        "to": "T1"
-      }
-    ],
+    "publishes_to": [],
+    "subscribes_to": [],
     "connects_to": [
       {
         "from": "N0",
@@ -792,20 +633,12 @@
         "to": "L0"
       },
       {
-        "from": "A0",
-        "to": "L1"
-      },
-      {
         "from": "A1",
         "to": "L1"
       },
       {
         "from": "A2",
         "to": "L2"
-      },
-      {
-        "from": "A2",
-        "to": "L3"
       },
       {
         "from": "A3",
@@ -816,96 +649,64 @@
         "to": "L4"
       },
       {
-        "from": "A4",
-        "to": "L0"
-      },
-      {
         "from": "A5",
-        "to": "L0"
+        "to": "L5"
       },
       {
         "from": "A6",
-        "to": "L1"
-      },
-      {
-        "from": "A6",
-        "to": "L2"
+        "to": "L6"
       },
       {
         "from": "A7",
-        "to": "L2"
+        "to": "L7"
       },
       {
         "from": "A8",
-        "to": "L3"
-      },
-      {
-        "from": "A8",
-        "to": "L4"
+        "to": "L8"
       },
       {
         "from": "A9",
-        "to": "L4"
+        "to": "L9"
       },
       {
         "from": "A10",
-        "to": "L0"
-      },
-      {
-        "from": "A10",
-        "to": "L1"
+        "to": "L10"
       },
       {
         "from": "A11",
-        "to": "L1"
+        "to": "L11"
       },
       {
         "from": "A12",
-        "to": "L2"
-      },
-      {
-        "from": "A12",
-        "to": "L3"
+        "to": "L12"
       },
       {
         "from": "A13",
-        "to": "L3"
+        "to": "L13"
       },
       {
         "from": "A14",
-        "to": "L4"
-      },
-      {
-        "from": "A14",
-        "to": "L0"
+        "to": "L14"
       },
       {
         "from": "A15",
-        "to": "L0"
+        "to": "L15"
       },
       {
         "from": "A16",
-        "to": "L1"
-      },
-      {
-        "from": "A16",
-        "to": "L2"
+        "to": "L16"
       },
       {
         "from": "A17",
-        "to": "L2"
+        "to": "L17"
       },
       {
         "from": "A18",
-        "to": "L3"
-      },
-      {
-        "from": "A18",
-        "to": "L4"
+        "to": "L18"
       },
       {
         "from": "A19",
-        "to": "L4"
+        "to": "L19"
       }
     ]
   }
