@@ -43,6 +43,18 @@ class Container:
             targets=targets
         )
 
+    def display_service(self) -> 'DisplayService':
+        from ..application.services.display_service import DisplayService
+        return DisplayService()
+
+    def visualization_service(self) -> 'VisualizationService':
+        from ..application.services.visualization_service import VisualizationService
+        return VisualizationService(
+            analysis_service=self.analysis_service(),
+            simulation_service=self.simulation_service(),
+            validation_service=self.validation_service()
+        )
+
     def close(self) -> None:
         if self._repository:
             self._repository.close()

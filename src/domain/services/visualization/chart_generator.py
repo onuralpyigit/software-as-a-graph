@@ -1,26 +1,12 @@
 """
-Chart Generator
-
-Creates matplotlib-based charts for dashboard visualization.
-Generates PNG images encoded as base64 for embedding in HTML.
-
-Chart Types:
-    - Bar charts (metrics, rankings)
-    - Pie charts (distributions)
-    - Scatter plots (correlation)
-    - Heatmaps (confusion matrices)
-
-Color Configuration:
-    Colors can be customized via the ColorTheme dataclass.
-    Use predefined themes or create custom themes for accessibility/branding.
+Chart Generator Service
 """
-
-from __future__ import annotations
 import base64
 import io
 import logging
-from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Tuple
+
+from ...models.visualization.chart_data import ChartOutput, ColorTheme, DEFAULT_THEME
 
 # Check for matplotlib availability
 try:
@@ -32,130 +18,12 @@ try:
 except ImportError:
     HAS_MATPLOTLIB = False
     plt = None
-
-
-@dataclass
-class ChartOutput:
-    """
-    Output from chart generation.
-    
-    Attributes:
-        title: Chart title
-        png_base64: Base64-encoded PNG image data
-        description: Human-readable description of what the chart shows
-        alt_text: Accessibility text for screen readers (should describe chart content)
-        width: Display width in pixels
-        height: Display height in pixels
-    """
-    title: str
-    png_base64: str
-    description: str = ""
-    alt_text: str = ""  # Added for accessibility
-    width: int = 600
-    height: int = 400
-
-
-@dataclass
-class ColorTheme:
-    """
-    Configurable color theme for charts.
-    
-    Provides semantic color names that can be customized for:
-        - Accessibility (high contrast themes)
-        - Branding (corporate color schemes)
-        - Printing (grayscale-friendly colors)
-    
-    Example:
-        >>> theme = ColorTheme(primary="#1a73e8", success="#34a853")
-        >>> charts = ChartGenerator(color_theme=theme)
-    """
-    # Primary semantic colors
-    primary: str = "#3498db"
-    secondary: str = "#2c3e50"
-    success: str = "#2ecc71"
-    warning: str = "#f39c12"
-    danger: str = "#e74c3c"
-    info: str = "#17a2b8"
-    light: str = "#ecf0f1"
-    dark: str = "#34495e"
-    
-    # Criticality level colors (for quality classifications)
-    critical: str = "#e74c3c"
-    high: str = "#e67e22"
-    medium: str = "#f1c40f"
-    low: str = "#2ecc71"
-    minimal: str = "#95a5a6"
-    
-    # Layer-specific colors
-    layer_app: str = "#3498db"
-    layer_infra: str = "#9b59b6"
-    layer_mw_app: str = "#1abc9c"
-    layer_mw_infra: str = "#e67e22"
-    layer_system: str = "#2c3e50"
-    
-    def to_colors_dict(self) -> Dict[str, str]:
-        """Convert to COLORS dictionary format for backwards compatibility."""
-        return {
-            "primary": self.primary,
-            "secondary": self.secondary,
-            "success": self.success,
-            "warning": self.warning,
-            "danger": self.danger,
-            "info": self.info,
-            "light": self.light,
-            "dark": self.dark,
-        }
-    
-    def to_criticality_dict(self) -> Dict[str, str]:
-        """Convert to CRITICALITY_COLORS dictionary format."""
-        return {
-            "CRITICAL": self.critical,
-            "HIGH": self.high,
-            "MEDIUM": self.medium,
-            "LOW": self.low,
-            "MINIMAL": self.minimal,
-        }
-    
-    def to_layer_dict(self) -> Dict[str, str]:
-        """Convert to LAYER_COLORS dictionary format."""
-        return {
-            "app": self.layer_app,
-            "infra": self.layer_infra,
-            "mw-app": self.layer_mw_app,
-            "mw-infra": self.layer_mw_infra,
-            "system": self.layer_system,
-        }
-
-
-# Predefined themes
-DEFAULT_THEME = ColorTheme()
-
-HIGH_CONTRAST_THEME = ColorTheme(
-    primary="#0066cc",
-    secondary="#000000",
-    success="#008000",
-    warning="#ff8c00",
-    danger="#cc0000",
-    critical="#cc0000",
-    high="#ff8c00",
-    medium="#cccc00",
-    low="#008000",
-)
-
-
-# Backwards-compatible color dictionaries (use DEFAULT_THEME)
-COLORS = DEFAULT_THEME.to_colors_dict()
-CRITICALITY_COLORS = DEFAULT_THEME.to_criticality_dict()
-LAYER_COLORS = DEFAULT_THEME.to_layer_dict()
-
+    mpatches = None
 
 
 class ChartGenerator:
     """
     Generates matplotlib charts as base64-encoded PNG images.
-    
-    All charts are rendered to in-memory buffers and returned
-    as base64 strings for HTML embedding.
     """
     
     def __init__(
@@ -188,10 +56,6 @@ class ChartGenerator:
         b64 = base64.b64encode(buf.read()).decode('utf-8')
         plt.close(fig)
         return b64
-    
-    # =========================================================================
-    # Bar Charts
-    # =========================================================================
     
     def bar_chart(
         self,
@@ -290,10 +154,6 @@ class ChartGenerator:
             alt_text=f"Grouped bar chart titled '{title}' comparing {', '.join(metrics)} across groups"
         )
     
-    # =========================================================================
-    # Pie Charts
-    # =========================================================================
-    
     def pie_chart(
         self,
         data: Dict[str, int],
@@ -351,10 +211,6 @@ class ChartGenerator:
         """Create a pie chart for criticality level distribution."""
         return self.pie_chart(counts, title, self.theme.to_criticality_dict(), description)
     
-    # =========================================================================
-    # Scatter Plots
-    # =========================================================================
-    
     def scatter_plot(
         self,
         x_values: List[float],
@@ -398,10 +254,6 @@ class ChartGenerator:
             description=description,
             alt_text=f"Scatter plot titled '{title}' showing correlation between {xlabel} and {ylabel}"
         )
-    
-    # =========================================================================
-    # Heatmaps
-    # =========================================================================
     
     def confusion_matrix(
         self,
@@ -447,10 +299,6 @@ class ChartGenerator:
             alt_text=f"Confusion matrix heat map with TP={tp}, FP={fp}, FN={fn}, TN={tn}"
         )
     
-    # =========================================================================
-    # Specialized Charts
-    # =========================================================================
-    
     def impact_ranking(
         self,
         components: List[Tuple[str, float, str]],
@@ -459,13 +307,7 @@ class ChartGenerator:
         names: Dict[str, str] = None,
         description: str = ""
     ) -> Optional[ChartOutput]:
-        """
-        Create a horizontal bar chart for component impact ranking.
-        
-        Args:
-            components: List of (id, impact, level) tuples
-            names: Optional map of ID to display name
-        """
+        """Create a horizontal bar chart for component impact ranking."""
         if not HAS_MATPLOTLIB or not components:
             return None
         
@@ -475,7 +317,6 @@ class ChartGenerator:
         fig, ax = plt.subplots(figsize=(10, 6))
         
         ids = [c[0] for c in components]
-        # Use names if available
         labels = [f"{c[0]} ({names.get(c[0], '')})" if names and c[0] in names else c[0] for c in components]
         
         impacts = [c[1] for c in components]
@@ -498,9 +339,10 @@ class ChartGenerator:
                    f'{impact:.3f}', va='center', fontsize=9)
         
         # Legend
-        legend_handles = [mpatches.Patch(color=c, label=l) 
-                         for l, c in crit_colors.items()]
-        ax.legend(handles=legend_handles, loc='lower right', fontsize=8)
+        if mpatches:
+            legend_handles = [mpatches.Patch(color=c, label=l) 
+                             for l, c in crit_colors.items()]
+            ax.legend(handles=legend_handles, loc='lower right', fontsize=8)
         
         plt.tight_layout()
         return ChartOutput(
@@ -522,7 +364,8 @@ class ChartGenerator:
             return None
         
         data = {layer: metrics.get(metric, 0) for layer, metrics in layer_data.items()}
-        colors = [LAYER_COLORS.get(l, COLORS["primary"]) for l in data.keys()]
+        layer_colors = self.theme.to_layer_dict()
+        colors = [layer_colors.get(l, self.theme.primary) for l in data.keys()]
         
         fig, ax = plt.subplots(figsize=(8, 5))
         
@@ -551,12 +394,7 @@ class ChartGenerator:
         title: str = "Validation Metrics",
         description: str = ""
     ) -> Optional[ChartOutput]:
-        """
-        Create a horizontal bar chart for validation metrics with targets.
-        
-        Args:
-            metrics: Dict mapping metric name to (value, target, passed)
-        """
+        """Create a horizontal bar chart for validation metrics with targets."""
         if not HAS_MATPLOTLIB or not metrics:
             return None
         
@@ -568,7 +406,7 @@ class ChartGenerator:
         passed = [m[2] for m in metrics.values()]
         
         y_pos = range(len(names))
-        colors = [COLORS["success"] if p else COLORS["danger"] for p in passed]
+        colors = [self.theme.success if p else self.theme.danger for p in passed]
         
         bars = ax.barh(y_pos, values, color=colors, alpha=0.7, label='Actual')
         

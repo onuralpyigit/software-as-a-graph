@@ -1,232 +1,89 @@
 #!/usr/bin/env python3
 """
-Graph Analysis CLI
+Graph Analysis CLI (Refactored)
 
 Multi-layer graph analysis for distributed pub-sub systems.
-Identifies critical components, detects architectural problems,
-and assesses reliability, maintainability, and availability.
-
-Layers:
-    app      : Application layer (app_to_app dependencies)
-    infra    : Infrastructure layer (node_to_node dependencies)
-    mw-app   : Middleware-Application (app_to_broker dependencies)
-    mw-infra : Middleware-Infrastructure (node_to_broker dependencies)
-    system   : Complete system (all layers)
-
-Usage:
-    python analyze_graph.py --layer app
-    python analyze_graph.py --all
-    python analyze_graph.py --layer system --output results.json
-
-Author: Software-as-a-Graph Research Project
 """
 
 import argparse
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.application.services import (
-    AnalysisService,
-    MultiLayerAnalysisResult,
-)
-from src.domain.models.analysis.layers import AnalysisLayer
-from src.visualization.display import (
-    Colors,
-    colored,
-    display_layer_result,
-    display_multi_layer_analysis_result as display_multi_layer_result,
-    display_final_analysis_summary as display_final_summary,
-)
-
-
-# =============================================================================
-# CLI Entry Point
-# =============================================================================
-
-def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Multi-layer graph analysis for distributed pub-sub systems.",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Layers:
-  app        Application layer (app_to_app dependencies)
-  infra      Infrastructure layer (node_to_node dependencies)
-  mw-app     Middleware-Application (app_to_broker dependencies)
-  mw-infra   Middleware-Infrastructure (node_to_broker dependencies)
-  system     Complete system (all dependencies)
-
-Examples:
-  %(prog)s --layer app
-  %(prog)s --layer system --output results.json
-  %(prog)s --all --include-middleware
-  %(prog)s --all --json
-        """
-    )
-    
-    # Layer selection
-    layer_group = parser.add_mutually_exclusive_group()
-    layer_group.add_argument(
-        "--layer", "-l",
-        choices=["app", "infra", "mw-app", "mw-infra", "system"],
-        default="system",
-        help="Analysis layer (default: system)"
-    )
-    layer_group.add_argument(
-        "--all", "-a",
-        action="store_true",
-        help="Analyze all primary layers (app, infra, system)"
-    )
-    
-    # Additional options
-    parser.add_argument(
-        "--include-middleware",
-        action="store_true",
-        help="Include middleware layers when using --all"
-    )
-    
-    # Output options
-    parser.add_argument(
-        "--output", "-o",
-        metavar="FILE",
-        help="Export results to JSON file"
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output results as JSON to stdout"
-    )
-    
-    # Neo4j connection
-    parser.add_argument(
-        "--uri", "-n",
-        default="bolt://localhost:7687",
-        help="Neo4j connection URI (default: bolt://localhost:7687)"
-    )
-    parser.add_argument(
-        "--user", "-u",
-        default="neo4j",
-        help="Neo4j username (default: neo4j)"
-    )
-    parser.add_argument(
-        "--password", "-p",
-        default="password",
-        help="Neo4j password (default: password)"
-    )
-    
-    # Analysis parameters
-    parser.add_argument(
-        "--k-factor", "-k",
-        type=float,
-        default=1.5,
-        help="Box-plot IQR multiplier for classification (default: 1.5)"
-    )
-    parser.add_argument(
-        "--damping", "-d",
-        type=float,
-        default=0.85,
-        help="PageRank damping factor (default: 0.85)"
-    )
-    parser.add_argument(
-        "--ahp",
-        action="store_true",
-        help="Use Analytic Hierarchy Process (AHP) for calculating quality weights"
-    )
-
-    # Display options
-    parser.add_argument(
-        "--quiet", "-q",
-        action="store_true",
-        help="Minimal output (useful with --output)"
-    )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Verbose output with debug information"
-    )
-    
-    return parser.parse_args()
+from src.infrastructure import Container
+from src.domain.models.analysis.results import MultiLayerAnalysisResult
 
 
 def main() -> int:
     """Main entry point."""
-    args = parse_args()
+    parser = argparse.ArgumentParser(description="Multi-layer graph analysis for distributed pub-sub systems.")
+    
+    layer_group = parser.add_mutually_exclusive_group()
+    layer_group.add_argument("--layer", "-l", choices=["app", "infra", "mw-app", "mw-infra", "system"], default="system", help="Analysis layer (default: system)")
+    layer_group.add_argument("--all", "-a", action="store_true", help="Analyze all primary layers")
+    
+    parser.add_argument("--include-middleware", action="store_true", help="Include middleware layers when using --all")
+    parser.add_argument("--output", "-o", metavar="FILE", help="Export results to JSON file")
+    parser.add_argument("--json", action="store_true", help="Output results as JSON to stdout")
+    
+    # Neo4j connection
+    parser.add_argument("--uri", "-n", default="bolt://localhost:7687", help="Neo4j connection URI")
+    parser.add_argument("--user", "-u", default="neo4j", help="Neo4j username")
+    parser.add_argument("--password", "-p", default="password", help="Neo4j password")
+    
+    # Display options
+    parser.add_argument("--quiet", "-q", action="store_true", help="Minimal output")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    
+    args = parser.parse_args()
     
     # Configure logging
     log_level = logging.DEBUG if args.verbose else (logging.WARNING if args.quiet else logging.INFO)
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S"
-    )
+    logging.basicConfig(level=log_level, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
+    
+    container = Container(uri=args.uri, user=args.user, password=args.password)
+    display = container.display_service()
     
     try:
-
-
-        # Create container and repository
-        from src.infrastructure import Container
-        container = Container(uri=args.uri, user=args.user, password=args.password)
-        repository = container.graph_repository()
+        analyzer = container.analysis_service()
         
-        # Create analyzer with injected repository
-        with AnalysisService(
-            damping_factor=args.damping,
-            k_factor=args.k_factor,
-            use_ahp=args.ahp,
-            repository=repository
-        ) as analyzer:
-            
-            # Run analysis
-            if args.all:
-                results = analyzer.analyze_all_layers(include_middleware=args.include_middleware)
-            else:
-                layer_result = analyzer.analyze_layer(args.layer)
-                results = MultiLayerAnalysisResult(
-                    timestamp=datetime.now().isoformat(),
-                    layers={layer_result.layer: layer_result},
-                    cross_layer_insights=[],
-                )
-            
-            # Export if requested
-            if args.output:
-                analyzer.export_results(results, args.output)
-                if not args.quiet:
-                    print(f"\n{colored(f'Results exported to: {args.output}', Colors.GREEN)}")
-            
-            # Output
-            if args.json:
-                print(json.dumps(results.to_dict(), indent=2, default=str))
-            elif not args.quiet:
-                if args.all or len(results.layers) > 1:
-                    display_multi_layer_result(results)
-                else:
-                    layer_result = list(results.layers.values())[0]
-                    display_layer_result(layer_result)
-                
-                # Final action items
-                display_final_summary(results)
+        # Run analysis
+        if args.all:
+            results = analyzer.analyze_all_layers(include_middleware=args.include_middleware)
+        else:
+            from datetime import datetime
+            layer_result = analyzer.analyze_layer(args.layer)
+            results = MultiLayerAnalysisResult(
+                timestamp=datetime.now().isoformat(),
+                layers={layer_result.layer: layer_result},
+                cross_layer_insights=[],
+            )
         
-        container.close()
+        # Export if requested
+        if args.output:
+            analyzer.export_results(results, args.output)
+            if not args.quiet:
+                print(f"\n{display.colored(f'Results exported to: {args.output}', display.Colors.GREEN)}")
+        
+        # Output
+        if args.json:
+            print(json.dumps(results.to_dict(), indent=2, default=str))
+        elif not args.quiet:
+            display.display_multi_layer_analysis_result(results)
+        
         return 0
     
-    except KeyboardInterrupt:
-        print(f"\n{colored('Analysis interrupted.', Colors.YELLOW)}")
-        return 130
-    
-    except FileNotFoundError as e:
-        print(f"{colored(f'Error: {e}', Colors.RED)}", file=sys.stderr)
-        return 1
-    
     except Exception as e:
-        logging.exception("Analysis failed")
-        print(f"{colored(f'Error: {e}', Colors.RED)}", file=sys.stderr)
+        print(display.colored(f"Error: {e}", display.Colors.RED), file=sys.stderr)
+        if args.verbose:
+            logging.exception("Analysis failed")
         return 1
+    finally:
+        container.close()
 
 
 if __name__ == "__main__":
