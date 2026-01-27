@@ -264,7 +264,7 @@ def main() -> int:
             if not args.quiet:
                 print(f"\n{colored(f'Results saved to: {args.output}', Colors.GREEN)}")
             
-            return 0 if result.all_passed else 1
+        return 0 if result.all_passed else 1
 
 
     

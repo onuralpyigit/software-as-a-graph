@@ -31,11 +31,11 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.analysis import (
-    GraphAnalyzer,
-    AnalysisLayer,
+from src.application.services import (
+    AnalysisService,
     MultiLayerAnalysisResult,
 )
+from src.domain.models.analysis.layers import AnalysisLayer
 from src.visualization.display import (
     Colors,
     colored,
@@ -175,7 +175,7 @@ def main() -> int:
         repository = container.graph_repository()
         
         # Create analyzer with injected repository
-        with GraphAnalyzer(
+        with AnalysisService(
             damping_factor=args.damping,
             k_factor=args.k_factor,
             use_ahp=args.ahp,

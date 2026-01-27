@@ -22,9 +22,9 @@ from dataclasses import dataclass, asdict, field
 from enum import Enum
 from typing import List, Dict, Any, Optional
 
-from .classifier import CriticalityLevel
+from ...models.analysis.criticality import CriticalityLevel
 from .quality_analyzer import QualityAnalysisResult
-from .metrics import ComponentQuality, EdgeQuality
+from ...models.analysis.metrics import ComponentQuality, EdgeQuality
 
 
 class ProblemCategory(Enum):

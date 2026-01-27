@@ -1,5 +1,5 @@
 import pytest
-from src.core.graph_exporter import GraphData, ComponentData, EdgeData
+from src.application.dto import GraphData, ComponentData, EdgeData
 from src.simulation.simulation_graph import SimulationGraph
 from src.simulation.event_simulator import EventSimulator, EventScenario
 from src.simulation.failure_simulator import FailureSimulator, FailureScenario

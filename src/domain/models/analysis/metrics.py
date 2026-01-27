@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Any, Optional, Tuple
 
-from .classifier import CriticalityLevel
+from .criticality import CriticalityLevel
 
 
 # =============================================================================

@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from src.analysis.analyzer import GraphAnalyzer
+from src.application.services.analysis_service import AnalysisService as GraphAnalyzer
 
 def main():
     # Ensure Neo4j is running or this will fail

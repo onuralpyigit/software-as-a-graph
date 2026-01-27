@@ -3,10 +3,10 @@ from typing import Any, Union, Optional
 
 from ..ports import GraphRepository
 # NOTE: We can't import GraphAnalyzer here directly if GraphAnalyzer will depend on ports
-# that would be circular if not careful. But GraphAnalyzer is in src.analysis.
+# that would be circular if not careful. But AnalysisService is in src.application.services.
 # Ideally, UseCases orchestrate.
 
-# For now, we will assume generic orchestration. The actual logic is in src.analysis.
+# For now, we will assume generic orchestration. The actual logic is in src.application.services.
 # This use case might be simple delegation in this architecture.
 
 @dataclass

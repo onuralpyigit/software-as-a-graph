@@ -29,17 +29,17 @@ from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Any, Optional, Union
 
-from .layers import (
+from ...domain.models.analysis.layers import (
     AnalysisLayer, 
     LAYER_DEFINITIONS, 
     get_layer_definition,
     get_all_layers,
     get_primary_layers
 )
-from .structural_analyzer import StructuralAnalyzer, StructuralAnalysisResult
-from .quality_analyzer import QualityAnalyzer, QualityAnalysisResult
-from .problem_detector import ProblemDetector, DetectedProblem, ProblemSummary
-from .classifier import CriticalityLevel
+from ...domain.services.analysis.structural_analyzer import StructuralAnalyzer, StructuralAnalysisResult
+from ...domain.services.analysis.quality_analyzer import QualityAnalyzer, QualityAnalysisResult
+from ...domain.services.analysis.problem_detector import ProblemDetector, DetectedProblem, ProblemSummary
+from ...domain.models.analysis.criticality import CriticalityLevel
 
 
 @dataclass
@@ -138,7 +138,7 @@ class MultiLayerAnalysisResult:
         }
 
 
-class GraphAnalyzer:
+class AnalysisService:
     """
     Main analyzer for multi-layer graph analysis.
     
@@ -204,13 +204,8 @@ class GraphAnalyzer:
                 from src.adapters.persistence import Neo4jGraphRepository
                 self._client = Neo4jGraphRepository(self.uri, self.user, self.password)
             except ImportError:
-                # Fallback to old core
-                try:
-                    from src.core.graph_exporter import GraphExporter
-                    self._client = GraphExporter(self.uri, self.user, self.password)
-                except ImportError:
-                    self.logger.error("Graph repository not available. Install neo4j driver.")
-                    raise
+                self.logger.error("Graph repository not available. Install neo4j driver.")
+                raise
         return self._client
     
     def _load_data(self, layer: AnalysisLayer) -> Any:
@@ -446,7 +441,7 @@ def analyze_graph(
     Returns:
         Analysis results
     """
-    with GraphAnalyzer(uri=uri, user=user, password=password, use_ahp=use_ahp) as analyzer:
+    with AnalysisService(uri=uri, user=user, password=password, use_ahp=use_ahp) as analyzer:
         if layer.lower() == "all":
             results = analyzer.analyze_all_layers()
         else:
