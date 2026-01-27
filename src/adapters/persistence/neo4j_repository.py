@@ -229,7 +229,8 @@ class Neo4jGraphRepository:
         """Derive DEPENDS_ON relationships."""
         qos_calc = self._get_qos_weight_cypher("t")
         
-        # A. App->App
+        # App->App (direct)
+        # Pattern: pub:App -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- sub:App
         self._run_query(f"""
         MATCH (pub:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(sub:Application)
         WHERE pub <> sub
@@ -237,9 +238,11 @@ class Neo4jGraphRepository:
         WITH pub, sub, count(t) as shared_count, sum(importance) as importance_sum
         MERGE (sub)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(pub)
         SET d.weight = shared_count + importance_sum
+        RETURN count(d) as c
         """)
 
-        # A. App->App (indirect via library)
+        # App->Lib->App (publisher via library)
+        # Pattern: appA -[:USES]-> lib -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- appB
         self._run_query(f"""
         MATCH (appA:Application)-[:USES]->(lib:Library)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(appB:Application)
         WHERE appA <> appB
@@ -248,18 +251,24 @@ class Neo4jGraphRepository:
         MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
         ON CREATE SET d.weight = shared_count + importance_sum
         ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        RETURN count(d) as c
         """)
 
-        # B. App->Broker
+        # App->Lib->App (subscriber via library)
+        # Pattern: appA -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- lib <-[:USES]- appB
         self._run_query(f"""
-        MATCH (app:Application)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(b:Broker)
-        WITH app, b, t, {qos_calc} as importance
-        WITH app, b, count(t) as topics, sum(importance) as importance_sum
-        MERGE (app)-[d:DEPENDS_ON {{dependency_type: 'app_to_broker'}}]->(b)
-        SET d.weight = topics + importance_sum
+        MATCH (appA:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(lib:Library)<-[:USES]-(appB:Application)
+        WHERE appA <> appB
+        WITH appA, appB, t, {qos_calc} as importance
+        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
+        MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
+        ON CREATE SET d.weight = shared_count + importance_sum
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        RETURN count(d) as c
         """)
 
-        # B. App->Broker (indirect via library)
+        # App->Lib->Lib->App (two-level library chain, publisher side)
+        # Pattern: appA -[:USES]-> lib1 -[:USES]-> lib2 -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- appB
         self._run_query(f"""
         MATCH (app:Application)-[:USES]->(lib:Library)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(b:Broker)
         WITH app, b, t, {qos_calc} as importance
@@ -268,7 +277,60 @@ class Neo4jGraphRepository:
         SET d.weight = topics + importance_sum
         """)
 
-        # C. Node->Node
+        # App->Lib->Lib->App (two-level library chain, subscriber side)
+        # Pattern: appA -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- lib2 <-[:USES]- lib1 <-[:USES]- appB        self._run_query("""
+        self._run_query(f"""
+        MATCH (appA:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(lib2:Library)<-[:USES]-(lib1:Library)<-[:USES]-(appB:Application)
+        WHERE appA <> appB
+        WITH appA, appB, t, {qos_calc} as importance
+        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
+        MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
+        ON CREATE SET d.weight = shared_count + importance_sum
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        RETURN count(d) as c
+        """)
+
+        # App->Lib->Lib->App (mixed: publisher via lib, subscriber via lib)
+        # Pattern: appA -[:USES]-> lib1 -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- lib2 <-[:USES]- appB
+        self._run_query(f"""
+        MATCH (appA:Application)-[:USES]->(lib1:Library)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(lib2:Library)<-[:USES]-(appB:Application)
+        WHERE appA <> appB
+        WITH appA, appB, t, {qos_calc} as importance
+        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
+        MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
+        ON CREATE SET d.weight = shared_count + importance_sum
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        RETURN count(d) as c
+        """)
+
+        # App->Broker
+        # Pattern: appA -[:PUBLISHES_TO|SUBSCRIBES_TO]-> Topic <-[:ROUTES]- broker
+        self._run_query(f"""
+        MATCH (appA:Application)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
+        WHERE appA <> broker
+        WITH appA, broker, t, {qos_calc} as importance
+        WITH appA, broker, count(t) as shared_count, sum(importance) as importance_sum
+        MERGE (appA)-[d:DEPENDS_ON {{dependency_type: 'app_to_broker'}}]->(broker)
+        ON CREATE SET d.weight = shared_count + importance_sum
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        RETURN count(d) as c
+        """)
+
+        # App->Broker (indirect via library)
+        # Pattern: appA -[:USES]-> lib -[:PUBLISHES_TO| SUBSCRIBES_TO]-> Topic <-[:ROUTES]- broker
+        self._run_query(f"""
+        MATCH (appA:Application)-[:USES]->(lib:Library)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
+        WHERE appA <> broker
+        WITH appA, broker, t, {qos_calc} as importance
+        WITH appA, broker, count(t) as shared_count, sum(importance) as importance_sum
+        MERGE (appA)-[d:DEPENDS_ON {{dependency_type: 'app_to_broker'}}]->(broker)
+        ON CREATE SET d.weight = shared_count + importance_sum
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        RETURN count(d) as c
+        """)
+
+        # Node->Node
+        # Pattern: appA -[:RUNS_ON]-> nodeA -[:DEPENDS_ON]-> nodeB <-[:RUNS_ON]- appB 
         self._run_query("""
         MATCH (a1:Application)-[dep:DEPENDS_ON {dependency_type: 'app_to_app'}]->(a2:Application)
         MATCH (a1)-[:RUNS_ON]->(n1:Node), (a2)-[:RUNS_ON]->(n2:Node)
@@ -276,15 +338,18 @@ class Neo4jGraphRepository:
         WITH n1, n2, sum(dep.weight) as total_weight
         MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
         SET d.weight = total_weight
+        RETURN count(d) as c
         """)
-
-        # D. Node->Broker
+        
+        # Node->Broker
+        # Pattern: appA -[:RUNS_ON]-> nodeA -[:DEPENDS_ON]-> broker <-[:RUNS_ON]- appB 
         self._run_query("""
         MATCH (a:Application)-[dep:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(b:Broker)
         MATCH (a)-[:RUNS_ON]->(n:Node)
         WITH n, b, sum(dep.weight) as total_weight
         MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(b)
         SET d.weight = total_weight
+        RETURN count(d) as c
         """)
 
     def _calculate_component_weights(self) -> None:
