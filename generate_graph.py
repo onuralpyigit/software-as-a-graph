@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
-from src.core import generate_graph
+from src.domain.services.graph_generator import generate_graph
 
 
 def main() -> None:

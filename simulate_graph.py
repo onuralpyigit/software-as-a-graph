@@ -194,10 +194,16 @@ def main() -> int:
     )
     
     try:
+        # Create container and repository
+        from src.infrastructure import Container
+        container = Container(uri=args.uri, user=args.user, password=args.password)
+        repository = container.graph_repository()
+        
         with Simulator(
             uri=args.uri,
             user=args.user,
-            password=args.password
+            password=args.password,
+            repository=repository
         ) as sim:
             
             # === Event Simulation ===
@@ -272,6 +278,8 @@ def main() -> int:
                     if not args.quiet:
                         print(f"\n{colored(f'Report saved to: {args.output}', Colors.GREEN)}")
         
+
+        
         return 0
     
     except KeyboardInterrupt:
@@ -282,6 +290,9 @@ def main() -> int:
         logging.exception("Simulation failed")
         print(f"{colored(f'Error: {e}', Colors.RED)}", file=sys.stderr)
         return 1
+
+    finally:
+        container.close()
 
 
 if __name__ == "__main__":

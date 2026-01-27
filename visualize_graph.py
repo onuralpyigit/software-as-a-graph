@@ -129,7 +129,12 @@ def generate_dashboard(
     
     print_step(1, total_steps, "Initializing visualization pipeline...")
     
-    with GraphVisualizer(uri=uri, user=user, password=password) as viz:
+    # Create container and obtain repository
+    from src.infrastructure import Container
+    container = Container(uri=uri, user=user, password=password)
+    repository = container.graph_repository()
+    
+    with GraphVisualizer(uri=uri, user=user, password=password, repository=repository) as viz:
         # Check connections
         if viz.analyzer is None:
             print_warning("Analysis module not available")
@@ -171,6 +176,8 @@ def generate_dashboard(
         print_success(f"Dashboard generated: {output_path}")
         
         return output_path
+    
+
 
 
 def generate_quick_dashboard(

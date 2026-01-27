@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import Dict
 
-from src.core import GraphImporter
+from src.infrastructure import Container
 
 
 def print_import_stats(stats: Dict[str, int]) -> None:
@@ -20,17 +20,17 @@ def print_import_stats(stats: Dict[str, int]) -> None:
     print("\nImport & Derivation Complete!")
     print("-" * 30)
     print("Entities Imported:")
-    print(f"  Nodes:       {stats.get('nodes', 0)}")
-    print(f"  Brokers:     {stats.get('brokers', 0)}")
-    print(f"  Topics:      {stats.get('topics', 0)}")
-    print(f"  Apps:        {stats.get('apps', 0)}")
-    print(f"  Libraries:   {stats.get('libraries', 0)}")
+    print(f"  Nodes:       {stats.get('node_count', 0)}")
+    print(f"  Brokers:     {stats.get('broker_count', 0)}")
+    print(f"  Topics:      {stats.get('topic_count', 0)}")
+    print(f"  Apps:        {stats.get('application_count', 0)}")
+    print(f"  Libraries:   {stats.get('library_count', 0)}")
     print("-" * 30)
     print("Dependencies Derived:")
-    print(f"  App->App:    {stats.get('deps_app_app', 0)}")
-    print(f"  App->Broker: {stats.get('deps_app_broker', 0)}")
-    print(f"  Node->Node:  {stats.get('deps_node_node', 0)}")
-    print(f"  Node->Broker:{stats.get('deps_node_broker', 0)}")
+    print(f"  App->App:    {stats.get('app_to_app_count', 0)}")
+    print(f"  App->Broker: {stats.get('app_to_broker_count', 0)}")
+    print(f"  Node->Node:  {stats.get('node_to_node_count', 0)}")
+    print(f"  Node->Broker:{stats.get('node_to_broker_count', 0)}")
     print("-" * 30)
     print("Weight Calculation:")
     print("  - Intrinsic weights (QoS/Size) applied to Topics/Edges.")
@@ -91,19 +91,25 @@ def main() -> None:
         sys.exit(1)
 
     print(f"Connecting to Neo4j at {args.uri}...")
+    
+    # Initialize Container
+    container = Container(
+        uri=args.uri,
+        user=args.user,
+        password=args.password
+    )
+    
     try:
-        with GraphImporter(
-            uri=args.uri,
-            user=args.user,
-            password=args.password,
-            database=args.db,
-        ) as importer:
-            stats = importer.import_graph(data, clear=args.clear)
-            print_import_stats(stats)
-
+        # Use ImportGraphUseCase
+        use_case = container.import_use_case()
+        stats = use_case.execute(data, clear=args.clear)
+        print_import_stats(stats)
+            
     except Exception as e:
         print(f"Import failed: {e}", file=sys.stderr)
         sys.exit(1)
+    finally:
+        container.close()
 
 
 if __name__ == "__main__":

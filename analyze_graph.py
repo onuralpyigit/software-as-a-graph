@@ -167,14 +167,19 @@ def main() -> int:
     )
     
     try:
-        # Create analyzer
+
+
+        # Create container and repository
+        from src.infrastructure import Container
+        container = Container(uri=args.uri, user=args.user, password=args.password)
+        repository = container.graph_repository()
+        
+        # Create analyzer with injected repository
         with GraphAnalyzer(
-            uri=args.uri,
-            user=args.user,
-            password=args.password,
             damping_factor=args.damping,
             k_factor=args.k_factor,
-            use_ahp=args.ahp
+            use_ahp=args.ahp,
+            repository=repository
         ) as analyzer:
             
             # Run analysis
@@ -207,6 +212,7 @@ def main() -> int:
                 # Final action items
                 display_final_summary(results)
         
+        container.close()
         return 0
     
     except KeyboardInterrupt:

@@ -155,17 +155,19 @@ class GraphAnalyzer:
         password: str = "password",
         damping_factor: float = 0.85,
         k_factor: float = 1.5,
-        use_ahp: bool = False
+        use_ahp: bool = False,
+        repository: Optional[Any] = None  # GraphRepository
     ):
         """
         Initialize the analyzer.
         
         Args:
-            uri: Neo4j connection URI
+            uri: Neo4j connection URI (used if repository not provided)
             user: Neo4j username
             password: Neo4j password
             damping_factor: PageRank damping factor (default: 0.85)
             k_factor: Box-plot IQR multiplier for classification (default: 1.5)
+            repository: Optional injected GraphRepository
         """
         self.uri = uri
         self.user = user
@@ -180,9 +182,8 @@ class GraphAnalyzer:
         self.quality = QualityAnalyzer(k_factor=k_factor, use_ahp=use_ahp)
         self.detector = ProblemDetector()
         
-        # Data source (lazy initialization)
-        self._client = None
-        self._graph_data = None
+        # Data source
+        self._client = repository
     
     def __enter__(self):
         """Context manager entry."""
@@ -190,19 +191,26 @@ class GraphAnalyzer:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
-        if self._client:
+        if self._client and hasattr(self._client, 'close'):
             self._client.close()
     
     def _get_client(self):
         """Lazy initialization of database client."""
         if self._client is None:
-            # Import here to avoid circular dependency
+            # Fallback to creating Neo4jRepository (via adapter or core)
+            # Using new adapter if possible, else core for backward compat?
+            # Let's use new adapter
             try:
-                from src.core.graph_exporter import GraphExporter
-                self._client = GraphExporter(self.uri, self.user, self.password)
+                from src.adapters.persistence import Neo4jGraphRepository
+                self._client = Neo4jGraphRepository(self.uri, self.user, self.password)
             except ImportError:
-                self.logger.error("GraphExporter not available. Install neo4j driver.")
-                raise
+                # Fallback to old core
+                try:
+                    from src.core.graph_exporter import GraphExporter
+                    self._client = GraphExporter(self.uri, self.user, self.password)
+                except ImportError:
+                    self.logger.error("Graph repository not available. Install neo4j driver.")
+                    raise
         return self._client
     
     def _load_data(self, layer: AnalysisLayer) -> Any:
@@ -210,10 +218,16 @@ class GraphAnalyzer:
         client = self._get_client()
         layer_def = get_layer_definition(layer)
         
-        return client.get_graph_data(
-            component_types=list(layer_def.component_types) if layer != AnalysisLayer.SYSTEM else None,
-            dependency_types=list(layer_def.dependency_types) if layer != AnalysisLayer.SYSTEM else None,
-        )
+        # Determine method to call based on client type
+        # Both GraphRepository and GraphExporter support get_graph_data
+        
+        if layer == AnalysisLayer.SYSTEM:
+            return client.get_graph_data()
+        else:
+            return client.get_graph_data(
+                component_types=list(layer_def.component_types),
+                dependency_types=list(layer_def.dependency_types),
+            )
     
     def analyze_layer(
         self,

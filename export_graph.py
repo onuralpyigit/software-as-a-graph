@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Any
 
-from src.core import GraphExporter
+from src.infrastructure import Container
 
 
 def main() -> None:
@@ -46,29 +46,33 @@ def main() -> None:
     args = parser.parse_args()
 
     print(f"Connecting to Neo4j at {args.uri}...")
+    
+    container = Container(
+        uri=args.uri,
+        user=args.user,
+        password=args.password
+    )
 
     try:
-        with GraphExporter(
-            uri=args.uri,
-            user=args.user,
-            password=args.password,
-        ) as exporter:
-            print("Exporting graph data...")
-            data = exporter.export_graph_json()
+        repo = container.graph_repository()
+        print("Exporting graph data...")
+        data = repo.export_json()
 
-            # Ensure output directory exists
-            output_path = Path(args.output)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+        # Ensure output directory exists
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(output_path, "w") as f:
-                json.dump(data, f, indent=2)
+        with open(output_path, "w") as f:
+            json.dump(data, f, indent=2)
 
-            print(f"Success! Saved to {args.output}")
-            print_export_stats(data)
+        print(f"Success! Saved to {args.output}")
+        print_export_stats(data)
 
     except Exception as e:
         print(f"Export failed: {e}", file=sys.stderr)
         sys.exit(1)
+    finally:
+        container.close()
 
 
 def print_export_stats(data: Dict[str, Any]) -> None:

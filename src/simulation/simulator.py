@@ -209,19 +209,22 @@ class Simulator:
         self,
         uri: Optional[str] = None,
         user: str = "neo4j",
-        password: str = "password"
+        password: str = "password",
+        repository: Optional[Any] = None  # GraphRepository
     ):
         """
         Initialize the simulator.
         
         Args:
-            uri: Neo4j connection URI
+            uri: Neo4j connection URI (fallback)
             user: Neo4j username
             password: Neo4j password
+            repository: Optional injected GraphRepository
         """
         self.uri = uri
         self.user = user
         self.password = password
+        self.repository = repository
         
         self.logger = logging.getLogger(__name__)
         
@@ -238,24 +241,35 @@ class Simulator:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
-        pass
+        if self.repository and hasattr(self.repository, 'close'):
+            self.repository.close()
     
     def _load_graph(self) -> None:
         """Load graph from configured source."""
         if self._graph is not None:
             return
         
-        self._graph = SimulationGraph(
-            uri=self.uri,
-            user=self.user,
-            password=self.password
-        )
+        # Prefer repository if available
+        if self.repository:
+            graph_data = self.repository.get_graph_data(include_raw=True)
+            self._graph = SimulationGraph(graph_data=graph_data)
+        elif self.uri:
+            # Fallback to direct Neo4j connection (legacy)
+            self._graph = SimulationGraph(
+                uri=self.uri,
+                user=self.user,
+                password=self.password
+            )
+        else:
+            raise ValueError("No repository or URI provided for SimulationGraph")
     
     @property
     def graph(self) -> SimulationGraph:
-        """Get the simulation graph (lazy loading)."""
+        """Get the simulation graph, loading it if necessary."""
         if self._graph is None:
             self._load_graph()
+        if self._graph is None:
+             raise ValueError("Failed to load simulation graph")
         return self._graph
     
     # =========================================================================

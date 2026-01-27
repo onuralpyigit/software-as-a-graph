@@ -238,12 +238,18 @@ def main() -> int:
         else:
             layers = [l.strip() for l in args.layer.split(",")]
         
+        # Create container and repository
+        from src.infrastructure import Container
+        container = Container(uri=args.uri, user=args.user, password=args.password)
+        repository = container.graph_repository()
+        
         # Create and run pipeline
         pipeline = ValidationPipeline(
             uri=args.uri,
             user=args.user,
             password=args.password,
             targets=targets,
+            repository=repository
         )
         
         result = pipeline.run(layers=layers)
@@ -257,8 +263,10 @@ def main() -> int:
             pipeline.export_result(result, args.output)
             if not args.quiet:
                 print(f"\n{colored(f'Results saved to: {args.output}', Colors.GREEN)}")
-        
-        return 0 if result.all_passed else 1
+            
+            return 0 if result.all_passed else 1
+
+
     
     except KeyboardInterrupt:
         print(f"\n{colored('Validation interrupted.', Colors.YELLOW)}")
@@ -268,6 +276,9 @@ def main() -> int:
         logging.exception("Validation failed")
         print(f"{colored(f'Error: {e}', Colors.RED)}", file=sys.stderr)
         return 1
+
+    finally:
+        container.close()
 
 
 if __name__ == "__main__":

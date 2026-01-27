@@ -188,7 +188,8 @@ class ValidationPipeline:
         uri: str = "bolt://localhost:7687",
         user: str = "neo4j",
         password: str = "password",
-        targets: Optional[ValidationTargets] = None
+        targets: Optional[ValidationTargets] = None,
+        repository: Optional[Any] = None  # GraphRepository
     ):
         """
         Initialize validation pipeline.
@@ -198,11 +199,13 @@ class ValidationPipeline:
             user: Neo4j username
             password: Neo4j password
             targets: Validation success criteria
+            repository: Optional injected GraphRepository
         """
         self.uri = uri
         self.user = user
         self.password = password
         self.targets = targets or ValidationTargets()
+        self.repository = repository
         
         self.logger = logging.getLogger(__name__)
         
@@ -222,7 +225,8 @@ class ValidationPipeline:
                 self._analyzer = GraphAnalyzer(
                     uri=self.uri,
                     user=self.user,
-                    password=self.password
+                    password=self.password,
+                    repository=self.repository
                 )
             except ImportError:
                 raise ImportError("Analysis module not available")
@@ -237,7 +241,8 @@ class ValidationPipeline:
                 self._simulator = Simulator(
                     uri=self.uri,
                     user=self.user,
-                    password=self.password
+                    password=self.password,
+                    repository=self.repository
                 )
             except ImportError:
                 raise ImportError("Simulation module not available")

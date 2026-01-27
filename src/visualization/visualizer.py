@@ -126,7 +126,8 @@ class GraphVisualizer:
         self,
         uri: str = "bolt://localhost:7687",
         user: str = "neo4j",
-        password: str = "password"
+        password: str = "password",
+        repository: Optional[Any] = None  # GraphRepository
     ):
         """
         Initialize the visualizer.
@@ -135,10 +136,12 @@ class GraphVisualizer:
             uri: Neo4j connection URI
             user: Neo4j username
             password: Neo4j password
+            repository: Optional injected GraphRepository
         """
         self.uri = uri
         self.user = user
         self.password = password
+        self.repository = repository
         
         self.logger = logging.getLogger(__name__)
         self.charts = ChartGenerator()
@@ -152,7 +155,8 @@ class GraphVisualizer:
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+        if self.repository and hasattr(self.repository, 'close'):
+            self.repository.close()
     
     @property
     def analyzer(self):
@@ -163,7 +167,8 @@ class GraphVisualizer:
                 self._analyzer = GraphAnalyzer(
                     uri=self.uri,
                     user=self.user,
-                    password=self.password
+                    password=self.password,
+                    repository=self.repository
                 )
             except ImportError:
                 self.logger.warning("Analysis module not available")
@@ -178,7 +183,8 @@ class GraphVisualizer:
                 self._simulator = Simulator(
                     uri=self.uri,
                     user=self.user,
-                    password=self.password
+                    password=self.password,
+                    repository=self.repository
                 )
             except ImportError:
                 self.logger.warning("Simulation module not available")
