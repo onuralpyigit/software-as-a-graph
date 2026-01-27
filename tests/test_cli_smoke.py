@@ -77,94 +77,97 @@ def test_simulate_graph_cli():
         # container.close called by finally
         mock_container.close.assert_called_once()
 
-def test_validate_graph_cli():
-    """Test validate_graph.py main function with mocks."""
-    import validate_graph
+@patch('src.infrastructure.container.Container.validation_service')
+def test_validate_graph_cli(mock_validation_service):
+    """Test the graph validation CLI."""
+    # Setup mock
+    mock_service_instance = MagicMock()
     
-    # Mock Container
-    mock_container = MagicMock()
-    mock_repo = MagicMock()
-    mock_container.graph_repository.return_value = mock_repo
+    # Mock result object pattern from ValidationService
+    mock_pipeline_result = MagicMock()
+    mock_pipeline_result.all_passed = True
+    mock_pipeline_result.layers_passed = 1
+    mock_pipeline_result.total_components = 10
+    mock_pipeline_result.timestamp = "2023-01-01"
     
-    # Mock ValidationPipeline
-    mock_pipeline = MagicMock()
-    mock_result = MagicMock()
-    mock_result.all_passed = True
-    # Mock numeric properties accessed by display.py
-    mock_result.timestamp = "2023-01-01"
-    mock_result.total_components = 100
-    mock_result.layers_passed = 1
-    mock_result.layers_passed = 1
-    mock_result.layer_results = {} 
-    mock_result.summary = {"passed": True}
+    mock_layer_result = MagicMock()
+    mock_layer_result.passed = True
+    mock_layer_result.layer = "app"
+    mock_layer_result.layer_name = "Application"
+    mock_layer_result.matched_components = 10
+    mock_layer_result.predicted_components = 10
+    mock_layer_result.simulated_components = 10
+    mock_layer_result.spearman = 0.85
+    mock_layer_result.f1_score = 0.9
+    mock_layer_result.precision = 0.9
+    mock_layer_result.recall = 0.9
+    mock_layer_result.top_5_overlap = 0.8
+    mock_layer_result.rmse = 0.1
+    mock_layer_result.warnings = []
     
-    # Mock targets
-    mock_targets = MagicMock()
-    mock_targets.spearman = 0.5
-    mock_targets.f1_score = 0.5
-    mock_targets.precision = 0.5
-    mock_targets.recall = 0.5
-    mock_targets.top_5_overlap = 0.5
-    mock_targets.top_10_overlap = 0.5
-    mock_targets.rmse_max = 1.0
-    mock_targets.pearson = 0.5
-    mock_targets.kendall = 0.5
-    mock_result.targets = mock_targets
-
-    # Mock layers
-    mock_layer_res = MagicMock()
-    mock_layer_res.matched_components = 10
-    mock_layer_res.spearman = 0.6
-    mock_layer_res.f1_score = 0.6
-    mock_layer_res.precision = 0.6
-    mock_layer_res.recall = 0.6
-    mock_layer_res.top_5_overlap = 0.6
-    mock_layer_res.passed = True
-    mock_result.layers = {"app": mock_layer_res}
-    
-    # Mock validation_result deep structure
+    # Mock nested validation_result for display_layer_validation_result
     mock_val_res = MagicMock()
-    mock_val_res.overall.correlation.spearman = 0.6
-    mock_val_res.overall.correlation.pearson = 0.6
-    mock_val_res.overall.correlation.kendall = 0.6
-    mock_val_res.overall.classification.f1_score = 0.6
-    mock_val_res.overall.classification.precision = 0.6
-    mock_val_res.overall.classification.recall = 0.6
-    mock_val_res.overall.classification.accuracy = 0.8
-    mock_val_res.overall.classification.confusion_matrix = {'tp': 1, 'fp': 0, 'fn': 0, 'tn': 1}
-    mock_val_res.overall.ranking.top_5_overlap = 0.6
-    mock_val_res.overall.ranking.top_10_overlap = 0.6
-    mock_val_res.overall.ranking.top_5_predicted = []
-    mock_val_res.overall.ranking.top_5_actual = []
-    mock_val_res.overall.ranking.top_5_common = []
+    mock_val_res.overall.correlation.spearman = 0.85
+    mock_val_res.overall.correlation.pearson = 0.8
+    mock_val_res.overall.correlation.kendall = 0.7
+    mock_val_res.overall.classification.f1_score = 0.9
+    mock_val_res.overall.classification.precision = 0.9
+    mock_val_res.overall.classification.recall = 0.9
+    mock_val_res.overall.classification.accuracy = 0.95
+    mock_val_res.overall.classification.confusion_matrix = {"tp": 5, "fp": 0, "tn": 5, "fn": 0}
+    mock_val_res.overall.ranking.top_5_overlap = 0.8
+    mock_val_res.overall.ranking.top_10_overlap = 0.8
+    mock_val_res.overall.ranking.top_5_predicted = ["A", "B"]
+    mock_val_res.overall.ranking.top_5_actual = ["A", "B"]
+    mock_val_res.overall.ranking.top_5_common = ["A", "B"]
     mock_val_res.overall.error.rmse = 0.1
     mock_val_res.overall.error.mae = 0.1
     mock_val_res.overall.error.max_error = 0.2
+    # Ensure components list has items to avoid empty list in display logic
+    mock_comp = MagicMock()
+    mock_comp.id = "A"
+    mock_comp.type = "Application"
+    mock_comp.predicted = 0.8
+    mock_comp.actual = 0.85
+    mock_comp.error = 0.05
+    mock_comp.classification = "TP"
+    mock_val_res.overall.components = [mock_comp]
     mock_val_res.by_type = {}
+    mock_val_res.predicted_count = 10
+    mock_val_res.actual_count = 10
+    mock_val_res.matched_count = 10
+    mock_val_res.warnings = []
     
-    # Ensure layer result has this structure too if used by display_layer_validation_result
-    mock_layer_res.validation_result = mock_val_res
+    mock_layer_result.validation_result = mock_val_res
+    
+    mock_pipeline_result.layers = {"app": mock_layer_result}
+    mock_pipeline_result.targets = MagicMock(
+        spearman=0.7, pearson=0.65, kendall=0.5, 
+        f1_score=0.8, precision=0.8, recall=0.8, 
+        top_5_overlap=0.6, top_10_overlap=0.5,
+        rmse_max=0.25
+    )
+    mock_pipeline_result.cross_layer_insights = []
+    
+    mock_service_instance.validate_layers.return_value = mock_pipeline_result
+    mock_validation_service.return_value = mock_service_instance
 
-    mock_pipeline.run.return_value = mock_result
-    
     with patch.object(sys, 'argv', ['validate_graph.py', '--layer', 'app']), \
-         patch('src.validation.ValidationPipeline', return_value=mock_pipeline) as MockPipeline, \
-         patch('src.infrastructure.Container', return_value=mock_container) as MockContainer:
+         patch('src.infrastructure.container.Container.graph_repository'):
         
+        # Import and run
+        import validate_graph
         importlib.reload(validate_graph)
-        from validate_graph import main
         
-        ret = main()
+        # Should return 0 (success)
+        return_code = validate_graph.main()
         
-        assert ret == 0
-        MockContainer.assert_called_once()
-        mock_container.graph_repository.assert_called_once()
-        MockPipeline.assert_called_once()
-        _, kwargs = MockPipeline.call_args
-        assert kwargs['repository'] == mock_repo
+        assert return_code == 0
         
-        mock_pipeline.run.assert_called_once()
-        mock_container.close.assert_called_once()
+        # Verify validation service was called
+        mock_service_instance.validate_layers.assert_called_once()
+        args = mock_service_instance.validate_layers.call_args[1]
+        assert 'app' in args['layers']
 
 def test_visualize_graph_cli():
     """Test visualize_graph.py main function with mocks."""

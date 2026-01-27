@@ -27,6 +27,22 @@ class Container:
     def analyze_use_case(self) -> AnalyzeGraphUseCase:
         return AnalyzeGraphUseCase(repository=self.graph_repository())
     
+    def analysis_service(self) -> 'AnalysisService':
+        from ..application.services.analysis_service import AnalysisService
+        return AnalysisService(repository=self.graph_repository())
+
+    def simulation_service(self) -> 'SimulationService':
+        from ..application.services.simulation_service import SimulationService
+        return SimulationService(repository=self.graph_repository())
+
+    def validation_service(self, targets=None) -> 'ValidationService':
+        from ..application.services.validation_service import ValidationService
+        return ValidationService(
+            analysis_service=self.analysis_service(),
+            simulation_service=self.simulation_service(),
+            targets=targets
+        )
+
     def close(self) -> None:
         if self._repository:
             self._repository.close()

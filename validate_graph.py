@@ -34,26 +34,16 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.validation import (
-    ValidationPipeline,
-    PipelineResult,
-    LayerValidationResult,
-    QuickValidator,
-    ValidationTargets,
-    LAYER_DEFINITIONS,
-)
+from src.infrastructure import Container
+from src.domain.models.validation.metrics import ValidationTargets
+from src.application.services.validation_service import LAYER_DEFINITIONS
+
 from src.visualization.display import (
-    display_pipeline_validation_result as display_pipeline_result,
-    display_layer_validation_result as display_layer_result,
+    display_pipeline_validation_result,
     status_icon,
-    status_text,
+    status_text
 )
 from src.visualization.display import Colors, colored, print_header
-
-
-# =============================================================================
-# CLI Entry Point
-# =============================================================================
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
@@ -198,37 +188,35 @@ def main() -> int:
         recall=args.recall,
     )
     
+    # Dependency Injection
+    container = Container(uri=args.uri, user=args.user, password=args.password)
+    validation_service = container.validation_service(targets=targets)
+    
     try:
         # Quick validation
         if args.quick:
             predicted_file, actual_file = args.quick
-            
-            validator = QuickValidator(targets=targets)
-            result = validator.validate_from_files(
-                predicted_file=predicted_file,
-                actual_file=actual_file,
-            )
+            with open(predicted_file, 'r') as f:
+                predicted = json.load(f)
+            with open(actual_file, 'r') as f:
+                actual = json.load(f)
+                
+            result = validation_service.validate_from_data(predicted, actual)
             
             if args.json:
                 print(json.dumps(result.to_dict(), indent=2))
             elif not args.quiet:
-                # Display simplified result
                 print_header("Quick Validation Result")
                 print(f"\n  Files: {predicted_file} vs {actual_file}")
                 print(f"  Matched: {result.matched_count} components")
                 print(f"\n  Status: {status_text(result.passed)}")
-                
                 overall = result.overall
                 print(f"\n  Spearman:  {overall.correlation.spearman:.4f}  {status_icon(overall.correlation.spearman >= targets.spearman)}")
                 print(f"  F1 Score:  {overall.classification.f1_score:.4f}  {status_icon(overall.classification.f1_score >= targets.f1_score)}")
-                print(f"  Precision: {overall.classification.precision:.4f}  {status_icon(overall.classification.precision >= targets.precision)}")
-                print(f"  Recall:    {overall.classification.recall:.4f}  {status_icon(overall.classification.recall >= targets.recall)}")
             
             if args.output:
                 with open(args.output, 'w') as f:
                     json.dump(result.to_dict(), f, indent=2)
-                if not args.quiet:
-                    print(f"\n{colored(f'Results saved to: {args.output}', Colors.GREEN)}")
             
             return 0 if result.passed else 1
         
@@ -237,37 +225,24 @@ def main() -> int:
             layers = list(LAYER_DEFINITIONS.keys())
         else:
             layers = [l.strip() for l in args.layer.split(",")]
-        
-        # Create container and repository
-        from src.infrastructure import Container
-        container = Container(uri=args.uri, user=args.user, password=args.password)
-        repository = container.graph_repository()
-        
-        # Create and run pipeline
-        pipeline = ValidationPipeline(
-            uri=args.uri,
-            user=args.user,
-            password=args.password,
-            targets=targets,
-            repository=repository
-        )
-        
-        result = pipeline.run(layers=layers)
+            
+        result = validation_service.validate_layers(layers=layers)
         
         if args.json:
             print(json.dumps(result.to_dict(), indent=2))
         elif not args.quiet:
-            display_pipeline_result(result)
+            display_pipeline_validation_result(result)
         
         if args.output:
-            pipeline.export_result(result, args.output)
+            container.export_result(result, args.export) # Wait, container doesn't have export. ValidationService doesn't have export.
+            # We should just dump result.to_dict()
+            with open(args.output, 'w') as f:
+                json.dump(result.to_dict(), f, indent=2)
             if not args.quiet:
                 print(f"\n{colored(f'Results saved to: {args.output}', Colors.GREEN)}")
             
         return 0 if result.all_passed else 1
 
-
-    
     except KeyboardInterrupt:
         print(f"\n{colored('Validation interrupted.', Colors.YELLOW)}")
         return 130

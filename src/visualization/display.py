@@ -13,8 +13,13 @@ if TYPE_CHECKING:
     from ..simulation.event_simulator import EventResult
     from ..simulation.failure_simulator import FailureResult
     from ..simulation.simulator import SimulationReport
-    from ..validation.pipeline import PipelineResult, LayerValidationResult
-    from ..validation.metrics import ValidationTargets
+    from ..simulation.simulator import SimulationReport
+    from ..domain.models.validation.results import ValidationResult, LayerValidationResult
+    # Adapt PipelineResult import if we kept it or simulate it using dict
+    # We returned a dict from ValidationService.validate_layers, so we might need to handle dicts in display functions
+    # or wrap them back in objects. 
+    # For now let's import from new locations.
+    from ..domain.models.validation.metrics import ValidationTargets
     from ..analysis.classifier import CriticalityLevel
 
 # We need to import Level enum at runtime if used for type hinting or logic

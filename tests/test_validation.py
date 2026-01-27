@@ -7,13 +7,13 @@ Tests for:
 """
 
 import pytest
-from src.validation.metrics import (
-    calculate_classification_metrics,
+from src.domain.services.validation.metric_calculator import (
+    calculate_classification,
     spearman_correlation, 
-    calculate_ranking_metrics,
-    calculate_error_metrics,  # Fixed: use calculate_error_metrics instead
+    calculate_ranking,
+    calculate_error,
 )
-from src.validation.validator import Validator
+from src.domain.services.validation.validator import Validator
 
 
 # =============================================================================
@@ -47,21 +47,21 @@ class TestCorrelationMetrics:
         assert -1.0 <= rho <= 1.0
     
     def test_rmse_calculation(self):
-        """Test RMSE calculation via calculate_error_metrics."""
+        """Test RMSE calculation via calculate_error."""
         predicted = [1.0, 2.0, 3.0]
         actual = [1.0, 2.0, 3.0]
-        metrics = calculate_error_metrics(predicted, actual)
+        metrics = calculate_error(predicted, actual)
         assert metrics.rmse == pytest.approx(0.0, abs=0.001)
         
         # With error
-        metrics_err = calculate_error_metrics(predicted, [1.1, 2.1, 3.1])
+        metrics_err = calculate_error(predicted, [1.1, 2.1, 3.1])
         assert metrics_err.rmse == pytest.approx(0.1, abs=0.01)
     
     def test_mae_calculation(self):
-        """Test MAE calculation via calculate_error_metrics."""
+        """Test MAE calculation via calculate_error."""
         predicted = [1.0, 2.0, 3.0]
         actual = [1.5, 2.5, 3.5]
-        metrics = calculate_error_metrics(predicted, actual)
+        metrics = calculate_error(predicted, actual)
         assert metrics.mae == pytest.approx(0.5, abs=0.01)
 
 
@@ -78,7 +78,7 @@ class TestRankingMetrics:
         pred = {"A": 0.9, "B": 0.5, "C": 0.1}
         act = {"A": 0.8, "B": 0.4, "C": 0.2}
         
-        res = calculate_ranking_metrics(pred, act)
+        res = calculate_ranking(pred, act)
         # top_5_overlap depends on how the metric calculates overlap
         # with only 3 elements, it may not be 1.0
         assert res.top_5_overlap > 0  # Some overlap exists
@@ -89,7 +89,7 @@ class TestRankingMetrics:
         pred = {"A": 0.9, "B": 0.5, "C": 0.1}
         act = {"C": 0.8, "B": 0.5, "A": 0.2}  # A and C swapped
         
-        res = calculate_ranking_metrics(pred, act)
+        res = calculate_ranking(pred, act)
         assert res.top_5_overlap > 0  # Same elements, some overlap
         # NDCG should be lower due to ranking difference
         assert res.ndcg_10 < 1.0
