@@ -38,6 +38,7 @@ class RelationType(Enum):
     ROUTES = "ROUTES"
     RUNS_ON = "RUNS_ON"
     CONNECTS_TO = "CONNECTS_TO"
+    USES = "USES"
 
 
 @dataclass
@@ -150,6 +151,8 @@ class SimulationGraph:
         self._hosted_on: Dict[str, str] = {}                         # comp -> node
         self._hosts: Dict[str, List[str]] = defaultdict(list)        # node -> [comps]
         self._connections: Dict[str, List[str]] = defaultdict(list)  # node -> [nodes]
+        self._uses: Dict[str, List[str]] = defaultdict(list)         # app/lib -> [libs]
+        self._used_by: Dict[str, List[str]] = defaultdict(list)      # lib -> [apps/libs]
         
         # Load graph
         if graph_data:
@@ -189,7 +192,7 @@ class SimulationGraph:
         # Load Applications, Brokers, Nodes
         query = """
         MATCH (n)
-        WHERE n:Application OR n:Broker OR n:Node
+        WHERE n:Application OR n:Broker OR n:Node OR n:Library
         RETURN n.id as id, labels(n)[0] as type, properties(n) as props
         """
         result = session.run(query)
@@ -298,6 +301,19 @@ class SimulationGraph:
             src, tgt = record["source"], record["target"]
             self._connections[src].append(tgt)
             self.graph.add_edge(src, tgt, relation=RelationType.CONNECTS_TO.value)
+        
+        # USES: App/Library -> Library
+        query = """
+        MATCH (s)-[r:USES]->(t:Library)
+        WHERE s:Application OR s:Library
+        RETURN s.id as source, t.id as target
+        """
+        result = session.run(query)
+        for record in result:
+            src, tgt = record["source"], record["target"]
+            self._uses[src].append(tgt)
+            self._used_by[tgt].append(src)
+            self.graph.add_edge(src, tgt, relation=RelationType.USES.value)
     
     def _load_from_data(self, graph_data: Any) -> None:
         """Load from pre-loaded GraphData object."""
@@ -348,6 +364,9 @@ class SimulationGraph:
                 self._hosts[tgt].append(src)
             elif rel == "CONNECTS_TO":
                 self._connections[src].append(tgt)
+            elif rel == "USES":
+                self._uses[src].append(tgt)
+                self._used_by[tgt].append(src)
     
     # =========================================================================
     # State Management
@@ -486,9 +505,9 @@ class SimulationGraph:
             - system: All components
         """
         layer_types = {
-            "app": {"Application"},
+            "app": {"Application", "Library"},
             "infra": {"Node"},
-            "mw-app": {"Application", "Broker"},
+            "mw-app": {"Application", "Broker", "Library"},
             "mw-infra": {"Node", "Broker"},
             "system": {"Application", "Broker", "Node", "Topic", "Library"},
         }
