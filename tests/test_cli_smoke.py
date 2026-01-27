@@ -2,7 +2,7 @@
 import sys
 import pytest
 import importlib
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, PropertyMock
 
 # Ensure project root is in path
 sys.path.append('/home/onuralpyigit/Workspace/SoftwareAsAGraph')
@@ -16,24 +16,26 @@ def test_simulate_graph_cli():
     mock_repo = MagicMock()
     mock_container.graph_repository.return_value = mock_repo
     
-    # Mock Simulator context manager
-    mock_simulator = MagicMock()
-    mock_simulator.__enter__.return_value = mock_simulator
-    mock_simulator.__exit__.return_value = None
+    # Mock SimulationService context manager
+    mock_service = MagicMock()
+    mock_service.__enter__.return_value = mock_service
+    mock_service.__exit__.return_value = None
     
     # Mock run_event_simulation return value
     mock_sim_result = MagicMock()
     mock_sim_result.scenario = "test_scenario"
     mock_sim_result.duration = 1.0 # float
+    # ... (rest of mock setup same as before mostly)
     mock_sim_result.trace = []
     mock_sim_result.affected_components = []
-    mock_sim_result.system_impact.initial_components = 0
-    mock_sim_result.system_impact.total_cascade = 0
-    mock_sim_result.system_impact.failed_providers = 0
-    mock_sim_result.services_lost = []
+    # mock_sim_result.system_impact... (legacy fields?)
+    # New EventResult has "metrics", "affected_topics", etc.
+    # Check EventResult structure in src/domain/services/simulation/event_simulator.py
     
     # Mock metrics
     mock_metrics = MagicMock()
+    # Explicitly set attributes to valid numbers
+    type(mock_metrics).messages_published = PropertyMock(return_value=100)
     mock_metrics.messages_published = 100
     mock_metrics.messages_delivered = 90
     mock_metrics.messages_dropped = 10
@@ -45,13 +47,16 @@ def test_simulate_graph_cli():
     mock_metrics.p50_latency = 0.04
     mock_metrics.p99_latency = 0.5
     mock_metrics.throughput = 500.0
+    mock_metrics.to_dict.return_value = {}
+    
     mock_sim_result.metrics = mock_metrics
+    mock_sim_result.to_dict.return_value = {}
 
-    mock_simulator.run_event_simulation.return_value = mock_sim_result
+    mock_service.run_event_simulation.return_value = mock_sim_result
     
     # Use patch for sys.argv
     with patch.object(sys, 'argv', ['simulate_graph.py', '--event', 'App1']), \
-         patch('src.simulation.Simulator', return_value=mock_simulator) as MockSimulator, \
+         patch('src.application.services.SimulationService', return_value=mock_service) as MockService, \
          patch('src.infrastructure.Container', return_value=mock_container) as MockContainer:
         
         importlib.reload(simulate_graph)
@@ -62,14 +67,14 @@ def test_simulate_graph_cli():
         assert ret == 0
         MockContainer.assert_called_once()
         mock_container.graph_repository.assert_called_once()
-        MockSimulator.assert_called_once()
-        # Verify repository was passed to Simulator
-        _, kwargs = MockSimulator.call_args
+        MockService.assert_called_once()
+        # Verify repository was passed to Service
+        _, kwargs = MockService.call_args
         assert kwargs['repository'] == mock_repo
         
         # Verify simulation method called
-        mock_simulator.run_event_simulation.assert_called_once()
-        # container.close called by context manager or finally
+        mock_service.run_event_simulation.assert_called_once()
+        # container.close called by finally
         mock_container.close.assert_called_once()
 
 def test_validate_graph_cli():

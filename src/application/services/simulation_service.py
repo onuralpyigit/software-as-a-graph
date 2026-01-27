@@ -1,237 +1,51 @@
 """
-Simulator Facade
+Simulation Application Service
 
-Orchestrates Event and Failure simulations on the raw graph model.
-Provides unified API for simulation, metrics collection, and criticality classification.
-
-Features:
-    - Event-driven simulation (pub-sub message flow, throughput, latency)
-    - Failure simulation (cascade propagation, impact assessment)
-    - Multi-layer analysis (app, infra, mw-app, mw-infra, system)
-    - Criticality classification based on simulation results
-    - Comprehensive reporting and export
-
-Layers:
-    - app: Application layer (Applications only)
-    - infra: Infrastructure layer (Nodes only)
-    - mw-app: Middleware-Application (Applications + Brokers)
-    - mw-infra: Middleware-Infrastructure (Nodes + Brokers)
-    - system: Complete system (all components)
+Orchestrates Event and Failure simulations using the Simulation Domain Model.
+Replaces the legacy Simulator facade.
 """
 
 from __future__ import annotations
-import json
 import logging
-from dataclasses import dataclass, field
+import json
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from .simulation_graph import SimulationGraph, ComponentState
-from .event_simulator import EventSimulator, EventScenario, EventResult, RuntimeMetrics
-from .failure_simulator import FailureSimulator, FailureScenario, FailureResult, ImpactMetrics, CascadeRule
-
+from src.application.ports.graph_repository import GraphRepository
+from src.domain.models.simulation.graph import SimulationGraph
+from src.domain.models.simulation.metrics import LayerMetrics, ComponentCriticality, SimulationReport
+from src.domain.services.simulation.event_simulator import EventSimulator, EventScenario, EventResult
+from src.domain.services.simulation.failure_simulator import FailureSimulator, FailureScenario, FailureResult
 
 # Import classifier from analysis module (optional)
 try:
-    import sys
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from analysis.classifier import BoxPlotClassifier, CriticalityLevel
+    from src.domain.services.analysis.classifier import BoxPlotClassifier
     HAS_CLASSIFIER = True
 except ImportError:
     HAS_CLASSIFIER = False
-    CriticalityLevel = None
 
 
-@dataclass
-class LayerMetrics:
+class SimulationService:
     """
-    Aggregated metrics for a single analysis layer.
-    
-    Combines event simulation metrics (throughput, latency, drops)
-    with failure simulation metrics (impact, cascade, fragmentation).
-    """
-    layer: str
-    
-    # Event simulation metrics
-    event_throughput: int = 0            # Total messages processed
-    event_delivery_rate: float = 0.0     # % messages delivered
-    event_drop_rate: float = 0.0         # % messages dropped
-    event_avg_latency_ms: float = 0.0    # Average latency in ms
-    
-    # Failure simulation metrics
-    avg_reachability_loss: float = 0.0   # Average path loss
-    avg_fragmentation: float = 0.0       # Average component loss
-    avg_throughput_loss: float = 0.0     # Average capacity loss
-    max_impact: float = 0.0              # Highest single-point impact
-    
-    # Criticality counts
-    critical_count: int = 0
-    high_count: int = 0
-    medium_count: int = 0
-    spof_count: int = 0
-    
-    # Component count
-    total_components: int = 0
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "layer": self.layer,
-            "event_metrics": {
-                "throughput": self.event_throughput,
-                "delivery_rate_percent": round(self.event_delivery_rate, 2),
-                "drop_rate_percent": round(self.event_drop_rate, 2),
-                "avg_latency_ms": round(self.event_avg_latency_ms, 3),
-            },
-            "failure_metrics": {
-                "avg_reachability_loss_percent": round(self.avg_reachability_loss * 100, 2),
-                "avg_fragmentation_percent": round(self.avg_fragmentation * 100, 2),
-                "avg_throughput_loss_percent": round(self.avg_throughput_loss * 100, 2),
-                "max_impact": round(self.max_impact, 4),
-            },
-            "criticality": {
-                "total_components": self.total_components,
-                "critical": self.critical_count,
-                "high": self.high_count,
-                "medium": self.medium_count,
-                "spof_count": self.spof_count,
-            },
-        }
-
-
-@dataclass
-class ComponentCriticality:
-    """
-    Criticality assessment for a component based on simulation results.
-    
-    Combines event impact (message handling importance) with
-    failure impact (cascade and reachability effects).
-    """
-    id: str
-    type: str
-    
-    # Simulation-based scores
-    event_impact: float = 0.0         # Impact from event simulation
-    failure_impact: float = 0.0       # Impact from failure simulation
-    combined_impact: float = 0.0      # Weighted combination
-    
-    # Classification level
-    level: str = "minimal"
-    
-    # Supporting metrics
-    cascade_count: int = 0
-    message_throughput: int = 0
-    reachability_loss: float = 0.0
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "id": self.id,
-            "type": self.type,
-            "scores": {
-                "event_impact": round(self.event_impact, 4),
-                "failure_impact": round(self.failure_impact, 4),
-                "combined_impact": round(self.combined_impact, 4),
-            },
-            "level": self.level,
-            "metrics": {
-                "cascade_count": self.cascade_count,
-                "message_throughput": self.message_throughput,
-                "reachability_loss_percent": round(self.reachability_loss * 100, 2),
-            },
-        }
-
-
-@dataclass
-class SimulationReport:
-    """
-    Comprehensive simulation report combining all analyses.
-    """
-    timestamp: str
-    graph_summary: Dict[str, Any]
-    
-    # Per-layer metrics
-    layer_metrics: Dict[str, LayerMetrics]
-    
-    # Component criticality (classified by simulation)
-    component_criticality: List[ComponentCriticality]
-    
-    # Top critical components
-    top_critical: List[Dict[str, Any]]
-    
-    # Recommendations
-    recommendations: List[str]
-    
-    # Name mapping for display
-    component_names: Dict[str, str] = field(default_factory=dict)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "timestamp": self.timestamp,
-            "graph_summary": self.graph_summary,
-            "layer_metrics": {k: v.to_dict() for k, v in self.layer_metrics.items()},
-            "component_criticality": [c.to_dict() for c in self.component_criticality],
-            "top_critical": self.top_critical,
-            "recommendations": self.recommendations,
-        }
-    
-    def get_critical_components(self) -> List[ComponentCriticality]:
-        """Get all CRITICAL level components."""
-        return [c for c in self.component_criticality if c.level == "critical"]
-    
-    def get_high_priority(self) -> List[ComponentCriticality]:
-        """Get CRITICAL and HIGH level components."""
-        return [c for c in self.component_criticality if c.level in ("critical", "high")]
-
-
-class Simulator:
-    """
-    Main simulator facade for pub-sub system analysis.
+    Application Service for running simulations.
     
     Orchestrates:
-        - Event-driven simulation for throughput/latency analysis
-        - Failure simulation for impact/cascade analysis
-        - Multi-layer analysis (app, infra, mw-app, mw-infra, system)
-        - Criticality classification based on simulation results
-    
-    Example:
-        >>> with Simulator(uri="bolt://localhost:7687") as sim:
-        ...     # Run event simulation
-        ...     event_result = sim.run_event_simulation("App1")
-        ...     
-        ...     # Run failure simulation
-        ...     failure_result = sim.run_failure_simulation("Broker1")
-        ...     
-        ...     # Generate comprehensive report
-        ...     report = sim.generate_report(layers=["app", "infra", "system"])
+        - Event-driven simulation
+        - Failure simulation
+        - Multi-layer analysis
+        - Criticality classification
     """
     
-    def __init__(
-        self,
-        uri: Optional[str] = None,
-        user: str = "neo4j",
-        password: str = "password",
-        repository: Optional[Any] = None  # GraphRepository
-    ):
+    def __init__(self, repository: GraphRepository):
         """
-        Initialize the simulator.
+        Initialize the simulation service.
         
         Args:
-            uri: Neo4j connection URI (fallback)
-            user: Neo4j username
-            password: Neo4j password
-            repository: Optional injected GraphRepository
+            repository: GraphRepository to load graph data
         """
-        self.uri = uri
-        self.user = user
-        self.password = password
         self.repository = repository
-        
         self.logger = logging.getLogger(__name__)
-        
-        # Graph instance (lazy loaded)
         self._graph: Optional[SimulationGraph] = None
-        
-        # Classifier for criticality classification
         self._classifier = BoxPlotClassifier() if HAS_CLASSIFIER else None
     
     def __enter__(self):
@@ -241,36 +55,23 @@ class Simulator:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
-        if self.repository and hasattr(self.repository, 'close'):
-            self.repository.close()
-    
-    def _load_graph(self) -> None:
-        """Load graph from configured source."""
-        if self._graph is not None:
-            return
-        
-        # Prefer repository if available
-        if self.repository:
-            graph_data = self.repository.get_graph_data(include_raw=True)
-            self._graph = SimulationGraph(graph_data=graph_data)
-        elif self.uri:
-            # Fallback to direct Neo4j connection (legacy)
-            self._graph = SimulationGraph(
-                uri=self.uri,
-                user=self.user,
-                password=self.password
-            )
-        else:
-            raise ValueError("No repository or URI provided for SimulationGraph")
-    
+        pass # Repository lifecycle is managed by Container
+
     @property
     def graph(self) -> SimulationGraph:
         """Get the simulation graph, loading it if necessary."""
         if self._graph is None:
             self._load_graph()
-        if self._graph is None:
+        if self._graph is None: # Should be loaded by _load_graph
              raise ValueError("Failed to load simulation graph")
         return self._graph
+
+    def _load_graph(self) -> None:
+        """Load graph from repository."""
+        self.logger.info("Loading simulation graph from repository")
+        # include_raw=True is required for simulation (PUBLISHES_TO etc.)
+        graph_data = self.repository.get_graph_data(include_raw=True)
+        self._graph = SimulationGraph(graph_data=graph_data)
     
     # =========================================================================
     # Event Simulation
@@ -283,18 +84,7 @@ class Simulator:
         duration: float = 10.0,
         **kwargs
     ) -> EventResult:
-        """
-        Run event simulation from a specific source application.
-        
-        Args:
-            source_app: Source application ID
-            num_messages: Number of messages to simulate
-            duration: Simulation duration in seconds
-            **kwargs: Additional EventScenario parameters
-            
-        Returns:
-            EventResult with throughput, latency, and drop metrics
-        """
+        """Run event simulation from a specific source application."""
         scenario = EventScenario(
             source_app=source_app,
             description=f"Event simulation: {source_app}",
@@ -312,17 +102,7 @@ class Simulator:
         duration: float = 5.0,
         **kwargs
     ) -> Dict[str, EventResult]:
-        """
-        Run event simulation from all publisher applications.
-        
-        Args:
-            num_messages: Messages per publisher
-            duration: Duration per simulation
-            **kwargs: Additional EventScenario parameters
-            
-        Returns:
-            Dict mapping app_id to EventResult
-        """
+        """Run event simulation from all publisher applications."""
         scenario = EventScenario(
             source_app="",
             num_messages=num_messages,
@@ -332,7 +112,7 @@ class Simulator:
         
         simulator = EventSimulator(self.graph)
         return simulator.simulate_all_publishers(scenario)
-    
+
     # =========================================================================
     # Failure Simulation
     # =========================================================================
@@ -344,18 +124,7 @@ class Simulator:
         cascade_probability: float = 1.0,
         **kwargs
     ) -> FailureResult:
-        """
-        Run failure simulation for a specific component.
-        
-        Args:
-            target_id: Component ID to fail
-            layer: Analysis layer
-            cascade_probability: Probability of cascade propagation
-            **kwargs: Additional FailureScenario parameters
-            
-        Returns:
-            FailureResult with cascade and impact analysis
-        """
+        """Run failure simulation for a specific component."""
         scenario = FailureScenario(
             target_id=target_id,
             description=f"Failure simulation: {target_id}",
@@ -372,16 +141,7 @@ class Simulator:
         layer: str = "system",
         cascade_probability: float = 1.0
     ) -> List[FailureResult]:
-        """
-        Run failure simulation for all components in a layer.
-        
-        Args:
-            layer: Analysis layer
-            cascade_probability: Probability of cascade propagation
-            
-        Returns:
-            List of FailureResult sorted by impact (highest first)
-        """
+        """Run failure simulation for all components in a layer."""
         scenario = FailureScenario(
             target_id="",
             layer=layer,
@@ -390,21 +150,13 @@ class Simulator:
         
         simulator = FailureSimulator(self.graph)
         return simulator.simulate_exhaustive(scenario, layer=layer)
-    
+
     # =========================================================================
-    # Layer Analysis
+    # Layer Analysis & Reporting
     # =========================================================================
-    
+
     def analyze_layer(self, layer: str = "system") -> LayerMetrics:
-        """
-        Run combined event and failure analysis for a layer.
-        
-        Args:
-            layer: Analysis layer (app, infra, mw-app, mw-infra, system)
-            
-        Returns:
-            LayerMetrics with combined simulation results
-        """
+        """Run combined event and failure analysis for a layer."""
         metrics = LayerMetrics(layer=layer)
         
         # Get components for this layer
@@ -412,7 +164,6 @@ class Simulator:
         metrics.total_components = len(layer_comps)
         
         # === Event Simulation ===
-        self.logger.info(f"Running event simulation for layer: {layer}")
         event_results = self.run_event_simulation_all(num_messages=50, duration=5.0)
         
         if event_results:
@@ -431,7 +182,6 @@ class Simulator:
             metrics.event_avg_latency_ms = (sum(latencies) / len(latencies) * 1000) if latencies else 0
         
         # === Failure Simulation ===
-        self.logger.info(f"Running failure simulation for layer: {layer}")
         failure_results = self.run_failure_simulation_exhaustive(layer=layer)
         
         if failure_results:
@@ -439,37 +189,22 @@ class Simulator:
             fragmentations = [r.impact.fragmentation for r in failure_results]
             throughput_losses = [r.impact.throughput_loss for r in failure_results]
             
-            metrics.avg_reachability_loss = sum(reach_losses) / len(reach_losses)
-            metrics.avg_fragmentation = sum(fragmentations) / len(fragmentations)
-            metrics.avg_throughput_loss = sum(throughput_losses) / len(throughput_losses)
-            metrics.max_impact = max(r.impact.composite_impact for r in failure_results)
+            metrics.avg_reachability_loss = sum(reach_losses) / len(reach_losses) if reach_losses else 0
+            metrics.avg_fragmentation = sum(fragmentations) / len(fragmentations) if fragmentations else 0
+            metrics.avg_throughput_loss = sum(throughput_losses) / len(throughput_losses) if throughput_losses else 0
+            metrics.max_impact = max(r.impact.composite_impact for r in failure_results) if failure_results else 0
             
             # Count SPOFs (components with cascade > 0)
             metrics.spof_count = sum(1 for r in failure_results if r.impact.cascade_count > 0)
         
         return metrics
-    
-    # =========================================================================
-    # Criticality Classification
-    # =========================================================================
-    
+
     def classify_components(
         self,
         layer: str = "system",
         k_factor: float = 1.5
     ) -> List[ComponentCriticality]:
-        """
-        Classify components by criticality based on simulation results.
-        
-        Uses box-plot classification on combined event + failure impact.
-        
-        Args:
-            layer: Analysis layer
-            k_factor: IQR multiplier for outlier detection
-            
-        Returns:
-            List of ComponentCriticality sorted by combined impact
-        """
+        """Classify components by criticality based on simulation results."""
         # Run simulations
         event_results = self.run_event_simulation_all(num_messages=50, duration=5.0)
         failure_results = self.run_failure_simulation_exhaustive(layer=layer)
@@ -547,24 +282,12 @@ class Simulator:
         result_list.sort(key=lambda x: x.combined_impact, reverse=True)
         
         return result_list
-    
-    # =========================================================================
-    # Reporting
-    # =========================================================================
-    
+
     def generate_report(
         self,
         layers: Optional[List[str]] = None
     ) -> SimulationReport:
-        """
-        Generate comprehensive simulation report.
-        
-        Args:
-            layers: Layers to analyze (default: app, infra, system)
-            
-        Returns:
-            SimulationReport with all analyses
-        """
+        """Generate comprehensive simulation report."""
         if layers is None:
             layers = ["app", "infra", "system"]
         
@@ -674,13 +397,3 @@ class Simulator:
             )
         
         return recommendations
-    
-    def export_report(self, report: SimulationReport, output_path: str) -> None:
-        """Export report to JSON file."""
-        path = Path(output_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(path, 'w') as f:
-            json.dump(report.to_dict(), f, indent=2, default=str)
-        
-        self.logger.info(f"Report exported to: {path}")

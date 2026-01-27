@@ -4,105 +4,17 @@ Simulation Graph
 Graph representation for simulation using RAW structural relationships.
 Works directly on PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO
 relationships without deriving DEPENDS_ON.
-
-Supports:
-    - Event propagation simulation (pub-sub message flow)
-    - Failure cascade simulation (component/infrastructure failures)
-    - Runtime metrics extraction (throughput, latency, drops)
-
-Retrieves graph data directly from Neo4j for simulation.
 """
 
 from __future__ import annotations
 import logging
-from dataclasses import dataclass, field
-from typing import Dict, List, Set, Tuple, Any, Optional, Iterator
-from enum import Enum
+from typing import Dict, List, Set, Tuple, Any, Optional
 from collections import defaultdict
 
 import networkx as nx
 
-
-class ComponentState(Enum):
-    """State of a component during simulation."""
-    ACTIVE = "active"
-    FAILED = "failed"
-    DEGRADED = "degraded"
-    OVERLOADED = "overloaded"
-
-
-class RelationType(Enum):
-    """RAW structural relationship types in the pub-sub graph."""
-    PUBLISHES_TO = "PUBLISHES_TO"
-    SUBSCRIBES_TO = "SUBSCRIBES_TO"
-    ROUTES = "ROUTES"
-    RUNS_ON = "RUNS_ON"
-    CONNECTS_TO = "CONNECTS_TO"
-    USES = "USES"
-
-
-@dataclass
-class ComponentInfo:
-    """Information about a component in the simulation."""
-    id: str
-    type: str  # Application, Topic, Broker, Node
-    state: ComponentState = ComponentState.ACTIVE
-    weight: float = 1.0
-    properties: Dict[str, Any] = field(default_factory=dict)
-    
-    # Runtime metrics (accumulated during simulation)
-    messages_sent: int = 0
-    messages_received: int = 0
-    messages_dropped: int = 0
-    messages_routed: int = 0
-    total_latency: float = 0.0
-    
-    def reset_metrics(self) -> None:
-        """Reset runtime metrics for a new simulation run."""
-        self.messages_sent = 0
-        self.messages_received = 0
-        self.messages_dropped = 0
-        self.messages_routed = 0
-        self.total_latency = 0.0
-    
-    @property
-    def avg_latency(self) -> float:
-        """Average latency per message processed."""
-        total = self.messages_received + self.messages_routed
-        return self.total_latency / total if total > 0 else 0.0
-    
-    @property
-    def throughput(self) -> int:
-        """Total messages processed (sent + routed)."""
-        return self.messages_sent + self.messages_routed
-
-
-@dataclass
-class TopicInfo:
-    """Information about a topic including QoS settings."""
-    id: str
-    name: str
-    message_size: int = 1024
-    qos_reliability: str = "BEST_EFFORT"  # BEST_EFFORT, RELIABLE
-    qos_durability: str = "VOLATILE"      # VOLATILE, TRANSIENT, PERSISTENT
-    qos_priority: str = "LOW"             # LOW, MEDIUM, HIGH, URGENT
-    weight: float = 1.0
-    
-    @property
-    def requires_ack(self) -> bool:
-        """Check if topic requires acknowledgment (reliable delivery)."""
-        return self.qos_reliability == "RELIABLE"
-    
-    @property
-    def priority_value(self) -> int:
-        """Numeric priority for scheduling."""
-        return {"URGENT": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}.get(self.qos_priority, 1)
-    
-    @property
-    def persistence_factor(self) -> float:
-        """Factor for persistence overhead."""
-        return {"PERSISTENT": 1.5, "TRANSIENT": 1.2, "VOLATILE": 1.0}.get(self.qos_durability, 1.0)
-
+from .types import ComponentState, RelationType
+from .components import ComponentInfo, TopicInfo
 
 class SimulationGraph:
     """
@@ -116,24 +28,15 @@ class SimulationGraph:
         - Broker -[RUNS_ON]-> Node
         - Node -[CONNECTS_TO]-> Node
     
-    Retrieves data directly from Neo4j for simulation.
+    This domain model assumes data is loaded via an external mechanism (GraphData).
     """
     
-    def __init__(
-        self,
-        uri: Optional[str] = None,
-        user: str = "neo4j",
-        password: str = "password",
-        graph_data: Optional[Any] = None
-    ):
+    def __init__(self, graph_data: Any = None):
         """
         Initialize simulation graph.
         
         Args:
-            uri: Neo4j connection URI (if loading from database)
-            user: Neo4j username
-            password: Neo4j password
-            graph_data: Pre-loaded GraphData object (alternative to Neo4j)
+            graph_data: Pre-loaded GraphData object containing components and edges.
         """
         self.logger = logging.getLogger(__name__)
         
@@ -157,163 +60,6 @@ class SimulationGraph:
         # Load graph
         if graph_data:
             self._load_from_data(graph_data)
-        elif uri:
-            self._load_from_neo4j(uri, user, password)
-    
-    def _load_from_neo4j(self, uri: str, user: str, password: str) -> None:
-        """Load graph data directly from Neo4j."""
-        try:
-            from neo4j import GraphDatabase
-        except ImportError:
-            raise ImportError("neo4j driver required. Install with: pip install neo4j")
-        
-        self.logger.info(f"Loading simulation graph from Neo4j: {uri}")
-        
-        driver = GraphDatabase.driver(uri, auth=(user, password))
-        
-        try:
-            with driver.session() as session:
-                # Load all components
-                self._load_components_from_neo4j(session)
-                
-                # Load all relationships
-                self._load_relationships_from_neo4j(session)
-        finally:
-            driver.close()
-        
-        self.logger.info(
-            f"Loaded: {len(self.components)} components, "
-            f"{len(self.topics)} topics, "
-            f"{self.graph.number_of_edges()} edges"
-        )
-    
-    def _load_components_from_neo4j(self, session) -> None:
-        """Load components from Neo4j."""
-        # Load Applications, Brokers, Nodes
-        query = """
-        MATCH (n)
-        WHERE n:Application OR n:Broker OR n:Node OR n:Library
-        RETURN n.id as id, labels(n)[0] as type, properties(n) as props
-        """
-        result = session.run(query)
-        for record in result:
-            comp_id = record["id"]
-            comp_type = record["type"]
-            props = dict(record["props"])
-            props.pop("id", None)
-            
-            self.components[comp_id] = ComponentInfo(
-                id=comp_id,
-                type=comp_type,
-                weight=props.pop("weight", 1.0),
-                properties=props
-            )
-            self.graph.add_node(comp_id, type=comp_type, **props)
-        
-        # Load Topics separately (with QoS info)
-        topic_query = """
-        MATCH (t:Topic)
-        RETURN t.id as id, t.name as name, properties(t) as props
-        """
-        result = session.run(topic_query)
-        for record in result:
-            topic_id = record["id"]
-            props = dict(record["props"])
-            
-            self.topics[topic_id] = TopicInfo(
-                id=topic_id,
-                name=record["name"] or topic_id,
-                message_size=props.get("message_size", 1024),
-                qos_reliability=props.get("qos_reliability", "BEST_EFFORT"),
-                qos_durability=props.get("qos_durability", "VOLATILE"),
-                qos_priority=props.get("qos_priority", "LOW"),
-                weight=props.get("weight", 1.0),
-            )
-            
-            # Also add to components
-            self.components[topic_id] = ComponentInfo(
-                id=topic_id,
-                type="Topic",
-                weight=self.topics[topic_id].weight,
-                properties=props
-            )
-            self.graph.add_node(topic_id, type="Topic", **props)
-    
-    def _load_relationships_from_neo4j(self, session) -> None:
-        """Load relationships from Neo4j."""
-        # PUBLISHES_TO: App -> Topic
-        query = """
-        MATCH (a:Application)-[r:PUBLISHES_TO]->(t:Topic)
-        RETURN a.id as source, t.id as target, properties(r) as props
-        """
-        result = session.run(query)
-        for record in result:
-            src, tgt = record["source"], record["target"]
-            self._publishers[tgt].append(src)
-            self.graph.add_edge(src, tgt, relation=RelationType.PUBLISHES_TO.value)
-        
-        # SUBSCRIBES_TO: App -> Topic
-        query = """
-        MATCH (a:Application)-[r:SUBSCRIBES_TO]->(t:Topic)
-        RETURN a.id as source, t.id as target, properties(r) as props
-        """
-        result = session.run(query)
-        for record in result:
-            src, tgt = record["source"], record["target"]
-            self._subscribers[tgt].append(src)
-            self.graph.add_edge(src, tgt, relation=RelationType.SUBSCRIBES_TO.value)
-        
-        # ROUTES: Broker <-> Topic (direction may vary)
-        query = """
-        MATCH (b:Broker)-[r:ROUTES]->(t:Topic)
-        RETURN b.id as broker, t.id as topic
-        UNION
-        MATCH (t:Topic)-[r:ROUTES]->(b:Broker)
-        RETURN b.id as broker, t.id as topic
-        """
-        result = session.run(query)
-        for record in result:
-            broker, topic = record["broker"], record["topic"]
-            if broker not in self._routing[topic]:
-                self._routing[topic].append(broker)
-            self.graph.add_edge(topic, broker, relation=RelationType.ROUTES.value)
-        
-        # RUNS_ON: App/Broker -> Node
-        query = """
-        MATCH (c)-[r:RUNS_ON]->(n:Node)
-        WHERE c:Application OR c:Broker
-        RETURN c.id as comp, n.id as node
-        """
-        result = session.run(query)
-        for record in result:
-            comp, node = record["comp"], record["node"]
-            self._hosted_on[comp] = node
-            self._hosts[node].append(comp)
-            self.graph.add_edge(comp, node, relation=RelationType.RUNS_ON.value)
-        
-        # CONNECTS_TO: Node -> Node
-        query = """
-        MATCH (n1:Node)-[r:CONNECTS_TO]->(n2:Node)
-        RETURN n1.id as source, n2.id as target
-        """
-        result = session.run(query)
-        for record in result:
-            src, tgt = record["source"], record["target"]
-            self._connections[src].append(tgt)
-            self.graph.add_edge(src, tgt, relation=RelationType.CONNECTS_TO.value)
-        
-        # USES: App/Library -> Library
-        query = """
-        MATCH (s)-[r:USES]->(t:Library)
-        WHERE s:Application OR s:Library
-        RETURN s.id as source, t.id as target
-        """
-        result = session.run(query)
-        for record in result:
-            src, tgt = record["source"], record["target"]
-            self._uses[src].append(tgt)
-            self._used_by[tgt].append(src)
-            self.graph.add_edge(src, tgt, relation=RelationType.USES.value)
     
     def _load_from_data(self, graph_data: Any) -> None:
         """Load from pre-loaded GraphData object."""

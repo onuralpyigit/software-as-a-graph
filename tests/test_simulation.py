@@ -1,8 +1,8 @@
 import pytest
 from src.application.dto import GraphData, ComponentData, EdgeData
-from src.simulation.simulation_graph import SimulationGraph
-from src.simulation.event_simulator import EventSimulator, EventScenario
-from src.simulation.failure_simulator import FailureSimulator, FailureScenario
+from src.domain.models.simulation.graph import SimulationGraph
+from src.domain.services.simulation.event_simulator import EventSimulator, EventScenario
+from src.domain.services.simulation.failure_simulator import FailureSimulator, FailureScenario, ImpactMetrics
 
 @pytest.fixture
 def raw_graph_data():
@@ -52,7 +52,7 @@ def test_failure_simulation(raw_graph_data):
 
 def test_configurable_impact_weights(raw_graph_data):
     """Test that impact weights are configurable."""
-    from src.simulation.failure_simulator import ImpactMetrics
+    # ImpactMetrics imported at top level now
     
     # Create metrics with losses
     metrics = ImpactMetrics(

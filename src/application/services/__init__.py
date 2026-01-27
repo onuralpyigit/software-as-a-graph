@@ -5,9 +5,12 @@ from .analysis_service import (
     LayerAnalysisResult
 )
 
+from .simulation_service import SimulationService
+
 __all__ = [
     "AnalysisService", 
     "analyze_graph",
     "MultiLayerAnalysisResult",
-    "LayerAnalysisResult"
+    "LayerAnalysisResult",
+    "SimulationService",
 ]

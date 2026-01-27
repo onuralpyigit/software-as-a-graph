@@ -35,12 +35,11 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.simulation import (
-    Simulator,
-    EventResult,
-    FailureResult,
-    SimulationReport,
-)
+from src.application.services import SimulationService
+from src.domain.models.simulation.metrics import SimulationReport
+from src.domain.services.simulation.event_simulator import EventResult
+from src.domain.services.simulation.failure_simulator import FailureResult
+
 from src.visualization.display import (
     display_event_result,
     display_failure_result,
@@ -199,12 +198,8 @@ def main() -> int:
         container = Container(uri=args.uri, user=args.user, password=args.password)
         repository = container.graph_repository()
         
-        with Simulator(
-            uri=args.uri,
-            user=args.user,
-            password=args.password,
-            repository=repository
-        ) as sim:
+        # Instantiate service and usage as context manager
+        with SimulationService(repository=repository) as sim:
             
             # === Event Simulation ===
             if args.event:

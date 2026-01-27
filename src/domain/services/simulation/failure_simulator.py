@@ -24,45 +24,10 @@ from typing import Dict, List, Set, Tuple, Any, Optional
 from enum import Enum
 from collections import defaultdict
 
-from .simulation_graph import SimulationGraph, ComponentState, RelationType
+from src.domain.models.simulation.graph import SimulationGraph
+from src.domain.models.simulation.types import ComponentState, RelationType, FailureMode, CascadeRule
 
-
-class FailureMode(Enum):
-    """
-    Types of component failure modes.
-    
-    CRASH (Fully Implemented):
-        Complete component failure. The component stops functioning entirely.
-        Cascade: Physical (Node→hosted), Logical (Broker→topics), Network
-    
-    DEGRADED (Partial Implementation):
-        Partial failure where component operates at reduced capacity.
-        Use Case: Simulate slow responses, memory pressure, CPU throttling.
-        TODO: Implement capacity reduction factor and partial message delivery.
-    
-    PARTITION (Partial Implementation):
-        Network isolation where component is unreachable from some nodes.
-        Use Case: Simulate network splits, firewall rules, zone failures.
-        TODO: Implement reachability matrices and partition detection.
-    
-    OVERLOAD (Partial Implementation):
-        Resource exhaustion where component cannot handle additional load.
-        Use Case: Simulate queue overflow, connection limits, memory OOM.
-        TODO: Implement backpressure and queue depth tracking.
-    """
-    CRASH = "crash"           # Complete failure - component stops
-    DEGRADED = "degraded"     # Partial failure - reduced capacity
-    PARTITION = "partition"   # Network partition - unreachable
-    OVERLOAD = "overload"     # Resource exhaustion
-
-
-
-class CascadeRule(Enum):
-    """Rules governing failure cascade propagation."""
-    PHYSICAL = "physical"     # Node failure cascades to hosted components
-    LOGICAL = "logical"       # Broker failure affects topic routing
-    NETWORK = "network"       # Network partition propagation
-    ALL = "all"               # All cascade rules applied
+@dataclass
 
 
 @dataclass

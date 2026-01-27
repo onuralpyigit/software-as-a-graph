@@ -27,17 +27,9 @@ from typing import Dict, List, Set, Tuple, Any, Optional
 from enum import Enum
 from collections import defaultdict
 
-from .simulation_graph import SimulationGraph, ComponentState, TopicInfo
-
-
-class EventType(Enum):
-    """Types of discrete events in the simulation."""
-    PUBLISH = "publish"       # Message published by app
-    ROUTE = "route"           # Message routed by broker
-    DELIVER = "deliver"       # Message delivered to subscriber
-    ACK = "ack"               # Acknowledgment (for reliable delivery)
-    TIMEOUT = "timeout"       # Delivery timeout
-    DROP = "drop"             # Message dropped
+from src.domain.models.simulation.graph import SimulationGraph
+from src.domain.models.simulation.types import ComponentState, EventType
+from src.domain.models.simulation.components import TopicInfo
 
 
 @dataclass(order=True)
