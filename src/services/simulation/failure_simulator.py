@@ -24,8 +24,8 @@ from typing import Dict, List, Set, Tuple, Any, Optional
 from enum import Enum
 from collections import defaultdict
 
-from src.domain.models.simulation.graph import SimulationGraph
-from src.domain.models.simulation.types import ComponentState, RelationType, FailureMode, CascadeRule
+from src.models.simulation.graph import SimulationGraph
+from src.models.simulation.types import ComponentState, RelationType, FailureMode, CascadeRule
 
 @dataclass
 

@@ -1,8 +1,8 @@
 from typing import Dict, Any, List, Optional
 import copy
 
-from ...domain.models import QoSPolicy
-from ...application.dto import GraphData, ComponentData, EdgeData
+from src.models import QoSPolicy
+from src.models import GraphData, ComponentData, EdgeData
 
 class InMemoryGraphRepository:
     """

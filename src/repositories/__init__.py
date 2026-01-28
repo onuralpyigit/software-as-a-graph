@@ -1,7 +1,7 @@
-from .neo4j_repository import Neo4jGraphRepository
+from .graph_repository import GraphRepository
 from .memory_repository import InMemoryGraphRepository
 
 __all__ = [
-    "Neo4jGraphRepository",
+    "GraphRepository",
     "InMemoryGraphRepository",
 ]

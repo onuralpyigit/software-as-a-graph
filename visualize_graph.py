@@ -17,7 +17,7 @@ from typing import List
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.infrastructure import Container
-from src.domain.models.visualization.layer_data import LAYER_DEFINITIONS
+from src.models.visualization.layer_data import LAYER_DEFINITIONS
 
 
 def display_available_layers(display) -> None:

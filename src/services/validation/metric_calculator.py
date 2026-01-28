@@ -4,10 +4,10 @@ Validation Metric Calculator
 import math
 from typing import Sequence, List, Dict, Tuple, Any
 
-from src.domain.models.validation.metrics import (
+from src.models.validation.metrics import (
     CorrelationMetrics, ErrorMetrics, ClassificationMetrics, RankingMetrics
 )
-from src.domain.models.validation.results import ComponentComparison
+from src.models.validation.results import ComponentComparison
 
 def calculate_correlation(predicted: Sequence[float], actual: Sequence[float]) -> CorrelationMetrics:
     """Calculate all correlation metrics."""

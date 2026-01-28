@@ -100,9 +100,10 @@ def main() -> None:
     )
     
     try:
-        # Use ImportGraphUseCase
-        use_case = container.import_use_case()
-        stats = use_case.execute(data, clear=args.clear)
+        # Use Repository directly
+        repo = container.graph_repository()
+        repo.save_graph(data, clear=args.clear)
+        stats = repo.get_statistics()
         print_import_stats(stats)
             
     except Exception as e:

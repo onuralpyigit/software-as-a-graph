@@ -8,10 +8,10 @@ Tests for:
 """
 
 import pytest
-from src.domain.services.analysis.structural_analyzer import StructuralAnalyzer
-from src.domain.services.analysis.quality_analyzer import QualityAnalyzer
-from src.domain.models.analysis.layers import AnalysisLayer, get_layer_definition, LAYER_DEFINITIONS
-from src.application.dto import GraphData, ComponentData, EdgeData
+from src.services.analysis.structural_analyzer import StructuralAnalyzer
+from src.services.analysis.quality_analyzer import QualityAnalyzer
+from src.models.analysis.layers import AnalysisLayer, get_layer_definition, LAYER_DEFINITIONS
+from src.models import GraphData, ComponentData, EdgeData
 
 
 # =============================================================================
@@ -279,7 +279,7 @@ class TestQualityAnalyzer:
     
     def test_custom_weights(self, mock_graph_data):
         """Test that custom weights affect scoring."""
-        from src.domain.services.analysis.weight_calculator import QualityWeights
+        from src.services.analysis.weight_calculator import QualityWeights
         
         struct_an = StructuralAnalyzer()
         struct_res = struct_an.analyze(mock_graph_data)
@@ -326,7 +326,7 @@ class TestQualityAnalyzer:
     
     def test_edge_weights_configurable(self, mock_graph_data):
         """Test that edge quality weights are configurable."""
-        from src.domain.services.analysis.weight_calculator import QualityWeights
+        from src.services.analysis.weight_calculator import QualityWeights
         
         struct_an = StructuralAnalyzer()
         struct_res = struct_an.analyze(mock_graph_data)

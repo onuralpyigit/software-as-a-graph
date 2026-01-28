@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from ..application.ports import GraphRepository
-from ..adapters.persistence import Neo4jGraphRepository, InMemoryGraphRepository
-from ..application.use_cases import ImportGraphUseCase, AnalyzeGraphUseCase
+from src.repositories.graph_repository import GraphRepository
+from src.repositories.memory_repository import InMemoryGraphRepository
 
 @dataclass
 class Container:
@@ -18,25 +17,19 @@ class Container:
         """Get the graph repository singleton."""
         if not self._repository:
             # Check availability or just instantiate
-            self._repository = Neo4jGraphRepository(self.uri, self.user, self.password)
+            self._repository = GraphRepository(self.uri, self.user, self.password)
         return self._repository
     
-    def import_use_case(self) -> ImportGraphUseCase:
-        return ImportGraphUseCase(repository=self.graph_repository())
-    
-    def analyze_use_case(self) -> AnalyzeGraphUseCase:
-        return AnalyzeGraphUseCase(repository=self.graph_repository())
-    
     def analysis_service(self) -> 'AnalysisService':
-        from ..application.services.analysis_service import AnalysisService
+        from src.services.analysis_service import AnalysisService
         return AnalysisService(repository=self.graph_repository())
 
     def simulation_service(self) -> 'SimulationService':
-        from ..application.services.simulation_service import SimulationService
+        from src.services.simulation_service import SimulationService
         return SimulationService(repository=self.graph_repository())
 
     def validation_service(self, targets=None) -> 'ValidationService':
-        from ..application.services.validation_service import ValidationService
+        from src.services.validation_service import ValidationService
         return ValidationService(
             analysis_service=self.analysis_service(),
             simulation_service=self.simulation_service(),
@@ -44,11 +37,11 @@ class Container:
         )
 
     def display_service(self) -> 'DisplayService':
-        from ..application.services.display_service import DisplayService
+        from src.services.display_service import DisplayService
         return DisplayService()
 
     def visualization_service(self) -> 'VisualizationService':
-        from ..application.services.visualization_service import VisualizationService
+        from src.services.visualization_service import VisualizationService
         return VisualizationService(
             analysis_service=self.analysis_service(),
             simulation_service=self.simulation_service(),

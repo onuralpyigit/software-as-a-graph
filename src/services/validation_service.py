@@ -7,11 +7,11 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from src.domain.models.validation.metrics import ValidationTargets
-from src.domain.models.validation.results import ValidationResult, LayerValidationResult, PipelineResult
-from src.domain.services.validation.validator import Validator
-from src.application.services.analysis_service import AnalysisService
-from src.application.services.simulation_service import SimulationService
+from src.models.validation.metrics import ValidationTargets
+from src.models.validation.results import ValidationResult, LayerValidationResult, PipelineResult
+from src.services.validation.validator import Validator
+from src.services.analysis_service import AnalysisService
+from src.services.simulation_service import SimulationService
 
 # Layer definitions (moved from pipeline.py)
 LAYER_DEFINITIONS = {

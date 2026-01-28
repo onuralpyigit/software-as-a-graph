@@ -12,18 +12,18 @@ from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Any, Optional, Union
 
-from ...domain.models.analysis.layers import (
+from src.models.analysis.layers import (
     AnalysisLayer, 
     LAYER_DEFINITIONS, 
     get_layer_definition,
     get_all_layers,
     get_primary_layers
 )
-from ...domain.services.analysis.structural_analyzer import StructuralAnalyzer, StructuralAnalysisResult
-from ...domain.services.analysis.quality_analyzer import QualityAnalyzer, QualityAnalysisResult
-from ...domain.services.analysis.problem_detector import ProblemDetector, DetectedProblem, ProblemSummary
-from ...domain.models.analysis.criticality import CriticalityLevel
-from ...domain.models.analysis.results import LayerAnalysisResult, MultiLayerAnalysisResult
+from src.services.analysis.structural_analyzer import StructuralAnalyzer, StructuralAnalysisResult
+from src.services.analysis.quality_analyzer import QualityAnalyzer, QualityAnalysisResult
+from src.services.analysis.problem_detector import ProblemDetector, DetectedProblem, ProblemSummary
+from src.models.analysis.criticality import CriticalityLevel
+from src.models.analysis.results import LayerAnalysisResult, MultiLayerAnalysisResult
 
 
 class AnalysisService:

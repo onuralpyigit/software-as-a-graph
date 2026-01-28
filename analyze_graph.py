@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.infrastructure import Container
-from src.domain.models.analysis.results import MultiLayerAnalysisResult
+from src.models.analysis.results import MultiLayerAnalysisResult
 
 
 def main() -> int:

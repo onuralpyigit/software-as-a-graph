@@ -16,8 +16,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.infrastructure import Container
-from src.domain.models.validation.metrics import ValidationTargets
-from src.domain.models.visualization.layer_data import LAYER_DEFINITIONS
+from src.models.validation.metrics import ValidationTargets
+from src.models.visualization.layer_data import LAYER_DEFINITIONS
 
 
 def main() -> int:

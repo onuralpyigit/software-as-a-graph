@@ -5,12 +5,12 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from ...domain.models.visualization.layer_data import LayerData, LAYER_DEFINITIONS
-from ...domain.services.visualization.chart_generator import ChartGenerator
-from ...domain.services.visualization.dashboard_generator import DashboardGenerator
-from .analysis_service import AnalysisService
-from .simulation_service import SimulationService
-from .validation_service import ValidationService
+from src.models.visualization.layer_data import LayerData, LAYER_DEFINITIONS
+from src.services.visualization.chart_generator import ChartGenerator
+from src.services.visualization.dashboard_generator import DashboardGenerator
+from src.services.analysis_service import AnalysisService
+from src.services.simulation_service import SimulationService
+from src.services.validation_service import ValidationService
 
 
 class VisualizationService:

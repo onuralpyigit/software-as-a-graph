@@ -11,15 +11,15 @@ import json
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-from src.application.ports.graph_repository import GraphRepository
-from src.domain.models.simulation.graph import SimulationGraph
-from src.domain.models.simulation.metrics import LayerMetrics, ComponentCriticality, SimulationReport
-from src.domain.services.simulation.event_simulator import EventSimulator, EventScenario, EventResult
-from src.domain.services.simulation.failure_simulator import FailureSimulator, FailureScenario, FailureResult
+from src.repositories.graph_repository import GraphRepository
+from src.models.simulation.graph import SimulationGraph
+from src.models.simulation.metrics import LayerMetrics, ComponentCriticality, SimulationReport
+from src.services.simulation.event_simulator import EventSimulator, EventScenario, EventResult
+from src.services.simulation.failure_simulator import FailureSimulator, FailureScenario, FailureResult
 
 # Import classifier from analysis module (optional)
 try:
-    from src.domain.services.analysis.classifier import BoxPlotClassifier
+    from src.services.analysis.classifier import BoxPlotClassifier
     HAS_CLASSIFIER = True
 except ImportError:
     HAS_CLASSIFIER = False

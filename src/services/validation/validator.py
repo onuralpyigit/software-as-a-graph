@@ -5,11 +5,11 @@ import logging
 from typing import Dict, List, Optional
 from datetime import datetime
 
-from src.domain.models.validation.metrics import ValidationTargets
-from src.domain.models.validation.results import (
+from src.models.validation.metrics import ValidationTargets
+from src.models.validation.results import (
     ValidationResult, ValidationGroupResult, ComponentComparison
 )
-from src.domain.services.validation.metric_calculator import (
+from src.services.validation.metric_calculator import (
     calculate_correlation, calculate_error, calculate_classification, calculate_ranking
 )
 
@@ -155,7 +155,7 @@ class Validator:
 
     def _empty_result(self, timestamp, layer, context, pc, ac, mc, warnings) -> ValidationResult:
         # Helper to avoid messy imports in ValidationResult constructor call
-        from src.domain.models.validation.metrics import CorrelationMetrics, ErrorMetrics, ClassificationMetrics, RankingMetrics
+        from src.models.validation.metrics import CorrelationMetrics, ErrorMetrics, ClassificationMetrics, RankingMetrics
         empty_group = ValidationGroupResult(
             group_name="Overall", sample_size=0, passed=False, targets=self.targets,
             correlation=CorrelationMetrics(), error=ErrorMetrics(),

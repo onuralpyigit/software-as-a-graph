@@ -6,8 +6,8 @@ from dataclasses import asdict
 from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, AuthError
 
-from ...domain.models import QoSPolicy
-from ...application.dto import GraphData, ComponentData, EdgeData
+from src.models import QoSPolicy
+from src.models import GraphData, ComponentData, EdgeData
 
 # Layer definitions for filtering
 LAYER_DEFINITIONS = {
@@ -33,7 +33,7 @@ LAYER_DEFINITIONS = {
     },
 }
 
-class Neo4jGraphRepository:
+class GraphRepository:
     """
     Neo4j adapter for GraphRepository port.
     Combines functionality of GraphImporter and GraphExporter.
@@ -50,7 +50,7 @@ class Neo4jGraphRepository:
         self.database = database
         self.logger = logging.getLogger(__name__)
 
-    def __enter__(self) -> "Neo4jGraphRepository":
+    def __enter__(self) -> "GraphRepository":
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:

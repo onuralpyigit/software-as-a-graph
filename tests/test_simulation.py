@@ -1,8 +1,8 @@
 import pytest
-from src.application.dto import GraphData, ComponentData, EdgeData
-from src.domain.models.simulation.graph import SimulationGraph
-from src.domain.services.simulation.event_simulator import EventSimulator, EventScenario
-from src.domain.services.simulation.failure_simulator import FailureSimulator, FailureScenario, ImpactMetrics
+from src.models import GraphData, ComponentData, EdgeData
+from src.models.simulation.graph import SimulationGraph
+from src.services.simulation.event_simulator import EventSimulator, EventScenario
+from src.services.simulation.failure_simulator import FailureSimulator, FailureScenario, ImpactMetrics
 
 @pytest.fixture
 def raw_graph_data():
