@@ -7,13 +7,13 @@ Tests for:
 """
 
 import pytest
-from src.domain.services.validation.metric_calculator import (
+from src.services.validation.metric_calculator import (
     calculate_classification,
     spearman_correlation, 
     calculate_ranking,
     calculate_error,
 )
-from src.domain.services.validation.validator import Validator
+from src.services.validation.validator import Validator
 
 
 # =============================================================================

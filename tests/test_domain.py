@@ -1,9 +1,9 @@
 import pytest
-from src.domain.models import (
+from src.models import (
     Application, Topic, QoSPolicy, 
     VertexType, EdgeType, DependencyType
 )
-from src.domain.services.graph_generator import GraphGenerator
+from src.services.graph_generator import GraphGenerator
 
 class TestDomainModels:
     def test_qos_policy_defaults(self):
