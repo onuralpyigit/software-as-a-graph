@@ -4,6 +4,7 @@ CLI script to generate pub-sub graph data.
 
 Example usage:
     python generate_graph.py --scale medium --output output/graph.json --seed 42
+    python generate_graph.py --config input/graph_config.yaml --output output/graph.json
 """
 
 import argparse
@@ -12,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
-from src.services.graph_generator import generate_graph
+from src.services.graph_generator import GraphGenerator, GraphConfig, load_config
 
 
 def main() -> None:
@@ -21,12 +22,21 @@ def main() -> None:
         description="Generate Pub-Sub Graph Data",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
+    
+    # Create mutually exclusive group for scale vs config
+    config_group = parser.add_mutually_exclusive_group()
+    config_group.add_argument(
         "--scale",
-        default="medium",
+        default=None,
         choices=["tiny", "small", "medium", "large", "xlarge"],
-        help="Scale of the graph to generate",
+        help="Scale of the graph to generate (preset)",
     )
+    config_group.add_argument(
+        "--config",
+        type=Path,
+        help="Path to YAML configuration file",
+    )
+    
     parser.add_argument(
         "--output",
         required=True,
@@ -36,14 +46,33 @@ def main() -> None:
         "--seed",
         type=int,
         default=42,
-        help="Random seed for reproducibility",
+        help="Random seed for reproducibility (ignored if --config is used)",
     )
     args = parser.parse_args()
 
-    print(f"Generating '{args.scale}' graph (Seed: {args.seed})...")
+    # Determine configuration source
+    if args.config:
+        if not args.config.exists():
+            print(f"Error: Config file '{args.config}' not found.", file=sys.stderr)
+            sys.exit(1)
+        try:
+            config = load_config(args.config)
+            print(f"Loading configuration from '{args.config}'...")
+        except Exception as e:
+            print(f"Error loading config: {e}", file=sys.stderr)
+            sys.exit(1)
+        generator = GraphGenerator(config=config)
+        config_desc = f"config={args.config}"
+    else:
+        # Use scale preset (default to medium if neither provided)
+        scale = args.scale or "medium"
+        generator = GraphGenerator(scale=scale, seed=args.seed)
+        config_desc = f"scale={scale}, seed={args.seed}"
+    
+    print(f"Generating graph ({config_desc})...")
 
     try:
-        data = generate_graph(scale=args.scale, seed=args.seed)
+        data = generator.generate()
 
         # Ensure output directory exists
         output_path = Path(args.output)

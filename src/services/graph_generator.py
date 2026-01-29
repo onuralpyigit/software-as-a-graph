@@ -5,7 +5,11 @@ Generates realistic pub-sub system graphs with QoS properties.
 """
 
 import random
-from typing import Dict, Any, List, Union
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, Any, List, Union, Optional
+
+import yaml
 
 from ..models import (
     Application,
@@ -34,12 +38,89 @@ ROLE_OPTIONS = ["pub", "sub", "pubsub"]
 APP_TYPE_OPTIONS = [t.value for t in ApplicationType]
 
 
+@dataclass
+class GraphConfig:
+    """Configuration for graph generation."""
+    
+    apps: int = 50
+    topics: int = 30
+    brokers: int = 3
+    nodes: int = 8
+    libs: int = 10
+    seed: int = 42
+    
+    @classmethod
+    def from_scale(cls, scale: str, seed: int = 42) -> "GraphConfig":
+        """Create config from a scale preset name."""
+        preset = SCALE_PRESETS.get(scale, SCALE_PRESETS["medium"])
+        return cls(
+            apps=preset["apps"],
+            topics=preset["topics"],
+            brokers=preset["brokers"],
+            nodes=preset["nodes"],
+            libs=preset["libs"],
+            seed=seed,
+        )
+    
+    @classmethod
+    def from_yaml(cls, data: Dict[str, Any]) -> "GraphConfig":
+        """Create config from parsed YAML data."""
+        graph_data = data.get("graph", data)
+        return cls(
+            apps=graph_data.get("apps", 50),
+            topics=graph_data.get("topics", 30),
+            brokers=graph_data.get("brokers", 3),
+            nodes=graph_data.get("nodes", 8),
+            libs=graph_data.get("libs", 10),
+            seed=graph_data.get("seed", 42),
+        )
+    
+    def to_scale_dict(self) -> Dict[str, int]:
+        """Convert to scale config dict (excludes seed)."""
+        return {
+            "apps": self.apps,
+            "topics": self.topics,
+            "brokers": self.brokers,
+            "nodes": self.nodes,
+            "libs": self.libs,
+        }
+
+
+def load_config(path: Path) -> GraphConfig:
+    """Load graph configuration from a YAML file.
+    
+    Args:
+        path: Path to the YAML configuration file
+        
+    Returns:
+        GraphConfig instance with loaded values
+        
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        yaml.YAMLError: If config file is invalid YAML
+    """
+    with open(path, "r") as f:
+        data = yaml.safe_load(f)
+    return GraphConfig.from_yaml(data)
+
+
 class GraphGenerator:
     """Generates realistic pub-sub system graphs with configurable scale."""
     
-    def __init__(self, scale: str = "medium", seed: int = 42) -> None:
-        self.rng = random.Random(seed)
-        self.scale_config = self._get_scale_config(scale)
+    def __init__(
+        self,
+        scale: str = "medium",
+        seed: int = 42,
+        config: Optional[GraphConfig] = None,
+    ) -> None:
+        if config is not None:
+            self.config = config
+            self.rng = random.Random(config.seed)
+        else:
+            self.config = GraphConfig.from_scale(scale, seed)
+            self.rng = random.Random(seed)
+        
+        self.scale_config = self.config.to_scale_dict()
 
     def _get_scale_config(self, scale: str) -> Dict[str, int]:
         """Returns configuration for graph generation based on scale."""

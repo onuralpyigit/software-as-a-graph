@@ -59,6 +59,7 @@ class PipelineConfig:
     # Generation
     scale: str = "medium"
     seed: int = 42
+    graph_config_file: Optional[str] = None
     
     # Layers to process
     layers: List[str] = field(default_factory=lambda: ["app", "infra", "system"])
@@ -311,16 +312,23 @@ class PipelineRunner:
         """Stage 1: Generate synthetic graph data."""
         start = time.time()
         
-        print_step(f"Generating {self.config.scale} scale graph...")
-        
         # Ensure input directory exists
         self.input_file.parent.mkdir(parents=True, exist_ok=True)
         
-        args = [
-            "--scale", self.config.scale,
-            "--seed", str(self.config.seed),
-            "--output", str(self.input_file),
-        ]
+        # Build args based on config source
+        if self.config.graph_config_file:
+            print_step(f"Generating graph from config: {self.config.graph_config_file}")
+            args = [
+                "--config", self.config.graph_config_file,
+                "--output", str(self.input_file),
+            ]
+        else:
+            print_step(f"Generating {self.config.scale} scale graph...")
+            args = [
+                "--scale", self.config.scale,
+                "--seed", str(self.config.seed),
+                "--output", str(self.input_file),
+            ]
         
         success, stdout, stderr = self._run_subprocess(
             "generate_graph.py", args, "Generating graph data"
@@ -850,6 +858,12 @@ Examples:
         default=42,
         help="Random seed (default: 42)"
     )
+    gen.add_argument(
+        "--graph-config",
+        type=str,
+        default=None,
+        help="Path to graph generation config file (overrides --scale and --seed)"
+    )
     
     # Validation targets
     targets = parser.add_argument_group("Validation Targets")
@@ -937,6 +951,7 @@ def main() -> int:
         scripts_dir=args.scripts_dir,
         scale=args.scale,
         seed=args.seed,
+        graph_config_file=args.graph_config,
         layers=valid_layers,
         target_spearman=args.target_spearman,
         target_f1=args.target_f1,
