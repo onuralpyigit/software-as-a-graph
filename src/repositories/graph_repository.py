@@ -242,7 +242,7 @@ class GraphRepository:
         """)
 
         # App->Lib->App (publisher via library)
-        # Pattern: appA -[:USES]-> lib -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- appB
+        # Pattern: appA -[:USES*]-> lib -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- appB
         self._run_query(f"""
         MATCH (appA:Application)-[:USES]->(lib:Library)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(appB:Application)
         WHERE appA <> appB
@@ -255,32 +255,9 @@ class GraphRepository:
         """)
 
         # App->Lib->App (subscriber via library)
-        # Pattern: appA -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- lib <-[:USES]- appB
+        # Pattern: appA -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- lib <-[:USES*]-(appB:Application)
         self._run_query(f"""
         MATCH (appA:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(lib:Library)<-[:USES]-(appB:Application)
-        WHERE appA <> appB
-        WITH appA, appB, t, {qos_calc} as importance
-        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
-        MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
-        ON CREATE SET d.weight = shared_count + importance_sum
-        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
-        RETURN count(d) as c
-        """)
-
-        # App->Lib->Lib->App (two-level library chain, publisher side)
-        # Pattern: appA -[:USES]-> lib1 -[:USES]-> lib2 -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- appB
-        self._run_query(f"""
-        MATCH (app:Application)-[:USES]->(lib:Library)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(b:Broker)
-        WITH app, b, t, {qos_calc} as importance
-        WITH app, b, count(t) as topics, sum(importance) as importance_sum
-        MERGE (app)-[d:DEPENDS_ON {{dependency_type: 'app_to_broker'}}]->(b)
-        SET d.weight = topics + importance_sum
-        """)
-
-        # App->Lib->Lib->App (two-level library chain, subscriber side)
-        # Pattern: appA -[:PUBLISHES_TO]-> Topic <-[:SUBSCRIBES_TO]- lib2 <-[:USES]- lib1 <-[:USES]- appB        self._run_query("""
-        self._run_query(f"""
-        MATCH (appA:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(lib2:Library)<-[:USES]-(lib1:Library)<-[:USES]-(appB:Application)
         WHERE appA <> appB
         WITH appA, appB, t, {qos_calc} as importance
         WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
@@ -317,9 +294,9 @@ class GraphRepository:
         """)
 
         # App->Broker (indirect via library)
-        # Pattern: appA -[:USES]-> lib -[:PUBLISHES_TO| SUBSCRIBES_TO]-> Topic <-[:ROUTES]- broker
+        # Pattern: appA -[:USES*]-> lib -[:PUBLISHES_TO| SUBSCRIBES_TO]-> Topic <-[:ROUTES]- broker
         self._run_query(f"""
-        MATCH (appA:Application)-[:USES]->(lib:Library)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
+        MATCH (appA:Application)-[:USES*]->(lib:Library)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
         WHERE appA <> broker
         WITH appA, broker, t, {qos_calc} as importance
         WITH appA, broker, count(t) as shared_count, sum(importance) as importance_sum
@@ -361,9 +338,7 @@ class GraphRepository:
         WITH n, 
              n.weight as intrinsic_weight, 
              coalesce(sum(out.weight), 0) + coalesce(sum(inc.weight), 0) as centrality_score
-        SET n.weight = intrinsic_weight + centrality_score,
-            n.intrinsic_weight = intrinsic_weight,
-            n.centrality_score = centrality_score
+        SET n.weight = intrinsic_weight + centrality_score
         """)
 
     def _run_query(self, query: str) -> None:
@@ -499,6 +474,7 @@ class GraphRepository:
     def get_statistics(self) -> Dict[str, int]:
         """Retrieve counts of components and dependencies by type."""
         all_component_types = ["Application", "Broker", "Node", "Topic", "Library"]
+        all_relationship_types = ["RUNS_ON", "ROUTES", "PUBLISHES_TO", "SUBSCRIBES_TO", "CONNECTS_TO", "USES"]
         all_dependency_types = ["app_to_app", "node_to_node", "app_to_broker", "node_to_broker"]
         
         stats = {}
@@ -506,6 +482,9 @@ class GraphRepository:
             for comp_type in all_component_types:
                 result = session.run(f"MATCH (n:{comp_type}) RETURN count(n) as c")
                 stats[f"{comp_type.lower()}_count"] = result.single()["c"]
+            for rel_type in all_relationship_types:
+                result = session.run(f"MATCH ()-[r:{rel_type}]->() RETURN count(r) as c")
+                stats[f"{rel_type.lower()}_count"] = result.single()["c"]
             for dep_type in all_dependency_types:
                 result = session.run(f"MATCH ()-[r:DEPENDS_ON {{dependency_type: '{dep_type}'}}]->() RETURN count(r) as c")
                 stats[f"{dep_type}_count"] = result.single()["c"]

@@ -3,11 +3,11 @@
 
 graph:
   # Component counts
-  apps: 25        # Number of applications
-  topics: 15      # Number of topics
+  apps: 10        # Number of applications
+  topics: 10      # Number of topics
   brokers: 2      # Number of brokers
-  nodes: 6        # Number of nodes
-  libs: 8         # Number of libraries
+  nodes: 3        # Number of nodes
+  libs: 5         # Number of libraries
   
   # Random seed for reproducibility
   seed: 12345
