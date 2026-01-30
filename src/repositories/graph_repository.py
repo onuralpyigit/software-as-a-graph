@@ -229,7 +229,7 @@ class GraphRepository:
         self._run_query("MATCH (a:Application)-[r:RUNS_ON]->(n:Node) SET r.weight = a.weight")
 
         # 10. CONNECTS_TO Edge Weights
-        self._run_query("MATCH (n1:Node)-[r:CONNECTS_TO]->(n2:Node) SET r.weight = n1.weight + n2.weight")
+        self._run_query("MATCH (n1:Node)-[r:CONNECTS_TO]->(n2:Node) SET r.weight = n1.weight")
 
     def _derive_dependencies(self) -> None:
         """Derive DEPENDS_ON relationships."""
