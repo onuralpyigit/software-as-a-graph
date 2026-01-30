@@ -104,7 +104,7 @@ def load_config(path: Path) -> GraphConfig:
     return GraphConfig.from_yaml(data)
 
 
-class GraphGenerator:
+class GenerationService:
     """Generates realistic pub-sub system graphs with configurable scale."""
     
     def __init__(
@@ -256,4 +256,4 @@ class GraphGenerator:
 
 def generate_graph(scale: str = "medium", **kwargs: Any) -> Dict[str, Any]:
     """Convenience function to generate a graph with the given scale."""
-    return GraphGenerator(scale=scale, **kwargs).generate()
+    return GenerationService(scale=scale, **kwargs).generate()

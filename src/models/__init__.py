@@ -1,6 +1,6 @@
 from .graph_data import GraphData, ComponentData, EdgeData
 from .value_objects import QoSPolicy
-from .entities import GraphEntity, Application, Broker, Topic, Node, Library
+from .graph_elements import GraphEntity, Application, Broker, Topic, Node, Library
 from .enums import VertexType, EdgeType, DependencyType, ApplicationType
 
 __all__ = [

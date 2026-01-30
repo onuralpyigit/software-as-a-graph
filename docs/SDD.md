@@ -140,31 +140,31 @@ The system uses a **Layered Architecture** with **Facade Pattern** for module ac
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        PRESENTATION LAYER                            │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   │
-│  │ run.py      │ │analyze_     │ │simulate_    │ │visualize_   │   │
-│  │ (Pipeline)  │ │graph.py     │ │graph.py     │ │graph.py     │   │
-│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘   │
-└─────────┼───────────────┼───────────────┼───────────────┼──────────┘
+│                        PRESENTATION LAYER                           │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐    │
+│  │ saag-cli.py │ │analyze_     │ │simulate_    │ │visualize_   │    │
+│  │ (Pipeline)  │ │graph.py     │ │graph.py     │ │graph.py     │    │
+│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘    │
+└─────────┼───────────────┼───────────────┼───────────────┼───────────┘
           │               │               │               │
           ▼               ▼               ▼               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         SERVICE LAYER                                │
+│                         SERVICE LAYER                               │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐        │
 │  │ GraphAnalyzer   │ │ Simulator       │ │ GraphVisualizer │        │
 │  │ (Facade)        │ │ (Facade)        │ │ (Facade)        │        │
 │  └────────┬────────┘ └────────┬────────┘ └────────┬────────┘        │
-│           │                   │                   │                  │
-│  ┌────────▼────────┐ ┌────────▼────────┐ ┌───────▼─────────┐        │
-│  │StructuralAnalyzer│ │FailureSimulator │ │DashboardGenerator│       │
-│  │ QualityAnalyzer  │ │ EventSimulator  │ │ ChartGenerator   │       │
-│  │ ProblemDetector  │ │SimulationGraph  │ │ NetworkRenderer  │       │
-│  └────────┬────────┘ └────────┬────────┘ └───────┬─────────┘        │
+│           │                   │                   │                 │
+│  ┌────────▼────────-┐ ┌───────▼────────-┐ ┌───────▼────────--┐      │
+│  │StructuralAnalyzer│ │FailureSimulator │ │DashboardGenerator│      │
+│  │ QualityAnalyzer  │ │ EventSimulator  │ │ ChartGenerator   │      │
+│  │ ProblemDetector  │ │SimulationGraph  │ │ NetworkRenderer  │      │
+│  └────────┬────────-┘ └───────┬────────-┘ └──────┬────────---┘      │
 └───────────┼───────────────────┼──────────────────┼──────────────────┘
             │                   │                  │
             ▼                   ▼                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          DATA LAYER                                  │
+│                          DATA LAYER                                 │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐        │
 │  │ GraphImporter   │ │ GraphExporter   │ │ GraphData       │        │
 │  │                 │ │                 │ │ ComponentData   │        │
@@ -174,7 +174,7 @@ The system uses a **Layered Architecture** with **Facade Pattern** for module ac
             │                   │
             ▼                   ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      INFRASTRUCTURE LAYER                            │
+│                      INFRASTRUCTURE LAYER                           │
 │  ┌─────────────────────────────┐ ┌─────────────────────────────┐    │
 │  │        Neo4j Database       │ │       File System           │    │
 │  │   (Bolt Protocol Driver)    │ │   (JSON, HTML, CSV)         │    │

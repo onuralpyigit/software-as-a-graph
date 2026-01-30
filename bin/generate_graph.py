@@ -6,6 +6,9 @@ Example usage:
     python generate_graph.py --scale medium --output output/graph.json --seed 42
     python generate_graph.py --config input/graph_config.yaml --output output/graph.json
 """
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import argparse
 import json
@@ -13,7 +16,7 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
-from src.services.graph_generator import GraphGenerator, GraphConfig, load_config
+from src.services.generation_service import GenerationService, GraphConfig, load_config
 
 
 def main() -> None:
@@ -61,12 +64,12 @@ def main() -> None:
         except Exception as e:
             print(f"Error loading config: {e}", file=sys.stderr)
             sys.exit(1)
-        generator = GraphGenerator(config=config)
+        generator = GenerationService(config=config)
         config_desc = f"config={args.config}"
     else:
         # Use scale preset (default to medium if neither provided)
         scale = args.scale or "medium"
-        generator = GraphGenerator(scale=scale, seed=args.seed)
+        generator = GenerationService(scale=scale, seed=args.seed)
         config_desc = f"scale={scale}, seed={args.seed}"
     
     print(f"Generating graph ({config_desc})...")

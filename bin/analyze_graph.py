@@ -4,6 +4,9 @@ Graph Analysis CLI (Refactored)
 
 Multi-layer graph analysis for distributed pub-sub systems.
 """
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import argparse
 import json

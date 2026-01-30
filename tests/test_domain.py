@@ -3,7 +3,7 @@ from src.models import (
     Application, Topic, QoSPolicy, 
     VertexType, EdgeType, DependencyType
 )
-from src.services.graph_generator import GraphGenerator
+from src.services.generation_service import GenerationService
 
 class TestDomainModels:
     def test_qos_policy_defaults(self):
@@ -33,9 +33,9 @@ class TestDomainModels:
         # Total = ~0.2
         assert 0.19 < topic.calculate_weight() < 0.21
 
-class TestGraphGenerator:
+class TestGenerationService:
     def test_generate_tiny(self):
-        gen = GraphGenerator(scale="tiny", seed=1)
+        gen = GenerationService(scale="tiny", seed=1)
         data = gen.generate()
         
         assert len(data["nodes"]) == 2

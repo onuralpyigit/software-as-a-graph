@@ -5,6 +5,9 @@ Graph Validation CLI (Refactored)
 Validates the graph modeling and analysis approach by comparing
 predicted criticality scores against actual failure impact.
 """
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import argparse
 import json

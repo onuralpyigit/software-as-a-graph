@@ -36,9 +36,9 @@ class Container:
             targets=targets
         )
 
-    def display_service(self) -> 'DisplayService':
-        from src.services.display_service import DisplayService
-        return DisplayService()
+    def display_service(self) -> 'ConsoleDisplay':
+        from src.cli.display import ConsoleDisplay
+        return ConsoleDisplay()
 
     def visualization_service(self) -> 'VisualizationService':
         from src.services.visualization_service import VisualizationService

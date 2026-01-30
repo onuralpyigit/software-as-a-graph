@@ -26,7 +26,7 @@ class Colors:
     RESET = "\033[0m"
 
 
-class DisplayService:
+class ConsoleDisplay:
     """
     Service for formatting and displaying analysis, simulation, and validation results in the terminal.
     """

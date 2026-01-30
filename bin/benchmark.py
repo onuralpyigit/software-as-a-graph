@@ -32,6 +32,9 @@ Usage:
 
 Author: Software-as-a-Graph Research Project
 """
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import argparse
 import csv

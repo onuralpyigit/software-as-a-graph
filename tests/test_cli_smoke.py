@@ -7,6 +7,7 @@ from pathlib import Path
 
 # Ensure project root is in path
 sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent / "bin"))
 
 def test_simulate_graph_cli():
     """Test simulate_graph.py main function with mocks."""

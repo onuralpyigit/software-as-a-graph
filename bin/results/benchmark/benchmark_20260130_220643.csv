@@ -1,0 +1,4 @@
+run_id,timestamp,scale,layer,seed,nodes,edges,density,time_total,time_analysis,time_simulation,spearman,f1_score,top5_overlap,passed
+medium_app_42,2026-01-30T22:06:36.221304,medium,app,42,0,0,0.0,2347.37,808.91,676.55,0.5660,0.4615,0.2000,False
+medium_infra_42,2026-01-30T22:06:38.569145,medium,infra,42,0,0,0.0,2085.12,725.58,605.95,0.3095,0.5000,0.8000,False
+medium_system_42,2026-01-30T22:06:40.654362,medium,system,42,0,0,0.0,2375.59,849.43,649.64,0.7421,0.5556,0.0000,False
