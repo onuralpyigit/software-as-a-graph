@@ -225,6 +225,12 @@ class GraphRepository:
             SET n.weight = host_weight
         """)
 
+        # 9. RUNS_ON Edge Weights
+        self._run_query("MATCH (a:Application)-[r:RUNS_ON]->(n:Node) SET r.weight = a.weight")
+
+        # 10. CONNECTS_TO Edge Weights
+        self._run_query("MATCH (n1:Node)-[r:CONNECTS_TO]->(n2:Node) SET r.weight = n1.weight + n2.weight")
+
     def _derive_dependencies(self) -> None:
         """Derive DEPENDS_ON relationships."""
         qos_calc = self._get_qos_weight_cypher("t")
@@ -235,9 +241,10 @@ class GraphRepository:
         MATCH (pub:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(sub:Application)
         WHERE pub <> sub
         WITH pub, sub, t, {qos_calc} as importance
-        WITH pub, sub, count(t) as shared_count, sum(importance) as importance_sum
+        WITH pub, sub, collect(t.id) as via_ids, count(t) as shared_count, sum(importance) as importance_sum
         MERGE (sub)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(pub)
-        SET d.weight = shared_count + importance_sum
+        SET d.weight = shared_count + importance_sum,
+            d.via = via_ids
         RETURN count(d) as c
         """)
 
@@ -247,10 +254,12 @@ class GraphRepository:
         MATCH (appA:Application)-[:USES]->(lib:Library)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(appB:Application)
         WHERE appA <> appB
         WITH appA, appB, t, {qos_calc} as importance
-        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
+        WITH appA, appB, collect(t.id) as via_ids, count(t) as shared_count, sum(importance) as importance_sum
         MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
-        ON CREATE SET d.weight = shared_count + importance_sum
-        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        ON CREATE SET d.weight = shared_count + importance_sum,
+                      d.via = via_ids
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum,
+                     d.via = d.via + [x IN via_ids WHERE NOT x IN d.via]
         RETURN count(d) as c
         """)
 
@@ -260,10 +269,12 @@ class GraphRepository:
         MATCH (appA:Application)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(lib:Library)<-[:USES]-(appB:Application)
         WHERE appA <> appB
         WITH appA, appB, t, {qos_calc} as importance
-        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
+        WITH appA, appB, collect(t.id) as via_ids, count(t) as shared_count, sum(importance) as importance_sum
         MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
-        ON CREATE SET d.weight = shared_count + importance_sum
-        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        ON CREATE SET d.weight = shared_count + importance_sum,
+                      d.via = via_ids
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum,
+                     d.via = d.via + [x IN via_ids WHERE NOT x IN d.via]
         RETURN count(d) as c
         """)
 
@@ -273,10 +284,12 @@ class GraphRepository:
         MATCH (appA:Application)-[:USES]->(lib1:Library)-[:PUBLISHES_TO]->(t:Topic)<-[:SUBSCRIBES_TO]-(lib2:Library)<-[:USES]-(appB:Application)
         WHERE appA <> appB
         WITH appA, appB, t, {qos_calc} as importance
-        WITH appA, appB, count(t) as shared_count, sum(importance) as importance_sum
+        WITH appA, appB, collect(t.id) as via_ids, count(t) as shared_count, sum(importance) as importance_sum
         MERGE (appB)-[d:DEPENDS_ON {{dependency_type: 'app_to_app'}}]->(appA)
-        ON CREATE SET d.weight = shared_count + importance_sum
-        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        ON CREATE SET d.weight = shared_count + importance_sum,
+                      d.via = via_ids
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum,
+                     d.via = d.via + [x IN via_ids WHERE NOT x IN d.via]
         RETURN count(d) as c
         """)
 
@@ -286,10 +299,12 @@ class GraphRepository:
         MATCH (appA:Application)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
         WHERE appA <> broker
         WITH appA, broker, t, {qos_calc} as importance
-        WITH appA, broker, count(t) as shared_count, sum(importance) as importance_sum
+        WITH appA, broker, collect(t.id) as via_ids, count(t) as shared_count, sum(importance) as importance_sum
         MERGE (appA)-[d:DEPENDS_ON {{dependency_type: 'app_to_broker'}}]->(broker)
-        ON CREATE SET d.weight = shared_count + importance_sum
-        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        ON CREATE SET d.weight = shared_count + importance_sum,
+                      d.via = via_ids
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum,
+                     d.via = d.via + [x IN via_ids WHERE NOT x IN d.via]
         RETURN count(d) as c
         """)
 
@@ -299,10 +314,12 @@ class GraphRepository:
         MATCH (appA:Application)-[:USES*]->(lib:Library)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
         WHERE appA <> broker
         WITH appA, broker, t, {qos_calc} as importance
-        WITH appA, broker, count(t) as shared_count, sum(importance) as importance_sum
+        WITH appA, broker, collect(t.id) as via_ids, count(t) as shared_count, sum(importance) as importance_sum
         MERGE (appA)-[d:DEPENDS_ON {{dependency_type: 'app_to_broker'}}]->(broker)
-        ON CREATE SET d.weight = shared_count + importance_sum
-        ON MATCH SET d.weight = d.weight + shared_count + importance_sum
+        ON CREATE SET d.weight = shared_count + importance_sum,
+                      d.via = via_ids
+        ON MATCH SET d.weight = d.weight + shared_count + importance_sum,
+                     d.via = d.via + [x IN via_ids WHERE NOT x IN d.via]
         RETURN count(d) as c
         """)
 
@@ -312,9 +329,10 @@ class GraphRepository:
         MATCH (a1:Application)-[dep:DEPENDS_ON {dependency_type: 'app_to_app'}]->(a2:Application)
         MATCH (a1)-[:RUNS_ON]->(n1:Node), (a2)-[:RUNS_ON]->(n2:Node)
         WHERE n1 <> n2
-        WITH n1, n2, sum(dep.weight) as total_weight
+        WITH n1, n2, sum(dep.weight) as total_weight, collect(a1.id + "->" + a2.id) as via_ids
         MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
-        SET d.weight = total_weight
+        SET d.weight = total_weight,
+            d.via = via_ids
         RETURN count(d) as c
         """)
         
@@ -323,9 +341,10 @@ class GraphRepository:
         self._run_query("""
         MATCH (a:Application)-[dep:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(b:Broker)
         MATCH (a)-[:RUNS_ON]->(n:Node)
-        WITH n, b, sum(dep.weight) as total_weight
+        WITH n, b, sum(dep.weight) as total_weight, collect(a.id) as via_ids
         MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(b)
-        SET d.weight = total_weight
+        SET d.weight = total_weight,
+            d.via = via_ids
         RETURN count(d) as c
         """)
 
