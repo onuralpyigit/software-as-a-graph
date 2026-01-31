@@ -5,12 +5,12 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from src.models.visualization.layer_data import LayerData, LAYER_DEFINITIONS
-from src.services.visualization.chart_generator import ChartGenerator
-from src.services.visualization.dashboard_generator import DashboardGenerator
-from src.services.analysis_service import AnalysisService
-from src.services.simulation_service import SimulationService
-from src.services.validation_service import ValidationService
+from src.domain.models.visualization.layer_data import LayerData, LAYER_DEFINITIONS
+from src.application.services.visualization.chart_generator import ChartGenerator
+from src.application.services.visualization.dashboard_generator import DashboardGenerator
+from src.application.services.analysis_service import AnalysisService
+from src.application.services.simulation_service import SimulationService
+from src.application.services.validation_service import ValidationService
 
 
 class VisualizationService:
@@ -31,7 +31,7 @@ class VisualizationService:
         self.charts = chart_generator or ChartGenerator()
         
         # Initialize collector
-        from src.services.visualization.data_collector import LayerDataCollector
+        from src.application.services.visualization.data_collector import LayerDataCollector
         self.collector = LayerDataCollector(
             analysis_service,
             simulation_service,

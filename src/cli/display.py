@@ -5,10 +5,12 @@ import sys
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.models.analysis.results import LayerAnalysisResult, MultiLayerAnalysisResult
-    from src.models.simulation.results import EventResult, FailureResult, SimulationReport
-    from src.models.validation.results import PipelineResult, LayerValidationResult
-    from src.models.validation.metrics import ValidationTargets
+    from src.domain.models.analysis.results import LayerAnalysisResult, MultiLayerAnalysisResult
+    from src.domain.models.simulation.metrics import SimulationReport
+    from src.domain.services.event_simulator import EventResult
+    from src.domain.services.failure_simulator import FailureResult
+    from src.domain.models.validation.results import PipelineResult, LayerValidationResult
+    from src.domain.models.validation.metrics import ValidationTargets
 
 
 class Colors:

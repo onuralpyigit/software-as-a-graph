@@ -1,6 +1,6 @@
 import pytest
-from src.repositories import InMemoryGraphRepository
-from src.models import Application
+from src.adapters.outbound.persistence.memory_repository import InMemoryGraphRepository
+from src.domain.models import Application
 
 class TestInMemoryRepository:
     def test_save_and_retrieve(self):

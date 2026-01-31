@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Union, Optional
 
 import yaml
 
-from ..models import (
+from src.domain.models import (
     Application,
     Broker,
     Node,

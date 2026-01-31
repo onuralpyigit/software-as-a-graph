@@ -4,10 +4,10 @@ Visualization Data Collector
 import logging
 from typing import Dict, List, Any, Optional
 
-from src.models.visualization.layer_data import LayerData, LAYER_DEFINITIONS
-from src.services.analysis_service import AnalysisService
-from src.services.simulation_service import SimulationService
-from src.services.validation_service import ValidationService
+from src.domain.models.visualization.layer_data import LayerData, LAYER_DEFINITIONS
+from src.application.services.analysis_service import AnalysisService
+from src.application.services.simulation_service import SimulationService
+from src.application.services.validation_service import ValidationService
 
 class LayerDataCollector:
     """
