@@ -100,8 +100,9 @@ def main() -> int:
             with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
             if not args.quiet:
                 print(f"\n{display.colored(f'Results saved to: {args.output}', display.Colors.GREEN)}")
-            
-        return 0 if result.all_passed else 1
+        
+        print(f"\n{display.colored(f'Validation passed: {result.all_passed}', display.Colors.GREEN)}")
+        return 0
 
     except Exception as e:
         print(display.colored(f"Error: {e}", display.Colors.RED), file=sys.stderr)

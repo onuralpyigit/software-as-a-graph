@@ -342,6 +342,11 @@ class SimulationService:
             component_names={c.id: c.properties.get("name", c.id) for c in self.graph.components.values()},
         )
     
+    def export_report(self, report: SimulationReport, output_file: str) -> None:
+        """Export simulation report to JSON file."""
+        with open(output_file, 'w') as f:
+            json.dump(report.to_dict(), f, indent=2)
+            
     def _generate_recommendations(
         self,
         layer_metrics: Dict[str, LayerMetrics],
