@@ -29,6 +29,15 @@ class VisualizationService:
         self.simulation_service = simulation_service
         self.validation_service = validation_service
         self.charts = chart_generator or ChartGenerator()
+        
+        # Initialize collector
+        from src.services.visualization.data_collector import LayerDataCollector
+        self.collector = LayerDataCollector(
+            analysis_service,
+            simulation_service,
+            validation_service
+        )
+        
         self.logger = logging.getLogger(__name__)
 
     def generate_dashboard(
@@ -41,7 +50,7 @@ class VisualizationService:
     ) -> str:
         """Generate a comprehensive dashboard."""
         if layers is None:
-            layers = ["app", "infra", "system"]
+            layers = ["app", "infra", "mw", "system"]
         
         self.logger.info(f"Generating dashboard for layers: {layers}")
         dash = DashboardGenerator("Software-as-a-Graph Analysis Dashboard")
@@ -53,8 +62,11 @@ class VisualizationService:
                 continue
             
             self.logger.info(f"Processing layer: {layer}")
-            layer_data[layer] = self._collect_layer_data(layer, include_validation)
-        
+            try:
+                layer_data[layer] = self.collector.collect_layer_data(layer, include_validation)
+            except Exception as e:
+                self.logger.error(f"Failed to collect data for layer {layer}: {e}")
+                
         self._add_overview_section(dash, layer_data)
         self._add_comparison_section(dash, layer_data)
         
@@ -70,134 +82,7 @@ class VisualizationService:
         
         self.logger.info(f"Dashboard generated: {output_path}")
         return str(output_path)
-    
-    def _collect_layer_data(self, layer: str, include_validation: bool) -> LayerData:
-        """Collect all data for a layer."""
-        layer_def = LAYER_DEFINITIONS[layer]
-        data = LayerData(layer=layer, name=layer_def["name"])
-        
-        # Run analysis
-        try:
-            analysis = self.analysis_service.analyze_layer(layer)
-            data.nodes = analysis.structural.graph_summary.nodes
-            data.edges = analysis.structural.graph_summary.edges
-            data.density = analysis.structural.graph_summary.density
-            data.connected_components = analysis.structural.graph_summary.num_components
-            data.component_counts = analysis.structural.graph_summary.node_types or {}
-            
-            for comp in analysis.quality.components:
-                level = comp.levels.overall.name if hasattr(comp.levels.overall, 'name') else str(comp.levels.overall)
-                if level == "CRITICAL": data.critical_count += 1
-                elif level == "HIGH": data.high_count += 1
-                elif level == "MEDIUM": data.medium_count += 1
-                elif level == "LOW": data.low_count += 1
-                elif level == "MINIMAL": data.minimal_count += 1
-            
-            data.spof_count = analysis.structural.graph_summary.num_articulation_points
-            data.problems_count = len(analysis.problems)
-            
-            sorted_comps = sorted(analysis.quality.components, key=lambda c: c.scores.overall, reverse=True)
-            data.top_components = [
-                {
-                    "id": c.id,
-                    "type": c.type,
-                    "score": c.scores.overall,
-                    "level": c.levels.overall.name if hasattr(c.levels.overall, 'name') else str(c.levels.overall),
-                }
-                for c in sorted_comps[:10]
-            ]
-            
-            data.component_names = {c.id: c.structural.name for c in analysis.quality.components}
-            
-            # Network nodes
-            data.network_nodes = []
-            for c in analysis.quality.components:
-                score = c.scores.overall if c.scores.overall is not None else 0.0
-                if score != score: score = 0.0
-                value = score * 30 + 10
-                level = c.levels.overall.name if hasattr(c.levels.overall, 'name') else str(c.levels.overall)
-                data.network_nodes.append({
-                    "id": c.id,
-                    "label": f"{c.id}\n({c.structural.name})",
-                    "group": level,
-                    "type": c.type,
-                    "level": level,
-                    "value": value,
-                    "title": f"{c.id}<br>Name: {c.structural.name}<br>Type: {c.type}<br>Score: {score:.3f}<br>Level: {level}",
-                })
-            
-            # Network edges - includes both DEPENDS_ON and raw structural edges
-            data.network_edges = []
-            
-            # 1. Add DEPENDS_ON edges from analysis
-            for (source, target), edge_metrics in analysis.structural.edges.items():
-                weight = 1.0
-                if hasattr(edge_metrics, 'weight') and edge_metrics.weight is not None:
-                    weight = edge_metrics.weight
-                    if weight != weight: weight = 1.0
-                dep_type = getattr(edge_metrics, 'dependency_type', 'default') or 'default'
-                edge_data = {
-                    "source": source, 
-                    "target": target,
-                    "weight": weight,
-                    "dependency_type": dep_type,
-                    "relation_type": "DEPENDS_ON",
-                    "title": f"DEPENDS_ON<br>Weight: {weight:.3f}<br>Type: {dep_type}"
-                }
-                data.network_edges.append(edge_data)
-            
-            # 2. Add raw structural edges (USES, PUBLISHES_TO, etc.)
-            node_ids = {n["id"] for n in data.network_nodes}
-            try:
-                repository = self.analysis_service._repository
-                if repository:
-                    raw_graph = repository.get_graph_data(include_raw=True)
-                    for edge in raw_graph.edges:
-                        # Skip DEPENDS_ON edges (already added above)
-                        if edge.relation_type == "DEPENDS_ON":
-                            continue
-                        # Only include edges where both nodes are in our graph
-                        if edge.source_id in node_ids and edge.target_id in node_ids:
-                            weight = edge.weight if edge.weight == edge.weight else 1.0
-                            edge_data = {
-                                "source": edge.source_id,
-                                "target": edge.target_id,
-                                "weight": weight,
-                                "dependency_type": edge.relation_type.lower(),
-                                "relation_type": edge.relation_type,
-                                "title": f"{edge.relation_type}<br>Weight: {weight:.3f}"
-                            }
-                            data.network_edges.append(edge_data)
-            except Exception as e:
-                self.logger.warning(f"Could not fetch raw edges: {e}")
-                
-        except Exception as e:
-            self.logger.error(f"Analysis failed for layer {layer}: {e}")
-        
-        # Run simulation
-        try:
-            layer_metrics = self.simulation_service.analyze_layer(layer)
-            data.event_throughput = layer_metrics.event_throughput
-            data.event_delivery_rate = layer_metrics.event_delivery_rate
-            data.avg_impact = layer_metrics.avg_reachability_loss
-            data.max_impact = layer_metrics.max_impact
-        except Exception as e:
-            self.logger.error(f"Simulation failed for layer {layer}: {e}")
-        
-        # Run validation
-        if include_validation:
-            try:
-                val_result = self.validation_service.validate_layers(layers=[layer]).layers.get(layer)
-                if val_result:
-                    data.spearman = val_result.spearman
-                    data.f1_score = val_result.f1_score
-                    data.precision = val_result.precision
-                    data.recall = val_result.recall
-                    data.validation_passed = val_result.passed
-            except Exception as e:
-                self.logger.error(f"Validation failed for layer {layer}: {e}")
-        
-        return data
+
 
     def _add_overview_section(self, dash: DashboardGenerator, layer_data: Dict[str, LayerData]) -> None:
         """Add the overview section."""

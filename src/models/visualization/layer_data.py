@@ -16,15 +16,10 @@ LAYER_DEFINITIONS = {
         "description": "Node-to-node connections",
         "icon": "🖥️",
     },
-    "mw-app": {
-        "name": "Middleware-Application Layer",
-        "description": "Applications and Brokers",
+    "mw": {
+        "name": "Middleware Layer",
+        "description": "Broker dependencies",
         "icon": "🔗",
-    },
-    "mw-infra": {
-        "name": "Middleware-Infrastructure Layer",
-        "description": "Nodes and Brokers",
-        "icon": "⚙️",
     },
     "system": {
         "name": "Complete System",
