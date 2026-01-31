@@ -3,12 +3,12 @@ Tests for Visualization Service and Data Collector
 """
 import pytest
 from unittest.mock import MagicMock, patch
-from src.services.visualization_service import VisualizationService
-from src.services.visualization.data_collector import LayerDataCollector
-from src.services.analysis_service import AnalysisService
-from src.services.simulation_service import SimulationService
-from src.services.validation_service import ValidationService
-from src.models.visualization.layer_data import LayerData
+from src.application.services.visualization_service import VisualizationService
+from src.application.services.visualization.data_collector import LayerDataCollector
+from src.application.services.analysis_service import AnalysisService
+from src.application.services.simulation_service import SimulationService
+from src.application.services.validation_service import ValidationService
+from src.domain.models.visualization.layer_data import LayerData
 
 @pytest.fixture
 def mock_analysis_service():
@@ -90,7 +90,7 @@ def test_visualization_service_integration(mock_analysis_service, mock_simulatio
     """Test full visualization service integration with mocked collector."""
     
     # Mock LayerDataCollector
-    with patch("src.services.visualization.data_collector.LayerDataCollector") as MockCollector:
+    with patch("src.application.services.visualization.data_collector.LayerDataCollector") as MockCollector:
         # Setup the mock collector instance
         collector_instance = MockCollector.return_value
         
@@ -113,7 +113,7 @@ def test_visualization_service_integration(mock_analysis_service, mock_simulatio
         )
         
         # Mock DashboardGenerator to avoid writing files
-        with patch("src.services.visualization_service.DashboardGenerator") as MockDash:
+        with patch("src.application.services.visualization_service.DashboardGenerator") as MockDash:
             dash_instance = MockDash.return_value
             dash_instance.generate.return_value = "<html>Test Dashboard</html>"
             

@@ -24,8 +24,7 @@ from src.application.services.analysis_service import AnalysisService
 from src.application.services.simulation_service import SimulationService
 from src.application.services.validation_service import ValidationService
 
-# Import visualization service (still using legacy path)
-from src.services.visualization_service import VisualizationService
+from src.application.services.visualization_service import VisualizationService
 
 
 @dataclass

@@ -17,7 +17,7 @@ import logging
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.config import Container
-from src.models.validation.metrics import ValidationTargets
+from src.domain.models.validation.metrics import ValidationTargets
 from src.domain.config.simulation_layers import SimulationLayer, SIMULATION_LAYERS
 
 

@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
-from src.services.generation_service import GenerationService, GraphConfig, load_config
+from src.application.services.generation_service import GenerationService, GraphConfig, load_config
 
 
 def main() -> None:

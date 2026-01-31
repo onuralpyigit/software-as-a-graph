@@ -6,7 +6,7 @@ import io
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 
-from ...models.visualization.chart_data import ChartOutput, ColorTheme, DEFAULT_THEME
+from src.domain.models.visualization.chart_data import ChartOutput, ColorTheme, DEFAULT_THEME
 
 # Check for matplotlib availability
 try:

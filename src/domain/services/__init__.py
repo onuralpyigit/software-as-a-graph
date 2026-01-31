@@ -11,6 +11,16 @@ from .structural_analyzer import StructuralAnalyzer, StructuralAnalysisResult, e
 from .quality_analyzer import QualityAnalyzer, QualityAnalysisResult
 from .problem_detector import ProblemDetector, DetectedProblem, ProblemSummary, ProblemCategory, ProblemSeverity
 
+# Simulation services
+from .event_simulator import EventSimulator, EventScenario, EventResult, RuntimeMetrics
+from .failure_simulator import FailureSimulator, FailureScenario, FailureResult, ImpactMetrics
+
+# Validation services
+from .validator import Validator
+from .metric_calculator import (
+    calculate_correlation, calculate_error, calculate_classification, calculate_ranking
+)
+
 __all__ = [
     # Classifier
     "BoxPlotClassifier",
@@ -33,4 +43,20 @@ __all__ = [
     "ProblemSummary",
     "ProblemCategory",
     "ProblemSeverity",
+    # Simulation
+    "EventSimulator",
+    "EventScenario",
+    "EventResult",
+    "RuntimeMetrics",
+    "FailureSimulator",
+    "FailureScenario",
+    "FailureResult",
+    "ImpactMetrics",
+    # Validation
+    "Validator",
+    "calculate_correlation",
+    "calculate_error",
+    "calculate_classification",
+    "calculate_ranking",
 ]
+

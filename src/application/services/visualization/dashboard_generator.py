@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
-from ...models.visualization.chart_data import ChartOutput
+from src.domain.models.visualization.chart_data import ChartOutput
 
 
 # Component type to layer mapping

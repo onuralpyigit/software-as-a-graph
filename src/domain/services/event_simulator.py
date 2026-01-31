@@ -27,9 +27,9 @@ from typing import Dict, List, Set, Tuple, Any, Optional
 from enum import Enum
 from collections import defaultdict
 
-from src.models.simulation.graph import SimulationGraph
-from src.models.simulation.types import ComponentState, EventType
-from src.models.simulation.components import TopicInfo
+from src.domain.models.simulation.graph import SimulationGraph
+from src.domain.models.simulation.types import ComponentState, EventType
+from src.domain.models.simulation.components import TopicInfo
 
 
 @dataclass(order=True)
