@@ -191,8 +191,12 @@ class EventResult:
     failed_components: List[str] = field(default_factory=list)
     drop_reasons: Dict[str, int] = field(default_factory=dict)
     
+    
     # Name mapping for display
     component_names: Dict[str, str] = field(default_factory=dict)
+    
+    # Related components (e.g. used libraries)
+    related_components: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -205,7 +209,9 @@ class EventResult:
             "brokers_used": self.brokers_used,
             "component_impacts": {k: round(v, 4) for k, v in self.component_impacts.items()},
             "failed_components": self.failed_components,
+            "failed_components": self.failed_components,
             "drop_reasons": self.drop_reasons,
+            "related_components": self.related_components,
         }
 
 

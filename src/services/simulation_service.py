@@ -349,6 +349,28 @@ class SimulationService:
                              name += f" ({version})"
                      formatted_libs.append(name)
                  library_usage[app_id] = formatted_libs
+        
+        # Node Allocations
+        node_allocations_ids = self.graph.get_node_allocations()
+        node_allocations = {}
+        for node_id, comp_ids in node_allocations_ids.items():
+            formatted_comps = []
+            for comp_id in comp_ids:
+                comp = self.graph.components.get(comp_id)
+                name = comp.properties.get("name", comp_id) if comp else comp_id
+                formatted_comps.append(name)
+            node_allocations[node_id] = formatted_comps
+            
+        # Broker Routing
+        broker_routing_ids = self.graph.get_broker_routing()
+        broker_routing = {}
+        for broker_id, topic_ids in broker_routing_ids.items():
+             formatted_topics = []
+             for topic_id in topic_ids:
+                 topic = self.graph.topics.get(topic_id)
+                 name = topic.name if topic else topic_id
+                 formatted_topics.append(name)
+             broker_routing[broker_id] = formatted_topics
 
         return SimulationReport(
             timestamp=datetime.now().isoformat(),
@@ -359,6 +381,8 @@ class SimulationService:
             recommendations=recommendations,
             component_names={c.id: c.properties.get("name", c.id) for c in self.graph.components.values()},
             library_usage=library_usage,
+            node_allocations=node_allocations,
+            broker_routing=broker_routing,
         )
     
     def export_report(self, report: SimulationReport, output_file: str) -> None:

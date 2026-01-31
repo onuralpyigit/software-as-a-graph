@@ -124,6 +124,8 @@ class SimulationReport:
     
     # Library usage info
     library_usage: Dict[str, List[str]] = field(default_factory=dict)
+    node_allocations: Dict[str, List[str]] = field(default_factory=dict)
+    broker_routing: Dict[str, List[str]] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -134,6 +136,8 @@ class SimulationReport:
             "top_critical": self.top_critical,
             "recommendations": self.recommendations,
             "library_usage": self.library_usage,
+            "node_allocations": self.node_allocations,
+            "broker_routing": self.broker_routing,
         }
     
     def get_critical_components(self) -> List[ComponentCriticality]:

@@ -244,6 +244,24 @@ class SimulationGraph:
             Dict mapping component ID to list of library IDs
         """
         return dict(self._uses)
+
+    def get_node_allocations(self) -> Dict[str, List[str]]:
+        """
+        Get node allocations (Node -> [Apps]).
+        
+        Returns:
+            Dict mapping node ID to list of allocated component IDs
+        """
+        return dict(self._hosts)
+
+    def get_broker_routing(self) -> Dict[str, List[str]]:
+        """
+        Get broker routing (Broker -> [Topics]).
+        
+        Returns:
+            Dict mapping broker ID to list of routed topic IDs
+        """
+        return dict(self._routing)
     
     # =========================================================================
     # Layer Filtering

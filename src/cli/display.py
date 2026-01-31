@@ -291,7 +291,14 @@ class ConsoleDisplay:
         names = result.component_names
         get_name = lambda cid: f"{cid} ({names.get(cid, cid)})" if cid in names else cid
         self.print_header(f"Failure Simulation: {get_name(result.target_id)}")
-        print(f"\n  {self.colored('Target:', Colors.CYAN)}       {get_name(result.target_id)} ({result.target_type})\n  {self.colored('Scenario:', Colors.CYAN)}     {result.scenario}")
+        print(f"\n  {self.colored('Target:', Colors.CYAN)}       {get_name(result.target_id)} ({result.target_type})")
+        
+        if result.related_components:
+            related_str = ", ".join(result.related_components)
+            if len(related_str) > 80: related_str = related_str[:77] + "..."
+            print(f"  {self.colored('Related:', Colors.CYAN)}      {self.colored(related_str, Colors.GRAY)}")
+            
+        print(f"  {self.colored('Scenario:', Colors.CYAN)}     {result.scenario}")
         self.print_subheader("Impact Metrics")
         impact = result.impact
         imp_color = Colors.RED if impact.composite_impact > 0.5 else (Colors.YELLOW if impact.composite_impact > 0.2 else Colors.GREEN)
@@ -316,6 +323,11 @@ class ConsoleDisplay:
             imp = r.impact.composite_impact
             color = Colors.RED if imp > 0.5 else (Colors.YELLOW if imp > 0.2 else Colors.GREEN)
             print(f"  {r_name:<30} {r.target_type:<12} {self.colored(f'{imp:.4f}', color):<10} {r.impact.cascade_count:<10}")
+            
+            if r.related_components:
+                related_str = ", ".join(r.related_components)
+                if len(related_str) > 70: related_str = related_str[:67] + "..."
+                print(f"    {self.colored('↳ ', Colors.GRAY)} {self.colored(related_str, Colors.GRAY)}")
 
     def display_simulation_report(self, report: "SimulationReport") -> None:
         """Display comprehensive simulation report."""
@@ -336,6 +348,28 @@ class ConsoleDisplay:
                 print(f"  {self.colored(app_name, Colors.WHITE, bold=True)} ({app_id})")
                 for lib in sorted(libs):
                     print(f"    - {lib}")
+            print()
+            
+        if report.node_allocations:
+            self.print_subheader("Node Allocations")
+            sorted_nodes = sorted(report.node_allocations.keys())
+            for node_id in sorted_nodes:
+                apps = report.node_allocations[node_id]
+                node_name = report.component_names.get(node_id, node_id)
+                print(f"  {self.colored(node_name, Colors.WHITE, bold=True)} ({node_id})")
+                for app in sorted(apps):
+                    print(f"    - {app}")
+            print()
+            
+        if report.broker_routing:
+            self.print_subheader("Broker Routing")
+            sorted_brokers = sorted(report.broker_routing.keys())
+            for broker_id in sorted_brokers:
+                topics = report.broker_routing[broker_id]
+                broker_name = report.component_names.get(broker_id, broker_id)
+                print(f"  {self.colored(broker_name, Colors.WHITE, bold=True)} ({broker_id})")
+                for topic in sorted(topics):
+                    print(f"    - {topic}")
             print()
 
     # --- Validation Display ---

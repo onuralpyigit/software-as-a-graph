@@ -160,6 +160,9 @@ class FailureResult:
     # Per-layer impact
     layer_impacts: Dict[str, float] = field(default_factory=dict)
     
+    # Related components (e.g. allocated apps, routed topics)
+    related_components: List[str] = field(default_factory=list)
+    
     # Name mapping for display
     component_names: Dict[str, str] = field(default_factory=dict)
     
@@ -175,6 +178,7 @@ class FailureResult:
                 for e in self.cascade_sequence
             ],
             "layer_impacts": {k: round(v, 4) for k, v in self.layer_impacts.items()},
+            "related_components": self.related_components,
         }
 
 
@@ -268,6 +272,32 @@ class FailureSimulator:
         # Calculate per-layer impacts
         layer_impacts = self._calculate_layer_impacts(failed_set)
         
+        # Determine directly related components
+        related = []
+        if target_comp.type == "Application":
+             # Uses libraries
+             lib_ids = self.graph.get_library_usage().get(scenario.target_id, [])
+             for lid in lib_ids:
+                 lcomp = self.graph.components.get(lid)
+                 name = lcomp.properties.get("name", lid) if lcomp else lid
+                 if lcomp and "version" in lcomp.properties:
+                     name += f" ({lcomp.properties['version']})"
+                 related.append(f"Uses Lib: {name}")
+        elif target_comp.type == "Node":
+             # Hosts apps
+             hosted_ids = self.graph.get_node_allocations().get(scenario.target_id, [])
+             for hid in hosted_ids:
+                 hcomp = self.graph.components.get(hid)
+                 name = hcomp.properties.get("name", hid) if hcomp else hid
+                 related.append(f"Hosts: {name}")
+        elif target_comp.type == "Broker":
+             # Routes topics
+             topic_ids = self.graph.get_broker_routing().get(scenario.target_id, [])
+             for tid in topic_ids:
+                 topic = self.graph.topics.get(tid)
+                 name = topic.name if topic else tid
+                 related.append(f"Routes: {name}")
+
         return FailureResult(
             target_id=scenario.target_id,
             target_type=target_comp.type,
@@ -276,6 +306,7 @@ class FailureSimulator:
             cascaded_failures=[c for c in failed_set if c != scenario.target_id],
             cascade_sequence=cascade_sequence,
             layer_impacts=layer_impacts,
+            related_components=related,
             component_names={c.id: c.properties.get("name", c.id) for c in self.graph.components.values()},
         )
     
