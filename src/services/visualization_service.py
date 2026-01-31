@@ -36,6 +36,7 @@ class VisualizationService:
         output_file: str = "dashboard.html",
         layers: Optional[List[str]] = None,
         include_network: bool = True,
+        include_matrix: bool = True,
         include_validation: bool = True
     ) -> str:
         """Generate a comprehensive dashboard."""
@@ -58,7 +59,7 @@ class VisualizationService:
         self._add_comparison_section(dash, layer_data)
         
         for layer, data in layer_data.items():
-            self._add_layer_section(dash, data, include_network)
+            self._add_layer_section(dash, data, include_network, include_matrix)
         
         output_path = Path(output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -114,23 +115,61 @@ class VisualizationService:
                 score = c.scores.overall if c.scores.overall is not None else 0.0
                 if score != score: score = 0.0
                 value = score * 30 + 10
+                level = c.levels.overall.name if hasattr(c.levels.overall, 'name') else str(c.levels.overall)
                 data.network_nodes.append({
                     "id": c.id,
                     "label": f"{c.id}\n({c.structural.name})",
-                    "group": c.levels.overall.name if hasattr(c.levels.overall, 'name') else c.type,
+                    "group": level,
+                    "type": c.type,
+                    "level": level,
                     "value": value,
-                    "title": f"{c.id}<br>Name: {c.structural.name}<br>Type: {c.type}<br>Score: {score:.3f}",
+                    "title": f"{c.id}<br>Name: {c.structural.name}<br>Type: {c.type}<br>Score: {score:.3f}<br>Level: {level}",
                 })
             
-            # Network edges
+            # Network edges - includes both DEPENDS_ON and raw structural edges
             data.network_edges = []
+            
+            # 1. Add DEPENDS_ON edges from analysis
             for (source, target), edge_metrics in analysis.structural.edges.items():
-                edge_data = {"source": source, "target": target}
+                weight = 1.0
                 if hasattr(edge_metrics, 'weight') and edge_metrics.weight is not None:
                     weight = edge_metrics.weight
-                    if weight != weight: weight = 0.0
-                    edge_data["title"] = f"Weight: {weight:.3f}"
+                    if weight != weight: weight = 1.0
+                dep_type = getattr(edge_metrics, 'dependency_type', 'default') or 'default'
+                edge_data = {
+                    "source": source, 
+                    "target": target,
+                    "weight": weight,
+                    "dependency_type": dep_type,
+                    "relation_type": "DEPENDS_ON",
+                    "title": f"DEPENDS_ON<br>Weight: {weight:.3f}<br>Type: {dep_type}"
+                }
                 data.network_edges.append(edge_data)
+            
+            # 2. Add raw structural edges (USES, PUBLISHES_TO, etc.)
+            node_ids = {n["id"] for n in data.network_nodes}
+            try:
+                repository = self.analysis_service._repository
+                if repository:
+                    raw_graph = repository.get_graph_data(include_raw=True)
+                    for edge in raw_graph.edges:
+                        # Skip DEPENDS_ON edges (already added above)
+                        if edge.relation_type == "DEPENDS_ON":
+                            continue
+                        # Only include edges where both nodes are in our graph
+                        if edge.source_id in node_ids and edge.target_id in node_ids:
+                            weight = edge.weight if edge.weight == edge.weight else 1.0
+                            edge_data = {
+                                "source": edge.source_id,
+                                "target": edge.target_id,
+                                "weight": weight,
+                                "dependency_type": edge.relation_type.lower(),
+                                "relation_type": edge.relation_type,
+                                "title": f"{edge.relation_type}<br>Weight: {weight:.3f}"
+                            }
+                            data.network_edges.append(edge_data)
+            except Exception as e:
+                self.logger.warning(f"Could not fetch raw edges: {e}")
                 
         except Exception as e:
             self.logger.error(f"Analysis failed for layer {layer}: {e}")
@@ -214,7 +253,7 @@ class VisualizationService:
         dash.add_table(headers, rows, "Layer Statistics")
         dash.end_section()
 
-    def _add_layer_section(self, dash: DashboardGenerator, data: LayerData, include_network: bool) -> None:
+    def _add_layer_section(self, dash: DashboardGenerator, data: LayerData, include_network: bool, include_matrix: bool = True) -> None:
         """Add a section for a specific layer."""
         layer_def = LAYER_DEFINITIONS[data.layer]
         dash.start_section(f"{layer_def['icon']} {layer_def['name']}", data.layer)
@@ -261,5 +300,9 @@ class VisualizationService:
         if include_network and data.network_nodes:
             dash.add_subsection("Network Topology")
             dash.add_network_graph(f"network-{data.layer}", data.network_nodes, data.network_edges, f"Interactive Graph - {layer_def['name']}")
+        
+        if include_matrix and data.network_nodes and len(data.network_nodes) > 1:
+            dash.add_subsection("Dependency Matrix")
+            dash.add_matrix_view(f"matrix-{data.layer}", data.network_nodes, data.network_edges, f"Adjacency Matrix - {layer_def['name']}")
         
         dash.end_section()
