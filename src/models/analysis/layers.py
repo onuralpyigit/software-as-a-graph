@@ -4,10 +4,10 @@ Graph Analysis Layers
 Defines the multi-layer graph model for distributed pub-sub system analysis.
 
 Layers:
-    - app: Application layer (app_to_app dependencies)
-    - infra: Infrastructure layer (node_to_node dependencies)
-    - mw: Middleware layer (app_to_broker + node_to_broker dependencies)
-    - system: Complete system (all layers combined)
+    - app: Analyze Applications via app_to_app dependencies
+    - infra: Analyze Nodes via node_to_node dependencies
+    - mw: Analyze Brokers via app_to_broker + node_to_broker dependencies
+    - system: Analyze all components with all dependency types
 
 Each layer focuses on specific DEPENDS_ON relationships and component types,
 enabling targeted analysis for reliability, maintainability, and availability.
@@ -16,7 +16,7 @@ enabling targeted analysis for reliability, maintainability, and availability.
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from typing import FrozenSet, Dict, Any, List
+from typing import FrozenSet, Dict, Any, List, Optional
 
 
 class AnalysisLayer(Enum):
@@ -24,10 +24,10 @@ class AnalysisLayer(Enum):
     Enumeration of analysis layers for multi-layer graph model.
     
     Each layer represents a specific view of the distributed system:
-    - APP: Service-level dependencies (who calls whom)
-    - INFRA: Network topology (physical/virtual connectivity)
-    - MW: Middleware coupling (both app and node to broker)
-    - SYSTEM: Complete system view
+    - APP: Service-level dependencies (analyze Applications)
+    - INFRA: Network topology (analyze Nodes)
+    - MW: Middleware coupling (analyze Brokers)
+    - SYSTEM: Complete system view (analyze all components)
     """
     APP = "app"
     INFRA = "infra"
@@ -46,12 +46,8 @@ class AnalysisLayer(Enum):
             "middleware": cls.MW,
             "mw-app": cls.MW,  # Legacy alias
             "mw-infra": cls.MW,  # Legacy alias
-            "middleware-app": cls.MW,
-            "middleware-infra": cls.MW,
-            "app-broker": cls.MW,
-            "app_broker": cls.MW,
-            "node-broker": cls.MW,
-            "node_broker": cls.MW,
+            "broker": cls.MW,
+            "brokers": cls.MW,
             # System layer aliases
             "complete": cls.SYSTEM,
             "all": cls.SYSTEM,
@@ -74,7 +70,9 @@ class LayerDefinition:
     Attributes:
         name: Human-readable layer name
         description: What this layer analyzes
-        component_types: Types of vertices included
+        component_types: Types of vertices included in graph building
+        analyze_types: Types of components to analyze/report (subset of component_types)
+                       If None, all component_types are analyzed
         dependency_types: Types of DEPENDS_ON edges included
         focus_metrics: Key metrics for this layer
         quality_focus: Primary quality dimension (R, M, or A)
@@ -85,12 +83,19 @@ class LayerDefinition:
     dependency_types: FrozenSet[str]
     focus_metrics: tuple
     quality_focus: str  # "reliability", "maintainability", "availability"
+    analyze_types: Optional[FrozenSet[str]] = None  # If None, analyze all component_types
+    
+    @property
+    def types_to_analyze(self) -> FrozenSet[str]:
+        """Get the component types that should be analyzed/reported."""
+        return self.analyze_types if self.analyze_types else self.component_types
     
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
             "component_types": list(self.component_types),
+            "analyze_types": list(self.types_to_analyze),
             "dependency_types": list(self.dependency_types),
             "focus_metrics": list(self.focus_metrics),
             "quality_focus": self.quality_focus,
@@ -101,7 +106,7 @@ class LayerDefinition:
 LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     AnalysisLayer.APP: LayerDefinition(
         name="Application Layer",
-        description="Service-level reliability analysis via app_to_app dependencies",
+        description="Analyze Applications via app_to_app dependencies for reliability",
         component_types=frozenset({"Application"}),
         dependency_types=frozenset({"app_to_app"}),
         focus_metrics=("pagerank", "reverse_pagerank", "in_degree", "betweenness"),
@@ -110,7 +115,7 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     
     AnalysisLayer.INFRA: LayerDefinition(
         name="Infrastructure Layer",
-        description="Network topology resilience via node_to_node dependencies",
+        description="Analyze Nodes via node_to_node dependencies for availability",
         component_types=frozenset({"Node"}),
         dependency_types=frozenset({"node_to_node"}),
         focus_metrics=("betweenness", "clustering", "articulation_point", "bridges"),
@@ -119,16 +124,19 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     
     AnalysisLayer.MW: LayerDefinition(
         name="Middleware Layer",
-        description="Broker coupling analysis via app_to_broker and node_to_broker dependencies",
+        description="Analyze Brokers via app_to_broker and node_to_broker dependencies for maintainability",
+        # Include all connected types for graph building
         component_types=frozenset({"Application", "Broker", "Node"}),
         dependency_types=frozenset({"app_to_broker", "node_to_broker"}),
         focus_metrics=("in_degree", "pagerank", "betweenness", "clustering"),
         quality_focus="maintainability",
+        # But only analyze Brokers (the middleware components)
+        analyze_types=frozenset({"Broker"}),
     ),
     
     AnalysisLayer.SYSTEM: LayerDefinition(
         name="Complete System",
-        description="System-wide analysis across all layers and dependency types",
+        description="Analyze all components across all dependency types",
         component_types=frozenset({"Application", "Broker", "Node", "Topic", "Library"}),
         dependency_types=frozenset({"app_to_app", "app_to_broker", "node_to_node", "node_to_broker"}),
         focus_metrics=("pagerank", "betweenness", "articulation_point", "clustering"),
@@ -158,7 +166,9 @@ def list_layers() -> str:
     for layer in AnalysisLayer:
         defn = LAYER_DEFINITIONS[layer]
         dep_types = ", ".join(sorted(defn.dependency_types))
+        analyze = ", ".join(sorted(defn.types_to_analyze))
         lines.append(f"  {layer.value:8} - {defn.name}")
+        lines.append(f"             Analyzes: {analyze}")
         lines.append(f"             Dependencies: {dep_types}")
         lines.append(f"             Focus: {defn.quality_focus}")
         lines.append("")

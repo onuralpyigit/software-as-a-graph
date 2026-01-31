@@ -152,9 +152,9 @@ class AnalysisService:
         # Check middleware coupling
         if "mw" in results:
             mw_summary = results["mw"].structural.graph_summary
-            if mw_summary.articulation_points > 0:
+            if mw_summary.num_articulation_points > 0:
                 insights.append(
-                    f"Middleware layer has {mw_summary.articulation_points} articulation points "
+                    f"Middleware layer has {mw_summary.num_articulation_points} articulation points "
                     f"(single points of failure in broker connectivity)."
                 )
         

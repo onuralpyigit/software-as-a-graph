@@ -190,11 +190,14 @@ class TestLayerFiltering:
         assert "Topic" in layer_def.component_types
     
     def test_mw_layer_components(self):
-        """MW layer should include Application, Broker, and Node."""
+        """MW layer should analyze Brokers via app/node to broker dependencies."""
         layer_def = get_layer_definition(AnalysisLayer.MW)
+        # Graph building includes all connected component types
         assert "Application" in layer_def.component_types
         assert "Broker" in layer_def.component_types
         assert "Node" in layer_def.component_types
+        # But analysis focuses on Brokers only
+        assert layer_def.types_to_analyze == frozenset({"Broker"})
         # MW layer should have both broker dependency types
         assert "app_to_broker" in layer_def.dependency_types
         assert "node_to_broker" in layer_def.dependency_types
@@ -212,6 +215,15 @@ class TestLayerFiltering:
         res_infra = analyzer.analyze(multi_layer_graph, layer=AnalysisLayer.INFRA)
         for comp_id, comp in res_infra.components.items():
             assert comp.type == "Node", f"INFRA layer has non-Node: {comp.type}"
+    
+    def test_mw_layer_analyzes_only_brokers(self, multi_layer_graph):
+        """MW layer should analyze only Brokers (not Applications or Nodes)."""
+        analyzer = StructuralAnalyzer()
+        res_mw = analyzer.analyze(multi_layer_graph, layer=AnalysisLayer.MW)
+        
+        # MW layer results should only include Broker components
+        for comp_id, comp in res_mw.components.items():
+            assert comp.type == "Broker", f"MW layer has non-Broker: {comp.type}"
 
 
 # =============================================================================

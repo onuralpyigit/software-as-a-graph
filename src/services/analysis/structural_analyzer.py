@@ -92,7 +92,9 @@ class StructuralAnalyzer:
         Returns:
             StructuralAnalysisResult with all computed metrics
         """
-        # Build filtered NetworkX graph
+        layer_def = get_layer_definition(layer)
+        
+        # Build filtered NetworkX graph (includes all component_types for edges)
         G = self._build_graph(graph_data, layer)
         
         if len(G) == 0:
@@ -106,9 +108,21 @@ class StructuralAnalyzer:
         
         self.logger.info(f"Analyzing {layer.value} layer: {len(G)} nodes, {len(G.edges())} edges")
         
-        # Compute all metrics
-        component_metrics = self._compute_component_metrics(G, graph_data, layer)
+        # Compute all metrics on full graph
+        all_component_metrics = self._compute_component_metrics(G, graph_data, layer)
         edge_metrics = self._compute_edge_metrics(G, graph_data, layer)
+        
+        # Filter to only include components matching analyze_types
+        types_to_analyze = layer_def.types_to_analyze
+        component_metrics = {
+            k: v for k, v in all_component_metrics.items()
+            if v.type in types_to_analyze
+        }
+        
+        self.logger.info(
+            f"Filtered to {len(component_metrics)} components of types: {types_to_analyze}"
+        )
+        
         graph_summary = self._compute_graph_summary(G, layer, component_metrics, edge_metrics)
         
         return StructuralAnalysisResult(
