@@ -19,9 +19,9 @@ import json
 import logging
 from datetime import datetime
 
-from src.infrastructure import Container
-from src.models.analysis.layers import AnalysisLayer, list_layers
-from src.models.analysis.results import MultiLayerAnalysisResult
+from src.config import Container
+from src.domain.config.layers import AnalysisLayer, list_layers
+from src.domain.models.results import MultiLayerAnalysisResult
 
 
 def main() -> int:

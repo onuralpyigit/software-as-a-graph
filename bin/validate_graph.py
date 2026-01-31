@@ -16,9 +16,9 @@ import logging
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.infrastructure import Container
+from src.config import Container
 from src.models.validation.metrics import ValidationTargets
-from src.models.simulation.layers import SimulationLayer, SIMULATION_LAYERS
+from src.domain.config.simulation_layers import SimulationLayer, SIMULATION_LAYERS
 
 
 def main() -> int:

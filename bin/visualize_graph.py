@@ -19,7 +19,7 @@ from typing import List
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.infrastructure import Container
+from src.config import Container
 from src.models.visualization.layer_data import LAYER_DEFINITIONS
 
 

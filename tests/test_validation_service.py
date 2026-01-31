@@ -8,7 +8,7 @@ from src.services.validation_service import ValidationService
 from src.models.simulation.layers import SimulationLayer
 from src.models.validation.results import LayerValidationResult, ValidationResult
 from src.models.analysis.results import LayerAnalysisResult
-from src.services.analysis.quality_analyzer import QualityAnalysisResult
+from src.services.analysis import QualityAnalysisResult
 from src.services.simulation.failure_simulator import FailureResult, ImpactMetrics
 
 @pytest.fixture

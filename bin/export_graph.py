@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Any
 
-from src.infrastructure import Container
+from src.config import Container
 
 
 def main() -> None:
