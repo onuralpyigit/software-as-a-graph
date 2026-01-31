@@ -1,13 +1,16 @@
 """
 Analysis Result Domain Models
 """
+from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 
 from .layers import AnalysisLayer
-from ...services.analysis.structural_analyzer import StructuralAnalysisResult
-from ...services.analysis.quality_analyzer import QualityAnalysisResult
-from ...services.analysis.problem_detector import DetectedProblem, ProblemSummary
+
+if TYPE_CHECKING:
+    from ...services.analysis.structural_analyzer import StructuralAnalysisResult
+    from ...services.analysis.quality_analyzer import QualityAnalysisResult
+    from ...services.analysis.problem_detector import DetectedProblem, ProblemSummary
 
 @dataclass
 class LayerAnalysisResult:

@@ -6,8 +6,7 @@ Defines the multi-layer graph model for distributed pub-sub system analysis.
 Layers:
     - app: Application layer (app_to_app dependencies)
     - infra: Infrastructure layer (node_to_node dependencies)
-    - mw-app: Middleware-Application layer (app_to_broker dependencies)
-    - mw-infra: Middleware-Infrastructure layer (node_to_broker dependencies)
+    - mw: Middleware layer (app_to_broker + node_to_broker dependencies)
     - system: Complete system (all layers combined)
 
 Each layer focuses on specific DEPENDS_ON relationships and component types,
@@ -17,7 +16,7 @@ enabling targeted analysis for reliability, maintainability, and availability.
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from typing import FrozenSet, Dict, Any
+from typing import FrozenSet, Dict, Any, List
 
 
 class AnalysisLayer(Enum):
@@ -27,30 +26,33 @@ class AnalysisLayer(Enum):
     Each layer represents a specific view of the distributed system:
     - APP: Service-level dependencies (who calls whom)
     - INFRA: Network topology (physical/virtual connectivity)
-    - MW_APP: Application-to-middleware coupling
-    - MW_INFRA: Infrastructure-to-middleware coupling
+    - MW: Middleware coupling (both app and node to broker)
     - SYSTEM: Complete system view
     """
     APP = "app"
     INFRA = "infra"
-    MW_APP = "mw-app"
-    MW_INFRA = "mw-infra"
+    MW = "mw"
     SYSTEM = "system"
     
     @classmethod
     def from_string(cls, value: str) -> "AnalysisLayer":
         """Convert string to AnalysisLayer, supporting aliases."""
         aliases = {
+            # App layer aliases
             "application": cls.APP,
+            # Infra layer aliases
             "infrastructure": cls.INFRA,
-            "middleware-app": cls.MW_APP,
-            "middleware-application": cls.MW_APP,
-            "app-broker": cls.MW_APP,
-            "app_broker": cls.MW_APP,
-            "middleware-infra": cls.MW_INFRA,
-            "middleware-infrastructure": cls.MW_INFRA,
-            "node-broker": cls.MW_INFRA,
-            "node_broker": cls.MW_INFRA,
+            # Middleware layer aliases (including legacy names)
+            "middleware": cls.MW,
+            "mw-app": cls.MW,  # Legacy alias
+            "mw-infra": cls.MW,  # Legacy alias
+            "middleware-app": cls.MW,
+            "middleware-infra": cls.MW,
+            "app-broker": cls.MW,
+            "app_broker": cls.MW,
+            "node-broker": cls.MW,
+            "node_broker": cls.MW,
+            # System layer aliases
             "complete": cls.SYSTEM,
             "all": cls.SYSTEM,
         }
@@ -115,22 +117,13 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
         quality_focus="availability",
     ),
     
-    AnalysisLayer.MW_APP: LayerDefinition(
-        name="Middleware-Application Layer",
-        description="Application-to-broker coupling via app_to_broker dependencies",
-        component_types=frozenset({"Application", "Broker"}),
-        dependency_types=frozenset({"app_to_broker"}),
-        focus_metrics=("in_degree", "pagerank", "betweenness"),
+    AnalysisLayer.MW: LayerDefinition(
+        name="Middleware Layer",
+        description="Broker coupling analysis via app_to_broker and node_to_broker dependencies",
+        component_types=frozenset({"Application", "Broker", "Node"}),
+        dependency_types=frozenset({"app_to_broker", "node_to_broker"}),
+        focus_metrics=("in_degree", "pagerank", "betweenness", "clustering"),
         quality_focus="maintainability",
-    ),
-    
-    AnalysisLayer.MW_INFRA: LayerDefinition(
-        name="Middleware-Infrastructure Layer",
-        description="Infrastructure-to-broker coupling via node_to_broker dependencies",
-        component_types=frozenset({"Node", "Broker"}),
-        dependency_types=frozenset({"node_to_broker"}),
-        focus_metrics=("betweenness", "clustering", "articulation_point"),
-        quality_focus="availability",
     ),
     
     AnalysisLayer.SYSTEM: LayerDefinition(
@@ -141,7 +134,6 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
         focus_metrics=("pagerank", "betweenness", "articulation_point", "clustering"),
         quality_focus="overall",
     ),
-
 }
 
 
@@ -150,20 +142,33 @@ def get_layer_definition(layer: AnalysisLayer) -> LayerDefinition:
     return LAYER_DEFINITIONS[layer]
 
 
-def get_all_layers() -> list[AnalysisLayer]:
+def get_all_layers() -> List[AnalysisLayer]:
     """Get all available analysis layers."""
     return list(AnalysisLayer)
 
 
-def get_primary_layers() -> list[AnalysisLayer]:
-    """Get the primary layers for standard analysis (excluding middleware layers)."""
-    return [AnalysisLayer.APP, AnalysisLayer.INFRA, AnalysisLayer.SYSTEM]
+def get_primary_layers() -> List[AnalysisLayer]:
+    """Get the primary layers for standard analysis."""
+    return [AnalysisLayer.APP, AnalysisLayer.INFRA, AnalysisLayer.MW, AnalysisLayer.SYSTEM]
+
+
+def list_layers() -> str:
+    """Return a formatted string describing all available layers."""
+    lines = ["Available analysis layers:", ""]
+    for layer in AnalysisLayer:
+        defn = LAYER_DEFINITIONS[layer]
+        dep_types = ", ".join(sorted(defn.dependency_types))
+        lines.append(f"  {layer.value:8} - {defn.name}")
+        lines.append(f"             Dependencies: {dep_types}")
+        lines.append(f"             Focus: {defn.quality_focus}")
+        lines.append("")
+    return "\n".join(lines)
 
 
 # Dependency type to layer mapping for quick lookups
 DEPENDENCY_TO_LAYER: Dict[str, AnalysisLayer] = {
     "app_to_app": AnalysisLayer.APP,
     "node_to_node": AnalysisLayer.INFRA,
-    "app_to_broker": AnalysisLayer.MW_APP,
-    "node_to_broker": AnalysisLayer.MW_INFRA,
+    "app_to_broker": AnalysisLayer.MW,
+    "node_to_broker": AnalysisLayer.MW,
 }

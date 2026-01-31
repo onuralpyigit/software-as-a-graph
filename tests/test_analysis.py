@@ -189,12 +189,15 @@ class TestLayerFiltering:
         assert "Node" in layer_def.component_types
         assert "Topic" in layer_def.component_types
     
-    def test_mw_app_layer_components(self):
-        """MW_APP layer should include Application and Broker."""
-        layer_def = get_layer_definition(AnalysisLayer.MW_APP)
+    def test_mw_layer_components(self):
+        """MW layer should include Application, Broker, and Node."""
+        layer_def = get_layer_definition(AnalysisLayer.MW)
         assert "Application" in layer_def.component_types
         assert "Broker" in layer_def.component_types
-        assert "Node" not in layer_def.component_types
+        assert "Node" in layer_def.component_types
+        # MW layer should have both broker dependency types
+        assert "app_to_broker" in layer_def.dependency_types
+        assert "node_to_broker" in layer_def.dependency_types
     
     def test_layer_analysis_filters_correctly(self, multi_layer_graph):
         """Verify that layer analysis filters to correct component types."""

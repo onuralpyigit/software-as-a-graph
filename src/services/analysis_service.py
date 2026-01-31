@@ -89,11 +89,11 @@ class AnalysisService:
             problem_summary=problem_summary
         )
 
-    def analyze_all_layers(self, include_middleware: bool = False) -> MultiLayerAnalysisResult:
+    def analyze_all_layers(self) -> MultiLayerAnalysisResult:
         """
-        Run analysis across all layers.
+        Run analysis across all primary layers.
         """
-        layers_to_analyze = get_all_layers() if include_middleware else get_primary_layers()
+        layers_to_analyze = get_primary_layers()
         
         results = {}
         for layer in layers_to_analyze:
@@ -103,19 +103,62 @@ class AnalysisService:
                 self.logger.error(f"Failed to analyze layer {layer.value}: {e}")
                 self.logger.exception(f"Exception details for {layer.value}:")
         
-        # Cross-layer insights (placeholder for future implementation)
-        insights = []
-        if "app" in results and "infra" in results:
-            app_nodes = results["app"].structural.graph_summary.nodes
-            infra_nodes = results["infra"].structural.graph_summary.nodes
-            if infra_nodes > app_nodes:
-                insights.append(f"Infrastructure layer is more complex than application layer ({infra_nodes} vs {app_nodes} nodes).")
+        # Generate cross-layer insights
+        insights = self._generate_cross_layer_insights(results)
         
         return MultiLayerAnalysisResult(
             timestamp=datetime.now().isoformat(),
             layers=results,
             cross_layer_insights=insights
         )
+
+    def _generate_cross_layer_insights(self, results: Dict[str, LayerAnalysisResult]) -> List[str]:
+        """Generate insights by comparing analysis results across layers."""
+        insights = []
+        
+        # Compare layer complexity
+        if "app" in results and "infra" in results:
+            app_nodes = results["app"].structural.graph_summary.nodes
+            infra_nodes = results["infra"].structural.graph_summary.nodes
+            if infra_nodes > app_nodes * 1.5:
+                insights.append(
+                    f"Infrastructure layer is significantly more complex than application layer "
+                    f"({infra_nodes} vs {app_nodes} nodes)."
+                )
+            elif app_nodes > infra_nodes * 1.5:
+                insights.append(
+                    f"Application layer is significantly more complex than infrastructure layer "
+                    f"({app_nodes} vs {infra_nodes} nodes)."
+                )
+        
+        # Compare problem severity across layers
+        layer_problems = {}
+        for layer_name, layer_result in results.items():
+            critical_count = layer_result.problem_summary.by_severity.get("CRITICAL", 0)
+            high_count = layer_result.problem_summary.by_severity.get("HIGH", 0)
+            layer_problems[layer_name] = critical_count + high_count
+        
+        if layer_problems:
+            worst_layer = max(layer_problems, key=layer_problems.get)
+            if layer_problems[worst_layer] > 0:
+                best_layer = min(layer_problems, key=layer_problems.get)
+                if layer_problems[worst_layer] > layer_problems[best_layer] * 2:
+                    insights.append(
+                        f"The {worst_layer} layer has significantly more critical issues "
+                        f"({layer_problems[worst_layer]}) than the {best_layer} layer "
+                        f"({layer_problems[best_layer]})."
+                    )
+        
+        # Check middleware coupling
+        if "mw" in results:
+            mw_summary = results["mw"].structural.graph_summary
+            if mw_summary.articulation_points > 0:
+                insights.append(
+                    f"Middleware layer has {mw_summary.articulation_points} articulation points "
+                    f"(single points of failure in broker connectivity)."
+                )
+        
+        return insights
 
     def export_results(self, results: Union[LayerAnalysisResult, MultiLayerAnalysisResult], output_path: str) -> None:
         """

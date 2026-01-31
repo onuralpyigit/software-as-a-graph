@@ -1,37 +1,73 @@
 #!/usr/bin/env python3
 """
-Graph Analysis CLI (Refactored)
+Graph Analysis CLI
 
 Multi-layer graph analysis for distributed pub-sub systems.
+
+Layers:
+    app     - Application layer (app_to_app dependencies)
+    infra   - Infrastructure layer (node_to_node dependencies)
+    mw      - Middleware layer (app_to_broker + node_to_broker dependencies)
+    system  - Complete system (all layers combined)
 """
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse
 import json
 import logging
-import sys
-from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
+from datetime import datetime
 
 from src.infrastructure import Container
+from src.models.analysis.layers import AnalysisLayer, list_layers
 from src.models.analysis.results import MultiLayerAnalysisResult
 
 
 def main() -> int:
     """Main entry point."""
-    parser = argparse.ArgumentParser(description="Multi-layer graph analysis for distributed pub-sub systems.")
+    parser = argparse.ArgumentParser(
+        description="Multi-layer graph analysis for distributed pub-sub systems.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --layer app           # Analyze application layer only
+  %(prog)s --layer infra         # Analyze infrastructure layer only
+  %(prog)s --layer mw            # Analyze middleware layer only
+  %(prog)s --layer system        # Analyze complete system
+  %(prog)s --all                 # Analyze all layers
+  %(prog)s --list-layers         # Show available layers
+"""
+    )
     
     layer_group = parser.add_mutually_exclusive_group()
-    layer_group.add_argument("--layer", "-l", choices=["app", "infra", "mw-app", "mw-infra", "system"], default="system", help="Analysis layer (default: system)")
-    layer_group.add_argument("--all", "-a", action="store_true", help="Analyze all primary layers")
+    layer_group.add_argument(
+        "--layer", "-l",
+        choices=["app", "infra", "mw", "system"],
+        default="system",
+        help="Analysis layer (default: system)"
+    )
+    layer_group.add_argument(
+        "--all", "-a",
+        action="store_true",
+        help="Analyze all layers"
+    )
     
-    parser.add_argument("--include-middleware", action="store_true", help="Include middleware layers when using --all")
-    parser.add_argument("--output", "-o", metavar="FILE", help="Export results to JSON file")
-    parser.add_argument("--json", action="store_true", help="Output results as JSON to stdout")
+    parser.add_argument(
+        "--list-layers",
+        action="store_true",
+        help="List available layers with descriptions"
+    )
+    parser.add_argument(
+        "--output", "-o",
+        metavar="FILE",
+        help="Export results to JSON file"
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON to stdout"
+    )
     
     # Neo4j connection
     parser.add_argument("--uri", "-n", default="bolt://localhost:7687", help="Neo4j connection URI")
@@ -43,6 +79,11 @@ def main() -> int:
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     
     args = parser.parse_args()
+    
+    # Handle --list-layers
+    if args.list_layers:
+        print(list_layers())
+        return 0
     
     # Configure logging
     log_level = logging.DEBUG if args.verbose else (logging.WARNING if args.quiet else logging.INFO)
@@ -56,9 +97,8 @@ def main() -> int:
         
         # Run analysis
         if args.all:
-            results = analyzer.analyze_all_layers(include_middleware=args.include_middleware)
+            results = analyzer.analyze_all_layers()
         else:
-            from datetime import datetime
             layer_result = analyzer.analyze_layer(args.layer)
             results = MultiLayerAnalysisResult(
                 timestamp=datetime.now().isoformat(),
