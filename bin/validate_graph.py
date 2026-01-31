@@ -12,15 +12,13 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import argparse
 import json
 import logging
-import sys
-from pathlib import Path
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.infrastructure import Container
 from src.models.validation.metrics import ValidationTargets
-from src.models.visualization.layer_data import LAYER_DEFINITIONS
+from src.models.simulation.layers import SimulationLayer, SIMULATION_LAYERS
 
 
 def main() -> int:
@@ -86,8 +84,12 @@ def main() -> int:
             return 0 if result.passed else 1
         
         # Full pipeline validation
-        layers = list(LAYER_DEFINITIONS.keys()) if args.all else [l.strip() for l in args.layer.split(",")]
-        result = val_service.validate_layers(layers=layers)
+        if args.all:
+            layers_to_validate = [layer.value for layer in SIMULATION_LAYERS]
+        else:
+            layers_to_validate = [l.strip() for l in args.layer.split(",")]
+            
+        result = val_service.validate_layers(layers=layers_to_validate)
         
         if args.json:
             print(json.dumps(result.to_dict(), indent=2))

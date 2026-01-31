@@ -12,15 +12,7 @@ from src.models.validation.results import ValidationResult, LayerValidationResul
 from src.services.validation.validator import Validator
 from src.services.analysis_service import AnalysisService
 from src.services.simulation_service import SimulationService
-
-# Layer definitions (moved from pipeline.py)
-LAYER_DEFINITIONS = {
-    "app": "Application Layer",
-    "infra": "Infrastructure Layer",
-    "mw-app": "Middleware-Application Layer",
-    "mw-infra": "Middleware-Infrastructure Layer",
-    "system": "Complete System",
-}
+from src.models.simulation.layers import SimulationLayer, SIMULATION_LAYERS, get_layer_definition
 
 class ValidationService:
     """
@@ -41,7 +33,13 @@ class ValidationService:
     
     def validate_layers(self, layers: List[str] = ["app", "infra", "system"]) -> PipelineResult:
         """Run validation for multiple layers."""
-        valid_layers = [l for l in layers if l in LAYER_DEFINITIONS]
+        valid_layers = []
+        for l in layers:
+            try:
+                valid_layers.append(SimulationLayer.from_string(l))
+            except ValueError:
+                self.logger.warning(f"Skipping unknown layer: {l}")
+
         if not valid_layers:
             self.logger.warning(f"No valid layers provided from: {layers}")
             return PipelineResult(
@@ -55,17 +53,19 @@ class ValidationService:
         total_components = 0
         
         for layer in valid_layers:
-            self.logger.info(f"Validating layer: {layer}")
+            self.logger.info(f"Validating layer: {layer.value}")
             try:
                 result = self._validate_single_layer(layer)
-                results[layer] = result
+                results[layer.value] = result
                 if result.passed:
                     passed_count += 1
                 total_components += result.predicted_components
             except Exception as e:
-                self.logger.error(f"Failed to validate layer {layer}: {e}")
-                results[layer] = LayerValidationResult(
-                    layer=layer, layer_name=LAYER_DEFINITIONS[layer], warnings=[str(e)]
+                self.logger.error(f"Failed to validate layer {layer.value}: {e}")
+                self.logger.exception("Validation exception details:")
+                layer_def = get_layer_definition(layer)
+                results[layer.value] = LayerValidationResult(
+                    layer=layer.value, layer_name=layer_def.name, warnings=[str(e)]
                 )
         
         all_passed = (passed_count == len(valid_layers))
@@ -79,28 +79,26 @@ class ValidationService:
             targets=self.targets
         )
 
-    def _validate_single_layer(self, layer: str) -> LayerValidationResult:
+    def _validate_single_layer(self, layer: SimulationLayer) -> LayerValidationResult:
         """Validate a single layer."""
+        layer_def = get_layer_definition(layer)
+        
         # 1. Analysis
         self.logger.info("Running analysis...")
-        analysis_result = self.analysis.analyze_layer(layer)
+        # AnalysisService uses AnalysisLayer which has same string values as SimulationLayer
+        analysis_result = self.analysis.analyze_layer(layer.value)
         pred_scores = {c.id: c.scores.overall for c in analysis_result.quality.components}
         comp_types = {c.id: c.type for c in analysis_result.quality.components}
         comp_names = {c.id: c.structural.name for c in analysis_result.quality.components}
         
         # 2. Simulation
         self.logger.info("Running simulation...")
-        # Since SimulationService is designed as a context manager but we are inside a service,
-        # we might need to handle the session management. 
-        # Ideally, we assume the repository is shared or handled.
-        # However, checking SimulationService, it loads graph on enter.
-        # We can use it as a context manager here if needed, or if it's already injected with repo
-        # we can just call methods if they don't depend on 'enter' state too heavily.
-        # Checking: SimulationService._load_graph is called in __enter__.
-        # So we should use it as context manager or ensure graph is loaded.
         
-        with self.simulation as sim:
-            sim_results = sim.run_failure_simulation_exhaustive(layer=layer)
+        # SimulationService handles its own graph loading but we can use context manager if needed.
+        # However, calling run_failure_simulation_exhaustive internally uses self.graph property 
+        # which auto-loads the graph.
+        
+        sim_results = self.simulation.run_failure_simulation_exhaustive(layer=layer.value)
         
         actual_scores = {r.target_id: r.impact.composite_impact for r in sim_results}
         
@@ -110,13 +108,13 @@ class ValidationService:
             predicted_scores=pred_scores,
             actual_scores=actual_scores,
             component_types=comp_types,
-            layer=layer,
-            context=LAYER_DEFINITIONS[layer]
+            layer=layer.value,
+            context=layer_def.name
         )
         
         return LayerValidationResult(
-            layer=layer,
-            layer_name=LAYER_DEFINITIONS[layer],
+            layer=layer.value,
+            layer_name=layer_def.name,
             predicted_components=validation_res.predicted_count,
             simulated_components=validation_res.actual_count,
             matched_components=validation_res.matched_count,
