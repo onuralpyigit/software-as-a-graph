@@ -67,7 +67,7 @@ class AnalysisService:
         # 0. Load Data
         if self._repository is None:
             raise ValueError("Repository is required for analysis")
-        graph_data = self._repository.get_graph_data()
+        graph_data = self._repository.get_graph_data(include_raw=True)
         
         # 1. Structural Analysis
         structural_result = self.structural_analyzer.analyze(graph_data, layer=layer_enum)
@@ -79,6 +79,48 @@ class AnalysisService:
         problems = self.problem_detector.detect(quality_result)
         problem_summary = self.problem_detector.summarize(problems)
         
+        # 4. Library Usage Analysis
+        library_usage = {}
+        node_allocations = {}
+        broker_routing = {}
+        
+        lib_names = {c.id: c.properties.get("name", c.id) for c in graph_data.components if c.component_type == "Library"}
+        app_names = {c.id: c.properties.get("name", c.id) for c in graph_data.components if c.component_type == "Application"}
+        topic_names = {c.id: c.properties.get("name", c.id) for c in graph_data.components if c.component_type == "Topic"}
+        
+        for edge in graph_data.edges:
+            # App -> USES -> Lib
+            if edge.relation_type == "USES" and edge.source_type == "Application" and edge.target_type == "Library":
+                app_id = edge.source_id
+                lib_id = edge.target_id
+                lib_name = lib_names.get(lib_id, lib_id)
+                if "version" in edge.properties:
+                    lib_name += f" ({edge.properties['version']})"
+                
+                if app_id not in library_usage:
+                    library_usage[app_id] = []
+                library_usage[app_id].append(lib_name)
+            
+            # App/Broker -> RUNS_ON -> Node
+            # We want Node related Apps (so Node is target, App is source)
+            elif edge.relation_type == "RUNS_ON" and edge.target_type == "Node":
+                node_id = edge.target_id
+                guest_id = edge.source_id
+                if edge.source_type == "Application":
+                    guest_name = app_names.get(guest_id, guest_id)
+                    if node_id not in node_allocations:
+                        node_allocations[node_id] = []
+                    node_allocations[node_id].append(guest_name)
+            
+            # Broker -> ROUTES -> Topic
+            elif edge.relation_type == "ROUTES" and edge.source_type == "Broker" and edge.target_type == "Topic":
+                broker_id = edge.source_id
+                topic_id = edge.target_id
+                topic_name = topic_names.get(topic_id, topic_id)
+                if broker_id not in broker_routing:
+                    broker_routing[broker_id] = []
+                broker_routing[broker_id].append(topic_name)
+        
         return LayerAnalysisResult(
             layer=layer_enum.value,
             layer_name=layer_def.name,
@@ -86,7 +128,10 @@ class AnalysisService:
             structural=structural_result,
             quality=quality_result,
             problems=problems,
-            problem_summary=problem_summary
+            problem_summary=problem_summary,
+            library_usage=library_usage,
+            node_allocations=node_allocations,
+            broker_routing=broker_routing
         )
 
     def analyze_all_layers(self) -> MultiLayerAnalysisResult:

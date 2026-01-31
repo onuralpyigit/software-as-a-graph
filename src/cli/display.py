@@ -156,6 +156,23 @@ class ConsoleDisplay:
             color = self.level_color(c.levels.overall)
             ap_flag = self.colored("●", Colors.RED) if c.structural.is_articulation_point else " "
             print(f"  {c.id:<20} {c.structural.name[:20]:<20} {c.type:<10} {c.scores.reliability:.3f}  {c.scores.maintainability:.3f}  {c.scores.availability:.3f}  {c.scores.vulnerability:.3f}  {self.colored(f'{c.scores.overall:.3f}', color)}  {self.colored(level_str, color):<10} {ap_flag}")
+            
+            # Show direct affected/related components
+            related = []
+            if c.type == "Application" and c.id in result.library_usage:
+                related = [f"Uses Lib: {l}" for l in result.library_usage[c.id]]
+            elif c.type == "Node" and c.id in result.node_allocations:
+                related = [f"Hosts App: {a}" for a in result.node_allocations[c.id]]
+            elif c.type == "Broker" and c.id in result.broker_routing:
+                related = [f"Routes Topic: {t}" for t in result.broker_routing[c.id]]
+            
+            if related:
+                # Wrap or truncate related list if too long
+                related_str = ", ".join(related)
+                if len(related_str) > 90:
+                    related_str = related_str[:87] + "..."
+                print(f"    {self.colored('↳ ', Colors.GRAY)} {self.colored(related_str, Colors.GRAY)}")
+                
         if len(result.quality.components) > limit:
             print(f"\n  {self.colored(f'... and {len(result.quality.components) - limit} more', Colors.GRAY)}")
 
@@ -179,16 +196,55 @@ class ConsoleDisplay:
             sev_color = self.severity_color(p.severity)
             print(f"  [{self.colored(p.severity, sev_color, bold=True):>8}] {self.colored(p.name, Colors.WHITE, bold=True)}")
             entity_display = p.entity_id
+            related_info = ""
+            
             if p.entity_type == "Component":
                 name = node_names.get(p.entity_id)
                 if name: entity_display = f"{p.entity_id} ({name})"
-            print(f"           Entity: {self.colored(entity_display, Colors.CYAN)} ({p.entity_type})\n           Category: {p.category}")
+                
+                # Check for related components
+                related = []
+                if p.entity_id in result.library_usage:
+                    related = [l for l in result.library_usage[p.entity_id]]
+                    if related: related_info = f"Uses Libs: {', '.join(related)}"
+                elif p.entity_id in result.node_allocations:
+                    related = [a for a in result.node_allocations[p.entity_id]]
+                    if related: related_info = f"Hosts Apps: {', '.join(related)}"
+                elif p.entity_id in result.broker_routing:
+                    related = [t for t in result.broker_routing[p.entity_id]]
+                    if related: related_info = f"Routes Topics: {', '.join(related)}"
+
+            print(f"           Entity: {self.colored(entity_display, Colors.CYAN)} ({p.entity_type})")
+            if related_info:
+                # Wrap related info if too long
+                if len(related_info) > 70: related_info = related_info[:67] + "..."
+                print(f"           Related: {self.colored(related_info, Colors.GRAY)}")
+            
+            print(f"           Category: {p.category}")
             desc_lines = self.wrap_text(p.description, 60)
             print(f"           Issue: {desc_lines[0]}")
             for line in desc_lines[1:]: print(f"                  {line}")
             rec_lines = self.wrap_text(p.recommendation, 60)
             print(f"           Fix: {self.colored(rec_lines[0], Colors.GREEN)}")
             for line in rec_lines[1:]: print(f"                {self.colored(line, Colors.GREEN)}")
+
+    def display_library_usage(self, result: "LayerAnalysisResult") -> None:
+        """Display library usage by applications."""
+        if not result.library_usage:
+            return
+
+        self.print_subheader("Library Usage")
+        # Get component names for nicer display
+        comp_map = {c.id: c.structural.name for c in result.quality.components}
+        
+        sorted_apps = sorted(result.library_usage.keys())
+        for app_id in sorted_apps:
+            libs = result.library_usage[app_id]
+            app_name = comp_map.get(app_id, app_id)
+            print(f"  {self.colored(app_name, Colors.WHITE, bold=True)} ({app_id})")
+            for lib in sorted(libs):
+                print(f"    - {lib}")
+            print()
 
     def display_layer_result(self, result: "LayerAnalysisResult") -> None:
         """Display complete analysis result for a single layer."""
@@ -270,6 +326,17 @@ class ConsoleDisplay:
             print(f"\n  {self.colored('Event Simulation:', Colors.CYAN)}\n    Throughput:        {metrics.event_throughput} messages\n    Delivery Rate:     {metrics.event_delivery_rate:.1f}%")
             print(f"\n  {self.colored('Failure Simulation:', Colors.CYAN)}\n    Avg Reach Loss:    {metrics.avg_reachability_loss * 100:.1f}%\n    Max Impact:        {metrics.max_impact:.4f}")
             print(f"\n  {self.colored('Criticality:', Colors.CYAN)}\n    Critical:          {self.colored(str(metrics.critical_count), Colors.RED)}\n    SPOFs:             {metrics.spof_count}")
+
+        if report.library_usage:
+            self.print_subheader("Library Usage")
+            sorted_apps = sorted(report.library_usage.keys())
+            for app_id in sorted_apps:
+                libs = report.library_usage[app_id]
+                app_name = report.component_names.get(app_id, app_id)
+                print(f"  {self.colored(app_name, Colors.WHITE, bold=True)} ({app_id})")
+                for lib in sorted(libs):
+                    print(f"    - {lib}")
+            print()
 
     # --- Validation Display ---
 

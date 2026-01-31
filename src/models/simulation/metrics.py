@@ -122,6 +122,9 @@ class SimulationReport:
     # Name mapping for display
     component_names: Dict[str, str] = field(default_factory=dict)
     
+    # Library usage info
+    library_usage: Dict[str, List[str]] = field(default_factory=dict)
+    
     def to_dict(self) -> Dict[str, Any]:
         return {
             "timestamp": self.timestamp,
@@ -130,6 +133,7 @@ class SimulationReport:
             "component_criticality": [c.to_dict() for c in self.component_criticality],
             "top_critical": self.top_critical,
             "recommendations": self.recommendations,
+            "library_usage": self.library_usage,
         }
     
     def get_critical_components(self) -> List[ComponentCriticality]:

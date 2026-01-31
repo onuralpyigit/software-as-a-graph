@@ -26,6 +26,9 @@ class LayerAnalysisResult:
     quality: QualityAnalysisResult
     problems: List[DetectedProblem]
     problem_summary: ProblemSummary
+    library_usage: Dict[str, List[str]] = field(default_factory=dict)
+    node_allocations: Dict[str, List[str]] = field(default_factory=dict)
+    broker_routing: Dict[str, List[str]] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -36,6 +39,9 @@ class LayerAnalysisResult:
             "quality_analysis": self.quality.to_dict(),
             "problems": [p.to_dict() for p in self.problems],
             "problem_summary": self.problem_summary.to_dict(),
+            "library_usage": self.library_usage,
+            "node_allocations": self.node_allocations,
+            "broker_routing": self.broker_routing,
         }
     
     @property

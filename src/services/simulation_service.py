@@ -332,6 +332,24 @@ class SimulationService:
         # Generate recommendations
         recommendations = self._generate_recommendations(layer_metrics, component_criticality)
         
+        # Custom Library Usage Output
+        library_usage_ids = self.graph.get_library_usage()
+        library_usage = {}
+        
+        for app_id, lib_ids in library_usage_ids.items():
+            comp = self.graph.components.get(app_id)
+            if comp and comp.type == "Application":
+                 formatted_libs = []
+                 for lib_id in lib_ids:
+                     lib_comp = self.graph.components.get(lib_id)
+                     name = lib_comp.properties.get("name", lib_id) if lib_comp else lib_id
+                     if lib_comp:
+                         version = lib_comp.properties.get("version")
+                         if version:
+                             name += f" ({version})"
+                     formatted_libs.append(name)
+                 library_usage[app_id] = formatted_libs
+
         return SimulationReport(
             timestamp=datetime.now().isoformat(),
             graph_summary=graph_summary,
@@ -340,6 +358,7 @@ class SimulationService:
             top_critical=top_critical,
             recommendations=recommendations,
             component_names={c.id: c.properties.get("name", c.id) for c in self.graph.components.values()},
+            library_usage=library_usage,
         )
     
     def export_report(self, report: SimulationReport, output_file: str) -> None:

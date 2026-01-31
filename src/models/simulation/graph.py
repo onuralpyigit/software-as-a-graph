@@ -235,6 +235,15 @@ class SimulationGraph:
                 path.append((broker, sub))
         
         return path
+
+    def get_library_usage(self) -> Dict[str, List[str]]:
+        """
+        Get library usage for all components.
+        
+        Returns:
+            Dict mapping component ID to list of library IDs
+        """
+        return dict(self._uses)
     
     # =========================================================================
     # Layer Filtering
