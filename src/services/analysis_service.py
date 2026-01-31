@@ -19,9 +19,11 @@ from src.models.analysis.layers import (
     get_all_layers,
     get_primary_layers
 )
-from src.services.analysis.structural_analyzer import StructuralAnalyzer, StructuralAnalysisResult
-from src.services.analysis.quality_analyzer import QualityAnalyzer, QualityAnalysisResult
-from src.services.analysis.problem_detector import ProblemDetector, DetectedProblem, ProblemSummary
+from src.services.analysis import (
+    StructuralAnalyzer, StructuralAnalysisResult,
+    QualityAnalyzer, QualityAnalysisResult,
+    ProblemDetector, DetectedProblem, ProblemSummary
+)
 from src.models.analysis.criticality import CriticalityLevel
 from src.models.analysis.results import LayerAnalysisResult, MultiLayerAnalysisResult
 

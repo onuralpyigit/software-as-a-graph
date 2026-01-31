@@ -24,15 +24,15 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-from .classifier import BoxPlotClassifier
-from ...models.analysis.criticality import CriticalityLevel, BoxPlotStats
-from ...models.analysis.metrics import (
+from src.domain.services.classifier import BoxPlotClassifier
+from src.domain.models.criticality import CriticalityLevel, BoxPlotStats
+from src.domain.models.metrics import (
     QualityScores, QualityLevels, ComponentQuality, EdgeQuality,
     StructuralMetrics, EdgeMetrics, ClassificationSummary
 )
-from .structural_analyzer import StructuralAnalysisResult
-from ...models.analysis.layers import AnalysisLayer
-from .weight_calculator import AHPProcessor, QualityWeights
+from src.domain.services.structural_analyzer import StructuralAnalysisResult
+from src.domain.config.layers import AnalysisLayer
+from src.domain.services.weight_calculator import AHPProcessor, QualityWeights
 
 
 @dataclass

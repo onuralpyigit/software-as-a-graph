@@ -22,7 +22,7 @@ from __future__ import annotations
 import statistics
 from typing import Dict, List, Any, Sequence, Callable, Optional
 
-from ...models.analysis.criticality import (
+from src.domain.models.criticality import (
     CriticalityLevel,
     BoxPlotStats,
     ClassifiedItem,

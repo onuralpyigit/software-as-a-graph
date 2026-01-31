@@ -1,15 +1,16 @@
 """
 Analysis Sub-Module Exports
 
-Provides structural analysis, quality scoring, and problem detection
-for multi-layer graph analysis.
+Re-exports from domain services layer for backward compatibility.
+The actual implementation now lives in src/domain/services/.
 """
 
-from .structural_analyzer import StructuralAnalyzer, StructuralAnalysisResult
-from .quality_analyzer import QualityAnalyzer, QualityAnalysisResult
-from .problem_detector import ProblemDetector, DetectedProblem, ProblemSummary
-from .classifier import BoxPlotClassifier
-from .weight_calculator import QualityWeights, AHPProcessor
+# Re-export from domain services (source of truth)
+from src.domain.services.structural_analyzer import StructuralAnalyzer, StructuralAnalysisResult
+from src.domain.services.quality_analyzer import QualityAnalyzer, QualityAnalysisResult
+from src.domain.services.problem_detector import ProblemDetector, DetectedProblem, ProblemSummary
+from src.domain.services.classifier import BoxPlotClassifier
+from src.domain.services.weight_calculator import QualityWeights, AHPProcessor
 
 __all__ = [
     "StructuralAnalyzer",

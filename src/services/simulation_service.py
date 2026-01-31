@@ -19,7 +19,7 @@ from src.services.simulation.failure_simulator import FailureSimulator, FailureS
 
 # Import classifier from analysis module (optional)
 try:
-    from src.services.analysis.classifier import BoxPlotClassifier
+    from src.services.analysis import BoxPlotClassifier
     HAS_CLASSIFIER = True
 except ImportError:
     HAS_CLASSIFIER = False

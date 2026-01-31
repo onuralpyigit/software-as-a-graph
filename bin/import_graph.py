@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Dict
 
-from src.infrastructure import Container
+from src.config import Container
 
 
 def print_import_stats(stats: Dict[str, int]) -> None:

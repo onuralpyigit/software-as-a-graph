@@ -21,8 +21,8 @@ from typing import Dict, List, Any, Optional, Tuple
 
 import networkx as nx
 
-from ...models.analysis.layers import AnalysisLayer, LAYER_DEFINITIONS, get_layer_definition
-from ...models.analysis.metrics import StructuralMetrics, EdgeMetrics, GraphSummary
+from src.models.analysis.layers import AnalysisLayer, LAYER_DEFINITIONS, get_layer_definition
+from src.domain.models.metrics import StructuralMetrics, EdgeMetrics, GraphSummary
 
 
 @dataclass

@@ -25,7 +25,7 @@ def test_simulate_graph_cli():
     mock_sim_service.run_event_simulation.return_value = mock_event_result
     
     with patch.object(sys, 'argv', ['simulate_graph.py', '--event', 'App1']), \
-         patch('src.infrastructure.Container', return_value=mock_container) as MockContainer:
+         patch('src.config.Container', return_value=mock_container) as MockContainer:
         
         import simulate_graph
         importlib.reload(simulate_graph)
@@ -56,7 +56,7 @@ def test_analyze_graph_cli():
     mock_analysis_service.analyze_layer.return_value = MagicMock()
     
     with patch.object(sys, 'argv', ['analyze_graph.py', '--layer', 'app']), \
-         patch('src.infrastructure.Container', return_value=mock_container) as MockContainer, \
+         patch('src.config.Container', return_value=mock_container) as MockContainer, \
          patch('analyze_graph.MultiLayerAnalysisResult', create=True) as MockMLAR:
         
         import analyze_graph
@@ -86,7 +86,7 @@ def test_validate_graph_cli():
     mock_val_service.validate_layers.return_value = mock_result
     
     with patch.object(sys, 'argv', ['validate_graph.py', '--layer', 'app']), \
-         patch('src.infrastructure.Container', return_value=mock_container) as MockContainer:
+         patch('src.config.Container', return_value=mock_container) as MockContainer:
         
         import validate_graph
         importlib.reload(validate_graph)
@@ -112,7 +112,7 @@ def test_visualize_graph_cli():
     mock_viz_service.generate_dashboard.return_value = "dashboard.html"
     
     with patch.object(sys, 'argv', ['visualize_graph.py', '--layer', 'app', '--output', 'test.html']), \
-         patch('src.infrastructure.Container', return_value=mock_container) as MockContainer:
+         patch('src.config.Container', return_value=mock_container) as MockContainer:
         
         import visualize_graph
         importlib.reload(visualize_graph)
