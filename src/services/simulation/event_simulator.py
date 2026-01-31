@@ -189,7 +189,6 @@ class EventResult:
     
     # Failures
     failed_components: List[str] = field(default_factory=list)
-    failed_components: List[str] = field(default_factory=list)
     drop_reasons: Dict[str, int] = field(default_factory=dict)
     
     # Name mapping for display

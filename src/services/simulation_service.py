@@ -159,8 +159,8 @@ class SimulationService:
         """Run combined event and failure analysis for a layer."""
         metrics = LayerMetrics(layer=layer)
         
-        # Get components for this layer
-        layer_comps = self.graph.get_components_by_layer(layer)
+        # Get components to analyze for this layer (not all components in graph)
+        layer_comps = self.graph.get_analyze_components_by_layer(layer)
         metrics.total_components = len(layer_comps)
         
         # === Event Simulation ===
@@ -289,7 +289,7 @@ class SimulationService:
     ) -> SimulationReport:
         """Generate comprehensive simulation report."""
         if layers is None:
-            layers = ["app", "infra", "system"]
+            layers = ["app", "infra", "mw", "system"]
         
         self.logger.info(f"Generating simulation report for layers: {layers}")
         
@@ -308,7 +308,7 @@ class SimulationService:
         # Update layer metrics with criticality counts
         for crit in component_criticality:
             for layer, metrics in layer_metrics.items():
-                layer_comps = self.graph.get_components_by_layer(layer)
+                layer_comps = self.graph.get_analyze_components_by_layer(layer)
                 if crit.id in layer_comps:
                     if crit.level == "critical":
                         metrics.critical_count += 1

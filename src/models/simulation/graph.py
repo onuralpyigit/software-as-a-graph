@@ -8,13 +8,14 @@ relationships without deriving DEPENDS_ON.
 
 from __future__ import annotations
 import logging
-from typing import Dict, List, Set, Tuple, Any, Optional
+from typing import Dict, List, Set, Tuple, Any, Optional, FrozenSet
 from collections import defaultdict
 
 import networkx as nx
 
 from .types import ComponentState, RelationType
 from .components import ComponentInfo, TopicInfo
+from .layers import SimulationLayer, SIMULATION_LAYERS
 
 class SimulationGraph:
     """
@@ -241,25 +242,83 @@ class SimulationGraph:
     
     def get_components_by_layer(self, layer: str) -> List[str]:
         """
-        Get component IDs for a specific layer.
+        Get component IDs included in a specific layer's simulation graph.
         
         Layers:
-            - app: Application components
-            - infra: Node components
-            - mw-app: Application + Broker components
-            - mw-infra: Node + Broker components
+            - app: Application, Topic, Library components
+            - infra: Node, Application, Broker components
+            - mw: Broker, Topic, Application components
             - system: All components
-        """
-        layer_types = {
-            "app": {"Application", "Library"},
-            "infra": {"Node"},
-            "mw-app": {"Application", "Broker", "Library"},
-            "mw-infra": {"Node", "Broker"},
-            "system": {"Application", "Broker", "Node", "Topic", "Library"},
-        }
         
-        types = layer_types.get(layer, layer_types["system"])
-        return [c.id for c in self.components.values() if c.type in types]
+        Args:
+            layer: Layer name (app, infra, mw, system) or string alias
+            
+        Returns:
+            List of component IDs included in the layer's graph
+        """
+        try:
+            sim_layer = SimulationLayer.from_string(layer)
+        except ValueError:
+            self.logger.warning(f"Unknown layer '{layer}', defaulting to 'system'")
+            sim_layer = SimulationLayer.SYSTEM
+        
+        layer_def = SIMULATION_LAYERS[sim_layer]
+        return [c.id for c in self.components.values() if c.type in layer_def.component_types]
+    
+    def get_analyze_components_by_layer(self, layer: str) -> List[str]:
+        """
+        Get component IDs to analyze/report for a specific layer.
+        
+        This returns only the components that should be analyzed,
+        not all components in the simulation graph.
+        
+        Args:
+            layer: Layer name (app, infra, mw, system)
+            
+        Returns:
+            List of component IDs to analyze
+        """
+        try:
+            sim_layer = SimulationLayer.from_string(layer)
+        except ValueError:
+            sim_layer = SimulationLayer.SYSTEM
+        
+        layer_def = SIMULATION_LAYERS[sim_layer]
+        return [c.id for c in self.components.values() if c.type in layer_def.analyze_types]
+    
+    def get_layer_relationships(self, layer: str) -> FrozenSet[str]:
+        """
+        Get the relationship types to traverse for a specific layer.
+        
+        Args:
+            layer: Layer name (app, infra, mw, system)
+            
+        Returns:
+            FrozenSet of relationship type names
+        """
+        try:
+            sim_layer = SimulationLayer.from_string(layer)
+        except ValueError:
+            sim_layer = SimulationLayer.SYSTEM
+        
+        return SIMULATION_LAYERS[sim_layer].relationships
+    
+    def get_layer_cascade_rules(self, layer: str) -> FrozenSet[str]:
+        """
+        Get the cascade rules for failure propagation in a specific layer.
+        
+        Args:
+            layer: Layer name (app, infra, mw, system)
+            
+        Returns:
+            FrozenSet of cascade rule names (physical, logical, network)
+        """
+        try:
+            sim_layer = SimulationLayer.from_string(layer)
+        except ValueError:
+            sim_layer = SimulationLayer.SYSTEM
+        
+        return SIMULATION_LAYERS[sim_layer].cascade_rules
     
     # =========================================================================
     # Summary Statistics

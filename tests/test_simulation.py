@@ -86,3 +86,32 @@ def test_configurable_impact_weights(raw_graph_data):
     )
     assert metrics1.composite_impact == pytest.approx(0.4, abs=0.01)  # Default: 0.4*1.0
     assert metrics2.composite_impact == pytest.approx(1.0, abs=0.01)  # Custom: 1.0*1.0
+
+
+def test_layer_filtering(raw_graph_data):
+    """Test that layer filtering works as expected."""
+    graph = SimulationGraph(graph_data=raw_graph_data)
+    
+    # System layer should include everything
+    system_comps = graph.get_components_by_layer("system")
+    assert "App1" in system_comps
+    assert "Node1" in system_comps
+    assert "Topic1" in system_comps
+    
+    # App layer should simulate Apps and Topics but analyze only Apps
+    app_comps = graph.get_components_by_layer("app")
+    assert "App1" in app_comps
+    assert "Topic1" in app_comps
+    
+    analyze_apps = graph.get_analyze_components_by_layer("app")
+    assert "App1" in analyze_apps
+    assert "Topic1" not in analyze_apps  # Topics are part of graph but not analyzed primarily
+    
+    # Infra layer should simulate Nodes and hosted components but analyze only Nodes
+    infra_comps = graph.get_components_by_layer("infra")
+    assert "Node1" in infra_comps
+    assert "App1" in infra_comps  # App1 runs on Node1, so it's included for connectivity
+    
+    analyze_infra = graph.get_analyze_components_by_layer("infra")
+    assert "Node1" in analyze_infra
+    assert "App1" not in analyze_infra

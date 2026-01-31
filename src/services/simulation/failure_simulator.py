@@ -28,9 +28,6 @@ from src.models.simulation.graph import SimulationGraph
 from src.models.simulation.types import ComponentState, RelationType, FailureMode, CascadeRule
 
 @dataclass
-
-
-@dataclass
 class FailureScenario:
     """Configuration for a failure simulation."""
     target_id: str
@@ -45,7 +42,7 @@ class FailureScenario:
     max_cascade_depth: int = 10         # Maximum cascade depth
     
     # Layer filter (which components to consider)
-    layer: str = "system"  # app, infra, mw-app, mw-infra, system
+    layer: str = "system"  # app, infra, mw, system
     
     # Random seed
     seed: Optional[int] = None
@@ -299,10 +296,10 @@ class FailureSimulator:
         """
         results = []
         
-        # Get components for the layer
-        component_ids = self.graph.get_components_by_layer(layer)
+        # Get components to analyze for the layer (not all components in the graph)
+        component_ids = self.graph.get_analyze_components_by_layer(layer)
         
-        self.logger.info(f"Running exhaustive failure analysis: {len(component_ids)} components")
+        self.logger.info(f"Running exhaustive failure analysis: {len(component_ids)} components in layer '{layer}'")
         
         for comp_id in component_ids:
             scenario = FailureScenario(
@@ -495,7 +492,7 @@ class FailureSimulator:
         """Calculate impact per analysis layer."""
         layer_impacts = {}
         
-        layers = ["app", "infra", "mw-app", "mw-infra", "system"]
+        layers = ["app", "infra", "mw", "system"]
         
         for layer in layers:
             layer_comps = set(self.graph.get_components_by_layer(layer))

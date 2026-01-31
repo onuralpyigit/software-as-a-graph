@@ -32,7 +32,7 @@ def main() -> int:
     action_mutex.add_argument("--report", "-r", action="store_true", help="Generate full simulation report")
     
     sim_group = parser.add_argument_group("Simulation Parameters")
-    sim_group.add_argument("--layer", "-l", choices=["app", "infra", "mw-app", "mw-infra", "system"], default="system", help="Analysis layer")
+    sim_group.add_argument("--layer", "-l", choices=["app", "infra", "mw", "system"], default="system", help="Simulation layer (app, infra, mw, system)")
     sim_group.add_argument("--layers", help="Comma-separated layers for report")
     sim_group.add_argument("--messages", "-m", type=int, default=100, help="Number of messages")
     sim_group.add_argument("--duration", "-d", type=float, default=10.0, help="Simulation duration in seconds")
@@ -84,7 +84,7 @@ def main() -> int:
                 if not args.quiet: print(f"\n{display.colored(f'Results saved to: {args.output}', display.Colors.GREEN)}")
         
         elif args.report:
-            layers = args.layers.split(",") if args.layers else ["app", "infra", "system"]
+            layers = args.layers.split(",") if args.layers else ["app", "infra", "mw", "system"]
             report = sim.generate_report(layers=layers)
             if args.json: print(json.dumps(report.to_dict(), indent=2))
             elif not args.quiet: display.display_simulation_report(report)
