@@ -1,13 +1,224 @@
 # Graph Generation Configuration
-# Custom configuration for generating pub-sub system graphs.
+# Statistical distribution-based configuration for generating realistic pub-sub system graphs.
 
 graph:
-  # Component counts
-  apps: 25        # Number of applications
-  topics: 15      # Number of topics
-  brokers: 2      # Number of brokers
-  nodes: 6        # Number of nodes
-  libs: 8         # Number of libraries
-  
   # Random seed for reproducibility
   seed: 12345
+
+  # Component counts (base counts)
+  counts:
+    nodes: 10
+    applications: 50
+    libraries: 15
+    topics: 30
+    brokers: 3
+
+  # =============================================================================
+  # NODE STATISTICS
+  # =============================================================================
+  node_stats:
+    applications_per_node:
+      mean: 5.0
+      median: 4.0
+      std: 2.5
+      min: 1
+      max: 15
+      q1: 3.0
+      q3: 7.0
+      iqr: 4.0
+
+  # =============================================================================
+  # APPLICATION STATISTICS
+  # =============================================================================
+  application_stats:
+    direct_publish_count:
+      mean: 3.0
+      median: 3.0
+      std: 1.5
+      min: 0
+      max: 8
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    direct_subscribe_count:
+      mean: 4.0
+      median: 4.0
+      std: 2.0
+      min: 0
+      max: 12
+      q1: 2.0
+      q3: 6.0
+      iqr: 4.0
+
+    total_publish_count_including_libraries:
+      mean: 5.0
+      median: 5.0
+      std: 2.5
+      min: 0
+      max: 15
+      q1: 3.0
+      q3: 7.0
+      iqr: 4.0
+
+    total_subscribe_count_including_libraries:
+      mean: 7.0
+      median: 6.0
+      std: 3.0
+      min: 0
+      max: 20
+      q1: 4.0
+      q3: 9.0
+      iqr: 5.0
+
+    # Application role distribution (Kategorik)
+    # Values: pub, sub, pubsub
+    app_role_distribution:
+      total_count: 50
+      category_counts:
+        pub: 15              # Number of publisher-only apps
+        sub: 20              # Number of subscriber-only apps
+        pubsub: 15           # Number of apps that both publish and subscribe
+      mode: sub              # Most frequent category
+      mode_count: 20         # Count of the mode
+      mode_percentage: 40.0  # Percentage of the mode
+
+    # Application criticality distribution (Kategorik)
+    # Values: critical, non_critical
+    app_criticality_distribution:
+      total_count: 50
+      category_counts:
+        critical: 12         # Number of critical applications
+        non_critical: 38     # Number of non-critical applications
+      mode: non_critical     # Most frequent category
+      mode_count: 38         # Count of the mode
+      mode_percentage: 76.0  # Percentage of the mode
+
+  # =============================================================================
+  # LIBRARY STATISTICS
+  # =============================================================================
+  library_stats:
+    applications_using_this_library:
+      mean: 3.5
+      median: 3.0
+      std: 2.0
+      min: 0
+      max: 10
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+    direct_publish_count:
+      mean: 2.0
+      median: 2.0
+      std: 1.0
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    direct_subscribe_count:
+      mean: 2.5
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 6
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+    total_publish_count_including_libraries:
+      mean: 3.0
+      median: 3.0
+      std: 1.5
+      min: 0
+      max: 8
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    total_subscribe_count_including_libraries:
+      mean: 4.0
+      median: 4.0
+      std: 2.0
+      min: 0
+      max: 10
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+  # =============================================================================
+  # TOPIC (INFOGRAM) STATISTICS
+  # =============================================================================
+  topic_stats:
+    infogram_size_bytes:
+      mean: 2048.0
+      median: 1024.0
+      std: 2500.0
+      min: 64
+      max: 65536
+      q1: 256.0
+      q3: 4096.0
+      iqr: 3840.0
+
+    applications_publishing_to_this_infogram:
+      mean: 2.0
+      median: 2.0
+      std: 1.0
+      min: 1
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    applications_subscribing_to_this_infogram:
+      mean: 4.0
+      median: 3.0
+      std: 2.5
+      min: 1
+      max: 12
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+  # =============================================================================
+  # QOS STATISTICS (Kategorik)
+  # =============================================================================
+  qos_stats:
+    # QoS Durability distribution
+    # Values: volatile, transient_local, transient, persistent
+    qos_durability_distribution:
+      total_count: 30
+      category_counts:
+        volatile: 10
+        transient_local: 8
+        transient: 7
+        persistent: 5
+      mode: volatile
+      mode_count: 10
+      mode_percentage: 33.3
+
+    # QoS Reliability distribution
+    # Values: best_effort, reliable
+    qos_reliability_distribution:
+      total_count: 30
+      category_counts:
+        best_effort: 12
+        reliable: 18
+      mode: reliable
+      mode_count: 18
+      mode_percentage: 60.0
+
+    # QoS Transport Priority distribution
+    # Values: low, medium, high, critical
+    qos_transport_priority_distribution:
+      total_count: 30
+      category_counts:
+        low: 8
+        medium: 12
+        high: 7
+        critical: 3
+      mode: medium
+      mode_count: 12
+      mode_percentage: 40.0
