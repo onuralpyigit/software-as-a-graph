@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
 """
 CLI script to generate pub-sub graph data.
-
-Example usage:
-    python generate_graph.py --scale medium --output output/graph.json --seed 42
-    python generate_graph.py --config input/graph_config.yaml --output output/graph.json
+Adapts CLI arguments to the Application Service.
 """
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import argparse
 import json
 import sys
 from pathlib import Path
-from typing import NoReturn
+from typing import Optional
 
-from src.application.services.generation_service import GenerationService, GraphConfig, load_config
+# Add project root to path if running from bin/
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from src.application.services.generation_service import GenerationService, load_config, generate_graph
 
 
 def main() -> None:
@@ -26,7 +25,6 @@ def main() -> None:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     
-    # Create mutually exclusive group for scale vs config
     config_group = parser.add_mutually_exclusive_group()
     config_group.add_argument(
         "--scale",
@@ -37,65 +35,61 @@ def main() -> None:
     config_group.add_argument(
         "--config",
         type=Path,
-        help="Path to YAML configuration file",
+        help="Path to graph configuration YAML file",
     )
     
     parser.add_argument(
         "--output",
+        type=Path,
         required=True,
-        help="Output JSON file path",
+        help="Path to output JSON file",
     )
+    
     parser.add_argument(
         "--seed",
         type=int,
         default=42,
-        help="Random seed for reproducibility (ignored if --config is used)",
+        help="Random seed for reproducibility",
     )
-    args = parser.parse_args()
-
-    # Determine configuration source
-    if args.config:
-        if not args.config.exists():
-            print(f"Error: Config file '{args.config}' not found.", file=sys.stderr)
-            sys.exit(1)
-        try:
-            config = load_config(args.config)
-            print(f"Loading configuration from '{args.config}'...")
-        except Exception as e:
-            print(f"Error loading config: {e}", file=sys.stderr)
-            sys.exit(1)
-        generator = GenerationService(config=config)
-        config_desc = f"config={args.config}"
-    else:
-        # Use scale preset (default to medium if neither provided)
-        scale = args.scale or "medium"
-        generator = GenerationService(scale=scale, seed=args.seed)
-        config_desc = f"scale={scale}, seed={args.seed}"
     
-    print(f"Generating graph ({config_desc})...")
-
+    args = parser.parse_args()
+    
     try:
-        data = generator.generate()
-
+        graph_data = {}
+        
+        if args.config:
+            print(f"Loading configuration from {args.config}...")
+            config = load_config(args.config)
+            # When using config file, seed and scale are usually inside it, 
+            # but we can allow override or just pass the config object.
+            # The Service handles the config object priority.
+            service = GenerationService(config=config)
+            graph_data = service.generate()
+        else:
+            scale = args.scale or "medium"
+            print(f"Generating {scale} graph with seed {args.seed}...")
+            graph_data = generate_graph(scale=scale, seed=args.seed)
+            
         # Ensure output directory exists
-        output_path = Path(args.output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(output_path, "w") as f:
-            json.dump(data, f, indent=2)
-
-        print(f"Success! Saved to {args.output}")
-        print(
-            f"Stats: "
-            f"{len(data['nodes'])} Nodes, "
-            f"{len(data['applications'])} Apps, "
-            f"{len(data.get('libraries', []))} Libs, "
-            f"{len(data['topics'])} Topics, "
-            f"{len(data['brokers'])} Brokers"
-        )
-
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(args.output, "w") as f:
+            json.dump(graph_data, f, indent=2)
+            
+        print(f"Graph generated successfully: {args.output}")
+        component_counts = {
+            "nodes": len(graph_data.get("nodes", [])),
+            "brokers": len(graph_data.get("brokers", [])),
+            "topics": len(graph_data.get("topics", [])),
+            "applications": len(graph_data.get("applications", [])),
+            "libraries": len(graph_data.get("libraries", [])),
+        }
+        print(f"Components: {component_counts}")
+        
     except Exception as e:
         print(f"Error generating graph: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 

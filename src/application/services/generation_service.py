@@ -1,111 +1,19 @@
 """
-Graph Generator
+Graph Generator Application Service
 
-Generates realistic pub-sub system graphs with QoS properties.
+Orchestrates graph generation using domain services.
 """
 
-import random
-from dataclasses import dataclass, field
+from typing import Dict, Any, Optional
 from pathlib import Path
-from typing import Dict, Any, List, Union, Optional
-
 import yaml
 
-from src.domain.models import (
-    Application,
-    Broker,
-    Node,
-    Topic,
-    Library,
-    QoSPolicy,
-    ApplicationType,
-)
-
-# Scale presets - defines component counts for different graph sizes
-SCALE_PRESETS: Dict[str, Dict[str, int]] = {
-    "tiny":   {"apps": 5,   "topics": 5,   "brokers": 1, "nodes": 2,  "libs": 2},
-    "small":  {"apps": 15,  "topics": 10,  "brokers": 2, "nodes": 4,  "libs": 5},
-    "medium": {"apps": 50,  "topics": 30,  "brokers": 3, "nodes": 8,  "libs": 10},
-    "large":  {"apps": 150, "topics": 100, "brokers": 6, "nodes": 20, "libs": 30},
-    "xlarge": {"apps": 500, "topics": 300, "brokers": 10, "nodes": 50, "libs": 100},
-}
-
-# Valid options for random generation (derived from enums/constants)
-DURABILITY_OPTIONS = list(QoSPolicy.DURABILITY_SCORES.keys())
-RELIABILITY_OPTIONS = list(QoSPolicy.RELIABILITY_SCORES.keys())
-PRIORITY_OPTIONS = list(QoSPolicy.PRIORITY_SCORES.keys())
-ROLE_OPTIONS = ["pub", "sub", "pubsub"]
-APP_TYPE_OPTIONS = [t.value for t in ApplicationType]
-
-
-@dataclass
-class GraphConfig:
-    """Configuration for graph generation."""
-    
-    apps: int = 50
-    topics: int = 30
-    brokers: int = 3
-    nodes: int = 8
-    libs: int = 10
-    seed: int = 42
-    
-    @classmethod
-    def from_scale(cls, scale: str, seed: int = 42) -> "GraphConfig":
-        """Create config from a scale preset name."""
-        preset = SCALE_PRESETS.get(scale, SCALE_PRESETS["medium"])
-        return cls(
-            apps=preset["apps"],
-            topics=preset["topics"],
-            brokers=preset["brokers"],
-            nodes=preset["nodes"],
-            libs=preset["libs"],
-            seed=seed,
-        )
-    
-    @classmethod
-    def from_yaml(cls, data: Dict[str, Any]) -> "GraphConfig":
-        """Create config from parsed YAML data."""
-        graph_data = data.get("graph", data)
-        return cls(
-            apps=graph_data.get("apps", 50),
-            topics=graph_data.get("topics", 30),
-            brokers=graph_data.get("brokers", 3),
-            nodes=graph_data.get("nodes", 8),
-            libs=graph_data.get("libs", 10),
-            seed=graph_data.get("seed", 42),
-        )
-    
-    def to_scale_dict(self) -> Dict[str, int]:
-        """Convert to scale config dict (excludes seed)."""
-        return {
-            "apps": self.apps,
-            "topics": self.topics,
-            "brokers": self.brokers,
-            "nodes": self.nodes,
-            "libs": self.libs,
-        }
-
-
-def load_config(path: Path) -> GraphConfig:
-    """Load graph configuration from a YAML file.
-    
-    Args:
-        path: Path to the YAML configuration file
-        
-    Returns:
-        GraphConfig instance with loaded values
-        
-    Raises:
-        FileNotFoundError: If config file doesn't exist
-        yaml.YAMLError: If config file is invalid YAML
-    """
-    with open(path, "r") as f:
-        data = yaml.safe_load(f)
-    return GraphConfig.from_yaml(data)
+from src.domain.models.statistics import GraphConfig
+from src.domain.services.generator import StatisticalGraphGenerator
 
 
 class GenerationService:
-    """Generates realistic pub-sub system graphs with configurable scale."""
+    """Application service for generating system graphs."""
     
     def __init__(
         self,
@@ -115,145 +23,28 @@ class GenerationService:
     ) -> None:
         if config is not None:
             self.config = config
-            self.rng = random.Random(config.seed)
         else:
             self.config = GraphConfig.from_scale(scale, seed)
-            self.rng = random.Random(seed)
-        
-        self.scale_config = self.config.to_scale_dict()
-
-    def _get_scale_config(self, scale: str) -> Dict[str, int]:
-        """Returns configuration for graph generation based on scale."""
-        return SCALE_PRESETS.get(scale, SCALE_PRESETS["medium"])
+            
+        self.generator = StatisticalGraphGenerator(self.config)
 
     def generate(self) -> Dict[str, Any]:
-        """Generate a complete graph with all components and relationships."""
-        c = self.scale_config
-        
-        # 1. Generate Vertices using Models
-        nodes = [Node(id=f"N{i}", name=f"Node-{i}") for i in range(c["nodes"])]
-        brokers = [Broker(id=f"B{i}", name=f"Broker-{i}") for i in range(c["brokers"])]
-        
-        topics = [
-            Topic(
-                id=f"T{i}",
-                name=f"Topic-{i}",
-                size=self.rng.randint(64, 65536),
-                qos=QoSPolicy(
-                    durability=self.rng.choice(DURABILITY_OPTIONS),
-                    reliability=self.rng.choice(RELIABILITY_OPTIONS),
-                    transport_priority=self.rng.choice(PRIORITY_OPTIONS),
-                ),
-            )
-            for i in range(c["topics"])
-        ]
+        """Generate a complete graph."""
+        return self.generator.generate()
 
-        apps = [
-            Application(
-                id=f"A{i}",
-                name=f"App-{i}",
-                role=self.rng.choice(ROLE_OPTIONS),
-                app_type=self.rng.choice(APP_TYPE_OPTIONS),
-                criticality=self.rng.choice([True, False]),
-                version=f"{self.rng.randint(1, 3)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
-            )
-            for i in range(c["apps"])
-        ]
 
-        libs = [
-            Library(
-                id=f"L{i}",
-                name=f"Lib-{i}",
-                version=f"{self.rng.randint(0, 2)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
-            )
-            for i in range(c["libs"])
-        ]
-
-        # 2. Generate Relationships
-
-        # RUNS_ON: Apps/Brokers -> Nodes
-        runs_on = []
-        for comp in apps + brokers:
-            host = self.rng.choice(nodes)
-            runs_on.append(self._make_edge(comp, host))
-
-        # ROUTES: Brokers -> Topics
-        routes = []
-        for topic in topics:
-            broker = self.rng.choice(brokers)
-            routes.append(self._make_edge(broker, topic))
-
-        # PUB/SUB: Apps/Libraries -> Topics
-        publishes = []
-        subscribes = []
-
-        # Both Applications and Libraries can publish/subscribe
-        potential_clients = apps + libs
-        
-        for topic in topics:
-            # Randomly select a subset of clients for this topic
-            k_pubs = self.rng.randint(1, max(2, min(5, len(potential_clients))))
-            k_subs = self.rng.randint(1, max(2, min(8, len(potential_clients))))
-            
-            pubs = self.rng.sample(potential_clients, k=k_pubs)
-            subs = self.rng.sample(potential_clients, k=k_subs)
-            
-            for p in pubs:
-                publishes.append(self._make_edge(p, topic))
-            for s in subs:
-                subscribes.append(self._make_edge(s, topic))
-
-        # USES: Application -> Library, Library -> Library
-        uses = []
-        
-        # Apps using Libraries
-        for app in apps:
-            # Each app uses between 0 and 3 libraries
-            if libs:
-                n_uses = self.rng.randint(0, min(3, len(libs)))
-                targets = self.rng.sample(libs, k=n_uses)
-                for t in targets:
-                    uses.append(self._make_edge(app, t))
-
-        # Libraries using other Libraries (simple random edges, potential cycles allowed for stress test)
-        for lib in libs:
-            if len(libs) > 1 and self.rng.random() < 0.2:
-                other = self.rng.choice(libs)
-                if other != lib:
-                    uses.append(self._make_edge(lib, other))
-
-        # CONNECTS_TO: Mesh links between Nodes
-        connects = []
-        for i in range(len(nodes)):
-            for j in range(i + 1, len(nodes)):
-                if self.rng.random() < 0.3:
-                    connects.append(self._make_edge(nodes[i], nodes[j]))
-
-        # Serialize to JSON-compatible dict
-        return {
-            "metadata": {"scale": str(self.scale_config), "seed": str(self.rng.getrandbits(32))},
-            "nodes": [n.to_dict() for n in nodes], 
-            "brokers": [b.to_dict() for b in brokers], 
-            "topics": [t.to_dict() for t in topics], 
-            "applications": [a.to_dict() for a in apps],
-            "libraries": [l.to_dict() for l in libs],
-            "relationships": {
-                "runs_on": runs_on, 
-                "routes": routes,
-                "publishes_to": publishes, 
-                "subscribes_to": subscribes,
-                "connects_to": connects,
-                "uses": uses
-            }
-        }
-
-    @staticmethod
-    def _make_edge(src: Union[Application, Broker, Node, Topic, Library],
-                   tgt: Union[Application, Broker, Node, Topic, Library]) -> Dict[str, str]:
-        """Create an edge dictionary from source to target."""
-        return {"from": src.id, "to": tgt.id}
+def load_config(path: Path) -> GraphConfig:
+    """Load graph configuration from a YAML file."""
+    with open(path, "r") as f:
+        data = yaml.safe_load(f)
+    return GraphConfig.from_yaml(data)
 
 
 def generate_graph(scale: str = "medium", **kwargs: Any) -> Dict[str, Any]:
-    """Convenience function to generate a graph with the given scale."""
-    return GenerationService(scale=scale, **kwargs).generate()
+    """Convenience function to generate a graph."""
+    # check if 'config' is in kwargs, if so handle it
+    config = kwargs.get('config')
+    seed = kwargs.get('seed', 42)
+        
+    service = GenerationService(scale=scale, seed=seed, config=config)
+    return service.generate()
