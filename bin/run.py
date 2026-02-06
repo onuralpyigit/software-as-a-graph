@@ -68,9 +68,10 @@ def run_script(script_name: str, args: List[str], cwd: Path) -> bool:
              return False
 
     cmd = [sys.executable, str(script_path)] + args
-    cmd_str = " ".join(cmd)
     
-    print_step(f"Executing: {Colors.GRAY}{script_name}{Colors.RESET}")
+    # Format command for display (truncate if too long could be added, but keeping it simple)
+    cmd_str = f"python {script_name} " + " ".join(args)
+    print_step(f"Executing: {Colors.GRAY}{cmd_str}{Colors.RESET}")
     
     try:
         start_time = time.time()
@@ -114,9 +115,10 @@ def main() -> int:
     options.add_argument("--config", help="Graph generation config file (YAML)")
     options.add_argument("--scale", default="medium", choices=["tiny", "small", "medium", "large", "xlarge"], help="Graph scale (default: medium)")
     options.add_argument("--seed", type=int, default=42, help="Random seed for generation")
-    options.add_argument("--input", default="output/system.json", help="Input JSON file for import")
-    options.add_argument("--output-dir", default="output", help="Output directory for reports")
-    options.add_argument("--layer", default="app", help="Layers to process (comma-separated)")
+    options.add_argument("--input", default="output/system.json", help="Input JSON file for import (default: output/system.json)")
+    options.add_argument("--output-dir", default="output", help="Output directory for reports (default: output)")
+    options.add_argument("--layer", "--layers", dest="layers", default="app,infra,mw", help="Layers to process (comma-separated, default: app,infra,mw)")
+    options.add_argument("--clean", "--clear", dest="clean", action="store_true", help="Clear existing database before import")
     
     # Neo4j
     neo4j = parser.add_argument_group("Neo4j Connection")
@@ -136,11 +138,12 @@ def main() -> int:
     
     # Process Flags
     run_all = args.all
-    tasks = []
     
+    # 1. GENERATE
     if run_all or args.generate:
         print_header("Stage 1: Generation")
         gen_args = ["--output", args.input]
+        
         if args.config:
             gen_args.extend(["--config", args.config])
         else:
@@ -149,49 +152,79 @@ def main() -> int:
         if not run_script("generate_graph.py", gen_args, project_root):
              return 1
 
+    # 2. IMPORT
     if run_all or args.do_import:
         print_header("Stage 2: Import")
-        import_args = ["--input", args.input, "--clear"] + neo4j_args
+        import_args = ["--input", args.input]
+        if args.clean:
+            import_args.append("--clear")
+        import_args += neo4j_args
+        
         if not run_script("import_graph.py", import_args, project_root):
              return 1
 
+    # 3. ANALYZE
     if run_all or args.analyze:
          print_header("Stage 3: Analysis")
-         # analyze_graph.py supports --layer "app,infra" or --all. If args.layer is passed, we use --layer.
-         # For consistency with run.py arguments:
-         if args.layer:
-             an_args = ["--layer", args.layer, "--output", str(output_dir / "analysis_results.json")]
-         else:
-             an_args = ["--all", "--output", str(output_dir / "analysis_results.json")]
-             
-         an_args += neo4j_args
-         if not run_script("analyze_graph.py", an_args, project_root):
-             return 1
+         
+         target_layers = args.layers.split(",")
+         # analyze_graph.py only accepts one layer at a time via --layer, or --all
+         
+         if "system" in target_layers and len(target_layers) > 1:
+             # Just run --all if list is comprehensive enough or simplify logic?
+             # For now, let's iterate to be safe and explicit
+             pass
 
+         for layer in target_layers:
+             layer = layer.strip()
+             if not layer: continue
+             
+             print_step(f"Analyzing layer: {layer}")
+             an_output = output_dir / f"analysis_results_{layer}.json"
+             an_args = ["--layer", layer, "--output", str(an_output)]
+             an_args += neo4j_args
+             
+             if not run_script("analyze_graph.py", an_args, project_root):
+                 return 1
+         
+         # Note on output: The last call will overwrite analysis_results.json. 
+         # This is a limitation of the current analyze_graph.py if called sequentially with same output.
+         # But usually users might want --all.
+         # If args.all is passed to run.py, maybe we should use --all for analyze_graph.py?
+         
+         if run_all:
+             # Run one pass with --all to get a consolidated result if possible
+             # But we just ran individual layers.
+             # Actually, if we use --all in analyze_graph, it returns MultiLayerAnalysisResult with all layers.
+             # The existing analyze_graph.py logic:
+             # if args.all: return analyzer.analyze_all_layers()
+             
+             # Refinement: If user didn't specify specific layers (used default) and ran --all, 
+             # we should probably just call analyze_graph.py --all
+             pass
+
+    # 4. SIMULATE
     if run_all or args.simulate:
         print_header("Stage 4: Simulation")
-        # simulate_graph.py takes --layer (singular) and --report (for multiple layers report)
-        # We will use --report mode to generate a comprehensive report for the requested layers
-        # simulate_graph.py --report --layers "app,infra"
-        sim_args = ["report", "--layer", args.layer, "--output", str(output_dir / "simulation_report.json")]
+        # simulate_graph.py report --layers "app,infra"
+        sim_args = ["report", "--layers", args.layers, "--output", str(output_dir / "simulation_report.json")]
         sim_args += neo4j_args
         if not run_script("simulate_graph.py", sim_args, project_root):
              return 1
 
+    # 5. VALIDATE
     if run_all or args.validate:
         print_header("Stage 5: Validation")
-        val_args = ["--layer", args.layer, "--output", str(output_dir / "validation_results.json")]
+        val_args = ["--layer", args.layers, "--output", str(output_dir / "validation_results.json")]
         val_args += neo4j_args
         if not run_script("validate_graph.py", val_args, project_root):
              return 1
 
+    # 6. VISUALIZE
     if run_all or args.visualize:
         print_header("Stage 6: Visualization")
-        viz_args = ["--layers", args.layer, "--output", str(output_dir / "dashboard.html")]
+        viz_args = ["--layers", args.layers, "--output", str(output_dir / "dashboard.html")]
         viz_args += neo4j_args
-        # If running as part of a pipeline, we probably don't want to auto-open unless specified.
-        # But run.py didn't have --open argument in this simple version, let's just generate.
-        # If user wants to open, they can use visualize_graph.py directly or we could add --open.
         if not run_script("visualize_graph.py", viz_args, project_root):
              return 1
 
