@@ -18,11 +18,13 @@ class LayerDataCollector:
         self,
         analysis_service: AnalysisService,
         simulation_service: SimulationService,
-        validation_service: ValidationService
+        validation_service: ValidationService,
+        repository: Any  # IGraphRepository
     ):
         self.analysis_service = analysis_service
         self.simulation_service = simulation_service
         self.validation_service = validation_service
+        self.repository = repository
         self.logger = logging.getLogger(__name__)
 
     def collect_layer_data(self, layer: str, include_validation: bool = True) -> LayerData:
@@ -166,9 +168,8 @@ class LayerDataCollector:
         # 2. Add raw structural edges if repository is available
         node_ids = {n["id"] for n in data.network_nodes}
         try:
-            repository = self.analysis_service._repository
-            if repository:
-                raw_graph = repository.get_graph_data(include_raw=True)
+            if self.repository:
+                raw_graph = self.repository.get_graph_data(include_raw=True)
                 for edge in raw_graph.edges:
                     # Skip DEPENDS_ON edges (already added above)
                     if edge.relation_type == "DEPENDS_ON":

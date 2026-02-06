@@ -4,20 +4,16 @@ Graph Visualization CLI (Refactored)
 
 Generates multi-layer analysis dashboards using the VisualizationService.
 """
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-
 import argparse
 import logging
 import os
 import sys
 import webbrowser
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config import Container
 from src.domain.models.visualization.layer_data import LAYER_DEFINITIONS

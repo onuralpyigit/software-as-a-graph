@@ -23,11 +23,13 @@ class VisualizationService:
         analysis_service: AnalysisService,
         simulation_service: SimulationService,
         validation_service: ValidationService,
+        repository: Any,  # IGraphRepository
         chart_generator: Optional[ChartGenerator] = None
     ):
         self.analysis_service = analysis_service
         self.simulation_service = simulation_service
         self.validation_service = validation_service
+        self.repository = repository
         self.charts = chart_generator or ChartGenerator()
         
         # Initialize collector
@@ -35,7 +37,8 @@ class VisualizationService:
         self.collector = LayerDataCollector(
             analysis_service,
             simulation_service,
-            validation_service
+            validation_service,
+            repository
         )
         
         self.logger = logging.getLogger(__name__)

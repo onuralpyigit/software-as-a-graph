@@ -85,7 +85,8 @@ class Container:
         return VisualizationService(
             analysis_service=self.analysis_service(),
             simulation_service=self.simulation_service(),
-            validation_service=self.validation_service()
+            validation_service=self.validation_service(),
+            repository=self.graph_repository()
         )
     
     def close(self) -> None:
