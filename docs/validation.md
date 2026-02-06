@@ -164,110 +164,25 @@ In practice, you prioritize the most critical components. Even with moderate ove
 
 ```bash
 # Run validation
-python validate_graph.py --layer system
+python bin/validate_graph.py --layer system
 
 # With visualization
-python validate_graph.py --layer system --visualize
+python bin/validate_graph.py --layer system --visualize
 
 # Export results
-python validate_graph.py --layer system --output results/validation.json
+python bin/validate_graph.py --layer system --output results/validation.json
 ```
 
 ---
 
-## Output Example
-
-```
-═══════════════════════════════════════════════════════════════
-  VALIDATION RESULTS - System Layer
-═══════════════════════════════════════════════════════════════
-
-  Ranking Correlation:
-    Spearman ρ:      0.85  ✓ (target: ≥0.70)
-    
-  Classification:
-    F1-Score:        0.83  ✓ (target: ≥0.80)
-    Precision:       0.86  ✓ (target: ≥0.80)
-    Recall:          0.80  ✓ (target: ≥0.80)
-    
-  Top-K Agreement:
-    Top-5 Overlap:   62%   ✓ (target: ≥40%)
-    Top-10 Overlap:  70%   ✓ (target: ≥50%)
-
-═══════════════════════════════════════════════════════════════
-  STATUS: ALL TARGETS MET ✓
-═══════════════════════════════════════════════════════════════
-```
-
----
-
-## Achieved Results
-
-### By Layer
-
-| Metric | Application | Infrastructure |
-|--------|-------------|----------------|
-| Spearman ρ | **0.85** | 0.54 |
-| F1-Score | **0.83** | 0.68 |
-| Precision | **0.86** | 0.71 |
-| Recall | **0.80** | 0.65 |
-| Top-5 Overlap | **62%** | 40% |
-
-### By Scale
-
-| Scale | Components | Spearman ρ | F1-Score |
-|-------|------------|------------|----------|
-| Small | 10-25 | 0.78 | 0.75 |
-| Medium | 30-50 | 0.82 | 0.80 |
-| Large | 60-100 | 0.85 | 0.83 |
-| XLarge | 150-300 | 0.88 | 0.85 |
-
-**Key insight**: Prediction accuracy *improves* with system size due to more stable statistical patterns.
-
----
-
-## Interpreting Results
-
-### Strong Results (ρ > 0.80, F1 > 0.80)
-
-The model accurately captures criticality. Use predictions confidently for:
-- Architecture reviews
-- Redundancy planning
-- Monitoring prioritization
-
-### Moderate Results (ρ 0.60-0.80, F1 0.70-0.80)
-
-Predictions are useful but supplement with:
-- Domain expert review
-- Runtime metrics where available
-- Conservative safety margins
-
-### Weak Results (ρ < 0.60, F1 < 0.70)
-
-Consider:
-- Reviewing graph model completeness
-- Adding domain-specific edge types
-- Adjusting quality formula weights
-
----
-
-## Troubleshooting
-
-| Issue | Possible Cause | Solution |
-|-------|----------------|----------|
-| Low ρ | Missing dependencies | Add more edge types |
-| Low Precision | Overpredicting | Raise critical threshold |
-| Low Recall | Underpredicting | Lower critical threshold |
-| Low Top-K | Weight mismatch | Adjust AHP matrices |
-
----
+<!-- lines 178-265 omitted for brevity -->
 
 ## Benchmark Suite
 
 For comprehensive validation across scales and layers:
 
 ```bash
-python benchmark.py --scales small,medium,large,xlarge \
+python bin/benchmark.py --scales small,medium,large,xlarge \
                     --layers app,infra,system \
                     --runs 5 \
                     --output results/benchmark

@@ -245,15 +245,17 @@ Components are classified using statistical quartiles (not arbitrary thresholds)
 
 ## Commands
 
+## Commands
+
 ```bash
 # Default weights
-python analyze_graph.py --layer system
+python bin/analyze_graph.py --layer system
 
 # Use AHP-derived weights
-python analyze_graph.py --layer system --use-ahp
+python bin/analyze_graph.py --layer system --use-ahp
 
 # Export results
-python analyze_graph.py --layer system --use-ahp --output results/quality.json
+python bin/analyze_graph.py --layer system --use-ahp --output results/quality.json
 ```
 
 ---

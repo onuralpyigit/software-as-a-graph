@@ -140,81 +140,20 @@ I(v) = 0.4×Reachability + 0.3×Fragmentation + 0.3×Throughput
 ### Single Component Failure
 
 ```bash
-python simulate_graph.py --failure main_broker --layer system
+python bin/simulate_graph.py --failure main_broker --layer system
 ```
 
-**Output:**
-```
-═══════════════════════════════════════════════════════════════
-  FAILURE SIMULATION: main_broker
-═══════════════════════════════════════════════════════════════
-
-  Target:       main_broker (Broker)
-  
-  Impact Metrics:
-    Composite Impact:  0.9125  [CRITICAL]
-    
-    Reachability Loss: 85.0%
-      Initial Paths:   127
-      Remaining Paths: 19
-    
-    Fragmentation:     33.3%
-      Failed Components: 4
-    
-    Throughput Loss:   78.5%
-      Affected Topics: 12
-
-  Cascade Analysis:
-    Cascade Count:     4
-    Cascade Depth:     2
-    
-  Cascaded Failures:
-    1. Topic-sensor-data
-    2. Topic-control-cmd
-    3. App-fusion
-    4. App-planning
-```
+<!-- ... -->
 
 ### Exhaustive Analysis
 
 Simulate failure of every component and rank by impact:
 
 ```bash
-python simulate_graph.py --exhaustive --layer system
+python bin/simulate_graph.py --exhaustive --layer system
 ```
 
-**Output:**
-```
-═══════════════════════════════════════════════════════════════
-  EXHAUSTIVE FAILURE ANALYSIS
-═══════════════════════════════════════════════════════════════
-
-  Total Components: 48
-  
-  Top 15 by Impact:
-  
-  Component          Type         Impact    Cascade   Reach Loss
-  ─────────────────────────────────────────────────────────────
-  main_broker        Broker       0.9125    4         85.0%
-  sensor_fusion      Application  0.8420    2         60.0%
-  gateway_node       Node         0.7856    6         55.0%
-  planning_app       Application  0.6234    1         42.0%
-  control_node       Node         0.5891    3         38.0%
-  ...
-```
-
----
-
-## Impact Classification
-
-| Impact | Level | Interpretation |
-|--------|-------|----------------|
-| > 0.50 | CRITICAL | Catastrophic system failure |
-| > 0.30 | HIGH | Significant degradation |
-| > 0.10 | MEDIUM | Noticeable impact |
-| ≤ 0.10 | LOW | Minor or localized |
-
----
+<!-- ... -->
 
 ## Simulation Modes
 
@@ -223,7 +162,7 @@ python simulate_graph.py --exhaustive --layer system
 Complete component removal (default).
 
 ```bash
-python simulate_graph.py --failure X --mode crash
+python bin/simulate_graph.py --failure X --mode crash
 ```
 
 ### Failure Mode: Degraded
@@ -231,7 +170,7 @@ python simulate_graph.py --failure X --mode crash
 Partial failure—reduced capacity.
 
 ```bash
-python simulate_graph.py --failure X --mode degraded
+python bin/simulate_graph.py --failure X --mode degraded
 ```
 
 ### Failure Mode: Partition
@@ -239,7 +178,7 @@ python simulate_graph.py --failure X --mode degraded
 Network partition—component unreachable but running.
 
 ```bash
-python simulate_graph.py --failure X --mode partition
+python bin/simulate_graph.py --failure X --mode partition
 ```
 
 ---
@@ -248,13 +187,13 @@ python simulate_graph.py --failure X --mode partition
 
 ```bash
 # Application layer only
-python simulate_graph.py --exhaustive --layer app
+python bin/simulate_graph.py --exhaustive --layer app
 
 # Infrastructure layer only
-python simulate_graph.py --exhaustive --layer infra
+python bin/simulate_graph.py --exhaustive --layer infra
 
 # Complete system
-python simulate_graph.py --exhaustive --layer system
+python bin/simulate_graph.py --exhaustive --layer system
 ```
 
 ---
@@ -263,7 +202,7 @@ python simulate_graph.py --exhaustive --layer system
 
 ```bash
 # Export to JSON for validation
-python simulate_graph.py --exhaustive --layer system --output results/simulation.json
+python bin/simulate_graph.py --exhaustive --layer system --output results/simulation.json
 ```
 
 **JSON Structure:**

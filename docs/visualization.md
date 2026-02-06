@@ -40,20 +40,20 @@ Visualization creates comprehensive HTML dashboards that combine analysis result
 
 ```bash
 # Single layer
-python visualize_graph.py --layer system --output dashboard.html
+python bin/visualize_graph.py --layer system --output dashboard.html
 
 # Multiple layers
-python visualize_graph.py --layers app,infra,system --output dashboard.html
+python bin/visualize_graph.py --layers app,infra,system --output dashboard.html
 
 # Open in browser automatically
-python visualize_graph.py --layer system --output dashboard.html --open
+python bin/visualize_graph.py --layer system --output dashboard.html --open
 ```
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `--layers` | Layers to include (app, infra, mw-app, mw-infra, system) |
+| `--layers` | Layers to include (app, infra, mw, system) |
 | `--all` | Include all layers |
 | `--output` | Output HTML file path |
 | `--no-network` | Exclude interactive network graph |

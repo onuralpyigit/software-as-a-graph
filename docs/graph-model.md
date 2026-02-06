@@ -144,13 +144,12 @@ Topic QoS → Topic Weight → Edge Weight → Component Weight → Dependency W
 
 The graph supports multi-layer analysis by filtering dependencies:
 
-| Layer | Components | Dependencies | Focus |
-|-------|------------|--------------|-------|
-| **app** | Applications | app_to_app | Software dependencies |
-| **infra** | Nodes | node_to_node | Hardware dependencies |
-| **mw-app** | Apps, Brokers | app_to_app, app_to_broker | Middleware impact |
-| **mw-infra** | Nodes, Brokers | node_to_node, node_to_broker | Middleware infrastructure |
-| **system** | All | All | Complete view |
+| Layer | Components Analyzed | Dependencies Used | Focus |
+|-------|---------------------|-------------------|-------|
+| **app** | Applications | app_to_app | Software dependencies & reliability |
+| **infra** | Nodes | node_to_node | Hardware dependencies & availability |
+| **mw** | Brokers | app_to_broker, node_to_broker | Middleware coupling & maintainability |
+| **system** | All Components | All | Complete system criticality |
 
 ---
 
@@ -158,10 +157,10 @@ The graph supports multi-layer analysis by filtering dependencies:
 
 ```bash
 # Generate synthetic graph data
-python generate_graph.py --scale medium --output data/system.json
+python bin/generate_graph.py --config config/medium_scale.yaml --output data/system.json
 
 # Import to Neo4j (computes weights, derives dependencies)
-python import_graph.py --input data/system.json --clear
+python bin/import_graph.py --input data/system.json --clear
 ```
 
 ### Scale Options

@@ -128,42 +128,23 @@ Inverse of average shortest path distance to all other nodes.
 
 ## Commands
 
+## Commands
+
 ```bash
 # Analyze specific layer
-python analyze_graph.py --layer system
+python bin/analyze_graph.py --layer system
 
 # Analyze all layers
-python analyze_graph.py --all
+python bin/analyze_graph.py --all
 
 # Export results to JSON
-python analyze_graph.py --layer system --output results/analysis.json
+python bin/analyze_graph.py --layer system --output results/analysis.json
 ```
 
 ---
 
 ## Output Example
-
-```
-═══════════════════════════════════════════════════════════════
-  STRUCTURAL ANALYSIS - System Layer
-═══════════════════════════════════════════════════════════════
-
-  Graph Statistics:
-    Nodes:              48
-    Edges:              127
-    Density:            0.056
-    Connected:          Yes
-    
-  Structural Properties:
-    Articulation Points: 5
-    Bridges:            8
-    
-  Top Components by PageRank:
-    1. sensor_fusion     0.0892
-    2. main_broker       0.0756
-    3. planning_node     0.0634
-    ...
-```
+<!-- ... lines 146-168 unchanged ... -->
 
 ---
 
@@ -175,7 +156,7 @@ Different layers reveal different structural patterns:
 |-------|-----------------|
 | **app** | Software coupling, data flow bottlenecks |
 | **infra** | Hardware SPOFs, network topology issues |
-| **mw-app** | Middleware impact on applications |
+| **mw** | Middleware bottlenecks and broker criticality |
 | **system** | Complete system criticality picture |
 
 ---
