@@ -1,35 +1,49 @@
 """
 Analysis Result Domain Models
-"""
-from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, TYPE_CHECKING
 
-from .layers import AnalysisLayer
+These are the **canonical** result aggregates for graph analysis.
+Both single-layer and multi-layer results are defined here.
+
+Note: The legacy ``src/domain/models/results.py`` should re-export from
+this module to avoid duplication.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Dict, List, Any, TYPE_CHECKING
+
+from src.domain.config.layers import AnalysisLayer
 
 if TYPE_CHECKING:
-    from ...services.analysis.structural_analyzer import StructuralAnalysisResult
-    from ...services.analysis.quality_analyzer import QualityAnalysisResult
-    from ...services.analysis.problem_detector import DetectedProblem, ProblemSummary
+    from src.domain.services.structural_analyzer import StructuralAnalysisResult
+    from src.domain.services.quality_analyzer import QualityAnalysisResult
+    from src.domain.services.problem_detector import DetectedProblem, ProblemSummary
+
+
+# ---------------------------------------------------------------------------
+# Single-layer result
+# ---------------------------------------------------------------------------
 
 @dataclass
 class LayerAnalysisResult:
     """
     Complete analysis result for a single layer.
-    
-    Contains structural metrics, quality scores, and detected problems.
+
+    Contains structural metrics, RMAV quality scores (with box-plot
+    classification), detected problems, and contextual data.
     """
-    layer: str
-    layer_name: str
+    layer: str                                  # e.g. "app"
+    layer_name: str                             # e.g. "Application Layer"
     description: str
-    structural: StructuralAnalysisResult
-    quality: QualityAnalysisResult
-    problems: List[DetectedProblem]
-    problem_summary: ProblemSummary
+    structural: "StructuralAnalysisResult"
+    quality: "QualityAnalysisResult"
+    problems: List["DetectedProblem"]
+    problem_summary: "ProblemSummary"
     library_usage: Dict[str, List[str]] = field(default_factory=dict)
     node_allocations: Dict[str, List[str]] = field(default_factory=dict)
     broker_routing: Dict[str, List[str]] = field(default_factory=dict)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "layer": self.layer,
@@ -43,49 +57,59 @@ class LayerAnalysisResult:
             "node_allocations": self.node_allocations,
             "broker_routing": self.broker_routing,
         }
-    
+
     @property
     def is_healthy(self) -> bool:
-        """Check if layer has no critical issues."""
+        """No CRITICAL issues in this layer."""
         return self.problem_summary.by_severity.get("CRITICAL", 0) == 0
-    
+
     @property
     def requires_attention(self) -> bool:
-        """Check if layer has critical or high severity issues."""
+        """Has CRITICAL or HIGH severity issues."""
         return self.problem_summary.requires_attention > 0
+
+
+# ---------------------------------------------------------------------------
+# Multi-layer result
+# ---------------------------------------------------------------------------
 
 @dataclass
 class MultiLayerAnalysisResult:
-    """
-    Complete analysis result across multiple layers.
-    """
+    """Complete analysis across multiple layers."""
     timestamp: str
     layers: Dict[str, LayerAnalysisResult]
     cross_layer_insights: List[str]
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "layers": {k: v.to_dict() for k, v in self.layers.items()},
             "cross_layer_insights": self.cross_layer_insights,
         }
-    
-    def get_all_problems(self) -> List[DetectedProblem]:
-        """Collect all problems from all layers."""
-        all_problems = []
-        for layer_res in self.layers.values():
-            all_problems.extend(layer_res.problems)
-        return all_problems
+
+    def get_all_problems(self) -> List["DetectedProblem"]:
+        """Collect problems from every layer."""
+        out: List["DetectedProblem"] = []
+        for res in self.layers.values():
+            out.extend(res.problems)
+        return out
 
     @property
     def summary(self) -> Dict[str, Any]:
-        """Get high-level summary of analysis."""
-        total_problems = sum(l.problem_summary.total_problems for l in self.layers.values())
-        critical_probs = sum(l.problem_summary.by_severity.get("CRITICAL", 0) for l in self.layers.values())
-        
+        """High-level summary across all layers."""
+        total_problems = sum(r.problem_summary.total_problems for r in self.layers.values())
+        total_critical = sum(
+            r.problem_summary.by_severity.get("CRITICAL", 0) for r in self.layers.values()
+        )
+        all_ids = set()
+        for res in self.layers.values():
+            # structural is forward reference, but at runtime it is the object
+            all_ids.update(res.structural.components.keys())
+            
         return {
-            "layers_analyzed": len(self.layers),
-            "total_components": sum(l.structural.graph_summary.nodes for l in self.layers.values()),
+            "layers_analyzed": list(self.layers.keys()),
+            "total_components": len(all_ids),
             "total_problems": total_problems,
-            "critical_problems": critical_probs,
+            "total_critical": total_critical,
+            "all_healthy": all(r.is_healthy for r in self.layers.values()),
         }

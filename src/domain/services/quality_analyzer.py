@@ -1,43 +1,55 @@
 """
 Quality Analyzer
 
-Computes composite quality scores for Reliability (R), Maintainability (M),
-and Availability (A) based on structural metrics.
+Computes composite quality scores for the four RMAV dimensions and an
+overall quality score, then classifies every component and edge using the
+Box-Plot method (adaptive, data-driven thresholds).
 
-Uses Box-Plot Classification for adaptive, data-driven threshold determination.
+Formulas (per component v):
+    R(v) = w_pr·PR   + w_rpr·RPR   + w_in·InDeg           (Reliability)
+    M(v) = w_bt·BC   + w_dg·Deg    + w_cl·(1 – CC)        (Maintainability)
+    A(v) = w_ap·AP   + w_br·Bridge + w_imp·Importance      (Availability)
+    V(v) = w_ev·Eig  + w_cl·Close  + w_in·InDeg            (Vulnerability)
+    Q(v) = w_R·R(v)  + w_M·M(v)    + w_A·A(v) + w_V·V(v)  (Overall)
 
-Formulas:
-    R(v) = w_pr·PR + w_rpr·RPR + w_in·InDeg         (Reliability)
-    M(v) = w_bt·BC + w_dg·Deg + w_cl·(1-CC)         (Maintainability)  
-    A(v) = w_ap·AP + w_br·BridgeRatio + w_imp·Imp   (Availability)
-    V(v) = w_ev·Eig + w_cl·Close + w_in·InDeg       (Vulnerability)
-    Q(v) = w_r·R + w_m·M + w_a·A                    (Overall Quality)
-
-Each dimension measures different aspects:
-    - Reliability: Fault propagation risk (who is affected if this fails)
-    - Maintainability: Coupling complexity (how hard to change)
-    - Availability: Single point of failure risk (system partition risk)
+Classification (Box-Plot):
+    CRITICAL : score > Q3 + k×IQR
+    HIGH     : score > Q3
+    MEDIUM   : score > Median
+    LOW      : score > Q1
+    MINIMAL  : score ≤ Q1
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Optional, Any
 
 from src.domain.services.classifier import BoxPlotClassifier
 from src.domain.models.criticality import CriticalityLevel, BoxPlotStats
 from src.domain.models.metrics import (
-    QualityScores, QualityLevels, ComponentQuality, EdgeQuality,
-    StructuralMetrics, EdgeMetrics, ClassificationSummary
+    QualityScores,
+    QualityLevels,
+    ComponentQuality,
+    EdgeQuality,
+    StructuralMetrics,
+    EdgeMetrics,
+    ClassificationSummary,
 )
 from src.domain.services.structural_analyzer import StructuralAnalysisResult
 from src.domain.config.layers import AnalysisLayer
 from src.domain.services.weight_calculator import AHPProcessor, QualityWeights
 
 
+# ---------------------------------------------------------------------------
+# Result container
+# ---------------------------------------------------------------------------
+
 @dataclass
 class QualityAnalysisResult:
-    """Complete quality analysis result for a layer."""
+    """Complete quality analysis result for a single layer."""
+
     timestamp: str
     layer: str
     context: str
@@ -46,7 +58,7 @@ class QualityAnalysisResult:
     classification_summary: ClassificationSummary
     weights: QualityWeights = field(default_factory=QualityWeights)
     stats: Dict[str, BoxPlotStats] = field(default_factory=dict)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "timestamp": self.timestamp,
@@ -56,317 +68,201 @@ class QualityAnalysisResult:
             "edges": [e.to_dict() for e in self.edges],
             "classification_summary": self.classification_summary.to_dict(),
         }
-    
+
+    # -- convenience queries -------------------------------------------------
+
     def get_critical_components(self) -> List[ComponentQuality]:
-        """Get components classified as CRITICAL."""
         return [c for c in self.components if c.levels.overall == CriticalityLevel.CRITICAL]
-    
+
     def get_high_priority(self) -> List[ComponentQuality]:
-        """Get components classified as CRITICAL or HIGH."""
         return [c for c in self.components if c.levels.overall >= CriticalityLevel.HIGH]
-    
+
     def get_by_type(self, comp_type: str) -> List[ComponentQuality]:
-        """Get components of a specific type."""
         return [c for c in self.components if c.type == comp_type]
-    
+
     def get_critical_edges(self) -> List[EdgeQuality]:
-        """Get edges classified as CRITICAL."""
         return [e for e in self.edges if e.level == CriticalityLevel.CRITICAL]
-    
+
     def get_requiring_attention(self) -> tuple[List[ComponentQuality], List[EdgeQuality]]:
-        """Get components and edges requiring attention."""
         comps = [c for c in self.components if c.requires_attention]
         edges = [e for e in self.edges if e.level >= CriticalityLevel.HIGH]
         return comps, edges
 
 
+# ---------------------------------------------------------------------------
+# Analyzer
+# ---------------------------------------------------------------------------
+
 class QualityAnalyzer:
     """
-    Computes quality scores and classifications for components and edges.
-    
-    Uses configurable weights for the composite formulas and box-plot
-    classification for adaptive threshold determination.
-    
-    Example:
-        >>> analyzer = QualityAnalyzer(k_factor=1.5)
-        >>> result = analyzer.analyze(structural_result, context="Application Layer")
-        >>> critical = result.get_critical_components()
+    Computes quality scores and box-plot classifications for components / edges.
+
+    Uses configurable weights (manual or AHP-derived) and the BoxPlotClassifier
+    for adaptive threshold determination.
     """
-    
+
     def __init__(
         self,
         k_factor: float = 1.5,
         weights: Optional[QualityWeights] = None,
-        use_ahp: bool = False
-    ):
-        """
-        Initialize the quality analyzer.
-        
-        Args:
-            k_factor: Box-plot IQR multiplier for outlier detection (default: 1.5)
-            weights: Custom weights for quality formulas (default: balanced)
-        """
+        use_ahp: bool = False,
+    ) -> None:
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
+        self.weights = (
+            AHPProcessor().compute_weights() if use_ahp
+            else (weights or QualityWeights())
+        )
 
-        if use_ahp:
-            processor = AHPProcessor()
-            self.weights = processor.compute_weights()
-        else:
-            self.weights = weights or QualityWeights()
-    
+    # ------------------------------------------------------------------
+    # Public entry point
+    # ------------------------------------------------------------------
+
     def analyze(
         self,
         structural_result: StructuralAnalysisResult,
-        context: Optional[str] = None
+        context: Optional[str] = None,
     ) -> QualityAnalysisResult:
         """
-        Compute quality scores and classifications from structural analysis.
-        
-        Args:
-            structural_result: Result from StructuralAnalyzer
-            context: Optional context label (e.g., layer name)
-            
-        Returns:
-            QualityAnalysisResult with scores, levels, and summary
+        Run quality analysis on structural results.
+
+        Steps:
+            1. Normalise raw metrics across components
+            2. Compute R, M, A, V scores per component
+            3. Classify components via box-plot on each dimension + overall
+            4. Analyse and classify edges
+            5. Build classification summary
         """
-        context = context or structural_result.layer.value
-        
-        # Compute quality scores for components
-        component_scores = self._compute_component_scores(structural_result.components)
-        
-        # Classify components using box-plot method
-        components = self._classify_components(component_scores)
-        
-        # Compute and classify edge scores
-        edges = self._analyze_edges(structural_result.edges, structural_result.components)
-        
-        # Build classification summary
+        layer_name = structural_result.layer.value
+        ctx = context or f"{layer_name} layer analysis"
+
+        # --- Component analysis -----------------------------------------
+        raw_components = list(structural_result.components.values())
+        norm = self._normalize(raw_components)
+        components = self._score_and_classify_components(raw_components, norm)
+
+        # --- Edge analysis ----------------------------------------------
+        raw_edges = list(structural_result.edges.values())
+        edges = self._score_and_classify_edges(raw_edges)
+
+        # --- Summary ----------------------------------------------------
         summary = self._build_summary(components, edges)
-        
+
         return QualityAnalysisResult(
             timestamp=datetime.now().isoformat(),
-            layer=structural_result.layer.value,
-            context=context,
+            layer=layer_name,
+            context=ctx,
             components=components,
             edges=edges,
             classification_summary=summary,
             weights=self.weights,
         )
-    
-    def _compute_component_scores(
+
+    # ------------------------------------------------------------------
+    # Component scoring
+    # ------------------------------------------------------------------
+
+    def _score_and_classify_components(
         self,
-        metrics: Dict[str, StructuralMetrics]
-    ) -> List[Dict[str, Any]]:
-        """Compute R, M, A, Q scores for each component."""
-        
-        if not metrics:
-            return []
-        
-        # Normalize metrics across all components for fair comparison
-        all_metrics = list(metrics.values())
-        normalizers = self._compute_normalizers(all_metrics)
-        
-        results = []
-        for m in all_metrics:
-            scores = self._compute_scores(m, normalizers)
-            results.append({
-                "data": m,
-                "scores": scores,
-            })
-        
-        return results
-    
-    def _compute_normalizers(
-        self, 
-        metrics: List[StructuralMetrics]
-    ) -> Dict[str, float]:
-        """Compute max values for normalization."""
-        if not metrics:
-            return {}
-        
-        return {
-            "pagerank": max(m.pagerank for m in metrics) or 1.0,
-            "reverse_pagerank": max(m.reverse_pagerank for m in metrics) or 1.0,
-            "betweenness": max(m.betweenness for m in metrics) or 1.0,
-            "degree": max(m.degree for m in metrics) or 1.0,
-            "in_degree": max(m.in_degree for m in metrics) or 1.0,
-            "clustering": 1.0,  # Already normalized [0, 1]
-            "bridge_ratio": max(m.bridge_ratio for m in metrics) or 1.0,
-            "eigenvector": max(m.eigenvector for m in metrics) or 1.0,
-            "closeness": max(m.closeness for m in metrics) or 1.0,
-        }
-    
-    def _compute_scores(
-        self,
-        m: StructuralMetrics,
-        norm: Dict[str, float]
-    ) -> QualityScores:
-        """
-        Compute R, M, A, Q scores for a single component.
-        
-        Formulas:
-            R(v) = w_pr·PR_norm + w_rpr·RPR_norm + w_in·InDeg_norm
-            M(v) = w_bt·BC_norm + w_dg·Deg_norm + w_cl·(1 - CC)
-            A(v) = w_ap·AP + w_br·BR_norm + w_imp·(PR + RPR)/2
-            V(v) = w_ev·Eig + w_cl·Close + w_in·InDeg
-            Q(v) = w_r·R + w_m·M + w_a·A
-        """
-        w = self.weights
-        
-        # Normalize metrics
-        pr = m.pagerank / norm["pagerank"] if norm["pagerank"] > 0 else 0
-        rpr = m.reverse_pagerank / norm["reverse_pagerank"] if norm["reverse_pagerank"] > 0 else 0
-        bt = m.betweenness / norm["betweenness"] if norm["betweenness"] > 0 else 0
-        dg = m.degree / norm["degree"] if norm["degree"] > 0 else 0
-        ind = m.in_degree / norm["in_degree"] if norm["in_degree"] > 0 else 0
-        cc = m.clustering_coefficient
-        br = m.bridge_ratio / norm["bridge_ratio"] if norm["bridge_ratio"] > 0 else 0
-        ap = 1.0 if m.is_articulation_point else 0.0
-        ev = m.eigenvector / norm["eigenvector"] if norm["eigenvector"] > 0 else 0
-        cl = m.closeness / norm["closeness"] if norm["closeness"] > 0 else 0
-        
-        # Compute R: Reliability (fault propagation risk)
-        reliability = (
-            w.r_pagerank * pr +
-            w.r_reverse_pagerank * rpr +
-            w.r_in_degree * ind
-        )
-        
-        # Compute M: Maintainability (coupling complexity)
-        # Note: (1 - CC) because higher clustering = more redundancy = easier to maintain
-        maintainability = (
-            w.m_betweenness * bt +
-            w.m_degree * dg +
-            w.m_clustering * (1 - cc)
-        )
-        
-        # Compute A: Availability (SPOF risk)
-        importance = (pr + rpr) / 2
-        availability = (
-            w.a_articulation * ap +
-            w.a_bridge_ratio * br +
-            w.a_importance * importance
-        )
-        
-        # Compute V: Vulnerability
-        vulnerability = (
-            w.v_eigenvector * ev +
-            w.v_closeness * cl +
-            w.v_in_degree * ind
-        )
-        
-        # Compute Q: Overall Quality Score
-        overall = (
-            w.q_reliability * reliability +
-            w.q_maintainability * maintainability +
-            w.q_availability * availability +
-            w.q_vulnerability * vulnerability
-        )
-        
-        return QualityScores(
-            reliability=reliability,
-            maintainability=maintainability,
-            availability=availability,
-            vulnerability=vulnerability,
-            overall=overall,
-        )
-    
-    def _classify_components(
-        self,
-        component_scores: List[Dict[str, Any]]
+        metrics_list: List[StructuralMetrics],
+        norm: Dict[str, float],
     ) -> List[ComponentQuality]:
-        """Classify components using box-plot method for each dimension."""
-        
-        if not component_scores:
+        """Score every component, then classify using box-plot per dimension."""
+        if not metrics_list:
             return []
-        
-        # Prepare data for classification by dimension
-        def extract(dim: str):
-            return [
-                {"id": item["data"].id, "score": getattr(item["scores"], dim)}
-                for item in component_scores
-            ]
-        
-        # Classify each dimension
-        classifications: Dict[str, Dict[str, CriticalityLevel]] = {}
-        
-        for dim in ["reliability", "maintainability", "availability", "vulnerability", "overall"]:
-            result = self.classifier.classify(extract(dim), metric_name=dim)
-            classifications[dim] = {item.id: item.level for item in result.items}
-        
-        # Build ComponentQuality objects
-        results = []
-        for item in component_scores:
-            comp_id = item["data"].id
-            
-            levels = QualityLevels(
-                reliability=classifications["reliability"].get(comp_id, CriticalityLevel.MINIMAL),
-                maintainability=classifications["maintainability"].get(comp_id, CriticalityLevel.MINIMAL),
-                availability=classifications["availability"].get(comp_id, CriticalityLevel.MINIMAL),
-                vulnerability=classifications["vulnerability"].get(comp_id, CriticalityLevel.MINIMAL),
-                overall=classifications["overall"].get(comp_id, CriticalityLevel.MINIMAL),
-            )
-            
-            results.append(ComponentQuality(
-                id=comp_id,
-                type=item["data"].type,
-                scores=item["scores"],
-                levels=levels,
-                structural=item["data"],
+
+        # Compute raw RMAV scores
+        scored: List[ComponentQuality] = []
+        for m in metrics_list:
+            scores = self._compute_rmav(m, norm)
+            scored.append(ComponentQuality(
+                id=m.id,
+                type=m.type,
+                scores=scores,
+                levels=QualityLevels(),  # placeholder, filled below
+                structural=m,
             ))
-        
-        # Sort by overall score (highest first)
-        results.sort(key=lambda x: x.scores.overall, reverse=True)
-        
-        return results
-    
-    def _analyze_edges(
-        self,
-        edge_metrics: Dict[tuple, EdgeMetrics],
-        component_metrics: Dict[str, StructuralMetrics]
-    ) -> List[EdgeQuality]:
-        """Compute and classify edge quality scores."""
-        
-        if not edge_metrics:
-            return []
-        
-        # Compute edge scores using configurable weights
-        w = self.weights
-        edges = []
-        max_betweenness = max(e.betweenness for e in edge_metrics.values()) or 1.0
-        
-        for key, em in edge_metrics.items():
-            # Get connected component metrics for endpoint analysis
-            source_metrics = component_metrics.get(em.source)
-            target_metrics = component_metrics.get(em.target)
-            
-            # Endpoint importance (average PageRank of connected nodes)
-            endpoint_importance = 0.0
-            if source_metrics and target_metrics:
-                endpoint_importance = (
-                    source_metrics.pagerank + target_metrics.pagerank
-                ) / 2
-            
-            # Edge vulnerability (exposure through connected nodes)
-            # Average of endpoint eigenvector and closeness centrality
-            endpoint_vulnerability = 0.0
-            if source_metrics and target_metrics:
-                avg_eigenvector = (source_metrics.eigenvector + target_metrics.eigenvector) / 2
-                avg_closeness = (source_metrics.closeness + target_metrics.closeness) / 2
-                endpoint_vulnerability = (avg_eigenvector + avg_closeness) / 2
-            
-            # Normalized edge metrics
-            bridge_factor = 1.0 if em.is_bridge else 0.0
-            betweenness_norm = em.betweenness / max_betweenness if max_betweenness > 0 else 0
-            
-            # Compute overall edge score using configurable weights
-            overall = (
-                w.e_betweenness * betweenness_norm +
-                w.e_bridge * bridge_factor +
-                w.e_endpoint * endpoint_importance +
-                w.e_vulnerability * endpoint_vulnerability
+
+        # Classify each dimension with box-plot
+        dim_keys = ["reliability", "maintainability", "availability", "vulnerability", "overall"]
+        level_maps: Dict[str, Dict[str, CriticalityLevel]] = {}
+
+        for dim in dim_keys:
+            data = [{"id": c.id, "score": getattr(c.scores, dim)} for c in scored]
+            result = self.classifier.classify(data, metric_name=dim)
+            level_maps[dim] = {item.id: item.level for item in result.items}
+
+        # Apply classified levels
+        for c in scored:
+            c.levels = QualityLevels(
+                reliability=level_maps["reliability"].get(c.id, CriticalityLevel.MINIMAL),
+                maintainability=level_maps["maintainability"].get(c.id, CriticalityLevel.MINIMAL),
+                availability=level_maps["availability"].get(c.id, CriticalityLevel.MINIMAL),
+                vulnerability=level_maps["vulnerability"].get(c.id, CriticalityLevel.MINIMAL),
+                overall=level_maps["overall"].get(c.id, CriticalityLevel.MINIMAL),
             )
-            
+
+        # Sort by overall score descending
+        scored.sort(key=lambda c: c.scores.overall, reverse=True)
+        return scored
+
+    def _compute_rmav(
+        self, m: StructuralMetrics, norm: Dict[str, float],
+    ) -> QualityScores:
+        """Compute Reliability, Maintainability, Availability, Vulnerability scores."""
+        w = self.weights
+
+        def _n(val: float, key: str) -> float:
+            """Normalise a value using the precomputed max."""
+            mx = norm.get(key, 0.0)
+            return val / mx if mx > 0 else 0.0
+
+        # Normalised values
+        pr   = _n(m.pagerank, "pagerank")
+        rpr  = _n(m.reverse_pagerank, "reverse_pagerank")
+        bt   = _n(m.betweenness, "betweenness")
+        cl   = _n(m.closeness, "closeness")
+        ev   = _n(m.eigenvector, "eigenvector")
+        id_n = _n(m.in_degree_raw, "in_degree")
+        dg   = _n(m.total_degree_raw, "total_degree")
+        cc   = m.clustering_coefficient
+        ap   = 1.0 if m.is_articulation_point else 0.0
+        imp  = (pr + rpr) / 2.0  # importance proxy
+
+        R = w.r_pagerank * pr + w.r_reverse_pagerank * rpr + w.r_in_degree * id_n
+        M = w.m_betweenness * bt + w.m_degree * dg + w.m_clustering * (1.0 - cc)
+        A = w.a_articulation * ap + w.a_bridge_ratio * m.bridge_ratio + w.a_importance * imp
+        V = w.v_eigenvector * ev + w.v_closeness * cl + w.v_in_degree * id_n
+
+        Q = w.q_reliability * R + w.q_maintainability * M + w.q_availability * A + w.q_vulnerability * V
+
+        return QualityScores(
+            reliability=R,
+            maintainability=M,
+            availability=A,
+            vulnerability=V,
+            overall=Q,
+        )
+
+    # ------------------------------------------------------------------
+    # Edge scoring
+    # ------------------------------------------------------------------
+
+    def _score_and_classify_edges(
+        self, edges_list: List[EdgeMetrics],
+    ) -> List[EdgeQuality]:
+        """Score and classify edges using box-plot."""
+        if not edges_list:
+            return []
+
+        edges: List[EdgeQuality] = []
+        for em in edges_list:
+            bridge_factor = 1.0 if em.is_bridge else 0.0
+            bt_norm = em.betweenness  # already normalised by NetworkX
+
+            overall = 0.5 * bt_norm + 0.3 * bridge_factor + 0.2 * em.weight
+            endpoint_importance = bt_norm
+            endpoint_vulnerability = bt_norm * 0.7 + bridge_factor * 0.3
+
             edges.append(EdgeQuality(
                 source=em.source,
                 target=em.target,
@@ -375,44 +271,55 @@ class QualityAnalyzer:
                 dependency_type=em.dependency_type,
                 scores=QualityScores(
                     reliability=endpoint_importance,
-                    maintainability=betweenness_norm,
+                    maintainability=bt_norm,
                     availability=bridge_factor,
                     vulnerability=endpoint_vulnerability,
                     overall=overall,
                 ),
                 structural=em,
             ))
-        
-        # Classify edges
+
+        # Classify
         if edges:
             data = [{"id": e.id, "score": e.scores.overall} for e in edges]
             result = self.classifier.classify(data, metric_name="edge_criticality")
             level_map = {item.id: item.level for item in result.items}
             for edge in edges:
                 edge.level = level_map.get(edge.id, CriticalityLevel.MINIMAL)
-        
-        # Sort by score
-        edges.sort(key=lambda x: x.scores.overall, reverse=True)
-        
+
+        edges.sort(key=lambda e: e.scores.overall, reverse=True)
         return edges
 
-    
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _normalize(components: List[StructuralMetrics]) -> Dict[str, float]:
+        """Compute per-metric maximums for min-max normalisation."""
+        if not components:
+            return {}
+        return {
+            "pagerank": max((c.pagerank for c in components), default=0),
+            "reverse_pagerank": max((c.reverse_pagerank for c in components), default=0),
+            "betweenness": max((c.betweenness for c in components), default=0),
+            "closeness": max((c.closeness for c in components), default=0),
+            "eigenvector": max((c.eigenvector for c in components), default=0),
+            "in_degree": max((c.in_degree_raw for c in components), default=0),
+            "total_degree": max((c.total_degree_raw for c in components), default=0),
+        }
+
+    @staticmethod
     def _build_summary(
-        self,
         components: List[ComponentQuality],
-        edges: List[EdgeQuality]
+        edges: List[EdgeQuality],
     ) -> ClassificationSummary:
-        """Build classification summary statistics."""
-        
         comp_dist = {level.value: 0 for level in CriticalityLevel}
         edge_dist = {level.value: 0 for level in CriticalityLevel}
-        
         for c in components:
             comp_dist[c.levels.overall.value] += 1
-        
         for e in edges:
             edge_dist[e.level.value] += 1
-        
         return ClassificationSummary(
             total_components=len(components),
             total_edges=len(edges),

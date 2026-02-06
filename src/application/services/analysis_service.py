@@ -1,143 +1,205 @@
 """
-Graph Analyzer
+Analysis Service
 
-Main orchestrator for multi-layer graph analysis of distributed pub-sub systems.
-implements IAnalysisUseCase.
+Application service implementing IAnalysisUseCase.
+Orchestrates the three-stage analysis pipeline per layer:
+
+    1. Structural Analysis  → Raw topological metrics (centrality, degree, ...)
+    2. Quality Analysis     → Composite RMAV scores + Box-Plot classification
+    3. Problem Detection    → Architectural smells, risks, recommendations
+
+Each layer filters the graph to its own DEPENDS_ON relationship types:
+    app    → app_to_app
+    infra  → node_to_node
+    mw     → app_to_broker + node_to_broker
+    system → all of the above
 """
 
 from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from dataclasses import dataclass, asdict
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from src.application.ports.inbound.analysis_port import IAnalysisUseCase
-from src.adapters.outbound.persistence.neo4j_repository import Neo4jGraphRepository
+from src.application.ports.outbound.graph_repository import IGraphRepository
 
-from src.domain.models.analysis.layers import (
-    AnalysisLayer, 
-    LAYER_DEFINITIONS, 
+from src.domain.config.layers import (
+    AnalysisLayer,
     get_layer_definition,
-    get_all_layers,
-    get_primary_layers
+    get_primary_layers,
 )
 from src.domain.services import (
-    StructuralAnalyzer, StructuralAnalysisResult,
-    QualityAnalyzer, QualityAnalysisResult,
-    ProblemDetector, DetectedProblem, ProblemSummary
+    StructuralAnalyzer,
+    QualityAnalyzer,
+    ProblemDetector,
 )
-from src.domain.models import CriticalityLevel
-from src.domain.models.analysis.results import LayerAnalysisResult, MultiLayerAnalysisResult
+from src.domain.models.analysis.results import (
+    LayerAnalysisResult,
+    MultiLayerAnalysisResult,
+)
 
 
 class AnalysisService(IAnalysisUseCase):
     """
-    Main service for graph analysis.
-    Orchestrates structural analysis, quality assessment, and problem detection.
+    Main service for multi-layer graph analysis.
+
+    Follows the hexagonal architecture pattern:
+    - Inbound port: IAnalysisUseCase
+    - Outbound port: IGraphRepository (injected)
     """
 
-    def __init__(self, repository: Neo4jGraphRepository):
-        self._repository = repository
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, repository: IGraphRepository) -> None:
+        self._repo = repository
+        self._logger = logging.getLogger(__name__)
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def analyze_layer(self, layer: str = "system") -> LayerAnalysisResult:
-        """Analyze a single layer of the architecture."""
-        try:
-            # 1. Load Data
-            # Convert string to AnalysisLayer enum if needed
-            if isinstance(layer, str):
-                analysis_layer = AnalysisLayer.from_string(layer)
-            else:
-                analysis_layer = layer
-                
-            definition = get_layer_definition(analysis_layer)
-            self.logger.info(f"Analyzing layer: {definition.name} ({analysis_layer.value})")
-            
-            # Use repository to fetch graph data for specific component types
-            # Note: repository.get_graph_data(component_types=...)
-            graph_data = self._repository.get_graph_data(
-                component_types=definition.component_types
-            )
-            
-            # 2. Structural Analysis
-            struct_analyzer = StructuralAnalyzer()
-            struct_result = struct_analyzer.analyze(graph_data, layer=analysis_layer)
-            
-            # 3. Quality Analysis
-            quality_analyzer = QualityAnalyzer()
-            quality_result = quality_analyzer.analyze(struct_result)
-            
-            # 4. Problem Detection
-            problem_detector = ProblemDetector()
-            problems = problem_detector.detect(quality_result)
-            problem_summary = problem_detector.summarize(problems)
-            
-            # 5. Context Gathering (for display)
-            library_usage = self._repository.get_library_usage()
-            node_allocations = self._repository.get_node_allocations()
-            broker_routing = self._repository.get_broker_routing()
+        """
+        Run the full analysis pipeline for a single layer.
 
-            return LayerAnalysisResult(
-                layer=analysis_layer.value,
-                layer_name=definition.name,
-                description=definition.description,
-                structural=struct_result,
-                quality=quality_result,
-                problems=problems,
-                problem_summary=problem_summary,
-                library_usage=library_usage,
-                node_allocations=node_allocations,
-                broker_routing=broker_routing,
-            )
+        Args:
+            layer: One of "app", "infra", "mw", "system" (or an AnalysisLayer enum).
 
-        except Exception as e:
-            self.logger.error(f"Analysis failed for layer {layer}: {str(e)}")
-            raise
+        Returns:
+            LayerAnalysisResult containing structural metrics, quality scores,
+            and detected problems.
+        """
+        analysis_layer = self._resolve_layer(layer)
+        definition = get_layer_definition(analysis_layer)
+        self._logger.info("Analyzing layer: %s (%s)", definition.name, analysis_layer.value)
 
-    def analyze_all_layers(self, include_cross_layer: bool = True) -> MultiLayerAnalysisResult:
-        """Perform analysis on all primary layers."""
-        layers = get_primary_layers()
-        results = {}
-        
-        for layer in layers:
-            # layer is an AnalysisLayer enum
-            results[layer.value] = self.analyze_layer(layer.value)
-            
-        cross_insights = []
-        if include_cross_layer:
-            cross_insights = self._generate_cross_layer_insights(results)
+        # 1. Load graph data filtered to this layer's component types
+        graph_data = self._repo.get_graph_data(
+            component_types=definition.component_types,
+        )
+
+        # 2. Structural Analysis — raw topological metrics
+        structural = StructuralAnalyzer().analyze(graph_data, layer=analysis_layer)
+
+        # 3. Quality Analysis — RMAV scoring + Box-Plot classification
+        quality = QualityAnalyzer().analyze(structural)
+
+        # 4. Problem Detection — risks, smells, recommendations
+        detector = ProblemDetector()
+        problems = detector.detect(quality)
+        summary = detector.summarize(problems)
+
+        # 5. Contextual data for display enrichment
+        library_usage = self._repo.get_library_usage()
+        node_allocations = self._repo.get_node_allocations()
+        broker_routing = self._repo.get_broker_routing()
+
+        return LayerAnalysisResult(
+            layer=analysis_layer.value,
+            layer_name=definition.name,
+            description=definition.description,
+            structural=structural,
+            quality=quality,
+            problems=problems,
+            problem_summary=summary,
+            library_usage=library_usage,
+            node_allocations=node_allocations,
+            broker_routing=broker_routing,
+        )
+
+    def analyze_all_layers(
+        self, include_cross_layer: bool = True,
+    ) -> MultiLayerAnalysisResult:
+        """
+        Analyse every primary layer (app, infra, mw, system).
+
+        Returns a MultiLayerAnalysisResult containing all individual layer
+        results plus optional cross-layer insights.
+        """
+        results: Dict[str, LayerAnalysisResult] = {}
+        for al in get_primary_layers():
+            results[al.value] = self.analyze_layer(al.value)
+
+        cross = self._cross_layer_insights(results) if include_cross_layer else []
 
         return MultiLayerAnalysisResult(
             timestamp=datetime.now().isoformat(),
             layers=results,
-            cross_layer_insights=cross_insights
+            cross_layer_insights=cross,
         )
 
-    def _generate_cross_layer_insights(self, layer_results: Dict[str, LayerAnalysisResult]) -> List[str]:
-        """Generate insights by comparing layers."""
-        insights = []
-        
-        # Example: Compare app vs infra complexity
-        if "app" in layer_results and "infra" in layer_results:
-            app_nodes = layer_results["app"].structural.graph_summary.nodes
-            infra_nodes = layer_results["infra"].structural.graph_summary.nodes
-            
-            if infra_nodes > 0:
-                ratio = app_nodes / infra_nodes
-                insights.append(f"App/Infra Ratio: {ratio:.2f} (Applications per Node)")
+    def export_results(
+        self,
+        result: Union[LayerAnalysisResult, MultiLayerAnalysisResult],
+        output_file: str,
+    ) -> None:
+        """Serialise results to a JSON file."""
+        path = Path(output_file)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as fh:
+            json.dump(result.to_dict(), fh, indent=2, default=str)
+        self._logger.info("Results exported to %s", path)
+
+    # ------------------------------------------------------------------
+    # Internals
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _resolve_layer(layer: Union[str, AnalysisLayer]) -> AnalysisLayer:
+        """Accept both string and enum; normalise to AnalysisLayer."""
+        if isinstance(layer, AnalysisLayer):
+            return layer
+        return AnalysisLayer.from_string(layer)
+
+    @staticmethod
+    def _cross_layer_insights(
+        results: Dict[str, LayerAnalysisResult],
+    ) -> List[str]:
+        """
+        Generate insights by comparing layers.
+
+        These are high-level observations about the system architecture
+        that only become visible when looking across multiple layers.
+        """
+        insights: List[str] = []
+
+        app = results.get("app")
+        infra = results.get("infra")
+        mw = results.get("mw")
+
+        # App-to-Infra density ratio
+        if app and infra:
+            app_n = app.structural.graph_summary.nodes
+            infra_n = infra.structural.graph_summary.nodes
+            if infra_n > 0:
+                ratio = app_n / infra_n
+                insights.append(
+                    f"App / Infra ratio: {ratio:.2f} applications per node"
+                )
                 if ratio > 5:
-                    insights.append("High application density per node detected.")
-        
+                    insights.append(
+                        "⚠ High application density — consider scaling infrastructure"
+                    )
+
+        # Compare critical-component counts
+        for key, res in results.items():
+            crit = res.problem_summary.by_severity.get("CRITICAL", 0)
+            if crit > 0:
+                insights.append(
+                    f"Layer '{key}': {crit} CRITICAL problem(s) detected"
+                )
+
+        # Middleware bottleneck warning
+        if mw:
+            spofs = [
+                c for c in mw.quality.components
+                if c.structural.is_articulation_point
+            ]
+            if spofs:
+                ids = ", ".join(s.id for s in spofs[:5])
+                insights.append(
+                    f"Middleware SPOFs: {ids} — broker redundancy recommended"
+                )
+
         return insights
-        
-    def export_results(self, result: Union[LayerAnalysisResult, MultiLayerAnalysisResult], output_file: str) -> None:
-        """Export analysis results to JSON file."""
-        output_path = Path(output_file)
-        # Create parent directories if they don't exist
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(output_path, 'w') as f:
-            json.dump(result.to_dict(), f, indent=2, default=str)
-        self.logger.info(f"Results exported to {output_path}")
