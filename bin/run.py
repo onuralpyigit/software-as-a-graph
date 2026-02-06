@@ -173,7 +173,7 @@ def main() -> int:
         # simulate_graph.py takes --layer (singular) and --report (for multiple layers report)
         # We will use --report mode to generate a comprehensive report for the requested layers
         # simulate_graph.py --report --layers "app,infra"
-        sim_args = ["--report", "--layer", args.layer, "--output", str(output_dir / "simulation_report.json")]
+        sim_args = ["report", "--layer", args.layer, "--output", str(output_dir / "simulation_report.json")]
         sim_args += neo4j_args
         if not run_script("simulate_graph.py", sim_args, project_root):
              return 1

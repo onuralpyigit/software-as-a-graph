@@ -46,10 +46,12 @@ class BoxPlotClassifier:
     # Statistics
     # ------------------------------------------------------------------
 
-    def compute_stats(self, scores: Sequence[float]) -> BoxPlotStats:
+    def compute_stats(self, scores: Sequence[float], k_factor: float = None) -> BoxPlotStats:
         """Compute box-plot statistics (quartiles, fences, descriptive stats)."""
+        k = k_factor if k_factor is not None else self.k_factor
+
         if not scores:
-            return BoxPlotStats(k_factor=self.k_factor)
+            return BoxPlotStats(k_factor=k)
 
         s = sorted(scores)
         n = len(s)
@@ -60,14 +62,14 @@ class BoxPlotClassifier:
                 q1=v, median=v, q3=v, iqr=0.0,
                 lower_fence=v, upper_fence=v,
                 min_val=v, max_val=v, mean=v, std_dev=0.0,
-                count=1, k_factor=self.k_factor,
+                count=1, k_factor=k,
             )
 
         def _pct(p: float) -> float:
-            k = (n - 1) * p
-            f = int(k)
+            k_idx = (n - 1) * p
+            f = int(k_idx)
             c = min(f + 1, n - 1)
-            return s[f] + (k - f) * (s[c] - s[f])
+            return s[f] + (k_idx - f) * (s[c] - s[f])
 
         q1 = _pct(0.25)
         med = _pct(0.50)
@@ -76,12 +78,12 @@ class BoxPlotClassifier:
 
         return BoxPlotStats(
             q1=q1, median=med, q3=q3, iqr=iqr,
-            lower_fence=q1 - self.k_factor * iqr,
-            upper_fence=q3 + self.k_factor * iqr,
+            lower_fence=q1 - k * iqr,
+            upper_fence=q3 + k * iqr,
             min_val=s[0], max_val=s[-1],
             mean=statistics.mean(s),
             std_dev=statistics.stdev(s) if n > 1 else 0.0,
-            count=n, k_factor=self.k_factor,
+            count=n, k_factor=k,
         )
 
     # ------------------------------------------------------------------
@@ -118,6 +120,7 @@ class BoxPlotClassifier:
         metric_name: str = "score",
         id_key: str = "id",
         score_key: str = "score",
+        k_factor: float = None,
     ) -> ClassificationResult:
         """
         Classify a collection of ``{id, score}`` dicts.
@@ -126,16 +129,18 @@ class BoxPlotClassifier:
         sorted by score (most critical first), box-plot statistics, and
         the level distribution.
         """
+        k = k_factor if k_factor is not None else self.k_factor
+
         if not data:
             return ClassificationResult(
                 metric_name=metric_name,
                 items=[],
-                stats=BoxPlotStats(k_factor=self.k_factor),
+                stats=BoxPlotStats(k_factor=k),
                 distribution={lv.value: 0 for lv in CriticalityLevel},
             )
 
         scores = [d[score_key] for d in data]
-        stats = self.compute_stats(scores)
+        stats = self.compute_stats(scores, k_factor=k)
 
         items: List[ClassifiedItem] = []
         distribution: Dict[str, int] = {lv.value: 0 for lv in CriticalityLevel}
