@@ -55,7 +55,7 @@ def parse_args():
     # Common options
     parser.add_argument(
         "--layers", 
-        default="app,infra,system",
+        default="app,infra,mw,system",
         help="Comma-separated list of layers to analyze"
     )
     parser.add_argument("--runs", type=int, default=1, help="Number of runs per configuration")
@@ -100,7 +100,7 @@ def load_scenarios_from_config(config_path: Path) -> List[BenchmarkScenario]:
             name=item.get("name", "Unnamed"),
             scale=scale,
             config_path=graph_config_path,
-            layers=item.get("layers", ["app", "infra", "system"]),
+            layers=item.get("layers", ["app", "infra", "mw", "system"]),
             runs=item.get("runs", 1)
         ))
     return scenarios
@@ -135,7 +135,7 @@ def main():
     elif args.full_suite:
         # Define full suite
         scales = ["tiny", "small", "medium"] # Large/XLarge can be slow
-        layers = ["app", "infra", "system"]
+        layers = ["app", "infra", "mw", "system"]
         for scale in scales:
             scenarios.append(BenchmarkScenario(
                 name=f"Full-{scale}",
