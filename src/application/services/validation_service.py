@@ -37,7 +37,7 @@ class ValidationService(IValidationUseCase):
     def validate_layers(self, layers: Optional[List[str]] = None) -> PipelineResult:
         """Run validation for multiple layers."""
         if layers is None:
-            layers = ["app", "infra", "system"] # Default layers
+            layers = ["app", "infra", "mw", "system"] # Default layers
 
         valid_layers = []
         for l in layers:

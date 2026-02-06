@@ -26,10 +26,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Validate graph modeling and analysis approach.")
     
     action_group = parser.add_argument_group("Action")
-    action_mutex = action_group.add_mutually_exclusive_group(required=True)
-    action_mutex.add_argument("--layer", "-l", help="Comma-separated layers (e.g., app,infra,system)")
-    action_mutex.add_argument("--all", "-a", action="store_true", help="Validate all layers")
-    action_mutex.add_argument("--quick", "-q", nargs=2, metavar=("PREDICTED", "ACTUAL"), help="Quick validation from JSON files")
+    # Optional arguments for targeted validation
+    action_group.add_argument("--layer", "-l", help="Comma-separated layers (e.g., app,infra,system). Defaults to ALL.")
+    action_group.add_argument("--quick", "-q", nargs=2, metavar=("PREDICTED", "ACTUAL"), help="Quick validation from JSON files")
     
     neo4j_group = parser.add_argument_group("Neo4j Connection")
     neo4j_group.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
@@ -83,11 +82,11 @@ def main() -> int:
             
             return 0 if result.passed else 1
         
-        # Full pipeline validation
-        if args.all:
-            layers_to_validate = [layer.value for layer in SIMULATION_LAYERS]
+        if sorted_layers := args.layer:
+            layers_to_validate = [l.strip() for l in sorted_layers.split(",")]
         else:
-            layers_to_validate = [l.strip() for l in args.layer.split(",")]
+            # Default to all primary layers
+            layers_to_validate = [layer.value for layer in SIMULATION_LAYERS]
             
         result = val_service.validate_layers(layers=layers_to_validate)
         
