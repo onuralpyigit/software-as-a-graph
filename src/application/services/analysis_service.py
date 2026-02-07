@@ -23,8 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from src.application.ports.inbound.analysis_port import IAnalysisUseCase
-from src.application.ports.outbound.graph_repository import IGraphRepository
+from src.application.ports import IAnalysisUseCase, IGraphRepository
 
 from src.domain.config.layers import (
     AnalysisLayer,

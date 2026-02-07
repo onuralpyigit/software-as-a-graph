@@ -9,7 +9,7 @@ from collections import defaultdict
 from typing import List, Tuple, Optional, Any, Dict
 
 # Domain & Application imports
-from src.config import Container
+from src.application.container import Container
 from src.domain.models.validation.metrics import ValidationTargets
 from src.application.services.generation_service import GenerationService, load_config
 from src.domain.models.statistics import GraphConfig

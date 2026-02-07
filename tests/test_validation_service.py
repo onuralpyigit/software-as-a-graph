@@ -5,7 +5,7 @@ Unit Tests for ValidationService
 import pytest
 from unittest.mock import MagicMock, patch
 from src.application.services.validation_service import ValidationService
-from src.domain.models.simulation.layers import SimulationLayer
+from src.domain.config.layers import SimulationLayer
 from src.domain.models.validation.results import LayerValidationResult, ValidationResult
 from src.domain.models.analysis.results import LayerAnalysisResult
 from src.domain.services import QualityAnalysisResult

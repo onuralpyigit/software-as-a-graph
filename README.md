@@ -71,13 +71,13 @@ python bin/import_graph.py --input data/system.json --clear
 **2. Analyze & Score**
 ```bash
 # specific layer: app, infra, mw, or system
-python bin/analyze_graph.py --layer system --use-ahp
+python bin/analyze_graph.py --layer system
 ```
 
 **3. Simulate Failures (Ground Truth)**
 ```bash
 # Run exhaustive simulation to get actual impact scores
-python bin/simulate_graph.py --layer system --exhaustive
+python bin/simulate_graph.py failure --layer system --exhaustive
 ```
 
 **4. Validate Results**

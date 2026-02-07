@@ -1,6 +1,2 @@
-from . import config
-
-
-from . import domain
-from . import adapters
-
+# Software-as-a-Graph Framework
+# Hexagonal Architecture: Domain → Application → Adapters

@@ -68,10 +68,12 @@ def mock_validation_service():
 
 def test_collector_mw_layer(mock_analysis_service, mock_simulation_service, mock_validation_service):
     """Test data collection for the MW layer."""
+    mock_repository = MagicMock()
     collector = LayerDataCollector(
         mock_analysis_service,
         mock_simulation_service,
-        mock_validation_service
+        mock_validation_service,
+        mock_repository
     )
     
     data = collector.collect_layer_data("mw", include_validation=True)
@@ -105,11 +107,13 @@ def test_visualization_service_integration(mock_analysis_service, mock_simulatio
         
         collector_instance.collect_layer_data.return_value = mock_data
         
-        # Initialize service (which will use the mocked collector class)
+        # Initialize service with all required parameters
+        mock_repository = MagicMock()
         service = VisualizationService(
             mock_analysis_service,
             mock_simulation_service,
-            mock_validation_service
+            mock_validation_service,
+            mock_repository
         )
         
         # Mock DashboardGenerator to avoid writing files

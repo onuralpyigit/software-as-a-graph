@@ -9,7 +9,7 @@ Tests for:
 
 import pytest
 from src.domain.services import StructuralAnalyzer, QualityAnalyzer
-from src.domain.models.analysis.layers import AnalysisLayer, get_layer_definition, LAYER_DEFINITIONS
+from src.domain.config.layers import AnalysisLayer, get_layer_definition, LAYER_DEFINITIONS
 from src.domain.models import GraphData, ComponentData, EdgeData
 
 

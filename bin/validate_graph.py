@@ -16,9 +16,9 @@ import logging
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.config import Container
+from src.application.container import Container
 from src.domain.models.validation.metrics import ValidationTargets
-from src.domain.config.simulation_layers import SimulationLayer, SIMULATION_LAYERS
+from src.domain.config.layers import SimulationLayer, SIMULATION_LAYERS
 
 
 def main() -> int:
@@ -86,7 +86,7 @@ def main() -> int:
             layers_to_validate = [l.strip() for l in sorted_layers.split(",")]
         else:
             # Default to all primary layers
-            layers_to_validate = [layer.value for layer in SIMULATION_LAYERS]
+            layers_to_validate = [layer.value for layer in SimulationLayer]
             
         result = val_service.validate_layers(layers=layers_to_validate)
         

@@ -15,7 +15,7 @@ import networkx as nx
 
 from .types import ComponentState, RelationType
 from .components import ComponentInfo, TopicInfo
-from .layers import SimulationLayer, SIMULATION_LAYERS
+from src.domain.config.layers import SimulationLayer, SIMULATION_LAYERS
 
 class SimulationGraph:
     """

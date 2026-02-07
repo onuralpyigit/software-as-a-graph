@@ -8,14 +8,12 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from src.application.ports.inbound.validation_port import IValidationUseCase
-from src.application.ports.inbound.analysis_port import IAnalysisUseCase
-from src.application.ports.inbound.simulation_port import ISimulationUseCase
+from src.application.ports import IValidationUseCase, IAnalysisUseCase, ISimulationUseCase
 
 from src.domain.models.validation.metrics import ValidationTargets
 from src.domain.models.validation.results import ValidationResult, LayerValidationResult, PipelineResult
 from src.domain.services.validator import Validator
-from src.domain.models.simulation.layers import SimulationLayer, SIMULATION_LAYERS, get_layer_definition
+from src.domain.config.layers import SimulationLayer, SIMULATION_LAYERS, get_simulation_layer_definition as get_layer_definition
 
 class ValidationService(IValidationUseCase):
     """

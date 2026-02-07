@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Optional, Set
 from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, AuthError
 
-from src.application.ports.outbound.graph_repository import IGraphRepository
+from src.application.ports import IGraphRepository
 from src.domain.models import GraphData, ComponentData, EdgeData, QoSPolicy
 
 

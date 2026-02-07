@@ -23,8 +23,8 @@ import json
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-from src.application.ports.inbound.simulation_port import ISimulationUseCase
-from src.adapters.outbound.persistence.neo4j_repository import Neo4jGraphRepository
+from src.application.ports import ISimulationUseCase
+from src.adapters.outbound.neo4j_repo import Neo4jGraphRepository
 from src.domain.models.simulation.graph import SimulationGraph
 from src.domain.models.simulation.metrics import (
     LayerMetrics,

@@ -77,27 +77,27 @@ class TestReportGenerator:
         assert "0.800" in content
 
 class TestBenchmarkRunner:
-    @patch("subprocess.run")
-    def test_generate_data_success(self, mock_run, mock_output_dir):
+    @patch("src.benchmark.runner.GenerationService")
+    def test_generate_data_success(self, mock_gen_service, mock_output_dir):
         runner = BenchmarkRunner(mock_output_dir)
-        mock_run.return_value = MagicMock(returncode=0)
+        mock_gen_service.return_value.generate.return_value = {"nodes": [], "edges": []}
         
         scenario = BenchmarkScenario(name="Test", scale="tiny")
-        success, time_ms = runner._generate_data(scenario, 42, Path("out.json"))
+        graph_data, time_ms = runner._generate_data(scenario, 42)
         
-        assert success is True
+        assert graph_data is not None
         assert time_ms >= 0
-        assert mock_run.call_count == 1
+        assert mock_gen_service.call_count == 1
         
-    @patch("subprocess.run")
-    def test_generate_data_failure(self, mock_run, mock_output_dir):
+    @patch("src.benchmark.runner.GenerationService")
+    def test_generate_data_failure(self, mock_gen_service, mock_output_dir):
         runner = BenchmarkRunner(mock_output_dir)
-        mock_run.return_value = MagicMock(returncode=1, stderr="error")
+        mock_gen_service.return_value.generate.side_effect = Exception("Generation error")
         
         scenario = BenchmarkScenario(name="Test", scale="tiny")
-        success, _ = runner._generate_data(scenario, 42, Path("out.json"))
+        graph_data, _ = runner._generate_data(scenario, 42)
         
-        assert success is False
+        assert graph_data is None
 
     @patch("src.benchmark.runner.BenchmarkRunner._generate_data")
     @patch("src.benchmark.runner.BenchmarkRunner._import_data")
@@ -105,16 +105,27 @@ class TestBenchmarkRunner:
     @patch("src.benchmark.runner.BenchmarkRunner._run_simulation")
     @patch("src.benchmark.runner.BenchmarkRunner._run_validation")
     def test_run_scenario_flow(self, mock_val, mock_sim, mock_an, mock_imp, mock_gen, mock_output_dir):
-        # Mock all subprocess wrappers
-        mock_gen.return_value = (True, 10.0)
+        # Mock all internal methods with correct return types
+        # _generate_data returns (Dict or None, float)
+        mock_gen.return_value = ({"nodes": [], "edges": []}, 10.0)
         mock_imp.return_value = (True, 20.0)
         
-        # Analysis mock
-        mock_an.return_value = ({"graph_summary": {"nodes": 10}}, 5.0)
-        # Simulation mock
-        mock_sim.return_value = ({"results": "ok"}, 5.0)
-        # Validation mock
-        mock_val.return_value = ({"validation_result": {"overall": {"metrics": {}}}, "summary": {"passed": True}}, 5.0)
+        # Analysis mock - returns (dict, float)
+        mock_an.return_value = ({"graph_summary": {"nodes": 10, "edges": 20, "density": 0.5}, "quality_analysis": {"components": []}}, 5.0)
+        # Simulation mock - returns (list of dicts, float)
+        mock_sim.return_value = ([{"target_id": "app1", "impact": {"composite_impact": 0.5}}], 5.0)
+        
+        # Validation mock - returns (ValidationResult-like object, float)
+        mock_val_result = MagicMock()
+        mock_val_result.overall.correlation.spearman = 0.85
+        mock_val_result.overall.classification.f1_score = 0.90
+        mock_val_result.overall.classification.precision = 0.88
+        mock_val_result.overall.classification.recall = 0.92
+        mock_val_result.overall.ranking.top_5_overlap = 0.60
+        mock_val_result.overall.ranking.top_10_overlap = 0.70
+        mock_val_result.overall.error.rmse = 0.15
+        mock_val_result.passed = True
+        mock_val.return_value = (mock_val_result, 5.0)
         
         runner = BenchmarkRunner(mock_output_dir)
         scenario = BenchmarkScenario(name="Test", scale="tiny", layers=["app"], runs=1)

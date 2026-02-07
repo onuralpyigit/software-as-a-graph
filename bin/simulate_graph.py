@@ -43,7 +43,7 @@ import argparse
 import json
 import logging
 
-from src.config import Container
+from src.application.container import Container
 
 
 # =============================================================================

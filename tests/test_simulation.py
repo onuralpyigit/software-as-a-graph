@@ -462,9 +462,11 @@ class TestCLI:
         mock_sim.run_event_simulation.return_value = mock_event_result
 
         with patch.object(sys, "argv", ["simulate_graph.py", "event", "--source", "App1"]), \
-             patch("src.config.Container", return_value=mock_container):
-            from bin.simulate_graph import main
-            ret = main()
+             patch("src.application.container.Container", return_value=mock_container):
+            # Need to reload module inside patch context for mock to take effect
+            import bin.simulate_graph as simulate_graph
+            importlib.reload(simulate_graph)
+            ret = simulate_graph.main()
 
         assert ret == 0
         mock_sim.run_event_simulation.assert_called_once()
@@ -485,9 +487,11 @@ class TestCLI:
         mock_sim.generate_report.return_value = mock_report
 
         with patch.object(sys, "argv", ["simulate_graph.py", "report", "--layers", "app,infra"]), \
-             patch("src.config.Container", return_value=mock_container):
-            from bin.simulate_graph import main
-            ret = main()
+             patch("src.application.container.Container", return_value=mock_container):
+            # Need to reload module inside patch context for mock to take effect
+            import bin.simulate_graph as simulate_graph
+            importlib.reload(simulate_graph)
+            ret = simulate_graph.main()
 
         assert ret == 0
         mock_sim.generate_report.assert_called_once_with(

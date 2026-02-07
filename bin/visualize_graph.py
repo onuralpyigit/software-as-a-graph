@@ -15,7 +15,7 @@ from typing import List, Optional
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import Container
+from src.application.container import Container
 from src.domain.models.visualization.layer_data import LAYER_DEFINITIONS
 
 

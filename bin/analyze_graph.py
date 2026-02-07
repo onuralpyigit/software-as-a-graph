@@ -32,7 +32,7 @@ import json
 import logging
 from datetime import datetime
 
-from src.config import Container
+from src.application.container import Container
 from src.domain.config.layers import AnalysisLayer, list_layers
 from src.domain.models.analysis.results import MultiLayerAnalysisResult
 

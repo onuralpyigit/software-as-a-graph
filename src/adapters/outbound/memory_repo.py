@@ -7,7 +7,7 @@ Implements IGraphRepository using in-memory storage for testing.
 from typing import Dict, Any, List, Optional
 import copy
 
-from src.application.ports.outbound.graph_repository import IGraphRepository
+from src.application.ports import IGraphRepository
 from src.domain.models import GraphData, ComponentData, EdgeData
 
 

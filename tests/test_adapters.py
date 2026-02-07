@@ -1,5 +1,5 @@
 import pytest
-from src.adapters.outbound.persistence.memory_repository import InMemoryGraphRepository
+from src.adapters.outbound.memory_repo import InMemoryGraphRepository
 from src.domain.models import Application
 
 class TestInMemoryRepository:
