@@ -139,6 +139,7 @@ class GraphSummary:
     num_bridges: int = 0
     diameter: Optional[int] = None
     avg_path_length: Optional[float] = None
+    assortativity: float = 0.0       # Degree assortativity coefficient (Pearson r)
     
     # Breakdown by type
     node_types: Dict[str, int] = field(default_factory=dict)
@@ -160,13 +161,27 @@ class GraphSummary:
     @property
     def connectivity_health(self) -> str:
         """Simple connectivity health indicator."""
-        if not self.is_connected:
-            return "DISCONNECTED"
-        if self.spof_ratio > 0.2:
-            return "FRAGILE"
-        if self.spof_ratio > 0.1:
+        if self.num_components <= 1 and self.spof_ratio < 0.1:
+            return "HEALTHY"
+        elif self.num_components <= 2 and self.spof_ratio < 0.2:
             return "MODERATE"
-        return "ROBUST"
+        else:
+            return "AT_RISK"
+    
+    @property
+    def assortativity_pattern(self) -> str:
+        """Interpret degree assortativity as a mixing pattern.
+        
+        Positive: assortative (hubs connect to hubs) — resilient to random failure
+        Negative: disassortative (hubs connect to leaves) — vulnerable to targeted attack
+        Near zero: neutral mixing
+        """
+        if self.assortativity > 0.1:
+            return "ASSORTATIVE"
+        elif self.assortativity < -0.1:
+            return "DISASSORTATIVE"
+        else:
+            return "NEUTRAL"
 
 
 # =============================================================================
