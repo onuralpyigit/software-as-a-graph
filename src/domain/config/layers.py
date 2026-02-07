@@ -4,15 +4,19 @@ Graph Layer Definitions
 Unified layer definitions for analysis and simulation.
 This is the **canonical** layer definition used by all CLI scripts and services.
 
-Analysis Layers and their DEPENDS_ON relationship types:
-    app    → app_to_app               Analyse Applications
-    infra  → node_to_node             Analyse Nodes
-    mw     → app_to_broker,           Analyse Brokers
-             node_to_broker
-    system → all four types           Analyse all components
+Corresponds to Definition 3 (Layer Projection) in docs/graph-model.md:
+
+    π_l(G) = G_l = (V_l, E_l, τ_V|_l, τ_E|_l, w|_l)
+
+Analysis Layers project DEPENDS_ON relationships:
+    π_app    → {app_to_app}                        Analyse Applications
+    π_infra  → {node_to_node}                      Analyse Nodes
+    π_mw     → {app_to_broker, node_to_broker}     Analyse Brokers
+    π_system → all four subtypes                   Analyse all components
 
 Simulation Layers use RAW structural relationships (PUBLISHES_TO, RUNS_ON, etc.)
-for failure cascade and event propagation simulation.
+for failure cascade and event propagation simulation. This implements the
+G_structural vs G_analysis distinction described in §1.6.
 """
 
 from __future__ import annotations
@@ -30,11 +34,11 @@ class AnalysisLayer(Enum):
     """
     Enumeration of graph layers for both analysis and simulation.
 
-    Each layer represents a specific view of the distributed system:
-        APP    — Service-level dependencies
-        INFRA  — Network / infrastructure topology
-        MW     — Middleware / broker coupling
-        SYSTEM — Complete system view
+    Each layer represents a specific architectural view (Definition 3):
+        APP    — Service-level dependencies  (π_app)
+        INFRA  — Infrastructure topology     (π_infra)
+        MW     — Middleware/broker coupling   (π_mw)
+        SYSTEM — Complete system view         (π_system)
     """
     APP = "app"
     INFRA = "infra"
@@ -43,10 +47,18 @@ class AnalysisLayer(Enum):
 
     @classmethod
     def from_string(cls, value: str) -> AnalysisLayer:
-        """Convert a string to AnalysisLayer, supporting common aliases."""
+        """
+        Convert a string to AnalysisLayer, supporting common aliases.
+        
+        Canonical names: app, infra, mw, system
+        Legacy aliases:  application, infrastructure, app_broker, middleware,
+                         broker, complete, all
+        """
         _ALIASES: Dict[str, AnalysisLayer] = {
+            # Legacy aliases (used in older code / neo4j_repo)
             "application": cls.APP,
             "infrastructure": cls.INFRA,
+            "app_broker": cls.MW,
             "middleware": cls.MW,
             "mw-app": cls.MW,
             "mw-infra": cls.MW,
@@ -76,16 +88,25 @@ SimulationLayer = AnalysisLayer
 @dataclass(frozen=True)
 class LayerDefinition:
     """
-    Definition of a graph analysis layer.
-
+    Definition of a graph analysis layer (π_l).
+    
+    Maps to Definition 3 in docs/graph-model.md:
+        T_l  → component_types   (vertex types included in the projection)
+        T_a  → analyze_types     (vertex types that appear in analysis results)
+        D_l  → dependency_types  (DEPENDS_ON subtypes included in projection)
+    
+    Note: For the middleware layer, T_l includes Application and Node vertices
+    to preserve incoming edges to Broker vertices, but only Broker components
+    appear in analysis results (T_a = {Broker}).
+    
     Attributes:
         name:             Human-readable layer name
-        description:      What this layer analyses
-        component_types:  Vertex labels included when building the subgraph
-        dependency_types: DEPENDS_ON subtypes included
-        focus_metrics:    Key centrality metrics for this layer
-        quality_focus:    Primary quality dimension (reliability / maintainability / …)
-        analyze_types:    If set, only these component types appear in results.
+        description:      Layer purpose and analysis strategy
+        component_types:  T_l — vertex labels included when building subgraph
+        dependency_types: D_l — DEPENDS_ON subtypes included
+        focus_metrics:    Key topological metrics for this layer
+        quality_focus:    Primary RMAV quality dimension
+        analyze_types:    T_a — component types in analysis results.
                           Defaults to *component_types* when ``None``.
     """
     name: str
@@ -98,7 +119,7 @@ class LayerDefinition:
 
     @property
     def types_to_analyze(self) -> FrozenSet[str]:
-        """Component types that should appear in analysis results."""
+        """Component types that should appear in analysis results (T_a)."""
         return self.analyze_types if self.analyze_types else self.component_types
 
     def to_dict(self) -> Dict[str, Any]:
@@ -120,7 +141,7 @@ class LayerDefinition:
 LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     AnalysisLayer.APP: LayerDefinition(
         name="Application Layer",
-        description="Analyse Applications via app_to_app dependencies for reliability",
+        description="π_app: Analyse Applications via app_to_app dependencies for reliability",
         component_types=frozenset({"Application"}),
         dependency_types=frozenset({"app_to_app"}),
         focus_metrics=("pagerank", "reverse_pagerank", "in_degree", "betweenness"),
@@ -128,7 +149,7 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     ),
     AnalysisLayer.INFRA: LayerDefinition(
         name="Infrastructure Layer",
-        description="Analyse Nodes via node_to_node dependencies for availability",
+        description="π_infra: Analyse Nodes via node_to_node dependencies for availability",
         component_types=frozenset({"Node"}),
         dependency_types=frozenset({"node_to_node"}),
         focus_metrics=("betweenness", "clustering", "articulation_point", "bridges"),
@@ -136,7 +157,11 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     ),
     AnalysisLayer.MW: LayerDefinition(
         name="Middleware Layer",
-        description="Analyse Brokers via app_to_broker and node_to_broker dependencies for maintainability",
+        description=(
+            "π_mw: Analyse Brokers via app_to_broker and node_to_broker dependencies "
+            "for maintainability. Includes Application and Node vertices in the subgraph "
+            "to preserve incoming edges, but only Broker components appear in results."
+        ),
         component_types=frozenset({"Application", "Broker", "Node"}),
         dependency_types=frozenset({"app_to_broker", "node_to_broker"}),
         focus_metrics=("in_degree", "pagerank", "betweenness", "clustering"),
@@ -145,7 +170,7 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     ),
     AnalysisLayer.SYSTEM: LayerDefinition(
         name="Complete System",
-        description="Analyse all components across all dependency types",
+        description="π_system: Analyse all components across all dependency types",
         component_types=frozenset({"Application", "Broker", "Node", "Topic", "Library"}),
         dependency_types=frozenset({"app_to_app", "app_to_broker", "node_to_node", "node_to_broker"}),
         focus_metrics=("pagerank", "betweenness", "articulation_point", "clustering"),
@@ -165,7 +190,14 @@ LAYERS = LAYER_DEFINITIONS
 class SimulationLayerDefinition:
     """
     Definition of a simulation layer using raw structural relationships.
-
+    
+    Unlike analysis layers which use derived DEPENDS_ON edges (G_analysis),
+    simulation layers operate on the full structural graph (G_structural)
+    with raw relationships like PUBLISHES_TO, RUNS_ON, etc. This enables
+    realistic failure cascade simulation through actual communication paths.
+    
+    See docs/graph-model.md §1.6 for the G_structural vs G_analysis distinction.
+    
     Attributes:
         name:             Human-readable layer name
         description:      What this layer simulates
@@ -245,12 +277,30 @@ SIMULATION_LAYERS: Dict[AnalysisLayer, SimulationLayerDefinition] = {
 
 
 # ---------------------------------------------------------------------------
+# Dependency-to-Layer Mapping
+# ---------------------------------------------------------------------------
+
+#: Maps each DEPENDS_ON subtype to its primary analysis layer.
+#: Used by validators and reporters to associate dependencies with layers.
+DEPENDENCY_TO_LAYER: Dict[str, AnalysisLayer] = {
+    "app_to_app": AnalysisLayer.APP,
+    "node_to_node": AnalysisLayer.INFRA,
+    "app_to_broker": AnalysisLayer.MW,
+    "node_to_broker": AnalysisLayer.MW,
+}
+
+
+# ---------------------------------------------------------------------------
 # Analysis Layer Helpers
 # ---------------------------------------------------------------------------
 
 def get_layer_definition(layer: AnalysisLayer) -> LayerDefinition:
     """Get the analysis definition for a specific layer."""
     return LAYER_DEFINITIONS[layer]
+
+
+# Backward compatibility alias
+get_layer = get_layer_definition
 
 
 def get_all_layers() -> List[AnalysisLayer]:
@@ -280,6 +330,11 @@ def list_layers() -> str:
     return "\n".join(lines)
 
 
+def resolve_layer(value: str) -> AnalysisLayer:
+    """Resolve a string to an AnalysisLayer (supports canonical names and aliases)."""
+    return AnalysisLayer.from_string(value)
+
+
 # ---------------------------------------------------------------------------
 # Simulation Layer Helpers
 # ---------------------------------------------------------------------------
@@ -291,27 +346,4 @@ def get_simulation_layer_definition(layer: AnalysisLayer) -> SimulationLayerDefi
 
 def get_simulation_layers() -> List[AnalysisLayer]:
     """Get all available simulation layers."""
-    return list(AnalysisLayer)
-
-
-# ---------------------------------------------------------------------------
-# Lookup Utilities
-# ---------------------------------------------------------------------------
-
-# Quick lookup: dependency_type → layer
-DEPENDENCY_TO_LAYER: Dict[str, AnalysisLayer] = {
-    "app_to_app": AnalysisLayer.APP,
-    "node_to_node": AnalysisLayer.INFRA,
-    "app_to_broker": AnalysisLayer.MW,
-    "node_to_broker": AnalysisLayer.MW,
-}
-
-
-def get_layer(layer: AnalysisLayer) -> LayerDefinition:
-    """Alias for get_layer_definition for shorter imports."""
-    return LAYER_DEFINITIONS[layer]
-
-
-def resolve_layer(value: str) -> AnalysisLayer:
-    """Alias for AnalysisLayer.from_string for shorter imports."""
-    return AnalysisLayer.from_string(value)
+    return list(SIMULATION_LAYERS.keys())
