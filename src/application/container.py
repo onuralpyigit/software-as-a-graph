@@ -74,10 +74,10 @@ class Container:
             )
         return self._repository
     
-    def analysis_service(self):
+    def analysis_service(self, use_ahp: bool = False):
         """Get analysis use case implementation."""
         from src.application.services.analysis_service import AnalysisService
-        return AnalysisService(repository=self.graph_repository())
+        return AnalysisService(repository=self.graph_repository(), use_ahp=use_ahp)
     
     def simulation_service(self):
         """Get simulation use case implementation."""

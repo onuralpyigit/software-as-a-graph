@@ -50,8 +50,9 @@ class AnalysisService(IAnalysisUseCase):
     - Outbound port: IGraphRepository (injected)
     """
 
-    def __init__(self, repository: IGraphRepository) -> None:
+    def __init__(self, repository: IGraphRepository, use_ahp: bool = False) -> None:
         self._repo = repository
+        self._use_ahp = use_ahp
         self._logger = logging.getLogger(__name__)
 
     # ------------------------------------------------------------------
@@ -82,7 +83,7 @@ class AnalysisService(IAnalysisUseCase):
         structural = StructuralAnalyzer().analyze(graph_data, layer=analysis_layer)
 
         # 3. Quality Analysis — RMAV scoring + Box-Plot classification
-        quality = QualityAnalyzer().analyze(structural)
+        quality = QualityAnalyzer(use_ahp=self._use_ahp).analyze(structural)
 
         # 4. Problem Detection — risks, smells, recommendations
         detector = ProblemDetector()

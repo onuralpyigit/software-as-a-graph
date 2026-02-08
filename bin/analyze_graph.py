@@ -84,6 +84,14 @@ examples:
     neo4j.add_argument("--user", "-u", default="neo4j", help="Neo4j username")
     neo4j.add_argument("--password", "-p", default="password", help="Neo4j password")
 
+    # --- Analysis options ---
+    analysis = parser.add_argument_group("Analysis options")
+    analysis.add_argument(
+        "--use-ahp",
+        action="store_true",
+        help="Use AHP-derived weights instead of default fixed weights",
+    )
+
     # --- Output ---
     output = parser.add_argument_group("Output")
     output.add_argument("--output", "-o", metavar="FILE", help="Export results to JSON file")
@@ -109,7 +117,7 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
     container = Container(uri=args.uri, user=args.user, password=args.password)
 
     try:
-        analyzer = container.analysis_service()
+        analyzer = container.analysis_service(use_ahp=args.use_ahp)
 
         if args.all:
             return analyzer.analyze_all_layers()

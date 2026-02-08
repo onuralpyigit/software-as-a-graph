@@ -7,11 +7,17 @@ weight determination compared to arbitrary assignment.
 
 The module uses the Geometric Mean method (approximate eigenvector) to calculate
 weights from pairwise comparison matrices.
+
+Changes (v2):
+    - Renamed m_degree → m_out_degree (Maintainability uses efferent coupling)
+    - Renamed v_in_degree → v_out_degree (Vulnerability uses attack surface)
+    - Updated AHP matrix comments to reflect new metric assignments
 """
 
 import math
 from typing import List, Dict, Any
 from dataclasses import dataclass
+
 
 @dataclass
 class QualityWeights:
@@ -19,6 +25,12 @@ class QualityWeights:
     Configurable weights for quality score computation.
     
     All weights should sum to 1.0 within each dimension.
+    
+    Design principles (v2):
+        - Metric orthogonality: No raw metric appears in more than two dimensions.
+          In-Degree is exclusive to Reliability. Out-Degree is shared between
+          Maintainability (efferent coupling) and Vulnerability (attack surface).
+        - Continuous scoring: AP uses continuous fragmentation score, not binary.
     
     Note on Overall Weights (q_* parameters):
         Default equal weights (0.25 each) represent a balanced approach where
@@ -34,20 +46,20 @@ class QualityWeights:
     r_reverse_pagerank: float = 0.35
     r_in_degree: float = 0.25
     
-    # Maintainability weights (coupling complexity)
+    # Maintainability weights (efferent coupling complexity)
     m_betweenness: float = 0.4
-    m_degree: float = 0.35
-    m_clustering: float = 0.25  # Note: (1 - clustering) is used
+    m_out_degree: float = 0.35       # Efferent coupling — aligns with Martin's Instability
+    m_clustering: float = 0.25       # Note: (1 - clustering) is used in formula
     
     # Availability weights (SPOF risk)
-    a_articulation: float = 0.5
+    a_articulation: float = 0.5      # Now uses continuous AP_c score
     a_bridge_ratio: float = 0.3
-    a_importance: float = 0.2  # Combined pagerank
+    a_importance: float = 0.2        # Combined (PR + RPR) / 2
 
     # Vulnerability weights (exposure risk)
     v_eigenvector: float = 0.4
     v_closeness: float = 0.3
-    v_in_degree: float = 0.3
+    v_out_degree: float = 0.3        # Attack surface — outbound traversal paths
     
     # Overall quality weights (sum should be 1.0)
     q_reliability: float = 0.25
@@ -59,7 +71,7 @@ class QualityWeights:
     e_betweenness: float = 0.35      # Path importance
     e_bridge: float = 0.30           # SPOF risk
     e_endpoint: float = 0.20         # Connected node importance
-    e_vulnerability: float = 0.15   # Endpoint vulnerability exposure
+    e_vulnerability: float = 0.15    # Endpoint vulnerability exposure
 
 
 # Scale of Relative Importance (Saaty's Scale)
@@ -75,21 +87,28 @@ class AHPMatrices:
     """
     Stores pairwise comparison matrices for all quality dimensions.
     Default values reflect a balanced/standard architectural perspective.
+    
+    Metric assignments (v2):
+        Reliability:      PageRank (PR), Reverse PageRank (RPR), In-Degree (ID)
+        Maintainability:  Betweenness (BT), Out-Degree (OD), Clustering (CC)
+        Availability:     Articulation Score (AP_c), Bridge Ratio (BR), Importance (IM)
+        Vulnerability:    Eigenvector (EV), Closeness (CL), Out-Degree (OD)
     """
     
     # Reliability: PageRank (PR), Reverse PageRank (RPR), In-Degree (ID)
     # PR is often slightly more important for global importance
     criteria_reliability: List[List[float]] = None
     
-    # Maintainability: Betweenness (BT), Degree (DG), Clustering (CL)
-    # Betweenness is critical for coupling
+    # Maintainability: Betweenness (BT), Out-Degree (OD), Clustering (CC)
+    # Betweenness is critical for coupling; Out-Degree = efferent coupling
     criteria_maintainability: List[List[float]] = None
     
-    # Availability: Articulation (AP), Bridge (BR), Importance (IM)
-    # Articulation Points are critical SPOFs (Extreme importance)
+    # Availability: Articulation Score (AP_c), Bridge Ratio (BR), Importance (IM)
+    # AP_c is now continuous but still the dominant SPOF indicator
     criteria_availability: List[List[float]] = None
     
-    # Vulnerability: Eigenvector (EV), Closeness (CS), In-Degree (ID)
+    # Vulnerability: Eigenvector (EV), Closeness (CL), Out-Degree (OD)
+    # Out-Degree = attack surface (outbound traversal paths)
     criteria_vulnerability: List[List[float]] = None
     
     # Overall Quality: Reliability (R), Maintainability (M), Availability (A), Vulnerability (V)
@@ -107,26 +126,26 @@ class AHPMatrices:
             
         if self.criteria_maintainability is None:
             self.criteria_maintainability = [
-                # BT   DG   CL
+                # BT   OD   CC
                 [1.0, 2.0, 3.0],  # BT (High coupling impact)
-                [0.5, 1.0, 2.0],  # DG
-                [0.33, 0.5, 1.0], # CL
+                [0.5, 1.0, 2.0],  # OD (Efferent coupling)
+                [0.33, 0.5, 1.0], # CC (Modularity indicator)
             ]
             
         if self.criteria_availability is None:
             self.criteria_availability = [
-                # AP   BR   IM
-                [1.0, 3.0, 5.0],  # AP (Critical SPOF)
+                # AP_c  BR   IM
+                [1.0, 3.0, 5.0],  # AP_c (Critical SPOF, now continuous)
                 [0.33, 1.0, 2.0], # BR
                 [0.2, 0.5, 1.0],  # IM
             ]
 
         if self.criteria_vulnerability is None:
             self.criteria_vulnerability = [
-                # EV   CS   ID
-                [1.0, 2.0, 2.0],  # EV
-                [0.5, 1.0, 1.0],  # CS
-                [0.5, 1.0, 1.0],  # ID
+                # EV   CL   OD
+                [1.0, 2.0, 2.0],  # EV (Strategic importance)
+                [0.5, 1.0, 1.0],  # CL (Propagation speed)
+                [0.5, 1.0, 1.0],  # OD (Attack surface)
             ]
             
         if self.criteria_overall is None:
@@ -137,6 +156,7 @@ class AHPMatrices:
                 [1.0, 1.0, 1.0, 1.0],
                 [1.0, 1.0, 1.0, 1.0],
             ]
+
 
 class AHPProcessor:
     """Calculates weights from pairwise comparison matrices."""
@@ -196,19 +216,19 @@ class AHPProcessor:
     def compute_weights(self) -> QualityWeights:
         """Process all matrices and return a populated QualityWeights object."""
         
-        # 1. Reliability Weights
+        # 1. Reliability Weights (PR, RPR, ID)
         w_rel = self._calculate_priority_vector(self.matrices.criteria_reliability)
         
-        # 2. Maintainability Weights
+        # 2. Maintainability Weights (BT, OD, CC)
         w_main = self._calculate_priority_vector(self.matrices.criteria_maintainability)
         
-        # 3. Availability Weights
+        # 3. Availability Weights (AP_c, BR, IM)
         w_avail = self._calculate_priority_vector(self.matrices.criteria_availability)
         
-        # 4. Vulnerability Weights
+        # 4. Vulnerability Weights (EV, CL, OD)
         w_vuln = self._calculate_priority_vector(self.matrices.criteria_vulnerability)
         
-        # 5. Overall Weights
+        # 5. Overall Weights (R, M, A, V)
         w_over = self._calculate_priority_vector(self.matrices.criteria_overall)
         
         return QualityWeights(
@@ -219,7 +239,7 @@ class AHPProcessor:
             
             # Maintainability
             m_betweenness=w_main[0],
-            m_degree=w_main[1],
+            m_out_degree=w_main[1],
             m_clustering=w_main[2],
             
             # Availability
@@ -230,7 +250,7 @@ class AHPProcessor:
             # Vulnerability
             v_eigenvector=w_vuln[0],
             v_closeness=w_vuln[1],
-            v_in_degree=w_vuln[2],
+            v_out_degree=w_vuln[2],
             
             # Overall
             q_reliability=w_over[0],
