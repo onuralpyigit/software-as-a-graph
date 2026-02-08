@@ -135,6 +135,7 @@ class ValidationService(IValidationUseCase):
             precision=validation_res.overall.classification.precision,
             recall=validation_res.overall.classification.recall,
             top_5_overlap=validation_res.overall.ranking.top_5_overlap,
+            top_10_overlap=validation_res.overall.ranking.top_10_overlap,
             rmse=validation_res.overall.error.rmse,
             
             passed=validation_res.passed,

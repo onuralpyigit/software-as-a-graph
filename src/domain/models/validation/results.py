@@ -151,6 +151,7 @@ class LayerValidationResult:
     precision: float = 0.0
     recall: float = 0.0
     top_5_overlap: float = 0.0
+    top_10_overlap: float = 0.0
     rmse: float = 0.0
 
     passed: bool = False
@@ -175,6 +176,7 @@ class LayerValidationResult:
                 "precision": round(self.precision, 4),
                 "recall": round(self.recall, 4),
                 "top_5_overlap": round(self.top_5_overlap, 4),
+                "top_10_overlap": round(self.top_10_overlap, 4),
                 "rmse": round(self.rmse, 4),
             },
             "validation_result": (

@@ -38,6 +38,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <script src="https://unpkg.com/cose-base@2.2.0/cose-base.js"></script>
     <script src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         :root {{
             --primary: #2c3e50;
@@ -320,21 +321,29 @@ class DashboardGenerator:
         html.append('</div>')
         self.sections.append(''.join(html))
     
-    def add_charts(self, charts: List[ChartOutput]) -> None:
-        """Add chart images."""
+    def add_charts(self, charts: List[Any]) -> None:
+        """Add chart images or Chart.js HTML snippets."""
         valid_charts = [c for c in charts if c is not None]
         if not valid_charts:
             return
         html = ['<div class="chart-grid">']
         for chart in valid_charts:
-            html.append(
-                f'<div class="chart-card">'
-                f'<h4>{chart.title}</h4>'
-                f'<img src="data:image/png;base64,{chart.png_base64}" alt="{chart.alt_text or chart.title}">'
-            )
-            if chart.description:
-                html.append(f'<div class="description">{chart.description}</div>')
-            html.append('</div>')
+            # Handle HTML string output (from Chart.js-based generator)
+            if isinstance(chart, str):
+                html.append(f'<div class="chart-card">{chart}</div>')
+            # Handle ChartOutput objects (from PNG-based generator)
+            elif hasattr(chart, 'png_base64'):
+                html.append(
+                    f'<div class="chart-card">'
+                    f'<h4>{chart.title}</h4>'
+                    f'<img src="data:image/png;base64,{chart.png_base64}" alt="{chart.alt_text or chart.title}">'
+                )
+                if chart.description:
+                    html.append(f'<div class="description">{chart.description}</div>')
+                html.append('</div>')
+            else:
+                # Unknown chart type, skip
+                continue
         html.append('</div>')
         self.sections.append(''.join(html))
     
@@ -462,32 +471,19 @@ class DashboardGenerator:
             f'  <div class="cytoscape-controls">',
             f'    <button onclick="cy{graph_id.replace("-", "_")}.fit()" title="Fit to view">🔍 Fit</button>',
             f'    <button onclick="cy{graph_id.replace("-", "_")}.reset()" title="Reset view">↺ Reset</button>',
-            f'    <button onclick="toggleLayers(\'{graph_id}\')" title="Toggle layer groups">📦 Layers</button>',
-            f'    <button onclick="toggleEdgeType(\'{graph_id}\', \'depends\')" title="Toggle DEPENDS_ON edges" class="active" id="{graph_id}-depends">🔗 Depends</button>',
-            f'    <button onclick="toggleEdgeType(\'{graph_id}\', \'raw\')" title="Toggle raw edges (PUB/SUB/USES)" class="active" id="{graph_id}-raw">📡 Raw</button>',
             f'    <button onclick="exportCytoscapeGraph(\'{graph_id}\')" title="Export as PNG">📷 Export</button>',
             f'  </div>',
             f'  <div id="{graph_id}" class="cytoscape-container"></div>',
-            f'  <div class="cytoscape-legend">',
-            f'    <h5>Component Types</h5>',
-            f'    <div class="legend-item"><span class="legend-shape ellipse"></span> Application</div>',
-            f'    <div class="legend-item"><span class="legend-shape diamond"></span> Broker</div>',
-            f'    <div class="legend-item"><span class="legend-shape rectangle"></span> Node</div>',
-            f'    <div class="legend-item"><span class="legend-shape hexagon"></span> Topic</div>',
-            f'    <div class="legend-item"><span class="legend-shape octagon"></span> Library</div>',
-            f'    <h5 style="margin-top: 10px;">Criticality</h5>',
-            f'    <div class="legend-item"><span class="legend-color" style="background:#e74c3c"></span> Critical</div>',
-            f'    <div class="legend-item"><span class="legend-color" style="background:#e67e22"></span> High</div>',
-            f'    <div class="legend-item"><span class="legend-color" style="background:#f1c40f"></span> Medium</div>',
-            f'    <div class="legend-item"><span class="legend-color" style="background:#2ecc71"></span> Low</div>',
-            f'    <div class="legend-item"><span class="legend-color" style="background:#95a5a6"></span> Minimal</div>',
-            f'    <h5 style="margin-top: 10px;">Relationships</h5>',
-            f'    <div class="legend-item"><span style="display:inline-block;width:20px;height:2px;background:#3498db"></span> DEPENDS_ON</div>',
-            f'    <div class="legend-item"><span style="display:inline-block;width:20px;height:2px;background:#e74c3c"></span> PUBLISHES_TO</div>',
-            f'    <div class="legend-item"><span style="display:inline-block;width:20px;height:2px;background:#27ae60"></span> SUBSCRIBES_TO</div>',
-            f'    <div class="legend-item"><span style="display:inline-block;width:20px;height:2px;background:#8e44ad"></span> USES</div>',
-            f'    <div class="legend-item"><span style="display:inline-block;width:20px;height:2px;background:#f39c12"></span> RUNS_ON</div>',
-            f'    <div class="legend-item"><span style="display:inline-block;width:20px;height:2px;background:#1abc9c"></span> ROUTES</div>',
+            f'  <div class="cytoscape-legend" style="font-size:0.75rem;padding:10px;">',
+            f'    <div style="display:flex;gap:15px;flex-wrap:wrap;">',
+            f'      <span>🔵 App</span><span>🟣 Broker</span><span>🟢 Node</span>',
+            f'    </div>',
+            f'    <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">',
+            f'      <span style="color:#e74c3c">● Critical</span>',
+            f'      <span style="color:#e67e22">● High</span>',
+            f'      <span style="color:#f1c40f">● Medium</span>',
+            f'      <span style="color:#2ecc71">● Low</span>',
+            f'    </div>',
             f'  </div>',
             f'</div>',
         ]
@@ -791,9 +787,9 @@ class DashboardGenerator:
             
             let selectors = [];
             if (edgeType === 'depends') {{
-                selectors = ['.edge-app-to-app', '.edge-node-to-node', '.edge-app-to-broker', '.edge-node-to-broker', '.edge-default'];
+                selectors = ['.edge-app-to-app', '.edge-node-to-node', '.edge-default'];
             }} else if (edgeType === 'raw') {{
-                selectors = ['.edge-publishes-to', '.edge-subscribes-to', '.edge-uses', '.edge-runs-on', '.edge-routes', '.edge-connects-to'];
+                selectors = ['.edge-app-to-broker', '.edge-node-to-broker'];
             }}
             
             selectors.forEach(function(sel) {{

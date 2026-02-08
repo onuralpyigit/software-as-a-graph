@@ -83,9 +83,10 @@ class TestChartGeneration:
         data = {"A": 10, "B": 20}
         
         chart = charts.pie_chart(data, "Test Pie")
-        if chart:  # Only if matplotlib is installed
-            assert chart.title == "Test Pie"
-            assert len(chart.png_base64) > 0
+        if chart:  # Returns HTML string
+            assert isinstance(chart, str)
+            assert "Test Pie" in chart
+            assert "<canvas" in chart
     
     def test_impact_ranking_chart(self):
         """Impact ranking chart should generate valid output."""
@@ -93,8 +94,10 @@ class TestChartGeneration:
         impact = [("Node1", 0.5, "HIGH"), ("Node2", 0.3, "LOW")]
         
         chart = charts.impact_ranking(impact, "Test Impact")
-        if chart:
-            assert chart.title == "Test Impact"
+        if chart:  # Returns HTML string
+            assert isinstance(chart, str)
+            assert "Test Impact" in chart
+            assert "<canvas" in chart
 
 
 class TestDashboardGeneration:
