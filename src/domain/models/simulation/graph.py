@@ -188,9 +188,17 @@ class SimulationGraph:
         
         return publishes, subscribes
     
-    def get_pub_sub_paths(self, active_only: bool = True) -> List[Tuple[str, str, str]]:
+    def get_pub_sub_paths(self, active_only: bool = True):  # -> List[Tuple[str, str, str]]
         """
         Get all publisher -> topic -> subscriber paths.
+        
+        When active_only=True, a path is counted only when ALL three conditions hold:
+        1. The publisher is active
+        2. The subscriber is active
+        3. At least one broker routing the topic is active
+        
+        This ensures that broker failures correctly reduce the remaining path count,
+        which directly affects the reachability_loss dimension of I(v).
         
         Returns:
             List of (publisher, topic, subscriber) tuples
@@ -204,12 +212,73 @@ class SimulationGraph:
             if active_only:
                 publishers = [p for p in publishers if self.is_active(p)]
                 subscribers = [s for s in subscribers if self.is_active(s)]
+                
+                # C6 fix: Skip topics with no active routing broker.
+                # Without a broker, messages cannot be delivered even if both
+                # publisher and subscriber are alive.
+                brokers = self.get_routing_brokers(topic_id)
+                if not brokers:
+                    continue
             
             for pub in publishers:
                 for sub in subscribers:
                     paths.append((pub, topic_id, sub))
         
         return paths
+
+    def count_active_connected_components(self):  # -> int
+        """
+        Count weakly-connected components in the active subgraph.
+        
+        Builds a temporary undirected graph from active components and their
+        active relationships, then counts connected components. Used by
+        FailureSimulator to compute true graph fragmentation rather than
+        simple component loss ratio.
+        
+        Returns:
+            Number of weakly-connected components among active components.
+            Returns 0 if no active components exist.
+        """
+        import networkx as nx
+        
+        # Build undirected graph of active components
+        active_graph = nx.Graph()
+        
+        # Add all active non-Topic components as nodes
+        for comp_id, comp in self.components.items():
+            if comp.state == ComponentState.ACTIVE and comp.type in ("Application", "Broker", "Node"):
+                active_graph.add_node(comp_id)
+        
+        if len(active_graph) == 0:
+            return 0
+        
+        # Add edges for active relationships
+        # RUNS_ON: app/broker <-> node
+        for comp_id, node_id in self._hosted_on.items():
+            if comp_id in active_graph and node_id in active_graph:
+                active_graph.add_edge(comp_id, node_id)
+        
+        # CONNECTS_TO: node <-> node
+        for node_id, connected in self._connections.items():
+            for neighbor_id in connected:
+                if node_id in active_graph and neighbor_id in active_graph:
+                    active_graph.add_edge(node_id, neighbor_id)
+        
+        # Pub/Sub paths through topics (app <-> app via shared topic)
+        for topic_id in self.topics:
+            active_pubs = [p for p in self._publishers.get(topic_id, []) if p in active_graph]
+            active_subs = [s for s in self._subscribers.get(topic_id, []) if s in active_graph]
+            active_brokers = [b for b in self._routing.get(topic_id, []) if b in active_graph]
+            
+            # Connect publishers and subscribers through brokers for this topic
+            for pub in active_pubs:
+                for broker in active_brokers:
+                    active_graph.add_edge(pub, broker)
+            for sub in active_subs:
+                for broker in active_brokers:
+                    active_graph.add_edge(sub, broker)
+        
+        return nx.number_connected_components(active_graph)
     
     def get_message_path(self, publisher: str, topic_id: str) -> List[Tuple[str, str]]:
         """
