@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Tuple
 
-from .metrics import ValidationTargets, CorrelationMetrics, ErrorMetrics, ClassificationMetrics, RankingMetrics
+from .metrics import (
+    ValidationTargets, CorrelationMetrics, ErrorMetrics,
+    ClassificationMetrics, RankingMetrics,
+)
+
 
 @dataclass
 class ComponentComparison:
@@ -18,7 +22,7 @@ class ComponentComparison:
     predicted_critical: bool
     actual_critical: bool
     classification: str  # TP, FP, TN, FN
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
@@ -31,23 +35,24 @@ class ComponentComparison:
             "classification": self.classification,
         }
 
+
 @dataclass
 class ValidationGroupResult:
     """Validation result for a specific group (overall, by type, by layer)."""
     group_name: str
     sample_size: int
-    
+
     correlation: CorrelationMetrics
     error: ErrorMetrics
     classification: ClassificationMetrics
     ranking: RankingMetrics
-    
+
     passed: bool
     targets: ValidationTargets = field(default_factory=ValidationTargets)
-    
+
     # Component details
     components: List[ComponentComparison] = field(default_factory=list)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "group_name": self.group_name,
@@ -61,13 +66,27 @@ class ValidationGroupResult:
             },
             "summary": {
                 "spearman": round(self.correlation.spearman, 3),
+                "spearman_p": round(self.correlation.spearman_p, 6),
+                "spearman_ci": [
+                    round(self.correlation.spearman_ci_lower, 3),
+                    round(self.correlation.spearman_ci_upper, 3),
+                ],
+                "kendall": round(self.correlation.kendall, 3),
                 "f1": round(self.classification.f1_score, 3),
+                "f1_ci": [
+                    round(self.classification.f1_ci_lower, 3),
+                    round(self.classification.f1_ci_upper, 3),
+                ],
                 "precision": round(self.classification.precision, 3),
                 "recall": round(self.classification.recall, 3),
+                "cohens_kappa": round(self.classification.cohens_kappa, 3),
                 "rmse": round(self.error.rmse, 3),
+                "nrmse": round(self.error.nrmse, 3),
                 "top5_overlap": round(self.ranking.top_5_overlap, 3),
+                "ndcg_5": round(self.ranking.ndcg_5, 3),
             },
         }
+
 
 @dataclass
 class ValidationResult:
@@ -76,26 +95,26 @@ class ValidationResult:
     layer: str
     context: str
     targets: ValidationTargets
-    
+
     # Overall result
     overall: ValidationGroupResult
-    
+
     # Breakdown by component type
     by_type: Dict[str, ValidationGroupResult] = field(default_factory=dict)
-    
+
     # Data alignment info
     predicted_count: int = 0
     actual_count: int = 0
     matched_count: int = 0
-    
+
     # Warnings
     warnings: List[str] = field(default_factory=list)
-    
+
     @property
     def passed(self) -> bool:
         """Check if overall validation passed."""
         return self.overall.passed
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "timestamp": self.timestamp,
@@ -113,18 +132,19 @@ class ValidationResult:
             "warnings": self.warnings,
         }
 
+
 @dataclass
 class LayerValidationResult:
     """Higher-level result for CLI/Service consumption."""
     layer: str
     layer_name: str
-    
+
     predicted_components: int = 0
     simulated_components: int = 0
     matched_components: int = 0
-    
+
     validation_result: Optional[ValidationResult] = None
-    
+
     # Summary metrics shortcuts
     spearman: float = 0.0
     f1_score: float = 0.0
@@ -132,13 +152,13 @@ class LayerValidationResult:
     recall: float = 0.0
     top_5_overlap: float = 0.0
     rmse: float = 0.0
-    
+
     passed: bool = False
-    
+
     comparisons: List[ComponentComparison] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     component_names: Dict[str, str] = field(default_factory=dict)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "layer": self.layer,
@@ -157,9 +177,12 @@ class LayerValidationResult:
                 "top_5_overlap": round(self.top_5_overlap, 4),
                 "rmse": round(self.rmse, 4),
             },
-            "validation_result": self.validation_result.to_dict() if self.validation_result else None,
+            "validation_result": (
+                self.validation_result.to_dict() if self.validation_result else None
+            ),
             "warnings": self.warnings,
         }
+
 
 @dataclass
 class PipelineResult:
@@ -169,19 +192,21 @@ class PipelineResult:
     total_components: int = 0
     layers_passed: int = 0
     all_passed: bool = False
-    targets: ValidationTargets = field(default_factory=ValidationTargets)
-    cross_layer_insights: List[str] = field(default_factory=list)
-    
+    targets: Optional[ValidationTargets] = None
+    warnings: List[str] = field(default_factory=list)
+
+    @property
+    def overall_passed(self) -> bool:
+        """Alias for backwards compatibility."""
+        return self.all_passed
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "timestamp": self.timestamp,
-            "summary": {
-                "total_components": self.total_components,
-                "layers_validated": len(self.layers),
-                "layers_passed": self.layers_passed,
-                "all_passed": self.all_passed,
-            },
+            "all_passed": self.all_passed,
+            "total_components": self.total_components,
+            "layers_passed": self.layers_passed,
+            "targets": self.targets.to_dict() if self.targets else None,
             "layers": {k: v.to_dict() for k, v in self.layers.items()},
-            "targets": self.targets.to_dict(),
-            "cross_layer_insights": self.cross_layer_insights,
+            "warnings": self.warnings,
         }

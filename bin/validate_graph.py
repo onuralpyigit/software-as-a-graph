@@ -12,6 +12,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import argparse
 import json
 import logging
+import webbrowser
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -34,16 +35,19 @@ def main() -> int:
     neo4j_group.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
     neo4j_group.add_argument("--user", "-u", default="neo4j", help="Neo4j username")
     neo4j_group.add_argument("--password", "-p", default="password", help="Neo4j password")
-    
     # Validation targets
     targets_group = parser.add_argument_group("Validation Targets")
     targets_group.add_argument("--spearman", type=float, default=0.70, help="Target Spearman ρ")
     targets_group.add_argument("--f1", type=float, default=0.80, help="Target F1 score")
     targets_group.add_argument("--precision", type=float, default=0.80, help="Target precision")
     targets_group.add_argument("--recall", type=float, default=0.80, help="Target recall")
+    targets_group.add_argument("--top5", type=float, default=0.40, help="Target top-5 overlap")
     
     parser.add_argument("--output", "-o", metavar="FILE", help="Export results to JSON")
     parser.add_argument("--json", action="store_true", help="Output JSON to stdout")
+    parser.add_argument("--visualize", action="store_true", help="Generate visualization dashboard")
+    parser.add_argument("--viz-output", default="validation_dashboard.html", help="Visualization output file")
+    parser.add_argument("--open", "-O", action="store_true", help="Open visualization in browser")
     parser.add_argument("--quiet", action="store_true", help="Minimal output")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     
@@ -52,7 +56,7 @@ def main() -> int:
     log_level = logging.WARNING if args.quiet else (logging.DEBUG if args.verbose else logging.INFO)
     logging.basicConfig(level=log_level, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
     
-    targets = ValidationTargets(spearman=args.spearman, f1_score=args.f1, precision=args.precision, recall=args.recall)
+    targets = ValidationTargets(spearman=args.spearman, f1_score=args.f1, precision=args.precision, recall=args.recall, top_5_overlap=args.top5)
     
     container = Container(uri=args.uri, user=args.user, password=args.password)
     display = container.display_service()
@@ -78,6 +82,7 @@ def main() -> int:
                 print(f"  F1 Score:  {result.overall.classification.f1_score:.4f}")
             
             if args.output:
+                Path(args.output).parent.mkdir(parents=True, exist_ok=True)
                 with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
             
             return 0 if result.passed else 1
@@ -96,11 +101,30 @@ def main() -> int:
             display.display_pipeline_validation_result(result)
         
         if args.output:
+            Path(args.output).parent.mkdir(parents=True, exist_ok=True)
             with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
             if not args.quiet:
                 print(f"\n{display.colored(f'Results saved to: {args.output}', display.Colors.GREEN)}")
         
         print(f"\n{display.colored(f'Validation passed: {result.all_passed}', display.Colors.GREEN)}")
+        
+        # Generate visualization if requested
+        if args.visualize:
+            try:
+                viz_service = container.visualization_service()
+                viz_path = viz_service.generate_dashboard(
+                    output_file=args.viz_output,
+                    layers=layers_to_validate,
+                    include_validation=True
+                )
+                import os
+                abs_path = os.path.abspath(viz_path)
+                print(f"\n{display.colored(f'Dashboard generated: {abs_path}', display.Colors.GREEN)}")
+                if args.open:
+                    webbrowser.open(f"file://{abs_path}")
+            except Exception as viz_err:
+                print(display.colored(f"\nVisualization error: {viz_err}", display.Colors.YELLOW), file=sys.stderr)
+        
         return 0
 
     except Exception as e:
