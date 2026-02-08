@@ -106,6 +106,8 @@ def build_parser() -> argparse.ArgumentParser:
     fl_target.add_argument("--exhaustive", "-x", action="store_true", help="Fail every component in layer")
     fl.add_argument("--layer", "-l", choices=LAYER_HELP, default="system", help="Simulation layer")
     fl.add_argument("--cascade-prob", type=float, default=1.0, help="Cascade probability (0-1)")
+    fl.add_argument("--monte-carlo", action="store_true", help="Run Monte Carlo stochastic simulation")
+    fl.add_argument("--trials", type=int, default=100, help="Number of Monte Carlo trials (default: 100)")
 
     # report
     rp = subs.add_parser("report", help="Generate comprehensive multi-layer report", parents=[common_parser])
@@ -162,6 +164,17 @@ def handle_failure(args, sim, display) -> dict:
         if not args.quiet:
             display.display_exhaustive_results(results)
         return [r.to_dict() for r in results]
+    elif args.monte_carlo:
+        # Monte Carlo stochastic simulation
+        result = sim.run_failure_simulation_monte_carlo(
+            target_id=args.target,
+            layer=args.layer,
+            cascade_probability=args.cascade_prob,
+            n_trials=args.trials,
+        )
+        if not args.quiet:
+            _display_monte_carlo_result(display, result, args.layer)
+        return result.to_dict()
     else:
         result = sim.run_failure_simulation(
             target_id=args.target,
@@ -266,6 +279,29 @@ def _display_component_classification(display, results, layer, top_n):
             f"{c.combined_impact:<10.4f} {c.event_impact:<10.4f} "
             f"{c.failure_impact:<10.4f} {display.colored(c.level, color)}"
         )
+
+
+def _display_monte_carlo_result(display, result, layer):
+    """Display Monte Carlo simulation results."""
+    display.print_header(f"Monte Carlo Simulation: {result.target_id}")
+    
+    print(f"\n  Layer:               {layer}")
+    print(f"  Target:              {result.target_id}")
+    print(f"  Trials:              {result.n_trials}")
+    print(f"  Mean Impact:         {display.colored(f'{result.mean_impact:.4f}', display.Colors.CYAN)}")
+    print(f"  Std Deviation:       {result.std_impact:.4f}")
+    print(f"  95% CI:              [{result.ci_95[0]:.4f}, {result.ci_95[1]:.4f}]")
+    
+    # Impact interpretation
+    if result.mean_impact >= 0.7:
+        level, color = "CRITICAL", display.Colors.RED
+    elif result.mean_impact >= 0.5:
+        level, color = "HIGH", display.Colors.YELLOW
+    elif result.mean_impact >= 0.3:
+        level, color = "MEDIUM", display.Colors.CYAN
+    else:
+        level, color = "LOW", display.Colors.GREEN
+    print(f"  Risk Level:          {display.colored(level, color)}")
 
 
 def _display_edge_classification(display, results, layer, top_n):

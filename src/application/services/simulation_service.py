@@ -41,6 +41,7 @@ from src.domain.services.failure_simulator import (
     FailureSimulator,
     FailureScenario,
     FailureResult,
+    MonteCarloResult,
 )
 
 try:
@@ -202,6 +203,39 @@ class SimulationService(ISimulationUseCase):
         )
         simulator = FailureSimulator(self.graph)
         return simulator.simulate_exhaustive(scenario, layer=layer)
+
+    def run_failure_simulation_monte_carlo(
+        self,
+        target_id: str,
+        layer: str = "system",
+        cascade_probability: float = DEFAULT_CASCADE_PROB,
+        n_trials: int = 100,
+        **kwargs,
+    ) -> MonteCarloResult:
+        """
+        Run Monte Carlo stochastic failure simulation.
+        
+        Runs N trials with probabilistic cascade propagation to compute
+        confidence intervals on impact scores.
+        
+        Args:
+            target_id: Component to fail
+            layer: Simulation layer
+            cascade_probability: Probability of cascade propagation (0-1)
+            n_trials: Number of Monte Carlo trials
+            
+        Returns:
+            MonteCarloResult with mean, std, and 95% CI
+        """
+        scenario = FailureScenario(
+            target_id=target_id,
+            description=f"Monte Carlo simulation: {target_id}",
+            layer=layer,
+            cascade_probability=cascade_probability,
+            **kwargs,
+        )
+        simulator = FailureSimulator(self.graph)
+        return simulator.simulate_monte_carlo(scenario, n_trials=n_trials)
 
     # =========================================================================
     # Layer Analysis
