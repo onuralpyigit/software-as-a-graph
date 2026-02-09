@@ -1,18 +1,24 @@
 """
 Benchmark Package
 
-Provides tools for benchmarking the Software-as-a-Graph methodology
+Tools for benchmarking the Software-as-a-Graph methodology
 across different scales and system configurations.
 """
 
-from .models import BenchmarkRecord, BenchmarkSummary, BenchmarkScenario
-from .runner import BenchmarkRunner
+from .models import (
+    AggregateResult,
+    BenchmarkRecord,
+    BenchmarkScenario,
+    BenchmarkSummary,
+)
 from .reporting import ReportGenerator
+from .runner import BenchmarkRunner
 
 __all__ = [
+    "AggregateResult",
     "BenchmarkRecord",
-    "BenchmarkSummary",
     "BenchmarkScenario",
+    "BenchmarkSummary",
     "BenchmarkRunner",
     "ReportGenerator",
 ]
