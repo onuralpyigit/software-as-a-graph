@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 import logging
+import os
 from datetime import datetime
 
 # Core imports
@@ -54,12 +55,42 @@ app.add_middleware(
 # Pydantic Models
 # ============================================================================
 
+# Default Neo4j connection settings — read from environment for Docker,
+# fallback to localhost for local development.
+_DEFAULT_NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+_DEFAULT_NEO4J_USER = os.environ.get("NEO4J_USERNAME", "neo4j")
+_DEFAULT_NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "")
+
+
+def _resolve_neo4j_uri(client_uri: str) -> str:
+    """Rewrite localhost/127.0.0.1 URIs to the Docker-internal Neo4j hostname.
+
+    When the browser sends bolt://localhost:7687, this is unreachable from
+    inside the API container.  If NEO4J_URI is set (Docker), replace the
+    host portion so the connection goes to the correct container.
+    """
+    env_uri = os.environ.get("NEO4J_URI")
+    if not env_uri:
+        return client_uri  # Not running in Docker — use as-is
+
+    import re
+    # Match bolt:// or neo4j:// with localhost or 127.0.0.1
+    if re.match(r"^(bolt|neo4j)(\+s?s?)?://(localhost|127\.0\.0\.1)(:\d+)?$", client_uri):
+        return env_uri
+    return client_uri
+
+
 class Neo4jCredentials(BaseModel):
-    uri: str = Field(default="bolt://localhost:7687", description="Neo4j connection URI")
-    user: str = Field(default="neo4j", description="Neo4j username")
-    password: str = Field(..., description="Neo4j password")
+    uri: str = Field(default=_DEFAULT_NEO4J_URI, description="Neo4j connection URI")
+    user: str = Field(default=_DEFAULT_NEO4J_USER, description="Neo4j username")
+    password: str = Field(default=_DEFAULT_NEO4J_PASSWORD, description="Neo4j password")
     database: str = Field(default="neo4j", description="Neo4j database name")
     node_type: Optional[str] = Field(default=None, description="Filter by specific node type")
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Rewrite localhost URIs when running inside Docker
+        object.__setattr__(self, 'uri', _resolve_neo4j_uri(self.uri))
 
 
 class GraphRequestWithCredentials(BaseModel):
@@ -681,9 +712,9 @@ async def export_neo4j_data(credentials: Neo4jCredentials):
 async def search_nodes(
     query: str = Query(..., description="Search query for node ID or label"),
     limit: int = Query(default=20, description="Maximum number of results"),
-    uri: str = Query(default="bolt://localhost:7687", description="Neo4j URI"),
-    user: str = Query(default="neo4j", description="Neo4j username"),
-    password: str = Query(..., description="Neo4j password"),
+    uri: str = Query(default=_DEFAULT_NEO4J_URI, description="Neo4j URI"),
+    user: str = Query(default=_DEFAULT_NEO4J_USER, description="Neo4j username"),
+    password: str = Query(default=_DEFAULT_NEO4J_PASSWORD, description="Neo4j password"),
     database: str = Query(default="neo4j", description="Neo4j database")
 ):
     """
