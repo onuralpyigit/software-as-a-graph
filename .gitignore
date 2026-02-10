@@ -137,3 +137,9 @@ test_outputs/
 
 # Ignore output directories
 output/
+
+# Genieus (Next.js frontend)
+genieus/node_modules/
+genieus/.next/
+genieus/out/
+genieus/.env*

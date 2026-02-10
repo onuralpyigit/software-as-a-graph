@@ -40,3 +40,6 @@ PyYAML==6.0.2
 pyvis==0.3.2
 lxml==6.0.2
 pytest==8.3.4
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2

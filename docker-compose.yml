@@ -19,6 +19,38 @@ services:
     networks:
       - neo4j_network
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: graph-api
+    ports:
+      - "8000:8000"
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USERNAME=${NEO4J_USERNAME}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+    depends_on:
+      - neo4j
+    networks:
+      - neo4j_network
+    restart: unless-stopped
+
+  genieus:
+    build:
+      context: ./genieus
+      dockerfile: Dockerfile
+    container_name: genieus
+    ports:
+      - "7000:7000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - api
+    networks:
+      - neo4j_network
+    restart: unless-stopped
+
 volumes:
   neo4j_data:
   neo4j_logs:

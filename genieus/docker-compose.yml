@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  genieus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "7000:7000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    # Uncomment to use environment file
+    # env_file:
+    #   - .env.production
