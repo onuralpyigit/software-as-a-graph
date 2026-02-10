@@ -3,6 +3,8 @@
 **Predict which components in a distributed system will cause the most damage when they fail — using only the system's architecture.**
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Next.js 15](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+[![Docker](https://img.shields.io/badge/docker-compose-blue)](https://www.docker.com/)
 [![Neo4j 5.x](https://img.shields.io/badge/neo4j-5.x-green.svg)](https://neo4j.com/)
 [![IEEE RASSE 2025](https://img.shields.io/badge/IEEE-RASSE%202025-orange.svg)](#citation)
 
@@ -16,6 +18,89 @@ We treat your system architecture as a graph and apply topological analysis to p
 
 This has been validated empirically with Spearman correlation > 0.87 and F1-scores > 0.90 across multiple system scales.
 
+## Features
+
+- **Web Dashboard (Genieus):** Interactive visualization of system topology and analysis results.
+- **Graph Modeling:** Automatic conversion of topology JSON to Neo4j graph.
+- **Validation:** Statistical validation of predictions against ground-truth simulations.
+- **Simulation:** Cascade failure simulation to test resilience.
+- **REST API:** Fully featured API for integration.
+
+## Quick Start (Docker)
+
+The easiest way to run the full system (Frontend + Backend + Database) is via Docker Compose.
+
+### Prerequisites
+- Docker & Docker Compose
+- 4GB+ RAM available
+
+### Run
+```bash
+git clone https://github.com/your-org/software-as-a-graph.git
+cd software-as-a-graph
+
+# Start the full stack
+docker compose up --build
+```
+
+### Access
+- **Web Dashboard:** [http://localhost:7000](http://localhost:7000)
+- **API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Neo4j Browser:** [http://localhost:7474](http://localhost:7474) (User: `neo4j`, Password: `password`)
+
+## Web Interface (Genieus)
+
+The **Genieus** dashboard provides a modern interface for the analysis pipeline:
+
+1.  **Dashboard:** High-level metrics, criticality distribution, and top-list.
+2.  **Graph Explorer:** Interactive 2D/3D force-directed graph. Filter by layer, search components, and view details.
+3.  **Analysis:** Run structural analysis and quality scoring on specific layers.
+4.  **Simulation:** Simulates component failures and visualizes cascade paths.
+5.  **Settings:** Configure Neo4j connection.
+
+## Development Setup (CLI & Local)
+
+If you prefer running components individually or using the CLI tools directly:
+
+### 1. Backend & CLI
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run CLI pipeline
+python bin/run.py --all --layer system
+```
+
+### 2. Frontend
+```bash
+cd genieus
+npm install
+npm run dev
+# Runs on http://localhost:3000
+```
+
+### 3. CLI Tools Usage
+
+The `bin/` directory contains individual scripts for each step of the pipeline:
+
+```bash
+# 1. Generate & Import
+python bin/generate_graph.py --config config/medium_scale.yaml --output data/system.json
+python bin/import_graph.py --input data/system.json --clear
+
+# 2. Analyze
+python bin/analyze_graph.py --layer system
+
+# 3. Simulate (Ground Truth)
+python bin/simulate_graph.py failure --layer system --exhaustive
+
+# 4. Validate
+python bin/validate_graph.py --layer system
+
+# 5. Visualize (Static HTML)
+python bin/visualize_graph.py --layer system --output dashboard.html
+```
+
 ## How It Works — The 6-Step Pipeline
 
 ```
@@ -23,93 +108,33 @@ Architecture  →  Graph  →  Metrics  →  Scores  →  Simulation  →  Valid
    (input)      Step 1     Step 2     Step 3      Step 4         Step 5        Step 6
 ```
 
-Each step builds on the previous one:
-
-| Step | What It Does | Output |
-|------|-------------|--------|
-| **1. [Graph Model](docs/graph-model.md)** | Converts your system topology into a weighted directed graph with derived dependencies | Graph G(V, E) |
-| **2. [Structural Analysis](docs/structural-analysis.md)** | Computes centrality metrics (PageRank, Betweenness, etc.) for every component | Metric vectors M(v) |
-| **3. [Quality Scoring](docs/quality-scoring.md)** | Maps metrics to four quality dimensions (Reliability, Maintainability, Availability, Vulnerability) using AHP weights | Quality scores Q(v) |
-| **4. [Failure Simulation](docs/failure-simulation.md)** | Injects actual faults and measures cascade impact to establish ground truth | Impact scores I(v) |
-| **5. [Validation](docs/validation.md)** | Statistically compares predicted Q(v) against actual I(v) | Spearman ρ, F1, etc. |
-| **6. [Visualization](docs/visualization.md)** | Generates interactive dashboards for decision-making | HTML dashboard |
-
-Steps 1–3 give you predictions. Step 4 gives you ground truth. Step 5 proves the predictions work. Step 6 makes it all actionable.
-
-## Quick Start
-
-### Prerequisites
-
-- Python 3.9+
-- Neo4j 5.x (locally or via Docker)
-
-### Install
-
-```bash
-git clone https://github.com/your-org/software-as-a-graph.git
-cd software-as-a-graph
-pip install -r requirements.txt
-```
-
-### Run the Full Pipeline
-
-```bash
-python bin/run.py --all --layer system
-```
-
-This generates a synthetic system, analyzes it, simulates failures, validates predictions, and opens a dashboard — all in one command.
-
-### Run Step by Step
-
-```bash
-# 1. Generate a synthetic system and import it into Neo4j
-python bin/generate_graph.py --config config/medium_scale.yaml --output data/system.json
-python bin/import_graph.py --input data/system.json --clear
-
-# 2. Analyze structural metrics
-python bin/analyze_graph.py --layer system
-
-# 3. Simulate failures to get ground truth
-python bin/simulate_graph.py failure --layer system --exhaustive
-
-# 4. Validate predictions against simulation
-python bin/validate_graph.py --layer system
-
-# 5. Generate an interactive dashboard
-python bin/visualize_graph.py --layer system --output dashboard.html --open
-```
-
-### Layer Options
-
-Analysis can target specific architectural layers or the full system:
-
-| Layer | What It Covers |
-|-------|---------------|
-| `app` | Application-to-application dependencies |
-| `infra` | Infrastructure (node-to-node) dependencies |
-| `mw` | Middleware (broker) dependencies |
-| `system` | All layers combined |
+| Step | What It Does |
+|------|-------------|
+| **1. [Graph Model](docs/graph-model.md)** | Converts system topology into a weighted directed graph |
+| **2. [Structural Analysis](docs/structural-analysis.md)** | Computes centrality metrics (PageRank, Betweenness, etc.) |
+| **3. [Quality Scoring](docs/quality-scoring.md)** | Maps metrics to quality dimensions (RMAV) using AHP weights |
+| **4. [Failure Simulation](docs/failure-simulation.md)** | Injects faults and measures cascade impact for ground truth |
+| **5. [Validation](docs/validation.md)** | Statistically compares predictions against simulation impact |
+| **6. [Visualization](docs/visualization.md)** | Generates interactive dashboards |
 
 ## Project Structure
 
 ```
 software-as-a-graph/
-├── bin/                    # CLI tools (one per pipeline step)
-│   ├── generate_graph.py   #   Generate synthetic topology
-│   ├── import_graph.py     #   Import into Neo4j
-│   ├── analyze_graph.py    #   Structural analysis + quality scoring
-│   ├── simulate_graph.py   #   Failure simulation
-│   ├── validate_graph.py   #   Statistical validation
-│   ├── visualize_graph.py  #   Dashboard generation
-│   ├── run.py              #   Pipeline orchestrator
-│   └── benchmark.py        #   Performance benchmarks
-├── src/
-│   ├── domain/             # Core models, services, and business logic
-│   ├── application/        # Use cases and service orchestration
-│   └── infrastructure/     # Neo4j adapters, file I/O
-├── config/                 # Scale presets and configuration templates
-├── docs/                   # Step-by-step methodology documentation
-└── tests/                  # Unit and integration tests
+├── genieus/                # Next.js Frontend (Web Dashboard)
+├── api.py                  # FastAPI Backend
+├── docker-compose.yml      # Full stack orchestration
+├── bin/                    # CLI tools
+│   ├── generate_graph.py   # Synthetic generation
+│   ├── analyze_graph.py    # Analysis engine
+│   └── ...                 # Other CLI scripts
+├── src/                    # Python Source Code
+│   ├── domain/             # Core business logic (Hexagonal)
+│   ├── application/        # Service orchestration
+│   ├── infrastructure/     # Adapters (Neo4j, File System)
+│   └── ...                 # Compatibility shims
+├── config/                 # Configuration templates
+└── tests/                  # Unit tests
 ```
 
 ## Citation

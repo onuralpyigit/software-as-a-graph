@@ -1,13 +1,12 @@
 # Software Requirements Specification
 
 ## Software-as-a-Graph
+
 ### Graph-Based Critical Component Prediction for Distributed Publish-Subscribe Systems
 
-**Version 1.0**  
-**January 2026**
+**Version 2.0** · **February 2026**
 
-Istanbul Technical University  
-Computer Engineering Department
+Istanbul Technical University, Computer Engineering Department
 
 ---
 
@@ -15,11 +14,12 @@ Computer Engineering Department
 
 1. [Introduction](#1-introduction)
 2. [Overall Description](#2-overall-description)
-3. [Specific Requirements](#3-specific-requirements)
-4. [System Features](#4-system-features)
+3. [Functional Requirements](#3-functional-requirements)
+4. [Non-Functional Requirements](#4-non-functional-requirements)
 5. [Data Requirements](#5-data-requirements)
-6. [Other Requirements](#6-other-requirements)
+6. [Validation Targets and Achieved Results](#6-validation-targets-and-achieved-results)
 7. [Appendix A: Quality Formula Reference](#appendix-a-quality-formula-reference)
+8. [Appendix B: Glossary](#appendix-b-glossary)
 
 ---
 
@@ -27,59 +27,34 @@ Computer Engineering Department
 
 ### 1.1 Purpose
 
-This Software Requirements Specification (SRS) document provides a comprehensive description of the Software-as-a-Graph framework. The framework predicts which components in a distributed publish-subscribe system are most critical—those whose failure would cause the greatest impact—using only the system's architectural structure.
+This document specifies the requirements for the Software-as-a-Graph framework — a tool that predicts which components in a distributed publish-subscribe system are most critical (i.e., whose failure would cause the greatest impact) using only the system's architectural structure.
 
-This document is intended for software architects, system engineers, reliability engineers, researchers, and developers who need to understand the requirements, capabilities, and constraints of the Software-as-a-Graph system.
+The intended audience includes software architects, reliability engineers, security engineers, DevOps engineers, and researchers working with distributed systems.
 
 ### 1.2 Scope
 
-Software-as-a-Graph is a comprehensive framework for graph-based modeling and analysis of distributed publish-subscribe systems. The system transforms architectural topology into a weighted directed graph and applies topological metrics to predict component criticality before deployment, without expensive runtime monitoring.
+Software-as-a-Graph transforms a distributed pub-sub system's topology into a weighted directed graph and applies topological analysis to predict component criticality before deployment, without runtime monitoring.
 
-The framework provides:
-- Graph model construction from system topology definitions
-- Multi-layer structural analysis (application, infrastructure, middleware, system)
-- RMAV quality scoring (Reliability, Maintainability, Availability, Vulnerability)
-- Failure simulation with cascade propagation modeling
-- Statistical validation comparing predictions against ground truth
-- Interactive visualization dashboards for analysis results
+The framework implements a six-step methodology:
 
-### 1.3 Definitions, Acronyms, and Abbreviations
+| Step | Function | Output |
+|------|----------|--------|
+| 1. Graph Model Construction | Convert system topology into a weighted directed graph | G(V, E, w) |
+| 2. Structural Analysis | Compute centrality and resilience metrics per component | Metric vectors M(v) |
+| 3. Quality Scoring | Map metrics to RMAV quality dimensions using AHP weights | Quality scores Q(v) |
+| 4. Failure Simulation | Inject faults and measure cascading impact | Impact scores I(v) |
+| 5. Validation | Statistically compare Q(v) against I(v) | Spearman ρ, F1, etc. |
+| 6. Visualization | Generate interactive dashboards | HTML dashboard |
 
-| Term | Definition |
-|------|------------|
-| AHP | Analytic Hierarchy Process - method for deriving weights from pairwise comparisons |
-| Articulation Point | A vertex whose removal disconnects a connected graph into multiple components |
-| Betweenness Centrality | Measure of how often a node lies on shortest paths between other nodes |
-| Broker | Message routing middleware component (e.g., DDS Participant, Kafka Broker) |
-| Cascade | Propagation of failures from one component to dependent components |
-| DEPENDS_ON | Derived edge representing logical dependency between components |
-| Eigenvector Centrality | Measure of connection to other highly-connected nodes |
-| F1-Score | Harmonic mean of precision and recall |
-| GNN | Graph Neural Network |
-| IQR | Interquartile Range - statistical measure for box-plot classification |
-| Neo4j | Graph database management system |
-| NetworkX | Python library for graph algorithms |
-| Node | Physical or virtual host infrastructure component |
-| PageRank | Algorithm measuring transitive importance in directed graphs |
-| Pub-Sub | Publish-Subscribe messaging pattern |
-| QoS | Quality of Service - attributes defining message delivery guarantees |
-| RMAV | Reliability, Maintainability, Availability, Vulnerability quality dimensions |
-| ROS 2 | Robot Operating System 2 - middleware for robotics applications |
-| SPOF | Single Point of Failure |
-| Spearman ρ | Rank correlation coefficient measuring monotonic relationships |
-| Topic | Named message channel with associated QoS settings |
+### 1.3 References
 
-### 1.4 References
-
-- IEEE 830-1998: IEEE Recommended Practice for Software Requirements Specifications
-- IEEE RASSE 2025: Conference proceedings for the published methodology paper
-- Neo4j Documentation: https://neo4j.com/docs/
-- NetworkX Documentation: https://networkx.org/documentation/
-- Saaty, T.L. (1980): The Analytic Hierarchy Process - McGraw-Hill
-
-### 1.5 Overview
-
-The remainder of this document is organized as follows: Section 2 provides an overall description of the system including product perspective, functions, and constraints. Section 3 details specific functional and non-functional requirements. Section 4 describes system features and their specifications. Section 5 covers data requirements and Section 6 addresses additional requirements.
+| Reference | Description |
+|-----------|-------------|
+| IEEE 830-1998 | IEEE Recommended Practice for Software Requirements Specifications |
+| IEEE RASSE 2025 | Published methodology paper (doi: 10.1109/RASSE64831.2025.11315354) |
+| Neo4j Documentation | https://neo4j.com/docs/ |
+| NetworkX Documentation | https://networkx.org/documentation/ |
+| Saaty, T.L. (1980) | *The Analytic Hierarchy Process*, McGraw-Hill |
 
 ---
 
@@ -87,528 +62,427 @@ The remainder of this document is organized as follows: Section 2 provides an ov
 
 ### 2.1 Product Perspective
 
-Software-as-a-Graph is a standalone analysis framework that integrates with existing distributed system architectures. It operates as a pre-deployment analysis tool that transforms system topology specifications into graph models for criticality prediction.
+Software-as-a-Graph is a standalone pre-deployment analysis framework. It integrates with existing distributed architectures by consuming their topology descriptions and producing criticality assessments. It does not perform runtime monitoring.
 
-#### 2.1.1 System Interfaces
+### 2.2 System Interfaces
 
-- **Neo4j Graph Database**: Primary storage for graph models and analysis results
-- **JSON/GraphML Import**: System topology input formats
-- **HTML Export**: Interactive visualization dashboards
-- **CLI Interface**: Command-line tools for pipeline execution
-
-#### 2.1.2 User Interfaces
-
-- Command-line interface for pipeline orchestration and analysis
-- HTML dashboard for interactive visualization of results
-- JSON/CSV export for integration with external tools
-
-#### 2.1.3 Hardware Interfaces
-
-The system operates on standard computing hardware with sufficient memory for graph processing. Recommended minimum: 8GB RAM, multi-core processor for parallel analysis operations.
-
-#### 2.1.4 Software Interfaces
-
-| Component | Version | Purpose |
-|-----------|---------|---------|
-| Python | 3.9+ | Primary runtime environment |
-| Neo4j | 5.x | Graph database storage and GDS algorithms |
-| NetworkX | 2.6+ | Graph algorithms library |
-| vis.js | 9.x | Interactive network visualization |
-| Node.js | 16+ | Document generation and tooling |
-
-### 2.2 Product Functions
-
-The framework implements a six-step methodology:
-
-#### 2.2.1 Graph Model Construction (Step 1)
-
-Transform distributed pub-sub system topology into a weighted directed graph with derived dependencies. Components include Nodes, Brokers, Topics, Applications, and Libraries with structural relationships (RUNS_ON, ROUTES, PUBLISHES_TO, SUBSCRIBES_TO, CONNECTS_TO, USES) and derived DEPENDS_ON edges.
-
-#### 2.2.2 Structural Analysis (Step 2)
-
-Compute topological metrics including PageRank, Reverse PageRank, Betweenness Centrality, Degree Centrality, Clustering Coefficient, Eigenvector Centrality, Closeness Centrality, and identify Articulation Points and Bridges.
-
-#### 2.2.3 Quality Scoring (Step 3)
-
-Calculate RMAV quality scores using AHP-weighted formulas:
-- Reliability R(v) = w₁×PR + w₂×RPR + w₃×ID
-- Maintainability M(v) = w₁×BT + w₂×DG + w₃×(1-CC)
-- Availability A(v) = w₁×AP + w₂×BR + w₃×Importance
-- Vulnerability V(v) = w₁×EV + w₂×CL + w₃×ID
-- Overall Q(v) = w_R×R(v) + w_M×M(v) + w_A×A(v) + w_V×V(v)
-
-#### 2.2.4 Failure Simulation (Step 4)
-
-Simulate component failures with cascade propagation. Measure actual impact I(v) through reachability loss, fragmentation, and throughput reduction metrics.
-
-#### 2.2.5 Validation (Step 5)
-
-Statistically compare predicted Q(v) against actual I(v) using Spearman correlation, F1-score, precision, recall, and Top-K overlap metrics.
-
-#### 2.2.6 Visualization (Step 6)
-
-Generate interactive HTML dashboards with KPI cards, charts, network graphs, data tables, and validation metrics.
+| Interface | Technology | Purpose |
+|-----------|------------|---------|
+| Graph Database | Neo4j 5.x (Bolt protocol) | Primary graph storage and GDS algorithms |
+| Topology Input | JSON, GraphML | System architecture import |
+| Results Export | JSON, CSV, GraphML | Analysis results for external tools |
+| Dashboard Output | HTML (vis.js, Chart.js) | Interactive visualization |
+| CLI | Python argparse | Pipeline orchestration |
 
 ### 2.3 User Characteristics
 
-Target users include:
-- **Software Architects**: Evaluating system designs for reliability risks
-- **Reliability Engineers**: Identifying critical components for redundancy planning
-- **DevOps Engineers**: Prioritizing monitoring and alerting configurations
-- **Security Engineers**: Identifying high-value attack targets
-- **Researchers**: Validating graph-based prediction methodologies
+| User Role | Primary Interest |
+|-----------|-----------------|
+| Software Architect | Evaluating system designs for reliability risks |
+| Reliability Engineer | Identifying critical components for redundancy planning |
+| DevOps Engineer | Prioritizing monitoring and alerting configuration |
+| Security Engineer | Identifying high-value attack targets |
+| Researcher | Validating graph-based prediction methodologies |
 
 ### 2.4 Constraints
 
-- Graph database dependency: Requires Neo4j 5.x installation
-- Python 3.9+ environment required
-- Memory constraints for very large systems (>1000 components)
-- Static analysis only - does not perform runtime monitoring
-- Accuracy depends on completeness of input topology specification
+The framework requires Neo4j 5.x and Python 3.9+. It performs static analysis only — accuracy depends on the completeness of the input topology specification. Memory requirements grow with system scale (see [Section 4.1](#41-performance)).
 
-### 2.5 Assumptions and Dependencies
+### 2.5 Assumptions
 
-- System topology is accurately specified in input format
-- QoS settings are available for weight calculation
-- Neo4j database is accessible and properly configured
-- Network connectivity between analysis host and Neo4j instance
+The system topology is accurately specified in the input format. QoS settings are available for topics. Neo4j is accessible and properly configured.
 
 ---
 
-## 3. Specific Requirements
+## 3. Functional Requirements
 
-### 3.1 External Interface Requirements
+### 3.1 Graph Model Construction (Step 1)
 
-#### 3.1.1 User Interfaces
+| ID | Requirement |
+|----|-------------|
+| REQ-GM-01 | The system shall accept system topology in JSON format. |
+| REQ-GM-02 | The system shall create vertices for five component types: Node, Broker, Topic, Application, and Library. |
+| REQ-GM-03 | The system shall create six structural edge types: RUNS_ON, ROUTES, PUBLISHES_TO, SUBSCRIBES_TO, CONNECTS_TO, and USES. |
+| REQ-GM-04 | The system shall derive DEPENDS_ON edges automatically from structural relationships using four derivation rules (app_to_app, app_to_broker, node_to_node, node_to_broker). |
+| REQ-GM-05 | The system shall compute edge weights from topic QoS settings (reliability, durability, priority, message size). |
+| REQ-GM-06 | The system shall propagate weights from Topics to dependent Applications and Nodes. |
+| REQ-GM-07 | The system shall support layer projection to produce subgraphs for app, infra, mw, and system layers. |
 
-- **REQ-UI-001**: The system shall provide a command-line interface for all pipeline operations.
-- **REQ-UI-002**: The system shall generate HTML dashboards viewable in modern web browsers.
-- **REQ-UI-003**: Dashboard shall display interactive network visualizations using vis.js.
-- **REQ-UI-004**: Dashboard shall provide sortable and filterable data tables.
+### 3.2 Structural Analysis (Step 2)
 
-#### 3.1.2 Hardware Interfaces
+| ID | Requirement |
+|----|-------------|
+| REQ-SA-01 | The system shall compute PageRank with configurable damping factor (default 0.85). |
+| REQ-SA-02 | The system shall compute Reverse PageRank on the transposed graph. |
+| REQ-SA-03 | The system shall compute Betweenness Centrality for all vertices. |
+| REQ-SA-04 | The system shall compute Closeness Centrality for all vertices. |
+| REQ-SA-05 | The system shall compute Eigenvector Centrality for all vertices. |
+| REQ-SA-06 | The system shall compute In-Degree, Out-Degree, and Total Degree centrality. |
+| REQ-SA-07 | The system shall compute Clustering Coefficient for all vertices. |
+| REQ-SA-08 | The system shall identify Articulation Points and compute a continuous fragmentation score AP_c(v). |
+| REQ-SA-09 | The system shall identify Bridge edges and compute Bridge Ratio per vertex. |
+| REQ-SA-10 | The system shall normalize all continuous metrics to [0, 1] using min-max scaling. |
 
-- **REQ-HW-001**: The system shall operate on x86-64 or ARM64 architecture systems.
-- **REQ-HW-002**: The system shall require minimum 4GB RAM for small-scale analysis.
-- **REQ-HW-003**: The system shall require minimum 16GB RAM for enterprise-scale analysis.
+### 3.3 Quality Scoring (Step 3)
 
-#### 3.1.3 Software Interfaces
+| ID | Requirement |
+|----|-------------|
+| REQ-QS-01 | The system shall compute Reliability R(v) = w₁×PR + w₂×RPR + w₃×InDegree. |
+| REQ-QS-02 | The system shall compute Maintainability M(v) = w₁×BT + w₂×OutDegree + w₃×(1−CC). |
+| REQ-QS-03 | The system shall compute Availability A(v) = w₁×AP_c + w₂×BridgeRatio + w₃×Importance. |
+| REQ-QS-04 | The system shall compute Vulnerability V(v) = w₁×EV + w₂×CL + w₃×OutDegree. |
+| REQ-QS-05 | The system shall compute composite Quality Q(v) = w_R×R + w_M×M + w_A×A + w_V×V. |
+| REQ-QS-06 | The system shall support default equal dimension weights (0.25 each). |
+| REQ-QS-07 | The system shall support AHP-derived weights from pairwise comparison matrices. |
+| REQ-QS-08 | The system shall validate AHP matrix consistency (Consistency Ratio < 0.10). |
+| REQ-QS-09 | The system shall classify components into five criticality levels (CRITICAL, HIGH, MEDIUM, LOW, MINIMAL) using box-plot statistical thresholds. |
+| REQ-QS-10 | The system shall fall back to percentile-based classification when sample size < 12. |
 
-- **REQ-SW-001**: The system shall interface with Neo4j database via Bolt protocol.
-- **REQ-SW-002**: The system shall support JSON format for topology import.
-- **REQ-SW-003**: The system shall support GraphML format for graph export.
-- **REQ-SW-004**: The system shall support CSV format for metrics export.
+### 3.4 Failure Simulation (Step 4)
 
-#### 3.1.4 Communication Interfaces
+| ID | Requirement |
+|----|-------------|
+| REQ-FS-01 | The system shall simulate CRASH failure mode (complete component removal). |
+| REQ-FS-02 | The system shall support DEGRADED, PARTITION, and OVERLOAD failure modes. |
+| REQ-FS-03 | The system shall propagate cascading failures through three rules: physical (Node → hosted components), logical (Broker → routed Topics), and application (Publisher → starved Subscribers). |
+| REQ-FS-04 | The system shall measure Reachability Loss (fraction of broken pub-sub paths). |
+| REQ-FS-05 | The system shall measure Fragmentation (graph disconnection after removal). |
+| REQ-FS-06 | The system shall measure Throughput Loss (weighted message delivery capacity reduction). |
+| REQ-FS-07 | The system shall compute composite Impact I(v) = w_r×Reachability + w_f×Fragmentation + w_t×Throughput. |
+| REQ-FS-08 | The system shall support exhaustive simulation (all components in a layer). |
+| REQ-FS-09 | The system shall support Monte Carlo mode with configurable cascade probability and trial count. |
 
-- **REQ-CI-001**: The system shall communicate with Neo4j via bolt://localhost:7687 by default.
-- **REQ-CI-002**: The system shall support configurable Neo4j connection parameters.
-- **REQ-CI-003**: The system shall support remote Neo4j connections with authentication.
+### 3.5 Validation (Step 5)
 
-### 3.2 Functional Requirements
+| ID | Requirement |
+|----|-------------|
+| REQ-VA-01 | The system shall compute Spearman rank correlation ρ between Q(v) and I(v). |
+| REQ-VA-02 | The system shall compute Precision, Recall, and F1-Score for critical/non-critical classification. |
+| REQ-VA-03 | The system shall compute Top-K overlap for K = 5 and K = 10. |
+| REQ-VA-04 | The system shall compute NDCG@K (Normalized Discounted Cumulative Gain). |
+| REQ-VA-05 | The system shall compute RMSE and MAE error metrics. |
+| REQ-VA-06 | The system shall compute Cohen's κ for chance-corrected agreement. |
+| REQ-VA-07 | The system shall evaluate results against configurable validation targets and report pass/fail status. |
 
-#### 3.2.1 Graph Model Construction
+### 3.6 Visualization (Step 6)
 
-- **REQ-GMC-001**: The system shall accept system topology in JSON format.
-- **REQ-GMC-002**: The system shall create vertices for Node, Broker, Topic, Application, and Library components.
-- **REQ-GMC-003**: The system shall create structural edges: RUNS_ON, ROUTES, PUBLISHES_TO, SUBSCRIBES_TO, CONNECTS_TO, USES.
-- **REQ-GMC-004**: The system shall automatically derive DEPENDS_ON edges from structural relationships.
-- **REQ-GMC-005**: The system shall calculate edge weights from Topic QoS settings.
-- **REQ-GMC-006**: The system shall support these QoS attributes: reliability, durability, priority, message_size.
-- **REQ-GMC-007**: The system shall propagate weights from Topics to Applications to Nodes.
-- **REQ-GMC-008**: The system shall derive dependency types: app_to_app, node_to_node, app_to_broker, node_to_broker.
+| ID | Requirement |
+|----|-------------|
+| REQ-VZ-01 | The system shall generate an HTML dashboard with KPI summary cards. |
+| REQ-VZ-02 | The system shall generate criticality distribution charts (pie) and component ranking charts (bar). |
+| REQ-VZ-03 | The system shall generate an interactive force-directed network graph (vis.js) with hover, click, drag, zoom, and double-click interactions. |
+| REQ-VZ-04 | The system shall display sortable and filterable component detail tables with RMAV breakdown. |
+| REQ-VZ-05 | The system shall display a correlation scatter plot of Q(v) vs. I(v). |
+| REQ-VZ-06 | The system shall display a dependency matrix heatmap sorted by criticality. |
+| REQ-VZ-07 | The system shall display validation metrics with pass/fail indicators. |
+| REQ-VZ-08 | The system shall support multi-layer comparison views. |
 
-#### 3.2.2 Structural Analysis
+### 3.7 Multi-Layer Analysis
 
-- **REQ-SA-001**: The system shall compute PageRank with configurable damping factor (default 0.85).
-- **REQ-SA-002**: The system shall compute Reverse PageRank on transposed graph.
-- **REQ-SA-003**: The system shall compute Betweenness Centrality for all vertices.
-- **REQ-SA-004**: The system shall compute In-Degree, Out-Degree, and Total Degree centrality.
-- **REQ-SA-005**: The system shall compute Clustering Coefficient.
-- **REQ-SA-006**: The system shall compute Eigenvector Centrality.
-- **REQ-SA-007**: The system shall compute Closeness Centrality.
-- **REQ-SA-008**: The system shall identify Articulation Points.
-- **REQ-SA-009**: The system shall identify Bridge edges.
-- **REQ-SA-010**: The system shall normalize all metrics to [0, 1] range using min-max scaling.
+| ID | Requirement |
+|----|-------------|
+| REQ-ML-01 | The system shall support Application layer analysis (app_to_app dependencies). |
+| REQ-ML-02 | The system shall support Infrastructure layer analysis (node_to_node dependencies). |
+| REQ-ML-03 | The system shall support Middleware layer analysis (app_to_broker and node_to_broker dependencies). |
+| REQ-ML-04 | The system shall support Complete System layer analysis (all dependency types combined). |
 
-#### 3.2.3 Quality Scoring
+### 3.8 Command-Line Interface
 
-- **REQ-QS-001**: The system shall compute Reliability score R(v) = w₁×PR + w₂×RPR + w₃×ID.
-- **REQ-QS-002**: The system shall compute Maintainability score M(v) = w₁×BT + w₂×DG + w₃×(1-CC).
-- **REQ-QS-003**: The system shall compute Availability score A(v) = w₁×AP + w₂×BR + w₃×Importance.
-- **REQ-QS-004**: The system shall compute Vulnerability score V(v) = w₁×EV + w₂×CL + w₃×ID.
-- **REQ-QS-005**: The system shall compute Overall Quality Q(v) combining all dimensions.
-- **REQ-QS-006**: The system shall support default equal weights (0.25 each dimension).
-- **REQ-QS-007**: The system shall support AHP-derived weights from pairwise comparison matrices.
-- **REQ-QS-008**: The system shall validate AHP consistency using Consistency Ratio (CR < 0.10).
-- **REQ-QS-009**: The system shall classify components using box-plot statistical thresholds.
-- **REQ-QS-010**: The system shall assign criticality levels: CRITICAL, HIGH, MEDIUM, LOW, MINIMAL.
-
-#### 3.2.4 Failure Simulation
-
-- **REQ-FS-001**: The system shall simulate CRASH failure mode (complete component failure).
-- **REQ-FS-002**: The system shall support DEGRADED, PARTITION, and OVERLOAD failure modes.
-- **REQ-FS-003**: The system shall apply PHYSICAL cascade rule (Node failure cascades to hosted components).
-- **REQ-FS-004**: The system shall apply LOGICAL cascade rule (Broker failure affects Topic routing).
-- **REQ-FS-005**: The system shall apply NETWORK cascade rule (partition propagation).
-- **REQ-FS-006**: The system shall measure Reachability Loss (broken pub-sub paths).
-- **REQ-FS-007**: The system shall measure Fragmentation (disconnected components).
-- **REQ-FS-008**: The system shall measure Throughput Loss (message delivery capacity).
-- **REQ-FS-009**: The system shall compute Composite Impact I(v) = w_r×reachability + w_f×fragmentation + w_t×throughput.
-- **REQ-FS-010**: The system shall support exhaustive simulation for all components in a layer.
-
-#### 3.2.5 Validation
-
-- **REQ-VA-001**: The system shall compute Spearman rank correlation ρ between Q(v) and I(v).
-- **REQ-VA-002**: The system shall compute Precision, Recall, and F1-Score.
-- **REQ-VA-003**: The system shall compute Top-K overlap for K=5, 10.
-- **REQ-VA-004**: The system shall compute NDCG (Normalized Discounted Cumulative Gain).
-- **REQ-VA-005**: The system shall compute RMSE and MAE error metrics.
-- **REQ-VA-006**: The system shall evaluate against configurable validation targets.
-- **REQ-VA-007**: The system shall report pass/fail status for each validation target.
-
-#### 3.2.6 Visualization
-
-- **REQ-VZ-001**: The system shall generate HTML dashboard with KPI summary cards.
-- **REQ-VZ-002**: The system shall generate pie charts for criticality distribution.
-- **REQ-VZ-003**: The system shall generate bar charts for component rankings.
-- **REQ-VZ-004**: The system shall generate interactive network graph visualization.
-- **REQ-VZ-005**: The system shall display sortable component tables.
-- **REQ-VZ-006**: The system shall display validation metrics with pass/fail indicators.
-- **REQ-VZ-007**: The system shall support multi-layer comparison views.
-
-#### 3.2.7 Multi-Layer Analysis
-
-- **REQ-ML-001**: The system shall support Application layer (app_to_app dependencies).
-- **REQ-ML-002**: The system shall support Infrastructure layer (node_to_node dependencies).
-- **REQ-ML-003**: The system shall support Middleware-Application layer (app_to_broker dependencies).
-- **REQ-ML-004**: The system shall support Middleware-Infrastructure layer (node_to_broker dependencies).
-- **REQ-ML-005**: The system shall support Complete System layer (all dependencies).
-
-### 3.3 Non-Functional Requirements
-
-#### 3.3.1 Performance Requirements
-
-- **REQ-PERF-001**: Analysis shall complete within 1 second for small systems (~30 components).
-- **REQ-PERF-002**: Analysis shall complete within 5 seconds for medium systems (~100 components).
-- **REQ-PERF-003**: Analysis shall complete within 20 seconds for large systems (~600 components).
-- **REQ-PERF-004**: Dashboard generation shall complete within 10 seconds.
-
-#### 3.3.2 Accuracy Requirements
-
-- **REQ-ACC-001**: Spearman correlation ρ shall achieve ≥0.70 at application layer.
-- **REQ-ACC-002**: F1-Score shall achieve ≥0.80 at application layer.
-- **REQ-ACC-003**: Precision shall achieve ≥0.80 at application layer.
-- **REQ-ACC-004**: Recall shall achieve ≥0.80 at application layer.
-- **REQ-ACC-005**: Top-5 overlap shall achieve ≥40%.
-- **REQ-ACC-006**: Top-10 overlap shall achieve ≥50%.
-
-#### 3.3.3 Reliability Requirements
-
-- **REQ-REL-001**: The system shall handle invalid input gracefully with error messages.
-- **REQ-REL-002**: The system shall recover from Neo4j connection failures.
-- **REQ-REL-003**: The system shall validate AHP matrix consistency before use.
-
-#### 3.3.4 Scalability Requirements
-
-- **REQ-SCAL-001**: The system shall support systems with up to 1000 components.
-- **REQ-SCAL-002**: The system shall support graphs with up to 10000 edges.
-- **REQ-SCAL-003**: Prediction accuracy shall improve with system scale.
-
-#### 3.3.5 Maintainability Requirements
-
-- **REQ-MAINT-001**: Code shall follow Python PEP 8 style guidelines.
-- **REQ-MAINT-002**: All public APIs shall have docstrings.
-- **REQ-MAINT-003**: Modules shall have unit test coverage ≥80%.
-
-#### 3.3.6 Portability Requirements
-
-- **REQ-PORT-001**: The system shall run on Linux (Ubuntu 20.04+).
-- **REQ-PORT-002**: The system shall run on macOS (11+).
-- **REQ-PORT-003**: The system shall run on Windows (10+).
+| ID | Requirement |
+|----|-------------|
+| REQ-CLI-01 | The system shall provide individual CLI commands for each pipeline step (generate, import, analyze, simulate, validate, visualize). |
+| REQ-CLI-02 | The system shall provide a pipeline orchestrator (`run.py --all`) that executes all steps sequentially. |
+| REQ-CLI-03 | The system shall support `--layer` flag for targeting specific architectural layers. |
+| REQ-CLI-04 | The system shall support `--output` flag for exporting results to JSON. |
 
 ---
 
-## 4. System Features
+## 4. Non-Functional Requirements
 
-### 4.1 Graph Model Construction
+### 4.1 Performance
 
-**Description**: Transform system topology into a weighted directed graph stored in Neo4j.
+| ID | Requirement | Metric |
+|----|-------------|--------|
+| REQ-PERF-01 | Analysis shall complete within 1 second for small systems. | ~30 components |
+| REQ-PERF-02 | Analysis shall complete within 5 seconds for medium systems. | ~100 components |
+| REQ-PERF-03 | Analysis shall complete within 20 seconds for large systems. | ~600 components |
+| REQ-PERF-04 | Dashboard generation shall complete within 10 seconds. | Any scale |
 
-**Priority**: High
+### 4.2 Accuracy
 
-| Input | Process | Output |
-|-------|---------|--------|
-| JSON topology file | Parse and validate topology | Validated components and edges |
-| Component definitions | Create Neo4j vertices | Graph vertices with properties |
-| Relationship definitions | Create Neo4j edges | Structural edges |
-| Structural edges | Derive dependencies | DEPENDS_ON edges |
-| QoS settings | Calculate weights | Weighted edges and vertices |
+| ID | Requirement |
+|----|-------------|
+| REQ-ACC-01 | Spearman ρ shall achieve ≥ 0.70 at the application layer. |
+| REQ-ACC-02 | F1-Score shall achieve ≥ 0.80 at the application layer. |
+| REQ-ACC-03 | Precision and Recall shall each achieve ≥ 0.80 at the application layer. |
+| REQ-ACC-04 | Top-5 overlap shall achieve ≥ 40%. |
+| REQ-ACC-05 | Prediction accuracy shall improve with system scale. |
 
-### 4.2 Structural Analysis Engine
+### 4.3 Scalability
 
-**Description**: Compute topological metrics using NetworkX and Neo4j GDS algorithms.
+| ID | Requirement |
+|----|-------------|
+| REQ-SCAL-01 | The system shall support systems with up to 1,000 components. |
+| REQ-SCAL-02 | The system shall support graphs with up to 10,000 edges. |
 
-**Priority**: High
+### 4.4 Reliability
 
-| Metric | Algorithm | Interpretation |
-|--------|-----------|----------------|
-| PageRank | Iterative power method | Transitive importance |
-| Betweenness | Brandes algorithm | Bottleneck position |
-| Eigenvector | Power iteration | Strategic importance |
-| Closeness | Dijkstra shortest paths | Propagation speed |
-| Clustering | Triangle counting | Modularity |
-| Articulation | DFS-based detection | SPOF identification |
+| ID | Requirement |
+|----|-------------|
+| REQ-REL-01 | The system shall handle invalid input gracefully with descriptive error messages. |
+| REQ-REL-02 | The system shall recover from Neo4j connection failures. |
+| REQ-REL-03 | The system shall validate AHP matrix consistency before computing weights. |
 
-### 4.3 RMAV Quality Scoring
+### 4.5 Portability
 
-**Description**: Calculate composite quality scores using AHP-weighted metric combinations.
+| ID | Requirement |
+|----|-------------|
+| REQ-PORT-01 | The system shall run on Linux (Ubuntu 20.04+), macOS (11+), and Windows (10+). |
+| REQ-PORT-02 | The system shall run on x86-64 and ARM64 architectures. |
 
-**Priority**: High
+### 4.6 Maintainability
 
-| Dimension | Focus | Key Metrics |
-|-----------|-------|-------------|
-| Reliability R(v) | Fault propagation risk | PageRank, Reverse PageRank, In-Degree |
-| Maintainability M(v) | Coupling complexity | Betweenness, Degree, Clustering |
-| Availability A(v) | SPOF risk | Articulation Point, Bridge Ratio, Importance |
-| Vulnerability V(v) | Security exposure | Eigenvector, Closeness, In-Degree |
+| ID | Requirement |
+|----|-------------|
+| REQ-MAINT-01 | Code shall follow Python PEP 8 style guidelines. |
+| REQ-MAINT-02 | All public APIs shall have docstrings. |
+| REQ-MAINT-03 | Module unit test coverage shall be ≥ 80%. |
 
-### 4.4 Failure Simulation Engine
+### 4.7 Hardware
 
-**Description**: Simulate failures and measure actual impact for validation.
-
-**Priority**: High
-
-| Cascade Type | Trigger | Effect |
-|--------------|---------|--------|
-| Physical | Node failure | Hosted Apps and Brokers fail |
-| Logical | Broker failure | Topics become unreachable |
-| Application | Publisher failure | Subscribers starved of data |
-| Network | Partition | Isolated components |
-
-### 4.5 Statistical Validation
-
-**Description**: Compare predictions against simulation ground truth.
-
-**Priority**: High
-
-| Metric | Target | Purpose |
-|--------|--------|---------|
-| Spearman ρ | ≥0.70 | Ranking correlation |
-| F1-Score | ≥0.80 | Classification accuracy |
-| Precision | ≥0.80 | Avoid false alarms |
-| Recall | ≥0.80 | Catch critical components |
-| Top-5 Overlap | ≥40% | Agreement on most critical |
-| Top-10 Overlap | ≥50% | Agreement on critical set |
-
-### 4.6 Visualization Dashboard
-
-**Description**: Generate interactive HTML dashboards for analysis results.
-
-**Priority**: Medium
-
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| KPI Cards | HTML/CSS | High-level metrics summary |
-| Pie Charts | Chart.js | Distribution visualization |
-| Bar Charts | Chart.js | Rankings and comparisons |
-| Network Graph | vis.js | Interactive topology exploration |
-| Data Tables | HTML/JS | Detailed component data |
-| Validation Box | HTML/CSS | Pass/fail status display |
+| Scale | Minimum RAM |
+|-------|-------------|
+| Small (< 100 components) | 4 GB |
+| Medium (100–500 components) | 8 GB |
+| Enterprise (> 500 components) | 16 GB |
 
 ---
 
 ## 5. Data Requirements
 
-### 5.1 Data Dictionary
+### 5.1 Graph Data Model
 
 #### 5.1.1 Vertex Types
 
-| Type | Description | Example |
+| Type | Description | Examples |
 |------|-------------|---------|
 | Node | Physical or virtual host | Server, VM, Container |
-| Broker | Message routing middleware | DDS Participant, Kafka Broker |
-| Topic | Named message channel with QoS | /sensors/lidar, orders.created |
-| Application | Service that pub/sub to topics | ROS Node, Microservice |
-| Library | Shared code dependency | Navigation Library |
+| Broker | Message routing middleware | DDS Participant, Kafka Broker, MQTT Broker |
+| Topic | Named message channel with QoS settings | `/sensors/lidar`, `orders.created` |
+| Application | Software component that publishes or subscribes | ROS Node, Kafka Consumer, Microservice |
+| Library | Shared code dependency | Navigation Library, Shared Module |
 
 #### 5.1.2 Edge Types
 
-| Type | From | To | Meaning |
-|------|------|-----|---------|
-| RUNS_ON | App/Broker | Node | Deployed on host |
-| ROUTES | Broker | Topic | Manages topic routing |
-| PUBLISHES_TO | App | Topic | Sends messages |
-| SUBSCRIBES_TO | App | Topic | Receives messages |
-| CONNECTS_TO | Node | Node | Network connection |
-| USES | App/Lib | Lib | Shared code dependency |
-| DEPENDS_ON | Component | Component | Derived logical dependency |
+| Type | From → To | Meaning |
+|------|-----------|---------|
+| PUBLISHES_TO | Application → Topic | Sends messages to topic |
+| SUBSCRIBES_TO | Application → Topic | Receives messages from topic |
+| ROUTES | Broker → Topic | Manages topic routing |
+| RUNS_ON | Application/Broker → Node | Deployed on host |
+| CONNECTS_TO | Node → Node | Network connection |
+| USES | Application/Library → Library | Shared code dependency |
+| DEPENDS_ON | Component → Component | Derived logical dependency (four subtypes) |
 
-#### 5.1.3 QoS Attributes
+#### 5.1.3 QoS Attributes and Weight Contributions
 
-| Attribute | Values | Weight Contribution |
-|-----------|--------|---------------------|
+| Attribute | Possible Values | Weight Contribution |
+|-----------|----------------|---------------------|
 | Reliability | RELIABLE, BEST_EFFORT | +0.30 for RELIABLE |
-| Durability | PERSISTENT, VOLATILE, TRANSIENT | +0.40 for PERSISTENT |
-| Priority | URGENT, HIGH, NORMAL, LOW | +0.30 for URGENT |
-| Message Size | Bytes | log₂(1 + size/1024) / 10, max 1.0 |
+| Durability | PERSISTENT, TRANSIENT, TRANSIENT_LOCAL, VOLATILE | +0.40 for PERSISTENT |
+| Priority | URGENT, HIGH, MEDIUM, LOW | +0.30 for URGENT |
+| Message Size | Bytes | log₂(1 + size/1024) / 10, capped at 1.0 |
 
-### 5.2 Data Storage
+### 5.2 Storage
 
-**Primary storage**: Neo4j Graph Database
+Neo4j Graph Database is the primary storage. Vertices are stored as labeled nodes with properties. Edges are stored as typed relationships with weights. Analysis results are stored as node properties or exported to JSON/CSV.
 
-- Vertices stored as labeled nodes with properties
-- Edges stored as typed relationships with weights
-- Analysis results stored as node/relationship properties
-- Export formats: JSON, GraphML, CSV
+### 5.3 Data Validation Rules
 
-### 5.3 Data Validation
+| ID | Rule |
+|----|------|
+| REQ-DV-01 | All component IDs must be unique within the system. |
+| REQ-DV-02 | All edge endpoints must reference existing components. |
+| REQ-DV-03 | QoS values must be within defined valid ranges. |
+| REQ-DV-04 | The graph must be connected for meaningful analysis. |
 
-- **REQ-DV-001**: All component IDs must be unique within the system.
-- **REQ-DV-002**: All edge endpoints must reference existing components.
-- **REQ-DV-003**: QoS values must be within valid ranges.
-- **REQ-DV-004**: Graph must be connected for meaningful analysis.
+### 5.4 Domain Applicability
+
+| Domain | Application → | Broker → | Topic → | Example Use Case |
+|--------|--------------|----------|---------|-----------------|
+| ROS 2 / DDS | ROS Node | DDS Participant | ROS Topic | Autonomous vehicle perception |
+| Apache Kafka | Producer/Consumer | Kafka Broker | Kafka Topic | Financial trading platforms |
+| MQTT | MQTT Client | MQTT Broker | MQTT Topic | IoT smart city deployments |
+| Custom | Microservice | Message Queue | Event Channel | Enterprise SOA systems |
 
 ---
 
-## 6. Other Requirements
+## 6. Validation Targets and Achieved Results
 
 ### 6.1 Validation Targets
 
-| Metric | Target | Rationale |
-|--------|--------|-----------|
-| Spearman ρ | ≥0.70 | Strong positive rank correlation required |
-| F1-Score | ≥0.80 | Balanced precision/recall |
-| Precision | ≥0.80 | Minimize false positives |
-| Recall | ≥0.80 | Minimize missed critical components |
-| Top-5 Overlap | ≥40% | Critical set agreement |
-| Top-10 Overlap | ≥50% | Extended critical set agreement |
-| RMSE | ≤0.25 | Prediction error bound |
-| MAE | ≤0.20 | Absolute error bound |
+| Metric | Target | Gate Level | Rationale |
+|--------|--------|-----------|-----------|
+| Spearman ρ | ≥ 0.70 | Primary | Strong rank correlation between prediction and reality |
+| p-value | ≤ 0.05 | Primary | Statistical significance |
+| F1-Score | ≥ 0.80 | Primary | Balanced precision and recall |
+| Top-5 Overlap | ≥ 40% | Primary | Agreement on the most critical components |
+| RMSE | ≤ 0.25 | Secondary | Prediction error bound |
+| Precision | ≥ 0.80 | Reported | Minimize false alarms |
+| Recall | ≥ 0.80 | Reported | Catch all critical components |
+| Cohen's κ | ≥ 0.60 | Reported | Chance-corrected agreement |
+| Top-10 Overlap | ≥ 50% | Reported | Extended critical set agreement |
+| MAE | ≤ 0.20 | Reported | Absolute error bound |
 
-### 6.2 Achieved Results
-
-The framework has demonstrated strong empirical validation:
+### 6.2 Achieved Results by Layer
 
 | Metric | Application Layer | Infrastructure Layer | Target |
 |--------|-------------------|----------------------|--------|
-| Spearman ρ | 0.85 | 0.54 | ≥0.70 |
-| F1-Score | 0.83 | 0.68 | ≥0.80 |
-| Precision | 0.86 | 0.71 | ≥0.80 |
-| Recall | 0.80 | 0.65 | ≥0.80 |
-| Top-5 Overlap | 62% | 40% | ≥40% |
-| Speedup | 2.2× | 1.2× | N/A |
+| Spearman ρ | 0.85 | 0.54 | ≥ 0.70 |
+| F1-Score | 0.83 | 0.68 | ≥ 0.80 |
+| Precision | 0.86 | 0.71 | ≥ 0.80 |
+| Recall | 0.80 | 0.65 | ≥ 0.80 |
+| Top-5 Overlap | 62% | 40% | ≥ 40% |
 
-### 6.3 Scale Performance
+Application layer consistently meets all targets. Infrastructure layer shows lower but improving correlation, reflecting the inherent difficulty of capturing infrastructure dependencies through topology alone.
+
+### 6.3 Accuracy by System Scale
 
 | Scale | Components | Spearman ρ | F1-Score | Analysis Time |
 |-------|------------|------------|----------|---------------|
-| Tiny | 5-10 | 0.72 | 0.70 | <0.5s |
-| Small | 10-25 | 0.78 | 0.75 | <1s |
-| Medium | 30-50 | 0.82 | 0.80 | ~2s |
-| Large | 60-100 | 0.85 | 0.83 | ~5s |
-| XLarge | 150-300 | 0.88 | 0.85 | ~20s |
+| Tiny | 5–10 | 0.72 | 0.70 | < 0.5 s |
+| Small | 10–25 | 0.78 | 0.75 | < 1 s |
+| Medium | 30–50 | 0.82 | 0.80 | ~2 s |
+| Large | 60–100 | 0.85 | 0.83 | ~5 s |
+| XLarge | 150–300 | 0.88 | 0.85 | ~20 s |
 
-### 6.4 Domain Applicability
+Prediction accuracy improves with scale — larger systems produce more stable centrality distributions and more reliable correlation.
 
-The framework supports multiple distributed system domains:
+### 6.4 Future Extensions
 
-| Domain | Application | Broker | Example Use Case |
-|--------|-------------|--------|------------------|
-| ROS 2 | ROS Node | DDS Participant | Autonomous vehicle perception |
-| Kafka | Producer/Consumer | Kafka Broker | Financial trading platforms |
-| MQTT | MQTT Client | MQTT Broker | IoT smart city deployments |
-| Custom | Microservice | Message Queue | Enterprise SOA systems |
-
-### 6.5 Future Extensions
-
-- Graph Neural Network (GNN) integration for improved prediction accuracy
-- Temporal graph evolution analysis for dynamic systems
-- Multi-objective optimization for architecture refactoring recommendations
-- Digital twin implementation with continuous calibration
-- Heterogeneous multi-layer dependency analysis beyond pub-sub
-
-### 6.6 Documentation Requirements
-
-- **REQ-DOC-001**: User documentation shall include installation guide.
-- **REQ-DOC-002**: User documentation shall include CLI reference.
-- **REQ-DOC-003**: User documentation shall include methodology overview.
-- **REQ-DOC-004**: API documentation shall cover all public modules.
-- **REQ-DOC-005**: Each methodology step shall have dedicated documentation.
+Planned extensions include Graph Neural Network (GNN) integration for enhanced prediction, temporal graph evolution analysis for dynamic systems, multi-objective optimization for architecture refactoring recommendations, digital twin implementation with continuous calibration, and extension beyond pub-sub to REST/gRPC/GraphQL architectures.
 
 ---
 
 ## Appendix A: Quality Formula Reference
 
-### A.1 Reliability Formula
+### A.1 Reliability — Fault Propagation Risk
 
 ```
-R(v) = w₁×PR(v) + w₂×RPR(v) + w₃×ID(v)
+R(v) = 0.40 × PR(v) + 0.35 × RPR(v) + 0.25 × InDegree(v)
 ```
 
-**Default weights**: w₁=0.40, w₂=0.35, w₃=0.25
+High R(v) means failure of this component would propagate widely through the dependency chain. PageRank captures transitive influence; Reverse PageRank captures cascade direction; In-Degree counts direct dependents.
 
-**Interpretation**: High R(v) indicates greater reliability risk if component fails.
-
-### A.2 Maintainability Formula
+### A.2 Maintainability — Coupling Complexity
 
 ```
-M(v) = w₁×BT(v) + w₂×DG(v) + w₃×(1-CC(v))
+M(v) = 0.40 × BT(v) + 0.35 × OutDegree(v) + 0.25 × (1 − CC(v))
 ```
 
-**Default weights**: w₁=0.40, w₂=0.35, w₃=0.25
+High M(v) means the component is tightly coupled and hard to change. Betweenness identifies bottleneck position; Out-Degree measures efferent coupling; low Clustering means neighbors are not interconnected (harder to refactor).
 
-**Interpretation**: High M(v) indicates harder to maintain, higher change risk.
-
-### A.3 Availability Formula
+### A.3 Availability — SPOF Risk
 
 ```
-A(v) = w₁×AP(v) + w₂×BR(v) + w₃×Importance(v)
+A(v) = 0.50 × AP_c(v) + 0.30 × BridgeRatio(v) + 0.20 × Importance(v)
 ```
 
-Where `Importance = (PR + RPR) / 2`
+Where Importance(v) = (PR(v) + RPR(v)) / 2.
 
-**Default weights**: w₁=0.50, w₂=0.30, w₃=0.20
+High A(v) means the component is a single point of failure. AP_c is a continuous fragmentation score (not binary); Bridge Ratio measures irreplaceable connections; Importance combines both PageRank directions.
 
-**Interpretation**: High A(v) indicates higher single point of failure risk.
-
-### A.4 Vulnerability Formula
+### A.4 Vulnerability — Security Exposure
 
 ```
-V(v) = w₁×EV(v) + w₂×CL(v) + w₃×ID(v)
+V(v) = 0.40 × EV(v) + 0.30 × CL(v) + 0.30 × OutDegree(v)
 ```
 
-**Default weights**: w₁=0.40, w₂=0.30, w₃=0.30
+High V(v) means the component is an attractive attack target. Eigenvector measures connection to high-value hubs; Closeness measures propagation speed; Out-Degree represents the attack surface (outbound paths an attacker can traverse).
 
-**Interpretation**: High V(v) indicates higher security exposure risk.
-
-### A.5 Composite Quality Formula
+### A.5 Overall Quality Score
 
 ```
-Q(v) = w_R×R(v) + w_M×M(v) + w_A×A(v) + w_V×V(v)
+Q(v) = w_R × R(v) + w_M × M(v) + w_A × A(v) + w_V × V(v)
 ```
 
-**Default weights**: w_R=w_M=w_A=w_V=0.25 (equal weighting)
+Default: w_R = w_M = w_A = w_V = 0.25 (equal weighting). Adjustable via AHP for domain-specific priorities.
 
-### A.6 Impact Score Formula
+### A.6 Impact Score (Ground Truth)
 
 ```
-I(v) = w_r×reachability_loss + w_f×fragmentation + w_t×throughput_loss
+I(v) = 0.40 × ReachabilityLoss + 0.30 × Fragmentation + 0.30 × ThroughputLoss
 ```
 
-**Default weights**: w_r=0.40, w_f=0.30, w_t=0.30
+Computed by failure simulation (Step 4). Used as ground truth for validating Q(v) predictions.
 
 ### A.7 Box-Plot Classification
 
-Components are classified using statistical quartiles:
+Components are classified into five criticality levels using statistical quartiles of the Q(v) distribution:
 
-- **CRITICAL**: Q(v) > Q3 + 1.5×IQR (statistical outlier)
-- **HIGH**: Q(v) > Q3 (top quartile)
-- **MEDIUM**: Q(v) > Median (above average)
-- **LOW**: Q(v) > Q1 (below average)
-- **MINIMAL**: Q(v) ≤ Q1 (bottom quartile)
+| Level | Threshold |
+|-------|-----------|
+| CRITICAL | Q(v) > Q3 + 1.5 × IQR (statistical outlier) |
+| HIGH | Q(v) > Q3 |
+| MEDIUM | Q(v) > Median |
+| LOW | Q(v) > Q1 |
+| MINIMAL | Q(v) ≤ Q1 |
+
+For small samples (< 12 components), fixed percentile thresholds are used instead: CRITICAL = top 10%, HIGH = top 25%, MEDIUM = top 50%, LOW = top 75%, MINIMAL = bottom 25%.
+
+### A.8 Metric-to-Dimension Mapping (Orthogonality)
+
+Each raw metric feeds into at most one RMAV dimension, preventing any single metric from accumulating disproportionate weight in Q(v):
+
+| Metric | R | M | A | V | Rationale |
+|--------|---|---|---|---|-----------|
+| PageRank | ✓ | | | | Transitive influence |
+| Reverse PageRank | ✓ | | | | Cascade direction |
+| In-Degree | ✓ | | | | Direct dependents |
+| Betweenness | | ✓ | | | Bottleneck position |
+| Out-Degree | | ✓ | | ✓ | Efferent coupling (M) / Attack surface (V) |
+| Clustering | | ✓ | | | Local modularity |
+| AP_c (continuous) | | | ✓ | | Structural SPOF |
+| Bridge Ratio | | | ✓ | | Irreplaceable connections |
+| Importance | | | ✓ | | Critical hub proxy |
+| Eigenvector | | | | ✓ | Strategic importance |
+| Closeness | | | | ✓ | Propagation speed |
+
+Out-Degree is the sole exception, shared between M(v) and V(v) with distinct semantics: efferent coupling in Maintainability, attack surface in Vulnerability.
 
 ---
 
-*Document generated: January 2026*  
-*Software-as-a-Graph Framework v1.0*
+## Appendix B: Glossary
+
+| Term | Definition |
+|------|------------|
+| AHP | Analytic Hierarchy Process — derives weights from expert pairwise comparisons |
+| Articulation Point | A vertex whose removal disconnects the graph |
+| Betweenness Centrality | Fraction of shortest paths passing through a vertex |
+| Bridge | An edge whose removal disconnects the graph |
+| Broker | Message routing middleware (e.g., DDS Participant, Kafka Broker) |
+| Cascade | Propagation of failures from one component to its dependents |
+| Closeness Centrality | Reciprocal of average shortest-path distance to all other vertices |
+| Cohen's κ | Chance-corrected inter-rater agreement statistic |
+| DEPENDS_ON | Derived edge representing a logical dependency |
+| Eigenvector Centrality | Measure of connection to other highly-connected vertices |
+| F1-Score | Harmonic mean of precision and recall |
+| GNN | Graph Neural Network |
+| IQR | Interquartile Range (Q3 − Q1) |
+| NDCG | Normalized Discounted Cumulative Gain |
+| Neo4j | Graph database management system |
+| NetworkX | Python library for graph algorithms |
+| Node | Physical or virtual host infrastructure component |
+| PageRank | Iterative algorithm measuring transitive importance in directed graphs |
+| Pub-Sub | Publish-Subscribe messaging pattern |
+| QoS | Quality of Service — attributes defining message delivery guarantees |
+| RMAV | Reliability, Maintainability, Availability, Vulnerability |
+| RMSE | Root Mean Squared Error |
+| ROS 2 | Robot Operating System 2 |
+| SPOF | Single Point of Failure |
+| Spearman ρ | Rank correlation coefficient for monotonic relationships |
+| Topic | Named message channel with associated QoS settings |
+
+---
+
+*Software-as-a-Graph Framework v2.0 · February 2026*

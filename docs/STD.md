@@ -1,30 +1,28 @@
 # Software and System Test Document
 
 ## Software-as-a-Graph
+
 ### Graph-Based Critical Component Prediction for Distributed Publish-Subscribe Systems
 
-**Version 1.0**  
-**January 2026**
+**Version 2.0** · **February 2026**
 
-Istanbul Technical University  
-Computer Engineering Department
+Istanbul Technical University, Computer Engineering Department
 
 ---
 
 ## Table of Contents
 
 1. [Introduction](#1-introduction)
-2. [Test Plan Overview](#2-test-plan-overview)
+2. [Test Strategy](#2-test-strategy)
 3. [Test Environment](#3-test-environment)
-4. [Unit Test Specifications](#4-unit-test-specifications)
-5. [Integration Test Specifications](#5-integration-test-specifications)
-6. [System Test Specifications](#6-system-test-specifications)
-7. [Performance Test Specifications](#7-performance-test-specifications)
-8. [Validation Test Specifications](#8-validation-test-specifications)
-9. [Acceptance Test Specifications](#9-acceptance-test-specifications)
-10. [Test Procedures](#10-test-procedures)
-11. [Traceability Matrix](#11-traceability-matrix)
-12. [Appendices](#appendices)
+4. [Unit Tests](#4-unit-tests)
+5. [Integration Tests](#5-integration-tests)
+6. [System Tests](#6-system-tests)
+7. [Performance and Scalability Tests](#7-performance-and-scalability-tests)
+8. [Validation Tests](#8-validation-tests)
+9. [Acceptance Criteria](#9-acceptance-criteria)
+10. [Traceability Matrix](#10-traceability-matrix)
+11. [Appendices](#11-appendices)
 
 ---
 
@@ -32,134 +30,94 @@ Computer Engineering Department
 
 ### 1.1 Purpose
 
-This Software and System Test Document provides comprehensive test specifications for the Software-as-a-Graph framework. It defines test cases, procedures, and acceptance criteria to verify that the system meets all functional and non-functional requirements specified in the Software Requirements Specification (SRS).
+This document specifies how the Software-as-a-Graph framework is tested. It defines the test strategy, test cases, pass criteria, and procedures for verifying that the system meets the requirements in the SRS — from individual function correctness up through end-to-end pipeline accuracy.
 
 ### 1.2 Scope
 
-This document covers all testing activities including:
+Testing spans six levels, each targeting a different concern:
 
-- **Unit Tests**: Individual module and function testing
-- **Integration Tests**: Module interaction and data flow testing
-- **System Tests**: End-to-end pipeline verification
-- **Performance Tests**: Scalability and timing benchmarks
-- **Validation Tests**: Statistical accuracy verification
-- **Acceptance Tests**: User requirement validation
+| Level | What It Verifies | Section |
+|-------|-----------------|---------|
+| Unit | Individual functions compute correct results | [§4](#4-unit-tests) |
+| Integration | Modules compose correctly through the pipeline | [§5](#5-integration-tests) |
+| System | End-to-end pipeline produces expected outputs | [§6](#6-system-tests) |
+| Performance | Analysis completes within time budgets at each scale | [§7](#7-performance-and-scalability-tests) |
+| Validation | Predictions statistically match simulation ground truth | [§8](#8-validation-tests) |
+| Acceptance | User-facing requirements are satisfied | [§9](#9-acceptance-criteria) |
 
 ### 1.3 References
 
-| Document | Version | Description |
-|----------|---------|-------------|
-| SRS | 1.0 | Software Requirements Specification |
-| SDD | 1.0 | Software Design Description |
-| IEEE 829-2008 | - | Standard for Software Test Documentation |
-| IEEE 1012-2016 | - | Standard for System and Software Verification and Validation |
+| Document | Description |
+|----------|-------------|
+| SRS v2.0 | Software Requirements Specification |
+| SDD v2.0 | Software Design Description |
+| IEEE 829-2008 | Standard for Software Test Documentation |
+| IEEE 1012-2016 | Standard for System and Software Verification and Validation |
 
-### 1.4 Definitions and Acronyms
+### 1.4 Glossary
 
 | Term | Definition |
 |------|------------|
+| Fixture | Predefined test data created before a test runs |
+| Mock | Simulated object that isolates the code under test |
 | SUT | System Under Test |
-| CI/CD | Continuous Integration/Continuous Deployment |
-| Mock | Simulated object for isolated testing |
-| Fixture | Predefined test data setup |
-| TP/FP/TN/FN | True Positive, False Positive, True Negative, False Negative |
-| ρ (rho) | Spearman rank correlation coefficient |
-| RMSE | Root Mean Square Error |
-| MAE | Mean Absolute Error |
-| NDCG | Normalized Discounted Cumulative Gain |
+| TP / FP / TN / FN | True/False Positive/Negative (classification outcomes) |
 
 ---
 
-## 2. Test Plan Overview
+## 2. Test Strategy
 
-### 2.1 Test Strategy
+### 2.1 Test Pyramid
 
-The testing strategy follows a multi-level pyramid approach:
+The project follows the standard test pyramid: many fast unit tests at the base, fewer integration and system tests above, and targeted validation and acceptance tests at the top.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         TESTING PYRAMID                              │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│                            ▲                                         │
-│                           ╱ ╲        Acceptance Tests                │
-│                          ╱   ╲       (User Scenarios)                │
-│                         ╱─────╲                                      │
-│                        ╱       ╲     System Tests                    │
-│                       ╱         ╲    (End-to-End Pipeline)           │
-│                      ╱───────────╲                                   │
-│                     ╱             ╲   Integration Tests              │
-│                    ╱               ╲  (Module Interactions)          │
-│                   ╱─────────────────╲                                │
-│                  ╱                   ╲ Unit Tests                    │
-│                 ╱                     ╲(Functions/Classes)           │
-│                ╱───────────────────────╲                             │
-│                                                                      │
-│   Distribution:   70%        20%         8%          2%             │
-└─────────────────────────────────────────────────────────────────────┘
-```
+| Level | Distribution | Speed | Infrastructure |
+|-------|-------------|-------|---------------|
+| Unit | ~70% of tests | Milliseconds | None (pure Python) |
+| Integration | ~20% of tests | Seconds | Neo4j (Docker) |
+| System | ~8% of tests | Seconds–minutes | Neo4j + full CLI |
+| Acceptance | ~2% of tests | Minutes | Full environment |
 
-### 2.2 Test Levels Summary
+### 2.2 Entry and Exit Criteria
 
-| Level | Scope | Tools | Coverage Target |
-|-------|-------|-------|-----------------|
-| Unit | Individual functions and classes | pytest, pytest-cov | ≥80% line coverage |
-| Integration | Module interactions, Neo4j connectivity | pytest, Docker | Key data flows |
-| System | Complete pipeline execution | CLI scripts, benchmark.py | All user scenarios |
-| Performance | Scalability across system sizes | benchmark.py | All defined scales |
-| Validation | Statistical prediction accuracy | Validator module | All accuracy targets |
-| Acceptance | User requirement satisfaction | Manual + automated | All requirements |
+**Tests can begin when:**
+code compiles without errors, all unit tests pass locally, and the test Neo4j instance is available.
+
+**Release is approved when:**
+all planned tests are executed, no critical or high-severity defects remain open, unit test coverage ≥ 80%, all primary validation targets pass at the application layer, and performance benchmarks are met.
 
 ### 2.3 Test Schedule
 
-| Phase | Duration | Activities |
-|-------|----------|------------|
-| Unit Testing | Continuous | TDD during development |
-| Integration Testing | 1 week | After module completion |
-| System Testing | 1 week | After integration pass |
-| Performance Testing | 3 days | After system stability |
-| Validation Testing | 3 days | Statistical verification |
-| Acceptance Testing | 2 days | Before release |
-
-### 2.4 Entry and Exit Criteria
-
-**Entry Criteria:**
-- Code compiles without errors
-- All unit tests pass locally
-- Code review completed
-- Test environment available and configured
-
-**Exit Criteria:**
-- All planned tests executed
-- No critical or high-severity defects open
-- Unit test coverage ≥80%
-- All validation targets met for application layer
-- Performance benchmarks achieved
+| Phase | When | Duration |
+|-------|------|----------|
+| Unit tests | Continuous (TDD) | Ongoing |
+| Integration tests | After module completion | 1 week |
+| System tests | After integration pass | 1 week |
+| Performance + Validation | After system stability | 3 days each |
+| Acceptance | Before release | 2 days |
 
 ---
 
 ## 3. Test Environment
 
-### 3.1 Hardware Configuration
+### 3.1 Hardware
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
 | CPU | 2 cores | 4+ cores |
 | RAM | 8 GB | 16 GB |
 | Storage | 10 GB SSD | 50 GB SSD |
-| Network | 100 Mbps | 1 Gbps |
 
-### 3.2 Software Configuration
+### 3.2 Software Stack
 
 | Software | Version | Purpose |
 |----------|---------|---------|
-| Python | 3.9+ | Runtime environment |
+| Python | 3.9+ | Runtime |
 | pytest | 7.0+ | Test framework |
 | pytest-cov | 4.0+ | Coverage reporting |
-| pytest-timeout | 2.0+ | Test timeout handling |
-| Neo4j | 5.x | Graph database |
-| Docker | 20.10+ | Test isolation |
-| NetworkX | 2.6+ | Graph algorithms |
+| pytest-timeout | 2.0+ | Timeout handling |
+| Neo4j | 5.x (Community) | Graph database |
+| Docker | 20.10+ | Test database isolation |
 
 ### 3.3 pytest Configuration
 
@@ -170,26 +128,18 @@ testpaths = tests
 python_files = test_*.py
 python_classes = Test*
 python_functions = test_*
-
-# Default options
 addopts = -v --tb=short --cov=src --cov-report=html
+timeout = 120
 
-# Markers
 markers =
     slow: marks tests as slow (skip with -m "not slow")
     integration: marks integration tests (requires Neo4j)
-    performance: marks performance tests
-
-# Timeout
-timeout = 120
-
-# Ignore warnings
-filterwarnings =
-    ignore::DeprecationWarning
-    ignore::PendingDeprecationWarning
+    performance: marks performance benchmarks
 ```
 
-### 3.4 Test Database Configuration
+### 3.4 Test Database
+
+A dedicated Neo4j instance runs on a different port to prevent interference with development data:
 
 ```yaml
 # docker-compose.test.yml
@@ -197,1067 +147,611 @@ services:
   neo4j-test:
     image: neo4j:5-community
     ports:
-      - "7688:7687"  # Different port for test isolation
-      - "7475:7474"
+      - "7688:7687"    # Bolt (test port)
+      - "7475:7474"    # HTTP (test port)
     environment:
       NEO4J_AUTH: neo4j/testpassword
       NEO4J_PLUGINS: '["graph-data-science"]'
-    volumes:
-      - neo4j-test-data:/data
+```
+
+### 3.5 Running Tests
+
+```bash
+# Unit tests (fast, no infrastructure)
+pytest tests/ -m "not integration" -v
+
+# Unit tests with coverage
+pytest tests/ --cov=src --cov-report=html
+
+# Integration tests (requires Neo4j)
+docker-compose -f docker-compose.test.yml up -d
+pytest tests/ -m integration -v
+docker-compose -f docker-compose.test.yml down
+
+# Specific module or pattern
+pytest tests/test_analysis.py -v
+pytest tests/ -k "test_quality" -v
+
+# Skip slow tests
+pytest tests/ -m "not slow" -v
 ```
 
 ---
 
-## 4. Unit Test Specifications
+## 4. Unit Tests
 
-### 4.1 Core Module Tests (`tests/test_core.py`)
+Unit tests verify individual functions and classes in isolation, without database access. They use deterministic fixtures (known graph topologies with predictable metric values) and target ≥ 80% line coverage per module.
 
-#### 4.1.1 QoSPolicy Tests
+### 4.1 Core Module — QoS Weight Calculation
 
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-CORE-001 | test_default_qos_weight | Default QoS (VOLATILE, BEST_EFFORT, MEDIUM) | Weight ≈ 0.1 |
-| UT-CORE-002 | test_reliable_qos_adds_weight | RELIABLE reliability setting | Weight ≈ 0.4 (+0.30) |
-| UT-CORE-003 | test_persistent_qos_adds_weight | PERSISTENT durability setting | Weight ≈ 0.5 (+0.40) |
-| UT-CORE-004 | test_urgent_priority_adds_weight | URGENT priority setting | Weight ≈ 0.3 (+0.30) |
-| UT-CORE-005 | test_highest_qos_weight | Maximum QoS settings combined | Weight ≈ 1.0 |
-| UT-CORE-006 | test_qos_to_dict | Serialization to dictionary | All fields present |
-| UT-CORE-007 | test_qos_from_dict | Deserialization from dictionary | Correct QoSPolicy created |
+Tests that QoS attributes produce correct edge weights, which drive the entire downstream analysis.
 
-**Test Implementation:**
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| UT-CORE-01 | Default QoS (VOLATILE, BEST_EFFORT, MEDIUM) | Weight ≈ 0.10 |
+| UT-CORE-02 | RELIABLE adds +0.30 | Weight ≈ 0.40 |
+| UT-CORE-03 | PERSISTENT adds +0.40 | Weight ≈ 0.50 |
+| UT-CORE-04 | URGENT adds +0.30 | Weight ≈ 0.40 |
+| UT-CORE-05 | All maximum QoS settings combined | Weight ≈ 1.00 |
+| UT-CORE-06 | Size score: min(log₂(1 + size/1024) / 10, 1.0) | Correct for 1KB, 8KB, 64KB, 1MB |
+| UT-CORE-07 | Roundtrip: QoSPolicy → dict → QoSPolicy | All fields preserved |
 
 ```python
 class TestQoSPolicy:
-    """Tests for QoSPolicy weight calculation."""
-    
     def test_default_qos_weight(self):
-        """Default QoS should have low weight."""
         policy = QoSPolicy()
-        weight = policy.calculate_weight()
-        assert weight == pytest.approx(0.1, abs=0.01)
-    
-    def test_reliable_qos_adds_weight(self):
-        """RELIABLE reliability adds 0.30 to weight."""
-        policy = QoSPolicy(reliability="RELIABLE")
-        weight = policy.calculate_weight()
-        assert weight == pytest.approx(0.4, abs=0.01)
-    
+        assert policy.calculate_weight() == pytest.approx(0.1, abs=0.01)
+
     def test_highest_qos_weight(self):
-        """Maximum QoS settings should give weight of 1.0."""
         policy = QoSPolicy(
-            reliability="RELIABLE",      # +0.30
-            durability="PERSISTENT",     # +0.40
-            transport_priority="URGENT"  # +0.30
+            reliability="RELIABLE", durability="PERSISTENT",
+            transport_priority="URGENT"
         )
-        weight = policy.calculate_weight()
-        assert weight == pytest.approx(1.0, abs=0.01)
-```
+        assert policy.calculate_weight() == pytest.approx(1.0, abs=0.01)
 
-#### 4.1.2 Topic Weight Tests
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-CORE-010 | test_small_topic_weight | Small message (1KB) | Weight ≈ 0.2 |
-| UT-CORE-011 | test_medium_topic_weight | Medium message (64KB) | Weight ≈ 0.7 |
-| UT-CORE-012 | test_large_topic_weight_capped | Large message (1MB) | Size score capped at 1.0 |
-| UT-CORE-013 | test_full_topic_weight | Max QoS + large size | Weight ≈ 2.0 |
-| UT-CORE-014 | test_topic_to_dict | Topic serialization | All properties included |
-
-#### 4.1.3 Entity Tests
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-CORE-020 | test_application_to_dict | Application serialization | All fields present |
-| UT-CORE-021 | test_broker_to_dict | Broker serialization | id and name present |
-| UT-CORE-022 | test_node_to_dict | Node serialization | id and name present |
-| UT-CORE-023 | test_library_to_dict | Library with version | version included |
-| UT-CORE-024 | test_library_without_version | Library without version | version omitted |
-
-#### 4.1.4 Weight Formula Verification
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-CORE-030 | test_size_score_formula | S_size = min(log₂(1 + size/1024) / 10, 1.0) | Formula matches documentation |
-| UT-CORE-031 | test_qos_formula_components | Individual QoS contributions | RELIABLE=0.3, PERSISTENT=0.4, URGENT=0.3 |
-
-```python
-class TestWeightFormulas:
-    """Verify weight formulas match documentation."""
-    
     def test_size_score_formula(self):
-        """Verify S_size = min(log₂(1 + size/1024) / 10, 1.0)."""
-        test_cases = [
-            (1024, 0.1),      # 1KB
-            (8192, 0.32),     # 8KB  
-            (65536, 0.60),    # 64KB
-            (1048576, 1.0),   # 1MB (capped)
-        ]
-        
-        for size_bytes, expected_score in test_cases:
-            calculated = min(math.log2(1 + size_bytes / 1024) / 10, 1.0)
-            assert calculated == pytest.approx(expected_score, abs=0.05)
+        cases = [(1024, 0.1), (8192, 0.32), (65536, 0.60), (1048576, 1.0)]
+        for size, expected in cases:
+            score = min(math.log2(1 + size / 1024) / 10, 1.0)
+            assert score == pytest.approx(expected, abs=0.05)
 ```
 
-### 4.2 Analysis Module Tests (`tests/test_analysis.py`)
+### 4.2 Analysis Module — Structural Metrics
 
-#### 4.2.1 StructuralAnalyzer Tests
+Tests that centrality metrics are computed correctly on graphs with known properties.
 
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-ANAL-001 | test_structural_metrics | Basic metrics computation | All metrics computed |
-| UT-ANAL-002 | test_pagerank_ordering | Downstream nodes higher PR | C ≥ A in A→B→C |
-| UT-ANAL-003 | test_reverse_pagerank_ordering | Upstream nodes higher RPR | A ≥ C in A→B→C |
-| UT-ANAL-004 | test_articulation_point_detection | AP correctly identified | B is AP in A-B-C,D |
-| UT-ANAL-005 | test_bridge_detection | Bridge edges detected | Linear graph has bridges |
-| UT-ANAL-006 | test_empty_graph_handling | Empty graph doesn't crash | Empty result returned |
-| UT-ANAL-007 | test_single_node_handling | Single node graph | No AP, zero betweenness |
-
-**Test Fixtures:**
+**Common fixtures:**
 
 ```python
 @pytest.fixture
-def mock_graph_data():
-    """Simple A->B->C linear graph."""
+def linear_graph():
+    """A → B → C. Predictable PageRank and betweenness ordering."""
     return GraphData(
-        components=[
-            ComponentData(id="A", component_type="Application", weight=1.0),
-            ComponentData(id="B", component_type="Application", weight=1.0),
-            ComponentData(id="C", component_type="Application", weight=1.0)
-        ],
-        edges=[
-            EdgeData("A", "B", "Application", "Application", "app_to_app", 1.0),
-            EdgeData("B", "C", "Application", "Application", "app_to_app", 2.0)
-        ]
+        components=[ComponentData("A", "Application"),
+                    ComponentData("B", "Application"),
+                    ComponentData("C", "Application")],
+        edges=[EdgeData("A", "B", ..., "app_to_app", 1.0),
+               EdgeData("B", "C", ..., "app_to_app", 2.0)]
     )
 
 @pytest.fixture
-def articulation_point_graph():
-    """Graph where B is an articulation point: A--B--C, B--D."""
-    return GraphData(
-        components=[
-            ComponentData(id="A", component_type="Application", weight=1.0),
-            ComponentData(id="B", component_type="Application", weight=1.0),
-            ComponentData(id="C", component_type="Application", weight=1.0),
-            ComponentData(id="D", component_type="Application", weight=1.0),
-        ],
-        edges=[
-            EdgeData("A", "B", "Application", "Application", "app_to_app", 1.0),
-            EdgeData("B", "C", "Application", "Application", "app_to_app", 1.0),
-            EdgeData("B", "D", "Application", "Application", "app_to_app", 1.0),
-        ]
-    )
+def ap_graph():
+    """A—B—C, B—D. B is the sole articulation point."""
+    ...
 ```
 
-**Test Implementation:**
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| UT-ANAL-01 | Metrics computed on linear graph | All 13 metrics present per component |
+| UT-ANAL-02 | PageRank ordering: A → B → C | PR(C) ≥ PR(A) (downstream accumulates) |
+| UT-ANAL-03 | Reverse PageRank ordering | RPR(A) ≥ RPR(C) (upstream accumulates) |
+| UT-ANAL-04 | Articulation point detection | B identified as AP in bridge graph |
+| UT-ANAL-05 | Bridge detection | Linear graph edges are bridges |
+| UT-ANAL-06 | Empty graph | Empty result, no crash |
+| UT-ANAL-07 | Single node | Zero betweenness, not an AP |
+| UT-ANAL-08 | Metric normalization | All continuous metrics ∈ [0, 1] |
+
+### 4.3 Analysis Module — Quality Scoring and Classification
+
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| UT-ANAL-10 | RMAV scores computed from structural metrics | R, M, A, V, Q all in [0, 1] |
+| UT-ANAL-11 | Hub component has high R(v) | PageRank-dominant node scores highest R |
+| UT-ANAL-12 | AP component has high A(v) | Articulation point scores highest A |
+| UT-ANAL-13 | AHP weights differ from defaults | Different weights → different Q ordering |
+| UT-ANAL-14 | AHP consistency check | CR > 0.10 triggers warning |
+| UT-ANAL-15 | Box-plot classification | 5 levels assigned (CRITICAL through MINIMAL) |
+| UT-ANAL-16 | Small sample fallback | n < 12 uses percentile thresholds |
+| UT-ANAL-17 | Layer filtering | App layer includes only Application components |
 
 ```python
-class TestStructuralAnalyzer:
-    """Tests for StructuralAnalyzer metrics computation."""
-    
-    def test_structural_metrics(self, mock_graph_data):
-        """Test basic structural metrics computation."""
-        analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(mock_graph_data)
-        
-        assert "A" in res.components
-        assert res.components["B"].betweenness > res.components["A"].betweenness
-        assert ("A", "B") in res.edges
-    
-    def test_articulation_point_detection(self, articulation_point_graph):
-        """Test that articulation points are correctly identified."""
-        analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(articulation_point_graph)
-        
-        assert res.components["B"].is_articulation_point is True
-        assert res.components["A"].is_articulation_point is False
-    
-    def test_empty_graph_handling(self, empty_graph):
-        """Test that empty graphs don't crash."""
-        analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(empty_graph)
-        
-        assert len(res.components) == 0
-        assert len(res.edges) == 0
+def test_layer_analysis_filters_correctly(self, multi_layer_graph):
+    analyzer = StructuralAnalyzer()
+    res_app = analyzer.analyze(multi_layer_graph, layer=AnalysisLayer.APP)
+    for comp in res_app.components.values():
+        assert comp.type == "Application"
+
+    res_infra = analyzer.analyze(multi_layer_graph, layer=AnalysisLayer.INFRA)
+    for comp in res_infra.components.values():
+        assert comp.type == "Node"
 ```
 
-#### 4.2.2 QualityAnalyzer Tests
+### 4.4 Simulation Module
 
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-ANAL-010 | test_quality_scoring | Quality scores computed | All components have Q(v) |
-| UT-ANAL-011 | test_central_node_higher_score | Central nodes higher score | B ≥ A in A→B→C |
-| UT-ANAL-012 | test_all_dimensions_computed | R, M, A, V all computed | All dimensions ≥ 0 |
-| UT-ANAL-013 | test_edge_vulnerability_computed | Edge vulnerability | All edges have V score |
-| UT-ANAL-014 | test_custom_weights | Custom weights affect scoring | Different results with different weights |
-| UT-ANAL-015 | test_classification_summary | Summary properly built | Correct totals and distribution |
-
-```python
-class TestQualityAnalyzer:
-    """Tests for QualityAnalyzer score computation."""
-    
-    def test_all_dimensions_computed(self, mock_graph_data):
-        """Test that all four quality dimensions are computed."""
-        struct_an = StructuralAnalyzer()
-        struct_res = struct_an.analyze(mock_graph_data)
-        
-        qual_an = QualityAnalyzer()
-        qual_res = qual_an.analyze(struct_res)
-        
-        for comp in qual_res.components:
-            assert comp.scores.reliability >= 0
-            assert comp.scores.maintainability >= 0
-            assert comp.scores.availability >= 0
-            assert comp.scores.vulnerability >= 0
-            assert comp.scores.overall >= 0
-    
-    def test_custom_weights(self, mock_graph_data):
-        """Test that custom weights affect scoring."""
-        struct_an = StructuralAnalyzer()
-        struct_res = struct_an.analyze(mock_graph_data)
-        
-        qual_default = QualityAnalyzer()
-        res_default = qual_default.analyze(struct_res)
-        
-        custom_weights = QualityWeights(
-            q_reliability=0.7,
-            q_maintainability=0.1,
-            q_availability=0.1,
-            q_vulnerability=0.1
-        )
-        qual_custom = QualityAnalyzer(weights=custom_weights)
-        res_custom = qual_custom.analyze(struct_res)
-        
-        default_scores = {c.id: c.scores.overall for c in res_default.components}
-        custom_scores = {c.id: c.scores.overall for c in res_custom.components}
-        
-        assert any(
-            abs(default_scores[id] - custom_scores[id]) > 0.001
-            for id in default_scores
-        )
-```
-
-#### 4.2.3 Layer Filtering Tests
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-ANAL-020 | test_app_layer_components | APP layer filtering | Only Applications |
-| UT-ANAL-021 | test_infra_layer_components | INFRA layer filtering | Only Nodes |
-| UT-ANAL-022 | test_system_layer_includes_all | SYSTEM includes all types | All 5 types present |
-| UT-ANAL-023 | test_mw_app_layer_components | MW_APP filtering | Application + Broker |
-| UT-ANAL-024 | test_layer_analysis_filters | Filtering works correctly | Correct types per layer |
-
-```python
-class TestLayerFiltering:
-    """Tests for layer definitions and component type filtering."""
-    
-    def test_app_layer_components(self):
-        """APP layer should only include Application components."""
-        layer_def = get_layer_definition(AnalysisLayer.APP)
-        assert "Application" in layer_def.component_types
-        assert "Node" not in layer_def.component_types
-        assert "Broker" not in layer_def.component_types
-    
-    def test_layer_analysis_filters_correctly(self, multi_layer_graph):
-        """Verify that layer analysis filters to correct component types."""
-        analyzer = StructuralAnalyzer()
-        
-        res_app = analyzer.analyze(multi_layer_graph, layer=AnalysisLayer.APP)
-        for comp_id, comp in res_app.components.items():
-            assert comp.type == "Application"
-        
-        res_infra = analyzer.analyze(multi_layer_graph, layer=AnalysisLayer.INFRA)
-        for comp_id, comp in res_infra.components.items():
-            assert comp.type == "Node"
-```
-
-### 4.3 Simulation Module Tests (`tests/test_simulation.py`)
-
-#### 4.3.1 SimulationGraph Tests
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-SIM-001 | test_graph_loading | Load graph from data | All components loaded |
-| UT-SIM-002 | test_component_state_tracking | State changes tracked | ACTIVE → FAILED |
-| UT-SIM-003 | test_pub_sub_path_detection | Pub-sub paths identified | Publisher→Topic→Subscriber |
-| UT-SIM-004 | test_graph_reset | Reset restores state | All ACTIVE after reset |
-
-#### 4.3.2 EventSimulator Tests
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-SIM-010 | test_event_simulation | Basic event flow | Messages reach subscribers |
-| UT-SIM-011 | test_affected_topics | Topics correctly identified | Topic in affected list |
-| UT-SIM-012 | test_reached_subscribers | Subscribers reached | Subscriber in reached list |
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| UT-SIM-01 | Load graph from GraphData | All components tracked as ACTIVE |
+| UT-SIM-02 | Fail a component → state changes | Status becomes FAILED |
+| UT-SIM-03 | Pub-sub path detection | Publisher → Topic → Subscriber paths found |
+| UT-SIM-04 | Graph reset restores all state | All components ACTIVE after reset |
+| UT-SIM-10 | Event simulation: messages flow | Subscribers receive messages from publishers |
+| UT-SIM-20 | Failure simulation: basic cascade | Cascade propagates from target |
+| UT-SIM-21 | Physical cascade: Node → hosted Apps | Hosted applications fail when Node fails |
+| UT-SIM-22 | Cascade count accuracy | |F| matches number of failed components |
+| UT-SIM-23 | Impact calculation: I(v) computed | Composite score ∈ [0, 1] |
+| UT-SIM-24 | Custom impact weights | Different w_r, w_f, w_t → different I(v) |
 
 ```python
 @pytest.fixture
 def raw_graph_data():
+    """App1 publishes to Topic1, App2 subscribes. App1 runs on Node1."""
     return GraphData(
-        components=[
-            ComponentData("App1", "Application"),
-            ComponentData("App2", "Application"),
-            ComponentData("Topic1", "Topic"),
-            ComponentData("Node1", "Node"),
-        ],
-        edges=[
-            EdgeData("App1", "Topic1", "Application", "Topic", 
-                    "PUBLISHES_TO", "PUBLISHES_TO"),
-            EdgeData("App2", "Topic1", "Application", "Topic", 
-                    "SUBSCRIBES_TO", "SUBSCRIBES_TO"),
-            EdgeData("App1", "Node1", "Application", "Node", 
-                    "RUNS_ON", "RUNS_ON"),
-        ]
+        components=[ComponentData("App1", "Application"),
+                    ComponentData("App2", "Application"),
+                    ComponentData("Topic1", "Topic"),
+                    ComponentData("Node1", "Node")],
+        edges=[EdgeData("App1", "Topic1", ..., "PUBLISHES_TO", ...),
+               EdgeData("App2", "Topic1", ..., "SUBSCRIBES_TO", ...),
+               EdgeData("App1", "Node1", ..., "RUNS_ON", ...)]
     )
 
-def test_event_simulation(raw_graph_data):
-    graph = SimulationGraph(graph_data=raw_graph_data)
-    sim = EventSimulator(graph)
-    
-    res = sim.simulate(EventScenario("App1", "test"))
-    
-    assert "Topic1" in res.affected_topics
-    assert "App2" in res.reached_subscribers
-    assert res.metrics.messages_published > 0
-```
-
-#### 4.3.3 FailureSimulator Tests
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-SIM-020 | test_failure_simulation | Basic failure cascade | Cascade propagates |
-| UT-SIM-021 | test_physical_cascade | Node→Apps cascade | Hosted apps fail |
-| UT-SIM-022 | test_cascade_count | Cascade count accurate | Count matches failed set |
-| UT-SIM-023 | test_impact_calculation | Impact metrics computed | I(v) calculated |
-| UT-SIM-024 | test_configurable_impact_weights | Custom weights work | Different I(v) values |
-
-```python
-def test_failure_simulation(raw_graph_data):
+def test_physical_cascade(raw_graph_data):
     graph = SimulationGraph(graph_data=raw_graph_data)
     sim = FailureSimulator(graph)
-    
     res = sim.simulate(FailureScenario("Node1", "test"))
-    
     assert "App1" in res.cascaded_failures
-    assert res.impact.cascade_by_type.get("Application", 0) >= 1
 
 def test_configurable_impact_weights(raw_graph_data):
-    """Test that impact weights are configurable."""
-    metrics1 = ImpactMetrics(
-        reachability_loss=1.0, 
-        fragmentation=0.0, 
-        throughput_loss=0.0
-    )
-    metrics2 = ImpactMetrics(
-        reachability_loss=1.0, 
-        fragmentation=0.0, 
-        throughput_loss=0.0,
-        impact_weights={"reachability": 1.0, "fragmentation": 0.0, "throughput": 0.0}
-    )
-    
-    assert metrics1.composite_impact == pytest.approx(0.4, abs=0.01)  # Default
-    assert metrics2.composite_impact == pytest.approx(1.0, abs=0.01)  # Custom
+    m1 = ImpactMetrics(reachability_loss=1.0, fragmentation=0.0, throughput_loss=0.0)
+    m2 = ImpactMetrics(reachability_loss=1.0, fragmentation=0.0, throughput_loss=0.0,
+                       impact_weights={"reachability": 1.0, "fragmentation": 0.0,
+                                       "throughput": 0.0})
+    assert m1.composite_impact == pytest.approx(0.4, abs=0.01)   # default weights
+    assert m2.composite_impact == pytest.approx(1.0, abs=0.01)   # custom weights
 ```
 
-### 4.4 Validation Module Tests (`tests/test_validation.py`)
+### 4.5 Validation Module
 
-#### 4.4.1 Correlation Metrics Tests
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-VAL-001 | test_perfect_correlation | Identical rankings | ρ = 1.0 |
-| UT-VAL-002 | test_inverse_correlation | Reversed rankings | ρ = -1.0 |
-| UT-VAL-003 | test_no_correlation | Random rankings | -1.0 ≤ ρ ≤ 1.0 |
-| UT-VAL-004 | test_rmse_calculation | RMSE computed correctly | Zero for identical |
-| UT-VAL-005 | test_mae_calculation | MAE computed correctly | Correct average error |
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| UT-VAL-01 | Perfect positive correlation | ρ = 1.0, p < 0.05 |
+| UT-VAL-02 | Perfect inverse correlation | ρ = −1.0 |
+| UT-VAL-03 | Identical predictions | RMSE = 0.0, MAE = 0.0 |
+| UT-VAL-04 | Matching top elements | Top-K overlap high, NDCG > 0.9 |
+| UT-VAL-05 | Mismatched top elements | NDCG < 1.0 |
+| UT-VAL-06 | Empty input | No crash, empty result returned |
+| UT-VAL-07 | Single element | Warning issued, valid result |
+| UT-VAL-08 | Pass/fail logic | Correct determination against targets |
 
 ```python
 class TestCorrelationMetrics:
-    """Tests for correlation and error metrics."""
-    
     def test_perfect_correlation(self):
-        """Perfect positive correlation should return rho=1.0."""
         x = [0.1, 0.2, 0.3, 0.4, 0.5]
         y = [0.1, 0.2, 0.3, 0.4, 0.5]
-        rho, p_value = spearman_correlation(x, y)
+        rho, p = spearman_correlation(x, y)
         assert rho == pytest.approx(1.0, abs=0.01)
-        assert p_value < 0.05
-    
+        assert p < 0.05
+
     def test_inverse_correlation(self):
-        """Perfect inverse correlation should return rho=-1.0."""
-        x = [0.1, 0.2, 0.3, 0.4, 0.5]
-        y_inv = [0.5, 0.4, 0.3, 0.2, 0.1]
-        rho, p_value = spearman_correlation(x, y_inv)
+        rho, _ = spearman_correlation([0.1, 0.2, 0.3], [0.3, 0.2, 0.1])
         assert rho == pytest.approx(-1.0, abs=0.01)
-    
-    def test_rmse_calculation(self):
-        """Test RMSE calculation."""
-        predicted = [1.0, 2.0, 3.0]
-        actual = [1.0, 2.0, 3.0]
-        metrics = calculate_error_metrics(predicted, actual)
+
+    def test_rmse_zero_for_identical(self):
+        metrics = calculate_error_metrics([1.0, 2.0, 3.0], [1.0, 2.0, 3.0])
         assert metrics.rmse == pytest.approx(0.0, abs=0.001)
 ```
 
-#### 4.4.2 Ranking Metrics Tests
+### 4.6 Visualization Module
 
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-VAL-010 | test_ranking_logic | Matching top elements | High overlap |
-| UT-VAL-011 | test_ranking_with_mismatch | Different top elements | Lower NDCG |
-| UT-VAL-012 | test_top_k_overlap | Top-K calculation | Correct overlap % |
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| UT-VIZ-01 | Dashboard generator produces valid HTML | Output parses as HTML, contains expected sections |
+| UT-VIZ-02 | KPI cards render with correct values | Component count, critical count match input |
+| UT-VIZ-03 | Network graph data serialized correctly | Nodes and edges in vis.js JSON format |
+| UT-VIZ-04 | Default color theme values | CRITICAL = #E74C3C, HIGH = #E67E22, etc. |
+| UT-VIZ-05 | Custom theme overrides | Overridden values applied, defaults preserved |
 
-```python
-class TestRankingMetrics:
-    """Tests for ranking and Top-K metrics."""
-    
-    def test_ranking_logic(self):
-        """Test ranking metrics with matching top elements."""
-        pred = {"A": 0.9, "B": 0.5, "C": 0.1}
-        act = {"A": 0.8, "B": 0.4, "C": 0.2}
-        
-        res = calculate_ranking_metrics(pred, act)
-        assert res.top_5_overlap > 0
-        assert res.ndcg_10 > 0.9
-    
-    def test_ranking_with_mismatch(self):
-        """Test ranking metrics when top elements differ."""
-        pred = {"A": 0.9, "B": 0.5, "C": 0.1}
-        act = {"C": 0.8, "B": 0.5, "A": 0.2}
-        
-        res = calculate_ranking_metrics(pred, act)
-        assert res.ndcg_10 < 1.0
-```
+### 4.7 Coverage Targets
 
-#### 4.4.3 Validator Tests
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-VAL-020 | test_validator_flow | Basic validation flow | All metrics computed |
-| UT-VAL-021 | test_validator_empty_input | Empty input handling | No crash, empty result |
-| UT-VAL-022 | test_validator_single_element | Single element edge case | Warning issued |
-| UT-VAL-023 | test_pass_fail_determination | Pass/fail logic | Correct determination |
-
-```python
-class TestValidator:
-    """Tests for Validator orchestration."""
-    
-    def test_validator_flow(self):
-        """Test basic validator flow."""
-        validator = Validator()
-        pred = {"A": 0.9, "B": 0.1, "C": 0.5}
-        act = {"A": 0.8, "B": 0.2, "C": 0.6}
-        types = {"A": "Type1", "B": "Type1", "C": "Type2"}
-        
-        res = validator.validate(pred, act, types)
-        
-        assert res.overall.sample_size == 3
-        assert res.matched_count == 3
-    
-    def test_validator_empty_input(self):
-        """Test validator handles empty input gracefully."""
-        validator = Validator()
-        res = validator.validate({}, {}, {})
-        assert res.overall.sample_size == 0
-    
-    def test_validator_single_element(self):
-        """Test validator with single element (edge case)."""
-        validator = Validator()
-        pred = {"A": 0.5}
-        act = {"A": 0.5}
-        types = {"A": "Application"}
-        
-        res = validator.validate(pred, act, types)
-        assert res.matched_count == 1
-        assert len(res.warnings) > 0  # Warning for small sample
-```
-
-### 4.5 Visualization Module Tests (`tests/test_visualization.py`)
-
-#### 4.5.1 ColorTheme Tests
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| UT-VIZ-001 | test_default_theme_colors | Default theme attributes | All colors present |
-| UT-VIZ-002 | test_custom_theme_override | Custom theme values | Custom values used |
-| UT-VIZ-003 | test_theme_to_dict | Theme serialization | Correct dictionaries |
-| UT-VIZ-004 | test_high_contrast_theme | Accessibility theme | Different from default |
-
-```python
-class TestColorTheme:
-    """Tests for configurable color themes."""
-    
-    def test_default_theme_has_all_colors(self):
-        """Default theme should have all required color attributes."""
-        theme = DEFAULT_THEME
-        assert theme.primary == "#3498db"
-        assert theme.success == "#2ecc71"
-        assert theme.danger == "#e74c3c"
-        assert theme.critical == "#e74c3c"
-    
-    def test_custom_theme_override(self):
-        """Custom theme should override default colors."""
-        theme = ColorTheme(primary="#ff0000", success="#00ff00")
-        assert theme.primary == "#ff0000"
-        assert theme.success == "#00ff00"
-        assert theme.danger == "#e74c3c"  # Default preserved
-```
+| Module | Unit Tests | Target Coverage |
+|--------|-----------|----------------|
+| src/domain/models | ~15 | 85% |
+| src/domain/services | ~35 | 82% |
+| src/infrastructure (simulation) | ~15 | 78% |
+| src/infrastructure (validation) | ~12 | 80% |
+| src/infrastructure (visualization) | ~10 | 75% |
+| **Total** | **~87** | **≥ 80%** |
 
 ---
 
-## 5. Integration Test Specifications
+## 5. Integration Tests
 
-### 5.1 Analysis Pipeline Integration
+Integration tests verify that modules compose correctly when data flows between them. These tests use the `@pytest.mark.integration` marker and require a running Neo4j instance.
 
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| IT-ANAL-001 | test_structural_to_quality | StructuralAnalyzer → QualityAnalyzer | Scores computed from metrics |
-| IT-ANAL-002 | test_quality_to_problems | QualityAnalyzer → ProblemDetector | Problems identified |
-| IT-ANAL-003 | test_full_analysis_pipeline | Complete analysis flow | LayerAnalysisResult |
-| IT-ANAL-004 | test_multi_layer_analysis | All layers analyzed | MultiLayerAnalysisResult |
+### 5.1 Analysis Pipeline
 
-```python
-@pytest.mark.integration
-class TestAnalysisPipelineIntegration:
-    """Integration tests for analysis pipeline."""
-    
-    def test_full_analysis_pipeline(self, multi_layer_graph):
-        """Test complete analysis flow from graph to results."""
-        structural = StructuralAnalyzer()
-        quality = QualityAnalyzer()
-        detector = ProblemDetector()
-        
-        # Step 1: Structural analysis
-        struct_result = structural.analyze(multi_layer_graph)
-        assert len(struct_result.components) > 0
-        
-        # Step 2: Quality scoring
-        qual_result = quality.analyze(struct_result)
-        assert len(qual_result.components) > 0
-        
-        # Step 3: Problem detection
-        problems = detector.detect(qual_result.components, qual_result.edges, qual_result)
-        assert isinstance(problems, list)
-```
+Tests that StructuralAnalyzer → QualityAnalyzer → ProblemDetector produces correct end-to-end results.
 
-### 5.2 Simulation Pipeline Integration
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| IT-SIM-001 | test_event_to_failure | Event → Failure simulation | Both results computed |
-| IT-SIM-002 | test_exhaustive_simulation | All components simulated | Results for each |
-| IT-SIM-003 | test_layer_metrics | Layer metrics computed | LayerMetrics object |
-
-### 5.3 Validation Pipeline Integration
-
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| IT-VAL-001 | test_analysis_to_validation | Analysis → Validation | Scores compared |
-| IT-VAL-002 | test_simulation_to_validation | Simulation → Validation | Impacts compared |
-| IT-VAL-003 | test_full_validation_pipeline | Analysis + Simulation → Validation | ValidationResult |
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| IT-ANAL-01 | StructuralAnalyzer → QualityAnalyzer | RMAV scores computed from structural metrics |
+| IT-ANAL-02 | QualityAnalyzer → ProblemDetector | Architectural problems identified |
+| IT-ANAL-03 | Full analysis pipeline | LayerAnalysisResult with components, edges, problems |
+| IT-ANAL-04 | Multi-layer analysis (all 5 layers) | MultiLayerAnalysisResult with per-layer results |
 
 ```python
 @pytest.mark.integration
-class TestValidationPipelineIntegration:
-    """Integration tests for validation pipeline."""
-    
-    def test_full_validation_pipeline(self, multi_layer_graph):
-        """Test complete validation flow."""
-        # Analysis
-        struct_an = StructuralAnalyzer()
-        qual_an = QualityAnalyzer()
-        struct_res = struct_an.analyze(multi_layer_graph)
-        qual_res = qual_an.analyze(struct_res)
-        
-        # Simulation
-        sim_graph = SimulationGraph(graph_data=multi_layer_graph)
-        fail_sim = FailureSimulator(sim_graph)
-        sim_results = fail_sim.simulate_exhaustive()
-        
-        # Extract scores
-        predicted = {c.id: c.scores.overall for c in qual_res.components}
-        actual = {r.target_id: r.impact.composite_impact for r in sim_results}
-        
-        # Validation
-        validator = Validator()
-        result = validator.validate(predicted, actual)
-        
-        assert result.matched_count > 0
+def test_full_analysis_pipeline(multi_layer_graph):
+    structural = StructuralAnalyzer()
+    quality = QualityAnalyzer()
+    detector = ProblemDetector()
+
+    struct_result = structural.analyze(multi_layer_graph)
+    assert len(struct_result.components) > 0
+
+    qual_result = quality.analyze(struct_result)
+    assert len(qual_result.components) > 0
+    assert all(c.scores.overall >= 0 for c in qual_result.components)
+
+    problems = detector.detect(qual_result.components, qual_result.edges, qual_result)
+    assert isinstance(problems, list)
 ```
 
-### 5.4 Neo4j Integration Tests
+### 5.2 Simulation Pipeline
 
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| IT-NEO-001 | test_import_export_roundtrip | Import → Export → Verify | Data preserved |
-| IT-NEO-002 | test_dependency_derivation | DEPENDS_ON edges created | Derived edges exist |
-| IT-NEO-003 | test_weight_propagation | Weights calculated | Non-zero weights |
-| IT-NEO-004 | test_layer_extraction | Layer data retrieved | Correct filtering |
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| IT-SIM-01 | Event simulation + failure simulation on same graph | Both produce valid results |
+| IT-SIM-02 | Exhaustive simulation across all components | One FailureResult per component |
+| IT-SIM-03 | Layer-specific simulation | Only layer components simulated |
+
+### 5.3 Cross-Pipeline (Analysis → Simulation → Validation)
+
+The most important integration test: does the full prediction-vs-reality loop work?
+
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| IT-VAL-01 | Analysis Q(v) compared against simulation I(v) | ValidationGroupResult with all metrics |
+| IT-VAL-02 | Matched component count > 0 | Predicted and actual sets overlap |
+| IT-VAL-03 | Pass/fail reflects validation targets | Correct pass/fail determination |
+
+```python
+@pytest.mark.integration
+def test_full_validation_pipeline(multi_layer_graph):
+    # Analysis
+    struct_result = StructuralAnalyzer().analyze(multi_layer_graph)
+    qual_result = QualityAnalyzer().analyze(struct_result)
+
+    # Simulation
+    sim_graph = SimulationGraph(graph_data=multi_layer_graph)
+    sim_results = FailureSimulator(sim_graph).simulate_exhaustive()
+
+    # Validation
+    predicted = {c.id: c.scores.overall for c in qual_result.components}
+    actual = {r.target_id: r.impact.composite_impact for r in sim_results}
+    result = Validator().validate(predicted, actual)
+
+    assert result.matched_count > 0
+    assert -1.0 <= result.correlation.spearman <= 1.0
+```
+
+### 5.4 Neo4j Integration
+
+| Test ID | Description | Expected Result |
+|---------|-------------|-----------------|
+| IT-NEO-01 | Import → Export roundtrip | All entities and edges preserved |
+| IT-NEO-02 | DEPENDS_ON derivation | Derived edges exist with correct types |
+| IT-NEO-03 | QoS weight propagation | Non-zero weights on topics and edges |
+| IT-NEO-04 | Layer extraction query | Returns only components of the requested layer |
 
 ---
 
-## 6. System Test Specifications
+## 6. System Tests
 
-### 6.1 End-to-End Pipeline Tests
+System tests exercise the complete pipeline through the CLI tools, verifying end-to-end behavior at multiple scales.
 
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| ST-E2E-001 | test_full_pipeline_small | Complete pipeline (small) | All steps complete |
-| ST-E2E-002 | test_full_pipeline_medium | Complete pipeline (medium) | All steps complete |
-| ST-E2E-003 | test_full_pipeline_large | Complete pipeline (large) | All steps complete |
-| ST-E2E-004 | test_dashboard_generation | Pipeline with visualization | HTML dashboard created |
+### 6.1 End-to-End Pipeline
 
-**System Test Procedure:**
+| Test ID | Scale | Description | Pass Criteria |
+|---------|-------|-------------|---------------|
+| ST-E2E-01 | Small | Full pipeline (~10–25 components) | All 6 steps complete, dashboard generated |
+| ST-E2E-02 | Medium | Full pipeline (~30–50 components) | All 6 steps complete, validation passes |
+| ST-E2E-03 | Large | Full pipeline (~60–100 components) | All 6 steps complete within time budget |
+
+**Procedure (example: small scale):**
 
 ```bash
-# ST-E2E-001: Full Pipeline Test (Small Scale)
+python bin/generate_graph.py --scale small --output /tmp/test_data.json
+python bin/import_graph.py --input /tmp/test_data.json --clear
+python bin/analyze_graph.py --layer system --use-ahp --output /tmp/analysis.json
+python bin/simulate_graph.py failure --layer system --exhaustive --output /tmp/simulation.json
+python bin/validate_graph.py --layer system --output /tmp/validation.json
+python bin/visualize_graph.py --layer system --output /tmp/dashboard.html
+```
 
-# Step 1: Generate data
-python generate_graph.py --scale small --output test_data.json
-# Expected: test_data.json created with ~10-25 components
+Or as a single command:
 
-# Step 2: Import to Neo4j
-python import_graph.py --input test_data.json --clear
-# Expected: All entities imported, dependencies derived
-
-# Step 3: Analyze
-python analyze_graph.py --layer system --use-ahp --output analysis.json
-# Expected: Analysis results with RMAV scores
-
-# Step 4: Simulate
-python simulate_graph.py --layer system --exhaustive --output simulation.json
-# Expected: Impact scores for all components
-
-# Step 5: Validate
-python validate_graph.py --layer system --output validation.json
-# Expected: Validation metrics computed
-
-# Step 6: Visualize
-python visualize_graph.py --layer system --output dashboard.html
-# Expected: HTML dashboard with all sections
+```bash
+python bin/run.py --all --layer system --scale small
 ```
 
 ### 6.2 CLI Command Tests
 
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| ST-CLI-001 | test_generate_graph_cli | generate_graph.py options | All scales work |
-| ST-CLI-002 | test_import_graph_cli | import_graph.py options | Import succeeds |
-| ST-CLI-003 | test_analyze_graph_cli | analyze_graph.py options | Analysis completes |
-| ST-CLI-004 | test_simulate_graph_cli | simulate_graph.py options | Simulation completes |
-| ST-CLI-005 | test_validate_graph_cli | validate_graph.py options | Validation completes |
-| ST-CLI-006 | test_visualize_graph_cli | visualize_graph.py options | Dashboard generated |
-| ST-CLI-007 | test_run_all_cli | run.py --all | Full pipeline completes |
-| ST-CLI-008 | test_benchmark_cli | benchmark.py execution | Report generated |
+Each CLI tool is tested independently with its most common options.
 
-### 6.3 Error Handling Tests
+| Test ID | Command | Tested Options | Pass Criteria |
+|---------|---------|---------------|---------------|
+| ST-CLI-01 | `generate_graph.py` | `--scale tiny/small/medium/large/xlarge` | JSON output for each scale |
+| ST-CLI-02 | `import_graph.py` | `--input FILE --clear` | Import completes, entity counts logged |
+| ST-CLI-03 | `analyze_graph.py` | `--layer app/infra/system`, `--use-ahp`, `--output` | Analysis JSON produced |
+| ST-CLI-04 | `simulate_graph.py` | `failure --exhaustive`, `--monte-carlo` | Simulation results produced |
+| ST-CLI-05 | `validate_graph.py` | `--layer app`, `--output` | Validation JSON with pass/fail |
+| ST-CLI-06 | `visualize_graph.py` | `--output FILE`, `--open` | Valid HTML dashboard |
+| ST-CLI-07 | `run.py` | `--all --layer system` | Full pipeline completes |
+| ST-CLI-08 | `benchmark.py` | `--scales small,medium --runs 3` | Benchmark report generated |
 
-| Test ID | Test Name | Description | Expected Result |
-|---------|-----------|-------------|-----------------|
-| ST-ERR-001 | test_invalid_input_file | Non-existent file | Graceful error message |
-| ST-ERR-002 | test_malformed_json | Invalid JSON format | Parse error reported |
-| ST-ERR-003 | test_neo4j_connection_failure | Database unavailable | Connection error handled |
-| ST-ERR-004 | test_empty_graph_handling | Empty input data | Warning, no crash |
-| ST-ERR-005 | test_invalid_layer_name | Unknown layer specified | Error with valid options |
+### 6.3 Error Handling
+
+| Test ID | Scenario | Expected Behavior |
+|---------|----------|-------------------|
+| ST-ERR-01 | Non-existent input file | Graceful error message, non-zero exit code |
+| ST-ERR-02 | Malformed JSON | Parse error with file/line info |
+| ST-ERR-03 | Neo4j unavailable | Connection error message, no stack trace |
+| ST-ERR-04 | Empty input topology | Warning logged, empty result returned |
+| ST-ERR-05 | Invalid layer name | Error listing valid layer options |
 
 ---
 
-## 7. Performance Test Specifications
+## 7. Performance and Scalability Tests
 
-### 7.1 Scalability Tests
+Performance tests verify that analysis completes within time budgets and that prediction accuracy improves with system scale (a key thesis contribution).
 
-| Test ID | Scale | Components | Max Analysis Time | Min Accuracy |
-|---------|-------|------------|-------------------|--------------|
-| PT-SCAL-001 | Tiny | 5-10 | <0.5s | ρ ≥ 0.65 |
-| PT-SCAL-002 | Small | 10-25 | <1s | ρ ≥ 0.70 |
-| PT-SCAL-003 | Medium | 30-50 | <5s | ρ ≥ 0.75 |
-| PT-SCAL-004 | Large | 60-100 | <10s | ρ ≥ 0.80 |
-| PT-SCAL-005 | XLarge | 150-300 | <30s | ρ ≥ 0.85 |
+### 7.1 Timing Targets
 
-### 7.2 Benchmark Configuration
+| Scale | Components | Max Analysis Time | Max Simulation Time | Max Dashboard Time |
+|-------|------------|-------------------|--------------------|--------------------|
+| Tiny | 5–10 | < 0.5 s | < 1 s | < 5 s |
+| Small | 10–25 | < 1 s | < 2 s | < 5 s |
+| Medium | 30–50 | < 5 s | < 10 s | < 10 s |
+| Large | 60–100 | < 10 s | < 20 s | < 10 s |
+| XLarge | 150–300 | < 30 s | < 60 s | < 10 s |
 
-```python
-# benchmark.py configuration
-SCALE_DEFINITIONS = {
-    "tiny": {"nodes": "5-10", "description": "Minimal test system"},
-    "small": {"nodes": "10-25", "description": "Small deployment"},
-    "medium": {"nodes": "30-50", "description": "Medium deployment"},
-    "large": {"nodes": "60-100", "description": "Large deployment"},
-    "xlarge": {"nodes": "150-300", "description": "Enterprise scale"},
-}
+### 7.2 Resource Targets
 
-VALIDATION_TARGETS = {
-    "spearman": 0.70,
-    "f1": 0.80,
-    "precision": 0.80,
-    "recall": 0.80,
-    "top5_overlap": 0.40,
-    "top10_overlap": 0.60,
-}
-```
+| Metric | Target |
+|--------|--------|
+| Peak memory (large scale) | < 2 GB |
+| Database import (medium) | < 5 s |
+| Peak memory (xlarge) | < 4 GB |
 
-### 7.3 Performance Metrics
+### 7.3 Benchmark Execution
 
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| Analysis Time | Scale-dependent | Elapsed time from start to results |
-| Simulation Time | <2× Analysis Time | Time for exhaustive simulation |
-| Memory Usage | <2GB for large | Peak memory during execution |
-| Dashboard Generation | <10s | Time to generate HTML |
-| Database Import | <5s for medium | Time to import topology |
-
-### 7.4 Benchmark Execution
+The `benchmark.py` tool runs the full pipeline at each scale × layer combination, repeating N times with different random seeds to measure variance:
 
 ```bash
-# Run full benchmark suite
-python benchmark.py \
-    --scales tiny,small,medium,large,xlarge \
-    --layers app,infra,system \
-    --runs 5 \
-    --output results/benchmark
+# Quick benchmark (1 run per configuration)
+python bin/benchmark.py --scales small,medium,large --runs 1
 
-# Output files:
-# - results/benchmark_data.csv
-# - results/benchmark_results.json
-# - results/benchmark_report.md
+# Full benchmark suite (5 runs for statistical stability)
+python bin/benchmark.py --scales tiny,small,medium,large,xlarge \
+    --layers app,infra,system --runs 5 --output results/benchmark
 ```
+
+Outputs: `benchmark_data.csv` (raw records), `benchmark_results.json` (aggregated), `benchmark_report.md` (human-readable).
+
+Each benchmark record captures: timing per pipeline step, graph statistics (nodes, edges, density), all validation metrics (Spearman ρ, F1, precision, recall, RMSE, Top-K), and pass/fail status.
 
 ---
 
-## 8. Validation Test Specifications
+## 8. Validation Tests
 
-### 8.1 Statistical Validation Targets
+Validation tests are the most important tests for the research contribution. They verify that topology-based predictions (Q(v)) correlate with actual failure impact (I(v)), demonstrating that the methodology works.
 
-| Metric | Target | Description | Priority |
-|--------|--------|-------------|----------|
-| Spearman ρ | ≥ 0.70 | Rank correlation | Critical |
-| F1-Score | ≥ 0.80 | Classification accuracy | Critical |
-| Precision | ≥ 0.80 | Avoid false positives | High |
-| Recall | ≥ 0.80 | Catch critical components | High |
-| Top-5 Overlap | ≥ 40% | Critical set agreement | High |
-| Top-10 Overlap | ≥ 50% | Extended critical set | Medium |
-| RMSE | ≤ 0.25 | Prediction error | Medium |
-| MAE | ≤ 0.20 | Absolute error | Medium |
+### 8.1 Primary Validation Targets
 
-### 8.2 Validation Test Matrix
+| Metric | Target | Priority | Rationale |
+|--------|--------|----------|-----------|
+| Spearman ρ | ≥ 0.70 | Primary | Predicted and actual rankings agree |
+| p-value | ≤ 0.05 | Primary | Correlation is statistically significant |
+| F1-Score | ≥ 0.80 | Primary | Balanced precision and recall |
+| Top-5 Overlap | ≥ 40% | Primary | Agreement on the most critical components |
+| RMSE | ≤ 0.25 | Secondary | Bounded prediction error |
+| Precision | ≥ 0.80 | Reported | Minimized false alarms |
+| Recall | ≥ 0.80 | Reported | All critical components caught |
+| Cohen's κ | ≥ 0.60 | Reported | Chance-corrected agreement |
+| Top-10 Overlap | ≥ 50% | Reported | Extended critical set agreement |
+| MAE | ≤ 0.20 | Reported | Bounded absolute error |
+
+### 8.2 Validation Matrix (Layer × Scale)
 
 | Test ID | Layer | Scale | Target ρ | Target F1 |
 |---------|-------|-------|----------|-----------|
-| VT-APP-001 | Application | Small | ≥ 0.75 | ≥ 0.75 |
-| VT-APP-002 | Application | Medium | ≥ 0.80 | ≥ 0.80 |
-| VT-APP-003 | Application | Large | ≥ 0.85 | ≥ 0.83 |
-| VT-INF-001 | Infrastructure | Small | ≥ 0.50 | ≥ 0.65 |
-| VT-INF-002 | Infrastructure | Medium | ≥ 0.52 | ≥ 0.66 |
-| VT-INF-003 | Infrastructure | Large | ≥ 0.54 | ≥ 0.68 |
-| VT-SYS-001 | System | Small | ≥ 0.70 | ≥ 0.75 |
-| VT-SYS-002 | System | Medium | ≥ 0.75 | ≥ 0.80 |
-| VT-SYS-003 | System | Large | ≥ 0.80 | ≥ 0.83 |
+| VT-APP-01 | Application | Small | ≥ 0.75 | ≥ 0.75 |
+| VT-APP-02 | Application | Medium | ≥ 0.80 | ≥ 0.80 |
+| VT-APP-03 | Application | Large | ≥ 0.85 | ≥ 0.83 |
+| VT-INF-01 | Infrastructure | Small | ≥ 0.50 | ≥ 0.65 |
+| VT-INF-02 | Infrastructure | Medium | ≥ 0.52 | ≥ 0.66 |
+| VT-INF-03 | Infrastructure | Large | ≥ 0.54 | ≥ 0.68 |
+| VT-SYS-01 | System | Small | ≥ 0.70 | ≥ 0.75 |
+| VT-SYS-02 | System | Medium | ≥ 0.75 | ≥ 0.80 |
+| VT-SYS-03 | System | Large | ≥ 0.80 | ≥ 0.83 |
 
-### 8.3 Achieved Results Reference
+Note: Application layer targets are higher because application-level dependencies are more directly captured by topology. Infrastructure layer targets are lower — an expected limitation discussed in the thesis.
 
-**By Layer:**
+### 8.3 Achieved Results
+
+**By layer (large scale):**
 
 | Metric | Application | Infrastructure | Target |
 |--------|-------------|----------------|--------|
-| Spearman ρ | **0.85** ✓ | 0.54 | ≥0.70 |
-| F1-Score | **0.83** ✓ | 0.68 | ≥0.80 |
-| Precision | **0.86** ✓ | 0.71 | ≥0.80 |
-| Recall | **0.80** ✓ | 0.65 | ≥0.80 |
-| Top-5 Overlap | **62%** ✓ | 40% | ≥40% |
+| Spearman ρ | **0.85** ✓ | 0.54 | ≥ 0.70 |
+| F1-Score | **0.83** ✓ | 0.68 | ≥ 0.80 |
+| Precision | **0.86** ✓ | 0.71 | ≥ 0.80 |
+| Recall | **0.80** ✓ | 0.65 | ≥ 0.80 |
+| Top-5 | **62%** ✓ | 40% | ≥ 40% |
 
-**By Scale:**
+**By scale (application layer):**
 
 | Scale | Components | Spearman ρ | F1-Score |
 |-------|------------|------------|----------|
-| Small | 10-25 | 0.78 | 0.75 |
-| Medium | 30-50 | 0.82 | 0.80 |
-| Large | 60-100 | 0.85 | 0.83 |
-| XLarge | 150-300 | 0.88 | 0.85 |
+| Small | 10–25 | 0.78 | 0.75 |
+| Medium | 30–50 | 0.82 | 0.80 |
+| Large | 60–100 | 0.85 | 0.83 |
+| XLarge | 150–300 | 0.88 | 0.85 |
 
-**Key Finding:** Prediction accuracy improves with system size due to more stable statistical patterns.
+**Key finding:** prediction accuracy improves with system scale. Larger systems produce more stable centrality distributions, leading to more reliable correlation.
 
-### 8.4 Validation Test Procedure
+### 8.4 Validation Procedure
 
 ```bash
-# Step 1: Generate test data
-python generate_graph.py --scale medium --seed 42 --output test_data.json
+# Deterministic validation with fixed seed
+python bin/generate_graph.py --scale medium --seed 42 --output test_data.json
+python bin/import_graph.py --input test_data.json --clear
+python bin/analyze_graph.py --layer app --use-ahp --output analysis.json
+python bin/simulate_graph.py failure --layer app --exhaustive --output simulation.json
+python bin/validate_graph.py --layer app --output validation_result.json
 
-# Step 2: Import and analyze
-python import_graph.py --input test_data.json --clear
-python analyze_graph.py --layer app --use-ahp --output analysis.json
-
-# Step 3: Run simulation
-python simulate_graph.py --layer app --exhaustive --output simulation.json
-
-# Step 4: Validate
-python validate_graph.py --layer app \
-    --spearman 0.70 \
-    --f1 0.80 \
-    --output validation_result.json
-
-# Step 5: Check results
+# Check pass/fail
 cat validation_result.json | jq '.overall.passed'
 # Expected: true
 ```
 
 ---
 
-## 9. Acceptance Test Specifications
+## 9. Acceptance Criteria
 
-### 9.1 User Story Acceptance Criteria
+Each user-facing capability has specific acceptance criteria. All automated criteria are verified by system tests; manual criteria are verified during acceptance testing.
 
-#### US-001: Graph Model Construction
+### 9.1 Feature Acceptance
 
-| Criterion ID | Description | Test Method | Pass Criteria |
-|--------------|-------------|-------------|---------------|
-| AC-001-1 | Import JSON topology | Automated | All entities in Neo4j |
-| AC-001-2 | Derive dependencies | Automated | DEPENDS_ON edges exist |
-| AC-001-3 | Calculate weights | Automated | Weights > 0 for QoS topics |
-| AC-001-4 | Support all scales | Automated | tiny to xlarge work |
+#### Graph Model Construction
 
-#### US-002: Structural Analysis
+| ID | Criterion | Method | Pass If |
+|----|-----------|--------|---------|
+| AC-01 | Import JSON topology | Auto | All entities appear in Neo4j |
+| AC-02 | Derive DEPENDS_ON edges | Auto | Derived edges exist with correct types |
+| AC-03 | Calculate QoS weights | Auto | Topic weights > 0 for non-default QoS |
+| AC-04 | Support all preset scales | Auto | tiny through xlarge generate without error |
 
-| Criterion ID | Description | Test Method | Pass Criteria |
-|--------------|-------------|-------------|---------------|
-| AC-002-1 | Compute PageRank | Automated | Non-zero values |
-| AC-002-2 | Identify SPOFs | Automated | Articulation points found |
-| AC-002-3 | Multi-layer support | Automated | All 5 layers work |
-| AC-002-4 | Export results | Automated | Valid JSON output |
+#### Structural Analysis
 
-#### US-003: Quality Scoring
+| ID | Criterion | Method | Pass If |
+|----|-----------|--------|---------|
+| AC-05 | Compute all 13 metrics | Auto | Non-zero values for non-trivial graphs |
+| AC-06 | Identify articulation points | Auto | Known SPOFs detected on test graph |
+| AC-07 | Multi-layer support | Auto | All 5 layers produce results |
+| AC-08 | Export results to JSON | Auto | Valid JSON with expected schema |
 
-| Criterion ID | Description | Test Method | Pass Criteria |
-|--------------|-------------|-------------|---------------|
-| AC-003-1 | RMAV scores | Automated | All 4 dimensions present |
-| AC-003-2 | AHP weights | Automated | Different from default |
-| AC-003-3 | Classification | Automated | 5 levels assigned |
-| AC-003-4 | Critical detection | Automated | CRITICAL level present |
+#### Quality Scoring
 
-#### US-004: Failure Simulation
+| ID | Criterion | Method | Pass If |
+|----|-----------|--------|---------|
+| AC-09 | RMAV scores present | Auto | All 4 dimensions + overall in output |
+| AC-10 | AHP weights differ from defaults | Auto | Custom matrix produces different Q ordering |
+| AC-11 | 5-level classification | Auto | CRITICAL, HIGH, MEDIUM, LOW, MINIMAL assigned |
+| AC-12 | Critical components detected | Auto | At least 1 CRITICAL in medium+ scale |
 
-| Criterion ID | Description | Test Method | Pass Criteria |
-|--------------|-------------|-------------|---------------|
-| AC-004-1 | Cascade propagation | Automated | Failed set > 1 for nodes |
-| AC-004-2 | Impact calculation | Automated | I(v) computed |
-| AC-004-3 | Exhaustive mode | Automated | All components simulated |
-| AC-004-4 | Sorted results | Automated | Highest impact first |
+#### Failure Simulation
 
-#### US-005: Validation
+| ID | Criterion | Method | Pass If |
+|----|-----------|--------|---------|
+| AC-13 | Cascade propagation | Auto | |F| > 1 when Node fails |
+| AC-14 | Impact score computed | Auto | I(v) ∈ [0, 1] for all components |
+| AC-15 | Exhaustive mode | Auto | One result per component in layer |
+| AC-16 | Results sorted by impact | Auto | Descending I(v) order |
 
-| Criterion ID | Description | Test Method | Pass Criteria |
-|--------------|-------------|-------------|---------------|
-| AC-005-1 | Spearman computed | Automated | Value in [-1, 1] |
-| AC-005-2 | F1 computed | Automated | Value in [0, 1] |
-| AC-005-3 | Pass/fail determined | Automated | Boolean result |
-| AC-005-4 | Targets configurable | Automated | Custom targets work |
+#### Validation
 
-#### US-006: Visualization
+| ID | Criterion | Method | Pass If |
+|----|-----------|--------|---------|
+| AC-17 | Spearman ρ computed | Auto | Value ∈ [−1, 1] |
+| AC-18 | F1-Score computed | Auto | Value ∈ [0, 1] |
+| AC-19 | Pass/fail determined | Auto | Boolean result matches target comparison |
+| AC-20 | Accuracy targets met | Auto | ρ ≥ 0.70 and F1 ≥ 0.80 at app layer |
 
-| Criterion ID | Description | Test Method | Pass Criteria |
-|--------------|-------------|-------------|---------------|
-| AC-006-1 | Dashboard generated | Automated | Valid HTML file |
-| AC-006-2 | KPIs displayed | Manual | Correct values shown |
-| AC-006-3 | Charts rendered | Manual | Pie and bar charts visible |
-| AC-006-4 | Network interactive | Manual | vis.js working |
+#### Visualization
+
+| ID | Criterion | Method | Pass If |
+|----|-----------|--------|---------|
+| AC-21 | HTML dashboard generated | Auto | Valid HTML file with expected sections |
+| AC-22 | KPI cards correct | Manual | Counts match analysis results |
+| AC-23 | Charts render | Manual | Pie and bar charts visible in browser |
+| AC-24 | Network graph interactive | Manual | vis.js: hover, click, drag, zoom work |
 
 ### 9.2 Acceptance Checklist
 
-| ID | Requirement | Status |
-|----|-------------|--------|
-| ACC-001 | Import JSON topology | ☐ |
-| ACC-002 | Compute all metrics | ☐ |
-| ACC-003 | RMAV scoring | ☐ |
-| ACC-004 | Failure simulation | ☐ |
-| ACC-005 | Validation accuracy (ρ ≥ 0.70, F1 ≥ 0.80) | ☐ |
-| ACC-006 | Dashboard generation | ☐ |
-| ACC-007 | Performance targets (<20s for large) | ☐ |
-| ACC-008 | Multi-layer analysis | ☐ |
-| ACC-009 | CLI usability | ☐ |
-| ACC-010 | Documentation complete | ☐ |
+| ID | Requirement | Criteria | Status |
+|----|-------------|----------|--------|
+| ACC-01 | Import JSON topology | AC-01, AC-02, AC-03 | ☐ |
+| ACC-02 | Compute all metrics | AC-05, AC-06 | ☐ |
+| ACC-03 | RMAV quality scoring | AC-09, AC-10, AC-11 | ☐ |
+| ACC-04 | Failure simulation | AC-13, AC-14, AC-15 | ☐ |
+| ACC-05 | Validation accuracy | AC-17 – AC-20 | ☐ |
+| ACC-06 | Dashboard generation | AC-21 – AC-24 | ☐ |
+| ACC-07 | Performance (< 20 s for large) | §7.1 timing targets | ☐ |
+| ACC-08 | Multi-layer analysis | AC-07 | ☐ |
+| ACC-09 | CLI usability | ST-CLI-01 – ST-CLI-08 | ☐ |
+| ACC-10 | Documentation complete | All docs reviewed | ☐ |
 
 ---
 
-## 10. Test Procedures
+## 10. Traceability Matrix
 
-### 10.1 Unit Test Procedure
+Each SRS requirement maps to one or more test cases. Requirements use IDs from SRS v2.0.
 
-```bash
-# Run all unit tests
-pytest tests/ -v
-
-# Run with coverage
-pytest tests/ --cov=src --cov-report=html
-
-# Run specific test module
-pytest tests/test_analysis.py -v
-
-# Run tests matching pattern
-pytest tests/ -k "test_quality" -v
-
-# Run excluding slow tests
-pytest tests/ -m "not slow" -v
-
-# Run with timeout
-pytest tests/ --timeout=60
-```
-
-### 10.2 Integration Test Procedure
-
-```bash
-# Start test Neo4j instance
-docker-compose -f docker-compose.test.yml up -d neo4j-test
-
-# Wait for Neo4j to be ready
-sleep 30
-
-# Run integration tests
-pytest tests/ -m integration -v
-
-# Cleanup
-docker-compose -f docker-compose.test.yml down
-```
-
-### 10.3 System Test Procedure
-
-```bash
-# Full pipeline test
-./scripts/run_system_tests.sh
-
-# Or manually:
-python generate_graph.py --scale small --output /tmp/test.json
-python import_graph.py --input /tmp/test.json --clear
-python run.py --all --layer system --output /tmp/results/
-```
-
-### 10.4 Benchmark Procedure
-
-```bash
-# Quick benchmark
-python benchmark.py --scales small,medium,large --runs 1
-
-# Full benchmark suite
-python benchmark.py --full-suite --output results/benchmark
-```
-
-### 10.5 Test Reporting
-
-```bash
-# Generate coverage report
-pytest tests/ --cov=src --cov-report=html --cov-report=xml
-
-# Generate JUnit XML for CI
-pytest tests/ --junitxml=test-results.xml
-
-# View HTML coverage report
-open htmlcov/index.html
-```
+| Requirement | Description | Test IDs |
+|-------------|-------------|----------|
+| REQ-GM-01 | Accept JSON topology | UT-CORE-07, ST-CLI-02 |
+| REQ-GM-02 | Create 5 vertex types | IT-NEO-01 |
+| REQ-GM-04 | Derive DEPENDS_ON edges | IT-NEO-02 |
+| REQ-GM-05 | Compute QoS weights | UT-CORE-01 – UT-CORE-06 |
+| REQ-GM-07 | Layer projection | UT-ANAL-17, IT-NEO-04 |
+| REQ-SA-01 | Compute PageRank | UT-ANAL-02 |
+| REQ-SA-02 | Compute Reverse PageRank | UT-ANAL-03 |
+| REQ-SA-08 | Articulation point detection | UT-ANAL-04 |
+| REQ-SA-10 | Normalize to [0, 1] | UT-ANAL-08 |
+| REQ-QS-01 – 04 | Compute RMAV scores | UT-ANAL-10, UT-ANAL-11, UT-ANAL-12 |
+| REQ-QS-07 | Support AHP weights | UT-ANAL-13, UT-ANAL-14 |
+| REQ-QS-09 | Box-plot classification | UT-ANAL-15, UT-ANAL-16 |
+| REQ-FS-01 | Simulate CRASH mode | UT-SIM-20 |
+| REQ-FS-03 | Cascade propagation rules | UT-SIM-21, UT-SIM-22 |
+| REQ-FS-07 | Composite impact I(v) | UT-SIM-23, UT-SIM-24 |
+| REQ-VA-01 | Spearman ρ | UT-VAL-01, UT-VAL-02, IT-VAL-01 |
+| REQ-VA-02 | F1-Score | UT-VAL-08, IT-VAL-03 |
+| REQ-VZ-01 | HTML dashboard | UT-VIZ-01, ST-CLI-06 |
+| REQ-VZ-03 | Interactive network graph | UT-VIZ-03, AC-24 |
+| REQ-PERF-01 – 03 | Analysis timing | §7.1 timing targets, ST-E2E-01 – 03 |
+| REQ-ACC-01 – 02 | Accuracy targets | VT-APP-01 – VT-SYS-03 |
 
 ---
 
-## 11. Traceability Matrix
+## 11. Appendices
 
-### 11.1 Requirements to Test Traceability
+### Appendix A: Synthetic Graph Scale Specifications
 
-| Requirement ID | Requirement | Test IDs |
-|----------------|-------------|----------|
-| REQ-GMC-001 | Accept JSON topology | UT-CORE-010, ST-CLI-002 |
-| REQ-GMC-002 | Create vertices | IT-NEO-001 |
-| REQ-GMC-004 | Derive DEPENDS_ON | IT-NEO-002 |
-| REQ-GMC-005 | Calculate QoS weights | UT-CORE-001 to UT-CORE-007 |
-| REQ-SA-001 | Compute PageRank | UT-ANAL-002, UT-ANAL-003 |
-| REQ-SA-008 | Identify Articulation Points | UT-ANAL-004 |
-| REQ-QS-001 | Compute R(v) | UT-ANAL-012 |
-| REQ-QS-007 | Support AHP weights | UT-ANAL-014 |
-| REQ-QS-010 | Assign criticality levels | UT-ANAL-015 |
-| REQ-FS-001 | Simulate CRASH mode | UT-SIM-020 |
-| REQ-FS-003 | Apply PHYSICAL cascade | UT-SIM-021 |
-| REQ-VA-001 | Compute Spearman ρ | UT-VAL-001 to UT-VAL-003 |
-| REQ-VA-002 | Compute F1-Score | IT-VAL-003 |
-| REQ-VZ-001 | Generate HTML dashboard | UT-VIZ-010 |
-| REQ-PERF-001 | Analysis <1s for small | PT-SCAL-002 |
-| REQ-ACC-001 | Spearman ≥0.70 | VT-APP-001 to VT-SYS-003 |
+| Scale | Apps | Brokers | Topics | Nodes | Libraries | Total Components |
+|-------|------|---------|--------|-------|-----------|-----------------|
+| Tiny | 5–8 | 1 | 3–5 | 2–3 | 2 | 13–19 |
+| Small | 10–15 | 2 | 8–12 | 3–4 | 3 | 26–36 |
+| Medium | 20–35 | 3 | 15–25 | 5–8 | 5 | 48–76 |
+| Large | 50–80 | 5 | 30–50 | 8–12 | 8 | 101–155 |
+| XLarge | 100–200 | 10 | 60–100 | 15–25 | 15 | 200–350 |
 
-### 11.2 Test Coverage Summary
-
-| Module | Unit Tests | Integration Tests | Target Coverage |
-|--------|------------|-------------------|-----------------|
-| src/core | 31 | 4 | 85% |
-| src/analysis | 24 | 4 | 82% |
-| src/simulation | 12 | 3 | 78% |
-| src/validation | 12 | 3 | 80% |
-| src/visualization | 8 | 2 | 75% |
-| **Total** | **87** | **16** | **≥80%** |
-
----
-
-## Appendices
-
-### Appendix A: Test Data Specifications
-
-#### A.1 Synthetic Graph Scales
-
-| Scale | Apps | Brokers | Topics | Nodes | Libraries | Total |
-|-------|------|---------|--------|-------|-----------|-------|
-| Tiny | 5-8 | 1 | 3-5 | 2-3 | 2 | 13-19 |
-| Small | 10-15 | 2 | 8-12 | 3-4 | 3 | 26-36 |
-| Medium | 20-35 | 3 | 15-25 | 5-8 | 5 | 48-76 |
-| Large | 50-80 | 5 | 30-50 | 8-12 | 8 | 101-155 |
-| XLarge | 100-200 | 10 | 60-100 | 15-25 | 15 | 200-350 |
-
-#### A.2 Common Test Fixtures
-
-```python
-# conftest.py - Shared fixtures
-
-@pytest.fixture
-def small_graph():
-    """Small test graph with known properties."""
-    return generate_graph(scale="small", seed=42)
-
-@pytest.fixture
-def linear_graph():
-    """A->B->C linear graph for predictable metrics."""
-    return GraphData(
-        components=[
-            ComponentData("A", "Application"),
-            ComponentData("B", "Application"),
-            ComponentData("C", "Application"),
-        ],
-        edges=[
-            EdgeData("A", "B", "Application", "Application", "app_to_app", 1.0),
-            EdgeData("B", "C", "Application", "Application", "app_to_app", 1.0),
-        ]
-    )
-
-@pytest.fixture
-def star_graph():
-    """Star topology with central hub."""
-    components = [ComponentData("hub", "Broker")]
-    edges = []
-    for i in range(5):
-        components.append(ComponentData(f"app{i}", "Application"))
-        edges.append(EdgeData(f"app{i}", "hub", "Application", "Broker", 
-                             "app_to_broker", 1.0))
-    return GraphData(components=components, edges=edges)
-
-@pytest.fixture
-def empty_graph():
-    """Empty graph with no components."""
-    return GraphData(components=[], edges=[])
-
-@pytest.fixture
-def single_node_graph():
-    """Single isolated node."""
-    return GraphData(
-        components=[ComponentData("solo", "Application", 1.0)],
-        edges=[]
-    )
-```
-
-### Appendix B: CI/CD Pipeline Configuration
+### Appendix B: CI/CD Pipeline
 
 ```yaml
 # .github/workflows/test.yml
 name: Test Suite
-
 on: [push, pull_request]
 
 jobs:
@@ -1266,35 +760,24 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-      - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-test.txt
-      - name: Run unit tests
-        run: pytest tests/ -m "not integration" --cov=src --cov-report=xml
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
+        with: { python-version: '3.9' }
+      - run: pip install -r requirements.txt -r requirements-test.txt
+      - run: pytest tests/ -m "not integration" --cov=src --cov-report=xml
+      - uses: codecov/codecov-action@v3
 
   integration-tests:
     runs-on: ubuntu-latest
     services:
       neo4j:
         image: neo4j:5-community
-        ports:
-          - 7687:7687
-        env:
-          NEO4J_AUTH: neo4j/testpassword
+        ports: ['7687:7687']
+        env: { NEO4J_AUTH: 'neo4j/testpassword' }
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-      - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-test.txt
-      - name: Wait for Neo4j
-        run: sleep 30
-      - name: Run integration tests
-        run: pytest tests/ -m integration -v
+        with: { python-version: '3.9' }
+      - run: pip install -r requirements.txt -r requirements-test.txt
+      - run: sleep 30 && pytest tests/ -m integration -v
         env:
           NEO4J_URI: bolt://localhost:7687
           NEO4J_PASSWORD: testpassword
@@ -1305,93 +788,27 @@ jobs:
     services:
       neo4j:
         image: neo4j:5-community
-        ports:
-          - 7687:7687
-        env:
-          NEO4J_AUTH: neo4j/testpassword
+        ports: ['7687:7687']
+        env: { NEO4J_AUTH: 'neo4j/testpassword' }
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
-      - name: Run benchmark
-        run: python benchmark.py --scales small,medium --runs 3
-      - name: Upload results
-        uses: actions/upload-artifact@v3
+      - run: python bin/benchmark.py --scales small,medium --runs 3
+      - uses: actions/upload-artifact@v3
         with:
           name: benchmark-results
           path: output/benchmark_*.json
 ```
 
-### Appendix C: Validation Report Template
-
-```
-================== VALIDATION REPORT ==================
-Layer: Application
-Scale: Medium (45 components)
-Timestamp: 2026-01-27T10:30:00Z
-
-CORRELATION METRICS:
-  Spearman ρ:    0.85  ✓ (target: ≥0.70)
-  Pearson r:     0.82  ✓ (target: ≥0.65)
-  Kendall τ:     0.71  ✓ (target: ≥0.50)
-
-CLASSIFICATION METRICS:
-  Precision:     0.86  ✓ (target: ≥0.80)
-  Recall:        0.80  ✓ (target: ≥0.80)
-  F1-Score:      0.83  ✓ (target: ≥0.80)
-  Accuracy:      0.87  ✓ (target: ≥0.75)
-
-RANKING METRICS:
-  Top-5 Overlap:  62%  ✓ (target: ≥40%)
-  Top-10 Overlap: 70%  ✓ (target: ≥50%)
-  NDCG@10:       0.89  ✓ (target: ≥0.70)
-
-ERROR METRICS:
-  RMSE:          0.12  ✓ (target: ≤0.25)
-  MAE:           0.09  ✓ (target: ≤0.20)
-
-STATUS: ALL TARGETS MET ✓
-======================================================
-```
-
-### Appendix D: Defect Severity Classification
+### Appendix C: Defect Severity Classification
 
 | Severity | Definition | Examples |
-|----------|------------|----------|
-| Critical | System unusable | Crash on startup, data loss |
-| High | Major feature broken | Analysis fails, wrong results |
-| Medium | Feature partially works | Minor calculation errors |
-| Low | Cosmetic or minor | UI issues, formatting |
-
-### Appendix E: Test Result Summary Template
-
-```
-================== TEST SESSION REPORT ==================
-Platform: Linux-5.15.0
-Python: 3.9.16
-pytest: 7.4.0
-
-Collected: 103 tests
-Passed: 100
-Failed: 1
-Skipped: 2 (marked slow)
-Duration: 45.67s
-
-COVERAGE SUMMARY:
-  src/core         85% (234/275)
-  src/analysis     82% (456/556)
-  src/simulation   78% (189/242)
-  src/validation   80% (123/154)
-  src/visualization 75% (98/131)
-  TOTAL            80% (1100/1358)
-
-FAILED TESTS:
-  tests/test_analysis.py::test_edge_case_x - AssertionError
-
-======================== PASSED ========================
-```
+|----------|------------|---------|
+| Critical | System unusable | Crash on startup, data loss, silent wrong results |
+| High | Major feature broken | Analysis fails on valid input, cascade logic error |
+| Medium | Feature partially works | Minor calculation error, formatting issue in dashboard |
+| Low | Cosmetic | UI alignment, log message typos |
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: January 2026*  
-*Software-as-a-Graph Framework*
+*Software-as-a-Graph Framework v2.0 · February 2026*
