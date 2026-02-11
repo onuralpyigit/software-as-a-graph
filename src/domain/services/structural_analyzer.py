@@ -112,11 +112,12 @@ def extract_layer_subgraph(
         if comp.component_type in defn.component_types:
             allowed_ids.add(comp.id)
             props = getattr(comp, "properties", {}).copy()
-            props.pop("name", None)  # Avoid duplicate 'name' arg
+            # Extract name from properties (fallback to id if not present)
+            name = props.pop("name", comp.id)
             G.add_node(
                 comp.id,
                 component_type=comp.component_type,
-                name=getattr(comp, "name", comp.id),
+                name=name,
                 weight=getattr(comp, "weight", 1.0),
                 **props,
             )
