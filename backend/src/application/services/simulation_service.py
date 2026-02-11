@@ -14,27 +14,23 @@ from src.domain.models.simulation.types import ComponentState
 
 logger = logging.getLogger(__name__)
 
-class SimulationService:
+from src.application.ports.inbound_ports import ISimulationUseCase
+
+class SimulationService(ISimulationUseCase):
     """
     Service for running system simulations (events, failures).
     Orchestrates EventSimulator and FailureSimulator directly.
     """
 
-    def __init__(self, uri: str, user: str, password: str):
-        self.uri = uri
-        self.user = user
-        self.password = password
+    def __init__(self, repository):
+        self.repository = repository
 
     def _get_graph(self) -> SimulationGraph:
         """Helper to fetch data and create SimulationGraph."""
-        exporter = GraphExporter(self.uri, self.user, self.password)
-        try:
-            graph_data = exporter.get_graph_data()
-            return SimulationGraph(graph_data)
-        finally:
-            exporter.close()
+        graph_data = self.repository.get_graph_data()
+        return SimulationGraph(graph_data)
 
-    def run_event_simulation(self, source_app: str, num_messages: int = 100, duration: float = 10.0) -> Dict[str, Any]:
+    def run_event_simulation(self, source_app: str, num_messages: int = 100, duration: float = 10.0, **kwargs) -> Any:
         """Run event simulation from a source application."""
         graph = self._get_graph()
         simulator = EventSimulator(graph)
@@ -46,9 +42,19 @@ class SimulationService:
         )
         
         result = simulator.simulate(scenario)
-        return result.to_dict()
+        return result
 
-    def run_failure_simulation(self, target_id: str, layer: str = "system", cascade_probability: float = 1.0) -> Dict[str, Any]:
+    def run_event_simulation_all(self, num_messages: int = 100, duration: float = 10.0, layer: str = "system", **kwargs) -> Dict[str, Any]:
+        """Run event simulation for all publishers."""
+        graph = self._get_graph()
+        simulator = EventSimulator(graph)
+        
+        results = simulator.simulate_all_publishers(
+            EventScenario(source_app="all", num_messages=num_messages, duration=duration)
+        )
+        return results
+
+    def run_failure_simulation(self, target_id: str, layer: str = "system", cascade_probability: float = 1.0, **kwargs) -> Any:
         """Run failure simulation for a target component."""
         graph = self._get_graph()
         simulator = FailureSimulator(graph)
@@ -61,9 +67,22 @@ class SimulationService:
         )
         
         result = simulator.simulate(scenario)
-        return result.to_dict()
+        return result
 
-    def run_exhaustive_simulation(self, layer: str = "system", cascade_probability: float = 1.0) -> Dict[str, Any]:
+    def run_failure_simulation_monte_carlo(self, target_id: str, layer: str = "system", cascade_probability: float = 1.0, n_trials: int = 100, **kwargs) -> Any:
+        """Run Monte Carlo failure simulation."""
+        graph = self._get_graph()
+        simulator = FailureSimulator(graph)
+        
+        result = simulator.simulate_monte_carlo(
+            target_id=target_id,
+            layer=layer,
+            cascade_probability=cascade_probability,
+            n_trials=n_trials
+        )
+        return result
+
+    def run_failure_simulation_exhaustive(self, layer: str = "system", cascade_probability: float = 1.0, **kwargs) -> List[Any]:
         """Run exhaustive failure analysis for all components in a layer."""
         graph = self._get_graph()
         simulator = FailureSimulator(graph)
@@ -76,28 +95,9 @@ class SimulationService:
             ),
             layer=layer
         )
-        
-        # Calculate summary statistics
-        total_comps = len(results)
-        avg_impact = sum(r.impact.composite_impact for r in results) / total_comps if total_comps > 0 else 0.0
-        max_impact = max((r.impact.composite_impact for r in results), default=0.0)
-        
-        critical_count = sum(1 for r in results if r.impact.composite_impact > 0.7) # Arbitrary threshold for summary
-        
-        summary = {
-            "total_components": total_comps,
-            "average_impact": round(avg_impact, 4),
-            "max_impact": round(max_impact, 4),
-            "critical_components": critical_count
-        }
-            
-        return {
-            "layer": layer,
-            "summary": summary,
-            "results": [r.to_dict() for r in results]
-        }
+        return results
 
-    def generate_report(self, layers: List[str] = ["app", "infra", "mw", "system"]) -> SimulationReport:
+    def generate_report(self, layers: List[str] = ["app", "infra", "mw", "system"], classify_edges: bool = False) -> SimulationReport:
         """Generate comprehensive simulation report."""
         graph = self._get_graph()
         fail_sim = FailureSimulator(graph)
@@ -268,3 +268,12 @@ class SimulationService:
             node_allocations=graph.get_node_allocations(),
             broker_routing=graph.get_broker_routing()
         )
+    def classify_components(self, layer: str = "system", k_factor: float = 1.5) -> List[Any]:
+        """Classify components by criticality based on simulation results."""
+        report = self.generate_report(layers=[layer])
+        return report.component_criticality
+
+    def classify_edges(self, layer: str = "system", k_factor: float = 1.5) -> List[Any]:
+        """Classify edges by criticality."""
+        report = self.generate_report(layers=[layer])
+        return report.edge_criticality

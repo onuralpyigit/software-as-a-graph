@@ -58,8 +58,8 @@ class Simulator:
         from src.domain.models.simulation import SimulationReport
         layer_metrics = {}
         for layer in layers:
-            metrics = self._service.analyze_layer(layer)
-            layer_metrics[layer] = metrics
+            # We skip analyze_layer here as it's not part of simulation service
+            pass
 
         component_criticality = self._service.classify_components("system")
         edge_criticality = self._service.classify_edges("system")

@@ -5,7 +5,7 @@ Interfaces defining contracts for inbound use cases.
 """
 
 from abc import ABC, abstractmethod
-from typing import Union, Any, List, Optional
+from typing import Union, Any, List, Optional, Dict
 
 from src.domain.models import LayerAnalysisResult, MultiLayerAnalysisResult
 from src.domain.config import AnalysisLayer
@@ -128,6 +128,38 @@ class ISimulationUseCase(ABC):
         Returns:
             List of failure results for each component
         """
+        pass
+
+    @abstractmethod
+    def run_event_simulation_all(
+        self,
+        num_messages: int = 100,
+        duration: float = 10.0,
+        layer: str = "system",
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Run event simulation for all publishers."""
+        pass
+
+    @abstractmethod
+    def run_failure_simulation_monte_carlo(
+        self,
+        target_id: str,
+        layer: str = "system",
+        cascade_probability: float = 1.0,
+        n_trials: int = 100,
+        **kwargs
+    ) -> Any:
+        """Run Monte Carlo failure simulation."""
+        pass
+
+    @abstractmethod
+    def classify_edges(
+        self,
+        layer: str = "system",
+        k_factor: float = 1.5
+    ) -> List[Any]:
+        """Classify edges by criticality."""
         pass
     
     @abstractmethod
