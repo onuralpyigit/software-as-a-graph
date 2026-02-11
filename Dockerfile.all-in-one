@@ -98,8 +98,8 @@ ENV PATH="/opt/venv/bin:$PATH" \
 
 # Copy Python application code
 COPY src/ ./backend/src/
-COPY api.py generate_graph.py import_graph.py ./backend/
-COPY analyze_graph.py simulate_graph.py validate_graph.py visualize_graph.py export_graph.py run.py ./backend/
+COPY api.py bin/generate_graph.py bin/import_graph.py ./backend/
+COPY bin/analyze_graph.py bin/simulate_graph.py bin/validate_graph.py bin/visualize_graph.py bin/export_graph.py bin/run.py ./backend/
 
 # Make Python scripts executable
 RUN chmod +x ./backend/*.py
