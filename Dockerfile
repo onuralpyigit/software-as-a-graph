@@ -1,20 +1,251 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+# All-in-One Multi-stage Dockerfile
+# Builds both Python FastAPI backend and Next.js frontend in a single image
 
-# Set the working directory in the container
+# ============================================
+# Stage 1: Python Backend Builder
+# ============================================
+FROM python:3.11-slim as python-builder
+
+WORKDIR /app/backend
+
+# Install build dependencies for Python
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Python requirements and install
+COPY requirements.txt .
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ============================================
+# Stage 2: Next.js Frontend Dependencies
+# ============================================
+FROM node:20-alpine AS frontend-deps
+
+RUN apk add --no-cache libc6-compat
+WORKDIR /app/frontend
+
+# Copy package files and install dependencies
+COPY genieus/package.json genieus/package-lock.json ./
+RUN npm ci
+
+# ============================================
+# Stage 3: Next.js Frontend Builder
+# ============================================
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+COPY --from=frontend-deps /app/frontend/node_modules ./node_modules
+COPY genieus/ .
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build Next.js application
+RUN npm run build
+
+# ============================================
+# Stage 4: Final Production Image (with Neo4j)
+# ============================================
+FROM python:3.11-slim
+
+# Install Node.js, Java (for Neo4j), and other dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    wget \
+    gnupg \
+    openjdk-21-jre-headless \
+    net-tools \
+    iproute2 \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Neo4j
+ENV NEO4J_VERSION=5.23.0
+ENV NEO4J_HOME=/var/lib/neo4j
+ENV NEO4J_CONF=/var/lib/neo4j/conf
+
+RUN wget -O neo4j.tar.gz https://dist.neo4j.org/neo4j-community-${NEO4J_VERSION}-unix.tar.gz && \
+    tar -xzf neo4j.tar.gz && \
+    mv neo4j-community-${NEO4J_VERSION} ${NEO4J_HOME} && \
+    rm neo4j.tar.gz && \
+    mkdir -p ${NEO4J_HOME}/data ${NEO4J_HOME}/logs ${NEO4J_HOME}/import ${NEO4J_HOME}/plugins
+
+# Configure Neo4j
+RUN sed -i 's/#server.default_listen_address=127.0.0.1/server.default_listen_address=0.0.0.0/' ${NEO4J_CONF}/neo4j.conf && \
+    sed -i 's/#server.bolt.listen_address=:7687/server.bolt.listen_address=0.0.0.0:7687/' ${NEO4J_CONF}/neo4j.conf && \
+    sed -i 's/#server.http.listen_address=:7474/server.http.listen_address=0.0.0.0:7474/' ${NEO4J_CONF}/neo4j.conf
+
+ENV PATH="${NEO4J_HOME}/bin:${PATH}"
+
+# Create application directories
 WORKDIR /app
 
-# Copy the requirements file into the container
-COPY requirements.txt .
+# Copy Python virtual environment from builder
+COPY --from=python-builder /opt/venv /opt/venv
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Set Python environment
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app/backend
 
-# Copy the current directory contents into the container at /app
-COPY . .
+# Copy Python application code
+COPY src/ ./backend/src/
+COPY api.py generate_graph.py import_graph.py ./backend/
+COPY analyze_graph.py simulate_graph.py validate_graph.py visualize_graph.py export_graph.py run.py ./backend/
 
-# Make the run script executable
-RUN chmod +x run.sh
+# Make Python scripts executable
+RUN chmod +x ./backend/*.py
 
-# Run run.sh when the container launches
-CMD ["./run.sh"]
+# Copy Next.js built application from builder
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Create a non-root user for Next.js
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy Next.js files
+COPY --from=frontend-builder /app/frontend/public ./frontend/public
+RUN mkdir -p ./frontend/.next && chown nextjs:nodejs ./frontend/.next
+
+COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./frontend/
+COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/static ./frontend/.next/static
+
+# Expose ports
+# 7474 - Neo4j HTTP
+# 7687 - Neo4j Bolt
+# 8000 - Python FastAPI backend
+# 7000 - Next.js frontend
+EXPOSE 7474 7687 8000 7000
+
+# Health check for backend
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# Set Neo4j initial password
+ENV NEO4J_AUTH=neo4j/password
+
+# Create startup script to run all services
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# Colors for better UX\n\
+RED="\\033[0;31m"\n\
+GREEN="\\033[0;32m"\n\
+YELLOW="\\033[1;33m"\n\
+BLUE="\\033[0;34m"\n\
+CYAN="\\033[0;36m"\n\
+BOLD="\\033[1m"\n\
+RESET="\\033[0m"\n\
+\n\
+# Function to check if port is in use\n\
+check_port() {\n\
+    local port=$1\n\
+    local service=$2\n\
+    if netstat -tuln 2>/dev/null | grep -q ":$port " || ss -tuln 2>/dev/null | grep -q ":$port "; then\n\
+        echo -e "  ${RED}✗${RESET} Port ${BOLD}$port${RESET} - ${RED}IN USE${RESET} (needed for $service)"\n\
+        return 1\n\
+    fi\n\
+    echo -e "  ${GREEN}✓${RESET} Port ${BOLD}$port${RESET} - Available ($service)"\n\
+    return 0\n\
+}\n\
+\n\
+echo -e "\\n${CYAN}${BOLD}╔════════════════════════════════════════════════════════╗${RESET}"\n\
+echo -e "${CYAN}${BOLD}║                      🌟 Genieus 🌟                     ║${RESET}"\n\
+echo -e "${CYAN}${BOLD}║        Graph-Based Distributed System Analysis        ║${RESET}"\n\
+echo -e "${CYAN}${BOLD}╚════════════════════════════════════════════════════════╝${RESET}\\n"\n\
+\n\
+echo -e "${BLUE}[1/4]${RESET} ${BOLD}Checking port availability...${RESET}"\n\
+PORTS_OK=true\n\
+\n\
+check_port 7474 "Neo4j HTTP" || PORTS_OK=false\n\
+check_port 7687 "Neo4j Bolt" || PORTS_OK=false\n\
+check_port 8000 "FastAPI Backend" || PORTS_OK=false\n\
+check_port 7000 "Next.js Frontend" || PORTS_OK=false\n\
+\n\
+if [ "$PORTS_OK" = false ]; then\n\
+    echo -e "\\n${RED}${BOLD}╔════════════════════════════════════════════════════════╗${RESET}"\n\
+    echo -e "${RED}${BOLD}║              ⚠️  PORT CONFLICT DETECTED  ⚠️             ║${RESET}"\n\
+    echo -e "${RED}${BOLD}╚════════════════════════════════════════════════════════╝${RESET}\\n"\n\
+    echo -e "${YELLOW}One or more required ports are already in use.${RESET}\\n"\n\
+    echo -e "${BOLD}💡 Solutions:${RESET}"\n\
+    echo -e "  ${CYAN}1.${RESET} Stop services using those ports"\n\
+    echo -e "  ${CYAN}2.${RESET} Map to different host ports:"\n\
+    echo -e "     ${GREEN}docker run -p 8474:7474 -p 8687:7687 -p 9000:8000 -p 8000:7000 ...${RESET}"\n\
+    echo -e "  ${CYAN}3.${RESET} Use docker-compose with custom port mappings\\n"\n\
+    exit 1\n\
+fi\n\
+\n\
+echo -e "\\n${BLUE}[2/4]${RESET} ${BOLD}Starting Neo4j database...${RESET}"\n\
+if [ ! -f /var/lib/neo4j/data/dbms/auth ]; then\n\
+    echo -e "  ${CYAN}→${RESET} Initializing database with default credentials"\n\
+    neo4j-admin dbms set-initial-password password 2>&1 | sed "s/^/    /"\n\
+fi\n\
+\n\
+neo4j start 2>&1 | sed "s/^/  /"\n\
+\n\
+echo -e "  ${YELLOW}⏳${RESET} Waiting for Neo4j to be ready..."\n\
+RETRY=0\n\
+until wget --quiet --tries=1 --spider http://localhost:7474 2>/dev/null; do\n\
+    RETRY=$((RETRY+1))\n\
+    printf "\\r  ${YELLOW}⏳${RESET} Attempt $RETRY..."\n\
+    sleep 2\n\
+done\n\
+echo -e "\\r  ${GREEN}✓${RESET} Neo4j is ready!                    "\n\
+\n\
+echo -e "\\n${BLUE}[3/4]${RESET} ${BOLD}Starting FastAPI backend...${RESET}"\n\
+cd /app/backend\n\
+echo -e "  ${CYAN}→${RESET} Launching uvicorn with 2 workers"\n\
+uvicorn api:app --host 0.0.0.0 --port 8000 --workers 2 > /tmp/backend.log 2>&1 &\n\
+BACKEND_PID=$!\n\
+sleep 2\n\
+echo -e "  ${GREEN}✓${RESET} Backend started (PID: $BACKEND_PID)"\n\
+\n\
+echo -e "\\n${BLUE}[4/4]${RESET} ${BOLD}Starting Next.js frontend...${RESET}"\n\
+cd /app/frontend\n\
+echo -e "  ${CYAN}→${RESET} Launching Next.js server"\n\
+su -s /bin/bash nextjs -c "PORT=7000 HOSTNAME=0.0.0.0 node server.js" > /tmp/frontend.log 2>&1 &\n\
+FRONTEND_PID=$!\n\
+sleep 2\n\
+echo -e "  ${GREEN}✓${RESET} Frontend started (PID: $FRONTEND_PID)"\n\
+\n\
+echo -e "\\n${GREEN}${BOLD}╔════════════════════════════════════════════════════════╗${RESET}"\n\
+echo -e "${GREEN}${BOLD}║            🚀 All Services Running! 🚀                 ║${RESET}"\n\
+echo -e "${GREEN}${BOLD}╚════════════════════════════════════════════════════════╝${RESET}\\n"\n\
+echo -e "${BOLD}📊 Service Endpoints:${RESET}"\n\
+echo -e "  ${CYAN}Neo4j Browser:${RESET}  http://localhost:7474"\n\
+echo -e "  ${CYAN}Neo4j Bolt:${RESET}     bolt://localhost:7687"\n\
+echo -e "  ${CYAN}Backend API:${RESET}    http://localhost:8000"\n\
+echo -e "  ${CYAN}API Docs:${RESET}       http://localhost:8000/docs"\n\
+echo -e "  ${CYAN}Frontend:${RESET}       http://localhost:7000"\n\
+echo -e "\\n${BOLD}🔐 Default Credentials:${RESET}"\n\
+echo -e "  ${CYAN}Neo4j:${RESET}          neo4j / password\\n"\n\
+echo -e "${YELLOW}💡 Tip: Logs are in /tmp/backend.log and /tmp/frontend.log${RESET}\\n"\n\
+\n\
+# Function to handle shutdown\n\
+shutdown() {\n\
+    echo "Shutting down services..."\n\
+    neo4j stop\n\
+    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null\n\
+    exit 0\n\
+}\n\
+\n\
+trap shutdown SIGTERM SIGINT\n\
+\n\
+# Wait for any process to exit\n\
+wait -n\n\
+\n\
+# If any service exits, shut down all\n\
+shutdown\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
+# Run all services
+CMD ["/app/start.sh"]
