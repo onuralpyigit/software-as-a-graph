@@ -31,61 +31,52 @@ export function LinkDetailsCard({
   const targetNode = graphData?.nodes.find(n => n.id === targetId)
 
   return (
-    <div className="absolute bottom-4 right-4 z-10 w-80 animate-in slide-in-from-right-3 fade-in duration-300">
-      <Card className="bg-background/95 backdrop-blur-md border-2 shadow-xl">
-        <CardHeader className="pb-3 pt-4 px-4">
+    <Card className="border flex flex-col h-full bg-white dark:bg-black">
+        <CardHeader className="pb-3 pt-4 px-4 flex-shrink-0 border-b bg-white dark:bg-black">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-1">
                 <Link2 className="h-4 w-4 flex-shrink-0" style={{ color: linkColorByType[link.type] }} />
-                <CardTitle className="text-base">Connection</CardTitle>
+                <CardTitle className="text-sm">Connection</CardTitle>
               </div>
-              <Badge 
-                variant="secondary" 
-                className="text-[10px] px-2 py-0.5"
-                style={{ backgroundColor: linkColorByType[link.type] + '20', color: linkColorByType[link.type] }}
-              >
+              <div className="text-xs opacity-60">
                 {link.type.replace(/_/g, ' ')}
-              </Badge>
+              </div>
             </div>
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={onClose}
-              className="h-7 w-7 flex-shrink-0 hover:bg-destructive/10"
+              className="h-6 w-6 flex-shrink-0"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="pt-0 pb-3 px-4 space-y-2">
+        <CardContent className="pt-3 pb-3 px-4 space-y-1.5 flex-1 overflow-y-auto">
           <div className="space-y-1.5">
             {/* Source Node */}
             {sourceNode && (
-              <div className="p-2 bg-muted/30 rounded-md border border-border/50">
+              <div className="p-2 bg-muted/30 rounded border">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="text-[10px] text-muted-foreground font-medium">FROM</div>
+                  <div className="text-[10px] opacity-60">FROM</div>
                   {(() => {
                     const SourceIcon = getNodeIcon(sourceNode.type)
                     return (
-                      <Badge 
-                        variant="outline" 
-                        className="text-[8px] px-1.5 py-0 h-3.5 ml-auto"
-                        style={{ backgroundColor: nodeColorByType[sourceNode.type] + '15', borderColor: nodeColorByType[sourceNode.type] + '40' }}
-                      >
-                        <SourceIcon className="h-2.5 w-2.5 mr-1" style={{ color: nodeColorByType[sourceNode.type] }} />
-                        {sourceNode.type}
-                      </Badge>
+                      <div className="flex items-center gap-1 text-[10px] opacity-60 ml-auto">
+                        <SourceIcon className="h-2.5 w-2.5" style={{ color: nodeColorByType[sourceNode.type] }} />
+                        <span>{sourceNode.type}</span>
+                      </div>
                     )
                   })()}
                 </div>
                 <button
                   onClick={() => onNodeClick(sourceNode)}
-                  className="text-sm font-semibold truncate hover:text-primary transition-colors w-full text-left"
+                  className="text-sm truncate hover:text-primary transition-colors w-full text-left"
                 >
                   {sourceNode.label || sourceId}
                 </button>
-                <div className="text-[10px] text-muted-foreground font-mono mt-1">
+                <div className="text-[10px] opacity-40 font-mono mt-1">
                   {sourceId}
                 </div>
               </div>
@@ -93,40 +84,34 @@ export function LinkDetailsCard({
             
             {/* Arrow */}
             <div className="flex justify-center">
-              <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
-                <ArrowRight className="h-3.5 w-3.5 text-primary" />
-                <span className="text-[10px] font-medium text-primary">
-                  {link.type.replace(/_/g, ' ')}
-                </span>
+              <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] opacity-60">
+                <ArrowRight className="h-3 w-3" />
+                <span>{link.type.replace(/_/g, ' ')}</span>
               </div>
             </div>
             
             {/* Target Node */}
             {targetNode && (
-              <div className="p-2 bg-muted/30 rounded-md border border-border/50">
+              <div className="p-2 bg-muted/30 rounded border">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="text-[10px] text-muted-foreground font-medium">TO</div>
+                  <div className="text-[10px] opacity-60">TO</div>
                   {(() => {
                     const TargetIcon = getNodeIcon(targetNode.type)
                     return (
-                      <Badge 
-                        variant="outline" 
-                        className="text-[8px] px-1.5 py-0 h-3.5 ml-auto"
-                        style={{ backgroundColor: nodeColorByType[targetNode.type] + '15', borderColor: nodeColorByType[targetNode.type] + '40' }}
-                      >
-                        <TargetIcon className="h-2.5 w-2.5 mr-1" style={{ color: nodeColorByType[targetNode.type] }} />
-                        {targetNode.type}
-                      </Badge>
+                      <div className="flex items-center gap-1 text-[10px] opacity-60 ml-auto">
+                        <TargetIcon className="h-2.5 w-2.5" style={{ color: nodeColorByType[targetNode.type] }} />
+                        <span>{targetNode.type}</span>
+                      </div>
                     )
                   })()}
                 </div>
                 <button
                   onClick={() => onNodeClick(targetNode)}
-                  className="text-sm font-semibold truncate hover:text-primary transition-colors w-full text-left"
+                  className="text-sm truncate hover:text-primary transition-colors w-full text-left"
                 >
                   {targetNode.label || targetId}
                 </button>
-                <div className="text-[10px] text-muted-foreground font-mono mt-1">
+                <div className="text-[10px] opacity-40 font-mono mt-1">
                   {targetId}
                 </div>
               </div>
@@ -146,16 +131,20 @@ export function LinkDetailsCard({
             const excludeFields = new Set([
               'source', 'target', 'source_id', 'target_id',
               'type', 'relation_type', 'dependency_type',
-              'source_type', 'target_type'
+              'source_type', 'target_type',
+              '__threeObj', '__lineObj', '__arrowObj', '__spriteObj', '__textObj' // Three.js internals
             ]);
             
             // Get all fields that exist and aren't excluded
             const displayFields = Object.entries(allProperties)
-              .filter(([key, value]) => 
-                value !== undefined && 
-                value !== null && 
-                !excludeFields.has(key)
-              )
+              .filter(([key, value]) => {
+                if (value === undefined || value === null) return false;
+                if (excludeFields.has(key)) return false;
+                if (key.startsWith('__')) return false; // Exclude all internal fields starting with '__'
+                if (typeof value === 'function') return false;
+                if (typeof value === 'object' && value.isObject3D) return false; // Exclude Three.js objects
+                return true;
+              })
               .sort(([keyA], [keyB]) => {
                 // Sort weight and criticality first, then alphabetically
                 if (keyA === 'weight') return -1;
@@ -195,31 +184,13 @@ export function LinkDetailsCard({
                 {displayFields.map(([key, value]) => (
                   <div 
                     key={key} 
-                    className={`p-2 rounded-md border ${
-                      key === 'weight' 
-                        ? 'bg-primary/5 border-primary/20' 
-                        : key === 'criticality'
-                        ? 'bg-destructive/5 border-destructive/20'
-                        : 'bg-muted/30 border-border/50'
-                    }`}
+                    className="p-2 rounded border bg-muted/30"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className={`text-[11px] font-medium ${
-                        key === 'weight' 
-                          ? 'text-muted-foreground' 
-                          : key === 'criticality'
-                          ? 'text-destructive' 
-                          : 'text-muted-foreground'
-                      }`}>
+                      <span className="text-[10px] opacity-60">
                         {formatKey(key)}
                       </span>
-                      <span className={`text-xs font-bold text-right break-all ${
-                        key === 'weight' 
-                          ? 'text-primary' 
-                          : key === 'criticality'
-                          ? 'text-destructive'
-                          : 'text-foreground'
-                      }`}>
+                      <span className="text-xs text-right break-all">
                         {formatValue(value)}
                       </span>
                     </div>
@@ -230,6 +201,5 @@ export function LinkDetailsCard({
           })()}
         </CardContent>
       </Card>
-    </div>
   )
 }

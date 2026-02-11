@@ -121,6 +121,12 @@ function ExplorerContent() {
 
   // Get connection type between parent and child
   const getConnectionType = (parentId: string, childId: string): string | null => {
+    const result = getConnectionTypeAndDirection(parentId, childId)
+    return result?.type || null
+  }
+
+  // Get connection type and direction between parent and child
+  const getConnectionTypeAndDirection = (parentId: string, childId: string): { type: string, direction: 'outgoing' | 'incoming' } | null => {
     const parentData = hierarchyData.get(parentId)
     if (parentData?.links) {
       const connection = parentData.links.find(link => {
@@ -128,7 +134,11 @@ function ExplorerContent() {
         const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id
         return (sourceId === parentId && targetId === childId) || (sourceId === childId && targetId === parentId)
       })
-      if (connection) return connection.type || null
+      if (connection) {
+        const sourceId = typeof connection.source === 'string' ? connection.source : (connection.source as any).id
+        const direction = sourceId === parentId ? 'outgoing' : 'incoming'
+        return { type: connection.type, direction }
+      }
     }
     
     if (!dataToFilter) return null
@@ -137,7 +147,12 @@ function ExplorerContent() {
       const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id
       return (sourceId === parentId && targetId === childId) || (sourceId === childId && targetId === parentId)
     })
-    return connection?.type || null
+    if (connection) {
+      const sourceId = typeof connection.source === 'string' ? connection.source : (connection.source as any).id
+      const direction = sourceId === parentId ? 'outgoing' : 'incoming'
+      return { type: connection.type, direction }
+    }
+    return null
   }
 
   // Handle node click
@@ -407,7 +422,25 @@ function ExplorerContent() {
   }
 
   return (
-    <AppLayout title="Explorer" description="Explore and navigate your distributed system">
+    <AppLayout 
+      title="Explorer" 
+      description="Explore and navigate your distributed system"
+      actions={
+        <SearchBar
+          searchQuery={searchQuery}
+          onSearch={handleSearch}
+          onClear={handleClearSearch}
+          isSearching={isSearching}
+          searchResults={searchResults}
+          showSearchResults={showSearchResults}
+          onResultClick={handleSearchResultClick}
+          getConnectionCount={getConnectionCount}
+          getNodeIcon={getNodeIcon}
+          nodeColorByType={nodeColorByType}
+          isConnected={isConnected}
+        />
+      }
+    >
       <div className="flex h-full gap-4">
         {/* Main content */}
         <div className="flex flex-1 flex-col gap-4">
@@ -505,21 +538,6 @@ function ExplorerContent() {
                     </div>
                   )}
                 </div>
-
-                {/* Search Bar */}
-                <SearchBar
-                  searchQuery={searchQuery}
-                  onSearch={handleSearch}
-                  onClear={handleClearSearch}
-                  isSearching={isSearching}
-                  searchResults={searchResults}
-                  showSearchResults={showSearchResults}
-                  onResultClick={handleSearchResultClick}
-                  getConnectionCount={getConnectionCount}
-                  getNodeIcon={getNodeIcon}
-                  nodeColorByType={nodeColorByType}
-                  isConnected={isConnected}
-                />
               </div>
 
               {isLoading && (
@@ -578,30 +596,6 @@ function ExplorerContent() {
                       colorByType={true}
                       visibleNodeTypes={new Set(uniqueNodeTypes.filter(t => !hiddenNodeTypes.has(t)))}
                       visibleLinkTypes={new Set(uniqueLinkTypes.filter(t => !hiddenLinkTypes.has(t)))}
-                    />
-                  )}
-                  
-                  {/* Node Details Card */}
-                  {selectedNode && (
-                    <NodeDetailsCard
-                      node={selectedNode}
-                      onClose={() => setSelectedNode(null)}
-                      getConnectionCount={getConnectionCount}
-                      getNodeIcon={getNodeIcon}
-                      nodeColorByType={nodeColorByType}
-                    />
-                  )}
-                  
-                  {/* Link Details Card */}
-                  {selectedLink && (
-                    <LinkDetailsCard
-                      link={selectedLink}
-                      graphData={filteredGraphData}
-                      onClose={() => setSelectedLink(null)}
-                      onNodeClick={handleNodeClick}
-                      getNodeIcon={getNodeIcon}
-                      nodeColorByType={nodeColorByType}
-                      linkColorByType={linkColorByType}
                     />
                   )}
                   
@@ -728,16 +722,16 @@ function ExplorerContent() {
         </div>
 
         {/* Hierarchical Tree Sidebar */}
-        <div className="w-80 flex-shrink-0">
-          <Card className="h-full overflow-hidden bg-gradient-to-br from-background to-background/95 backdrop-blur-sm border-2 shadow-xl">
-            <CardContent className="flex h-full flex-col px-5 py-0">
-              <div className="mb-4">
-                <div className="flex items-center justify-between pb-3 border-b border-border/50">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-primary/10 ring-1 ring-primary/20">
-                      <Network className="h-4 w-4 text-primary" />
-                    </div>
-                    <h3 className="text-sm font-semibold tracking-tight">Explorer</h3>
+        <div className="w-80 flex-shrink-0 flex flex-col gap-4">
+          <Card className={`overflow-hidden border bg-white dark:bg-black ${
+            selectedNode || selectedLink ? 'flex-1 min-h-0' : 'flex-1'
+          }`}>
+            <CardContent className="flex h-full flex-col px-0 py-0">
+              <div className="px-4 pt-4 pb-3 border-b bg-white dark:bg-black flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Network className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold">Explorer</h3>
                   </div>
                   {drillDownHistory.length > 0 && (
                     <Button
@@ -754,7 +748,7 @@ function ExplorerContent() {
               </div>
               
               <div 
-                className="flex-1 overflow-y-auto pr-2 -mr-2" 
+                className="flex-1 overflow-y-auto px-4 py-3" 
                 role="tree" 
                 aria-label="System component hierarchy tree"
               >
@@ -771,6 +765,7 @@ function ExplorerContent() {
                     toggleNodeExpansion={toggleNodeExpansion}
                     getConnectionCount={getConnectionCount}
                     getConnectionType={getConnectionType}
+                    getConnectionTypeAndDirection={getConnectionTypeAndDirection}
                     getNodeIcon={getNodeIcon}
                     nodeColorByType={nodeColorByType}
                     linkColorByType={linkColorByType}
@@ -793,6 +788,34 @@ function ExplorerContent() {
               </div>
             </CardContent>
           </Card>
+          
+          {/* Node Details Card */}
+          {selectedNode && (
+            <div className="flex-[0_1_auto] max-h-[50%] overflow-y-auto animate-in slide-in-from-bottom-3 fade-in duration-300">
+              <NodeDetailsCard
+                node={selectedNode}
+                onClose={() => setSelectedNode(null)}
+                getConnectionCount={getConnectionCount}
+                getNodeIcon={getNodeIcon}
+                nodeColorByType={nodeColorByType}
+              />
+            </div>
+          )}
+          
+          {/* Link Details Card */}
+          {selectedLink && (
+            <div className="flex-[0_1_auto] max-h-[50%] overflow-y-auto animate-in slide-in-from-bottom-3 fade-in duration-300">
+              <LinkDetailsCard
+                link={selectedLink}
+                graphData={filteredGraphData}
+                onClose={() => setSelectedLink(null)}
+                onNodeClick={handleNodeClick}
+                getNodeIcon={getNodeIcon}
+                nodeColorByType={nodeColorByType}
+                linkColorByType={linkColorByType}
+              />
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>

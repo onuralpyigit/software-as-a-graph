@@ -489,7 +489,9 @@ class Neo4jGraphRepository(IGraphRepository):
                 )
                 for record in result:
                     props = dict(record["props"])
-                    for key in ["id", "name", "weight"]:
+                    # Keep name in properties for later use in analysis
+                    props["name"] = record["name"]
+                    for key in ["id", "weight"]:
                         props.pop(key, None)
                     components.append(ComponentData(
                         id=record["id"],
