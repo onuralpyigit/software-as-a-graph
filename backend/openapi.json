@@ -1,0 +1,2423 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Distributed System Graph API",
+    "description": "API for generating, analyzing, and querying distributed system graphs",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Root",
+        "description": "Root endpoint - API information",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Root  Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Health check endpoint.\nVerifies API is running.\nNote: Neo4j connection is validated via the /api/v1/connect endpoint.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connect": {
+      "post": {
+        "summary": "Test Connection",
+        "description": "Test Neo4j database connection with provided credentials.\nThis endpoint is used by the frontend to validate credentials.",
+        "operationId": "test_connection_api_v1_connect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Test Connection Api V1 Connect Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/generate": {
+      "post": {
+        "summary": "Generate Graph",
+        "description": "Generate a synthetic graph with specified scale and seed.\n\nScales: tiny (5 apps), small (15 apps), medium (50 apps), \n        large (150 apps), xlarge (500 apps)",
+        "operationId": "generate_graph_api_v1_graph_generate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateGraphRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Generate Graph Api V1 Graph Generate Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/generate-file": {
+      "post": {
+        "summary": "Generate Graph File",
+        "description": "Generate a synthetic graph and return it as JSON (for download).\nThis endpoint does not require database credentials.\n\nScales: tiny (5 apps), small (15 apps), medium (50 apps), \n        large (150 apps), xlarge (500 apps)",
+        "operationId": "generate_graph_file_api_v1_graph_generate_file_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateGraphFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/import": {
+      "post": {
+        "summary": "Import Graph",
+        "description": "Import graph data into Neo4j database.\n\nThis will:\n1. Import nodes, brokers, topics, applications\n2. Create structural relationships\n3. Derive DEPENDS_ON relationships\n4. Calculate component weights",
+        "operationId": "import_graph_api_v1_graph_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportGraphRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Import Graph Api V1 Graph Import Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/generate-and-import": {
+      "post": {
+        "summary": "Generate And Import Graph",
+        "description": "Convenience endpoint to generate and immediately import a graph.",
+        "operationId": "generate_and_import_graph_api_v1_graph_generate_and_import_post",
+        "parameters": [
+          {
+            "name": "scale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Graph scale",
+              "default": "medium",
+              "title": "Scale"
+            },
+            "description": "Graph scale"
+          },
+          {
+            "name": "seed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Random seed",
+              "default": 42,
+              "title": "Seed"
+            },
+            "description": "Random seed"
+          },
+          {
+            "name": "clear_database",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Clear database before import",
+              "default": false,
+              "title": "Clear Database"
+            },
+            "description": "Clear database before import"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Generate And Import Graph Api V1 Graph Generate And Import Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/clear": {
+      "post": {
+        "summary": "Clear Database",
+        "description": "Clear all data from the Neo4j database.\nWARNING: This will delete all nodes and relationships!\n\nSupports both DELETE and POST methods for compatibility.",
+        "operationId": "clear_database_api_v1_graph_clear_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Clear Database Api V1 Graph Clear Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Clear Database",
+        "description": "Clear all data from the Neo4j database.\nWARNING: This will delete all nodes and relationships!\n\nSupports both DELETE and POST methods for compatibility.",
+        "operationId": "clear_database_api_v1_graph_clear_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Clear Database Api V1 Graph Clear Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/export": {
+      "post": {
+        "summary": "Export Graph",
+        "description": "Export the complete graph from Neo4j.\nIncludes both derived DEPENDS_ON edges and structural relationships.",
+        "operationId": "export_graph_api_v1_graph_export_post",
+        "parameters": [
+          {
+            "name": "include_structural",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include structural relationships (RUNS_ON, PUBLISHES_TO, etc.)",
+              "default": true,
+              "title": "Include Structural"
+            },
+            "description": "Include structural relationships (RUNS_ON, PUBLISHES_TO, etc.)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Export Graph Api V1 Graph Export Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/export-limited": {
+      "post": {
+        "summary": "Export Limited Graph",
+        "description": "Export limited graph subset optimized for performance.\nFetches top N nodes by weight and edges between them.",
+        "operationId": "export_limited_graph_api_v1_graph_export_limited_post",
+        "parameters": [
+          {
+            "name": "node_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Max nodes to retrieve (sorted by weight)",
+              "default": 1000,
+              "title": "Node Limit"
+            },
+            "description": "Max nodes to retrieve (sorted by weight)"
+          },
+          {
+            "name": "edge_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Max edges to retrieve (None = no limit)",
+              "title": "Edge Limit"
+            },
+            "description": "Max edges to retrieve (None = no limit)"
+          },
+          {
+            "name": "fetch_structural",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Fetch structural relationships vs DEPENDS_ON",
+              "default": false,
+              "title": "Fetch Structural"
+            },
+            "description": "Fetch structural relationships vs DEPENDS_ON"
+          },
+          {
+            "name": "node_types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Node types to include (None = all types)",
+              "title": "Node Types"
+            },
+            "description": "Node types to include (None = all types)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/export-neo4j-data": {
+      "post": {
+        "summary": "Export Neo4J Data",
+        "description": "Export complete Neo4j graph data in the same format as input files.\nReturns data compatible with GraphImporter, suitable for re-importing.\n\nThis endpoint uses the export_graph_data() method from GraphExporter which\nproduces a JSON structure matching the format of input/dataset.json.",
+        "operationId": "export_neo4j_data_api_v1_graph_export_neo4j_data_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/search-nodes": {
+      "get": {
+        "summary": "Search Nodes",
+        "description": "Search for nodes across the entire database by ID or label.\nReturns matching nodes without their connections.",
+        "operationId": "search_nodes_api_v1_graph_search_nodes_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Search query for node ID or label",
+              "title": "Query"
+            },
+            "description": "Search query for node ID or label"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of results",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Maximum number of results"
+          },
+          {
+            "name": "uri",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Neo4j URI",
+              "default": "bolt://localhost:7687",
+              "title": "Uri"
+            },
+            "description": "Neo4j URI"
+          },
+          {
+            "name": "user",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Neo4j username",
+              "default": "neo4j",
+              "title": "User"
+            },
+            "description": "Neo4j username"
+          },
+          {
+            "name": "password",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Neo4j password",
+              "default": "",
+              "title": "Password"
+            },
+            "description": "Neo4j password"
+          },
+          {
+            "name": "database",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Neo4j database",
+              "default": "neo4j",
+              "title": "Database"
+            },
+            "description": "Neo4j database"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/node-connections": {
+      "post": {
+        "summary": "Get Node Connections",
+        "description": "Fetch all connections (edges and connected nodes) for a specific node at specified depth.\nReturns nodes and edges that can be merged into existing graph.\ndepth=1: immediate neighbors\ndepth=2: neighbors and their neighbors  \ndepth=3: three levels of connections",
+        "operationId": "get_node_connections_api_v1_graph_node_connections_post",
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Node ID to fetch connections for",
+              "title": "Node Id"
+            },
+            "description": "Node ID to fetch connections for"
+          },
+          {
+            "name": "fetch_structural",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Fetch structural relationships vs DEPENDS_ON",
+              "default": false,
+              "title": "Fetch Structural"
+            },
+            "description": "Fetch structural relationships vs DEPENDS_ON"
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Depth level for fetching connections (1, 2, or 3)",
+              "default": 1,
+              "title": "Depth"
+            },
+            "description": "Depth level for fetching connections (1, 2, or 3)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/topology": {
+      "post": {
+        "summary": "Get Topology Data",
+        "description": "Fetch topology data with hierarchical drill-down:\n- No node_id: Show all Node nodes and CONNECTS_TO relationships\n- Node type clicked: Show Applications and Brokers running on that Node (RUNS_ON)\n- Application type clicked: Show Topics (PUBLISHES_TO/SUBSCRIBES_TO) and Libraries (USES)",
+        "operationId": "get_topology_data_api_v1_graph_topology_post",
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional node ID to filter topology (drill-down)",
+              "title": "Node Id"
+            },
+            "description": "Optional node ID to filter topology (drill-down)"
+          },
+          {
+            "name": "node_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of nodes to retrieve",
+              "default": 1000,
+              "title": "Node Limit"
+            },
+            "description": "Maximum number of nodes to retrieve"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analysis/full": {
+      "post": {
+        "summary": "Analyze Full System",
+        "description": "Run complete system analysis including:\n- Structural metrics (centrality, clustering, etc.)\n- Quality scores (reliability, maintainability, availability)\n- Problem detection",
+        "operationId": "analyze_full_system_api_v1_analysis_full_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Analyze Full System Api V1 Analysis Full Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analysis/type/{component_type}": {
+      "post": {
+        "summary": "Analyze By Type",
+        "description": "Analyze components of a specific type.\n\nValid types: Application, Broker, Node, Topic",
+        "operationId": "analyze_by_type_api_v1_analysis_type__component_type__post",
+        "parameters": [
+          {
+            "name": "component_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Component Type"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Analyze By Type Api V1 Analysis Type  Component Type  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analysis/layer/{layer}": {
+      "post": {
+        "summary": "Analyze Layer",
+        "description": "Analyze a specific architectural layer.\n\nValid layers: app, infra, application, infrastructure, system",
+        "operationId": "analyze_layer_api_v1_analysis_layer__layer__post",
+        "parameters": [
+          {
+            "name": "layer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Layer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Analyze Layer Api V1 Analysis Layer  Layer  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/components": {
+      "post": {
+        "summary": "Get Components",
+        "description": "Get components from the graph with optional filtering.",
+        "operationId": "get_components_api_v1_components_post",
+        "parameters": [
+          {
+            "name": "component_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by component type",
+              "title": "Component Type"
+            },
+            "description": "Filter by component type"
+          },
+          {
+            "name": "min_weight",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum weight threshold",
+              "title": "Min Weight"
+            },
+            "description": "Minimum weight threshold"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of components to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of components to return"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Components Api V1 Components Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/components/critical": {
+      "post": {
+        "summary": "Get Critical Components",
+        "description": "Get the most critical components based on analysis.",
+        "operationId": "get_critical_components_api_v1_components_critical_post",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of components to return",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Maximum number of components to return"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Critical Components Api V1 Components Critical Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edges": {
+      "post": {
+        "summary": "Get Edges",
+        "description": "Get edges from the graph with optional filtering.\n\nValid dependency types: app_to_app, node_to_node, app_to_broker, node_to_broker",
+        "operationId": "get_edges_api_v1_edges_post",
+        "parameters": [
+          {
+            "name": "dependency_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by dependency type",
+              "title": "Dependency Type"
+            },
+            "description": "Filter by dependency type"
+          },
+          {
+            "name": "min_weight",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum weight threshold",
+              "title": "Min Weight"
+            },
+            "description": "Minimum weight threshold"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of edges to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of edges to return"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Edges Api V1 Edges Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/edges/critical": {
+      "post": {
+        "summary": "Get Critical Edges",
+        "description": "Get the most critical edges based on analysis.",
+        "operationId": "get_critical_edges_api_v1_edges_critical_post",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Maximum number of edges to return",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Maximum number of edges to return"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Critical Edges Api V1 Edges Critical Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats": {
+      "post": {
+        "summary": "Get Graph Stats",
+        "description": "Get overall graph statistics including structural relationships.",
+        "operationId": "get_graph_stats_api_v1_stats_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Graph Stats Api V1 Stats Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/degree-distribution": {
+      "post": {
+        "summary": "Get Degree Distribution Stats",
+        "description": "Get fast degree distribution statistics.\n\nComputes:\n- In-degree, out-degree, and total degree statistics (mean, median, max, min, std)\n- Hub nodes (degree > mean + 2*std)\n- Isolated nodes count\n\nOptionally filter by node_type to analyze specific component types.\nRuns in O(V+E) time - very fast even for large graphs.",
+        "operationId": "get_degree_distribution_stats_api_v1_stats_degree_distribution_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Degree Distribution Stats Api V1 Stats Degree Distribution Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/connectivity-density": {
+      "post": {
+        "summary": "Get Connectivity Density Stats",
+        "description": "Get connectivity density statistics - measures how interconnected the system is.\n\nDensity = (Actual Edges) / (Maximum Possible Edges)\nFor a directed graph: max_edges = N * (N - 1)\n\nOptionally filter by node_type to show specific component types,\nbut density is always calculated on the entire graph first.\nFast computation in O(1) time using existing stats.\nProvides insights into system coupling and complexity.",
+        "operationId": "get_connectivity_density_stats_api_v1_stats_connectivity_density_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Connectivity Density Stats Api V1 Stats Connectivity Density Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/clustering-coefficient": {
+      "post": {
+        "summary": "Get Clustering Coefficient Stats",
+        "description": "Get clustering coefficient statistics - measures how nodes tend to cluster together.\n\nClustering coefficient indicates:\n- How much nodes tend to form tightly connected groups\n- Local connectivity patterns and modularity\n- Probability that neighbors of a node are also connected\n\nOptionally filter by node_type to show specific component types,\nbut clustering is always calculated on the entire graph first.\nRuns in O(V * d^2) where d is average degree - fast for sparse graphs.\nProvides valuable insights into system modularity and component grouping.",
+        "operationId": "get_clustering_coefficient_stats_api_v1_stats_clustering_coefficient_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Clustering Coefficient Stats Api V1 Stats Clustering Coefficient Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/dependency-depth": {
+      "post": {
+        "summary": "Get Dependency Depth Stats",
+        "description": "Get dependency depth statistics - measures the depth of dependency chains.\n\nDependency depth indicates:\n- How deep the transitive dependency chains are\n- Potential failure propagation paths\n- System architectural complexity\n- Testing and refactoring impact radius\n\nRuns in O(V + E) using BFS - very fast.\nProvides critical insights into system architecture and change impact.",
+        "operationId": "get_dependency_depth_stats_api_v1_stats_dependency_depth_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Dependency Depth Stats Api V1 Stats Dependency Depth Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/component-isolation": {
+      "post": {
+        "summary": "Get Component Isolation Stats",
+        "description": "Get component isolation statistics - identifies isolated, source, and sink components.\n\nComponent isolation reveals:\n- Completely isolated components (no connections)\n- Source components (only outgoing dependencies - entry points)\n- Sink components (only incoming dependencies - foundations)\n- Bi-directional components (both in and out)\n\nRuns in O(V + E) - extremely fast.\nProvides critical architectural insights about component roles and dependencies.",
+        "operationId": "get_component_isolation_stats_api_v1_stats_component_isolation_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Component Isolation Stats Api V1 Stats Component Isolation Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/message-flow-patterns": {
+      "post": {
+        "summary": "Get Message Flow Patterns",
+        "description": "Get message flow pattern statistics - analyzes communication patterns in pub-sub system.\n\nMessage flow analysis reveals:\n- Hot topics (most publishers/subscribers)\n- Communication bottlenecks (overloaded brokers/topics)\n- Broker utilization patterns\n- Isolated applications (no message flow)\n- Publisher/Subscriber balance\n\nRuns in O(V + E) - extremely fast.\nCritical for understanding system communication patterns and identifying bottlenecks.",
+        "operationId": "get_message_flow_patterns_api_v1_stats_message_flow_patterns_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Message Flow Patterns Api V1 Stats Message Flow Patterns Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/component-redundancy": {
+      "post": {
+        "summary": "Get Component Redundancy Stats",
+        "description": "Get component redundancy statistics - identifies critical single points of failure.\n\nComponent redundancy analysis reveals:\n- Single Points of Failure (SPOFs) - components whose failure disconnects the graph\n- Bridge components - components that connect different parts of the system\n- Redundant paths - availability of alternative routes between components\n- Resilience score - overall system redundancy and fault tolerance\n\nRuns in O(V + E) - extremely fast.\nCritical for understanding system resilience and identifying architectural risks.",
+        "operationId": "get_component_redundancy_stats_api_v1_stats_component_redundancy_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Component Redundancy Stats Api V1 Stats Component Redundancy Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/node-weight-distribution": {
+      "post": {
+        "summary": "Get Node Weight Distribution Stats",
+        "description": "Get node weight distribution statistics - analyzes how component importance is distributed.\n\nNode weight distribution reveals:\n- Distribution of component weights (importance scores)\n- High-value vs low-value components\n- Weight concentration patterns\n- Critical component identification by weight\n\nRuns in O(V) - extremely fast.\nProvides insights into component importance hierarchy and architectural focus areas.",
+        "operationId": "get_node_weight_distribution_stats_api_v1_stats_node_weight_distribution_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Node Weight Distribution Stats Api V1 Stats Node Weight Distribution Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats/edge-weight-distribution": {
+      "post": {
+        "summary": "Get Edge Weight Distribution Stats",
+        "description": "Get edge weight distribution statistics - analyzes how dependency importance is distributed.\n\nEdge weight distribution reveals:\n- Distribution of dependency weights (connection strength)\n- Critical vs weak dependencies\n- Weight concentration patterns\n- Dependency type importance patterns\n\nRuns in O(E) - extremely fast.\nProvides insights into dependency criticality and architectural coupling patterns.",
+        "operationId": "get_edge_weight_distribution_stats_api_v1_stats_edge_weight_distribution_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Edge Weight Distribution Stats Api V1 Stats Edge Weight Distribution Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulation/event": {
+      "post": {
+        "summary": "Simulate Event",
+        "description": "Run event simulation from a source application.\n\nSimulates message flow through the pub-sub system, measuring:\n- Throughput (messages published, delivered, dropped)\n- Latency metrics (avg, min, max, p50, p99)\n- Path analysis (topics, brokers, subscribers)\n- Component impacts",
+        "operationId": "simulate_event_api_v1_simulation_event_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventSimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Simulate Event Api V1 Simulation Event Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulation/failure": {
+      "post": {
+        "summary": "Simulate Failure",
+        "description": "Run failure simulation for a target component.\n\nSimulates component failure and analyzes:\n- Composite impact score\n- Reachability loss (connectivity degradation)\n- Fragmentation (component isolation)\n- Throughput loss (capacity degradation)\n- Cascade propagation (dependent failures)\n- Per-layer impacts\n\nValid layers: app, infra, mw-app, mw-infra, system",
+        "operationId": "simulate_failure_api_v1_simulation_failure_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FailureSimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Simulate Failure Api V1 Simulation Failure Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulation/exhaustive": {
+      "post": {
+        "summary": "Simulate Exhaustive",
+        "description": "Run exhaustive failure analysis for all components in a layer.\n\nAnalyzes failure impact for every component, sorted by impact score.\nUseful for identifying the most critical components in the system.\n\nValid layers: app, infra, mw-app, mw-infra, system\n\nWarning: This can take significant time for large graphs.",
+        "operationId": "simulate_exhaustive_api_v1_simulation_exhaustive_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExhaustiveSimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Simulate Exhaustive Api V1 Simulation Exhaustive Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulation/report": {
+      "post": {
+        "summary": "Generate Simulation Report",
+        "description": "Generate comprehensive simulation report with analysis across multiple layers.\n\nIncludes:\n- Graph summary statistics\n- Per-layer event and failure simulation metrics\n- Criticality classification (critical, high, medium, low, minimal)\n- SPOF (Single Point of Failure) detection\n- Top critical components\n- System health recommendations\n\nValid layers: app, infra, mw-app, mw-infra, system",
+        "operationId": "generate_simulation_report_api_v1_simulation_report_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Generate Simulation Report Api V1 Simulation Report Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/classify": {
+      "post": {
+        "summary": "Classify Components",
+        "description": "Classify components using BoxPlot or Fuzzy logic based on centrality metrics.\n\nAvailable metrics: betweenness, pagerank, degree",
+        "operationId": "classify_components_api_v1_classify_post",
+        "parameters": [
+          {
+            "name": "metrics",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Metrics to use for classification",
+              "title": "Metrics"
+            },
+            "description": "Metrics to use for classification"
+          },
+          {
+            "name": "use_fuzzy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Use fuzzy logic classifier",
+              "default": false,
+              "title": "Use Fuzzy"
+            },
+            "description": "Use fuzzy logic classifier"
+          },
+          {
+            "name": "use_weights",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Consider edge weights",
+              "default": true,
+              "title": "Use Weights"
+            },
+            "description": "Consider edge weights"
+          },
+          {
+            "name": "dependency_types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dependency types to analyze",
+              "title": "Dependency Types"
+            },
+            "description": "Dependency types to analyze"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Neo4jCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Classify Components Api V1 Classify Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/validation/run-pipeline": {
+      "post": {
+        "summary": "Run Validation Pipeline",
+        "description": "Run the full validation pipeline.\n\nThis endpoint orchestrates:\n1. Graph analysis to get predicted criticality scores\n2. Failure simulation to get actual impact scores\n3. Statistical validation comparing predictions vs reality\n\nArgs:\n    request: Validation configuration with credentials and layers\n    \nReturns:\n    Complete validation results with metrics for each layer",
+        "operationId": "run_validation_pipeline_api_v1_validation_run_pipeline_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Run Validation Pipeline Api V1 Validation Run Pipeline Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/validation/quick": {
+      "post": {
+        "summary": "Quick Validation",
+        "description": "Quick validation from provided or file-based data.\n\nCompare predicted scores against actual scores using\nstatistical validation metrics without running the full pipeline.\n\nArgs:\n    request: Predicted and actual scores (as files or data)\n    \nReturns:\n    Validation metrics and results",
+        "operationId": "quick_validation_api_v1_validation_quick_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Quick Validation Api V1 Validation Quick Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/validation/layers": {
+      "get": {
+        "summary": "Get Validation Layers",
+        "description": "Get available validation layers and their definitions.\n\nReturns:\n    Dictionary of layer definitions with descriptions",
+        "operationId": "get_validation_layers_api_v1_validation_layers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Validation Layers Api V1 Validation Layers Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/validation/targets": {
+      "get": {
+        "summary": "Get Validation Targets",
+        "description": "Get default validation targets (success criteria).\n\nReturns:\n    Dictionary of validation metrics and their target thresholds",
+        "operationId": "get_validation_targets_api_v1_validation_targets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Validation Targets Api V1 Validation Targets Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "EventSimulationRequest": {
+        "properties": {
+          "credentials": {
+            "$ref": "#/components/schemas/Neo4jCredentials",
+            "description": "Neo4j connection credentials"
+          },
+          "source_app": {
+            "type": "string",
+            "title": "Source App",
+            "description": "Source application ID for event simulation"
+          },
+          "num_messages": {
+            "type": "integer",
+            "title": "Num Messages",
+            "description": "Number of messages to simulate",
+            "default": 100
+          },
+          "duration": {
+            "type": "number",
+            "title": "Duration",
+            "description": "Simulation duration in seconds",
+            "default": 10.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "credentials",
+          "source_app"
+        ],
+        "title": "EventSimulationRequest"
+      },
+      "ExhaustiveSimulationRequest": {
+        "properties": {
+          "credentials": {
+            "$ref": "#/components/schemas/Neo4jCredentials",
+            "description": "Neo4j connection credentials"
+          },
+          "layer": {
+            "type": "string",
+            "title": "Layer",
+            "description": "Analysis layer: app, infra, mw-app, mw-infra, system",
+            "default": "system"
+          },
+          "cascade_probability": {
+            "type": "number",
+            "title": "Cascade Probability",
+            "description": "Cascade propagation probability (0.0-1.0)",
+            "default": 1.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "credentials"
+        ],
+        "title": "ExhaustiveSimulationRequest"
+      },
+      "FailureSimulationRequest": {
+        "properties": {
+          "credentials": {
+            "$ref": "#/components/schemas/Neo4jCredentials",
+            "description": "Neo4j connection credentials"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id",
+            "description": "Target component ID to simulate failure"
+          },
+          "layer": {
+            "type": "string",
+            "title": "Layer",
+            "description": "Analysis layer: app, infra, mw-app, mw-infra, system",
+            "default": "system"
+          },
+          "cascade_probability": {
+            "type": "number",
+            "title": "Cascade Probability",
+            "description": "Cascade propagation probability (0.0-1.0)",
+            "default": 1.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "credentials",
+          "target_id"
+        ],
+        "title": "FailureSimulationRequest"
+      },
+      "GenerateGraphFileRequest": {
+        "properties": {
+          "scale": {
+            "type": "string",
+            "title": "Scale",
+            "description": "Graph scale: tiny, small, medium, large, xlarge",
+            "default": "medium"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed",
+            "description": "Random seed for reproducibility",
+            "default": 42
+          }
+        },
+        "type": "object",
+        "title": "GenerateGraphFileRequest",
+        "description": "Request for generating a graph file without database credentials"
+      },
+      "GenerateGraphRequest": {
+        "properties": {
+          "credentials": {
+            "$ref": "#/components/schemas/Neo4jCredentials",
+            "description": "Neo4j connection credentials"
+          },
+          "scale": {
+            "type": "string",
+            "title": "Scale",
+            "description": "Graph scale: tiny, small, medium, large, xlarge",
+            "default": "medium"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed",
+            "description": "Random seed for reproducibility",
+            "default": 42
+          }
+        },
+        "type": "object",
+        "required": [
+          "credentials"
+        ],
+        "title": "GenerateGraphRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "neo4j_connected": {
+            "type": "boolean",
+            "title": "Neo4J Connected"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "neo4j_connected"
+        ],
+        "title": "HealthResponse"
+      },
+      "ImportGraphRequest": {
+        "properties": {
+          "credentials": {
+            "$ref": "#/components/schemas/Neo4jCredentials",
+            "description": "Neo4j connection credentials"
+          },
+          "graph_data": {
+            "type": "object",
+            "title": "Graph Data",
+            "description": "Graph data structure to import"
+          },
+          "clear_database": {
+            "type": "boolean",
+            "title": "Clear Database",
+            "description": "Clear database before import",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "credentials",
+          "graph_data"
+        ],
+        "title": "ImportGraphRequest"
+      },
+      "Neo4jCredentials": {
+        "properties": {
+          "uri": {
+            "type": "string",
+            "title": "Uri",
+            "description": "Neo4j connection URI",
+            "default": "bolt://localhost:7687"
+          },
+          "user": {
+            "type": "string",
+            "title": "User",
+            "description": "Neo4j username",
+            "default": "neo4j"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password",
+            "description": "Neo4j password",
+            "default": ""
+          },
+          "database": {
+            "type": "string",
+            "title": "Database",
+            "description": "Neo4j database name",
+            "default": "neo4j"
+          },
+          "node_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Type",
+            "description": "Filter by specific node type"
+          }
+        },
+        "type": "object",
+        "title": "Neo4jCredentials"
+      },
+      "QuickValidationRequest": {
+        "properties": {
+          "credentials": {
+            "$ref": "#/components/schemas/Neo4jCredentials",
+            "description": "Neo4j connection credentials"
+          },
+          "predicted_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted File",
+            "description": "Path to predicted scores JSON file"
+          },
+          "actual_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual File",
+            "description": "Path to actual scores JSON file"
+          },
+          "predicted_data": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted Data",
+            "description": "Predicted scores dictionary"
+          },
+          "actual_data": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Data",
+            "description": "Actual scores dictionary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "credentials"
+        ],
+        "title": "QuickValidationRequest"
+      },
+      "ReportRequest": {
+        "properties": {
+          "credentials": {
+            "$ref": "#/components/schemas/Neo4jCredentials",
+            "description": "Neo4j connection credentials"
+          },
+          "layers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Layers",
+            "description": "Layers to include in report",
+            "default": [
+              "app",
+              "infra",
+              "system"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "credentials"
+        ],
+        "title": "ReportRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValidationRequest": {
+        "properties": {
+          "credentials": {
+            "$ref": "#/components/schemas/Neo4jCredentials",
+            "description": "Neo4j connection credentials"
+          },
+          "layers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Layers",
+            "description": "Layers to validate",
+            "default": [
+              "app",
+              "infra",
+              "system"
+            ]
+          },
+          "include_comparisons": {
+            "type": "boolean",
+            "title": "Include Comparisons",
+            "description": "Include detailed component comparisons",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "credentials"
+        ],
+        "title": "ValidationRequest"
+      }
+    }
+  }
+}

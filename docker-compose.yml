@@ -21,8 +21,8 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: Dockerfile.api
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: graph-api
     ports:
       - "8000:8000"
@@ -32,19 +32,21 @@ services:
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
     depends_on:
       - neo4j
+    volumes:
+      - ./backend:/app
     networks:
       - neo4j_network
     restart: unless-stopped
 
-  genieus:
+  frontend:
     build:
-      context: ./genieus
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: genieus
     ports:
-      - "7000:7000"
+      - "3000:3000"
     environment:
-      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - api
     networks:
