@@ -24,39 +24,31 @@ export function NodeDetailsCard({
   const connectionCount = getConnectionCount(node.id)
 
   return (
-    <div className="absolute bottom-4 right-4 z-10 w-80 animate-in slide-in-from-right-3 fade-in duration-300">
-      <Card className="bg-background/95 backdrop-blur-md border-2 shadow-xl">
-        <CardHeader className="pb-3 pt-4 px-4">
+    <Card className="border flex flex-col h-full bg-white dark:bg-black">
+        <CardHeader className="pb-3 pt-4 px-4 flex-shrink-0 border-b bg-white dark:bg-black">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-1">
                 <NodeIcon className="h-4 w-4 flex-shrink-0" style={{ color: nodeColorByType[node.type] }} />
-                <CardTitle className="text-base truncate">{node.label}</CardTitle>
+                <CardTitle className="text-sm truncate">{node.label}</CardTitle>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge 
-                  variant="secondary" 
-                  className="text-[10px] px-2 py-0.5"
-                  style={{ backgroundColor: nodeColorByType[node.type] + '20', color: nodeColorByType[node.type] }}
-                >
-                  {node.type}
-                </Badge>
-                <Badge variant="outline" className="text-[10px] px-2 py-0.5">
-                  {connectionCount} connections
-                </Badge>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="opacity-60">{node.type}</span>
+                <span className="opacity-40">•</span>
+                <span className="opacity-60">{connectionCount} connections</span>
               </div>
             </div>
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={onClose}
-              className="h-7 w-7 flex-shrink-0 hover:bg-destructive/10"
+              className="h-6 w-6 flex-shrink-0"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="pt-0 pb-3 px-4 space-y-2">
+        <CardContent className="pt-3 pb-3 px-4 space-y-1 flex-1 overflow-y-auto">
           {/* Node Details */}
           {(() => {
             // Get all properties from node - they can be in node.properties or directly on node
@@ -71,17 +63,20 @@ export function NodeDetailsCard({
               'id', 'label', 'type', 'degree', 'criticality_score',
               'criticality_level', 'criticality_levels', 'properties',
               'x', 'y', 'z', 'vx', 'vy', 'vz', 'fx', 'fy', 'fz', // Force graph internals
-              '__indexColor', 'index' // D3 internals
+              '__indexColor', 'index', // D3 internals
+              '__threeObj', '__lineObj', '__arrowObj', '__spriteObj', '__textObj' // Three.js internals
             ]);
             
             // Get all fields that exist and aren't excluded
             const displayFields = Object.entries(allProperties)
-              .filter(([key, value]) => 
-                value !== undefined && 
-                value !== null &&
-                !excludeFields.has(key) &&
-                typeof value !== 'function'
-              )
+              .filter(([key, value]) => {
+                if (value === undefined || value === null) return false;
+                if (excludeFields.has(key)) return false;
+                if (key.startsWith('__')) return false; // Exclude all internal fields starting with '__'
+                if (typeof value === 'function') return false;
+                if (typeof value === 'object' && value.isObject3D) return false; // Exclude Three.js objects
+                return true;
+              })
               .sort(([keyA], [keyB]) => {
                 // Sort weight first, then alphabetically
                 if (keyA === 'weight') return -1;
@@ -115,10 +110,10 @@ export function NodeDetailsCard({
             return (
               <div className="space-y-1.5">
                 {/* Always show Node ID first */}
-                <div className="p-2 bg-muted/30 rounded-md border border-border/50">
+                <div className="p-2 bg-muted/30 rounded border">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-muted-foreground font-medium">Node ID</span>
-                    <span className="font-mono text-[10px] bg-background px-1.5 py-0.5 rounded border text-right break-all">
+                    <span className="text-[10px] opacity-60">Node ID</span>
+                    <span className="font-mono text-[10px] text-right break-all">
                       {node.id}
                     </span>
                   </div>
@@ -128,21 +123,13 @@ export function NodeDetailsCard({
                 {displayFields.length > 0 && displayFields.map(([key, value]) => (
                   <div 
                     key={key} 
-                    className={`p-2 rounded-md border ${
-                      key === 'weight' 
-                        ? 'bg-primary/5 border-primary/20' 
-                        : 'bg-muted/30 border-border/50'
-                    }`}
+                    className="p-2 rounded border bg-muted/30"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-medium text-muted-foreground">
+                      <span className="text-[10px] opacity-60">
                         {formatKey(key)}
                       </span>
-                      <span className={`text-xs font-semibold text-right break-all max-w-[180px] ${
-                        key === 'weight' 
-                          ? 'text-primary' 
-                          : 'text-foreground'
-                      }`} title={formatValue(value)}>
+                      <span className="text-xs text-right break-all max-w-[180px]" title={formatValue(value)}>
                         {formatValue(value)}
                       </span>
                     </div>
@@ -153,6 +140,5 @@ export function NodeDetailsCard({
           })()}
         </CardContent>
       </Card>
-    </div>
   )
 }

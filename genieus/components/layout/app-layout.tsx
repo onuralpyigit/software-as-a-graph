@@ -9,9 +9,10 @@ interface AppLayoutProps {
   children: ReactNode
   title?: string
   description?: string
+  actions?: ReactNode
 }
 
-export function AppLayout({ children, title, description }: AppLayoutProps) {
+export function AppLayout({ children, title, description, actions }: AppLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
@@ -20,7 +21,7 @@ export function AppLayout({ children, title, description }: AppLayoutProps) {
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <Header title={title} description={description} />
+        <Header title={title} description={description} actions={actions} />
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-6">

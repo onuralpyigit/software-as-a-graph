@@ -88,10 +88,10 @@ export function SearchBar({
                     >
                       <NodeIcon className="h-4 w-4 flex-shrink-0" style={{ color: nodeColorByType[node.type] }} />
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate group-hover:text-accent-foreground">
+                        <div className="font-medium text-sm truncate text-left group-hover:text-accent-foreground">
                           {node.label || node.id}
                         </div>
-                        <div className="text-[10px] text-muted-foreground truncate font-mono">
+                        <div className="text-[10px] text-muted-foreground truncate text-left font-mono">
                           {node.id}
                         </div>
                       </div>
