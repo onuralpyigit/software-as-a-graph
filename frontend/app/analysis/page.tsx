@@ -123,7 +123,7 @@ export default function AnalysisPage() {
   // Analysis mode and filters
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('full')
   const [selectedType, setSelectedType] = useState<string>('Application')
-  const [selectedLayer, setSelectedLayer] = useState<string>('app')
+  const [selectedLayer, setSelectedLayer] = useState<string>('application')
   
   // Loading and error states
   const [isLoading, setIsLoading] = useState(false)
@@ -1162,182 +1162,137 @@ export default function AnalysisPage() {
                   <p className="text-sm text-muted-foreground">Choose which layer to analyze</p>
                 </div>
               </div>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {/* App Layer */}
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                {/* Application Layer */}
                 <Card
                   className={`group relative cursor-pointer transition-all duration-300 ease-in-out overflow-hidden ${
-                    selectedLayer === 'app'
+                    selectedLayer === 'application'
                       ? 'border-0 shadow-xl shadow-blue-500/25'
                       : 'border-0 hover:shadow-lg hover:shadow-blue-500/20'
                   }`}
-                  onClick={() => setSelectedLayer('app')}
+                  onClick={() => setSelectedLayer('application')}
                 >
                   <div className={`absolute inset-0 rounded-lg p-[2px] transition-opacity duration-300 ${
-                    selectedLayer === 'app'
+                    selectedLayer === 'application'
                       ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 opacity-100'
                       : 'bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-800 dark:to-slate-700 opacity-100 group-hover:from-blue-500 group-hover:via-indigo-500 group-hover:to-purple-500'
                   }`}>
                     <div className="w-full h-full bg-background rounded-lg" />
                   </div>
                   <div className={`absolute inset-[2px] rounded-lg transition-opacity duration-300 ${
-                    selectedLayer === 'app'
+                    selectedLayer === 'application'
                       ? 'bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-transparent opacity-100'
                       : 'bg-gradient-to-br from-blue-500/5 via-indigo-500/3 to-transparent opacity-0 group-hover:opacity-100'
                   }`} />
                   <CardContent className="relative p-4">
                     <div className="flex items-center gap-3">
                       <div className={`rounded-lg p-2 ${
-                        selectedLayer === 'app'
+                        selectedLayer === 'application'
                           ? 'bg-blue-500'
                           : 'bg-blue-100 dark:bg-blue-900'
                       }`}>
                         <Server className={`h-5 w-5 ${
-                          selectedLayer === 'app'
+                          selectedLayer === 'application'
                             ? 'text-white'
                             : 'text-blue-600 dark:text-blue-400'
                         }`} />
                       </div>
                       <div className="flex-1">
-                        <div className="font-semibold text-sm">App Layer</div>
+                        <div className="font-semibold text-sm">Application</div>
                         <div className="text-xs text-muted-foreground">App-to-app dependencies</div>
                       </div>
-                      {selectedLayer === 'app' && (
+                      {selectedLayer === 'application' && (
                         <CheckCircle2 className="h-5 w-5 text-blue-500 shrink-0" />
                       )}
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Infra Layer */}
+                {/* Infrastructure Layer */}
                 <Card
                   className={`group relative cursor-pointer transition-all duration-300 ease-in-out overflow-hidden ${
-                    selectedLayer === 'infra'
+                    selectedLayer === 'infrastructure'
                       ? 'border-0 shadow-xl shadow-slate-500/25'
                       : 'border-0 hover:shadow-lg hover:shadow-slate-500/20'
                   }`}
-                  onClick={() => setSelectedLayer('infra')}
+                  onClick={() => setSelectedLayer('infrastructure')}
                 >
                   <div className={`absolute inset-0 rounded-lg p-[2px] transition-opacity duration-300 ${
-                    selectedLayer === 'infra'
+                    selectedLayer === 'infrastructure'
                       ? 'bg-gradient-to-br from-slate-400 via-gray-500 to-zinc-600 opacity-100'
                       : 'bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-800 dark:to-slate-700 opacity-100 group-hover:from-slate-300 group-hover:via-gray-400 group-hover:to-zinc-500'
                   }`}>
                     <div className="w-full h-full bg-background rounded-lg" />
                   </div>
                   <div className={`absolute inset-[2px] rounded-lg transition-opacity duration-300 ${
-                    selectedLayer === 'infra'
+                    selectedLayer === 'infrastructure'
                       ? 'bg-gradient-to-br from-slate-500/10 via-gray-500/5 to-transparent opacity-100'
                       : 'bg-gradient-to-br from-slate-500/5 via-gray-500/3 to-transparent opacity-0 group-hover:opacity-100'
                   }`} />
                   <CardContent className="relative p-4">
                     <div className="flex items-center gap-3">
                       <div className={`rounded-lg p-2 ${
-                        selectedLayer === 'infra'
+                        selectedLayer === 'infrastructure'
                           ? 'bg-slate-500'
                           : 'bg-slate-100 dark:bg-slate-900'
                       }`}>
                         <Database className={`h-5 w-5 ${
-                          selectedLayer === 'infra'
+                          selectedLayer === 'infrastructure'
                             ? 'text-white'
                             : 'text-slate-600 dark:text-slate-400'
                         }`} />
                       </div>
                       <div className="flex-1">
-                        <div className="font-semibold text-sm">Infra Layer</div>
+                        <div className="font-semibold text-sm">Infrastructure</div>
                         <div className="text-xs text-muted-foreground">Node-to-node dependencies</div>
                       </div>
-                      {selectedLayer === 'infra' && (
+                      {selectedLayer === 'infrastructure' && (
                         <CheckCircle2 className="h-5 w-5 text-slate-500 shrink-0" />
                       )}
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* MW-App Layer */}
+                {/* Middleware Layer */}
                 <Card
                   className={`group relative cursor-pointer transition-all duration-300 ease-in-out overflow-hidden ${
-                    selectedLayer === 'mw-app'
+                    selectedLayer === 'middleware'
                       ? 'border-0 shadow-xl shadow-purple-500/25'
                       : 'border-0 hover:shadow-lg hover:shadow-purple-500/20'
                   }`}
-                  onClick={() => setSelectedLayer('mw-app')}
+                  onClick={() => setSelectedLayer('middleware')}
                 >
                   <div className={`absolute inset-0 rounded-lg p-[2px] transition-opacity duration-300 ${
-                    selectedLayer === 'mw-app'
+                    selectedLayer === 'middleware'
                       ? 'bg-gradient-to-r from-purple-500 via-violet-500 to-fuchsia-500 opacity-100'
                       : 'bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-800 dark:to-slate-700 opacity-100 group-hover:from-purple-500 group-hover:via-violet-500 group-hover:to-fuchsia-500'
                   }`}>
                     <div className="w-full h-full bg-background rounded-lg" />
                   </div>
                   <div className={`absolute inset-[2px] rounded-lg transition-opacity duration-300 ${
-                    selectedLayer === 'mw-app'
+                    selectedLayer === 'middleware'
                       ? 'bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-transparent opacity-100'
                       : 'bg-gradient-to-br from-purple-500/5 via-violet-500/3 to-transparent opacity-0 group-hover:opacity-100'
                   }`} />
                   <CardContent className="relative p-4">
                     <div className="flex items-center gap-3">
                       <div className={`rounded-lg p-2 ${
-                        selectedLayer === 'mw-app'
+                        selectedLayer === 'middleware'
                           ? 'bg-purple-500'
                           : 'bg-purple-100 dark:bg-purple-900'
                       }`}>
                         <Network className={`h-5 w-5 ${
-                          selectedLayer === 'mw-app'
+                          selectedLayer === 'middleware'
                             ? 'text-white'
                             : 'text-purple-600 dark:text-purple-400'
                         }`} />
                       </div>
                       <div className="flex-1">
-                        <div className="font-semibold text-sm">MW-App Layer</div>
-                        <div className="text-xs text-muted-foreground">App-to-broker dependencies</div>
+                        <div className="font-semibold text-sm">Middleware</div>
+                        <div className="text-xs text-muted-foreground">Broker dependencies</div>
                       </div>
-                      {selectedLayer === 'mw-app' && (
+                      {selectedLayer === 'middleware' && (
                         <CheckCircle2 className="h-5 w-5 text-purple-500 shrink-0" />
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* MW-Infra Layer */}
-                <Card
-                  className={`group relative cursor-pointer transition-all duration-300 ease-in-out overflow-hidden ${
-                    selectedLayer === 'mw-infra'
-                      ? 'border-0 shadow-xl shadow-orange-500/25'
-                      : 'border-0 hover:shadow-lg hover:shadow-orange-500/20'
-                  }`}
-                  onClick={() => setSelectedLayer('mw-infra')}
-                >
-                  <div className={`absolute inset-0 rounded-lg p-[2px] transition-opacity duration-300 ${
-                    selectedLayer === 'mw-infra'
-                      ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 opacity-100'
-                      : 'bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-800 dark:to-slate-700 opacity-100 group-hover:from-orange-500 group-hover:via-amber-500 group-hover:to-yellow-500'
-                  }`}>
-                    <div className="w-full h-full bg-background rounded-lg" />
-                  </div>
-                  <div className={`absolute inset-[2px] rounded-lg transition-opacity duration-300 ${
-                    selectedLayer === 'mw-infra'
-                      ? 'bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-transparent opacity-100'
-                      : 'bg-gradient-to-br from-orange-500/5 via-amber-500/3 to-transparent opacity-0 group-hover:opacity-100'
-                  }`} />
-                  <CardContent className="relative p-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`rounded-lg p-2 ${
-                        selectedLayer === 'mw-infra'
-                          ? 'bg-orange-500'
-                          : 'bg-orange-100 dark:bg-orange-900'
-                      }`}>
-                        <Network className={`h-5 w-5 ${
-                          selectedLayer === 'mw-infra'
-                            ? 'text-white'
-                            : 'text-orange-600 dark:text-orange-400'
-                        }`} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-sm">MW-Infra Layer</div>
-                        <div className="text-xs text-muted-foreground">Node-to-broker dependencies</div>
-                      </div>
-                      {selectedLayer === 'mw-infra' && (
-                        <CheckCircle2 className="h-5 w-5 text-orange-500 shrink-0" />
                       )}
                     </div>
                   </CardContent>

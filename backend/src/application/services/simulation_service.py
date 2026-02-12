@@ -27,7 +27,7 @@ class SimulationService(ISimulationUseCase):
 
     def _get_graph(self) -> SimulationGraph:
         """Helper to fetch data and create SimulationGraph."""
-        graph_data = self.repository.get_graph_data()
+        graph_data = self.repository.get_graph_data(include_raw=True)
         return SimulationGraph(graph_data)
 
     def run_event_simulation(self, source_app: str, num_messages: int = 100, duration: float = 10.0, **kwargs) -> Any:

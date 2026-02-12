@@ -35,15 +35,15 @@ interface Component {
 interface ComponentRedundancyStats {
   total_components: number
   spof_count: number
-  spof_percentage: number
+  spof_percentage?: number
   redundant_count: number
-  redundancy_percentage: number
-  resilience_score: number
-  interpretation: string
-  category: string
-  health: string
-  single_points_of_failure: Component[]
-  bridge_components: Component[]
+  redundancy_percentage?: number
+  resilience_score?: number
+  interpretation?: string
+  category?: string
+  health?: string
+  single_points_of_failure?: Component[]
+  bridge_components?: Component[]
 }
 
 export default function ComponentRedundancyPage() {
@@ -76,7 +76,7 @@ export default function ComponentRedundancyPage() {
 
   // Get interpretation color and icon
   const getInterpretation = () => {
-    if (!stats) return { color: 'text-gray-500', icon: Info, label: 'Unknown' }
+    if (!stats || !stats.health) return { color: 'text-gray-500', icon: Info, label: 'Unknown' }
     
     switch (stats.health) {
       case 'good':
@@ -117,7 +117,7 @@ export default function ComponentRedundancyPage() {
 
   // Get resilience score color
   const getResilienceColor = () => {
-    if (!stats) return 'text-gray-500'
+    if (!stats || stats.resilience_score === undefined) return 'text-gray-500'
     if (stats.resilience_score >= 70) return 'text-green-500'
     if (stats.resilience_score >= 50) return 'text-blue-500'
     if (stats.resilience_score >= 30) return 'text-yellow-500'
@@ -231,12 +231,12 @@ export default function ComponentRedundancyPage() {
                 </CardHeader>
                 <CardContent className="relative">
                   <div className={`text-3xl font-bold ${getResilienceColor()}`}>
-                    {stats.resilience_score.toFixed(1)}
+                    {stats.resilience_score !== undefined ? stats.resilience_score.toFixed(1) : 'N/A'}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Out of 100 - Higher is better
                   </p>
-                  <Progress value={stats.resilience_score} className="h-1 mt-2" />
+                  <Progress value={stats.resilience_score ?? 0} className="h-1 mt-2" />
                 </CardContent>
               </Card>
 
@@ -258,9 +258,9 @@ export default function ComponentRedundancyPage() {
                     {stats.spof_count}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {stats.spof_percentage.toFixed(1)}% - Critical failures
+                    {stats.spof_percentage !== undefined ? stats.spof_percentage.toFixed(1) : '0.0'}% - Critical failures
                   </p>
-                  <Progress value={stats.spof_percentage} className="h-1 mt-2" />
+                  <Progress value={stats.spof_percentage ?? 0} className="h-1 mt-2" />
                 </CardContent>
               </Card>
 
@@ -282,9 +282,9 @@ export default function ComponentRedundancyPage() {
                     {stats.redundant_count}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {stats.redundancy_percentage.toFixed(1)}% - Multiple paths
+                    {stats.redundancy_percentage !== undefined ? stats.redundancy_percentage.toFixed(1) : '0.0'}% - Multiple paths
                   </p>
-                  <Progress value={stats.redundancy_percentage} className="h-1 mt-2" />
+                  <Progress value={stats.redundancy_percentage ?? 0} className="h-1 mt-2" />
                 </CardContent>
               </Card>
 
@@ -337,17 +337,17 @@ export default function ComponentRedundancyPage() {
                 <Alert className={`border-2 ${interpretation.color.replace('text-', 'border-')}`}>
                   <Icon className={`h-5 w-5 ${interpretation.color}`} />
                   <AlertTitle className="text-lg">
-                    {interpretation.label}: {stats.category.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    {interpretation.label}{stats.category ? `: ${stats.category.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}` : ''}
                   </AlertTitle>
                   <AlertDescription className="text-base">
-                    {stats.interpretation}
+                    {stats.interpretation || 'No interpretation available'}
                   </AlertDescription>
                 </Alert>
               </CardContent>
             </Card>
 
             {/* Single Points of Failure Table */}
-            {stats.single_points_of_failure.length > 0 && (
+            {stats.single_points_of_failure && stats.single_points_of_failure.length > 0 && (
               <Card className="relative overflow-hidden border-0 shadow-lg">
                 <div className="absolute inset-0 rounded-lg p-[2px] bg-gradient-to-r from-red-500 via-rose-500 to-pink-500">
                   <div className="w-full h-full bg-background rounded-lg" />
@@ -382,7 +382,7 @@ export default function ComponentRedundancyPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {stats.single_points_of_failure.map((component, index) => (
+                        {stats.single_points_of_failure?.map((component, index) => (
                           <TableRow key={component.id} className="hover:bg-muted/50 cursor-pointer group" onClick={() => router.push(`/explorer?node=${encodeURIComponent(component.id)}`)}>
                             <TableCell className="font-medium max-w-[300px] truncate group-hover:underline transition-all" title={component.name}>
                               {component.name}
@@ -412,7 +412,7 @@ export default function ComponentRedundancyPage() {
             )}
 
             {/* Bridge Components Table */}
-            {stats.bridge_components.length > 0 && (
+            {stats.bridge_components && stats.bridge_components.length > 0 && (
               <Card className="relative overflow-hidden border-0 shadow-lg">
                 <div className="absolute inset-0 rounded-lg p-[2px] bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500">
                   <div className="w-full h-full bg-background rounded-lg" />
@@ -446,7 +446,7 @@ export default function ComponentRedundancyPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {stats.bridge_components.map((component, index) => (
+                        {stats.bridge_components?.map((component, index) => (
                           <TableRow key={component.id} className="hover:bg-muted/50 cursor-pointer group" onClick={() => router.push(`/explorer?node=${encodeURIComponent(component.id)}`)}>
                             <TableCell className="font-medium max-w-[300px] truncate group-hover:underline transition-all" title={component.name}>
                               {component.name}

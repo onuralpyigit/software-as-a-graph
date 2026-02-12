@@ -830,140 +830,160 @@ class StatisticsService:
             graph_data = repo.get_graph_data()
             
             adjacency = defaultdict(set)
-        reverse_adjacency = defaultdict(set)
-        component_info = {}
-        
-        for component in graph_data.components:
-            comp_id = component.id
-            component_info[comp_id] = {
-                "name": component.properties.get('name', comp_id),
-                "type": component.component_type
-            }
-        
-        for edge in graph_data.edges:
-            source = edge.source_id
-            target = edge.target_id
-            adjacency[source].add(target)
-            reverse_adjacency[target].add(source)
+            reverse_adjacency = defaultdict(set)
+            component_info = {}
             
-        def find_articulation_points():
-            visited = set()
-            disc = {}
-            low = {}
-            parent = {}
-            ap = set()
-            time_counter = [0]
+            for component in graph_data.components:
+                comp_id = component.id
+                component_info[comp_id] = {
+                    "name": component.properties.get('name', comp_id),
+                    "type": component.component_type
+                }
             
-            def dfs(u):
-                children = 0
-                visited.add(u)
-                disc[u] = low[u] = time_counter[0]
-                time_counter[0] += 1
+            for edge in graph_data.edges:
+                source = edge.source_id
+                target = edge.target_id
+                adjacency[source].add(target)
+                reverse_adjacency[target].add(source)
                 
-                for v in adjacency[u]:
-                    if v not in visited:
-                        children += 1
-                        parent[v] = u
-                        dfs(v)
-                        low[u] = min(low[u], low[v])
-                        if parent.get(u) is None and children > 1:
-                            ap.add(u)
-                        if parent.get(u) is not None and low[v] >= disc[u]:
-                            ap.add(u)
-                    elif v != parent.get(u):
-                        low[u] = min(low[u], disc[v])
+            def find_articulation_points():
+                visited = set()
+                disc = {}
+                low = {}
+                parent = {}
+                ap = set()
+                time_counter = [0]
+                
+                def dfs(u):
+                    children = 0
+                    visited.add(u)
+                    disc[u] = low[u] = time_counter[0]
+                    time_counter[0] += 1
+                    
+                    for v in adjacency[u]:
+                        if v not in visited:
+                            children += 1
+                            parent[v] = u
+                            dfs(v)
+                            low[u] = min(low[u], low[v])
+                            if parent.get(u) is None and children > 1:
+                                ap.add(u)
+                            if parent.get(u) is not None and low[v] >= disc[u]:
+                                ap.add(u)
+                        elif v != parent.get(u):
+                            low[u] = min(low[u], disc[v])
+                
+                for node in component_info.keys():
+                    if node not in visited:
+                        dfs(node)
+                return ap
+                
+            articulation_points = find_articulation_points()
             
-            for node in component_info.keys():
-                if node not in visited:
-                    dfs(node)
-            return ap
-            
-        articulation_points = find_articulation_points()
-        
-        def identify_bridge_components():
-            bridge_scores = defaultdict(int)
-            sample_nodes = list(component_info.keys())[:min(50, len(component_info))]
-            for start in sample_nodes:
-                visited = set([start])
-                queue = deque([(start, [start])])
-                paths_through = defaultdict(int)
-                while queue:
-                    node, path = queue.popleft()
-                    if len(path) > 10:
-                        continue
-                    for neighbor in adjacency[node]:
-                        if neighbor not in visited:
-                            visited.add(neighbor)
-                            new_path = path + [neighbor]
-                            queue.append((neighbor, new_path))
-                            for comp in new_path[1:-1]:
-                                paths_through[comp] += 1
+            def identify_bridge_components():
+                bridge_scores = defaultdict(int)
+                sample_nodes = list(component_info.keys())[:min(50, len(component_info))]
+                for start in sample_nodes:
+                    visited = set([start])
+                    queue = deque([(start, [start])])
+                    paths_through = defaultdict(int)
+                    while queue:
+                        node, path = queue.popleft()
+                        if len(path) > 10:
+                            continue
+                        for neighbor in adjacency[node]:
+                            if neighbor not in visited:
+                                visited.add(neighbor)
+                                new_path = path + [neighbor]
+                                queue.append((neighbor, new_path))
+                                for comp in new_path[1:-1]:
+                                    paths_through[comp] += 1
                 for comp, count in paths_through.items():
                     bridge_scores[comp] += count
-            sorted_bridges = sorted(bridge_scores.items(), key=lambda x: x[1], reverse=True)
-            return sorted_bridges[:20]
+                sorted_bridges = sorted(bridge_scores.items(), key=lambda x: x[1], reverse=True)
+                return sorted_bridges[:20]
+                
+            bridge_components = identify_bridge_components()
             
-        bridge_components = identify_bridge_components()
-        
-        total_components = len(component_info)
-        spof_count = len(articulation_points)
-        spof_percentage = (spof_count / total_components * 100) if total_components > 0 else 0
-        
-        redundant_count = 0
-        for comp_id in component_info.keys():
-            if len(adjacency[comp_id]) > 1 or len(reverse_adjacency[comp_id]) > 1:
-                redundant_count += 1
-        redundancy_percentage = (redundant_count / total_components * 100) if total_components > 0 else 0
-        
-        if spof_percentage > 20:
-            interpretation = "High risk - many single points of failure"
-            resilience_score = "low"
-        elif spof_percentage > 10:
-            interpretation = "Moderate risk - some single points of failure"
-            resilience_score = "moderate"
-        elif redundancy_percentage > 70:
-            interpretation = "High resilience - good redundancy"
-            resilience_score = "high"
-        else:
-            interpretation = "Balanced resilience"
-            resilience_score = "medium"
+            total_components = len(component_info)
+            spof_count = len(articulation_points)
+            spof_percentage = (spof_count / total_components * 100) if total_components > 0 else 0
             
-        computation_time = (time.time() - start_time) * 1000
-        
-        formatted_spofs = []
-        for spof in list(articulation_points)[:20]:
-            info = component_info.get(spof, {})
-            formatted_spofs.append({
-                "id": spof,
-                "name": info.get("name", spof),
-                "type": info.get("type", "Unknown")
-            })
+            redundant_count = 0
+            for comp_id in component_info.keys():
+                if len(adjacency[comp_id]) > 1 or len(reverse_adjacency[comp_id]) > 1:
+                    redundant_count += 1
+            redundancy_percentage = (redundant_count / total_components * 100) if total_components > 0 else 0
             
-        formatted_bridges = []
-        for bridge, score in bridge_components:
-            info = component_info.get(bridge, {})
-            formatted_bridges.append({
-                "id": bridge,
-                "name": info.get("name", bridge),
-                "type": info.get("type", "Unknown"),
-                "paths_traversed": score
-            })
+            # Calculate numeric resilience score (0-100)
+            # Higher redundancy = better score, more SPOFs = worse score
+            resilience_score_numeric = min(100, max(0, redundancy_percentage - (spof_percentage * 2)))
             
-        return {
-            "success": True,
-            "stats": {
-                "total_components": total_components,
-                "spof_count": spof_count,
-                "spof_percentage": round(spof_percentage, 2),
-                "redundant_count": redundant_count,
-                "redundancy_percentage": round(redundancy_percentage, 2),
-                "resilience_score": resilience_score,
-                "interpretation": interpretation,
-                "potential_spofs": formatted_spofs,
-                "bridge_components": formatted_bridges
-            },
-            "computation_time_ms": round(computation_time, 2)
-        }
+            # Determine health category and interpretation
+            if spof_percentage > 20:
+                interpretation = "High risk - many single points of failure. Consider adding redundancy to critical components."
+                health = "poor"
+                category = "high_risk"
+            elif spof_percentage > 10:
+                interpretation = "Moderate risk - some single points of failure detected. Review critical components for redundancy options."
+                health = "moderate"
+                category = "moderate_risk"
+            elif redundancy_percentage > 70:
+                interpretation = "High resilience - excellent redundancy coverage. System has multiple paths and good fault tolerance."
+                health = "good"
+                category = "highly_resilient"
+            elif redundancy_percentage > 50:
+                interpretation = "Good resilience - balanced redundancy. Most components have alternative paths."
+                health = "fair"
+                category = "moderately_resilient"
+            else:
+                interpretation = "Fair resilience - limited redundancy. Consider adding alternative paths for critical components."
+                health = "fair"
+                category = "limited_resilience"
+                
+            computation_time = (time.time() - start_time) * 1000
+            
+            formatted_spofs = []
+            for spof in list(articulation_points)[:20]:
+                info = component_info.get(spof, {})
+                formatted_spofs.append({
+                    "id": spof,
+                    "name": info.get("name", spof),
+                    "type": info.get("type", "Unknown"),
+                    "in_degree": len(reverse_adjacency.get(spof, [])),
+                    "out_degree": len(adjacency.get(spof, [])),
+                    "is_critical": True
+                })
+                
+            formatted_bridges = []
+            for bridge, score in bridge_components:
+                info = component_info.get(bridge, {})
+                formatted_bridges.append({
+                    "id": bridge,
+                    "name": info.get("name", bridge),
+                    "type": info.get("type", "Unknown"),
+                    "bridge_score": score,
+                    "in_degree": len(reverse_adjacency.get(bridge, [])),
+                    "out_degree": len(adjacency.get(bridge, []))
+                })
+                
+            return {
+                "success": True,
+                "stats": {
+                    "total_components": total_components,
+                    "spof_count": spof_count,
+                    "spof_percentage": round(spof_percentage, 2),
+                    "redundant_count": redundant_count,
+                    "redundancy_percentage": round(redundancy_percentage, 2),
+                    "resilience_score": round(resilience_score_numeric, 2),
+                    "interpretation": interpretation,
+                    "category": category,
+                    "health": health,
+                    "single_points_of_failure": formatted_spofs,
+                    "bridge_components": formatted_bridges
+                },
+                "computation_time_ms": round(computation_time, 2)
+            }
 
     def get_node_weight_distribution(self) -> Dict[str, Any]:
         """Get node weight distribution statistics."""

@@ -442,13 +442,8 @@ export default function StatisticsPage() {
         {/* Distribution Charts */}
         <div className="grid gap-6 md:grid-cols-2">
           {/* Component Type Distribution */}
-          <Card className="relative overflow-hidden border-0 shadow-lg">
-            <div className="absolute inset-0 rounded-lg p-[2px] bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">
-              <div className="w-full h-full bg-background rounded-lg" />
-            </div>
-            <div className="absolute inset-[2px] rounded-lg bg-background" />
-            
-            <CardHeader className="relative">
+          <Card className="bg-white/50 dark:bg-black/50 backdrop-blur-sm">
+            <CardHeader>
               <div className="flex items-center gap-2">
                 <div className="rounded-xl bg-blue-500/10 p-2.5">
                   <Box className="h-5 w-5 text-blue-500" />
@@ -459,7 +454,7 @@ export default function StatisticsPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="relative">
+            <CardContent>
               {componentTypeData.length > 0 ? (
                 <ChartContainer
                   config={componentTypeData.reduce((acc, item, idx) => ({
@@ -502,13 +497,8 @@ export default function StatisticsPage() {
           </Card>
 
           {/* Connection Type Distribution */}
-          <Card className="relative overflow-hidden border-0 shadow-lg">
-            <div className="absolute inset-0 rounded-lg p-[2px] bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500">
-              <div className="w-full h-full bg-background rounded-lg" />
-            </div>
-            <div className="absolute inset-[2px] rounded-lg bg-background" />
-            
-            <CardHeader className="relative">
+          <Card className="bg-white/50 dark:bg-black/50 backdrop-blur-sm">
+            <CardHeader>
               <div className="flex items-center gap-2">
                 <div className="rounded-xl bg-purple-500/10 p-2.5">
                   <Zap className="h-5 w-5 text-purple-500" />
@@ -519,7 +509,7 @@ export default function StatisticsPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="relative">
+            <CardContent>
               {edgeTypeData.length > 0 ? (
                 <ChartContainer
                   config={edgeTypeData.reduce((acc, item, idx) => ({

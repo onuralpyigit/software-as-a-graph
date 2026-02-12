@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Python requirements and install
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -30,7 +30,7 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app/frontend
 
 # Copy package files and install dependencies
-COPY genieus/package.json genieus/package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 # ============================================
@@ -40,7 +40,7 @@ FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 COPY --from=frontend-deps /app/frontend/node_modules ./node_modules
-COPY genieus/ .
+COPY frontend/ .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -97,12 +97,13 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH=/app/backend
 
 # Copy Python application code
-COPY src/ ./backend/src/
-COPY api.py bin/generate_graph.py bin/import_graph.py ./backend/
-COPY bin/analyze_graph.py bin/simulate_graph.py bin/validate_graph.py bin/visualize_graph.py bin/export_graph.py bin/run.py ./backend/
+COPY backend/src/ ./backend/src/
+COPY backend/api/ ./backend/api/
+COPY backend/bin/generate_graph.py backend/bin/import_graph.py ./backend/bin/
+COPY backend/bin/analyze_graph.py backend/bin/simulate_graph.py backend/bin/validate_graph.py backend/bin/visualize_graph.py backend/bin/export_graph.py backend/bin/run.py ./backend/bin/
 
 # Make Python scripts executable
-RUN chmod +x ./backend/*.py
+RUN chmod +x ./backend/bin/*.py
 
 # Copy Next.js built application from builder
 ENV NODE_ENV=production
@@ -204,7 +205,7 @@ echo -e "\\r  ${GREEN}✓${RESET} Neo4j is ready!                    "\n\
 echo -e "\\n${BLUE}[3/4]${RESET} ${BOLD}Starting FastAPI backend...${RESET}"\n\
 cd /app/backend\n\
 echo -e "  ${CYAN}→${RESET} Launching uvicorn with 2 workers"\n\
-uvicorn api:app --host 0.0.0.0 --port 8000 --workers 2 > /tmp/backend.log 2>&1 &\n\
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 2 > /tmp/backend.log 2>&1 &\n\
 BACKEND_PID=$!\n\
 sleep 2\n\
 echo -e "  ${GREEN}✓${RESET} Backend started (PID: $BACKEND_PID)"\n\

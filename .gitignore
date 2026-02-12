@@ -16,7 +16,7 @@ eggs/
 .eggs/
 lib/
 lib64/
-!genieus/lib/
+!frontend/lib/
 parts/
 sdist/
 var/

@@ -46,6 +46,61 @@ interface ValidationState {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Normalize validation result to ensure it has the expected structure
+ * Handles both old and new API response formats
+ */
+function normalizeValidationResult(result: any): PipelineResult | null {
+  if (!result) return null
+
+  try {
+    // If result already has summary property, ensure it has all required fields
+    if (result.summary) {
+      return {
+        timestamp: result.timestamp || new Date().toISOString(),
+        summary: {
+          total_components: result.summary.total_components || 0,
+          layers_validated: result.summary.layers_validated || (result.layers ? Object.keys(result.layers).length : 0),
+          layers_passed: result.summary.layers_passed || 0,
+          all_passed: result.summary.all_passed || false,
+        },
+        layers: result.layers || {},
+        cross_layer_insights: result.cross_layer_insights || [],
+        targets: result.targets || null,
+      }
+    }
+
+    // Transform old format to new format
+    return {
+      timestamp: result.timestamp || new Date().toISOString(),
+      summary: {
+        total_components: result.total_components || 0,
+        layers_validated: result.layers ? Object.keys(result.layers).length : 0,
+        layers_passed: result.layers_passed || 0,
+        all_passed: result.all_passed || false,
+      },
+      layers: result.layers || {},
+      cross_layer_insights: result.warnings || result.cross_layer_insights || [],
+      targets: result.targets || null,
+    }
+  } catch (error) {
+    console.error('Error normalizing validation result:', error)
+    return null
+  }
+}
+
+/**
+ * Clean layer description by removing π prefix notation
+ * Converts "π_app: Analyse Applications..." to "Analyse Applications..."
+ */
+function cleanLayerDescription(description: string): string {
+  return description.replace(/^π_\w+:\s*/, '')
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -61,27 +116,22 @@ export default function ValidationPage() {
     startTime: null,
   })
   
-  const [selectedLayers, setSelectedLayers] = useState<string[]>(["app", "infra", "system"])
+  const [selectedLayers, setSelectedLayers] = useState<string[]>(["application", "infrastructure", "system"])
   const [availableLayers, setAvailableLayers] = useState<Record<string, LayerDefinition>>({
-    app: {
+    application: {
       name: "Application Layer",
       description: "Application components only",
       component_types: ["Application"],
     },
-    infra: {
+    infrastructure: {
       name: "Infrastructure Layer",
       description: "Infrastructure nodes only",
       component_types: ["Node"],
     },
-    "mw-app": {
-      name: "Middleware-Application Layer",
-      description: "Applications and Brokers",
-      component_types: ["Application", "Broker"],
-    },
-    "mw-infra": {
-      name: "Middleware-Infrastructure Layer",
-      description: "Nodes and Brokers",
-      component_types: ["Node", "Broker"],
+    middleware: {
+      name: "Middleware Layer",
+      description: "Applications, Nodes and Brokers",
+      component_types: ["Application", "Node", "Broker"],
     },
     system: {
       name: "Complete System",
@@ -101,7 +151,10 @@ export default function ValidationPage() {
     if (savedResult) {
       try {
         const parsed = JSON.parse(savedResult)
-        setState(prev => ({ ...prev, result: parsed }))
+        const normalized = normalizeValidationResult(parsed)
+        if (normalized) {
+          setState(prev => ({ ...prev, result: normalized }))
+        }
       } catch (error) {
         console.error('Failed to load saved validation result:', error)
         localStorage.removeItem('validation-result')
@@ -154,15 +207,20 @@ export default function ValidationPage() {
     try {
       const result = await validationClient.runPipeline(selectedLayers, includeComparisons)
       
-      // Save result to localStorage
-      localStorage.setItem('validation-result', JSON.stringify(result))
-      
-      setState({
-        isRunning: false,
-        result,
-        error: null,
-        startTime: null,
-      })
+      // Normalize and save result to localStorage
+      const normalized = normalizeValidationResult(result)
+      if (normalized) {
+        localStorage.setItem('validation-result', JSON.stringify(normalized))
+        
+        setState({
+          isRunning: false,
+          result: normalized,
+          error: null,
+          startTime: null,
+        })
+      } else {
+        throw new Error('Invalid validation result structure')
+      }
     } catch (error: any) {
       // Clear saved result on error
       localStorage.removeItem('validation-result')
@@ -429,7 +487,7 @@ export default function ValidationPage() {
                                 )}
                               </div>
                               <p className="text-sm leading-relaxed text-muted-foreground/90">
-                                {layer.description}
+                                {cleanLayerDescription(layer.description)}
                               </p>
                               <div className="flex flex-wrap gap-1 pt-1">
                                 {layer.component_types.map((type: string) => (
@@ -584,7 +642,7 @@ export default function ValidationPage() {
         )}
 
         {/* Results */}
-        {state.result && (
+        {state.result && state.result.summary && (
           <div className="space-y-4">
             {/* Overall Summary */}
             <Card className={`border-0 shadow-2xl relative overflow-hidden ${
@@ -713,7 +771,7 @@ export default function ValidationPage() {
             )}
 
             {/* Layer Results */}
-            {Object.entries(state.result.layers).map(([layerKey, layer]) => (
+            {state.result.layers && Object.entries(state.result.layers).map(([layerKey, layer]) => (
               <LayerResultCard
                 key={layerKey}
                 layer={layer}
@@ -722,7 +780,7 @@ export default function ValidationPage() {
             ))}
 
             {/* Cross-Layer Insights */}
-            {state.result.cross_layer_insights.length > 0 && (
+            {state.result.cross_layer_insights && state.result.cross_layer_insights.length > 0 && (
               <Card className="border-0 shadow-xl relative overflow-hidden">
                 <div className="absolute inset-0 rounded-lg p-[2px] bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-800 dark:to-slate-700">
                   <div className="w-full h-full bg-background rounded-lg" />
