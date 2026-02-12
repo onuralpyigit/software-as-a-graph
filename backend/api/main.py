@@ -24,9 +24,12 @@ from src.application.services.analysis_service import AnalysisService
 from src.application.services.graph_service import GraphService
 from src.application.services.simulation_service import SimulationService
 from src.application.services.classification_service import ClassificationService
+from src.application.services.validation_service import ValidationService
+from src.application.container import Container
 
 # Analysis imports
-# Removed direct analyzer/exporter imports as they are now encapsulated in services
+from src.analysis.analyzer import GraphAnalyzer
+from src.domain.services.classifier import BoxPlotClassifier
 
 
 # Simulation imports
@@ -608,12 +611,89 @@ async def analyze_full_system(credentials: Neo4jCredentials):
     try:
         logger.info("Running full system analysis")
         
-        service = AnalysisService(credentials.uri, credentials.user, credentials.password)
-        result = service.analyze_system("system")
+        container = Container(uri=credentials.uri, user=credentials.user, password=credentials.password)
+        service = container.analysis_service()
+        result = service.analyze_layer("system")
+        
+        # Create a map of component IDs to names from structural data
+        component_names = {c.id: c.structural.name if c.structural and hasattr(c.structural, 'name') else c.id 
+                          for c in result.quality.components}
         
         return {
             "success": True,
-            "result": result
+            "layer": result.layer,
+            "analysis": {
+                "context": result.layer_name,
+                "description": result.description,
+                "summary": {
+                    "total_components": result.quality.classification_summary.total_components,
+                    "critical_count": result.quality.classification_summary.component_distribution.get("critical", 0),
+                    "high_count": result.quality.classification_summary.component_distribution.get("high", 0),
+                    "total_problems": result.problem_summary.total_problems,
+                    "critical_problems": result.problem_summary.by_severity.get("CRITICAL", 0),
+                    "components": dict(result.quality.classification_summary.component_distribution),
+                    "edges": dict(result.quality.classification_summary.edge_distribution)
+                },
+                "stats": {
+                    "nodes": result.structural.graph_summary.nodes,
+                    "edges": result.structural.graph_summary.edges,
+                    "density": result.structural.graph_summary.density,
+                    "avg_degree": result.structural.graph_summary.avg_degree
+                },
+                "components": [
+                    {
+                        "id": c.id,
+                        "name": c.structural.name if c.structural and hasattr(c.structural, 'name') else c.id,
+                        "type": c.type,
+                        "criticality_level": c.levels.overall.value,
+                        "criticality_levels": {
+                            "reliability": c.levels.reliability.value,
+                            "maintainability": c.levels.maintainability.value,
+                            "availability": c.levels.availability.value,
+                            "vulnerability": c.levels.vulnerability.value,
+                            "overall": c.levels.overall.value
+                        },
+                        "scores": {
+                            "reliability": c.scores.reliability,
+                            "maintainability": c.scores.maintainability,
+                            "availability": c.scores.availability,
+                            "vulnerability": c.scores.vulnerability,
+                            "overall": c.scores.overall
+                        }
+                    }
+                    for c in result.quality.components
+                ],
+                "edges": [
+                    {
+                        "source": e.source,
+                        "target": e.target,
+                        "source_name": component_names.get(e.source, e.source),
+                        "target_name": component_names.get(e.target, e.target),
+                        "type": e.dependency_type,
+                        "criticality_level": e.level.value,
+                        "scores": {
+                            "reliability": e.scores.reliability,
+                            "maintainability": e.scores.maintainability,
+                            "availability": e.scores.availability,
+                            "vulnerability": e.scores.vulnerability,
+                            "overall": e.scores.overall
+                        }
+                    }
+                    for e in result.quality.edges
+                ],
+                "problems": [
+                    {
+                        "entity_id": p.entity_id,
+                        "type": p.entity_type,
+                        "category": p.category.value if hasattr(p.category, 'value') else str(p.category),
+                        "severity": p.severity.value if hasattr(p.severity, 'value') else str(p.severity),
+                        "name": p.name,
+                        "description": p.description,
+                        "recommendation": p.recommendation
+                    }
+                    for p in result.problems
+                ]
+            }
         }
     except Exception as e:
         logger.error(f"Full analysis failed: {str(e)}")
@@ -624,19 +704,126 @@ async def analyze_full_system(credentials: Neo4jCredentials):
 async def analyze_by_type(component_type: str, credentials: Neo4jCredentials):
     """
     Run analysis filtered by component type.
+    Accepts: node, app, broker, Application, Node, Broker
     """
-    if component_type not in ["node", "app", "broker"]:
-        raise HTTPException(status_code=400, detail=f"Invalid component type: {component_type}")
+    # Normalize component type (handle variations from frontend)
+    type_mapping = {
+        "application": "Application",
+        "app": "Application",
+        "node": "Node",
+        "broker": "Broker",
+    }
+    
+    normalized_type = type_mapping.get(component_type.lower())
+    if not normalized_type:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid component type: {component_type}. Valid types: node, app, broker, Application, Node, Broker"
+        )
         
     try:
-        logger.info(f"Analyzing component type: {component_type}")
+        logger.info(f"Analyzing component type: {component_type} (normalized to {normalized_type})")
         
-        service = AnalysisService(credentials.uri, credentials.user, credentials.password)
-        result = service.analyze_by_type(component_type)
+        container = Container(uri=credentials.uri, user=credentials.user, password=credentials.password)
+        service = container.analysis_service()
+        result = service.analyze_layer("system")
+        
+        # Filter components by type
+        filtered_components = [c for c in result.quality.components if c.type == normalized_type]
+        
+        # Create a map of component IDs to names from structural data
+        component_names = {c.id: c.structural.name if c.structural and hasattr(c.structural, 'name') else c.id 
+                          for c in filtered_components}
+        
+        # Filter edges to only include those between filtered components
+        filtered_component_ids = {c.id for c in filtered_components}
+        filtered_edges = [e for e in result.quality.edges 
+                         if e.source in filtered_component_ids or e.target in filtered_component_ids]
         
         return {
             "success": True,
-            "result": result
+            "layer": result.layer,
+            "component_type": normalized_type,
+            "analysis": {
+                "context": f"{normalized_type} Components Analysis",
+                "description": f"Analysis filtered by component type: {normalized_type}",
+                "summary": {
+                    "total_components": len(filtered_components),
+                    "critical_count": sum(1 for c in filtered_components if c.levels.overall.value == "critical"),
+                    "high_count": sum(1 for c in filtered_components if c.levels.overall.value == "high"),
+                    "total_problems": sum(1 for p in result.problems if p.entity_id in filtered_component_ids),
+                    "critical_problems": sum(1 for p in result.problems 
+                                           if p.entity_id in filtered_component_ids and 
+                                           (p.severity == "CRITICAL" or (hasattr(p.severity, 'value') and p.severity.value == "CRITICAL"))),
+                    "components": {
+                        level: sum(1 for c in filtered_components if c.levels.overall.value == level)
+                        for level in ["critical", "high", "medium", "low", "minimal"]
+                    },
+                    "edges": {
+                        level: sum(1 for e in filtered_edges if e.level.value == level)
+                        for level in ["critical", "high", "medium", "low", "minimal"]
+                    }
+                },
+                "stats": {
+                    "nodes": len(filtered_components),
+                    "edges": len(filtered_edges),
+                    "density": result.structural.graph_summary.density,
+                    "avg_degree": result.structural.graph_summary.avg_degree
+                },
+                "components": [
+                    {
+                        "id": c.id,
+                        "name": c.structural.name if c.structural and hasattr(c.structural, 'name') else c.id,
+                        "type": c.type,
+                        "criticality_level": c.levels.overall.value,
+                        "criticality_levels": {
+                            "reliability": c.levels.reliability.value,
+                            "maintainability": c.levels.maintainability.value,
+                            "availability": c.levels.availability.value,
+                            "vulnerability": c.levels.vulnerability.value,
+                            "overall": c.levels.overall.value
+                        },
+                        "scores": {
+                            "reliability": c.scores.reliability,
+                            "maintainability": c.scores.maintainability,
+                            "availability": c.scores.availability,
+                            "vulnerability": c.scores.vulnerability,
+                            "overall": c.scores.overall
+                        }
+                    }
+                    for c in filtered_components
+                ],
+                "edges": [
+                    {
+                        "source": e.source,
+                        "target": e.target,
+                        "source_name": component_names.get(e.source, e.source),
+                        "target_name": component_names.get(e.target, e.target),
+                        "type": e.dependency_type,
+                        "criticality_level": e.level.value,
+                        "scores": {
+                            "reliability": e.scores.reliability,
+                            "maintainability": e.scores.maintainability,
+                            "availability": e.scores.availability,
+                            "vulnerability": e.scores.vulnerability,
+                            "overall": e.scores.overall
+                        }
+                    }
+                    for e in filtered_edges
+                ],
+                "problems": [
+                    {
+                        "entity_id": p.entity_id,
+                        "type": p.entity_type,
+                        "category": p.category.value if hasattr(p.category, 'value') else str(p.category),
+                        "severity": p.severity.value if hasattr(p.severity, 'value') else str(p.severity),
+                        "name": p.name,
+                        "description": p.description,
+                        "recommendation": p.recommendation
+                    }
+                    for p in result.problems if p.entity_id in filtered_component_ids
+                ]
+            }
         }
     except Exception as e:
         logger.error(f"Type analysis failed: {str(e)}")
@@ -660,7 +847,8 @@ async def analyze_layer(layer: str, credentials: Neo4jCredentials):
     try:
         logger.info(f"Analyzing layer: {layer}")
         
-        service = AnalysisService(credentials.uri, credentials.user, credentials.password)
+        container = Container(uri=credentials.uri, user=credentials.user, password=credentials.password)
+        service = container.analysis_service()
         result = service.analyze_layer(layer)
         
         # Create a map of component IDs to names from structural data
@@ -789,13 +977,45 @@ async def get_critical_components(
     try:
         logger.info("Querying critical components")
         
-        service = AnalysisService(credentials.uri, credentials.user, credentials.password)
-        components = service.get_critical_components(limit)
+        container = Container(uri=credentials.uri, user=credentials.user, password=credentials.password)
+        service = container.analysis_service()
+        result = service.analyze_layer("system")
+        
+        # Sort components by overall score and take top N
+        components = sorted(
+            result.quality.components,
+            key=lambda c: c.scores.overall,
+            reverse=True
+        )[:limit]
+        
+        # Format components for response
+        formatted_components = [
+            {
+                "id": c.id,
+                "type": c.type,
+                "criticality_level": c.levels.overall.value,
+                "criticality_levels": {
+                    "reliability": c.levels.reliability.value,
+                    "maintainability": c.levels.maintainability.value,
+                    "availability": c.levels.availability.value,
+                    "vulnerability": c.levels.vulnerability.value,
+                    "overall": c.levels.overall.value
+                },
+                "scores": {
+                    "reliability": c.scores.reliability,
+                    "maintainability": c.scores.maintainability,
+                    "availability": c.scores.availability,
+                    "vulnerability": c.scores.vulnerability,
+                    "overall": c.scores.overall
+                }
+            }
+            for c in components
+        ]
         
         return {
             "success": True,
-            "count": len(components),
-            "components": components
+            "count": len(formatted_components),
+            "components": formatted_components
         }
     except Exception as e:
         logger.error(f"Critical components query failed: {str(e)}")
@@ -841,13 +1061,38 @@ async def get_critical_edges(
     try:
         logger.info("Querying critical edges")
         
-        service = AnalysisService(credentials.uri, credentials.user, credentials.password)
-        edges = service.get_critical_edges(limit)
+        container = Container(uri=credentials.uri, user=credentials.user, password=credentials.password)
+        service = container.analysis_service()
+        result = service.analyze_layer("system")
+        
+        # Sort edges by overall score and take top N
+        edges = sorted(
+            result.quality.edges,
+            key=lambda e: e.scores.overall,
+            reverse=True
+        )[:limit]
+        
+        # Format edges for response
+        formatted_edges = [
+            {
+                "source": e.source,
+                "target": e.target,
+                "criticality_level": e.level.value,
+                "scores": {
+                    "reliability": e.scores.reliability,
+                    "maintainability": e.scores.maintainability,
+                    "availability": e.scores.availability,
+                    "vulnerability": e.scores.vulnerability,
+                    "overall": e.scores.overall
+                }
+            }
+            for e in edges
+        ]
         
         return {
             "success": True,
-            "count": len(edges),
-            "edges": edges
+            "count": len(formatted_edges),
+            "edges": formatted_edges
         }
     except Exception as e:
         logger.error(f"Critical edges query failed: {str(e)}")
@@ -1017,12 +1262,12 @@ async def get_component_redundancy_stats(credentials: Neo4jCredentials):
         logger.info("Computing component redundancy statistics")
         
         service = StatisticsService(credentials.uri, credentials.user, credentials.password)
-        stats = service.get_component_redundancy()
+        result = service.get_component_redundancy()
         
         return {
-            "success": True,
-            "stats": stats,
-            "computation_time_ms": stats.get("computation_time_ms", 0)
+            "success": result.get("success", True),
+            "stats": result.get("stats", {}),
+            "computation_time_ms": result.get("computation_time_ms", 0)
         }
     except Exception as e:
         logger.error(f"Component redundancy computation failed: {str(e)}")
@@ -1114,7 +1359,8 @@ async def simulate_event(request: EventSimulationRequest):
         logger.info(f"Running event simulation: source={request.source_app}, messages={request.num_messages}")
         
         creds = request.credentials
-        service = SimulationService(creds.uri, creds.user, creds.password)
+        container = Container(uri=creds.uri, user=creds.user, password=creds.password)
+        service = container.simulation_service()
         
         result = service.run_event_simulation(
             source_app=request.source_app,
@@ -1158,7 +1404,8 @@ async def simulate_failure(request: FailureSimulationRequest):
         logger.info(f"Running failure simulation: target={request.target_id}, layer={request.layer}")
         
         creds = request.credentials
-        service = SimulationService(creds.uri, creds.user, creds.password)
+        container = Container(uri=creds.uri, user=creds.user, password=creds.password)
+        service = container.simulation_service()
         
         result = service.run_failure_simulation(
             target_id=request.target_id,
@@ -1199,19 +1446,31 @@ async def simulate_exhaustive(request: ExhaustiveSimulationRequest):
         logger.info(f"Running exhaustive failure analysis: layer={request.layer}")
         
         creds = request.credentials
-        service = SimulationService(creds.uri, creds.user, creds.password)
+        container = Container(uri=creds.uri, user=creds.user, password=creds.password)
+        service = container.simulation_service()
         
-        result = service.run_exhaustive_simulation(
+        results = service.run_failure_simulation_exhaustive(
             layer=request.layer,
             cascade_probability=request.cascade_probability
         )
+        
+        # Create summary from results
+        summary = {
+            "total_components": len(results),
+            "avg_impact": sum(r.impact.composite_impact for r in results) / len(results) if results else 0,
+            "max_impact": max((r.impact.composite_impact for r in results), default=0),
+            "critical_count": sum(1 for r in results if r.impact.composite_impact > 0.7),
+            "high_count": sum(1 for r in results if 0.4 < r.impact.composite_impact <= 0.7),
+            "medium_count": sum(1 for r in results if 0.2 < r.impact.composite_impact <= 0.4),
+            "spof_count": sum(1 for r in results if r.impact.fragmentation > 0.01),
+        }
         
         return {
             "success": True,
             "simulation_type": "exhaustive",
             "layer": request.layer,
-            "summary": result["summary"],
-            "results": result["results"]
+            "summary": summary,
+            "results": [r.to_dict() for r in results]
         }
     except Exception as e:
         logger.error(f"Exhaustive simulation failed: {str(e)}")
@@ -1231,23 +1490,38 @@ async def generate_simulation_report(request: ReportRequest):
     - Top critical components
     - System health recommendations
     
-    Valid layers: app, infra, mw-app, mw-infra, system
+    Valid layers: app, infra, mw, system (or legacy: application, infrastructure, complete)
     """
-    valid_layers = ["app", "infra", "mw-app", "mw-infra", "system"]
+    # Map legacy layer names to canonical names
+    layer_aliases = {
+        "application": "app",
+        "infrastructure": "infra",
+        "app_broker": "mw",
+        "complete": "system",
+    }
+    
+    valid_layers = ["app", "infra", "mw", "system"]
+    mapped_layers = []
+    
     for layer in request.layers:
-        if layer not in valid_layers:
+        # Map legacy name to canonical name
+        canonical_layer = layer_aliases.get(layer, layer)
+        
+        if canonical_layer not in valid_layers:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid layer '{layer}'. Must be one of: {', '.join(valid_layers)}"
+                detail=f"Invalid layer '{layer}'. Must be one of: {', '.join(valid_layers + list(layer_aliases.keys()))}"
             )
+        mapped_layers.append(canonical_layer)
     
     try:
-        logger.info(f"Generating simulation report: layers={request.layers}")
+        logger.info(f"Generating simulation report: layers={mapped_layers}")
         
         creds = request.credentials
-        service = SimulationService(creds.uri, creds.user, creds.password)
+        container = Container(uri=creds.uri, user=creds.user, password=creds.password)
+        service = container.simulation_service()
         
-        report = service.generate_report(layers=request.layers)
+        report = service.generate_report(layers=mapped_layers)
         
         # Transform top_critical to match frontend expectations (nested structure)
         report_dict = report.to_dict()
@@ -1446,28 +1720,47 @@ async def run_validation_pipeline(request: ValidationRequest):
         Complete validation results with metrics for each layer
     """
     try:
-        from src.validation import ValidationPipeline, ValidationTargets
+        from src.domain.models.validation.metrics import ValidationTargets
         
         logger.info(f"Starting validation pipeline for layers: {request.layers}")
         
-        # Initialize pipeline
-        pipeline = ValidationPipeline(
+        # Create container with credentials
+        container = Container(
             uri=request.credentials.uri,
             user=request.credentials.user,
-            password=request.credentials.password,
-            targets=ValidationTargets()
+            password=request.credentials.password
         )
         
-        # Run validation
-        result = pipeline.run(
-            layers=request.layers,
-            include_comparisons=request.include_comparisons
-        )
-        
-        return {
-            "success": True,
-            "result": result.to_dict()
-        }
+        try:
+            # Get validation service
+            validation_service = container.validation_service(targets=ValidationTargets())
+            
+            # Run validation
+            result = validation_service.validate_layers(layers=request.layers)
+            
+            # Transform the result to match frontend expectations
+            result_dict = result.to_dict()
+            
+            # Restructure response for frontend compatibility
+            transformed_result = {
+                "timestamp": result_dict["timestamp"],
+                "summary": {
+                    "total_components": result_dict["total_components"],
+                    "layers_validated": len(result_dict["layers"]),
+                    "layers_passed": result_dict["layers_passed"],
+                    "all_passed": result_dict["all_passed"],
+                },
+                "layers": result_dict["layers"],
+                "cross_layer_insights": result_dict.get("warnings", []),
+                "targets": result_dict["targets"],
+            }
+            
+            return {
+                "success": True,
+                "result": transformed_result
+            }
+        finally:
+            container.close()
         
     except ImportError as e:
         logger.error(f"Validation module import failed: {str(e)}")
@@ -1477,6 +1770,7 @@ async def run_validation_pipeline(request: ValidationRequest):
         )
     except Exception as e:
         logger.error(f"Validation pipeline failed: {str(e)}")
+        logger.exception("Full traceback:")
         raise HTTPException(
             status_code=500,
             detail=f"Validation failed: {str(e)}"
@@ -1498,7 +1792,7 @@ async def quick_validation(request: QuickValidationRequest):
         Validation metrics and results
     """
     try:
-        from src.validation import QuickValidator, ValidationTargets
+        from src.domain.models.validation.metrics import ValidationTargets
         import json
         
         logger.info("Starting quick validation")
@@ -1527,17 +1821,29 @@ async def quick_validation(request: QuickValidationRequest):
                 detail="Must provide either files or data for both predicted and actual scores"
             )
         
-        # Run quick validation
-        validator = QuickValidator(targets=ValidationTargets())
-        result = validator.validate(
-            predicted_scores=predicted_scores,
-            actual_scores=actual_scores
+        # Create container with credentials (for potential graph access)
+        container = Container(
+            uri=request.credentials.uri,
+            user=request.credentials.user,
+            password=request.credentials.password
         )
         
-        return {
-            "success": True,
-            "result": result.to_dict()
-        }
+        try:
+            # Get validation service
+            validation_service = container.validation_service(targets=ValidationTargets())
+            
+            # Run quick validation
+            result = validation_service.validate_from_data(
+                predicted=predicted_scores,
+                actual=actual_scores
+            )
+            
+            return {
+                "success": True,
+                "result": result.to_dict()
+            }
+        finally:
+            container.close()
         
     except FileNotFoundError as e:
         logger.error(f"File not found: {str(e)}")
@@ -1547,6 +1853,7 @@ async def quick_validation(request: QuickValidationRequest):
         )
     except Exception as e:
         logger.error(f"Quick validation failed: {str(e)}")
+        logger.exception("Full traceback:")
         raise HTTPException(
             status_code=500,
             detail=f"Validation failed: {str(e)}"
