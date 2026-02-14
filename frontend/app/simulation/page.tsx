@@ -234,7 +234,7 @@ export default function SimulationPage() {
   const [exhaustiveSummary, setExhaustiveSummary] = useState<any>(null)
 
   // Report State
-  const [reportLayers, setReportLayers] = useState<string[]>(["application", "infrastructure", "system"])
+  const [reportLayers, setReportLayers] = useState<string[]>(["app", "infra", "system"])
   const [report, setReport] = useState<SimulationReport | null>(null)
 
   // Effect: Check connection and fetch stats
@@ -1773,9 +1773,9 @@ export default function SimulationPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="application">Application</SelectItem>
-                        <SelectItem value="infrastructure">Infrastructure</SelectItem>
-                        <SelectItem value="middleware">Middleware</SelectItem>
+                        <SelectItem value="app">Application</SelectItem>
+                        <SelectItem value="infra">Infrastructure</SelectItem>
+                        <SelectItem value="mw-app">Middleware</SelectItem>
                         <SelectItem value="system">System</SelectItem>
                       </SelectContent>
                     </Select>
@@ -1818,9 +1818,9 @@ export default function SimulationPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="application">Application</SelectItem>
-                      <SelectItem value="infrastructure">Infrastructure</SelectItem>
-                      <SelectItem value="middleware">Middleware</SelectItem>
+                      <SelectItem value="app">Application</SelectItem>
+                      <SelectItem value="infra">Infrastructure</SelectItem>
+                      <SelectItem value="mw-app">Middleware</SelectItem>
                       <SelectItem value="system">System</SelectItem>
                     </SelectContent>
                   </Select>
@@ -2555,7 +2555,7 @@ export default function SimulationPage() {
                 <div className="space-y-2">
                   <Label>Select Layers</Label>
                   <div className="flex flex-wrap gap-2">
-                    {["application", "infrastructure", "middleware", "system"].map((layer) => (
+                    {["app", "infra", "mw", "system"].map((layer) => (
                       <Badge
                         key={layer}
                         variant={reportLayers.includes(layer) ? "default" : "outline"}
@@ -2568,7 +2568,7 @@ export default function SimulationPage() {
                           )
                         }}
                       >
-                        {layer.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-')}
+                        {layer === 'app' ? 'Application' : layer === 'infra' ? 'Infrastructure' : layer === 'mw' ? 'Middleware' : 'System'}
                       </Badge>
                     ))}
                   </div>
