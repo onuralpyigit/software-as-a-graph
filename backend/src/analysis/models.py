@@ -177,9 +177,25 @@ class MultiLayerAnalysisResult:
     layers: Dict[str, LayerAnalysisResult]
     cross_layer_insights: List[str]
 
+    @property
+    def summary(self) -> Dict[str, Any]:
+        """Aggregate summary statistics across all layers."""
+        total_components = sum(len(l.quality.components) for l in self.layers.values())
+        total_problems = sum(l.problem_summary.total_problems for l in self.layers.values())
+        critical_problems = sum(
+            l.problem_summary.by_severity.get("CRITICAL", 0) for l in self.layers.values()
+        )
+        return {
+            "layers_analyzed": len(self.layers),
+            "total_components": total_components,
+            "total_problems": total_problems,
+            "critical_problems": critical_problems,
+        }
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "layers": {k: v.to_dict() for k, v in self.layers.items()},
             "cross_layer_insights": self.cross_layer_insights,
+            "summary": self.summary,
         }

@@ -77,6 +77,15 @@ class ClassificationMetrics:
     true_negatives: int = 0
     false_negatives: int = 0
 
+    @property
+    def confusion_matrix(self) -> Dict[str, int]:
+        return {
+            "tp": self.true_positives,
+            "fp": self.false_positives,
+            "tn": self.true_negatives,
+            "fn": self.false_negatives,
+        }
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "precision": round(self.precision, 4),
@@ -85,12 +94,7 @@ class ClassificationMetrics:
             "f1_ci": [round(self.f1_ci_lower, 4), round(self.f1_ci_upper, 4)],
             "accuracy": round(self.accuracy, 4),
             "cohens_kappa": round(self.cohens_kappa, 4),
-            "confusion_matrix": {
-                "tp": self.true_positives,
-                "fp": self.false_positives,
-                "tn": self.true_negatives,
-                "fn": self.false_negatives,
-            },
+            "confusion_matrix": self.confusion_matrix,
         }
 
 

@@ -101,6 +101,17 @@ python bin/validate_graph.py --layer system
 python bin/visualize_graph.py --layer system --output dashboard.html
 ```
 
+### 4. Example Scripts
+
+For programmatic usage of the API, check the `examples/` directory:
+
+- `examples/example_generation.py`: Generate graph data using Python API.
+- `examples/example_import.py`: Import graph data into Neo4j programmatically.
+- `examples/example_analysis.py`: Run structural and quality analysis.
+- `examples/example_simulation.py`: Run failure and event simulations.
+- `examples/example_validation.py`: Validate graph models.
+- `examples/example_visualization.py`: Generate dashboards.
+
 ## How It Works — The 6-Step Pipeline
 
 ```

@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import List
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
 from src.core import create_repository
 from src.visualization import VisualizationService, LAYER_DEFINITIONS
