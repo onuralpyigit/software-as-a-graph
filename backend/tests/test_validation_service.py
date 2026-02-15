@@ -4,12 +4,11 @@ Unit Tests for ValidationService
 """
 import pytest
 from unittest.mock import MagicMock, patch
-from src.application.services.validation_service import ValidationService
-from src.domain.config.layers import SimulationLayer
-from src.domain.models.validation.results import LayerValidationResult, ValidationResult
-from src.domain.models.analysis.results import LayerAnalysisResult
-from src.domain.services import QualityAnalysisResult
-from src.domain.services.failure_simulator import FailureResult, ImpactMetrics
+from src.validation.service import ValidationService
+from src.core.layers import AnalysisLayer
+from src.validation.models import LayerValidationResult, ValidationResult
+from src.analysis.models import LayerAnalysisResult, QualityAnalysisResult
+from src.simulation.models import FailureResult, ImpactMetrics
 
 @pytest.fixture
 def mock_analysis_service():

@@ -7,7 +7,7 @@ from typing import Dict, Any
 import logging
 
 from api.models import Neo4jCredentials
-from src.application.services.statistics_service import StatisticsService
+from src.analysis.statistics_service import StatisticsService
 
 router = APIRouter(prefix="/api/v1/stats", tags=["statistics"])
 logger = logging.getLogger(__name__)
@@ -19,10 +19,9 @@ async def get_graph_stats(credentials: Neo4jCredentials):
     """
     Get overall graph statistics including structural relationships.
     """
+    service = StatisticsService(credentials.uri, credentials.user, credentials.password)
     try:
         logger.info("Getting graph statistics")
-        
-        service = StatisticsService(credentials.uri, credentials.user, credentials.password)
         stats = service.get_graph_stats()
         
         return {
@@ -32,6 +31,8 @@ async def get_graph_stats(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Stats query failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+    finally:
+        service.close()
 
 
 @router.post("/degree-distribution", response_model=Dict[str, Any])
@@ -47,17 +48,18 @@ async def get_degree_distribution_stats(credentials: Neo4jCredentials):
     Optionally filter by node_type to analyze specific component types.
     Runs in O(V+E) time - very fast even for large graphs.
     """
+    service = StatisticsService(credentials.uri, credentials.user, credentials.password)
     try:
         filter_msg = f" (filtered by type: {credentials.node_type})" if credentials.node_type else ""
         logger.info(f"Computing degree distribution statistics{filter_msg}")
         
-        service = StatisticsService(credentials.uri, credentials.user, credentials.password)
         stats = service.get_degree_distribution(node_type=credentials.node_type)
-        
         return stats
     except Exception as e:
         logger.error(f"Degree distribution computation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Computation failed: {str(e)}")
+    finally:
+        service.close()
 
 
 @router.post("/connectivity-density", response_model=Dict[str, Any])
@@ -65,11 +67,11 @@ async def get_connectivity_density_stats(credentials: Neo4jCredentials):
     """
     Get connectivity density statistics - measures how interconnected the system is.
     """
+    service = StatisticsService(credentials.uri, credentials.user, credentials.password)
     try:
         filter_msg = f" (filtered by type: {credentials.node_type})" if credentials.node_type else ""
         logger.info(f"Computing connectivity density statistics{filter_msg}")
         
-        service = StatisticsService(credentials.uri, credentials.user, credentials.password)
         stats = service.get_connectivity_density(node_type=credentials.node_type)
         
         return {
@@ -80,6 +82,8 @@ async def get_connectivity_density_stats(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Connectivity density computation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Computation failed: {str(e)}")
+    finally:
+        service.close()
 
 
 @router.post("/clustering-coefficient", response_model=Dict[str, Any])
@@ -87,11 +91,11 @@ async def get_clustering_coefficient_stats(credentials: Neo4jCredentials):
     """
     Get clustering coefficient statistics - measures how nodes tend to cluster together.
     """
+    service = StatisticsService(credentials.uri, credentials.user, credentials.password)
     try:
         filter_msg = f" (filtered by type: {credentials.node_type})" if credentials.node_type else ""
         logger.info(f"Computing clustering coefficient statistics{filter_msg}")
         
-        service = StatisticsService(credentials.uri, credentials.user, credentials.password)
         stats = service.get_clustering_coefficient(node_type=credentials.node_type)
         
         return {
@@ -102,6 +106,8 @@ async def get_clustering_coefficient_stats(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Clustering coefficient computation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Computation failed: {str(e)}")
+    finally:
+        service.close()
 
 
 @router.post("/dependency-depth", response_model=Dict[str, Any])
@@ -109,10 +115,9 @@ async def get_dependency_depth_stats(credentials: Neo4jCredentials):
     """
     Get dependency depth statistics - measures the depth of dependency chains.
     """
+    service = StatisticsService(credentials.uri, credentials.user, credentials.password)
     try:
         logger.info("Computing dependency depth statistics")
-        
-        service = StatisticsService(credentials.uri, credentials.user, credentials.password)
         stats = service.get_dependency_depth()
         
         return {
@@ -123,6 +128,8 @@ async def get_dependency_depth_stats(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Dependency depth computation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Computation failed: {str(e)}")
+    finally:
+        service.close()
 
 
 @router.post("/component-isolation", response_model=Dict[str, Any])
@@ -130,10 +137,9 @@ async def get_component_isolation_stats(credentials: Neo4jCredentials):
     """
     Get component isolation statistics - identifies isolated, source, and sink components.
     """
+    service = StatisticsService(credentials.uri, credentials.user, credentials.password)
     try:
         logger.info("Computing component isolation statistics")
-        
-        service = StatisticsService(credentials.uri, credentials.user, credentials.password)
         stats = service.get_component_isolation()
         
         return {
@@ -144,6 +150,8 @@ async def get_component_isolation_stats(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Component isolation computation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Computation failed: {str(e)}")
+    finally:
+        service.close()
 
 
 @router.post("/message-flow-patterns", response_model=Dict[str, Any])
@@ -151,10 +159,9 @@ async def get_message_flow_patterns(credentials: Neo4jCredentials):
     """
     Get message flow pattern statistics - analyzes communication patterns in pub-sub system.
     """
+    service = StatisticsService(credentials.uri, credentials.user, credentials.password)
     try:
         logger.info("Computing message flow pattern statistics")
-        
-        service = StatisticsService(credentials.uri, credentials.user, credentials.password)
         stats = service.get_message_flow_patterns()
         
         return {
@@ -165,6 +172,8 @@ async def get_message_flow_patterns(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Message flow pattern computation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Computation failed: {str(e)}")
+    finally:
+        service.close()
 
 
 @router.post("/component-redundancy", response_model=Dict[str, Any])

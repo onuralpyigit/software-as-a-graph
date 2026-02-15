@@ -25,9 +25,8 @@ Covers:
 import pytest
 import math
 
-from src.domain.models.graph import GraphData, ComponentData, EdgeData
-from src.domain.services.structural_analyzer import StructuralAnalyzer, extract_layer_subgraph
-from src.domain.config.layers import AnalysisLayer
+from src.core import GraphData, ComponentData, EdgeData, AnalysisLayer
+from src.analysis.structural_analyzer import StructuralAnalyzer, extract_layer_subgraph
 
 
 # =============================================================================

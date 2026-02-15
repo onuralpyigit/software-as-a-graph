@@ -7,7 +7,8 @@ from typing import Dict, Any
 import logging
 
 from api.models import Neo4jCredentials
-from src.application.container import Container
+from src.core import create_repository
+from src.analysis import AnalysisService
 
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
@@ -21,11 +22,10 @@ async def analyze_full_system(credentials: Neo4jCredentials):
     - Quality scores (reliability, maintainability, availability)
     - Problem detection
     """
+    repo = create_repository(uri=credentials.uri, user=credentials.user, password=credentials.password)
     try:
         logger.info("Running full system analysis")
-        
-        container = Container(uri=credentials.uri, user=credentials.user, password=credentials.password)
-        service = container.analysis_service()
+        service = AnalysisService(repo)
         result = service.analyze_layer("system")
         
         # Create a map of component IDs to names from structural data
@@ -111,6 +111,8 @@ async def analyze_full_system(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Full analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    finally:
+        repo.close()
 
 
 @router.post("/type/{component_type}", response_model=Dict[str, Any])
@@ -134,11 +136,10 @@ async def analyze_by_type(component_type: str, credentials: Neo4jCredentials):
             detail=f"Invalid component type: {component_type}. Valid types: node, app, broker, Application, Node, Broker"
         )
         
+    repo = create_repository(uri=credentials.uri, user=credentials.user, password=credentials.password)
     try:
         logger.info(f"Analyzing component type: {component_type} (normalized to {normalized_type})")
-        
-        container = Container(uri=credentials.uri, user=credentials.user, password=credentials.password)
-        service = container.analysis_service()
+        service = AnalysisService(repo)
         result = service.analyze_layer("system")
         
         # Filter components by type
@@ -241,6 +242,8 @@ async def analyze_by_type(component_type: str, credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Type analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    finally:
+        repo.close()
 
 
 @router.post("/layer/{layer}", response_model=Dict[str, Any])
@@ -257,11 +260,10 @@ async def analyze_layer(layer: str, credentials: Neo4jCredentials):
             detail=f"Invalid layer. Must be one of: {', '.join(valid_layers)}"
         )
     
+    repo = create_repository(uri=credentials.uri, user=credentials.user, password=credentials.password)
     try:
         logger.info(f"Analyzing layer: {layer}")
-        
-        container = Container(uri=credentials.uri, user=credentials.user, password=credentials.password)
-        service = container.analysis_service()
+        service = AnalysisService(repo)
         result = service.analyze_layer(layer)
         
         # Create a map of component IDs to names from structural data
@@ -347,3 +349,5 @@ async def analyze_layer(layer: str, credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Layer analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    finally:
+        repo.close()

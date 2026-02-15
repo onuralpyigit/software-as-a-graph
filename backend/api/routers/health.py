@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 
 from api.models import Neo4jCredentials, HealthResponse
-from src.application.services.graph_service import GraphService
+from src.core import create_repository
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -67,10 +67,11 @@ async def test_connection(credentials: Neo4jCredentials):
     Test Neo4j database connection with provided credentials.
     This endpoint is used by the frontend to validate credentials.
     """
+    repo = None
     try:
         logger.info(f"Testing Neo4j connection to {credentials.uri}")
-        service = GraphService(credentials.uri, credentials.user, credentials.password)
-        service.check_connection()
+        repo = create_repository(credentials.uri, credentials.user, credentials.password)
+        repo.check_connection()
         
         return {
             "success": True,
@@ -80,3 +81,6 @@ async def test_connection(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Neo4j connection test failed: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Connection failed: {str(e)}")
+    finally:
+        if repo:
+            repo.close()

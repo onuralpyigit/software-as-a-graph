@@ -17,21 +17,19 @@ Covers:
 import pytest
 from unittest.mock import MagicMock
 
-from src.domain.services.failure_simulator import (
+from src.simulation import (
     FailureSimulator,
     FailureScenario,
     ImpactMetrics,
     MonteCarloResult,
     CascadeEvent,
-)
-from src.domain.models.simulation.graph import SimulationGraph
-from src.domain.models.simulation.types import (
+    SimulationGraph,
     ComponentState,
     FailureMode,
     CascadeRule,
 )
 
-from src.domain.models.graph import GraphData, ComponentData, EdgeData
+from src.core import GraphData, ComponentData, EdgeData
 
 
 # =============================================================================

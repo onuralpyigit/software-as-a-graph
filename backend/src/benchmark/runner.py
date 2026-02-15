@@ -16,9 +16,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.application.container import Container
-from src.application.services.generation_service import GenerationService, load_config
-from src.domain.models.validation.metrics import ValidationTargets
+from src.core import create_repository
+from src.generation import GenerationService, load_config
+from src.analysis import AnalysisService
+from src.simulation import SimulationService
+from src.validation import ValidationService, ValidationTargets
 
 from .models import (
     AggregateResult,
@@ -73,8 +75,17 @@ class BenchmarkRunner:
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.container = Container(uri=uri, user=user, password=password)
+        self.repo = create_repository(uri=uri, user=user, password=password)
         self.records: List[BenchmarkRecord] = []
+
+        # Services will be initialized once
+        self.analysis_service = AnalysisService(self.repo)
+        self.simulation_service = SimulationService(self.repo)
+        self.validation_service = ValidationService(
+            analysis_service=self.analysis_service,
+            simulation_service=self.simulation_service,
+            targets=self.targets
+        )
 
     # ------------------------------------------------------------------
     # Context-manager support
@@ -88,7 +99,7 @@ class BenchmarkRunner:
 
     def close(self) -> None:
         """Release Neo4j resources."""
-        self.container.close()
+        self.repo.close()
 
     # ------------------------------------------------------------------
     # Pipeline stages (all return (result | None, elapsed_ms))
@@ -119,8 +130,7 @@ class BenchmarkRunner:
         """Import graph data into Neo4j (clears DB first)."""
         t0 = time.time()
         try:
-            repo = self.container.graph_repository()
-            repo.save_graph(graph_data, clear=True)
+            self.repo.save_graph(graph_data, clear=True)
             return True, (time.time() - t0) * 1000
 
         except Exception as e:
@@ -133,8 +143,7 @@ class BenchmarkRunner:
         """Run structural + quality analysis, return dict."""
         t0 = time.time()
         try:
-            service = self.container.analysis_service()
-            result = service.analyze_layer(layer)
+            result = self.analysis_service.analyze_layer(layer)
             return result.to_dict(), (time.time() - t0) * 1000
 
         except Exception as e:
@@ -147,8 +156,7 @@ class BenchmarkRunner:
         """Run exhaustive failure simulation, return list of dicts."""
         t0 = time.time()
         try:
-            service = self.container.simulation_service()
-            results = service.run_failure_simulation_exhaustive(layer=layer)
+            results = self.simulation_service.run_failure_simulation_exhaustive(layer=layer)
             return [r.to_dict() for r in results], (time.time() - t0) * 1000
 
         except Exception as e:
@@ -166,7 +174,6 @@ class BenchmarkRunner:
         """Validate predicted quality scores against simulated impact."""
         t0 = time.time()
         try:
-            service = self.container.validation_service(targets=self.targets)
 
             # Extract predicted scores from analysis
             pred_scores: Dict[str, float] = {}
@@ -183,7 +190,7 @@ class BenchmarkRunner:
                     "composite_impact", 0.0
                 )
 
-            res = service.validator.validate(
+            res = self.validation_service.validator.validate(
                 predicted_scores=pred_scores,
                 actual_scores=actual_scores,
                 component_types=comp_types,

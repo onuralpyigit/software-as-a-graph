@@ -43,7 +43,9 @@ import argparse
 import json
 import logging
 
-from src.application.container import Container
+from src.core import create_repository
+from src.simulation import SimulationService
+from src.cli.console import ConsoleDisplay
 
 
 # =============================================================================
@@ -355,12 +357,12 @@ def main() -> int:
         datefmt="%H:%M:%S",
     )
 
-    # Initialize container and services
-    container = Container(uri=args.uri, user=args.user, password=args.password)
-    display = container.display_service()
+    # Initialize repository and services
+    repo = create_repository(uri=args.uri, user=args.user, password=args.password)
+    display = ConsoleDisplay()
 
     try:
-        sim = container.simulation_service()
+        sim = SimulationService(repo)
 
         # Dispatch to handler
         handlers = {
@@ -394,7 +396,7 @@ def main() -> int:
             logging.exception("Simulation failed")
         return 1
     finally:
-        container.close()
+        repo.close()
 
 
 if __name__ == "__main__":

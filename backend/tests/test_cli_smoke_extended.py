@@ -14,7 +14,7 @@ def test_generate_graph_cli():
     mock_data = {"nodes": [{"id": "n1"}]}
     
     with patch.object(sys, 'argv', ['generate_graph.py', '--scale', 'tiny', '--output', 'test_output.json']), \
-         patch('src.application.services.generation_service.generate_graph', return_value=mock_data) as mock_gen, \
+         patch('src.generation.generate_graph', return_value=mock_data) as mock_gen, \
          patch('builtins.open', mock_open()) as m_open:
         
         # Clear module from sys.modules to ensure clean import
@@ -29,16 +29,14 @@ def test_generate_graph_cli():
 
 def test_import_graph_cli():
     """Test import_graph.py main function with mocks."""
-    mock_container = MagicMock()
     mock_repo = MagicMock()
-    mock_container.graph_repository.return_value = mock_repo
     mock_repo.get_statistics.return_value = {"node_count": 10}
     
     # Mock data to read from file
     mock_data = {"nodes": []}
     
     with patch.object(sys, 'argv', ['import_graph.py', '--input', 'test.json', '--clear']), \
-         patch('src.application.container.Container', return_value=mock_container), \
+         patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
          patch('pathlib.Path.exists', return_value=True), \
          patch('builtins.open', mock_open(read_data=json.dumps(mock_data))):
         
@@ -48,22 +46,20 @@ def test_import_graph_cli():
         
         import_graph.main()
         
-        mock_container.graph_repository.assert_called_once()
+        MockCreateRepo.assert_called_once()
         mock_repo.save_graph.assert_called_once_with(mock_data, clear=True)
         mock_repo.get_statistics.assert_called_once()
-        mock_container.close.assert_called_once()
+        mock_repo.close.assert_called_once()
 
 def test_export_graph_cli():
     """Test export_graph.py main function with mocks."""
-    mock_container = MagicMock()
     mock_repo = MagicMock()
-    mock_container.graph_repository.return_value = mock_repo
     
     mock_data = {"nodes": [], "relationships": {}}
     mock_repo.export_json.return_value = mock_data
     
     with patch.object(sys, 'argv', ['export_graph.py', '--output', 'exported.json']), \
-         patch('src.application.container.Container', return_value=mock_container), \
+         patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
          patch('builtins.open', mock_open()) as m_open:
         
         if 'export_graph' in sys.modules:
@@ -72,7 +68,7 @@ def test_export_graph_cli():
         
         export_graph.main()
         
-        mock_container.graph_repository.assert_called_once()
+        MockCreateRepo.assert_called_once()
         mock_repo.export_json.assert_called_once()
         m_open.assert_called()
-        mock_container.close.assert_called_once()
+        mock_repo.close.assert_called_once()

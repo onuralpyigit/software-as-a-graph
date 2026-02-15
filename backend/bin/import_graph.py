@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Dict
 
-from src.application.container import Container
+from src.core import create_repository
 
 
 def print_import_stats(stats: Dict[str, int]) -> None:
@@ -103,16 +103,14 @@ def main() -> None:
 
     print(f"Connecting to Neo4j at {args.uri}...")
     
-    # Initialize Container
-    container = Container(
+    # Initialize Repository directly
+    repo = create_repository(
         uri=args.uri,
         user=args.user,
         password=args.password
     )
     
     try:
-        # Use Repository directly
-        repo = container.graph_repository()
         repo.save_graph(data, clear=args.clear)
         stats = repo.get_statistics()
         print_import_stats(stats)
@@ -121,7 +119,7 @@ def main() -> None:
         print(f"Import failed: {e}", file=sys.stderr)
         sys.exit(1)
     finally:
-        container.close()
+        repo.close()
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ Maps the old GraphExporter API to Neo4jGraphRepository,
 and re-exports GraphData, ComponentData, EdgeData from domain models.
 """
 from src.adapters.outbound.neo4j_repo import Neo4jGraphRepository
-from src.domain.models.graph import GraphData, ComponentData, EdgeData
+from src.core.models import GraphData, ComponentData, EdgeData
 
 # Structural relationship types used by the API
 STRUCTURAL_REL_TYPES = [

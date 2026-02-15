@@ -441,7 +441,7 @@ class TestBenchmarkCLI:
         """Neo4j connection args should reach the runner."""
         mock_run.return_value = []
 
-        with patch("src.benchmark.runner.Container") as MockContainer:
+        with patch("src.benchmark.runner.create_repository") as MockCreateRepo:
             ret = self._run_main([
                 "--scales", "tiny",
                 "--uri", "bolt://db:7687",
@@ -451,7 +451,7 @@ class TestBenchmarkCLI:
             ])
 
         assert ret == 0
-        # Container was created with correct args
-        MockContainer.assert_called_with(
+        # create_repository was called with correct args
+        MockCreateRepo.assert_called_with(
             uri="bolt://db:7687", user="admin", password="secret"
         )

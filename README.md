@@ -129,10 +129,13 @@ software-as-a-graph/
 │   ├── analyze_graph.py    # Analysis engine
 │   └── ...                 # Other CLI scripts
 ├── src/                    # Python Source Code
-│   ├── domain/             # Core business logic (Hexagonal)
-│   ├── application/        # Service orchestration
-│   ├── infrastructure/     # Adapters (Neo4j, File System)
-│   └── ...                 # Compatibility shims
+│   ├── core/               # Core entities and utilities
+│   ├── analysis/           # Analysis logic (Structural, Quality)
+│   ├── simulation/         # Simulation logic (Event, Failure)
+│   ├── validation/         # Validation logic
+│   ├── visualization/      # Visualization logic
+│   ├── generation/         # Graph generation
+│   └── cli/                # CLI utilities
 ├── config/                 # Configuration templates
 └── tests/                  # Unit tests
 ```

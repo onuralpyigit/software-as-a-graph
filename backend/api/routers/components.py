@@ -7,8 +7,8 @@ from typing import Dict, Any, Optional
 import logging
 
 from api.models import Neo4jCredentials
-from src.application.services.graph_service import GraphService
-from src.application.container import Container
+from src.core import create_repository
+from src.analysis import AnalysisService
 
 router = APIRouter(prefix="/api/v1", tags=["components", "edges"])
 logger = logging.getLogger(__name__)
@@ -27,14 +27,17 @@ async def get_components(
     try:
         logger.info(f"Querying components: type={component_type}, min_weight={min_weight}")
         
-        service = GraphService(credentials.uri, credentials.user, credentials.password)
-        result = service.get_components(component_type, min_weight, limit)
-        
-        return {
-            "success": True,
-            "count": result["count"],
-            "components": result["components"]
-        }
+        repo = create_repository(credentials.uri, credentials.user, credentials.password)
+        try:
+            result = repo.get_components_with_filter(component_type, min_weight, limit)
+            
+            return {
+                "success": True,
+                "count": result["count"],
+                "components": result["components"]
+            }
+        finally:
+            repo.close()
     except Exception as e:
         logger.error(f"Component query failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
@@ -51,46 +54,49 @@ async def get_critical_components(
     try:
         logger.info("Querying critical components")
         
-        container = Container(uri=credentials.uri, user=credentials.user, password=credentials.password)
-        service = container.analysis_service()
-        result = service.analyze_layer("system")
-        
-        # Sort components by overall score and take top N
-        components = sorted(
-            result.quality.components,
-            key=lambda c: c.scores.overall,
-            reverse=True
-        )[:limit]
-        
-        # Format components for response
-        formatted_components = [
-            {
-                "id": c.id,
-                "type": c.type,
-                "criticality_level": c.levels.overall.value,
-                "criticality_levels": {
-                    "reliability": c.levels.reliability.value,
-                    "maintainability": c.levels.maintainability.value,
-                    "availability": c.levels.availability.value,
-                    "vulnerability": c.levels.vulnerability.value,
-                    "overall": c.levels.overall.value
-                },
-                "scores": {
-                    "reliability": c.scores.reliability,
-                    "maintainability": c.scores.maintainability,
-                    "availability": c.scores.availability,
-                    "vulnerability": c.scores.vulnerability,
-                    "overall": c.scores.overall
+        repo = create_repository(credentials.uri, credentials.user, credentials.password)
+        try:
+            service = AnalysisService(repo)
+            result = service.analyze_layer("system")
+            
+            # Sort components by overall score and take top N
+            components = sorted(
+                result.quality.components,
+                key=lambda c: c.scores.overall,
+                reverse=True
+            )[:limit]
+            
+            # Format components for response
+            formatted_components = [
+                {
+                    "id": c.id,
+                    "type": c.type,
+                    "criticality_level": c.levels.overall.value,
+                    "criticality_levels": {
+                        "reliability": c.levels.reliability.value,
+                        "maintainability": c.levels.maintainability.value,
+                        "availability": c.levels.availability.value,
+                        "vulnerability": c.levels.vulnerability.value,
+                        "overall": c.levels.overall.value
+                    },
+                    "scores": {
+                        "reliability": c.scores.reliability,
+                        "maintainability": c.scores.maintainability,
+                        "availability": c.scores.availability,
+                        "vulnerability": c.scores.vulnerability,
+                        "overall": c.scores.overall
+                    }
                 }
+                for c in components
+            ]
+            
+            return {
+                "success": True,
+                "count": len(formatted_components),
+                "components": formatted_components
             }
-            for c in components
-        ]
-        
-        return {
-            "success": True,
-            "count": len(formatted_components),
-            "components": formatted_components
-        }
+        finally:
+            repo.close()
     except Exception as e:
         logger.error(f"Critical components query failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
@@ -111,14 +117,17 @@ async def get_edges(
     try:
         logger.info(f"Querying edges: type={dependency_type}, min_weight={min_weight}")
         
-        service = GraphService(credentials.uri, credentials.user, credentials.password)
-        result = service.get_edges(dependency_type, min_weight, limit)
-        
-        return {
-            "success": True,
-            "count": result["count"],
-            "edges": result["edges"]
-        }
+        repo = create_repository(credentials.uri, credentials.user, credentials.password)
+        try:
+            result = repo.get_edges_with_filter(dependency_type, min_weight, limit)
+            
+            return {
+                "success": True,
+                "count": result["count"],
+                "edges": result["edges"]
+            }
+        finally:
+            repo.close()
     except Exception as e:
         logger.error(f"Edge query failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
@@ -135,39 +144,42 @@ async def get_critical_edges(
     try:
         logger.info("Querying critical edges")
         
-        container = Container(uri=credentials.uri, user=credentials.user, password=credentials.password)
-        service = container.analysis_service()
-        result = service.analyze_layer("system")
-        
-        # Sort edges by overall score and take top N
-        edges = sorted(
-            result.quality.edges,
-            key=lambda e: e.scores.overall,
-            reverse=True
-        )[:limit]
-        
-        # Format edges for response
-        formatted_edges = [
-            {
-                "source": e.source,
-                "target": e.target,
-                "criticality_level": e.level.value,
-                "scores": {
-                    "reliability": e.scores.reliability,
-                    "maintainability": e.scores.maintainability,
-                    "availability": e.scores.availability,
-                    "vulnerability": e.scores.vulnerability,
-                    "overall": e.scores.overall
+        repo = create_repository(credentials.uri, credentials.user, credentials.password)
+        try:
+            service = AnalysisService(repo)
+            result = service.analyze_layer("system")
+            
+            # Sort edges by overall score and take top N
+            edges = sorted(
+                result.quality.edges,
+                key=lambda e: e.scores.overall,
+                reverse=True
+            )[:limit]
+            
+            # Format edges for response
+            formatted_edges = [
+                {
+                    "source": e.source,
+                    "target": e.target,
+                    "criticality_level": e.level.value,
+                    "scores": {
+                        "reliability": e.scores.reliability,
+                        "maintainability": e.scores.maintainability,
+                        "availability": e.scores.availability,
+                        "vulnerability": e.scores.vulnerability,
+                        "overall": e.scores.overall
+                    }
                 }
+                for e in edges
+            ]
+            
+            return {
+                "success": True,
+                "count": len(formatted_edges),
+                "edges": formatted_edges
             }
-            for e in edges
-        ]
-        
-        return {
-            "success": True,
-            "count": len(formatted_edges),
-            "edges": formatted_edges
-        }
+        finally:
+            repo.close()
     except Exception as e:
         logger.error(f"Critical edges query failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")

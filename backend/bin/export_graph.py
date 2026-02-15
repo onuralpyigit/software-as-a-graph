@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Any
 
-from src.application.container import Container
+from src.core import create_repository
 
 
 def main() -> None:
@@ -50,14 +50,14 @@ def main() -> None:
 
     print(f"Connecting to Neo4j at {args.uri}...")
     
-    container = Container(
+    # Initialize Repository directly
+    repo = create_repository(
         uri=args.uri,
         user=args.user,
         password=args.password
     )
-
+ 
     try:
-        repo = container.graph_repository()
         print("Exporting graph data...")
         data = repo.export_json()
 
@@ -75,7 +75,7 @@ def main() -> None:
         print(f"Export failed: {e}", file=sys.stderr)
         sys.exit(1)
     finally:
-        container.close()
+        repo.close()
 
 
 def print_export_stats(data: Dict[str, Any]) -> None:

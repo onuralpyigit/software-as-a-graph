@@ -17,9 +17,9 @@ import webbrowser
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.application.container import Container
-from src.domain.models.validation.metrics import ValidationTargets
-from src.domain.config.layers import SimulationLayer, SIMULATION_LAYERS
+from src.core import create_repository, SimulationLayer
+from src.validation import ValidationService, ValidationTargets
+from src.cli.console import ConsoleDisplay
 
 
 def main() -> int:
@@ -58,19 +58,25 @@ def main() -> int:
     
     targets = ValidationTargets(spearman=args.spearman, f1_score=args.f1, precision=args.precision, recall=args.recall, top_5_overlap=args.top5)
     
-    container = Container(uri=args.uri, user=args.user, password=args.password)
-    display = container.display_service()
-    
+    # Initialize repository and display
+    repo = create_repository(uri=args.uri, user=args.user, password=args.password)
+    display = ConsoleDisplay()
+
     try:
-        val_service = container.validation_service(targets=targets)
+        from src.analysis import AnalysisService
+        from src.simulation import SimulationService
         
+        analysis_service = AnalysisService(repo)
+        simulation_service = SimulationService(repo)
+        val_service = ValidationService(analysis_service, simulation_service, targets=targets)
+
         if args.quick:
             predicted_file, actual_file = args.quick
             with open(predicted_file, 'r') as f: predicted = json.load(f)
             with open(actual_file, 'r') as f: actual = json.load(f)
-                
+
             result = val_service.validate_from_data(predicted, actual)
-            
+
             if args.json:
                 print(json.dumps(result.to_dict(), indent=2))
             elif not args.quiet:
@@ -80,38 +86,50 @@ def main() -> int:
                 print(f"\n  Status: {display.status_text(result.passed)}")
                 print(f"\n  Spearman:  {result.overall.correlation.spearman:.4f}")
                 print(f"  F1 Score:  {result.overall.classification.f1_score:.4f}")
-            
+
             if args.output:
                 Path(args.output).parent.mkdir(parents=True, exist_ok=True)
                 with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
-            
+
             return 0 if result.passed else 1
-        
+
         if sorted_layers := args.layer:
             layers_to_validate = [l.strip() for l in sorted_layers.split(",")]
         else:
             # Default to all primary layers
             layers_to_validate = [layer.value for layer in SimulationLayer]
-            
+
         result = val_service.validate_layers(layers=layers_to_validate)
-        
+
         if args.json:
             print(json.dumps(result.to_dict(), indent=2))
         elif not args.quiet:
             display.display_pipeline_validation_result(result)
-        
+
         if args.output:
             Path(args.output).parent.mkdir(parents=True, exist_ok=True)
             with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
             if not args.quiet:
                 print(f"\n{display.colored(f'Results saved to: {args.output}', display.Colors.GREEN)}")
-        
+
         print(f"\n{display.colored(f'Validation passed: {result.all_passed}', display.Colors.GREEN)}")
-        
+
         # Generate visualization if requested
         if args.visualize:
             try:
-                viz_service = container.visualization_service()
+                from src.visualization import VisualizationService
+                from src.analysis import AnalysisService
+                from src.simulation import SimulationService
+                
+                # VisualizationService needs several services in this version
+                analysis_service = AnalysisService(repo)
+                simulation_service = SimulationService(repo)
+                viz_service = VisualizationService(
+                    analysis_service=analysis_service,
+                    simulation_service=simulation_service,
+                    validation_service=val_service,
+                    repository=repo
+                )
                 viz_path = viz_service.generate_dashboard(
                     output_file=args.viz_output,
                     layers=layers_to_validate,
@@ -124,7 +142,7 @@ def main() -> int:
                     webbrowser.open(f"file://{abs_path}")
             except Exception as viz_err:
                 print(display.colored(f"\nVisualization error: {viz_err}", display.Colors.YELLOW), file=sys.stderr)
-        
+
         return 0
 
     except Exception as e:
@@ -132,7 +150,7 @@ def main() -> int:
         if args.verbose: logging.exception("Validation failed")
         return 1
     finally:
-        container.close()
+        repo.close()
 
 
 if __name__ == "__main__":

@@ -2,8 +2,8 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
-from backend.api.main import app
-from src.domain.models.graph import GraphData, ComponentData, EdgeData
+from api.main import app
+from src.core.models import GraphData, ComponentData, EdgeData
 
 client = TestClient(app)
 
@@ -27,7 +27,7 @@ def mock_graph_data():
         ]
     )
 
-@patch("backend.api.routers.statistics.StatisticsService")
+@patch("api.routers.statistics.StatisticsService")
 def test_get_graph_stats(MockService, mock_graph_data):
     # Setup mocks
     mock_service = MockService.return_value
@@ -57,7 +57,7 @@ def test_get_graph_stats(MockService, mock_graph_data):
     mock_service.get_graph_stats.assert_called_once()
 
 
-@patch("backend.api.routers.statistics.StatisticsService")
+@patch("api.routers.statistics.StatisticsService")
 def test_get_connectivity_density_stats(MockService):
     # Setup mocks
     mock_service = MockService.return_value
@@ -80,7 +80,7 @@ def test_get_connectivity_density_stats(MockService):
     
     mock_service.get_connectivity_density.assert_called_once()
     
-@patch("backend.api.routers.statistics.StatisticsService")
+@patch("api.routers.statistics.StatisticsService")
 def test_get_message_flow_patterns(MockService):
     # Setup mocks
     mock_service = MockService.return_value

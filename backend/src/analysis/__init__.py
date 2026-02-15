@@ -1,15 +1,13 @@
 """
-Compatibility shim: src.analysis
-
-Provides backward-compatible imports for the old analysis module paths.
+Analysis Package
 """
-from src.analysis.analyzer import GraphAnalyzer
-from src.analysis.classifier import BoxPlotClassifier, CriticalityLevel
-from src.analysis.structural_analyzer import StructuralAnalyzer
-from src.analysis.quality_analyzer import QualityAnalyzer
-from src.analysis.problem_detector import ProblemDetector
+from .service import AnalysisService
+from .models import StructuralAnalysisResult, QualityAnalysisResult, LayerAnalysisResult, MultiLayerAnalysisResult
 
 __all__ = [
-    "GraphAnalyzer", "BoxPlotClassifier", "CriticalityLevel",
-    "StructuralAnalyzer", "QualityAnalyzer", "ProblemDetector",
+    "AnalysisService",
+    "StructuralAnalysisResult",
+    "QualityAnalysisResult",
+    "LayerAnalysisResult",
+    "MultiLayerAnalysisResult",
 ]

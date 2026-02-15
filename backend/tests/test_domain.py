@@ -1,9 +1,6 @@
 import pytest
-from src.domain.models import (
-    Application, Topic, QoSPolicy, 
-    VertexType, EdgeType, DependencyType
-)
-from src.application.services.generation_service import GenerationService
+from src.core import Application, Topic, QoSPolicy
+from src.generation import GenerationService
 
 class TestDomainModels:
     def test_qos_policy_defaults(self):

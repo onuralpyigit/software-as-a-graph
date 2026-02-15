@@ -9,7 +9,10 @@ import logging
 import json
 
 from api.models import GraphRequestWithCredentials
-from src.application.container import Container
+from src.core import create_repository, LAYER_DEFINITIONS
+from src.analysis import AnalysisService
+from src.simulation import SimulationService
+from src.validation import ValidationService, ValidationTargets
 
 router = APIRouter(prefix="/api/v1/validation", tags=["validation"])
 logger = logging.getLogger(__name__)
@@ -43,55 +46,42 @@ async def run_validation_pipeline(request: ValidationRequest):
     Returns:
         Complete validation results with metrics for each layer
     """
+    repo = create_repository(
+        uri=request.credentials.uri,
+        user=request.credentials.user,
+        password=request.credentials.password
+    )
     try:
-        from src.domain.models.validation.metrics import ValidationTargets
-        
         logger.info(f"Starting validation pipeline for layers: {request.layers}")
         
-        # Create container with credentials
-        container = Container(
-            uri=request.credentials.uri,
-            user=request.credentials.user,
-            password=request.credentials.password
-        )
+        analysis_service = AnalysisService(repo)
+        simulation_service = SimulationService(repo)
+        validation_service = ValidationService(analysis_service, simulation_service, targets=ValidationTargets())
         
-        try:
-            # Get validation service
-            validation_service = container.validation_service(targets=ValidationTargets())
-            
-            # Run validation
-            result = validation_service.validate_layers(layers=request.layers)
-            
-            # Transform the result to match frontend expectations
-            result_dict = result.to_dict()
-            
-            # Restructure response for frontend compatibility
-            transformed_result = {
-                "timestamp": result_dict["timestamp"],
-                "summary": {
-                    "total_components": result_dict["total_components"],
-                    "layers_validated": len(result_dict["layers"]),
-                    "layers_passed": result_dict["layers_passed"],
-                    "all_passed": result_dict["all_passed"],
-                },
-                "layers": result_dict["layers"],
-                "cross_layer_insights": result_dict.get("warnings", []),
-                "targets": result_dict["targets"],
-            }
-            
-            return {
-                "success": True,
-                "result": transformed_result
-            }
-        finally:
-            container.close()
+        # Run validation
+        result = validation_service.validate_layers(layers=request.layers)
         
-    except ImportError as e:
-        logger.error(f"Validation module import failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Validation module not available: {str(e)}"
-        )
+        # Transform the result to match frontend expectations
+        result_dict = result.to_dict()
+        
+        # Restructure response for frontend compatibility
+        transformed_result = {
+            "timestamp": result_dict["timestamp"],
+            "summary": {
+                "total_components": result_dict["total_components"],
+                "layers_validated": len(result_dict["layers"]),
+                "layers_passed": result_dict["layers_passed"],
+                "all_passed": result_dict["all_passed"],
+            },
+            "layers": result_dict["layers"],
+            "cross_layer_insights": result_dict.get("warnings", []),
+            "targets": result_dict["targets"],
+        }
+        
+        return {
+            "success": True,
+            "result": transformed_result
+        }
     except Exception as e:
         logger.error(f"Validation pipeline failed: {str(e)}")
         logger.exception("Full traceback:")
@@ -99,6 +89,8 @@ async def run_validation_pipeline(request: ValidationRequest):
             status_code=500,
             detail=f"Validation failed: {str(e)}"
         )
+    finally:
+        repo.close()
 
 
 @router.post("/quick", response_model=Dict[str, Any])
@@ -115,9 +107,15 @@ async def quick_validation(request: QuickValidationRequest):
     Returns:
         Validation metrics and results
     """
+    # Note: quick_validation is mostly standalone statistics.
+    # We still need a repo for create_repository if we want to follow the same pattern,
+    # but validate_from_data might not actually use it.
+    repo = create_repository(
+        uri=request.credentials.uri,
+        user=request.credentials.user,
+        password=request.credentials.password
+    )
     try:
-        from src.domain.models.validation.metrics import ValidationTargets
-        
         logger.info("Starting quick validation")
         
         # Load data
@@ -144,30 +142,20 @@ async def quick_validation(request: QuickValidationRequest):
                 detail="Must provide either files or data for both predicted and actual scores"
             )
         
-        # Create container with credentials (for potential graph access)
-        container = Container(
-            uri=request.credentials.uri,
-            user=request.credentials.user,
-            password=request.credentials.password
+        analysis_service = AnalysisService(repo)
+        simulation_service = SimulationService(repo)
+        validation_service = ValidationService(analysis_service, simulation_service, targets=ValidationTargets())
+        
+        # Run quick validation
+        result = validation_service.validate_from_data(
+            predicted=predicted_scores,
+            actual=actual_scores
         )
         
-        try:
-            # Get validation service
-            validation_service = container.validation_service(targets=ValidationTargets())
-            
-            # Run quick validation
-            result = validation_service.validate_from_data(
-                predicted=predicted_scores,
-                actual=actual_scores
-            )
-            
-            return {
-                "success": True,
-                "result": result.to_dict()
-            }
-        finally:
-            container.close()
-        
+        return {
+            "success": True,
+            "result": result.to_dict()
+        }
     except FileNotFoundError as e:
         logger.error(f"File not found: {str(e)}")
         raise HTTPException(
@@ -181,6 +169,8 @@ async def quick_validation(request: QuickValidationRequest):
             status_code=500,
             detail=f"Validation failed: {str(e)}"
         )
+    finally:
+        repo.close()
 
 
 @router.get("/layers", response_model=Dict[str, Any])
@@ -191,20 +181,10 @@ async def get_validation_layers():
     Returns:
         Dictionary of layer definitions with descriptions
     """
-    try:
-        from src.validation import LAYER_DEFINITIONS
-        
-        return {
-            "success": True,
-            "layers": LAYER_DEFINITIONS
-        }
-        
-    except ImportError as e:
-        logger.error(f"Validation module import failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Validation module not available: {str(e)}"
-        )
+    return {
+        "success": True,
+        "layers": LAYER_DEFINITIONS
+    }
 
 
 @router.get("/targets", response_model=Dict[str, Any])
@@ -215,19 +195,8 @@ async def get_validation_targets():
     Returns:
         Dictionary of validation metrics and their target thresholds
     """
-    try:
-        from src.validation import ValidationTargets
-        
-        targets = ValidationTargets()
-        
-        return {
-            "success": True,
-            "targets": targets.to_dict()
-        }
-        
-    except ImportError as e:
-        logger.error(f"Validation module import failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Validation module not available: {str(e)}"
-        )
+    targets = ValidationTargets()
+    return {
+        "success": True,
+        "targets": targets.to_dict()
+    }

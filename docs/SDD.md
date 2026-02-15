@@ -103,7 +103,7 @@ The system follows SOLID principles with emphasis on three key decisions:
 
 ## 3. System Architecture
 
-### 3.1 Layered Architecture
+### 3.1 Pipeline Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -112,35 +112,28 @@ The system follows SOLID principles with emphasis on three key decisions:
 │  bin/run.py          bin/analyze_graph.py     bin/simulate_graph.py │
 │  bin/generate_graph.py  bin/validate_graph.py  bin/visualize_graph.py│
 │                                                                     │
-│  Each CLI tool parses arguments, creates a Container, and           │
-│  delegates to application services.                                 │
+│  External CLI entry points that parse arguments and invoke          │
+│  pipeline components.                                               │
 ├─────────────────────────────────────────────────────────────────────┤
-│                        APPLICATION LAYER                            │
+│                        PIPELINE COMPONENTS                          │
 │                                                                     │
-│  Container            AnalysisService      SimulationService        │
-│  (DI wiring)          ValidationService    VisualizationService     │
+│  src.analysis         src.simulation           src.validation       │
+│  (Structural/Quality) (Event/Failure)          (Statistical)        │
 │                                                                     │
-│  Orchestrates service calls and manages cross-cutting concerns      │
-│  (logging, configuration, error handling).                          │
+│  src.visualization    src.generation           src.cli              │
+│  (Dashboard/Charts)   (Synthetic Graphs)       (Shared Utils)       │
+│                                                                     │
+│  Feature-based packages implementing specific pipeline steps.       │
 ├─────────────────────────────────────────────────────────────────────┤
-│                         DOMAIN LAYER                                │
+│                           CORE LAYER                                │
 │                                                                     │
-│  Models:  GraphData, StructuralMetrics, QualityScores,              │
-│           ImpactMetrics, FailureResult, ValidationGroupResult       │
+│  src.core                                                           │
 │                                                                     │
-│  Services: StructuralAnalyzer, QualityAnalyzer, BoxPlotClassifier,  │
-│            AHPProcessor, ProblemDetector, SimulationGraph            │
+│  - Domain Models (GraphData, ComponentData)                         │
+│  - Interfaces (IGraphRepository)                                    │
+│  - Implementations (Neo44jGraphRepository)                          │
 │                                                                     │
-│  Ports:   IGraphRepository (interface for data access)              │
-│                                                                     │
-│  Pure Python. No infrastructure dependencies.                       │
-├─────────────────────────────────────────────────────────────────────┤
-│                      INFRASTRUCTURE LAYER                           │
-│                                                                     │
-│  Neo4jGraphRepository    FileSystemExporter    DashboardGenerator   │
-│  (implements IGraphRepository)                                      │
-│                                                                     │
-│  Neo4j Bolt driver, file I/O, HTML generation.                      │
+│  Shared foundation for all pipeline components.                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -158,29 +151,35 @@ software-as-a-graph/
 │   └── visualize_graph.py            #   Dashboard generation
 │
 ├── src/
-│   ├── domain/                       # Domain Layer (pure logic)
-│   │   ├── models/                   #   Data classes and value objects
-│   │   │   ├── value_objects.py      #     QoSPolicy, Component entities
-│   │   │   ├── metrics.py            #     StructuralMetrics, QualityScores
-│   │   │   ├── simulation/           #     ImpactMetrics, FailureResult
-│   │   │   └── validation/           #     CorrelationMetrics, ValidationTargets
-│   │   ├── services/                 #   Domain services (algorithms)
-│   │   │   ├── structural_analyzer.py
-│   │   │   ├── quality_analyzer.py
-│   │   │   ├── weight_calculator.py  #     AHP processor + QualityWeights
-│   │   │   ├── classifier.py         #     BoxPlotClassifier
-│   │   │   └── problem_detector.py
-│   │   └── config/                   #   Layer definitions, constants
+│   ├── core/                         # Core Layer
+│   │   ├── models.py                 #   Domain entities (GraphData, etc.)
+│   │   ├── neo4j_repo.py             #   Graph database adapter
+│   │   └── layers.py                 #   Layer definitions
 │   │
-│   ├── application/                  # Application Layer (orchestration)
-│   │   ├── container.py              #   Dependency injection container
-│   │   └── services/                 #   AnalysisService, SimulationService,
-│   │                                 #   ValidationService, VisualizationService
+│   ├── analysis/                     # Analysis Package
+│   │   ├── analyzer.py               #   Backward-compatible AnalysisService wrapper
+│   │   ├── service.py                #   AnalysisService pipeline
+│   │   ├── structural_analyzer.py    #   StructuralAnalyzer
+│   │   └── quality_analyzer.py       #   QualityAnalyzer
 │   │
-│   └── infrastructure/               # Infrastructure Layer (adapters)
-│       ├── neo4j_repo.py             #   Neo4j graph repository
-│       ├── file_exporter.py          #   JSON/CSV/GraphML export
-│       └── visualization/            #   DashboardGenerator, ChartGenerator
+│   ├── simulation/                   # Simulation Package
+│   │   ├── service.py                #   SimulationService
+│   │   ├── failure_simulator.py      #   FailureSimulator
+│   │   └── event_simulator.py        #   EventSimulator
+│   │
+│   ├── validation/                   # Validation Package
+│   │   ├── service.py                #   ValidationService
+│   │   └── validator.py              #   Statistical validator
+│   │
+│   ├── visualization/                # Visualization Package
+│   │   ├── service.py                #   VisualizationService
+│   │   └── dashboard.py              #   DashboardGenerator
+│   │
+│   ├── generation/                   # Generation Package
+│   │   └── service.py                #   GenerationService
+│   │
+│   └── cli/                          # CLI Utilities
+│       └── console.py                #   ConsoleDisplay
 │
 ├── config/                           # YAML scale presets
 ├── docs/                             # Methodology documentation
@@ -350,11 +349,13 @@ class GraphData:
 
 Imports system topology into Neo4j and derives dependencies in four phases:
 
+### 5.1 Import Pipeline
+
 ```
 CLI: import_graph.py
          │
          ▼
-  Neo4jGraphRepository.import_graph(data, clear=True)
+  Neo4jGraphRepository.save_graph(data, clear=True)
          │
     Phase 1: Create vertices (Node, Broker, Topic, Application, Library)
     Phase 2: Create structural edges (RUNS_ON, ROUTES, PUBLISHES_TO, ...)
@@ -369,10 +370,10 @@ CLI: import_graph.py
     Return import statistics (counts per entity type)
 ```
 
-### 5.2 Analysis Pipeline (`StructuralAnalyzer` + `QualityAnalyzer`)
+### 5.2 Analysis Pipeline
 
 ```
-AnalysisService.analyze_layer(layer)
+src.analysis.service.AnalysisService.analyze_layer(layer)
          │
     1. Export G_analysis(layer) from Neo4j → NetworkX DiGraph
     2. StructuralAnalyzer.analyze(graph)
@@ -395,17 +396,17 @@ AnalysisService.analyze_layer(layer)
     Return LayerAnalysisResult
 ```
 
-### 5.3 Simulation Pipeline (`SimulationGraph` + `FailureSimulator`)
+### 5.3 Simulation Pipeline
 
 ```
-SimulationService.run_exhaustive(layer)
+src.simulation.service.SimulationService.run_failure_simulation(layer)
          │
     1. Build SimulationGraph from G_structural (all raw relationships)
     2. Compute baseline state (paths, components, topic weights)
     3. For each component v in layer:
          │
          a. Remove v from graph
-         b. Propagate cascades:
+         b. Propagate cascades (FailureSimulator):
               Physical: Node fails → hosted Apps/Brokers fail
               Logical:  Broker fails → exclusively-routed Topics die
               Application: Publisher fails → starved Subscribers fail
@@ -419,15 +420,15 @@ SimulationService.run_exhaustive(layer)
     Return List[FailureResult] with I(v) for every component
 ```
 
-### 5.4 Validation Pipeline (`Validator`)
+### 5.4 Validation Pipeline
 
 ```
-ValidationService.validate_layer(analysis_result, simulation_results)
+src.validation.service.ValidationService.validate_layer(analysis_result, simulation_results)
          │
     1. Extract Q(v) from QualityAnalysisResult
     2. Extract I(v) from List[FailureResult]
     3. Align by component ID (warn on mismatches)
-    4. Compute:
+    4. Compute (Validator):
          - Correlation: Spearman ρ, Kendall τ, Pearson r
          - Classification: Precision, Recall, F1, Cohen's κ
          - Ranking: Top-5 overlap, Top-10 overlap, NDCG@K
@@ -438,10 +439,10 @@ ValidationService.validate_layer(analysis_result, simulation_results)
     Return ValidationGroupResult
 ```
 
-### 5.5 Visualization Pipeline (`DashboardGenerator`)
+### 5.5 Visualization Pipeline
 
 ```
-VisualizationService.generate_dashboard(layers, output_file)
+src.visualization.service.VisualizationService.generate_dashboard(layers, output_file)
          │
     1. For each layer: collect analysis + simulation + validation data
     2. DashboardGenerator (Builder pattern):

@@ -11,7 +11,7 @@ Tests for:
 """
 
 import pytest
-from src.domain.services.metric_calculator import (
+from src.validation.metric_calculator import (
     calculate_classification,
     calculate_correlation,
     calculate_error,
@@ -20,8 +20,8 @@ from src.domain.services.metric_calculator import (
     cohens_kappa,
     bootstrap_ci,
 )
-from src.domain.services.validator import Validator
-from src.domain.models.validation.metrics import ValidationTargets
+from src.validation.validator import Validator
+from src.validation.models import ValidationTargets
 
 
 # =============================================================================

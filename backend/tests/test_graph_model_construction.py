@@ -12,9 +12,9 @@ Validates the formal definitions from docs/graph-model.md:
 import math
 import pytest
 
-from src.domain.models.value_objects import QoSPolicy, MIN_TOPIC_WEIGHT
-from src.domain.models.entities import Application, Topic, Broker, Node, Library
-from src.domain.config.layers import (
+from src.core import (
+    QoSPolicy, MIN_TOPIC_WEIGHT,
+    Application, Topic, Broker, Node, Library,
     AnalysisLayer, LAYER_DEFINITIONS, SIMULATION_LAYERS,
     DEPENDENCY_TO_LAYER, resolve_layer,
 )

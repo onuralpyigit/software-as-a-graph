@@ -4,9 +4,9 @@ Unit Tests for visualization (Refactored)
 
 import pytest
 import os
-from src.domain.models.visualization.chart_data import ChartOutput, ColorTheme, DEFAULT_THEME
-from src.application.services.visualization.chart_generator import ChartGenerator
-from src.application.services.visualization.dashboard_generator import DashboardGenerator
+from src.visualization.models import ChartOutput, ColorTheme, DEFAULT_THEME
+from src.visualization.charts import ChartGenerator
+from src.visualization.dashboard import DashboardGenerator
 
 # Missing HIGH_CONTRAST_THEME, COLORS, CRITICALITY_COLORS, LAYER_COLORS from new models
 # I'll add them if needed or skip those tests

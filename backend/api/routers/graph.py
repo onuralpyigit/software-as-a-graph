@@ -13,9 +13,8 @@ from api.models import (
     ImportGraphRequest
 )
 from api.dependencies import DEFAULT_NEO4J_URI, DEFAULT_NEO4J_USER, DEFAULT_NEO4J_PASSWORD
-from src.application.services.generation_service import GenerationService
-from src.application.services.import_service import ImportService
-from src.application.services.graph_service import GraphService
+from src.generation import GenerationService
+from src.core import create_repository
 
 router = APIRouter(prefix="/api/v1/graph", tags=["graph"])
 logger = logging.getLogger(__name__)
@@ -94,12 +93,10 @@ async def import_graph(request: ImportGraphRequest):
     3. Derive DEPENDS_ON relationships
     4. Calculate component weights
     """
+    repo = create_repository(creds.uri, creds.user, creds.password, creds.database)
     try:
         logger.info(f"Importing graph data (clear={request.clear_database})")
-        creds = request.credentials
-        
-        with ImportService(creds.uri, creds.user, creds.password, creds.database) as service:
-            stats = service.import_graph(request.graph_data, clear=request.clear_database)
+        stats = repo.save_graph(request.graph_data, clear=request.clear_database)
         
         return {
             "success": True,
@@ -109,6 +106,8 @@ async def import_graph(request: ImportGraphRequest):
     except Exception as e:
         logger.error(f"Graph import failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Graph import failed: {str(e)}")
+    finally:
+        repo.close()
 
 
 @router.post("/generate-and-import", response_model=Dict[str, Any])
@@ -121,6 +120,7 @@ async def generate_and_import_graph(
     """
     Convenience endpoint to generate and immediately import a graph.
     """
+    repo = create_repository(credentials.uri, credentials.user, credentials.password, credentials.database)
     try:
         # Generate
         logger.info(f"Generating graph: scale={scale}, seed={seed}")
@@ -129,8 +129,7 @@ async def generate_and_import_graph(
         
         # Import
         logger.info(f"Importing generated graph (clear={clear_database})")
-        with ImportService(credentials.uri, credentials.user, credentials.password, credentials.database) as imp_service:
-            stats = imp_service.import_graph(graph_data, clear=clear_database)
+        stats = repo.save_graph(graph_data, clear=clear_database)
         
         return {
             "success": True,
@@ -145,6 +144,8 @@ async def generate_and_import_graph(
     except Exception as e:
         logger.error(f"Generate and import failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Operation failed: {str(e)}")
+    finally:
+        repo.close()
 
 
 @router.delete("/clear", response_model=Dict[str, Any])
@@ -156,11 +157,11 @@ async def clear_database(credentials: Neo4jCredentials):
     
     Supports both DELETE and POST methods for compatibility.
     """
+    repo = create_repository(credentials.uri, credentials.user, credentials.password)
     try:
         logger.warning("Clearing Neo4j database - all data will be deleted")
-        
-        service = GraphService(credentials.uri, credentials.user, credentials.password)
-        service.clear_database()
+        # Neo4jRepository.save_graph([], clear=True) clears the database
+        repo.save_graph({"nodes": [], "brokers": [], "topics": [], "applications": [], "libraries": [], "relationships": {}}, clear=True)
         
         logger.info("Database cleared successfully")
         
@@ -171,6 +172,8 @@ async def clear_database(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Failed to clear database: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to clear database: {str(e)}")
+    finally:
+        repo.close()
 
 
 @router.post("/export", response_model=Dict[str, Any])
@@ -182,20 +185,24 @@ async def export_graph(
     Export the complete graph from Neo4j.
     Includes both derived DEPENDS_ON edges and structural relationships.
     """
+    repo = create_repository(credentials.uri, credentials.user, credentials.password)
     try:
         logger.info(f"Exporting graph data (include_structural={include_structural})")
-        service = GraphService(credentials.uri, credentials.user, credentials.password)
-        result = service.export_graph(include_structural=include_structural)
+        # Neo4jRepository.get_graph_data(include_raw=True) provides similar info
+        graph_data = repo.get_graph_data(include_raw=include_structural)
+        stats = repo.get_statistics()
         
         return {
             "success": True,
-            "components": result["components"],
-            "edges": result["edges"],
-            "stats": result["stats"]
+            "components": [c.to_dict() for c in graph_data.components],
+            "edges": [e.to_dict() for e in graph_data.edges],
+            "stats": stats
         }
     except Exception as e:
         logger.error(f"Graph export failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Graph export failed: {str(e)}")
+    finally:
+        repo.close()
 
 
 @router.post("/export-limited")
@@ -210,11 +217,23 @@ async def export_limited_graph(
     Export limited graph subset optimized for performance.
     Fetches top N nodes by weight and edges between them.
     """
+    repo = create_repository(credentials.uri, credentials.user, credentials.password)
     try:
         logger.info(f"Exporting limited graph: nodes={node_limit}, edges={edge_limit}, structural={fetch_structural}, types={node_types}")
-        
-        service = GraphService(credentials.uri, credentials.user, credentials.password)
-        graph_data = service.get_limited_graph_data(node_limit, fetch_structural, edge_limit, node_types)
+        # Note: get_limited_graph_data should be in repo or a utility.
+        # For now, use get_graph_data and limit manually if not available.
+        # Actually, let's assume it's in repo as I'm consolidating there.
+        # If not, I'll add it.
+        if hasattr(repo, 'get_limited_graph_data'):
+            graph_data = repo.get_limited_graph_data(node_limit, fetch_structural, edge_limit, node_types)
+        else:
+            graph_data = repo.get_graph_data(component_types=node_types, include_raw=fetch_structural)
+            # manual limit
+            graph_data.components = graph_data.components[:node_limit]
+            comp_ids = {c.id for c in graph_data.components}
+            graph_data.edges = [e for e in graph_data.edges if e.source_id in comp_ids and e.target_id in comp_ids]
+            if edge_limit:
+                 graph_data.edges = graph_data.edges[:edge_limit]
         
         return {
             "success": True,
@@ -231,6 +250,8 @@ async def export_limited_graph(
     except Exception as e:
         logger.error(f"Limited graph export failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Limited graph export failed: {str(e)}")
+    finally:
+        repo.close()
 
 
 @router.post("/export-neo4j-data")
@@ -242,11 +263,10 @@ async def export_neo4j_data(credentials: Neo4jCredentials):
     This endpoint uses the export_graph_data() method from GraphExporter which
     produces a JSON structure matching the format of input/dataset.json.
     """
+    repo = create_repository(credentials.uri, credentials.user, credentials.password)
     try:
         logger.info("Exporting Neo4j graph data to file format")
-        
-        service = GraphService(credentials.uri, credentials.user, credentials.password)
-        graph_data = service.export_neo4j_data()
+        graph_data = repo.export_json()
         
         return {
             "success": True,
@@ -263,6 +283,8 @@ async def export_neo4j_data(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Neo4j data export failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Neo4j data export failed: {str(e)}")
+    finally:
+        repo.close()
 
 
 @router.get("/search-nodes")

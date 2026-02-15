@@ -28,8 +28,9 @@ from typing import List
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.application.container import Container
-from src.domain.models.visualization.layer_data import LAYER_DEFINITIONS
+from src.core import create_repository
+from src.visualization import VisualizationService, LAYER_DEFINITIONS
+from src.cli.console import ConsoleDisplay
 
 
 def display_available_layers(display) -> None:
@@ -55,9 +56,9 @@ def run_demo(output_file: str, open_browser: bool) -> int:
     features and visual encodings without requiring a database connection.
     """
     try:
-        from src.domain.models.visualization.layer_data import LayerData, ComponentDetail
-        from src.application.services.visualization.chart_generator import ChartGenerator
-        from src.application.services.visualization.dashboard_generator import DashboardGenerator
+        from src.visualization import LayerData, ComponentDetail
+        from src.visualization.charts import ChartGenerator
+        from src.visualization.dashboard import DashboardGenerator
 
         print("Generating demo dashboard (no Neo4j required)...")
 
@@ -235,11 +236,13 @@ Examples:
         return run_demo(args.output, args.open)
 
     # ── Normal Mode ──────────────────────────────────────────────────────
-    container = Container(uri=args.uri, user=args.user, password=args.password)
-    display = container.display_service()
+    # Initialize repository and services
+    repo = create_repository(uri=args.uri, user=args.user, password=args.password)
+    display = ConsoleDisplay()
 
     if args.list_layers:
         display_available_layers(display)
+        repo.close()
         return 0
 
     # Determine layers
@@ -253,6 +256,7 @@ Examples:
     valid_layers = [l for l in layers if l in LAYER_DEFINITIONS]
     if not valid_layers:
         print(display.colored("✗ No valid layers specified", display.Colors.RED))
+        repo.close()
         return 1
 
     display.print_header("SOFTWARE-AS-A-GRAPH VISUALIZATION", "═")
@@ -282,7 +286,22 @@ Examples:
         )
 
     try:
-        viz_service = container.visualization_service()
+        from src.analysis import AnalysisService
+        from src.simulation import SimulationService
+        from src.validation import ValidationService
+        from src.visualization import VisualizationService
+        
+        analysis_service = AnalysisService(repo)
+        simulation_service = SimulationService(repo)
+        validation_service = ValidationService(analysis_service, simulation_service)
+        
+        viz_service = VisualizationService(
+            analysis_service=analysis_service,
+            simulation_service=simulation_service,
+            validation_service=validation_service,
+            repository=repo
+        )
+        
         output_path = viz_service.generate_dashboard(
             output_file=args.output,
             layers=valid_layers,
@@ -312,7 +331,7 @@ Examples:
         logging.exception("Visualization failed")
         return 1
     finally:
-        container.close()
+        repo.close()
 
 
 if __name__ == "__main__":

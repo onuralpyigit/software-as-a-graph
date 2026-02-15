@@ -7,8 +7,9 @@ from typing import Dict, Any, List, Optional
 import logging
 
 from api.models import Neo4jCredentials
-from src.analysis.analyzer import GraphAnalyzer
-from src.domain.services.classifier import BoxPlotClassifier
+from src.core import create_repository
+from src.analysis.structural_analyzer import StructuralAnalyzer
+from src.analysis.classifier import BoxPlotClassifier
 
 router = APIRouter(prefix="/api/v1", tags=["classification"])
 logger = logging.getLogger(__name__)
@@ -30,20 +31,21 @@ async def classify_components(
     try:
         logger.info(f"Running classification: metrics={metrics}, fuzzy={use_fuzzy}, weights={use_weights}")
         
-        with GraphAnalyzer(credentials.uri, credentials.user, credentials.password) as analyzer:
+        repo = create_repository(credentials.uri, credentials.user, credentials.password)
+        try:
             # Get graph data first
-            client = analyzer._get_client()
-            graph_data = client.get_graph_data()
+            graph_data = repo.get_graph_data()
             
             # Filter by dependency types if specified
             if dependency_types:
                 filtered_edges = [e for e in graph_data.edges if e.dependency_type in dependency_types]
                 # Create filtered GraphData
-                from src.core.graph_exporter import GraphData
+                from src.core.models import GraphData
                 graph_data = GraphData(components=graph_data.components, edges=filtered_edges)
             
             # Run structural analysis
-            structural = analyzer.structural.analyze(graph_data)
+            analyzer = StructuralAnalyzer()
+            structural = analyzer.analyze(graph_data)
             
             # Prepare metrics for classification
             metrics_to_use = metrics or ['betweenness', 'pagerank', 'degree']
@@ -138,6 +140,8 @@ async def classify_components(
                     "dependency_types": dependency_types
                 }
             }
+        finally:
+            repo.close()
     except Exception as e:
         logger.error(f"Classification failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Classification failed: {str(e)}")

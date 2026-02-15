@@ -32,9 +32,9 @@ import json
 import logging
 from datetime import datetime
 
-from src.application.container import Container
-from src.domain.config.layers import AnalysisLayer, list_layers
-from src.domain.models.analysis.results import MultiLayerAnalysisResult
+from src.core import create_repository, AnalysisLayer
+from src.analysis import AnalysisService, MultiLayerAnalysisResult
+from src.cli.console import ConsoleDisplay
 
 
 # ---------------------------------------------------------------------------
@@ -109,20 +109,15 @@ examples:
 def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
     """
     Execute analysis based on parsed CLI arguments.
-
-    Returns a MultiLayerAnalysisResult regardless of whether a single layer
-    or all layers were requested, providing a uniform interface for display
-    and export.
     """
-    container = Container(uri=args.uri, user=args.user, password=args.password)
+    repo = create_repository(uri=args.uri, user=args.user, password=args.password)
+    analyzer = AnalysisService(repo, use_ahp=args.use_ahp)
 
     try:
-        analyzer = container.analysis_service(use_ahp=args.use_ahp)
-
         if args.all:
             return analyzer.analyze_all_layers()
 
-        # Single-layer analysis — wrap in MultiLayerAnalysisResult for consistency
+        # Single-layer analysis
         layer_result = analyzer.analyze_layer(args.layer)
         return MultiLayerAnalysisResult(
             timestamp=datetime.now().isoformat(),
@@ -130,7 +125,7 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
             cross_layer_insights=[],
         )
     finally:
-        container.close()
+        repo.close()
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +150,7 @@ def main() -> int:
 
     # --list-layers: informational, then exit
     if args.list_layers:
+        from src.core import list_layers
         print(list_layers())
         return 0
 
@@ -170,8 +166,8 @@ def main() -> int:
         datefmt="%H:%M:%S",
     )
 
-    container = Container(uri=args.uri, user=args.user, password=args.password)
-    display = container.display_service()
+    # Initialize display
+    display = ConsoleDisplay()
 
     try:
         # Run the analysis pipeline
@@ -181,10 +177,7 @@ def main() -> int:
         if args.output:
             export_json(results, args.output)
             if not args.quiet:
-                print(display.colored(
-                    f"\n✓ Results exported to: {args.output}",
-                    display.Colors.GREEN,
-                ))
+                print(f"\n✓ Results exported to: {args.output}")
 
         # Display to stdout
         if args.json:
@@ -195,13 +188,10 @@ def main() -> int:
         return 0
 
     except Exception as exc:
-        print(display.colored(f"Error: {exc}", display.Colors.RED), file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         if args.verbose:
             logging.exception("Analysis failed")
         return 1
-
-    finally:
-        container.close()
 
 
 if __name__ == "__main__":

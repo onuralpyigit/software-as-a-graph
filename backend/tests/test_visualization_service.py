@@ -17,14 +17,14 @@ import pytest
 from unittest.mock import MagicMock, patch, PropertyMock
 from dataclasses import dataclass
 
-from src.application.services.visualization.layer_data import (
+from src.visualization import (
     LayerData, ComponentDetail, LAYER_DEFINITIONS,
 )
-from src.application.services.visualization.chart_generator import (
+from src.visualization.charts import (
     ChartGenerator, CRITICALITY_COLORS, RMAV_COLORS,
 )
-from src.application.services.visualization.data_collector import LayerDataCollector
-from src.application.services.visualization_service import VisualizationService
+from src.visualization.collector import LayerDataCollector
+from src.visualization import VisualizationService
 
 
 # =========================================================================
@@ -510,7 +510,7 @@ class TestVisualizationService:
             mock_collector.collect_layer_data.return_value = mock_data
 
             with patch(
-                "src.application.services.visualization_service.DashboardGenerator"
+                "src.visualization.dashboard.DashboardGenerator"
             ) as MockDash:
                 dash_instance = MockDash.return_value
                 dash_instance.generate.return_value = "<html>Dashboard</html>"
@@ -542,7 +542,7 @@ class TestVisualizationService:
 
             with patch.object(service, "_add_layer_section") as mock_add:
                 with patch(
-                    "src.application.services.visualization_service.DashboardGenerator"
+                    "src.visualization.dashboard.DashboardGenerator"
                 ) as MockDash:
                     dash_instance = MockDash.return_value
                     dash_instance.generate.return_value = "<html></html>"
@@ -571,7 +571,7 @@ class TestVisualizationService:
         )
 
         with patch(
-            "src.application.services.visualization_service.DashboardGenerator"
+            "src.visualization.dashboard.DashboardGenerator"
         ) as MockDash:
             dash_instance = MockDash.return_value
             dash_instance.generate.return_value = "<html></html>"
