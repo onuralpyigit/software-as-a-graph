@@ -421,12 +421,12 @@ export default function DashboardPage() {
                         </Badge>
                       </div>
                       <Progress
-                        value={(count / stats.total_edges) * 100}
+                        value={(count / (stats.total_dependency_edges || 1)) * 100}
                         className="h-2.5 bg-slate-200 dark:bg-slate-700"
                       />
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{((count / stats.total_edges) * 100).toFixed(1)}%</span>
-                        <span>of {stats.total_edges.toLocaleString()} total</span>
+                        <span>{((count / (stats.total_dependency_edges || 1)) * 100).toFixed(1)}%</span>
+                        <span>of {(stats.total_dependency_edges || 0).toLocaleString()} total</span>
                       </div>
                     </div>
                   ))}

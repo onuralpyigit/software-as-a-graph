@@ -3002,7 +3002,7 @@ export default function SimulationPage() {
 
                 {/* Recommendations */}
                 {/* Recommendations */}
-                {report.recommendations.length > 0 && (
+                {report.recommendations && report.recommendations.length > 0 && (
                   <div>
                     <div className="mb-4 flex items-center gap-3">
                       <div className="rounded-xl bg-gradient-to-br from-green-600 via-emerald-600 to-green-700 p-2.5 shadow-lg">
@@ -3031,7 +3031,7 @@ export default function SimulationPage() {
                       </CardHeader>
                       <CardContent className="relative">
                         <div className="space-y-3">
-                          {report.recommendations.map((rec, index) => (
+                          {(report.recommendations || []).map((rec, index) => (
                             <div key={index} className="flex gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/30 hover:bg-green-100 dark:hover:bg-green-950/40 transition-colors">
                               <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 text-xs font-bold text-green-600 dark:text-green-400 shrink-0 mt-0.5">
                                 {index + 1}

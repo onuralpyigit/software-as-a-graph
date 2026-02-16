@@ -64,6 +64,35 @@ async def run_validation_pipeline(request: ValidationRequest):
         # Transform the result to match frontend expectations
         result_dict = result.to_dict()
         
+        # Enhance layer results with missing 'data' field expected by frontend
+        enhanced_layers = {}
+        for layer_key, layer_result in result_dict["layers"].items():
+            # Get the original LayerValidationResult object to access all fields
+            original_layer = result.layers[layer_key]
+            
+            # Add the missing 'data' field
+            enhanced_layer = dict(layer_result)
+            enhanced_layer["data"] = {
+                "predicted_components": original_layer.predicted_components,
+                "simulated_components": original_layer.simulated_components,
+                "matched_components": original_layer.matched_components,
+            }
+            
+            # Ensure summary has all required fields
+            if "summary" not in enhanced_layer:
+                enhanced_layer["summary"] = {}
+            enhanced_layer["summary"].update({
+                "passed": original_layer.passed,
+                "spearman": round(original_layer.spearman, 4),
+                "f1_score": round(original_layer.f1_score, 4),
+                "precision": round(original_layer.precision, 4),
+                "recall": round(original_layer.recall, 4),
+                "top_5_overlap": round(original_layer.top_5_overlap, 4),
+                "rmse": round(original_layer.rmse, 4),
+            })
+            
+            enhanced_layers[layer_key] = enhanced_layer
+        
         # Restructure response for frontend compatibility
         transformed_result = {
             "timestamp": result_dict["timestamp"],
@@ -73,7 +102,7 @@ async def run_validation_pipeline(request: ValidationRequest):
                 "layers_passed": result_dict["layers_passed"],
                 "all_passed": result_dict["all_passed"],
             },
-            "layers": result_dict["layers"],
+            "layers": enhanced_layers,
             "cross_layer_insights": result_dict.get("warnings", []),
             "targets": result_dict["targets"],
         }

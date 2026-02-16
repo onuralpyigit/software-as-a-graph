@@ -93,10 +93,13 @@ async def import_graph(request: ImportGraphRequest):
     3. Derive DEPENDS_ON relationships
     4. Calculate component weights
     """
-    repo = create_repository(creds.uri, creds.user, creds.password, creds.database)
+    repo = create_repository(request.credentials.uri, request.credentials.user, request.credentials.password)
     try:
         logger.info(f"Importing graph data (clear={request.clear_database})")
-        stats = repo.save_graph(request.graph_data, clear=request.clear_database)
+        repo.save_graph(request.graph_data, clear=request.clear_database)
+        
+        # Get statistics after import
+        stats = repo.get_statistics()
         
         return {
             "success": True,
@@ -120,7 +123,7 @@ async def generate_and_import_graph(
     """
     Convenience endpoint to generate and immediately import a graph.
     """
-    repo = create_repository(credentials.uri, credentials.user, credentials.password, credentials.database)
+    repo = create_repository(credentials.uri, credentials.user, credentials.password)
     try:
         # Generate
         logger.info(f"Generating graph: scale={scale}, seed={seed}")
@@ -129,7 +132,10 @@ async def generate_and_import_graph(
         
         # Import
         logger.info(f"Importing generated graph (clear={clear_database})")
-        stats = repo.save_graph(graph_data, clear=clear_database)
+        repo.save_graph(graph_data, clear=clear_database)
+        
+        # Get statistics after import
+        stats = repo.get_statistics()
         
         return {
             "success": True,
@@ -300,11 +306,11 @@ async def search_nodes(
     Search for nodes across the entire database by ID or label.
     Returns matching nodes without their connections.
     """
+    repo = create_repository(uri, user, password)
     try:
         logger.info(f"Searching nodes with query: {query}, limit={limit}")
         
-        service = GraphService(uri, user, password)
-        nodes = service.search_nodes(query, limit)
+        nodes = repo.search_nodes(query, limit)
                 
         logger.info(f"Found {len(nodes)} nodes matching query: {query}")
         return {
@@ -317,6 +323,8 @@ async def search_nodes(
     except Exception as e:
         logger.error(f"Node search failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Node search failed: {str(e)}")
+    finally:
+        repo.close()
 
 
 @router.post("/node-connections")
@@ -333,14 +341,14 @@ async def get_node_connections(
     depth=2: neighbors and their neighbors  
     depth=3: three levels of connections
     """
+    repo = create_repository(credentials.uri, credentials.user, credentials.password)
     try:
         logger.info(f"Fetching connections for node: {node_id}, structural={fetch_structural}, depth={depth}")
         
         # Clamp depth to valid range
         depth = max(1, min(3, depth))
         
-        service = GraphService(credentials.uri, credentials.user, credentials.password)
-        components, edges = service.get_node_connections(node_id, fetch_structural, depth)
+        components, edges = repo.get_node_connections(node_id, fetch_structural, depth)
         
         logger.info(f"Fetched {len(components)} connected nodes and {len(edges)} edges for node {node_id} at depth {depth}")
         
@@ -358,6 +366,8 @@ async def get_node_connections(
     except Exception as e:
         logger.error(f"Failed to fetch node connections: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch node connections: {str(e)}")
+    finally:
+        repo.close()
 
 
 @router.post("/topology")
@@ -372,11 +382,11 @@ async def get_topology_data(
     - Node type clicked: Show Applications and Brokers running on that Node (RUNS_ON)
     - Application type clicked: Show Topics (PUBLISHES_TO/SUBSCRIBES_TO) and Libraries (USES)
     """
+    repo = create_repository(credentials.uri, credentials.user, credentials.password)
     try:
         logger.info(f"Fetching topology data, node_id={node_id}, limit={node_limit}")
         
-        service = GraphService(credentials.uri, credentials.user, credentials.password)
-        components, edges = service.get_topology_data(node_id, node_limit)
+        components, edges = repo.get_topology_data(node_id, node_limit)
             
         logger.info(f"Fetched {len(components)} components and {len(edges)} edges for topology view")
             
@@ -393,3 +403,5 @@ async def get_topology_data(
     except Exception as e:
         logger.error(f"Failed to fetch topology data: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch topology data: {str(e)}")
+    finally:
+        repo.close()

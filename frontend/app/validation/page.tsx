@@ -877,16 +877,16 @@ function LayerResultCard({
           <div className="grid grid-cols-3 gap-4">
             <div className="p-3 border rounded-lg bg-muted/20">
               <p className="text-xs text-muted-foreground">Predicted</p>
-              <p className="text-xl font-bold">{layer.data.predicted_components}</p>
+              <p className="text-xl font-bold">{layer.data?.predicted_components ?? 0}</p>
             </div>
             <div className="p-3 border rounded-lg bg-muted/20">
               <p className="text-xs text-muted-foreground">Simulated</p>
-              <p className="text-xl font-bold">{layer.data.simulated_components}</p>
+              <p className="text-xl font-bold">{layer.data?.simulated_components ?? 0}</p>
             </div>
             <div className="p-3 border rounded-lg bg-muted/20">
               <p className="text-xs text-muted-foreground">Matched</p>
               <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                {layer.data.matched_components}
+                {layer.data?.matched_components ?? 0}
               </p>
             </div>
           </div>
@@ -972,12 +972,12 @@ function MetricRow({
   higherBetter,
 }: {
   label: string
-  value: number
+  value: number | undefined
   target: number
   higherBetter: boolean
 }) {
-  const passed = higherBetter ? value >= target : value <= target
-  const percentage = (value / target) * 100
+  const passed = value != null && (higherBetter ? value >= target : value <= target)
+  const percentage = value != null ? (value / target) * 100 : 0
 
   return (
     <div className="space-y-2">
@@ -985,7 +985,7 @@ function MetricRow({
         <span className="font-medium">{label}</span>
         <div className="flex items-center gap-2">
           <span className={passed ? "text-green-600 dark:text-green-400 font-bold" : "text-yellow-600 dark:text-yellow-400 font-bold"}>
-            {value.toFixed(4)}
+            {value != null ? value.toFixed(4) : "N/A"}
           </span>
           <span className="text-muted-foreground">
             {higherBetter ? "≥" : "≤"} {target.toFixed(2)}
