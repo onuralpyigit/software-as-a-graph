@@ -15,6 +15,7 @@ from .models import (
     EventScenario,
     FailureScenario,
 )
+from src.core.interfaces import IGraphRepository
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class SimulationService:
     Orchestrates EventSimulator and FailureSimulator directly.
     """
 
-    def __init__(self, repository):
+    def __init__(self, repository: IGraphRepository):
         self.repository = repository
 
     def _get_graph(self) -> SimulationGraph:

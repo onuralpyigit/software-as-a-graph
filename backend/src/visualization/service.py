@@ -23,9 +23,7 @@ from .models import LayerData, LAYER_DEFINITIONS
 from .charts import ChartGenerator
 from .dashboard import DashboardGenerator
 from .collector import LayerDataCollector
-
-# Services for type hinting (using Any to avoid circular dependencies)
-from typing import Any
+from src.core.interfaces import IGraphRepository
 
 
 class VisualizationService:
@@ -42,7 +40,7 @@ class VisualizationService:
         analysis_service: Any,
         simulation_service: Any,
         validation_service: Any,
-        repository: Any,  # IGraphRepository
+        repository: IGraphRepository,
         chart_generator: Optional[ChartGenerator] = None,
     ):
         self.analysis_service = analysis_service

@@ -7,6 +7,7 @@ from .quality_analyzer import QualityAnalyzer
 from .problem_detector import ProblemDetector
 from .models import MultiLayerAnalysisResult, LayerAnalysisResult
 from src.core.layers import AnalysisLayer, get_layer_definition
+from src.core.interfaces import IGraphRepository
 
 class AnalysisService:
     """
@@ -14,7 +15,7 @@ class AnalysisService:
     Orchestrates StructuralAnalyzer, QualityAnalyzer, and ProblemDetector.
     """
 
-    def __init__(self, repository, use_ahp: bool = False):
+    def __init__(self, repository: IGraphRepository, use_ahp: bool = False):
         self.repository = repository
         self.use_ahp = use_ahp
 

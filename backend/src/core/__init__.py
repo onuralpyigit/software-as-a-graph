@@ -1,6 +1,7 @@
 """
 Core Logic and Repository
 """
+from .interfaces import IGraphRepository
 from .neo4j_repo import Neo4jRepository, create_repository
 from .layers import (
     AnalysisLayer, 
@@ -15,7 +16,6 @@ from .models import (
     GraphData,
     ComponentData,
     EdgeData,
-    GraphSummary,
     QoSPolicy,
     Application,
     Broker,
@@ -27,6 +27,7 @@ from .models import (
 from .metrics import (
     StructuralMetrics,
     EdgeMetrics,
+    GraphSummary,
     QualityScores,
     QualityLevels,
     ComponentQuality,
@@ -41,6 +42,7 @@ from .criticality import (
 )
 
 __all__ = [
+    "IGraphRepository",
     "Neo4jRepository",
     "create_repository",
     "AnalysisLayer",

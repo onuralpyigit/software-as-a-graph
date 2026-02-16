@@ -10,10 +10,11 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Add project root to path if running from bin/
+# Add backend to path if running from bin/
 project_root = Path(__file__).resolve().parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+backend_path = project_root / "backend"
+if str(backend_path) not in sys.path:
+    sys.path.insert(0, str(backend_path))
 
 from src.generation import GenerationService, load_config, generate_graph
 

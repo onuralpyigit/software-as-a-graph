@@ -57,15 +57,11 @@ def test_get_graph_stats(MockService, mock_graph_data):
     mock_service.get_graph_stats.assert_called_once()
 
 
-
-@patch("api.routers.statistics.stats_logic")
-@patch("api.routers.statistics.create_repository")
-def test_get_connectivity_density_stats(mock_create_repo, mock_stats_logic, mock_graph_data):
+@patch("api.routers.statistics.StatisticsService")
+def test_get_connectivity_density_stats(MockService, mock_graph_data):
     # Setup mocks
-    mock_repo = mock_create_repo.return_value
-    mock_repo.get_graph_data.return_value = mock_graph_data
-    
-    mock_stats_logic.get_connectivity_density.return_value = {
+    mock_service = MockService.return_value
+    mock_service.get_connectivity_density.return_value = {
         "density": 0.5,
         "avg_degree": 1.0,
         "computation_time_ms": 10
@@ -83,16 +79,32 @@ def test_get_connectivity_density_stats(mock_create_repo, mock_stats_logic, mock
     assert data["success"] is True
     assert data["stats"]["density"] == 0.5
     
-    mock_create_repo.assert_called_once()
-    mock_stats_logic.get_connectivity_density.assert_called_once()
+    MockService.assert_called_once()
+    mock_service.get_connectivity_density.assert_called_once()
 
 
-@patch("api.routers.statistics.create_repository")
-def test_get_message_flow_patterns(mock_create_repo, mock_graph_data):
+@patch("api.routers.statistics.StatisticsService")
+def test_get_message_flow_patterns(MockService, mock_graph_data):
     # Setup mocks
-    mock_repo = mock_create_repo.return_value
-    mock_repo.get_graph_data.return_value = mock_graph_data
-    mock_repo.get_statistics.return_value = {}
+    mock_service = MockService.return_value
+    mock_service.get_message_flow_patterns.return_value = {
+        "total_topics": 0,
+        "total_brokers": 0,
+        "total_applications": 2,
+        "active_applications": 0,
+        "avg_publishers_per_topic": 0,
+        "avg_subscribers_per_topic": 0,
+        "avg_topics_per_broker": 0,
+        "interpretation": "Message flow appears well distributed",
+        "category": "balanced",
+        "health": "good",
+        "hot_topics": [],
+        "broker_utilization": [],
+        "isolated_applications": [],
+        "top_publishers": [],
+        "top_subscribers": [],
+        "computation_time_ms": 1.0,
+    }
 
     response = client.post("/api/v1/stats/message-flow-patterns", json={
         "uri": "bolt://localhost:7687", 
@@ -103,7 +115,5 @@ def test_get_message_flow_patterns(mock_create_repo, mock_graph_data):
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
-    # The endpoint calculates stats based on graph data, checking strict structure might be brittle
-    # but at least it should succeed
     assert "stats" in data
-    mock_create_repo.assert_called_once()
+    MockService.assert_called_once()
