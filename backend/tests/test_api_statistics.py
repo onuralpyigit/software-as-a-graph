@@ -57,13 +57,18 @@ def test_get_graph_stats(MockService, mock_graph_data):
     mock_service.get_graph_stats.assert_called_once()
 
 
-@patch("api.routers.statistics.StatisticsService")
-def test_get_connectivity_density_stats(MockService):
+
+@patch("api.routers.statistics.stats_logic")
+@patch("api.routers.statistics.create_repository")
+def test_get_connectivity_density_stats(mock_create_repo, mock_stats_logic, mock_graph_data):
     # Setup mocks
-    mock_service = MockService.return_value
-    mock_service.get_connectivity_density.return_value = {
+    mock_repo = mock_create_repo.return_value
+    mock_repo.get_graph_data.return_value = mock_graph_data
+    
+    mock_stats_logic.get_connectivity_density.return_value = {
         "density": 0.5,
-        "avg_degree": 1.0
+        "avg_degree": 1.0,
+        "computation_time_ms": 10
     }
     
     # Call endpoint
@@ -78,18 +83,16 @@ def test_get_connectivity_density_stats(MockService):
     assert data["success"] is True
     assert data["stats"]["density"] == 0.5
     
-    mock_service.get_connectivity_density.assert_called_once()
-    
-@patch("api.routers.statistics.StatisticsService")
-def test_get_message_flow_patterns(MockService):
+    mock_create_repo.assert_called_once()
+    mock_stats_logic.get_connectivity_density.assert_called_once()
+
+
+@patch("api.routers.statistics.create_repository")
+def test_get_message_flow_patterns(mock_create_repo, mock_graph_data):
     # Setup mocks
-    mock_service = MockService.return_value
-    mock_service.get_message_flow_patterns.return_value = {
-        "sources": [],
-        "targets": [],
-        "hubs": [],
-        "sinks": []
-    }
+    mock_repo = mock_create_repo.return_value
+    mock_repo.get_graph_data.return_value = mock_graph_data
+    mock_repo.get_statistics.return_value = {}
 
     response = client.post("/api/v1/stats/message-flow-patterns", json={
         "uri": "bolt://localhost:7687", 
@@ -100,4 +103,7 @@ def test_get_message_flow_patterns(MockService):
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
-    mock_service.get_message_flow_patterns.assert_called_once()
+    # The endpoint calculates stats based on graph data, checking strict structure might be brittle
+    # but at least it should succeed
+    assert "stats" in data
+    mock_create_repo.assert_called_once()

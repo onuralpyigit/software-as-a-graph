@@ -20,9 +20,11 @@ from dataclasses import dataclass
 from src.visualization import (
     LayerData, ComponentDetail, LAYER_DEFINITIONS,
 )
+from src.visualization.models import ChartOutput, ColorTheme, DEFAULT_THEME
 from src.visualization.charts import (
     ChartGenerator, CRITICALITY_COLORS, RMAV_COLORS,
 )
+from src.visualization.dashboard import DashboardGenerator
 from src.visualization.collector import LayerDataCollector
 from src.visualization import VisualizationService
 
@@ -612,3 +614,84 @@ class TestColorConstants:
             assert "name" in defn
             assert "description" in defn
             assert "icon" in defn
+# =========================================================================
+# Merged Unit Tests from test_visualization.py
+# =========================================================================
+
+class TestColorTheme:
+    """Tests for configurable color themes."""
+    
+    def test_default_theme_has_all_colors(self):
+        """Default theme should have all required color attributes."""
+        theme = DEFAULT_THEME
+        assert theme.primary == "#3498db"
+        assert theme.success == "#2ecc71"
+        assert theme.danger == "#e74c3c"
+        assert theme.critical == "#e74c3c"
+        assert theme.layer_app == "#3498db"
+    
+    def test_custom_theme_override(self):
+        """Custom theme should override default colors."""
+        theme = ColorTheme(primary="#ff0000", success="#00ff00")
+        assert theme.primary == "#ff0000"
+        assert theme.success == "#00ff00"
+        # Non-overridden should use defaults
+        assert theme.danger == "#e74c3c"
+    
+    def test_theme_to_dict_conversions(self):
+        """Theme should convert to backwards-compatible dictionaries."""
+        theme = ColorTheme()
+        
+        colors_dict = theme.to_colors_dict()
+        assert "primary" in colors_dict
+        assert "danger" in colors_dict
+        
+        crit_dict = theme.to_criticality_dict()
+        assert "CRITICAL" in crit_dict
+        assert "LOW" in crit_dict
+        
+        layer_dict = theme.to_layer_dict()
+        assert "app" in layer_dict
+        assert "system" in layer_dict
+
+
+class TestChartOutput:
+    """Tests for chart output dataclass."""
+    
+    def test_chart_output_has_alt_text(self):
+        """ChartOutput should support alt_text for accessibility."""
+        chart = ChartOutput(
+            title="Test Chart",
+            png_base64="abc123",
+            alt_text="A bar chart showing component distribution"
+        )
+        assert chart.alt_text == "A bar chart showing component distribution"
+    
+    def test_chart_output_defaults(self):
+        """ChartOutput should have sensible defaults."""
+        chart = ChartOutput(title="Test", png_base64="data")
+        assert chart.description == ""
+        assert chart.alt_text == ""
+        assert chart.width == 600
+        assert chart.height == 400
+
+
+class TestDashboardGeneration:
+    """Tests for DashboardGenerator class."""
+    
+    def test_dashboard_basic_structure(self):
+        """Dashboard should generate valid HTML structure."""
+        dash = DashboardGenerator("Test Dash")
+        
+        dash.start_section("Section 1", "sec1")
+        dash.add_kpis({"Metric 1": 100})
+        dash.add_table(["Col1", "Col2"], [[1, "A"], [2, "B"]])
+        dash.end_section()
+        
+        html = dash.generate()
+        
+        assert "<!DOCTYPE html>" in html
+        assert "Test Dash" in html
+        assert "Metric 1" in html
+        assert "100" in html
+        assert "<td>A</td>" in html
