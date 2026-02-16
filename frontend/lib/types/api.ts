@@ -19,6 +19,7 @@ export interface GraphStatsResponse {
   total_nodes: number;
   total_edges: number;
   total_structural_edges?: number;
+  total_dependency_edges?: number;
   density: number;
   node_counts: Record<string, number>;
   edge_counts: Record<string, number>;

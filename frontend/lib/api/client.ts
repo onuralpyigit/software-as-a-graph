@@ -91,15 +91,75 @@ class GraphAnalysisAPI {
     const response = await this.client.post('/api/v1/stats', this.credentials);
     const data = response.data;
     
-    // Return data from new API format
+    // Transform backend format to expected frontend format
+    const stats = data.stats || {};
+    
+    // Calculate total nodes from component counts
+    const total_nodes = (
+      (stats.application_count || 0) +
+      (stats.broker_count || 0) +
+      (stats.node_count || 0) +
+      (stats.topic_count || 0) +
+      (stats.library_count || 0)
+    );
+    
+    // Calculate total edges from relationship counts
+    const total_structural_edges = (
+      (stats.runs_on_count || 0) +
+      (stats.routes_count || 0) +
+      (stats.publishes_to_count || 0) +
+      (stats.subscribes_to_count || 0) +
+      (stats.connects_to_count || 0) +
+      (stats.uses_count || 0)
+    );
+    
+    const total_dependency_edges = (
+      (stats.app_to_app_count || 0) +
+      (stats.node_to_node_count || 0) +
+      (stats.app_to_broker_count || 0) +
+      (stats.node_to_broker_count || 0)
+    );
+    
+    const total_edges = total_structural_edges + total_dependency_edges;
+    
+    // Build node_counts object - only include non-zero counts
+    const node_counts: Record<string, number> = {};
+    if (stats.application_count) node_counts.Application = stats.application_count;
+    if (stats.broker_count) node_counts.Broker = stats.broker_count;
+    if (stats.node_count) node_counts.Node = stats.node_count;
+    if (stats.topic_count) node_counts.Topic = stats.topic_count;
+    if (stats.library_count) node_counts.Library = stats.library_count;
+    
+    // Build edge_counts object - ONLY dependency edges (DEPENDS_ON breakdown), only non-zero
+    const edge_counts: Record<string, number> = {};
+    if (stats.app_to_app_count) edge_counts.app_to_app = stats.app_to_app_count;
+    if (stats.node_to_node_count) edge_counts.node_to_node = stats.node_to_node_count;
+    if (stats.app_to_broker_count) edge_counts.app_to_broker = stats.app_to_broker_count;
+    if (stats.node_to_broker_count) edge_counts.node_to_broker = stats.node_to_broker_count;
+    
+    // Build structural_edge_counts object - ONLY structural relationships, only non-zero
+    const structural_edge_counts: Record<string, number> = {};
+    if (stats.runs_on_count) structural_edge_counts.RUNS_ON = stats.runs_on_count;
+    if (stats.routes_count) structural_edge_counts.ROUTES = stats.routes_count;
+    if (stats.publishes_to_count) structural_edge_counts.PUBLISHES_TO = stats.publishes_to_count;
+    if (stats.subscribes_to_count) structural_edge_counts.SUBSCRIBES_TO = stats.subscribes_to_count;
+    if (stats.connects_to_count) structural_edge_counts.CONNECTS_TO = stats.connects_to_count;
+    if (stats.uses_count) structural_edge_counts.USES = stats.uses_count;
+    
+    // Calculate density (for directed graphs: edges / (nodes * (nodes - 1)))
+    const density = total_nodes > 1 
+      ? total_edges / (total_nodes * (total_nodes - 1))
+      : 0;
+    
     return {
-      total_nodes: data.stats.total_nodes || 0,
-      total_edges: data.stats.total_edges || 0,
-      total_structural_edges: data.stats.total_structural_edges || 0,
-      density: 0, // Calculate if needed
-      node_counts: data.stats.node_counts || {},
-      edge_counts: data.stats.edge_counts || {},
-      structural_edge_counts: data.stats.structural_edge_counts || {},
+      total_nodes,
+      total_edges,
+      total_structural_edges,
+      total_dependency_edges,
+      density,
+      node_counts,
+      edge_counts,
+      structural_edge_counts,
     };
   }
 

@@ -71,7 +71,13 @@ async def test_connection(credentials: Neo4jCredentials):
     try:
         logger.info(f"Testing Neo4j connection to {credentials.uri}")
         repo = create_repository(credentials.uri, credentials.user, credentials.password)
-        repo.check_connection()
+        
+        # Test connection with a simple query
+        with repo.driver.session(database=repo.database) as session:
+            result = session.run("RETURN 1 AS test")
+            record = result.single()
+            if record["test"] != 1:
+                raise Exception("Connection test query failed")
         
         return {
             "success": True,
