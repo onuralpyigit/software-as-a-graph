@@ -73,10 +73,10 @@ python bin/run.py --all --layer system
 
 ### 2. Frontend
 ```bash
-cd genieus
+cd frontend
 npm install
 npm run dev
-# Runs on http://localhost:3000
+# Runs on http://localhost:7000
 ```
 
 ### 3. CLI Tools Usage

@@ -46,6 +46,7 @@ services:
     ports:
       - "7000:7000"
     environment:
+      - PORT=7000
       - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - api
