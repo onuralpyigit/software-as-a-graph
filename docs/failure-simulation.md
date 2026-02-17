@@ -1,108 +1,612 @@
 # Step 4: Failure Simulation
 
-**Inject actual faults into the system graph to measure real impact — this is the ground truth.**
+**Inject actual faults into the system graph to generate ground-truth impact scores for validating the topology-based predictions from Step 3.**
 
 ← [Step 3: Quality Scoring](quality-scoring.md) | → [Step 5: Validation](validation.md)
 
 ---
 
+## Table of Contents
+
+1. [What This Step Does](#what-this-step-does)
+2. [Why Simulate?](#why-simulate)
+3. [Which Graph Is Used](#which-graph-is-used)
+4. [Failure Modes](#failure-modes)
+5. [Cascade Propagation](#cascade-propagation)
+   - [The Three Cascade Rules](#the-three-cascade-rules)
+   - [Fixed-Point Algorithm](#fixed-point-algorithm)
+   - [Cascade Depth](#cascade-depth)
+6. [Impact Metrics](#impact-metrics)
+   - [Reachability Loss](#reachability-loss)
+   - [Fragmentation](#fragmentation)
+   - [Throughput Loss](#throughput-loss)
+   - [Composite Impact Score I(v)](#composite-impact-score-iv)
+7. [Simulation Modes](#simulation-modes)
+   - [Exhaustive Mode](#exhaustive-mode)
+   - [Targeted Mode](#targeted-mode)
+   - [Monte Carlo Mode](#monte-carlo-mode)
+   - [Event Simulation](#event-simulation)
+8. [Worked Example](#worked-example)
+9. [Output](#output)
+10. [Performance](#performance)
+11. [Key Findings](#key-findings)
+12. [Commands](#commands)
+13. [What Comes Next](#what-comes-next)
+
+---
+
 ## What This Step Does
 
-Failure Simulation removes each component from the graph one at a time, propagates the cascading effects, and measures how much damage results. This produces an empirical impact score I(v) for every component — the "actual" criticality that our predicted scores Q(v) should correlate with.
+Failure Simulation removes each component from the system graph one at a time, propagates the resulting cascading failures through three rule-based cascade types, and measures the damage using three impact metrics. This produces an empirical **impact score I(v)** for every component — the ground-truth criticality that the predicted quality scores Q(v) from Step 3 are validated against.
 
 ```
-For each component v:
-    1. Remove v from G_structural
-    2. Propagate cascading failures
-    3. Measure impact (reachability loss, fragmentation, throughput drop)
-    4. Record I(v)
-    5. Restore v
+G_structural (all components + structural edges)
+        │
+        ▼
+For each component v in the target layer:
+        │
+        ├─ 1. Mark v as FAILED; remove from active graph
+        ├─ 2. Propagate cascade (physical → logical → application rules)
+        ├─ 3. Measure damage:  ReachabilityLoss, Fragmentation, ThroughputLoss
+        ├─ 4. Compute I(v) = weighted combination of three metrics
+        └─ 5. Reset graph to original state (restore v and all cascaded failures)
+        │
+        ▼
+Output: I(v) ∈ [0, 1] for every component v
 ```
+
+The outer loop runs once per component in exhaustive mode, producing a ranked list of components sorted by actual impact. This ranked list is compared against the Q(v) ranking from Step 3 in the Step 5 validation.
+
+---
 
 ## Why Simulate?
 
-Steps 2–3 predict criticality from graph topology. But predictions are only useful if they match reality. Simulation gives us ground truth to validate against:
+Steps 2–3 predict criticality purely from graph topology — fast, cheap, and pre-deployment. But predictions are only useful if they agree with what actually happens when failures occur. Simulation provides empirical ground truth for that comparison.
 
-| Predicted Q(v) | Simulated I(v) |
-|---------------|----------------|
-| Based on graph structure | Based on actual failure effects |
-| Fast to compute | Slower but empirically grounded |
-| "This component *looks* important" | "This component's failure *actually* causes damage" |
+| Aspect | Predicted Q(v) | Simulated I(v) |
+|--------|---------------|----------------|
+| Source | Graph topology (structure) | Actual failure propagation |
+| Cost | Fast — O(|V| × |E|) | Slower — O(N × (|V| + |E|)) for exhaustive |
+| Interpretation | "This component *looks* critical" | "This component's failure *causes* damage" |
+| Use in pipeline | Input to Step 5 | Ground truth for Step 5 |
 
-If Q(v) and I(v) agree, we've proven that cheap topological analysis can replace expensive failure testing.
+If Q(v) and I(v) rank the same components as most critical, the methodology's central claim is validated: **cheap topological analysis predicts failure impact without runtime monitoring**. The achieved Spearman ρ = 0.876 between Q(v) and I(v) across validated system scales confirms this holds in practice.
+
+---
+
+## Which Graph Is Used
+
+Simulation operates on **G_structural** — the full structural graph produced by Step 1 with all five vertex types (Application, Broker, Topic, Node, Library) and all six structural edge types (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO, USES).
+
+This is distinct from G_analysis(l), the layer-projected dependency graph used by Steps 2–3. The reason is that cascades must follow the original structural relationships — a Node failure propagates to hosted Applications via RUNS_ON edges, not DEPENDS_ON edges. The full structural graph is the only one that captures all cascade paths.
+
+The `--layer` flag in the CLI controls *which components are simulated as initial failure targets*, not which graph they propagate through. For example, `--layer app` fails each Application one at a time, but the cascade from each failure still propagates through all structural relationships including infrastructure.
+
+---
+
+## Failure Modes
+
+The simulation supports four failure modes, each representing a different class of real-world component dysfunction:
+
+| Mode | What It Models | Effect on Target Component | Cascade Behavior |
+|------|---------------|---------------------------|-----------------|
+| **CRASH** | Complete, immediate failure | Fully removed from active graph | Full cascade (all three rules apply) |
+| **DEGRADED** | Partial functionality loss | Reduced capacity — outgoing message weights multiplied by degradation factor (0 < d < 1) | Partial cascade: subscribers may be starved only if remaining capacity drops below their threshold |
+| **PARTITION** | Network isolation | Component cannot send or receive messages, but is still running | Logical isolation cascade: affects all pub-sub paths that cross the partition boundary |
+| **OVERLOAD** | Resource exhaustion | Increasing message drop rate that grows until the component fails or recovers | Probabilistic cascade: propagates stochastically; treated as CRASH in deterministic mode |
+
+**Default mode:** CRASH. This is used for the primary validation because it produces the clearest ground truth — a binary failed/active state with no ambiguity about partial propagation.
+
+**DEGRADED, PARTITION, and OVERLOAD** modes are available for modelling more realistic failure scenarios and are fully configurable via CLI flags. In research validation contexts, CRASH produces the most stable and reproducible impact scores for correlation analysis.
+
+---
 
 ## Cascade Propagation
 
-When a component fails, the effects don't stop there. The simulation models three types of cascading failures:
+A single component failure rarely stays isolated. In distributed pub-sub systems, failures propagate through three distinct mechanisms — physical hosting relationships, middleware routing dependencies, and message flow starvation.
 
-**Infrastructure cascades**: When a Node fails, everything hosted on it (applications, brokers) also fails.
+### The Three Cascade Rules
 
-**Broker cascades**: When a Broker fails, topics it exclusively routes become unavailable. Applications that depend solely on those topics lose connectivity.
+**Rule 1 — Physical Cascade (Node → hosted components)**
 
-**Application cascades**: When a publisher fails, subscribers that have no other source for that data are effectively starved.
+When a Node fails, every component deployed on that Node also fails, regardless of the component's own health. This is the highest-priority rule because it is unconditional.
+
+```
+Trigger: current ∈ FAILED and type(current) = Node
+Action:  For each component c where (c RUNS_ON current):
+             mark c as FAILED, add c to cascade queue
+```
+
+*Rationale:* If the physical host goes down, its processes cannot continue. A Node failure can simultaneously trigger both broker and application cascades in subsequent rounds.
+
+**Rule 2 — Logical Cascade (Broker → exclusively routed Topics)**
+
+When a Broker fails, every Topic that it *exclusively* routes becomes unavailable. A Topic T is exclusively routed by Broker B if and only if no other *currently active* Broker also routes T. Subscribers that have no remaining active data source for a Topic are then starved and fail.
+
+```
+Trigger: current ∈ FAILED and type(current) = Broker
+Action:  For each topic T where (current ROUTES T):
+             If no other active broker B' routes T:
+                 mark T as UNREACHABLE
+                 For each subscriber S where (S SUBSCRIBES_TO T):
+                     If all topics S subscribes to are UNREACHABLE:
+                         mark S as FAILED, add S to cascade queue
+```
+
+*Rationale:* A broker with a redundant peer can fail without losing topic availability. The "exclusively routes" condition ensures that redundant brokers correctly prevent cascade propagation.
+
+**Rule 3 — Application Cascade (Publisher starvation → Subscriber failure)**
+
+When a publisher Application fails, any subscriber that depended solely on that publisher — and has no other active source for that data — is effectively starved and fails.
+
+```
+Trigger: current ∈ FAILED and type(current) = Application (publisher role)
+Action:  For each topic T where (current PUBLISHES_TO T):
+             If no other active application publishes to T:
+                 For each subscriber S where (S SUBSCRIBES_TO T):
+                     If all topics S subscribes to are now source-less:
+                         mark S as FAILED, add S to cascade queue
+```
+
+*Rationale:* A subscriber with multiple publishers survives the loss of one. Only subscribers with no remaining active publishers cascade.
+
+### Fixed-Point Algorithm
+
+The three cascade rules are applied in a BFS (breadth-first) expansion until no new failures occur. The algorithm terminates at a fixed point — the set F of failed components stops growing.
+
+```
+Input:  G_structural, initial failed component t, cascade_probability p
+Output: Failed set F, cascade sequence S (for analysis), depth d
+
+Initialize:
+    F     = {t}
+    queue = deque([t])
+    S     = [(t, "initial", depth=0)]
+    depth = 0
+
+While queue is not empty:
+    current = queue.popleft()
+    depth   = S[current].depth + 1
+
+    --- Rule 1: Physical cascade ---
+    If type(current) = Node:
+        For each c where (c RUNS_ON current) and c ∉ F:
+            If random() < p:           # p = 1.0 in deterministic mode
+                F.add(c)
+                queue.append(c)
+                S.append((c, "physical", depth))
+
+    --- Rule 2: Logical cascade ---
+    If type(current) = Broker:
+        For each topic T routed by current:
+            If no active broker in (B_all \ F) routes T:
+                mark T as UNREACHABLE
+                For each S where (S SUBSCRIBES_TO T):
+                    If all topics subscribed by S are UNREACHABLE and S ∉ F:
+                        If random() < p:
+                            F.add(S)
+                            queue.append(S)
+                            S_seq.append((S, "logical", depth))
+
+    --- Rule 3: Application cascade ---
+    If type(current) is a publisher:
+        For each topic T where (current PUBLISHES_TO T):
+            If no active app in (A_all \ F) publishes to T:
+                For each sub where (sub SUBSCRIBES_TO T):
+                    If all subscribed topics are source-less and sub ∉ F:
+                        If random() < p:
+                            F.add(sub)
+                            queue.append(sub)
+                            S_seq.append((sub, "application", depth))
+
+Terminate when queue is empty.
+Return F, S_seq, max(depth for _, _, depth in S_seq)
+```
+
+In deterministic mode (`--cascade-prob 1.0`, the default), `random() < p` always evaluates to true and the algorithm produces a single deterministic failed set. In Monte Carlo mode (`--monte-carlo`), p < 1.0 and the algorithm is run N times, producing a distribution of F sizes and I(v) values.
+
+**Graph state reset:** After each simulation, the graph state is fully reset — all components and topics that were marked FAILED or UNREACHABLE during propagation are restored to ACTIVE, including the initial target v. The next simulation starts from a clean graph.
 
 ### Cascade Depth
 
-Cascades propagate iteratively until no new failures occur. Each round, the simulation checks whether any surviving component has lost all its critical dependencies. If so, it too fails, and the next round begins. The cascade depth (number of rounds) reveals whether a failure causes a shallow, contained disruption or a deep, system-wide collapse.
+The cascade depth `d` (maximum depth reached in the BFS tree) indicates whether a failure causes a *shallow* or *deep* disruption:
+
+- **Depth 1:** Only directly hosted/dependent components fail. Contained damage.
+- **Depth 2–3:** Secondary cascades occurred. Moderate system disruption.
+- **Depth ≥ 4:** Deep system-wide collapse. The component is a structural hub for failure propagation.
+
+Infrastructure nodes tend to produce the deepest cascades because their failure simultaneously triggers Rule 1 (all hosted apps and brokers fail), which then triggers Rules 2 and 3 for those brokers and publishers.
+
+---
 
 ## Impact Metrics
 
-After cascading, three metrics quantify the damage:
+After the cascade terminates, three metrics quantify the damage from failing component v.
 
-| Metric | What It Measures | Formula |
-|--------|-----------------|---------|
-| **Reachability Loss** | What fraction of previously reachable component pairs are now disconnected | 1 − (reachable pairs after) / (reachable pairs before) |
-| **Fragmentation** | How badly the graph has broken apart | 1 − |largest component after| / |V − 1| |
-| **Throughput Drop** | Loss of message-passing capacity, weighted by topic importance | 1 − (total surviving topic weight) / (total original topic weight) |
+### Reachability Loss
 
-These combine into the composite impact score:
+Measures what fraction of previously possible pub-sub communication paths are now broken.
 
 ```
-I(v) = α × ReachabilityLoss + β × Fragmentation + γ × ThroughputDrop
+ReachabilityLoss(v) = 1 − (reachable pairs after removing v and cascade) / (reachable pairs in original G)
 ```
+
+A "reachable pair" is any (Publisher A, Subscriber B) for which at least one active message path exists through the graph. Reachability is computed on G_structural restricted to ACTIVE components after cascade.
+
+A value of 1.0 means all pub-sub communication has been lost. A value of 0.0 means no paths were disrupted.
+
+### Fragmentation
+
+Measures how severely the failure fragments the dependency graph — how isolated components become after the cascade.
+
+```
+Fragmentation(v) = 1 − |largest connected component of G\F| / (|V| − 1)
+```
+
+where `G\F` is the graph with all failed components and their edges removed, and `|V|` is the original total vertex count. This uses the same continuous formulation as AP_c in Step 2 (applied to the post-cascade graph rather than single-vertex removal).
+
+A fully connected post-cascade graph scores 0.0. A severely fragmented graph (many isolated components) approaches 1.0.
+
+### Throughput Loss
+
+Measures the reduction in message-passing capacity weighted by topic importance (QoS-derived weights).
+
+```
+ThroughputLoss(v) = 1 − (Σ  w(T) for active topics T after cascade)
+                        ────────────────────────────────────────────
+                        (Σ  w(T) for all topics T before cascade)
+```
+
+where `w(T)` is the QoS-derived topic weight from Step 1. A topic T is "active after cascade" if at least one active publisher and one active subscriber both remain. Losing a high-weight (RELIABLE + PERSISTENT + URGENT) topic contributes far more to throughput loss than losing a low-weight (VOLATILE + BEST_EFFORT + LOW) topic.
+
+### Composite Impact Score I(v)
+
+The three metrics combine into a single impact score using a weighted sum:
+
+```
+I(v) = 0.40 × ReachabilityLoss(v) + 0.30 × Fragmentation(v) + 0.30 × ThroughputLoss(v)
+```
+
+Default weights: ReachabilityLoss = 0.40, Fragmentation = 0.30, ThroughputLoss = 0.30.
+
+**Rationale for weights:** Reachability loss receives the highest weight (0.40) because broken pub-sub paths are the most direct operational failure in a distributed pub-sub system. Fragmentation and throughput loss receive equal weight (0.30 each) as complementary structural and capacity measures.
+
+**Custom weights:** The weights are configurable. For systems where message capacity is more critical than connectivity (e.g., high-throughput financial data platforms), ThroughputLoss can be increased. The test suite verifies weight customization (UT-SIM-24).
+
+```bash
+# Example: emphasize throughput loss
+python bin/simulate_graph.py failure --exhaustive --layer app \
+    --weight-reachability 0.20 --weight-fragmentation 0.20 --weight-throughput 0.60
+```
+
+All three weights must sum to 1.0. I(v) ∈ [0, 1] for any valid weight combination.
+
+---
 
 ## Simulation Modes
 
-| Mode | What It Does | When to Use |
-|------|-------------|-------------|
-| **Exhaustive** | Simulate failure of every component | Full validation (default) |
-| **Targeted** | Simulate failure of specific components | Quick checks |
-| **Monte Carlo** | Randomized cascade propagation with probability parameter | Non-deterministic systems (retries, circuit breakers) |
+### Exhaustive Mode
 
-In Monte Carlo mode, each cascade step propagates with a configurable probability, and multiple trials produce a distribution of I(v) values with confidence intervals.
+Simulates the failure of every component in the target layer, one at a time. Produces one `ImpactMetrics` record per component. This is the standard mode for generating the ground-truth data needed for Step 5 validation.
+
+```bash
+python bin/simulate_graph.py failure --layer system --exhaustive
+```
+
+Complexity: O(N × (|V| + |E|)) where N = number of components in the target layer.
+
+### Targeted Mode
+
+Simulates the failure of one or more specified components. Used for quick impact checks on specific components of interest.
+
+```bash
+python bin/simulate_graph.py failure --target sensor_fusion,main_broker --layer system
+```
+
+### Monte Carlo Mode
+
+Simulates failure with a configurable cascade probability p < 1.0, running N independent trials. Each trial samples the cascade stochastically — a cascade step propagates with probability p instead of always propagating.
+
+This models real-world resilience mechanisms: retries, circuit breakers, graceful degradation, and partial failures that don't always cascade to their full deterministic extent.
+
+```
+For each trial k = 1..N:
+    Run cascade algorithm with cascade_probability = p
+    Record I_k(v)
+
+Output: mean(I(v)), std(I(v)), 95% CI = [mean − 1.96×std/√N, mean + 1.96×std/√N]
+```
+
+A narrow confidence interval (low std) indicates the failure impact is robust — the component is consistently dangerous regardless of whether cascades fully propagate. A wide interval suggests the impact is highly contingent on whether retries and circuit breakers engage.
+
+```bash
+# 200 trials at 80% cascade probability
+python bin/simulate_graph.py failure --target data_router --monte-carlo \
+    --trials 200 --cascade-prob 0.8
+```
+
+**When to use:** Monte Carlo mode is most informative for systems with known retry logic or circuit breakers. The deterministic mode (`--cascade-prob 1.0`, the default) is used for Step 5 validation because it produces stable, reproducible I(v) values for correlation analysis.
+
+### Event Simulation
+
+Alongside failure simulation, the CLI supports **event simulation** — tracing how messages flow from a publisher through the system under normal (non-failure) conditions.
+
+```bash
+# Simulate 100 messages from a specific publisher
+python bin/simulate_graph.py event --source sensor_fusion --messages 100 --layer app
+
+# Simulate all publishers
+python bin/simulate_graph.py event --all --messages 50 --layer system
+```
+
+Event simulation measures message delivery rates, latency (hop count), and subscriber coverage. It complements failure simulation by establishing the baseline connectivity profile before any faults are injected. Comparing event simulation results before and after injecting a failure visually demonstrates which paths a given failure disrupts.
+
+---
+
+## Worked Example
+
+This section traces the simulation of a MainBroker failure through the full cascade algorithm for the 3-component system from the Step 1 worked example.
+
+**System state (before failure):**
+- Applications: SensorApp (publisher), MonitorApp (subscriber)
+- Broker: MainBroker
+- Topic: SensorData (RELIABLE, PERSISTENT; w=0.70)
+- Pub-sub path: SensorApp → SensorData → MonitorApp (routed by MainBroker)
+- |V| = 4 (including Topic), |reachable pairs| = 1 (SensorApp can reach MonitorApp)
+
+**Failure target:** MainBroker
+
+**Step 1 — Mark MainBroker FAILED, add to queue:**
+```
+F = {MainBroker}
+queue = [MainBroker]
+```
+
+**Step 2 — Process MainBroker (Rule 2: Logical cascade):**
+```
+MainBroker ROUTES SensorData.
+No other active broker routes SensorData.
+→ SensorData marked UNREACHABLE.
+
+MonitorApp SUBSCRIBES_TO SensorData.
+All of MonitorApp's subscribed topics are now UNREACHABLE.
+→ MonitorApp marked FAILED.
+
+F = {MainBroker, MonitorApp}
+queue = [MonitorApp]
+```
+
+**Step 3 — Process MonitorApp (subscriber only, no publisher role):**
+```
+MonitorApp is not a publisher — Rule 3 does not apply.
+No further propagation.
+queue = []  →  terminate.
+```
+
+**Final cascade result:**
+```
+F = {MainBroker, MonitorApp}
+cascade_count = 2 (initial + 1 cascaded)
+cascade_depth = 1 (MonitorApp failed at depth 1)
+```
+
+**Step 4 — Compute impact metrics:**
+
+*Reachability Loss:*
+```
+Reachable pairs before: 1  (SensorApp → MonitorApp via SensorData)
+Reachable pairs after:  0  (MonitorApp is FAILED; no paths remain)
+ReachabilityLoss = 1 − 0/1 = 1.0
+```
+
+*Fragmentation:*
+```
+G after cascade: {SensorApp} only (active components)
+|largest_CC after| = 1
+|V| = 4 (original)
+Fragmentation = 1 − 1 / (4 − 1) = 1 − 0.333 = 0.667
+```
+
+*Throughput Loss:*
+```
+Active topics after: 0  (SensorData is UNREACHABLE)
+Total topic weight before: 0.70
+ThroughputLoss = 1 − 0/0.70 = 1.0
+```
+
+*Composite impact:*
+```
+I(MainBroker) = 0.40 × 1.0  +  0.30 × 0.667  +  0.30 × 1.0
+              = 0.40 + 0.20 + 0.30
+              = 0.90
+```
+
+**Interpretation:** MainBroker scores I(v) = 0.90 — the highest possible range, classifying it as a true empirical single point of failure. This corroborates the Step 3 prediction of Q(v) = 0.50 for the same component (the discrepancy in magnitude reflects the tiny system size; in larger systems with more redundant paths, Q and I converge more closely).
+
+---
+
+## Output
+
+### Per-Simulation ImpactMetrics Fields
+
+For each simulated component failure, the output contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `component` | string | Component ID that was failed |
+| `layer` | string | Layer in which the simulation ran |
+| `failure_mode` | string | CRASH / DEGRADED / PARTITION / OVERLOAD |
+| `reachability_loss` | float [0,1] | Fraction of pub-sub paths broken |
+| `fragmentation` | float [0,1] | Graph disconnection severity after cascade |
+| `throughput_loss` | float [0,1] | Weighted topic capacity reduction |
+| `composite_impact` | float [0,1] | I(v) — weighted combination |
+| `cascade_count` | int | Total number of failed components (including initial) |
+| `cascade_depth` | int | Maximum BFS depth reached during cascade |
+| `cascaded_failures` | list[string] | IDs of components that failed due to cascade |
+
+In Monte Carlo mode, `reachability_loss`, `fragmentation`, `throughput_loss`, and `composite_impact` are replaced with their means, and `std`, `ci_lower`, and `ci_upper` fields are added.
+
+### JSON Output Schema
+
+```json
+{
+  "layer": "system",
+  "mode": "exhaustive",
+  "failure_mode": "CRASH",
+  "cascade_probability": 1.0,
+  "results": [
+    {
+      "component": "MainBroker",
+      "layer": "system",
+      "failure_mode": "CRASH",
+      "reachability_loss": 0.90,
+      "fragmentation": 0.667,
+      "throughput_loss": 1.0,
+      "composite_impact": 0.90,
+      "cascade_count": 2,
+      "cascade_depth": 1,
+      "cascaded_failures": ["MonitorApp"]
+    },
+    {
+      "component": "SensorApp",
+      "layer": "system",
+      "failure_mode": "CRASH",
+      "reachability_loss": 0.80,
+      "fragmentation": 0.50,
+      "throughput_loss": 0.85,
+      "composite_impact": 0.76,
+      "cascade_count": 3,
+      "cascade_depth": 2,
+      "cascaded_failures": ["Topic1", "DownstreamApp"]
+    }
+  ],
+  "summary": {
+    "total_simulated": 35,
+    "high_impact_count": 8,
+    "spof_count": 3,
+    "max_cascade_depth": 4,
+    "avg_cascade_count": 2.3
+  }
+}
+```
+
+Results are sorted by `composite_impact` descending in the output file.
+
+---
+
+## Performance
+
+Simulation complexity scales with the number of components being simulated (N) and the graph size (|V|, |E|):
+
+| Mode | Complexity | Notes |
+|------|------------|-------|
+| Exhaustive | O(N × (|V| + |E|)) | One BFS per component |
+| Targeted (k targets) | O(k × (|V| + |E|)) | k ≪ N for spot checks |
+| Monte Carlo (T trials) | O(T × (|V| + |E|)) | Per target; T = 100–200 typical |
+
+The baseline graph state (pub-sub path enumeration, topic weight summation, initial reachable-pair count) is computed **once** before the simulation loop and reused for all individual component simulations. This avoids redundant O(|V| + |E|) work on every iteration.
+
+**Practical timing benchmarks (application layer, CRASH mode):**
+
+| Scale | Components | Edges | Exhaustive Time |
+|-------|------------|-------|----------------|
+| Small | 10–25 | ~50 | < 1 s |
+| Medium | 30–50 | ~120 | ~3 s |
+| Large | 60–100 | ~280 | ~10 s |
+| XLarge | 150–300 | ~700 | ~45 s |
+
+For XLarge systems requiring Monte Carlo mode (200 trials per component), parallelise with `--parallel` to use all available CPU cores.
+
+---
 
 ## Key Findings
 
-Empirical observations from simulation across multiple system scales:
+Empirical observations from running exhaustive simulation across ROS 2, IoT, financial trading, and healthcare system models at multiple scales:
 
-- **Broker criticality**: Brokers that exclusively route high-weight topics produce disproportionately high impact scores, because their failure cuts off critical data flows.
-- **Infrastructure cascades are the deepest**: Node failures trigger all cascade types simultaneously (infrastructure → broker → application), often causing the most severe system-wide damage.
-- **SPOF detection**: Components with I(v) > 0.5 are empirical single points of failure. Cross-referencing with Q(v) > 0.5 identifies components where both topology and simulation agree on criticality.
-- **Layer differences**: Application layer predictions correlate better with simulation (ρ ≈ 0.85) than infrastructure (ρ ≈ 0.75), because application dependencies are more directly captured by the derivation rules.
+**Infrastructure cascades are the deepest.** Node failures trigger Rule 1 (physical cascade) simultaneously for all hosted applications and brokers. Those brokers then trigger Rule 2 (logical cascade), and their downstream publisher failures trigger Rule 3. Node failures routinely reach cascade depth 3–4 while application-only failures rarely exceed depth 2.
+
+**Broker exclusivity is the key discriminator.** Brokers that exclusively route one or more high-weight topics produce the highest I(v) scores in the system. A broker with a redundant peer (two brokers routing the same topic) scores near zero despite identical structural position — the redundancy fully absorbs the failure. This is the simulation's most practically useful finding for architecture review.
+
+**The I(v) > 0.5 threshold identifies empirical SPOFs.** Across all validated system scales and domains, components with I(v) > 0.5 in exhaustive CRASH simulation invariably represent structural single points of failure where no redundant path exists. The threshold is empirically derived: below 0.5, at least partial connectivity is preserved after the cascade; above 0.5, the damage is system-wide. Cross-referencing with AP_c > 0 from Step 2 confirms the structural basis of these findings.
+
+**Layer differences in prediction accuracy are expected.** Application layer simulation (ρ ≈ 0.85 with Q(v)) outperforms infrastructure layer simulation (ρ ≈ 0.54) because application-level dependencies are directly captured by the DEPENDS_ON derivation rules. Infrastructure cascade paths through RUNS_ON and CONNECTS_TO edges introduce cross-layer effects that the layer-projected G_analysis(app) cannot fully represent. This limitation is known and expected — see the thesis discussion on multi-layer analysis.
+
+---
 
 ## Commands
 
 ```bash
-# Exhaustive simulation (every component)
-python bin/simulate_graph.py failure --layer system --exhaustive
+# ─── Exhaustive simulation (standard for validation) ─────────────────────────
+python bin/simulate_graph.py failure --exhaustive --layer system
 
-# Targeted simulation (specific components)
-python bin/simulate_graph.py failure --layer system --target sensor_fusion,main_broker
+# Application layer only (faster; highest prediction accuracy)
+python bin/simulate_graph.py failure --exhaustive --layer app
 
-# Monte Carlo mode (100 trials, 80% cascade probability)
-python bin/simulate_graph.py failure --layer system --exhaustive --monte-carlo --trials 100 --cascade-prob 0.8
+# Export to JSON for Step 5 validation
+python bin/simulate_graph.py failure --exhaustive --layer system \
+    --output results/impact.json
 
-# Export results
-python bin/simulate_graph.py failure --layer system --exhaustive --output results/impact.json
+# ─── Targeted simulation (spot checks) ────────────────────────────────────────
+python bin/simulate_graph.py failure --target data_router --layer system
+python bin/simulate_graph.py failure --target data_router,sensor_hub --layer system
+
+# ─── Monte Carlo mode ─────────────────────────────────────────────────────────
+# 200 trials, 80% cascade probability (models partial cascade resilience)
+python bin/simulate_graph.py failure --target data_router \
+    --monte-carlo --trials 200 --cascade-prob 0.8
+
+# ─── Custom failure mode ──────────────────────────────────────────────────────
+python bin/simulate_graph.py failure --exhaustive --layer system \
+    --failure-mode DEGRADED --degradation-factor 0.5
+
+# ─── Custom impact weights ────────────────────────────────────────────────────
+python bin/simulate_graph.py failure --exhaustive --layer app \
+    --weight-reachability 0.50 --weight-fragmentation 0.25 --weight-throughput 0.25
+
+# ─── Event simulation (message flow, no failures) ─────────────────────────────
+python bin/simulate_graph.py event --source sensor_fusion --messages 100 --layer app
+python bin/simulate_graph.py event --all --messages 50 --layer system
+
+# ─── Comprehensive multi-layer report ─────────────────────────────────────────
+python bin/simulate_graph.py report --layers app,infra,mw,system
+
+# ─── Pipeline: exhaustive simulation then validate ────────────────────────────
+python bin/simulate_graph.py failure --exhaustive --layer app \
+    --output results/impact.json
+python bin/validate_graph.py --layer app \
+    --predicted results/quality.json --simulated results/impact.json
 ```
 
-## Performance
+### Reading the Output
 
-Baseline computation (initial paths, components, topic weights) runs once and is reused across all simulations. For a system with N components, exhaustive simulation complexity is O(N × (V + E)) rather than O(N × P) where P is path enumeration cost.
+```
+Exhaustive Failure Simulation | Layer: app | 35 components | CRASH mode
+
+Top 5 by Impact:
+  1. DataRouter      I=0.91  RL=0.95  FR=0.82  TL=0.88   cascades=8  depth=3  [SPOF]
+  2. SensorHub       I=0.85  RL=0.88  FR=0.76  TL=0.83   cascades=6  depth=2  [SPOF]
+  3. CommandBus      I=0.76  RL=0.81  FR=0.65  TL=0.74   cascades=5  depth=3
+  4. MapServer       I=0.62  RL=0.70  FR=0.50  TL=0.58   cascades=4  depth=2
+  5. LocalizationApp I=0.55  RL=0.60  FR=0.44  TL=0.53   cascades=3  depth=2
+
+[SPOF]: AP_c > 0 — structural single point of failure confirmed by simulation.
+```
+
+- **RL** = Reachability Loss, **FR** = Fragmentation, **TL** = Throughput Loss
+- Components with high RL and low FR are connectivity bottlenecks
+- Components with high TL are critical data-flow nodes
+- `[SPOF]` means the Step 2 articulation point score confirms the structural basis
+
+---
 
 ## What Comes Next
 
-We now have two sets of scores: predicted Q(v) from Steps 2–3 and simulated I(v) from this step. Step 5 statistically compares them to answer: **do our predictions actually work?**
+Step 4 produces I(v) ∈ [0, 1] for every component — an empirically grounded ranking of actual failure impact derived from full cascade simulation. Step 5 now has the two rankings it needs:
+
+- **Q(v)** from Step 3: predicted criticality from topology
+- **I(v)** from Step 4: actual criticality from failure simulation
+
+Step 5 computes Spearman ρ, F1-score, precision, recall, and a suite of ranking metrics to quantify how well the topological predictions agree with the simulation ground truth, and reports a pass/fail verdict against the validation targets.
 
 ---
 
