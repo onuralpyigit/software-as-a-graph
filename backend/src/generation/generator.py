@@ -364,7 +364,7 @@ class StatisticalGraphGenerator:
             "metadata": {
                 "scale": c.to_scale_dict(),
                 "seed": c.seed,
-                "generation_mode": "statistical" if c.use_statistics else "legacy",
+                "generation_mode": "statistical" if c.use_statistics else "random",
             },
             "nodes": [n.to_dict() for n in nodes],
             "brokers": [b.to_dict() for b in brokers],

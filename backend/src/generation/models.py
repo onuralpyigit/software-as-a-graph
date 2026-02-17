@@ -337,11 +337,11 @@ class GraphConfig:
             )
         else:
             return cls(
-                apps=graph_data.get("apps", 50),
-                topics=graph_data.get("topics", 30),
-                brokers=graph_data.get("brokers", 3),
-                nodes=graph_data.get("nodes", 8),
-                libs=graph_data.get("libs", 10),
+                apps=counts.get("applications", graph_data.get("apps", 50)),
+                topics=counts.get("topics", graph_data.get("topics", 30)),
+                brokers=counts.get("brokers", graph_data.get("brokers", 3)),
+                nodes=counts.get("nodes", graph_data.get("nodes", 8)),
+                libs=counts.get("libraries", graph_data.get("libs", 10)),
                 seed=graph_data.get("seed", 42),
                 use_statistics=False,
             )
