@@ -1,0 +1,240 @@
+# =============================================================================
+# Scenario 01 — Autonomous Vehicle / ROS 2
+# =============================================================================
+# Domain   : Safety-critical autonomous driving system (ROS 2-style DDS)
+# Scale    : Medium (80 apps, 40 topics, 4 brokers / DDS participants, 8 nodes)
+# Purpose  : Validate criticality detection in systems where a small number of
+#            sensor-fusion and motion-planning nodes act as articulation points
+#            with extreme downstream impact.
+#
+# Topology fingerprint:
+#   • High RELIABLE + TRANSIENT_LOCAL QoS (safety data must not be lost)
+#   • Heavy fanout: sensor topics have many subscribers (perception pipeline)
+#   • Dense pubsub ratio — most apps are pubsub, not pure pub or sub
+#   • ~20 % of apps declared critical (safety-relevant nodes)
+#   • Low message-size variance — telemetry payloads are small & predictable
+#
+# Expected analysis outcomes:
+#   • Sensor-fusion apps should score in the CRITICAL box-plot tier
+#   • Multiple articulation points concentrated in the middleware layer
+#   • Spearman ρ should remain ≥ 0.876 on the generated dataset
+#
+# Usage:
+#   python bin/generate_graph.py --config input/scenario_01_autonomous_vehicle.yaml \
+#          --output output/av_system.json
+# =============================================================================
+
+graph:
+  seed: 1001
+
+  counts:
+    nodes: 8
+    applications: 80
+    libraries: 20
+    topics: 40
+    brokers: 4
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 10.0
+      median: 9.0
+      std: 3.0
+      min: 4
+      max: 18
+      q1: 7.0
+      q3: 13.0
+      iqr: 6.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS
+  # ---------------------------------------------------------------------------
+  application_stats:
+    # AV apps are net consumers: perception nodes subscribe to many sensor topics
+    direct_publish_count:
+      mean: 2.5
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 6
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+    direct_subscribe_count:
+      mean: 5.0
+      median: 5.0
+      std: 2.0
+      min: 0
+      max: 12
+      q1: 3.0
+      q3: 7.0
+      iqr: 4.0
+
+    total_publish_count_including_libraries:
+      mean: 4.0
+      median: 3.0
+      std: 2.0
+      min: 0
+      max: 10
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+    total_subscribe_count_including_libraries:
+      mean: 7.0
+      median: 6.0
+      std: 2.5
+      min: 0
+      max: 16
+      q1: 5.0
+      q3: 9.0
+      iqr: 4.0
+
+    # Most ROS 2 nodes both publish and subscribe (pipeline pattern)
+    app_role_distribution:
+      total_count: 80
+      category_counts:
+        pub: 10       # Pure drivers / hardware bridges
+        sub: 15       # Pure actuator / HMI sinks
+        pubsub: 55    # Perception, fusion, planning, control nodes
+      mode: pubsub
+      mode_count: 55
+      mode_percentage: 68.75
+
+    # ~20 % safety-critical (planner, vehicle controller, emergency stop)
+    app_criticality_distribution:
+      total_count: 80
+      category_counts:
+        critical: 16
+        non_critical: 64
+      mode: non_critical
+      mode_count: 64
+      mode_percentage: 80.0
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 6.0
+      median: 5.0
+      std: 3.0
+      min: 1
+      max: 15
+      q1: 3.0
+      q3: 8.0
+      iqr: 5.0
+
+    direct_publish_count:
+      mean: 1.5
+      median: 1.0
+      std: 1.0
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 2.0
+      median: 2.0
+      std: 1.2
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_publish_count_including_libraries:
+      mean: 2.5
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 6
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_subscribe_count_including_libraries:
+      mean: 3.5
+      median: 3.0
+      std: 2.0
+      min: 0
+      max: 8
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    # Sensor payloads are small (LiDAR point-cloud headers, IMU packets)
+    topic_size_bytes:
+      mean: 512.0
+      median: 256.0
+      std: 400.0
+      min: 32
+      max: 4096
+      q1: 128.0
+      q3: 768.0
+      iqr: 640.0
+
+    # Sensor topics are written by few publishers but read by many
+    applications_publishing_to_this_topic:
+      mean: 1.5
+      median: 1.0
+      std: 0.8
+      min: 1
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    applications_subscribing_to_this_topic:
+      mean: 6.0
+      median: 5.0
+      std: 3.0
+      min: 1
+      max: 15
+      q1: 3.0
+      q3: 8.0
+      iqr: 5.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — Safety-critical: mostly RELIABLE + TRANSIENT_LOCAL
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 40
+      category_counts:
+        volatile: 4           # Best-effort diagnostics
+        transient_local: 22   # Standard safety data (survives restart)
+        transient: 8          # Command/control state
+        persistent: 6         # Mission-critical events log
+      mode: transient_local
+      mode_count: 22
+      mode_percentage: 55.0
+
+    qos_reliability_distribution:
+      total_count: 40
+      category_counts:
+        best_effort: 8        # High-frequency sensor streams (IMU at 200 Hz)
+        reliable: 32          # All control & planning traffic
+      mode: reliable
+      mode_count: 32
+      mode_percentage: 80.0
+
+    qos_transport_priority_distribution:
+      total_count: 40
+      category_counts:
+        low: 4
+        medium: 10
+        high: 18
+        critical: 8
+      mode: high
+      mode_count: 18
+      mode_percentage: 45.0

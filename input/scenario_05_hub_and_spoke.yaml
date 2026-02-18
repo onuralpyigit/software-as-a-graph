@@ -1,0 +1,242 @@
+# =============================================================================
+# Scenario 05 — Hub-and-Spoke Anti-Pattern (Centralization Stress Test)
+# =============================================================================
+# Domain   : Deliberately over-centralized publish-subscribe system
+# Scale    : Medium (70 apps, 30 topics, 2 brokers, 12 nodes)
+# Purpose  : Confirm that the methodology reliably detects architectural
+#            anti-patterns — specifically the "god broker" / hub-and-spoke
+#            topology where two brokers become critical SPOFs for the entire
+#            system.  Useful for validating RMAV Vulnerability scoring.
+#
+# Topology fingerprint:
+#   • Only 2 brokers serving 70 apps across 12 nodes (extreme overloading)
+#   • Each app subscribes to many topics (high in-degree at topic level)
+#   • Topics have very high subscriber counts → high broker betweenness
+#   • Mixed QoS, moderate criticality: the anti-pattern itself is the risk
+#   • Library usage is high — shared code amplifies failure blast radius
+#
+# Expected analysis outcomes:
+#   • Both brokers must score in the CRITICAL tier (box-plot tier 4)
+#   • Broker failure impact score ≥ 0.5 * total system apps in simulation
+#   • Topic betweenness centrality highly concentrated on ≤ 5 hub topics
+#   • Methodology correctly recommends broker redundancy (refactoring hint)
+#   • F1-score for critical classification should remain ≥ 0.90
+#
+# Usage:
+#   python bin/generate_graph.py --config input/scenario_05_hub_and_spoke.yaml \
+#          --output output/hub_spoke_system.json
+# =============================================================================
+
+graph:
+  seed: 5005
+
+  counts:
+    nodes: 12
+    applications: 70
+    libraries: 25
+    topics: 30
+    brokers: 2          # ← The anti-pattern: only 2 brokers for everything
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS — Moderate-density nodes
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 5.8
+      median: 5.0
+      std: 3.0
+      min: 2
+      max: 14
+      q1: 3.0
+      q3: 8.0
+      iqr: 5.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS — Each app subscribes to many topics (fan-in)
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 2.0
+      median: 2.0
+      std: 1.0
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    # High subscribe count drives broker load and betweenness
+    direct_subscribe_count:
+      mean: 7.0
+      median: 7.0
+      std: 2.5
+      min: 1
+      max: 15
+      q1: 5.0
+      q3: 9.0
+      iqr: 4.0
+
+    total_publish_count_including_libraries:
+      mean: 3.5
+      median: 3.0
+      std: 1.5
+      min: 0
+      max: 8
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+    total_subscribe_count_including_libraries:
+      mean: 9.0
+      median: 9.0
+      std: 3.0
+      min: 1
+      max: 20
+      q1: 7.0
+      q3: 11.0
+      iqr: 4.0
+
+    app_role_distribution:
+      total_count: 70
+      category_counts:
+        pub: 10
+        sub: 15
+        pubsub: 45
+      mode: pubsub
+      mode_count: 45
+      mode_percentage: 64.3
+
+    app_criticality_distribution:
+      total_count: 70
+      category_counts:
+        critical: 14
+        non_critical: 56
+      mode: non_critical
+      mode_count: 56
+      mode_percentage: 80.0
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — Widely shared libraries amplify blast radius
+  # ---------------------------------------------------------------------------
+  library_stats:
+    # Each library used by many apps: failure of lib → widespread impact
+    applications_using_this_library:
+      mean: 7.0
+      median: 6.0
+      std: 4.5
+      min: 2
+      max: 20
+      q1: 4.0
+      q3: 10.0
+      iqr: 6.0
+
+    direct_publish_count:
+      mean: 2.0
+      median: 2.0
+      std: 1.0
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    direct_subscribe_count:
+      mean: 3.5
+      median: 3.0
+      std: 2.0
+      min: 0
+      max: 8
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+    total_publish_count_including_libraries:
+      mean: 3.0
+      median: 3.0
+      std: 1.5
+      min: 0
+      max: 7
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    total_subscribe_count_including_libraries:
+      mean: 5.0
+      median: 5.0
+      std: 2.5
+      min: 0
+      max: 12
+      q1: 3.0
+      q3: 7.0
+      iqr: 4.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — Hub topics: extremely high subscriber counts
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 2048.0
+      median: 1024.0
+      std: 3000.0
+      min: 128
+      max: 32768
+      q1: 512.0
+      q3: 4096.0
+      iqr: 3584.0
+
+    # Moderate publishing concurrency — not a fan-out problem at publisher side
+    applications_publishing_to_this_topic:
+      mean: 2.0
+      median: 2.0
+      std: 1.0
+      min: 1
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    # Very high subscriber counts confirm the hub-and-spoke pattern
+    applications_subscribing_to_this_topic:
+      mean: 12.0
+      median: 11.0
+      std: 5.0
+      min: 3
+      max: 30
+      q1: 8.0
+      q3: 16.0
+      iqr: 8.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — Moderate; the architecture is the primary risk factor
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 30
+      category_counts:
+        volatile: 8
+        transient_local: 10
+        transient: 8
+        persistent: 4
+      mode: transient_local
+      mode_count: 10
+      mode_percentage: 33.3
+
+    qos_reliability_distribution:
+      total_count: 30
+      category_counts:
+        best_effort: 10
+        reliable: 20
+      mode: reliable
+      mode_count: 20
+      mode_percentage: 66.7
+
+    qos_transport_priority_distribution:
+      total_count: 30
+      category_counts:
+        low: 6
+        medium: 12
+        high: 9
+        critical: 3
+      mode: medium
+      mode_count: 12
+      mode_percentage: 40.0

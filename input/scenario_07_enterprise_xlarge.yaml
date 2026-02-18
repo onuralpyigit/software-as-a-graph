@@ -1,0 +1,239 @@
+# =============================================================================
+# Scenario 07 — Enterprise-Scale Stress Test (xlarge)
+# =============================================================================
+# Domain   : Large enterprise integration platform (ESB / event mesh hybrid)
+# Scale    : XLarge (300 apps, 120 topics, 10 brokers, 40 nodes)
+# Purpose  : Stress-test the scalability of graph construction, centrality
+#            computation, and failure simulation pipelines.  Validates that
+#            the methodology maintains statistical accuracy (ρ ≥ 0.7, F1 ≥ 0.9)
+#            and completes within acceptable time bounds at enterprise scale.
+#
+# Topology fingerprint:
+#   • Very large component count — pushes NetworkX algorithm limits
+#   • 10 brokers for genuine redundancy (enterprise load balancing)
+#   • Heterogeneous QoS: different business units have different SLAs
+#   • Wide library reuse — enterprise shared platform libraries
+#   • Many cross-domain integration topics (canonical data model pattern)
+#   • ~15 % apps critical — core ERP, identity, and audit services
+#
+# Expected analysis outcomes:
+#   • Centrality computation should complete in < 60 s on modern hardware
+#   • Critical tier contains ≤ 20 % of components (no over-flagging at scale)
+#   • Integration broker handling canonical topics is a confirmed SPOF
+#   • Validates benchmark.py scalability measurements for thesis appendix
+#
+# Usage:
+#   python bin/generate_graph.py --config input/scenario_07_enterprise_xlarge.yaml \
+#          --output output/enterprise_system.json
+# =============================================================================
+
+graph:
+  seed: 7007
+
+  counts:
+    nodes: 40
+    applications: 300
+    libraries: 50
+    topics: 120
+    brokers: 10
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS — Moderate density across many physical/virtual hosts
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 7.5
+      median: 7.0
+      std: 3.5
+      min: 2
+      max: 18
+      q1: 5.0
+      q3: 10.0
+      iqr: 5.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 3.0
+      median: 3.0
+      std: 2.0
+      min: 0
+      max: 10
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+    direct_subscribe_count:
+      mean: 4.5
+      median: 4.0
+      std: 2.5
+      min: 0
+      max: 14
+      q1: 2.0
+      q3: 6.0
+      iqr: 4.0
+
+    total_publish_count_including_libraries:
+      mean: 5.0
+      median: 4.0
+      std: 3.0
+      min: 0
+      max: 16
+      q1: 2.0
+      q3: 7.0
+      iqr: 5.0
+
+    total_subscribe_count_including_libraries:
+      mean: 7.0
+      median: 6.0
+      std: 3.5
+      min: 0
+      max: 20
+      q1: 4.0
+      q3: 10.0
+      iqr: 6.0
+
+    app_role_distribution:
+      total_count: 300
+      category_counts:
+        pub: 70       # ETL adapters, legacy system bridges
+        sub: 80       # Reporting, analytics, dashboard consumers
+        pubsub: 150   # Integration services, workflow engines, APIs
+      mode: pubsub
+      mode_count: 150
+      mode_percentage: 50.0
+
+    # ~15 % critical — identity, ERP core, audit, access control
+    app_criticality_distribution:
+      total_count: 300
+      category_counts:
+        critical: 45
+        non_critical: 255
+      mode: non_critical
+      mode_count: 255
+      mode_percentage: 85.0
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — Enterprise platform libs used broadly
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 8.0
+      median: 6.0
+      std: 6.0
+      min: 1
+      max: 30
+      q1: 3.0
+      q3: 12.0
+      iqr: 9.0
+
+    direct_publish_count:
+      mean: 2.0
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 7
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    direct_subscribe_count:
+      mean: 2.5
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 8
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+    total_publish_count_including_libraries:
+      mean: 3.5
+      median: 3.0
+      std: 2.0
+      min: 0
+      max: 10
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+    total_subscribe_count_including_libraries:
+      mean: 4.5
+      median: 4.0
+      std: 2.5
+      min: 0
+      max: 12
+      q1: 2.0
+      q3: 6.0
+      iqr: 4.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — Canonical data model: moderate fan-in and fan-out
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 4096.0
+      median: 2048.0
+      std: 5000.0
+      min: 64
+      max: 65536
+      q1: 512.0
+      q3: 8192.0
+      iqr: 7680.0
+
+    applications_publishing_to_this_topic:
+      mean: 2.5
+      median: 2.0
+      std: 1.5
+      min: 1
+      max: 8
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+    applications_subscribing_to_this_topic:
+      mean: 6.0
+      median: 5.0
+      std: 4.0
+      min: 1
+      max: 20
+      q1: 3.0
+      q3: 9.0
+      iqr: 6.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — Heterogeneous SLAs across business units
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 120
+      category_counts:
+        volatile: 20        # Metrics, heartbeats
+        transient_local: 35 # Operational events (restartable)
+        transient: 30       # Cross-domain integration events
+        persistent: 35      # Financial, compliance, audit streams
+      mode: transient_local
+      mode_count: 35
+      mode_percentage: 29.2
+
+    qos_reliability_distribution:
+      total_count: 120
+      category_counts:
+        best_effort: 25     # Monitoring, non-critical notifications
+        reliable: 95        # Business process events
+      mode: reliable
+      mode_count: 95
+      mode_percentage: 79.2
+
+    qos_transport_priority_distribution:
+      total_count: 120
+      category_counts:
+        low: 20
+        medium: 45
+        high: 38
+        critical: 17
+      mode: medium
+      mode_count: 45
+      mode_percentage: 37.5

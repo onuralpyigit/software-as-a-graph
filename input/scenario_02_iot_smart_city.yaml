@@ -1,0 +1,241 @@
+# =============================================================================
+# Scenario 02 — IoT Smart City
+# =============================================================================
+# Domain   : Large-scale urban IoT deployment (smart grid, traffic, air quality)
+# Scale    : Large (200 apps, 80 topics, 6 brokers, 30 nodes)
+# Purpose  : Stress-test scalability of the graph model and validate that
+#            broker-level bottlenecks and hub topics are correctly ranked
+#            as critical even when individual apps are low-complexity.
+#
+# Topology fingerprint:
+#   • Many lightweight publisher-only apps (sensors) — mostly "pub" role
+#   • Few aggregator/analytics apps — mostly "sub" role
+#   • Topics have very high subscriber counts (broadcast pattern)
+#   • Mixed QoS: most sensor data is BEST_EFFORT / VOLATILE (fire-and-forget)
+#   • High broker load: only 6 brokers serve 200 apps across 30 nodes
+#   • Shallow library usage — edge devices run minimal shared code
+#
+# Expected analysis outcomes:
+#   • Brokers identified as infrastructure bottlenecks (high ROUTES degree)
+#   • Hub topics (city-wide alerts) surface as critical via betweenness
+#   • Aggregator apps score high due to subscriber fan-in
+#   • SPF detection: each district mapped to a single broker (SPOF)
+#
+# Usage:
+#   python bin/generate_graph.py --config input/scenario_02_iot_smart_city.yaml \
+#          --output output/iot_system.json
+# =============================================================================
+
+graph:
+  seed: 2002
+
+  counts:
+    nodes: 30
+    applications: 200
+    libraries: 10
+    topics: 80
+    brokers: 6
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS — Many edge nodes, low app density per node
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 6.5
+      median: 5.0
+      std: 4.0
+      min: 1
+      max: 20
+      q1: 3.0
+      q3: 9.0
+      iqr: 6.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS — Sensors publish, aggregators subscribe
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 2.0
+      median: 1.0
+      std: 1.5
+      min: 0
+      max: 6
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    direct_subscribe_count:
+      mean: 1.5
+      median: 1.0
+      std: 2.0
+      min: 0
+      max: 10
+      q1: 0.0
+      q3: 2.0
+      iqr: 2.0
+
+    total_publish_count_including_libraries:
+      mean: 2.5
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 8
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+    total_subscribe_count_including_libraries:
+      mean: 2.0
+      median: 1.0
+      std: 2.5
+      min: 0
+      max: 15
+      q1: 0.0
+      q3: 3.0
+      iqr: 3.0
+
+    # Predominantly publisher-only sensors; small analytic layer as subscribers
+    app_role_distribution:
+      total_count: 200
+      category_counts:
+        pub: 120      # Sensor nodes (weather, traffic, energy meters)
+        sub: 60       # Analytics, dashboards, alert engines
+        pubsub: 20    # Gateway / edge-processing nodes
+      mode: pub
+      mode_count: 120
+      mode_percentage: 60.0
+
+    # City infrastructure: only control systems are critical
+    app_criticality_distribution:
+      total_count: 200
+      category_counts:
+        critical: 20
+        non_critical: 180
+      mode: non_critical
+      mode_count: 180
+      mode_percentage: 90.0
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — Minimal shared code on constrained edge devices
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 8.0
+      median: 6.0
+      std: 5.0
+      min: 1
+      max: 25
+      q1: 3.0
+      q3: 12.0
+      iqr: 9.0
+
+    direct_publish_count:
+      mean: 1.0
+      median: 1.0
+      std: 0.5
+      min: 0
+      max: 2
+      q1: 1.0
+      q3: 1.0
+      iqr: 0.0
+
+    direct_subscribe_count:
+      mean: 0.5
+      median: 0.0
+      std: 0.8
+      min: 0
+      max: 3
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 1.5
+      median: 1.0
+      std: 1.0
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    total_subscribe_count_including_libraries:
+      mean: 1.0
+      median: 1.0
+      std: 1.0
+      min: 0
+      max: 4
+      q1: 0.0
+      q3: 2.0
+      iqr: 2.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — City-wide broadcast: many subscribers per topic
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 256.0
+      median: 128.0
+      std: 300.0
+      min: 32
+      max: 2048
+      q1: 64.0
+      q3: 512.0
+      iqr: 448.0
+
+    # Multiple sensor sources may publish to the same aggregation topic
+    applications_publishing_to_this_topic:
+      mean: 3.0
+      median: 2.0
+      std: 2.0
+      min: 1
+      max: 10
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+    # Analytics subscribers are numerous per broadcast topic
+    applications_subscribing_to_this_topic:
+      mean: 8.0
+      median: 7.0
+      std: 4.0
+      min: 1
+      max: 25
+      q1: 5.0
+      q3: 12.0
+      iqr: 7.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — IoT: fire-and-forget dominates; alarms are reliable
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 80
+      category_counts:
+        volatile: 55        # Sensor telemetry (no history needed)
+        transient_local: 10 # Edge cache for connectivity gaps
+        transient: 10       # District aggregation feeds
+        persistent: 5       # Billing / audit logs
+      mode: volatile
+      mode_count: 55
+      mode_percentage: 68.75
+
+    qos_reliability_distribution:
+      total_count: 80
+      category_counts:
+        best_effort: 60     # Sensor data (lossy is acceptable)
+        reliable: 20        # Emergency alerts, actuator commands
+      mode: best_effort
+      mode_count: 60
+      mode_percentage: 75.0
+
+    qos_transport_priority_distribution:
+      total_count: 80
+      category_counts:
+        low: 45
+        medium: 20
+        high: 10
+        critical: 5
+      mode: low
+      mode_count: 45
+      mode_percentage: 56.25

@@ -1,0 +1,244 @@
+# =============================================================================
+# Scenario 06 — Microservices / Low-Coupling (Sparse Graph)
+# =============================================================================
+# Domain   : Cloud-native microservices architecture with event-driven messaging
+# Scale    : Medium (90 apps, 45 topics, 6 brokers, 15 nodes)
+# Purpose  : Validate that the methodology produces a well-distributed
+#            criticality spectrum (not all critical, not all non-critical) in
+#            a loosely-coupled system where few true bottlenecks exist.
+#            This scenario challenges the box-plot classifier to avoid
+#            over-flagging in a low-centralization topology.
+#
+# Topology fingerprint:
+#   • Low publish and subscribe counts per app (bounded contexts)
+#   • Few cross-service topics (domain events only; no shared state topics)
+#   • Balanced pub/sub ratio — each service owns its own topics
+#   • Low library reuse — each service has its own dependencies
+#   • VOLATILE + BEST_EFFORT acceptable for non-transactional events
+#   • Only gateway/orchestration services are structurally critical
+#
+# Expected analysis outcomes:
+#   • Majority of apps score in the LOW or MODERATE criticality tier
+#   • Only API-gateway and event-bus-bridge apps reach CRITICAL tier
+#   • Betweenness centrality well-distributed (low Gini coefficient)
+#   • Validates that methodology avoids false-positive critical classifications
+#   • Precision ≥ 0.85 with low recall penalty on this sparse topology
+#
+# Usage:
+#   python bin/generate_graph.py --config input/scenario_06_microservices.yaml \
+#          --output output/microservices_system.json
+# =============================================================================
+
+graph:
+  seed: 6006
+
+  counts:
+    nodes: 15
+    applications: 90
+    libraries: 30    # Many small, service-specific libs (low sharing)
+    topics: 45
+    brokers: 6
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS — Distributed horizontally, low density per node
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 6.0
+      median: 5.0
+      std: 3.0
+      min: 1
+      max: 14
+      q1: 3.0
+      q3: 8.0
+      iqr: 5.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS — Low coupling: each app touches few topics
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 1.5
+      median: 1.0
+      std: 1.0
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 2.0
+      median: 2.0
+      std: 1.0
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_publish_count_including_libraries:
+      mean: 2.0
+      median: 2.0
+      std: 1.0
+      min: 0
+      max: 6
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_subscribe_count_including_libraries:
+      mean: 3.0
+      median: 3.0
+      std: 1.5
+      min: 0
+      max: 8
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    # Roughly balanced between pub, sub, and pubsub patterns
+    app_role_distribution:
+      total_count: 90
+      category_counts:
+        pub: 25       # Command handlers, event emitters
+        sub: 30       # Query handlers, read models, notification services
+        pubsub: 35    # Saga coordinators, process managers
+      mode: pubsub
+      mode_count: 35
+      mode_percentage: 38.9
+
+    # Only ~10 % critical — API gateways and saga coordinators
+    app_criticality_distribution:
+      total_count: 90
+      category_counts:
+        critical: 9
+        non_critical: 81
+      mode: non_critical
+      mode_count: 81
+      mode_percentage: 90.0
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — Service-specific; low fan-out = lower blast radius
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 2.5
+      median: 2.0
+      std: 2.0
+      min: 1
+      max: 8
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    direct_publish_count:
+      mean: 0.8
+      median: 1.0
+      std: 0.5
+      min: 0
+      max: 2
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 1.0
+      median: 1.0
+      std: 0.7
+      min: 0
+      max: 3
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 1.2
+      median: 1.0
+      std: 0.8
+      min: 0
+      max: 3
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    total_subscribe_count_including_libraries:
+      mean: 1.5
+      median: 1.0
+      std: 1.0
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — One owner per topic; narrow subscriber sets
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 1024.0
+      median: 512.0
+      std: 1500.0
+      min: 64
+      max: 16384
+      q1: 256.0
+      q3: 2048.0
+      iqr: 1792.0
+
+    # Each service publishes to its own topic (ownership model)
+    applications_publishing_to_this_topic:
+      mean: 1.2
+      median: 1.0
+      std: 0.5
+      min: 1
+      max: 3
+      q1: 1.0
+      q3: 1.0
+      iqr: 0.0
+
+    # Few consumers per topic — bounded context isolation
+    applications_subscribing_to_this_topic:
+      mean: 2.5
+      median: 2.0
+      std: 1.5
+      min: 1
+      max: 7
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — Event-driven microservices: relaxed where possible
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 45
+      category_counts:
+        volatile: 15       # Health checks, metrics streams
+        transient_local: 18 # Domain events (at-least-once delivery)
+        transient: 8       # Workflow state transitions
+        persistent: 4      # Audit events, financial domain events
+      mode: transient_local
+      mode_count: 18
+      mode_percentage: 40.0
+
+    qos_reliability_distribution:
+      total_count: 45
+      category_counts:
+        best_effort: 18    # Non-transactional notifications, metrics
+        reliable: 27       # Domain commands and transactional events
+      mode: reliable
+      mode_count: 27
+      mode_percentage: 60.0
+
+    qos_transport_priority_distribution:
+      total_count: 45
+      category_counts:
+        low: 15
+        medium: 18
+        high: 10
+        critical: 2
+      mode: medium
+      mode_count: 18
+      mode_percentage: 40.0

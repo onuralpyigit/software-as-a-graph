@@ -1,0 +1,242 @@
+# =============================================================================
+# Scenario 03 — Financial Trading Platform
+# =============================================================================
+# Domain   : High-frequency trading / market-data distribution system
+# Scale    : Medium (60 apps, 35 topics, 5 brokers, 6 nodes)
+# Purpose  : Validate that QoS-weighted criticality scoring correctly elevates
+#            components on paths carrying CRITICAL / HIGH priority, PERSISTENT
+#            market-data streams, where latency and reliability are paramount.
+#
+# Topology fingerprint:
+#   • Dense connectivity — trading apps subscribe to many order-book topics
+#   • PERSISTENT + RELIABLE dominates (trade records must survive restarts)
+#   • High proportion of CRITICAL priority topics (order execution feeds)
+#   • Apps skewed toward pubsub (strategy engines read and write simultaneously)
+#   • ~30 % of apps declared critical (order routing, risk management)
+#   • Large message sizes for order-book snapshots
+#
+# Expected analysis outcomes:
+#   • Order-routing and risk-management apps = top composite criticality tier
+#   • Topics carrying trade execution events surface via high edge weights
+#   • Broker handling settlement topics becomes infrastructure SPOF
+#   • QoS weight contribution clearly differentiates execution vs. analytics path
+#
+# Usage:
+#   python bin/generate_graph.py --config input/scenario_03_financial_trading.yaml \
+#          --output output/trading_system.json
+# =============================================================================
+
+graph:
+  seed: 3003
+
+  counts:
+    nodes: 6
+    applications: 60
+    libraries: 18
+    topics: 35
+    brokers: 5
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS — Densely packed: trading farms consolidate apps per server
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 10.0
+      median: 10.0
+      std: 2.0
+      min: 5
+      max: 15
+      q1: 8.0
+      q3: 12.0
+      iqr: 4.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS
+  # ---------------------------------------------------------------------------
+  application_stats:
+    # Strategy engines both consume market data and emit orders
+    direct_publish_count:
+      mean: 4.0
+      median: 4.0
+      std: 1.5
+      min: 1
+      max: 9
+      q1: 3.0
+      q3: 5.0
+      iqr: 2.0
+
+    direct_subscribe_count:
+      mean: 6.0
+      median: 6.0
+      std: 2.0
+      min: 1
+      max: 14
+      q1: 4.0
+      q3: 8.0
+      iqr: 4.0
+
+    total_publish_count_including_libraries:
+      mean: 5.5
+      median: 5.0
+      std: 2.0
+      min: 1
+      max: 12
+      q1: 4.0
+      q3: 7.0
+      iqr: 3.0
+
+    total_subscribe_count_including_libraries:
+      mean: 8.0
+      median: 7.0
+      std: 2.5
+      min: 1
+      max: 18
+      q1: 6.0
+      q3: 10.0
+      iqr: 4.0
+
+    # Trading platforms are largely bidirectional; few pure sinks (reporting)
+    app_role_distribution:
+      total_count: 60
+      category_counts:
+        pub: 8        # Market-data feeds, quote broadcasters
+        sub: 10       # Compliance reporters, audit consumers
+        pubsub: 42    # Strategy engines, risk managers, order routers
+      mode: pubsub
+      mode_count: 42
+      mode_percentage: 70.0
+
+    # ~30 % critical — order execution, risk limits, circuit breakers
+    app_criticality_distribution:
+      total_count: 60
+      category_counts:
+        critical: 18
+        non_critical: 42
+      mode: non_critical
+      mode_count: 42
+      mode_percentage: 70.0
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — Shared quant/order-management libraries widely used
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 5.0
+      median: 4.0
+      std: 3.5
+      min: 1
+      max: 14
+      q1: 2.0
+      q3: 7.0
+      iqr: 5.0
+
+    direct_publish_count:
+      mean: 2.5
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 6
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+    direct_subscribe_count:
+      mean: 3.0
+      median: 3.0
+      std: 1.5
+      min: 0
+      max: 7
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    total_publish_count_including_libraries:
+      mean: 4.0
+      median: 4.0
+      std: 2.0
+      min: 0
+      max: 9
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+    total_subscribe_count_including_libraries:
+      mean: 5.0
+      median: 5.0
+      std: 2.0
+      min: 0
+      max: 10
+      q1: 3.0
+      q3: 7.0
+      iqr: 4.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — Order-book snapshots are large; signals are tiny
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 8192.0
+      median: 4096.0
+      std: 10000.0
+      min: 128
+      max: 65536
+      q1: 1024.0
+      q3: 16384.0
+      iqr: 15360.0
+
+    # Multiple strategy engines may publish to the same execution topic
+    applications_publishing_to_this_topic:
+      mean: 2.5
+      median: 2.0
+      std: 1.5
+      min: 1
+      max: 7
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    # Many consumers per market-data topic (cross-strategy consumption)
+    applications_subscribing_to_this_topic:
+      mean: 5.5
+      median: 5.0
+      std: 2.5
+      min: 1
+      max: 14
+      q1: 3.0
+      q3: 8.0
+      iqr: 5.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — Reliability and persistence are non-negotiable
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 35
+      category_counts:
+        volatile: 3         # Heartbeats / internal keep-alive
+        transient_local: 5  # Short-lived position snapshots
+        transient: 8        # Intraday risk signals
+        persistent: 19      # Trade records, order lifecycle events
+      mode: persistent
+      mode_count: 19
+      mode_percentage: 54.3
+
+    qos_reliability_distribution:
+      total_count: 35
+      category_counts:
+        best_effort: 4      # Non-critical analytics side-channels
+        reliable: 31        # All trading and risk traffic
+      mode: reliable
+      mode_count: 31
+      mode_percentage: 88.6
+
+    qos_transport_priority_distribution:
+      total_count: 35
+      category_counts:
+        low: 2
+        medium: 7
+        high: 14
+        critical: 12
+      mode: high
+      mode_count: 14
+      mode_percentage: 40.0

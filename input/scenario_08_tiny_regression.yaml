@@ -1,0 +1,240 @@
+# =============================================================================
+# Scenario 08 — Tiny Regression / Smoke Test
+# =============================================================================
+# Domain   : Minimal viable pub-sub system (CI pipeline smoke test)
+# Scale    : Tiny (12 apps, 8 topics, 2 brokers, 3 nodes)
+# Purpose  : Fast smoke test that validates the full six-step pipeline
+#            completes correctly on a deterministic, hand-verifiable dataset.
+#            Also used as a regression fixture: expected criticality outputs
+#            should be stable across code changes.
+#
+# Topology fingerprint:
+#   • Fully deterministic (seed: 8008)
+#   • Minimal counts — entire system fits in a single diagram
+#   • Balanced QoS: one of each durability level, equal reliability split
+#   • ~33 % critical apps to ensure box-plot classifier has both classes
+#   • Hand-verifiable: you can trace every edge in the generated JSON
+#
+# Expected analysis outcomes:
+#   • Pipeline completes in < 5 seconds
+#   • ≥ 1 articulation point detected (regression check)
+#   • Brokers always in CRITICAL tier (only 2 for 12 apps)
+#   • Output used as golden fixture for unit tests
+#
+# Usage:
+#   python bin/generate_graph.py --config input/scenario_08_tiny_regression.yaml \
+#          --output output/regression_system.json
+#   # Then run full pipeline:
+#   python bin/run.py --all --input output/regression_system.json
+# =============================================================================
+
+graph:
+  seed: 8008
+
+  counts:
+    nodes: 3
+    applications: 12
+    libraries: 4
+    topics: 8
+    brokers: 2
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 4.0
+      median: 4.0
+      std: 1.0
+      min: 2
+      max: 6
+      q1: 3.0
+      q3: 5.0
+      iqr: 2.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 2.0
+      median: 2.0
+      std: 1.0
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    direct_subscribe_count:
+      mean: 2.5
+      median: 2.0
+      std: 1.0
+      min: 0
+      max: 5
+      q1: 2.0
+      q3: 3.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 3.0
+      median: 3.0
+      std: 1.0
+      min: 0
+      max: 5
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    total_subscribe_count_including_libraries:
+      mean: 3.5
+      median: 3.0
+      std: 1.0
+      min: 1
+      max: 6
+      q1: 3.0
+      q3: 4.0
+      iqr: 1.0
+
+    app_role_distribution:
+      total_count: 12
+      category_counts:
+        pub: 3
+        sub: 4
+        pubsub: 5
+      mode: pubsub
+      mode_count: 5
+      mode_percentage: 41.7
+
+    # ~33 % critical to guarantee both classes present for classifier validation
+    app_criticality_distribution:
+      total_count: 12
+      category_counts:
+        critical: 4
+        non_critical: 8
+      mode: non_critical
+      mode_count: 8
+      mode_percentage: 66.7
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 3.0
+      median: 3.0
+      std: 1.0
+      min: 1
+      max: 5
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    direct_publish_count:
+      mean: 1.0
+      median: 1.0
+      std: 0.5
+      min: 0
+      max: 2
+      q1: 1.0
+      q3: 1.0
+      iqr: 0.0
+
+    direct_subscribe_count:
+      mean: 1.0
+      median: 1.0
+      std: 0.5
+      min: 0
+      max: 2
+      q1: 1.0
+      q3: 1.0
+      iqr: 0.0
+
+    total_publish_count_including_libraries:
+      mean: 1.5
+      median: 1.5
+      std: 0.5
+      min: 1
+      max: 2
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    total_subscribe_count_including_libraries:
+      mean: 1.5
+      median: 1.5
+      std: 0.5
+      min: 1
+      max: 2
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 1024.0
+      median: 1024.0
+      std: 512.0
+      min: 256
+      max: 2048
+      q1: 512.0
+      q3: 1536.0
+      iqr: 1024.0
+
+    applications_publishing_to_this_topic:
+      mean: 1.5
+      median: 1.0
+      std: 0.5
+      min: 1
+      max: 3
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    applications_subscribing_to_this_topic:
+      mean: 2.5
+      median: 2.0
+      std: 1.0
+      min: 1
+      max: 5
+      q1: 2.0
+      q3: 3.0
+      iqr: 1.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — One of each type for full code-path coverage
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 8
+      category_counts:
+        volatile: 2
+        transient_local: 2
+        transient: 2
+        persistent: 2
+      mode: volatile      # All tied; volatile listed as mode by convention
+      mode_count: 2
+      mode_percentage: 25.0
+
+    qos_reliability_distribution:
+      total_count: 8
+      category_counts:
+        best_effort: 4
+        reliable: 4
+      mode: best_effort
+      mode_count: 4
+      mode_percentage: 50.0
+
+    qos_transport_priority_distribution:
+      total_count: 8
+      category_counts:
+        low: 2
+        medium: 2
+        high: 2
+        critical: 2
+      mode: low
+      mode_count: 2
+      mode_percentage: 25.0
