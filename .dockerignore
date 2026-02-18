@@ -3,5 +3,6 @@ __pycache__
 .git
 .env
 venv/
-input/*
+env/
+backend/env/
 output/*
