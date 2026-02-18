@@ -99,11 +99,16 @@ ENV PATH="/opt/venv/bin:$PATH" \
 # Copy Python application code
 COPY backend/src/ ./backend/src/
 COPY backend/api/ ./backend/api/
-COPY backend/bin/generate_graph.py backend/bin/import_graph.py ./backend/bin/
-COPY backend/bin/analyze_graph.py backend/bin/simulate_graph.py backend/bin/validate_graph.py backend/bin/visualize_graph.py backend/bin/export_graph.py backend/bin/run.py ./backend/bin/
+COPY bin/*.py ./bin/
+
+# Copy input data for pipeline examples
+COPY input/ ./input/
+
+# Create output directory for CLI results
+RUN mkdir -p ./output
 
 # Make Python scripts executable
-RUN chmod +x ./backend/bin/*.py
+RUN chmod +x ./bin/*.py
 
 # Copy Next.js built application from builder
 ENV NODE_ENV=production
