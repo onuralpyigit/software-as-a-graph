@@ -93,6 +93,20 @@ Once running, open:
 
 > **Note:** Default Neo4j credentials (`neo4j` / `password`) are for local development only. Change them via the `NEO4J_AUTH` environment variable in `docker-compose.yml` before any shared or production deployment.
 
+### Running a Pre-Built Docker Image
+
+If you have a pre-built Docker image (e.g., from `docker build`), you can run it directly with:
+
+```bash
+docker run --name genieus --network host genieus:1.0.0
+```
+
+- `--name genieus` — Names the container for easier management
+- `--network host` — Uses the host network, allowing the container to connect to services running on localhost (e.g., Neo4j on port 7687)
+- `genieus:1.0.0` — The image name and tag
+
+This is useful when deploying a specific version of the application alongside an existing Neo4j instance.
+
 ---
 
 ## Web Interface (Genieus)
