@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { apiClient } from '@/lib/api/client'
 import type { ForceGraphData, GraphNode, GraphLink } from '@/lib/types/api'
 import type { GraphView } from '@/lib/types/graph-views'
@@ -7,19 +7,38 @@ import { GRAPH_VIEWS } from '@/lib/types/graph-views'
 export function useGraphData(isConnected: boolean, currentView: GraphView = 'complete') {
   const [graphData, setGraphData] = useState<ForceGraphData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchTopologyData = async (nodeId?: string) => {
-    if (!isConnected) return
+  // Whether the initial load for the current view has completed
+  const hasLoadedRef = useRef(false)
+  // Monotonically increasing counter to discard stale responses
+  const requestIdRef = useRef(0)
+  // Track previous view so we can reset on view change
+  const prevViewRef = useRef(currentView)
 
-    setIsLoading(true)
-    setError(null)
+  // Synchronously reset when the view changes (runs during render, before effects)
+  if (prevViewRef.current !== currentView) {
+    prevViewRef.current = currentView
+    hasLoadedRef.current = false
+  }
+
+  const fetchTopologyData = useCallback(async (nodeId?: string) => {
+    if (!isConnected) return null
+
+    const isRefresh = hasLoadedRef.current
+    const thisRequestId = ++requestIdRef.current
+
+    if (isRefresh) {
+      setIsRefreshing(true)
+    } else {
+      setIsLoading(true)
+      setError(null)
+    }
 
     try {
       const viewConfig = GRAPH_VIEWS[currentView]
       const isStructuralView = currentView === 'complete'
-      
-      console.log('📊 [useGraphData] Fetching topology for view:', currentView, 'isStructural:', isStructuralView)
       
       let data: ForceGraphData
       
@@ -49,12 +68,6 @@ export function useGraphData(isConnected: boolean, currentView: GraphView = 'com
         }
       } else {
         // For layer views, use the getGraphData with appropriate filters
-        console.log('🔧 [useGraphData] Fetching with filters:', {
-          relationship_types: viewConfig.relationshipTypes,
-          dependency_types: viewConfig.dependencyTypes,
-          node_types: viewConfig.nodeTypes
-        })
-        
         data = await apiClient.getGraphData({
           relationship_types: viewConfig.relationshipTypes,
           dependency_types: viewConfig.dependencyTypes,
@@ -64,24 +77,33 @@ export function useGraphData(isConnected: boolean, currentView: GraphView = 'com
         })
       }
       
-      console.log('✅ [useGraphData] Received:', data.nodes.length, 'nodes,', data.links.length, 'links')
+      // Discard if a newer request has been started
+      if (thisRequestId !== requestIdRef.current) return null
       
+      hasLoadedRef.current = true
       setGraphData(data)
       return data
     } catch (err) {
+      // Discard stale errors
+      if (thisRequestId !== requestIdRef.current) return null
+
       console.error('Failed to fetch topology data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch topology data')
       return null
     } finally {
-      setIsLoading(false)
+      // Only clear loading flags if this is still the latest request
+      if (thisRequestId === requestIdRef.current) {
+        setIsLoading(false)
+        setIsRefreshing(false)
+      }
     }
-  }
+  }, [isConnected, currentView])
 
   useEffect(() => {
     if (isConnected) {
       fetchTopologyData()
     }
-  }, [isConnected, currentView])
+  }, [isConnected, currentView, fetchTopologyData])
 
-  return { graphData, isLoading, error, fetchTopologyData, setGraphData }
+  return { graphData, isLoading, isRefreshing, error, fetchTopologyData, setGraphData }
 }

@@ -6,9 +6,10 @@ import { Keyboard } from "lucide-react"
 
 interface KeyboardShortcutsHelpProps {
   className?: string
+  inline?: boolean
 }
 
-export function KeyboardShortcutsHelp({ className = "bottom-4 left-4" }: KeyboardShortcutsHelpProps) {
+export function KeyboardShortcutsHelp({ className = "bottom-4 left-4", inline = false }: KeyboardShortcutsHelpProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   const shortcuts = [
@@ -24,7 +25,7 @@ export function KeyboardShortcutsHelp({ className = "bottom-4 left-4" }: Keyboar
       <Button
         variant="ghost"
         size="icon"
-        className={`absolute ${className} z-50 rounded-full shadow-lg bg-background/90 backdrop-blur-sm border border-border hover:bg-accent hover:scale-110 hover:shadow-xl transition-all duration-200`}
+        className={`${inline ? '' : `absolute ${className} `}z-50 rounded-full shadow-lg bg-background/90 backdrop-blur-sm border border-border hover:bg-accent hover:scale-110 hover:shadow-xl transition-all duration-200`}
         onClick={() => setIsOpen(!isOpen)}
         title="Keyboard shortcuts"
       >
@@ -32,7 +33,7 @@ export function KeyboardShortcutsHelp({ className = "bottom-4 left-4" }: Keyboar
       </Button>
 
       {isOpen && (
-        <div className={`absolute ${className.includes('left-') ? className.replace(/left-\S+/, 'left-4') : 'left-4'} ${className.includes('bottom-') ? className.replace(/bottom-\S+/, 'bottom-16') : 'bottom-16'} z-50 bg-background/95 backdrop-blur-md border border-border rounded-lg p-4 shadow-2xl max-w-sm animate-in slide-in-from-bottom-2 fade-in duration-200`}>
+        <div className={`absolute ${inline ? 'bottom-12 left-0' : `${className.includes('left-') ? className.replace(/left-\S+/, 'left-4') : 'left-4'} ${className.includes('bottom-') ? className.replace(/bottom-\S+/, 'bottom-16') : 'bottom-16'}`} z-50 bg-background/95 backdrop-blur-md border border-border rounded-lg p-4 shadow-2xl max-w-sm animate-in slide-in-from-bottom-2 fade-in duration-200`}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm">Keyboard Shortcuts</h3>
             <button

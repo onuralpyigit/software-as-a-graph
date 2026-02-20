@@ -260,6 +260,159 @@ export function useGraphDrillDown(currentView: GraphView = 'complete') {
     setExpandedNodes(new Set())
   }
 
+  // Replays a saved drill-down path (array of nodeIds) against fresh data.
+  // Accumulates history locally so each step sees the correct chain — avoids
+  // the stale-closure issue that occurs when calling drillDown() in a loop.
+  const replayDrillPath = async (
+    nodeIds: string[],
+    graphData: ForceGraphData | null
+  ): Promise<ForceGraphData | null> => {
+    if (nodeIds.length === 0) return null
+    setIsLoadingChildren(true)
+
+    const fetchStructural = currentView === 'complete'
+    const accHistory: DrillDownLevel[] = []
+    const accHierarchy: Map<string, HierarchyData> = new Map()
+    let lastResult: ForceGraphData | null = null
+
+    try {
+      for (const nodeId of nodeIds) {
+        const connections = await apiClient.getNodeConnectionsWithDepth(nodeId, fetchStructural, 1)
+
+        const transformedEdges = connections.links.map((edge: any) => ({
+          ...edge,
+          type: edge.relation_type || edge.type || 'default',
+        }))
+        const filteredLinks = filterLinksByView(transformedEdges)
+        const nodeSpecificLinks = filteredLinks.filter(link => {
+          const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id
+          const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id
+          return sourceId === nodeId || targetId === nodeId
+        })
+
+        const connectedNodeIds = new Set<string>([nodeId])
+        nodeSpecificLinks.forEach(link => {
+          const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id
+          const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id
+          connectedNodeIds.add(sourceId)
+          connectedNodeIds.add(targetId)
+        })
+
+        let filteredNodes = connections.nodes.filter((n: GraphNode) => connectedNodeIds.has(n.id))
+        if (currentView !== 'complete' && viewConfig.nodeTypes && viewConfig.nodeTypes.length > 0) {
+          filteredNodes = filteredNodes.filter((n: GraphNode) => viewConfig.nodeTypes!.includes(n.type))
+        }
+
+        const node = filteredNodes.find((n: GraphNode) => n.id === nodeId)
+        if (!node) break // node no longer exists — stop here
+
+        const children = filteredNodes.filter((n: GraphNode) => n.id !== nodeId)
+        accHierarchy.set(nodeId, { node, children, links: nodeSpecificLinks })
+        accHistory.push({ nodeId, nodeType: node.type, nodeLabel: node.label, childNodes: children })
+
+        lastResult = {
+          nodes: filteredNodes,
+          links: nodeSpecificLinks,
+          metadata: {},
+        }
+      }
+    } catch (err) {
+      console.error('Failed to replay drill path:', err)
+    } finally {
+      // Set all state atomically based on how far we got
+      setHierarchyData(accHierarchy)
+      setDrillDownHistory(accHistory)
+      updateBreadcrumbPath(accHistory)
+      setExpandedNodes(new Set(accHistory.map(h => h.nodeId)))
+      setIsLoadingChildren(false)
+    }
+
+    return lastResult
+  }
+
+  /**
+   * Refresh the current drill level in-place.
+   * Walks back from the deepest drill level, trying each one until it finds
+   * a node that still exists in the database (verified by actual API call).
+   * This avoids relying on the topology data which only contains Node-type IDs.
+   *
+   * @returns  Fresh ForceGraphData for the current (or nearest ancestor) level,
+   *           or null if every level was deleted (caller should reset to full graph).
+   */
+  const refreshCurrentLevel = async (): Promise<ForceGraphData | null> => {
+    if (drillDownHistory.length === 0) return null
+
+    const fetchStructural = currentView === 'complete'
+
+    setIsLoadingChildren(true)
+    try {
+      // Try from deepest level up to root until we find a surviving node
+      for (let targetIdx = drillDownHistory.length - 1; targetIdx >= 0; targetIdx--) {
+        const targetId = drillDownHistory[targetIdx].nodeId
+
+        try {
+          const connections = await apiClient.getNodeConnectionsWithDepth(targetId, fetchStructural, 1)
+
+          const transformedEdges = connections.links.map((edge: any) => ({
+            ...edge,
+            type: edge.relation_type || edge.type || 'default',
+          }))
+          const nodeSpecificLinks = filterLinksByView(transformedEdges).filter(link => {
+            const srcId = typeof link.source === 'string' ? link.source : (link.source as any).id
+            const tgtId = typeof link.target === 'string' ? link.target : (link.target as any).id
+            return srcId === targetId || tgtId === targetId
+          })
+
+          const connectedNodeIds = new Set<string>([targetId])
+          nodeSpecificLinks.forEach(link => {
+            const srcId = typeof link.source === 'string' ? link.source : (link.source as any).id
+            const tgtId = typeof link.target === 'string' ? link.target : (link.target as any).id
+            connectedNodeIds.add(srcId)
+            connectedNodeIds.add(tgtId)
+          })
+
+          let filteredNodes = connections.nodes.filter((n: GraphNode) => connectedNodeIds.has(n.id))
+          if (currentView !== 'complete' && viewConfig.nodeTypes && viewConfig.nodeTypes.length > 0) {
+            filteredNodes = filteredNodes.filter((n: GraphNode) => viewConfig.nodeTypes!.includes(n.type))
+          }
+
+          const node = filteredNodes.find((n: GraphNode) => n.id === targetId)
+          if (!node) {
+            // Node not in API result — it was deleted, try the parent level
+            continue
+          }
+
+          const children = filteredNodes.filter((n: GraphNode) => n.id !== targetId)
+
+          // Update only the target level in hierarchyData
+          setHierarchyData(prev => {
+            const next = new Map(prev)
+            next.set(targetId, { node, children, links: nodeSpecificLinks })
+            return next
+          })
+
+          // Trim history/breadcrumbs if we fell back to an ancestor
+          if (targetIdx < drillDownHistory.length - 1) {
+            const trimmedHistory = drillDownHistory.slice(0, targetIdx + 1)
+            setDrillDownHistory(trimmedHistory)
+            updateBreadcrumbPath(trimmedHistory)
+            setExpandedNodes(new Set(trimmedHistory.map(h => h.nodeId)))
+          }
+
+          return { nodes: filteredNodes, links: nodeSpecificLinks, metadata: {} }
+        } catch {
+          // API call failed for this node (likely deleted) — try the parent
+          continue
+        }
+      }
+
+      // Every level was deleted
+      return null
+    } finally {
+      setIsLoadingChildren(false)
+    }
+  }
+
   const toggleNodeExpansion = (nodeId: string) => {
     setExpandedNodes(prev => {
       const newSet = new Set(prev)
@@ -281,6 +434,8 @@ export function useGraphDrillDown(currentView: GraphView = 'complete') {
     drillDown,
     navigateToBreadcrumb,
     reset,
+    refreshCurrentLevel,
+    replayDrillPath,
     toggleNodeExpansion
   }
 }

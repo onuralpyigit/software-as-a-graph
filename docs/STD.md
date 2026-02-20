@@ -153,19 +153,19 @@ testpaths = tests
 python_files = test_*.py
 python_classes = Test*
 python_functions = test_*
-addopts = -v --tb=short --cov=src --cov-report=html
+addopts = -v --tb=short
 timeout = 120
 
 markers =
-    slow: marks tests as slow (skip with -m "not slow")
-    integration: marks integration tests (requires Neo4j)
-    api: marks REST API tests (requires full Docker stack)
-    performance: marks performance benchmarks
+    slow: marks tests as slow (skip with --quick)
+    integration: marks integration tests
 ```
 
 ### 3.4 Test Database
 
 A dedicated Neo4j instance runs on separate ports to prevent interference with development data:
+
+> **Note:** `docker-compose.test.yml` is not yet present in the repository; create this file before running integration tests.
 
 ```yaml
 # docker-compose.test.yml
@@ -205,7 +205,7 @@ pytest tests/ -m api -v
 docker compose down
 
 # Specific module or pattern
-pytest tests/test_analysis.py -v
+pytest tests/test_analysis_service.py -v
 pytest tests/ -k "test_quality" -v
 
 # Skip slow tests
@@ -575,7 +575,7 @@ Tests that StructuralAnalyzer → QualityAnalyzer → ProblemDetector produces c
 | IT-ANAL-01 | StructuralAnalyzer → QualityAnalyzer | RMAV scores computed from structural metrics |
 | IT-ANAL-02 | QualityAnalyzer → ProblemDetector | Architectural problems identified |
 | IT-ANAL-03 | Full analysis pipeline | LayerAnalysisResult with components, edges, problems |
-| IT-ANAL-04 | Multi-layer analysis (all 5 layers) | Distinct results per layer; app layer has only Application components |
+| IT-ANAL-04 | Multi-layer analysis (all 4 layers) | Distinct results per layer; app layer has only Application components |
 
 ```python
 @pytest.mark.integration
@@ -648,14 +648,14 @@ Tests that the FastAPI backend correctly invokes domain services and returns pro
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
 | IT-API-01 | `GET /health` | `{"status": "ok"}`, HTTP 200 |
-| IT-API-02 | `GET /api/graph/summary` before import | Zero counts for all entity types |
-| IT-API-03 | `POST /api/graph/import` with valid JSON | HTTP 200; entity counts match topology |
-| IT-API-04 | `POST /api/graph/import` with invalid JSON | HTTP 422; error body contains offending field |
-| IT-API-05 | `GET /api/analysis/{layer}` after import | HTTP 200; all components have RMAV scores |
-| IT-API-06 | `POST /api/simulation/failure` | HTTP 200; one FailureResult per component |
-| IT-API-07 | `POST /api/validation` | HTTP 200; Spearman ρ ∈ [−1, 1] |
-| IT-API-08 | `GET /api/layers` | HTTP 200; list contains "app", "infra", "system" |
-| IT-API-09 | `GET /api/components/{layer}` with unknown layer | HTTP 404 or HTTP 422 with descriptive message |
+| IT-API-02 | `GET /api/v1/graph/search-nodes` with no data | HTTP 200; empty node list |
+| IT-API-03 | `POST /api/v1/graph/import` with valid JSON | HTTP 200; entity counts match topology |
+| IT-API-04 | `POST /api/v1/graph/import` with invalid JSON | HTTP 422; error body contains offending field |
+| IT-API-05 | `POST /api/v1/analysis/layer/{layer}` after import | HTTP 200; all components have RMAV scores |
+| IT-API-06 | `POST /api/v1/simulation/failure` | HTTP 200; one FailureResult per component |
+| IT-API-07 | `POST /api/v1/validation/run-pipeline` | HTTP 200; Spearman ρ ∈ [−1, 1] |
+| IT-API-08 | `GET /api/v1/validation/layers` | HTTP 200; result contains layer entries |
+| IT-API-09 | `POST /api/v1/components` with unknown layer | HTTP 404 or HTTP 422 with descriptive message |
 
 ```python
 @pytest.mark.api
@@ -668,7 +668,7 @@ async def test_health_endpoint(api_client):
 @pytest.mark.api
 @pytest.mark.asyncio
 async def test_import_valid_topology(api_client, sample_topology_json):
-    r = await api_client.post("/api/graph/import", json=sample_topology_json)
+    r = await api_client.post("/api/v1/graph/import", json=sample_topology_json)
     assert r.status_code == 200
     body = r.json()
     assert body["applications"] > 0
@@ -676,7 +676,7 @@ async def test_import_valid_topology(api_client, sample_topology_json):
 @pytest.mark.api
 @pytest.mark.asyncio
 async def test_analysis_endpoint_returns_scores(api_client):
-    r = await api_client.get("/api/analysis/app")
+    r = await api_client.post("/api/v1/analysis/layer/app")
     assert r.status_code == 200
     components = r.json()["components"]
     assert len(components) > 0
@@ -749,7 +749,7 @@ These tests verify the full Docker stack. They require `docker compose up --buil
 
 | Test ID | Description | Pass Criteria |
 |---------|-------------|---------------|
-| ST-WEB-01 | Docker stack starts successfully | All 4 services healthy within 60 s |
+| ST-WEB-01 | Docker stack starts successfully | The genieus service healthy within 60 s |
 | ST-WEB-02 | Genieus frontend accessible | HTTP 200 on `http://localhost:7000` |
 | ST-WEB-03 | FastAPI docs accessible | HTTP 200 on `http://localhost:8000/docs` |
 | ST-WEB-04 | Neo4j Browser accessible | HTTP 200 on `http://localhost:7474` |
@@ -768,12 +768,12 @@ curl -sf http://localhost:7000 | grep -q "Genieus"
 
 # ST-WEB-05: full API pipeline
 TOPO=$(cat input/sample_small.json)
-curl -sf -X POST http://localhost:8000/api/graph/import \
+curl -sf -X POST http://localhost:8000/api/v1/graph/import \
      -H "Content-Type: application/json" -d "$TOPO"
-curl -sf http://localhost:8000/api/analysis/app
-curl -sf -X POST http://localhost:8000/api/simulation/failure \
+curl -sf -X POST http://localhost:8000/api/v1/analysis/layer/app
+curl -sf -X POST http://localhost:8000/api/v1/simulation/failure \
      -H "Content-Type: application/json" -d '{"layer":"app"}'
-curl -sf -X POST http://localhost:8000/api/validation \
+curl -sf -X POST http://localhost:8000/api/v1/validation/run-pipeline \
      -H "Content-Type: application/json" -d '{"layer":"app"}'
 ```
 
@@ -926,7 +926,7 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 | ID | Criterion | Method | Pass If |
 |----|-----------|--------|---------|
 | AC-01 | Import JSON topology | Auto | All entities appear in Neo4j with correct properties |
-| AC-02 | Import GraphML topology | Auto | Equivalent DEPENDS\_ON edges produced as JSON import |
+| AC-02 | Import GraphML topology | Auto | Equivalent DEPENDS\_ON edges produced as JSON import *(not yet implemented)* |
 | AC-03 | Derive DEPENDS\_ON edges | Auto | All 4 derivation types present with correct weights |
 | AC-04 | Calculate QoS weights | Auto | Topic weights > 0 for non-default QoS settings |
 | AC-05 | Support all preset scales | Auto | tiny through xlarge generate without error |
@@ -935,10 +935,10 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 
 | ID | Criterion | Method | Pass If |
 |----|-----------|--------|---------|
-| AC-06 | Compute all 13 metrics | Auto | All 16 fields of StructuralMetrics populated for non-trivial graphs |
+| AC-06 | Compute all 16 metrics | Auto | All 16 fields of StructuralMetrics populated for non-trivial graphs |
 | AC-07 | Compute graph-level summary | Auto | S(G) fields present: vertex\_count, edge\_count, density, diameter, etc. |
 | AC-08 | Identify articulation points | Auto | Known SPOFs detected on test graph |
-| AC-09 | Multi-layer support | Auto | All 5 layers produce non-empty results |
+| AC-09 | Multi-layer support | Auto | All 4 layers produce non-empty results |
 | AC-10 | Export results to JSON | Auto | Valid JSON matching the SDD §8.3 output schema |
 
 #### Quality Scoring
@@ -985,7 +985,7 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 
 | ID | Criterion | Method | Pass If |
 |----|-----------|--------|---------|
-| AC-31 | Docker stack starts cleanly | Auto | All 4 services healthy within 60 s |
+| AC-31 | Docker stack starts cleanly | Auto | The genieus service healthy within 60 s |
 | AC-32 | Dashboard tab loads | Manual | KPI cards and criticality chart visible |
 | AC-33 | Graph Explorer: layer filter works | Manual | Switching layers updates node set |
 | AC-34 | Graph Explorer: node click shows detail | Manual | Side panel opens with RMAV scores |
@@ -1009,7 +1009,7 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 |----|-------------------|----------|--------|
 | ACC-01 | JSON topology import | AC-01, AC-03, AC-04 | ☐ |
 | ACC-02 | GraphML topology import | AC-02 | ☐ |
-| ACC-03 | Compute all 13 metrics | AC-06, AC-07 | ☐ |
+| ACC-03 | Compute all 16 metrics | AC-06, AC-07 | ☐ |
 | ACC-04 | RMAV quality scoring | AC-11, AC-12, AC-13, AC-14 | ☐ |
 | ACC-05 | Failure simulation | AC-15, AC-16, AC-17, AC-18 | ☐ |
 | ACC-06 | Validation accuracy | AC-20 – AC-25 | ☐ |
@@ -1035,6 +1035,7 @@ Each SRS v2.1 requirement maps to one or more test cases. Requirements without e
 | REQ-GM-03 | Create 6 structural edge types | IT-NEO-01 (roundtrip verifies all edge types) |
 | REQ-GM-04 | Derive DEPENDS\_ON edges | IT-NEO-02, AC-03 |
 | REQ-GM-05 | Compute QoS edge weights | UT-CORE-01–09, IT-NEO-03 |
+| REQ-GM-06 | *(see SRS §4.1)* | *(gap — no test mapped)* |
 | REQ-GM-07, REQ-ML-01–04 | Layer projection (all 4 layers) | UT-ANAL-29, UT-ANAL-30, IT-NEO-04, AC-09 |
 | REQ-SA-01 | Compute PageRank | UT-ANAL-02 |
 | REQ-SA-02 | Compute Reverse PageRank | UT-ANAL-03 |
@@ -1089,7 +1090,7 @@ Each SRS v2.1 requirement maps to one or more test cases. Requirements without e
 | REQ-REL-03 | AHP consistency validated before weights used | UT-ANAL-25, UT-ANAL-26, AC-13 |
 | REQ-SEC-01 | Neo4j authentication via credentials | UT-ERR-08, AC-40 |
 | REQ-SEC-02 | Credentials not in source code | AC-39 |
-| REQ-SEC-03 | Encrypted Bolt connections supported | IT-API-01 (bolt+s configuration test) |
+| REQ-SEC-03 | Encrypted Bolt connections supported | *(gap — no test mapped)* |
 | REQ-LOG-01 | Configurable verbosity (DEBUG/INFO/WARNING/ERROR) | UT-ERR-06, AC-41 |
 | REQ-LOG-02 | Per-step start/end time logging | UT-ERR-06, AC-42 |
 | REQ-LOG-03 | Validation pass/fail logged with values | UT-ERR-07, AC-42 |
