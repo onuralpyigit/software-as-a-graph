@@ -16,7 +16,7 @@ import type { ForceGraphData, GraphNode, GraphLink } from "@/lib/types/api"
 import type { GraphView } from "@/lib/types/graph-views"
 import { GRAPH_VIEWS } from "@/lib/types/graph-views"
 import { Button } from "@/components/ui/button"
-import { Loader2, ChevronRight, X, Box, Grid3x3, Maximize2, RefreshCw, Download, Network, Layers, AppWindow, Server, GitBranch, Database, Info } from "lucide-react"
+import { Loader2, ChevronRight, X, Box, Grid3x3, Maximize2, RefreshCw, Download, Network, Layers, AppWindow, Server, GitBranch, Database, Info, Timer } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // Hooks
@@ -52,7 +52,7 @@ function ExplorerContent() {
   const [currentView, setCurrentView] = useState<GraphView>('complete')
 
   // Graph data management
-  const { graphData, isLoading, error, fetchTopologyData, setGraphData } = useGraphData(isConnected, currentView)
+  const { graphData, isLoading, isRefreshing, error, fetchTopologyData, setGraphData } = useGraphData(isConnected, currentView)
   const [viewGraphData, setViewGraphData] = useState<ForceGraphData | null>(null)
   
   // Selection state
@@ -67,13 +67,16 @@ function ExplorerContent() {
   const { searchQuery, searchResults, showSearchResults, isSearching, handleSearch, handleClearSearch, setShowSearchResults } = useGraphSearch(isConnected, currentView)
   
   // Drill-down navigation
-  const { drillDownHistory, hierarchyData, breadcrumbPath, expandedNodes, isLoadingChildren, drillDown, navigateToBreadcrumb, reset, toggleNodeExpansion } = useGraphDrillDown(currentView)
+  const { drillDownHistory, hierarchyData, breadcrumbPath, expandedNodes, isLoadingChildren, drillDown, navigateToBreadcrumb, reset, refreshCurrentLevel, replayDrillPath, toggleNodeExpansion } = useGraphDrillDown(currentView)
   
   // 3D view toggle
   const [is3DView, setIs3DView] = useState(false)
   
   // Graph ref
   const graphRef = useRef<ForceGraph2DRef | ForceGraph3DRef>(null)
+
+  // Guard against overlapping refreshes (manual + auto-refresh)
+  const refreshInFlightRef = useRef(false)
 
   // Track if URL parameter has been processed
   const [urlNodeProcessed, setUrlNodeProcessed] = useState<string | null>(null)
@@ -297,9 +300,67 @@ function ExplorerContent() {
     setIs3DView(prev => !prev)
   }
 
-  const handleRefresh = () => {
-    fetchTopologyData()
+  const handleRefresh = async () => {
+    // Prevent overlapping refreshes from auto-refresh + manual clicks
+    if (refreshInFlightRef.current) return
+    refreshInFlightRef.current = true
+
+    try {
+      const freshData = await fetchTopologyData()
+      if (!freshData) return
+
+      if (drillDownHistory.length > 0) {
+        const result = await refreshCurrentLevel()
+        if (result) {
+          setViewGraphData(result)
+
+          // Clear selection if the selected node/link no longer exists in the refreshed view
+          const viewNodeIds = new Set(result.nodes.map((n: GraphNode) => n.id))
+          setSelectedNode(prev => (prev && !viewNodeIds.has(prev.id) ? null : prev))
+          setSelectedLink(prev => {
+            if (!prev) return prev
+            const src = typeof prev.source === 'string' ? prev.source : (prev.source as any).id
+            const tgt = typeof prev.target === 'string' ? prev.target : (prev.target as any).id
+            return viewNodeIds.has(src) && viewNodeIds.has(tgt) ? prev : null
+          })
+        } else {
+          // Every level in the path was deleted — fall back to full graph
+          reset()
+          setViewGraphData(null)
+          setSelectedNode(null)
+          setSelectedLink(null)
+        }
+      } else {
+        // Not drilled — clear any stale viewGraphData so fresh full graph is shown
+        setViewGraphData(null)
+
+        // Clear selection if node/link no longer in the fresh full graph
+        const nodeIds = new Set(freshData.nodes.map((n: GraphNode) => n.id))
+        setSelectedNode(prev => (prev && !nodeIds.has(prev.id) ? null : prev))
+        setSelectedLink(prev => {
+          if (!prev) return prev
+          const src = typeof prev.source === 'string' ? prev.source : (prev.source as any).id
+          const tgt = typeof prev.target === 'string' ? prev.target : (prev.target as any).id
+          return nodeIds.has(src) && nodeIds.has(tgt) ? prev : null
+        })
+      }
+    } finally {
+      refreshInFlightRef.current = false
+    }
   }
+
+  // Auto-refresh: 0 means off; otherwise interval in seconds
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0)
+  const handleRefreshRef = useRef(handleRefresh)
+  useEffect(() => { handleRefreshRef.current = handleRefresh })
+
+  useEffect(() => {
+    if (autoRefreshInterval <= 0) return
+    const id = setInterval(() => {
+      handleRefreshRef.current()
+    }, autoRefreshInterval * 1000)
+    return () => clearInterval(id)
+  }, [autoRefreshInterval])
 
   const handleExportPNG = () => {
     if (graphRef.current) {
@@ -540,7 +601,7 @@ function ExplorerContent() {
                 </div>
               </div>
 
-              {isLoading && (
+              {isLoading && !graphData && (
                 <div className="flex h-full items-center justify-center">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -549,7 +610,7 @@ function ExplorerContent() {
                 </div>
               )}
 
-              {error && (
+              {error && !graphData && (
                 <div className="flex h-full items-center justify-center">
                   <div className="text-center">
                     <p className="text-sm text-destructive">{error}</p>
@@ -565,7 +626,7 @@ function ExplorerContent() {
                 </div>
               )}
 
-              {!isLoading && !error && graphData && filteredGraphData && (
+              {graphData && filteredGraphData && (
                 <div className="h-full w-full">
                   {is3DView ? (
                     <ForceGraph3DWrapper
@@ -699,8 +760,28 @@ function ExplorerContent() {
                       title="Refresh graph (R)"
                       disabled={isLoading}
                     >
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} style={isRefreshing ? { animationDuration: '1.5s' } : undefined} />
                     </Button>
+                    {/* Auto-refresh interval selector */}
+                    <div className="flex items-center gap-1 rounded-full shadow-lg bg-background/90 backdrop-blur-sm border-2 border-border h-9 px-2" title="Auto-refresh interval">
+                      <Timer className={`h-4 w-4 flex-shrink-0 ${autoRefreshInterval > 0 ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <Select
+                        value={String(autoRefreshInterval)}
+                        onValueChange={(v) => setAutoRefreshInterval(Number(v))}
+                      >
+                        <SelectTrigger className="h-7 w-[46px] border-0 bg-transparent shadow-none p-0 text-xs focus:ring-0 focus:ring-offset-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Off</SelectItem>
+                          <SelectItem value="5">5s</SelectItem>
+                          <SelectItem value="10">10s</SelectItem>
+                          <SelectItem value="30">30s</SelectItem>
+                          <SelectItem value="60">1m</SelectItem>
+                          <SelectItem value="300">5m</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -711,10 +792,8 @@ function ExplorerContent() {
                     >
                       <Download className="h-4 w-4" />
                     </Button>
+                    <KeyboardShortcutsHelp inline />
                   </div>
-                  
-                  {/* Keyboard Shortcuts Help */}
-                  <KeyboardShortcutsHelp className="bottom-4 left-[350px]" />
                 </div>
               )}
             </CardContent>

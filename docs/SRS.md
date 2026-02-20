@@ -187,7 +187,7 @@ The following capabilities are planned for future versions and inform current de
 |----|-------------|
 | REQ-QS-01 | The system shall compute Reliability R(v) = w₁×PR + w₂×RPR + w₃×DG\_in. |
 | REQ-QS-02 | The system shall compute Maintainability M(v) = w₁×BT + w₂×DG\_out + w₃×(1−CC). |
-| REQ-QS-03 | The system shall compute Availability A(v) = w₁×AP\_c + w₂×BR + w₃×w(v), where w(v) is the QoS-derived component weight from Step 2 (see Appendix A.4). |
+| REQ-QS-03 | The system shall compute Availability A(v) = w₁×AP\_c + w₂×BR + w₃×IMP(v), where IMP(v) = (PR(v) + RPR(v)) / 2 is the structural importance proxy (see Appendix A.4). |
 | REQ-QS-04 | The system shall compute Vulnerability V(v) = w₁×EV + w₂×CL + w₃×DG\_out. |
 | REQ-QS-05 | The system shall compute composite Quality Q(v) = w\_R×R + w\_M×M + w\_A×A + w\_V×V. |
 | REQ-QS-06 | The system shall support default equal dimension weights (w\_R = w\_M = w\_A = w\_V = 0.25). |
@@ -196,7 +196,7 @@ The following capabilities are planned for future versions and inform current de
 | REQ-QS-09 | The system shall classify components into five criticality levels (CRITICAL, HIGH, MEDIUM, LOW, MINIMAL) using box-plot statistical thresholds of the Q(v) distribution. |
 | REQ-QS-10 | The system shall fall back to fixed-percentile classification (top 10%/25%/50%/75%) when sample size < 12. |
 
-> **Definition of "Importance" in REQ-QS-03:** The term *w(v)* (component weight) in the Availability formula is the QoS-derived aggregate weight computed by REQ-SA-10. It captures the intrinsic criticality of the data streams handled by component v — components routing high-priority, reliable, or large-payload traffic score higher regardless of their structural position. This is distinct from the AHP-derived dimension weights w\_R, w\_M, w\_A, w\_V.
+> **Definition of IMP(v) in REQ-QS-03:** The term *IMP(v)* in the Availability formula is the structural importance proxy computed as the average of normalized PageRank and Reverse PageRank: IMP(v) = (PR(v) + RPR(v)) / 2. It captures a component's combined forward and reverse influence in the dependency graph. This is distinct from the QoS-derived weight w(v) (REQ-SA-10) and from the AHP-derived dimension weights w\_R, w\_M, w\_A, w\_V.
 
 ### 3.4 Failure Simulation (Step 4)
 
@@ -371,7 +371,8 @@ Edge weights are additive. Each attribute contributes a non-negative increment; 
 | Reliability | RELIABLE | +0.30 |
 | Reliability | BEST\_EFFORT | +0.00 |
 | Durability | PERSISTENT | +0.40 |
-| Durability | TRANSIENT or TRANSIENT\_LOCAL | +0.20 |
+| Durability | TRANSIENT | +0.25 |
+| Durability | TRANSIENT\_LOCAL | +0.20 |
 | Durability | VOLATILE | +0.00 |
 | Priority | URGENT | +0.30 |
 | Priority | HIGH | +0.20 |
@@ -461,7 +462,7 @@ Prediction accuracy improves with scale — larger systems produce more stable c
 w(e) = w_reliability + w_durability + w_priority + w_size
 
 w_reliability = 0.30  if RELIABLE,  0.00 otherwise
-w_durability  = 0.40  if PERSISTENT, 0.20 if TRANSIENT/TRANSIENT_LOCAL, 0.00 if VOLATILE
+w_durability  = 0.40  if PERSISTENT, 0.25 if TRANSIENT, 0.20 if TRANSIENT_LOCAL, 0.00 if VOLATILE
 w_priority    = 0.30  if URGENT, 0.20 if HIGH, 0.10 if MEDIUM, 0.00 if LOW
 w_size        = min(log₂(1 + size_bytes / 1024) / 10, 1.0)
 ```
@@ -472,7 +473,7 @@ w_size        = min(log₂(1 + size_bytes / 1024) / 10, 1.0)
 R(v) = w₁ × PR(v) + w₂ × RPR(v) + w₃ × DG_in(v)
 ```
 
-Default intra-dimension weights: w₁ = 0.40, w₂ = 0.30, w₃ = 0.30.
+Default intra-dimension weights: w₁ = 0.40, w₂ = 0.35, w₃ = 0.25.
 
 ### A.3 Maintainability Score
 
@@ -480,17 +481,19 @@ Default intra-dimension weights: w₁ = 0.40, w₂ = 0.30, w₃ = 0.30.
 M(v) = w₁ × BT(v) + w₂ × DG_out(v) + w₃ × (1 − CC(v))
 ```
 
-Default intra-dimension weights: w₁ = 0.40, w₂ = 0.30, w₃ = 0.30.
+Default intra-dimension weights: w₁ = 0.40, w₂ = 0.35, w₃ = 0.25.
 
 ### A.4 Availability Score
 
 ```
-A(v) = w₁ × AP_c(v) + w₂ × BR(v) + w₃ × w(v)
+A(v) = w₁ × AP_c(v) + w₂ × BR(v) + w₃ × IMP(v)
+
+IMP(v) = (PR(v) + RPR(v)) / 2
 ```
 
-where w(v) = normalized QoS-derived component weight from Step 1 (REQ-SA-10). A component routing high-priority, reliable, or large-payload data scores higher in Availability regardless of structural position, reflecting its operational indispensability.
+where IMP(v) is the structural importance proxy — the average of normalized PageRank and Reverse PageRank. It captures a component's combined forward and reverse influence in the dependency graph.
 
-Default intra-dimension weights: w₁ = 0.40, w₂ = 0.35, w₃ = 0.25.
+Default intra-dimension weights: w₁ = 0.50, w₂ = 0.30, w₃ = 0.20.
 
 ### A.5 Vulnerability Score
 
@@ -498,7 +501,7 @@ Default intra-dimension weights: w₁ = 0.40, w₂ = 0.35, w₃ = 0.25.
 V(v) = w₁ × EV(v) + w₂ × CL(v) + w₃ × DG_out(v)
 ```
 
-Default intra-dimension weights: w₁ = 0.40, w₂ = 0.35, w₃ = 0.25.
+Default intra-dimension weights: w₁ = 0.40, w₂ = 0.30, w₃ = 0.30.
 
 Note: DG\_out(v) appears in both Maintainability (as efferent coupling) and Vulnerability (as attack surface) with distinct semantic rationale. It is the sole metric shared between two RMAV dimensions.
 
@@ -546,13 +549,13 @@ Each raw metric feeds into at most one RMAV dimension, preventing any single met
 | Clustering | CC | | ✓ | | | Local modularity |
 | AP Score | AP\_c | | | ✓ | | Structural SPOF |
 | Bridge Ratio | BR | | | ✓ | | Irreplaceable connections |
-| Component Weight | w(v) | | | ✓ | | QoS-derived importance |
+| Importance Proxy | IMP(v) | | | ✓ | | (PR + RPR) / 2 |
 | Eigenvector | EV | | | | ✓ | Strategic influence |
 | Closeness | CL | | | | ✓ | Propagation speed |
 | Weighted In-Degree | w\_in | — | — | — | — | Reported only |
 | Weighted Out-Degree | w\_out | — | — | — | — | Reported only |
 
-Out-Degree is the sole exception in the active metrics, shared between M(v) and V(v) with distinct semantics. The three QoS weight aggregates (w, w\_in, w\_out) are part of the 13-metric output vector but do not participate directly in the RMAV formulas (except w(v) in A(v)).
+Out-Degree is the sole exception in the active metrics, shared between M(v) and V(v) with distinct semantics. The three QoS weight aggregates (w, w\_in, w\_out) are part of the 13-metric output vector but do not participate directly in the RMAV formulas.
 
 ---
 
