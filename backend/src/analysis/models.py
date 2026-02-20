@@ -25,6 +25,7 @@ class StructuralAnalysisResult:
     components: Dict[str, StructuralMetrics]
     edges: Dict[Tuple[str, str], EdgeMetrics]
     graph_summary: GraphSummary
+    qos_profile: Dict[str, Any] = field(default_factory=dict)
 
     def get_components_by_type(self, comp_type: str) -> List[StructuralMetrics]:
         return [c for c in self.components.values() if c.type == comp_type]

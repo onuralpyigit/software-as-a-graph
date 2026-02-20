@@ -231,6 +231,7 @@ class LayerValidationResult:
     comparisons: List[ComponentComparison] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     component_names: Dict[str, str] = field(default_factory=dict)
+    dimensional_validation: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {

@@ -95,6 +95,9 @@ class ValidationService:
         # AnalysisService uses AnalysisLayer which has same string values as SimulationLayer
         analysis_result = self.analysis.analyze_layer(sim_layer.value)
         pred_scores = {c.id: c.scores.overall for c in analysis_result.quality.components}
+        pred_reliability   = {c.id: c.scores.reliability   for c in analysis_result.quality.components}
+        pred_availability  = {c.id: c.scores.availability  for c in analysis_result.quality.components}
+        pred_vulnerability = {c.id: c.scores.vulnerability for c in analysis_result.quality.components}
         comp_types = {c.id: c.type for c in analysis_result.quality.components}
         comp_names = {c.id: c.structural.name for c in analysis_result.quality.components}
         
@@ -107,9 +110,12 @@ class ValidationService:
         
         sim_results = self.simulation.run_failure_simulation_exhaustive(layer=sim_layer.value)
         
-        actual_scores = {r.target_id: r.impact.composite_impact for r in sim_results}
+        actual_scores        = {r.target_id: r.impact.composite_impact  for r in sim_results}
+        actual_reachability  = {r.target_id: r.impact.reachability_loss for r in sim_results}
+        actual_fragmentation = {r.target_id: r.impact.fragmentation     for r in sim_results}
+        actual_throughput    = {r.target_id: r.impact.throughput_loss   for r in sim_results}
         
-        # 3. Validation
+        # 3. Overall validation
         self.logger.info("Validating...")
         validation_res = self.validator.validate(
             predicted_scores=pred_scores,
@@ -118,7 +124,33 @@ class ValidationService:
             layer=sim_layer.value,
             context=layer_def.name
         )
-        
+
+        # 4. Per-dimension correlation (informational, Fix 5)
+        dimensional_validation = {}
+        from src.validation.metric_calculator import calculate_correlation
+        for dim_name, pred_dim, actual_dim in [
+            ("reliability",    pred_reliability,   actual_reachability),
+            ("availability",   pred_availability,  actual_fragmentation),
+            ("vulnerability",  pred_vulnerability, actual_throughput),
+        ]:
+            try:
+                common = sorted(set(pred_dim) & set(actual_dim))
+                if len(common) >= 3:
+                    p_vals = [float(pred_dim[k]) for k in common]
+                    a_vals = [float(actual_dim[k]) for k in common]
+                    corr = calculate_correlation(p_vals, a_vals)
+                    dimensional_validation[dim_name] = {
+                        "spearman": round(corr.spearman, 4),
+                        "n": len(common),
+                    }
+                    self.logger.info(
+                        "Dim validation [%s] %s: \u03c1=%.3f (n=%d)",
+                        sim_layer.value, dim_name, corr.spearman, len(common),
+                    )
+            except Exception as e:
+                self.logger.debug("Dimensional validation skipped for %s: %s", dim_name, e)
+
+
         return LayerValidationResult(
             layer=sim_layer.value,
             layer_name=layer_def.name,
@@ -138,7 +170,8 @@ class ValidationService:
             passed=validation_res.passed,
             comparisons=validation_res.overall.components,
             warnings=validation_res.warnings,
-            component_names=comp_names
+            component_names=comp_names,
+            dimensional_validation=dimensional_validation,
         )
 
     def validate_from_data(self, predicted, actual) -> ValidationResult:

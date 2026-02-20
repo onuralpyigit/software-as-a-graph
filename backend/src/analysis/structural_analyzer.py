@@ -11,6 +11,8 @@ Metrics computed per component:
     Resilience : Clustering coefficient, Articulation point flag,
                  Bridge count, Bridge ratio
     Weights    : Component weight, Dependency weight in/out
+    Pub-Sub    : pubsub_degree, pubsub_betweenness, broker_exposure
+                 (derived from raw PUBLISHES_TO/SUBSCRIBES_TO/ROUTES edges)
 
 Metrics computed per edge:
     Edge betweenness (with inverted weights), Bridge flag
@@ -210,6 +212,14 @@ class StructuralAnalyzer:
             dep_weight_out[u] += w
             dep_weight_in[v] += w
 
+        # --- Pub-sub topology metrics (raw PUBLISHES_TO / SUBSCRIBES_TO) ---
+        # allowed_ids = all component IDs in the layer subgraph
+        allowed_ids: Set[str] = set(G.nodes)
+        pubsub_metrics = self._compute_pubsub_metrics(graph_data, allowed_ids)
+
+        # --- QoS profile from topic nodes ---
+        qos_profile = self._collect_qos_profile(graph_data)
+
         # --- Assemble component metrics ---
         components: Dict[str, StructuralMetrics] = {}
         for nid in G.nodes:
@@ -221,6 +231,7 @@ class StructuralAnalyzer:
             raw_out = out_deg.get(nid, 0)
             total_raw = raw_in + raw_out
             bc = node_bridge_count.get(nid, 0)
+            ps = pubsub_metrics.get(nid, {})
 
             components[nid] = StructuralMetrics(
                 id=nid,
@@ -245,6 +256,10 @@ class StructuralAnalyzer:
                 is_isolated=(raw_in + raw_out) == 0,
                 bridge_count=bc,
                 bridge_ratio=bc / total_raw if total_raw > 0 else 0.0,
+                # Pub-sub topology
+                pubsub_degree=ps.get("pubsub_degree", 0.0),
+                pubsub_betweenness=ps.get("pubsub_betweenness", 0.0),
+                broker_exposure=ps.get("broker_exposure", 0.0),
                 # Weights
                 weight=G.nodes[nid].get("weight", 1.0),
                 dependency_weight_in=dep_weight_in.get(nid, 0.0),
@@ -279,11 +294,138 @@ class StructuralAnalyzer:
             components=components,
             edges=edge_metrics,
             graph_summary=summary,
+            qos_profile=qos_profile,
         )
 
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _compute_pubsub_metrics(
+        graph_data: Any,
+        allowed_ids: Set[str],
+    ) -> Dict[str, Dict[str, float]]:
+        """
+        Compute pub-sub topology metrics for Application nodes by building a
+        bipartite app↔topic graph from raw PUBLISHES_TO and SUBSCRIBES_TO edges.
+
+        Also resolves broker exposure via ROUTES edges.
+
+        Returns:
+            Dict[app_id, {pubsub_degree, pubsub_betweenness, broker_exposure}]
+        """
+        import networkx as nx
+
+        PUBSUB_EDGE_TYPES = {"PUBLISHES_TO", "SUBSCRIBES_TO", "publishes_to", "subscribes_to"}
+        ROUTES_EDGE_TYPES = {"ROUTES", "routes"}
+
+        # Build bipartite app-topic undirected graph
+        G_ps = nx.Graph()
+        topic_to_brokers: Dict[str, Set[str]] = {}
+
+        for edge in graph_data.edges:
+            dep = getattr(edge, "dependency_type", "") or ""
+            src, tgt = edge.source_id, edge.target_id
+
+            if dep in PUBSUB_EDGE_TYPES:
+                # Only include edges from allowed (layer-filtered) app nodes
+                if src in allowed_ids:
+                    G_ps.add_node(src, bipartite=0)
+                    G_ps.add_node(tgt, bipartite=1)
+                    G_ps.add_edge(src, tgt)
+
+            elif dep in ROUTES_EDGE_TYPES:
+                # Broker → Topic routing (for broker_exposure)
+                topic_to_brokers.setdefault(tgt, set()).add(src)
+
+        result: Dict[str, Dict[str, float]] = {}
+
+        if G_ps.number_of_nodes() == 0:
+            return result
+
+        # Betweenness centrality on the bipartite graph
+        try:
+            bt = nx.betweenness_centrality(G_ps, normalized=True)
+        except Exception:
+            bt = {n: 0.0 for n in G_ps.nodes}
+
+        # Max values for normalization
+        max_deg = max((G_ps.degree(n) for n in G_ps.nodes if G_ps.nodes[n].get("bipartite") == 0), default=1)
+        max_exp = max(
+            (len(topic_to_brokers.get(t, set()))
+             for n in G_ps.nodes if G_ps.nodes[n].get("bipartite") == 0
+             for t in G_ps.neighbors(n)),
+            default=1,
+        ) or 1
+
+        for node in G_ps.nodes:
+            if G_ps.nodes[node].get("bipartite") != 0:
+                continue  # skip topic nodes
+            if node not in allowed_ids:
+                continue
+
+            deg = G_ps.degree(node)
+            # broker_exposure: average number of distinct brokers routing
+            # topics this app touches (normalised to [0,1])
+            touched_topics = list(G_ps.neighbors(node))
+            if touched_topics:
+                broker_counts = [len(topic_to_brokers.get(t, set())) for t in touched_topics]
+                avg_broker_exp = sum(broker_counts) / len(broker_counts)
+            else:
+                avg_broker_exp = 0.0
+
+            result[node] = {
+                "pubsub_degree": deg / max_deg if max_deg > 0 else 0.0,
+                "pubsub_betweenness": bt.get(node, 0.0),
+                "broker_exposure": avg_broker_exp / max_exp if max_exp > 0 else 0.0,
+            }
+
+        return result
+
+    @staticmethod
+    def _collect_qos_profile(graph_data: Any) -> Dict[str, Any]:
+        """
+        Aggregate topic QoS distributions from graph_data for use by
+        QoS-aware RMAV weight adjustment in QualityAnalyzer.
+
+        Returns a dict:
+            {
+              "durability": {"volatile": N, "transient_local": N, ...},
+              "reliability": {"best_effort": N, "reliable": N},
+              "priority":    {"low": N, "medium": N, "high": N, "critical": N},
+              "total_topics": N,
+            }
+        """
+        durability: Dict[str, int] = {}
+        reliability: Dict[str, int] = {}
+        priority: Dict[str, int] = {}
+        total = 0
+
+        for comp in graph_data.components:
+            if getattr(comp, "component_type", "") != "Topic":
+                continue
+            props = getattr(comp, "properties", {}) or {}
+            qos = props.get("qos", {})
+
+            dur = qos.get("durability", "").lower().replace(" ", "_") if qos else ""
+            rel = qos.get("reliability", "").lower().replace(" ", "_") if qos else ""
+            pri = qos.get("transport_priority", "").lower().replace(" ", "_") if qos else ""
+
+            if dur:
+                durability[dur] = durability.get(dur, 0) + 1
+            if rel:
+                reliability[rel] = reliability.get(rel, 0) + 1
+            if pri:
+                priority[pri] = priority.get(pri, 0) + 1
+            total += 1
+
+        return {
+            "durability": durability,
+            "reliability": reliability,
+            "priority": priority,
+            "total_topics": total,
+        }
 
     @staticmethod
     def _build_distance_graph(G: nx.DiGraph) -> nx.DiGraph:

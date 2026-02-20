@@ -52,6 +52,11 @@ class StructuralMetrics:
     bridge_count: int = 0                # Number of bridges touching this node
     bridge_ratio: float = 0.0            # Fraction of edges that are bridges
     
+    # === Pub-Sub Topology Metrics ===
+    pubsub_degree: float = 0.0         # Topics this app publishes to OR subscribes to
+    pubsub_betweenness: float = 0.0    # Betweenness in the pub-sub bipartite graph
+    broker_exposure: float = 0.0       # Distinct brokers routing touched topics
+
     # === Weights ===
     weight: float = 1.0                  # Intrinsic component weight
     dependency_weight_in: float = 0.0    # Sum of incoming dependency weights

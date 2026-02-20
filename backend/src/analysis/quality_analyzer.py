@@ -93,10 +93,11 @@ class QualityAnalyzer:
 
     def __init__(
         self,
-        k_factor: float = 1.5,
+        k_factor: float = 0.75,
         weights: Optional[QualityWeights] = None,
         use_ahp: bool = False,
-        normalization_method: str = "max",
+        normalization_method: str = "robust",
+        adapt_qos_weights: bool = True,
     ) -> None:
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
         self.weights = (
@@ -104,6 +105,7 @@ class QualityAnalyzer:
             else (weights or QualityWeights())
         )
         self.normalization_method = normalization_method
+        self.adapt_qos_weights = adapt_qos_weights
         self._logger = logging.getLogger(__name__)
 
     # ------------------------------------------------------------------
@@ -132,42 +134,56 @@ class QualityAnalyzer:
         layer_name = structural_result.layer.value
         ctx = context or f"{layer_name} layer analysis"
 
-        # --- Component analysis -----------------------------------------
-        raw_components = list(structural_result.components.values())
-        norm = self._normalize(raw_components)
-
-        # Compute continuous AP scores from the graph if available
-        ap_scores = self._compute_continuous_ap_scores(structural_result)
-
-        components = self._score_and_classify_components(raw_components, norm, ap_scores)
-
-        # --- Edge analysis (with endpoint quality context) --------------
-        raw_edges = list(structural_result.edges.values())
-        comp_quality_map = {c.id: c for c in components}
-        edges = self._score_and_classify_edges(raw_edges, comp_quality_map)
-
-        # --- Summary ----------------------------------------------------
-        summary = self._build_summary(components, edges)
-
-        # --- Sensitivity (optional) -------------------------------------
-        sensitivity = None
-        if run_sensitivity:
-            sensitivity = self._sensitivity_analysis(
-                raw_components, norm, ap_scores,
-                n_perturbations=sensitivity_perturbations,
-                noise_std=sensitivity_noise,
+        # --- QoS-aware weight adjustment ----------------------------------
+        effective_weights = self.weights
+        if self.adapt_qos_weights and hasattr(structural_result, "qos_profile"):
+            effective_weights = self._derive_qos_weights(
+                structural_result.qos_profile, self.weights
             )
 
-        return QualityAnalysisResult(
-            timestamp=datetime.now().isoformat(),
-            layer=layer_name,
-            context=ctx,
-            components=components,
-            edges=edges,
-            classification_summary=summary,
-            weights=self.weights,
-            sensitivity=sensitivity,
-        )
+        # Store effective weights for the duration of this analysis
+        original_weights = self.weights
+        self.weights = effective_weights
+
+        try:
+            # --- Component analysis -----------------------------------------
+            raw_components = list(structural_result.components.values())
+            norm = self._normalize(raw_components)
+
+            # Compute continuous AP scores from the graph if available
+            ap_scores = self._compute_continuous_ap_scores(structural_result)
+
+            components = self._score_and_classify_components(raw_components, norm, ap_scores)
+
+            # --- Edge analysis (with endpoint quality context) --------------
+            raw_edges = list(structural_result.edges.values())
+            comp_quality_map = {c.id: c for c in components}
+            edges = self._score_and_classify_edges(raw_edges, comp_quality_map)
+
+            # --- Summary ----------------------------------------------------
+            summary = self._build_summary(components, edges)
+
+            # --- Sensitivity (optional) -------------------------------------
+            sensitivity = None
+            if run_sensitivity:
+                sensitivity = self._sensitivity_analysis(
+                    raw_components, norm, ap_scores,
+                    n_perturbations=sensitivity_perturbations,
+                    noise_std=sensitivity_noise,
+                )
+
+            return QualityAnalysisResult(
+                timestamp=datetime.now().isoformat(),
+                layer=layer_name,
+                context=ctx,
+                components=components,
+                edges=edges,
+                classification_summary=summary,
+                weights=self.weights,
+                sensitivity=sensitivity,
+            )
+        finally:
+            self.weights = original_weights
 
     # ------------------------------------------------------------------
     # Continuous AP computation
@@ -283,7 +299,7 @@ class QualityAnalyzer:
         return scored
 
     def _compute_rmav(
-        self, m: StructuralMetrics, norm: Dict[str, float], ap_c: float,
+        self, m: StructuralMetrics, norm: Dict[str, Any], ap_c: float,
     ) -> QualityScores:
         """
         Compute Reliability, Maintainability, Availability, Vulnerability scores.
@@ -292,29 +308,45 @@ class QualityAnalyzer:
             - Each raw metric maps to at most one dimension (orthogonality).
             - Out-Degree is shared between M(v) and V(v) with distinct semantics.
             - AP is continuous (ap_c), not binary.
+            - pubsub_betweenness added to Reliability for pub-sub fabric importance.
         """
         w = self.weights
 
         def _n(val: float, key: str) -> float:
-            """Normalise a value using the precomputed max."""
-            mx = norm.get(key, 0.0)
-            return val / mx if mx > 0 else 0.0
+            """Look up pre-normalised (rank-based or max-based) value."""
+            if isinstance(norm, dict) and key in norm:
+                entry = norm[key]
+                if isinstance(entry, dict):
+                    # Rank-based: lookup per component id → rank score
+                    return entry.get(m.id, 0.0)
+                else:
+                    # Max-based: divide by stored max
+                    return val / entry if entry > 0 else 0.0
+            return 0.0
 
         # Normalised values
-        pr   = _n(m.pagerank, "pagerank")
+        pr   = _n(m.pagerank,         "pagerank")
         rpr  = _n(m.reverse_pagerank, "reverse_pagerank")
-        bt   = _n(m.betweenness, "betweenness")
-        cl   = _n(m.closeness, "closeness")
-        ev   = _n(m.eigenvector, "eigenvector")
-        id_n = _n(m.in_degree_raw, "in_degree")
-        od_n = _n(m.out_degree_raw, "out_degree")
+        bt   = _n(m.betweenness,      "betweenness")
+        cl   = _n(m.closeness,        "closeness")
+        ev   = _n(m.eigenvector,      "eigenvector")
+        id_n = _n(m.in_degree_raw,    "in_degree")
+        od_n = _n(m.out_degree_raw,   "out_degree")
         cc   = m.clustering_coefficient
-        imp  = (pr + rpr) / 2.0  # importance proxy
+        imp  = (pr + rpr) / 2.0      # importance proxy
+        psbt = m.pubsub_betweenness  # already in [0,1]
 
-        # --- RMAV formulas (v2 — orthogonal metrics) ---
+        # --- RMAV formulas (v3 — pub-sub betweenness added to Reliability) ---
 
-        # Reliability: fault propagation risk
-        R = w.r_pagerank * pr + w.r_reverse_pagerank * rpr + w.r_in_degree * id_n
+        # Reliability: fault propagation risk via DEPENDS_ON + pub-sub fabric
+        # Weight split: r_pubsub_betweenness steals 0.20 from r_pagerank
+        r_ps_weight = getattr(w, 'r_pubsub_betweenness', 0.20)
+        r_pr_eff = w.r_pagerank * (1.0 - r_ps_weight)
+        r_rpr_eff = w.r_reverse_pagerank * (1.0 - r_ps_weight)
+        r_id_eff  = w.r_in_degree * (1.0 - r_ps_weight)
+        total_r_orig = r_pr_eff + r_rpr_eff + r_id_eff + r_ps_weight
+        # Renormalise so the 4-term sum stays at 1.0
+        R = (r_pr_eff * pr + r_rpr_eff * rpr + r_id_eff * id_n + r_ps_weight * psbt) / total_r_orig
 
         # Maintainability: efferent coupling + bottleneck position
         M = w.m_betweenness * bt + w.m_out_degree * od_n + w.m_clustering * (1.0 - cc)
@@ -602,12 +634,12 @@ class QualityAnalyzer:
     # Normalization
     # ------------------------------------------------------------------
 
-    def _normalize(self, components: List[StructuralMetrics]) -> Dict[str, float]:
+    def _normalize(self, components: List[StructuralMetrics]) -> Dict[str, Any]:
         """
         Compute normalization factors based on the configured method.
 
         Methods:
-            'max' (default): x_norm = x / max(x). Simple, preserves proportions.
+            'max' : x_norm = x / max(x). Simple, preserves proportions.
             'robust': x_norm = rank(x) / n. Outlier-resistant, uniform distribution.
         """
         if self.normalization_method == "robust":
@@ -631,35 +663,132 @@ class QualityAnalyzer:
         }
 
     @staticmethod
-    def _normalize_robust(components: List[StructuralMetrics]) -> Dict[str, float]:
+    def _normalize_robust(components: List[StructuralMetrics]) -> Dict[str, Dict[str, float]]:
         """
-        Compute rank-based normalization factors.
+        True rank-based normalization. For each metric, replace raw values with
+        rank(v) / N where N = number of components. This gives a uniform [0, 1]
+        distribution per metric, making the score robust to outliers.
 
-        Instead of dividing by max, we store max as a sentinel and the
-        _n() helper is overridden to use rank-based normalization.
-
-        Implementation note: For robust normalization, we pre-compute
-        rank-normalized values and store them in a lookup. The norm dict
-        stores max values as a signal to _compute_rmav that it should
-        use rank-based lookup instead.
+        Returns a nested dict: {metric_name: {component_id: normalised_rank_score}}
+        The _n() helper in _compute_rmav detects this structure and looks up
+        the pre-computed rank score instead of dividing by max.
         """
-        # For robust mode, we still return max-based norms as the actual
-        # rank normalization happens at a different level. This is a
-        # placeholder that can be extended for full rank-based support.
-        # The key insight is that rank-normalization should be done
-        # before RMAV computation for proper integration.
         if not components:
             return {}
-        return {
-            "pagerank": max((c.pagerank for c in components), default=0),
-            "reverse_pagerank": max((c.reverse_pagerank for c in components), default=0),
-            "betweenness": max((c.betweenness for c in components), default=0),
-            "closeness": max((c.closeness for c in components), default=0),
-            "eigenvector": max((c.eigenvector for c in components), default=0),
-            "in_degree": max((c.in_degree_raw for c in components), default=0),
-            "out_degree": max((c.out_degree_raw for c in components), default=0),
-            "total_degree": max((c.total_degree_raw for c in components), default=0),
+
+        n = len(components)
+
+        def _rank_normalise(values: List[tuple]) -> Dict[str, float]:
+            """Assign rank/(n-1) with average-rank tie-breaking."""
+            # values: list of (component_id, raw_value)
+            sorted_vals = sorted(values, key=lambda x: x[1])
+            ranks: Dict[str, float] = {}
+            i = 0
+            while i < n:
+                j = i
+                # Find extent of ties
+                while j < n - 1 and sorted_vals[j][1] == sorted_vals[j + 1][1]:
+                    j += 1
+                avg_rank = (i + j) / 2  # 0-based average rank
+                for k in range(i, j + 1):
+                    cid = sorted_vals[k][0]
+                    ranks[cid] = avg_rank / (n - 1) if n > 1 else 0.0
+                i = j + 1
+            return ranks
+
+        metrics = {
+            "pagerank":        [(c.id, c.pagerank)          for c in components],
+            "reverse_pagerank":[(c.id, c.reverse_pagerank)  for c in components],
+            "betweenness":     [(c.id, c.betweenness)       for c in components],
+            "closeness":       [(c.id, c.closeness)         for c in components],
+            "eigenvector":     [(c.id, c.eigenvector)       for c in components],
+            "in_degree":       [(c.id, c.in_degree_raw)     for c in components],
+            "out_degree":      [(c.id, c.out_degree_raw)    for c in components],
+            "total_degree":    [(c.id, c.total_degree_raw)  for c in components],
         }
+        return {name: _rank_normalise(vals) for name, vals in metrics.items()}
+
+    # ------------------------------------------------------------------
+    # QoS-aware weight derivation (Fix 3)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _derive_qos_weights(
+        qos_profile: Dict,
+        base_weights: QualityWeights,
+    ) -> QualityWeights:
+        """
+        Adjust overall quality dimension weights based on the dominant
+        QoS profile of the topic set. Rules:
+
+        - PERSISTENT / RELIABLE / CRITICAL priority → high-durability,
+          mission-critical system → raise q_reliability + q_availability.
+        - VOLATILE / BEST_EFFORT / LOW priority → high-churn, low-durability
+          system → raise q_maintainability + q_vulnerability.
+        - Mixed → keep balanced defaults.
+
+        All four weights are re-normalised to sum to 1.0.
+        """
+        import copy
+        w = copy.copy(base_weights)
+
+        total = qos_profile.get("total_topics", 0)
+        if total == 0:
+            return w
+
+        dur = qos_profile.get("durability", {})
+        rel = qos_profile.get("reliability", {})
+        pri = qos_profile.get("priority", {})
+
+        # Fraction of high-durability topics
+        persistent_frac = (
+            dur.get("persistent", 0) + dur.get("transient_local", 0) + dur.get("transient", 0)
+        ) / total
+
+        # Fraction of reliable topics
+        reliable_frac = rel.get("reliable", 0) / total
+
+        # Fraction of critical/high priority topics
+        critical_frac = (
+            pri.get("critical", 0) + pri.get("high", 0)
+        ) / total
+
+        # Composite "reliability signal"
+        rel_signal = (persistent_frac + reliable_frac + critical_frac) / 3.0
+
+        # Adjust weights: rel_signal > 0.6 → reliability-critical system
+        #                 rel_signal < 0.4 → volatile/best-effort system
+        if rel_signal >= 0.6:
+            # Mission-critical: emphasise reliability and availability
+            delta = min(0.15, (rel_signal - 0.5) * 0.30)
+            q_r = w.q_reliability + delta
+            q_a = w.q_availability + delta * 0.5
+            q_m = w.q_maintainability - delta * 0.75
+            q_v = w.q_vulnerability - delta * 0.75
+        elif rel_signal <= 0.4:
+            # Volatile/best-effort: emphasise maintainability and vulnerability
+            delta = min(0.15, (0.5 - rel_signal) * 0.30)
+            q_r = w.q_reliability - delta * 0.75
+            q_a = w.q_availability - delta * 0.75
+            q_m = w.q_maintainability + delta
+            q_v = w.q_vulnerability + delta * 0.5
+        else:
+            # Balanced — keep defaults
+            return w
+
+        # Re-normalise to sum to 1.0 (clamp to small positive to avoid negatives)
+        q_r = max(0.05, q_r)
+        q_a = max(0.05, q_a)
+        q_m = max(0.05, q_m)
+        q_v = max(0.05, q_v)
+        total_q = q_r + q_a + q_m + q_v
+
+        w.q_reliability     = q_r / total_q
+        w.q_availability     = q_a / total_q
+        w.q_maintainability  = q_m / total_q
+        w.q_vulnerability    = q_v / total_q
+
+        return w
 
     @staticmethod
     def _build_summary(
