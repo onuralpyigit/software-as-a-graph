@@ -1,6 +1,6 @@
 # Step 5: Validation
 
-**Statistically prove that topology-based predictions agree with simulation ground truth.**
+**Statistically prove that topology-based predictions agree with simulation-derived proxy ground truth.**
 
 ← [Step 4: Failure Simulation](failure-simulation.md) | → [Step 6: Visualization](visualization.md)
 
@@ -22,8 +22,10 @@
 8. [Worked Example](#worked-example)
 9. [Interpreting Results](#interpreting-results)
 10. [Output](#output)
-11. [Commands](#commands)
-12. [What Comes Next](#what-comes-next)
+11. [External vs. Internal Validity](#external-vs-internal-validity)
+12. [Methodological Limitations](#methodological-limitations)
+13. [Commands](#commands)
+14. [What Comes Next](#what-comes-next)
 
 ---
 
@@ -57,7 +59,32 @@ Predicted criticality         Ground-truth impact
                    (primary gates must all pass)
 ```
 
-This step closes the methodological loop. Steps 2–4 generate the two sets of scores; Step 5 quantifies how much they agree. A passing validation demonstrates the methodology's core contribution: **cheap pre-deployment topology analysis reliably predicts which components will cause the greatest damage if they fail.**
+This step closes the methodological loop. Steps 2–4 generate the two sets of scores; Step 5 quantifies how much they agree. A passing validation demonstrates the methodology's core contribution: **cheap pre-deployment topology analysis reliably predicts which components will cause the greatest damage within the system's own rule-based operational model.**
+
+---
+
+## External vs. Internal Validity
+
+It is critical to distinguish between the two types of validity this methodology addresses:
+
+### Internal Validity (Validation Gate)
+The quantitative results $ρ$, $F1$, and $NDCG$ measure **internal consistency**. They prove that the analysis engine ($Q(v)$) correctly identifies the structural bottlenecks that the simulation engine ($I(v)$) later confirms as high-impact via rule-based cascades. This validates the "prediction" aspect of the methodology within the confines of the graph model.
+
+### External Validity (Proxy Ground Truth)
+The simulation is framed as a **Proxy Ground Truth**. Real-world failure data is often proprietary, sparsely documented, or impossible to collect for systems still in design. By using a rule-based simulator that reflects industry-standard pub-sub behaviors (physical hosting, middleware routing, starvation rules), we provide the best possible surrogate for real failure behavior.
+
+To anchor this in reality, several scenarios in this project are derived from **published real-world system architectures** (e.g., ROS 2 autonomous vehicles, industrial MQTT deployments). While our validation is against the *simulation* output of these architectures, the architectures themselves represent real-world structural challenges.
+
+---
+
+## Methodological Limitations
+
+Every model is a simplification. Users of this methodology should be aware of the following gaps between simulation and reality:
+
+1. **The Consistency Trap**: Because $Q(v)$ and $I(v)$ share the same underlying graph structure, a passing validation primarily confirms that the topological metrics are good proxies for the cascade rules. It does not guarantee that the cascade rules themselves encompass all real-world failure dynamics (e.g., complex timing issues, human intervention, or multi-cloud network fluctuations).
+2. **Deterministic Cascades**: Default validation uses deterministic cascades ($p=1.0$). In production, retries, circuit breakers, and load balancers may halt a cascade stochastically. (Note: Monte Carlo mode addresses this but is not the validation default).
+3. **Data Completeness**: The accuracy of both prediction and simulation is capped by the completeness of the input graph. If hidden "out-of-band" dependencies (like two services sharing an undocumented database) exist, the methodology will under-predict the impact of failing that database.
+4. **Temporal Effects**: Current simulation is static. It does not account for transient overloads or "thundering herd" effects that evolve over time.
 
 ---
 

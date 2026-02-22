@@ -1,6 +1,6 @@
 # Step 4: Failure Simulation
 
-**Inject actual faults into the system graph to generate ground-truth impact scores for validating the topology-based predictions from Step 3.**
+**Inject actual faults into the system graph to generate proxy ground-truth impact scores for validating the topology-based predictions from Step 3.**
 
 ← [Step 3: Quality Scoring](quality-scoring.md) | → [Step 5: Validation](validation.md)
 
@@ -37,7 +37,7 @@
 
 ## What This Step Does
 
-Failure Simulation removes each component from the system graph one at a time, propagates the resulting cascading failures through three rule-based cascade types, and measures the damage using three impact metrics. This produces an empirical **impact score I(v)** for every component — the ground-truth criticality that the predicted quality scores Q(v) from Step 3 are validated against.
+Failure Simulation removes each component from the system graph one at a time, propagates the resulting cascading failures through three rule-based cascade types, and measures the damage using three impact metrics. This produces an empirical **impact score I(v)** for every component — the **proxy ground-truth** criticality that the predicted quality scores Q(v) from Step 3 are validated against.
 
 ```
 G_structural (all components + structural edges)
@@ -61,14 +61,18 @@ The outer loop runs once per component in exhaustive mode, producing a ranked li
 
 ## Why Simulate?
 
-Steps 2–3 predict criticality purely from graph topology — fast, cheap, and pre-deployment. But predictions are only useful if they agree with what actually happens when failures occur. Simulation provides empirical ground truth for that comparison.
+Steps 2–3 predict criticality purely from graph topology — fast, cheap, and pre-deployment. But predictions are only useful if they agree with what actually happens when failures occur. Simulation provides an empirical **proxy ground truth** for that comparison.
+
+> [!IMPORTANT]
+> **Simulation vs. Reality (Methodological Note)**
+> The impact score $I(v)$ is a *proxy* because it is still derived from the same structural graph used for analysis. Validation measures the consistency between topological prediction ($Q$) and rule-based propagation ($I$). While this confirms that the analysis engine correctly extracts the system's structural logic, it does not replace validation against real-world post-mortem reports. Simulation serves as a necessary intermediate step where real-world failure data is unavailable or expensive to obtain.
 
 | Aspect | Predicted Q(v) | Simulated I(v) |
 |--------|---------------|----------------|
-| Source | Graph topology (structure) | Actual failure propagation |
+| Source | Graph topology (structure) | Rule-based cascade simulation |
 | Cost | Fast — O(|V| × |E|) | Slower — O(N × (|V| + |E|)) for exhaustive |
-| Interpretation | "This component *looks* critical" | "This component's failure *causes* damage" |
-| Use in pipeline | Input to Step 5 | Ground truth for Step 5 |
+| Interpretation | "This component *looks* critical" | "This component's failure *causes* damage (in-silico)" |
+| Use in pipeline | Input to Step 5 | Proxy ground truth for Step 5 |
 
 If Q(v) and I(v) rank the same components as most critical, the methodology's central claim is validated: **cheap topological analysis predicts failure impact without runtime monitoring**. The achieved Spearman ρ = 0.876 between Q(v) and I(v) across validated system scales confirms this holds in practice.
 
