@@ -286,31 +286,37 @@ System topology is supplied as a JSON file with six top-level sections:
 
 ---
 
-## Worked Example
+## Worked Example: Distributed Intelligent Factory (DIF)
 
-This section traces a minimal system through all four construction phases to make each step concrete.
-
-**System:** A temperature sensor application publishes readings to a critical topic. A controller subscribes and issues commands back. Both run on the same node, served by a single broker.
+This section traces a simplified industrial factory system through all four construction phases. The system includes two local sensor clusters, a central PLC controller, and a remote HMI monitor, connected across two middleware segments.
 
 ### System Topology (JSON input)
 
 ```json
 {
-  "nodes":    [{"id": "N0", "name": "EdgeServer"}],
-  "brokers":  [{"id": "B0", "name": "MainBroker"}],
+  "nodes":    [{"id": "N1", "name": "EdgeNode-1"}, {"id": "N2", "name": "EdgeNode-2"}],
+  "brokers":  [{"id": "B1", "name": "IO_Broker"}, {"id": "B2", "name": "Display_Broker"}],
   "topics":   [
-    {"id": "T0", "name": "/temp/reading",  "size": 64,   "qos": {"durability": "PERSISTENT", "reliability": "RELIABLE",    "transport_priority": "URGENT"}},
-    {"id": "T1", "name": "/temp/setpoint", "size": 32,   "qos": {"durability": "VOLATILE",   "reliability": "BEST_EFFORT", "transport_priority": "LOW"}}
+    {"id": "T1", "name": "/factory/sensor",   "size": 256,  "qos": {"durability": "VOLATILE",  "reliability": "RELIABLE", "transport_priority": "HIGH"}},
+    {"id": "T2", "name": "/factory/command",  "size": 64,   "qos": {"durability": "PERSISTENT","reliability": "RELIABLE", "transport_priority": "URGENT"}},
+    {"id": "T3", "name": "/factory/alarm",    "size": 32,   "qos": {"durability": "VOLATILE",  "reliability": "BEST_EFFORT", "transport_priority": "LOW"}}
   ],
   "applications": [
-    {"id": "A0", "name": "TempSensor",     "role": "pub"},
-    {"id": "A1", "name": "TempController", "role": "pubsub"}
+    {"id": "A1", "name": "PressureSensor", "role": "pub"},
+    {"id": "A2", "name": "TempSensor",     "role": "pub"},
+    {"id": "A3", "name": "PLC_Controller", "role": "pubsub"},
+    {"id": "A4", "name": "HMI_Display",    "role": "sub"},
+    {"id": "A5", "name": "Local_Log",      "role": "sub"},
+    {"id": "A6", "name": "Emergency_Stop", "role": "pub"}
   ],
   "relationships": {
-    "runs_on":       [{"from": "A0", "to": "N0"}, {"from": "A1", "to": "N0"}, {"from": "B0", "to": "N0"}],
-    "routes":        [{"from": "B0", "to": "T0"}, {"from": "B0", "to": "T1"}],
-    "publishes_to":  [{"from": "A0", "to": "T0"}, {"from": "A1", "to": "T1"}],
-    "subscribes_to": [{"from": "A1", "to": "T0"}]
+    "runs_on":       [
+      {"from": "A1", "to": "N1"}, {"from": "A2", "to": "N1"}, {"from": "B1", "to": "N1"}, {"from": "A3", "to": "N1"},
+      {"from": "A4", "to": "N2"}, {"from": "A5", "to": "N2"}, {"from": "B2", "to": "N2"}, {"from": "A6", "to": "N2"}
+    ],
+    "routes":        [{"from": "B1", "to": "T1"}, {"from": "B2", "to": "T2"}, {"from": "B2", "to": "T3"}],
+    "publishes_to":  [{"from": "A1", "to": "T1"}, {"from": "A2", "to": "T1"}, {"from": "A3", "to": "T2"}, {"from": "A6", "to": "T3"}],
+    "subscribes_to": [{"from": "A3", "to": "T1"}, {"from": "A4", "to": "T2"}, {"from": "A5", "to": "T2"}, {"from": "A4", "to": "T3"}]
   }
 }
 ```
@@ -318,55 +324,38 @@ This section traces a minimal system through all four construction phases to mak
 ### Phase 1 — Vertices created
 
 ```
-V = { N0:Node, B0:Broker, T0:Topic, T1:Topic, A0:Application, A1:Application }
+V = { N1, N2:Node, B1, B2:Broker, T1, T2, T3:Topic, A1..A6:Application }
 ```
 
 ### Phase 2 — Structural edges created (G_structural)
 
-```
-A0 --[PUBLISHES_TO]-->  T0
-A1 --[PUBLISHES_TO]-->  T1
-A1 --[SUBSCRIBES_TO]--> T0
-B0 --[ROUTES]---------> T0
-B0 --[ROUTES]---------> T1
-A0 --[RUNS_ON]--------> N0
-A1 --[RUNS_ON]--------> N0
-B0 --[RUNS_ON]--------> N0
-```
+The physical topology consists of two host nodes (N1, N2) each running a broker and a set of apps. The factory relies on B1 for sensor ingestion and B2 for control/display data.
 
 ### Phase 3 — Dependency derivation (G_analysis)
 
-Applying the four derivation rules:
+Applying the derivation rules (e.g., A_sub depends on A_pub and Broker):
 
-```
-Rule app_to_app:    A1 subscribes T0, A0 publishes T0  →  A1 --[DEPENDS_ON]--> A0
-Rule app_to_broker: A0 publishes T0, B0 routes T0      →  A0 --[DEPENDS_ON]--> B0
-Rule app_to_broker: A1 subscribes T0, B0 routes T0     →  A1 --[DEPENDS_ON]--> B0
-Rule app_to_broker: A1 publishes T1, B0 routes T1      →  A1 --[DEPENDS_ON]--> B0  (same edge, max weight)
-Rule node_to_broker: N0 hosts A0 → T0 ← B0 routes     →  N0 --[DEPENDS_ON]--> B0
-```
+- **A3 (PLC)** depends on **A1, A2** (Data sources) and **B1** (Routing).
+- **A4 (HMI)** depends on **A3** (Command source), **A6** (Alarm source), and **B2** (Routing).
+- **A1, A2** depend on **B1**.
+- **A6** depends on **B2**.
 
-Result: A1 depends on both A0 and B0. A0 depends on B0. N0 depends on B0.
+Result: A 10-vertex dependency graph where **A3 (PLC_Controller)** sits at the functional center.
 
 ### Phase 4 — Weight calculation
 
-**Topic weights:**
+**Topic weights (Phase 4 Logic):**
+- **T1 (/factory/sensor)**: High PR, Reliable → weight ≈ **0.80**
+- **T2 (/factory/command)**: Urgent, Persistent, Reliable → weight ≈ **1.00** (Capped)
+- **T3 (/factory/alarm)**: Low PR, Volatile, Best Effort → weight ≈ **0.15**
 
-```
-T0 (/temp/reading):  PERSISTENT(0.40) + RELIABLE(0.30) + URGENT(0.30) + size(0.06) = 1.00  (capped)
-T1 (/temp/setpoint): VOLATILE(0.00)   + BEST_EFFORT(0.00) + LOW(0.00) + size(0.05) = 0.05
-```
+**Component weights (max over consumed/produced topics):**
+- **PLC_Controller (A3)**: Produces T2, Consumes T1 → weight = **1.00**
+- **Emergency_Stop (A6)**: Produces T3 → weight = **0.15**
+- **IO_Broker (B1)**: Routes T1 → weight = **0.80**
+- **Display_Broker (B2)**: Routes T2, T3 → weight = **1.00**
 
-**Component weights (max over their topics):**
-
-```
-TempSensor    (A0): publishes T0          → weight = max(1.00) = 1.00
-TempController(A1): publishes T1, subs T0 → weight = max(1.00, 0.05) = 1.00
-MainBroker    (B0): routes T0, T1        → weight = max(1.00, 0.05) = 1.00
-EdgeServer    (N0): hosts A0, A1, B0     → weight = max(1.00, 1.00, 1.00) = 1.00
-```
-
-**Interpretation:** Every component in this tiny system is maximally weighted because it participates in the high-priority URGENT/RELIABLE/PERSISTENT stream T0. In larger systems with diverse QoS settings, weights differentiate components meaningfully.
+**Interpretation:** The control feedback loop (T2) is the most critical path in the system. Components like the PLC and Display_Broker inherit this maximum weight.
 
 ---
 

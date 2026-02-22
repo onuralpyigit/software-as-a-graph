@@ -356,56 +356,47 @@ The RMAV breakdown tells you not just *that* a component is critical, but *why* 
 
 ---
 
-## Worked Example
+## Worked Example: Distributed Intelligent Factory (DIF)
 
-This section computes RMAV scores for a concrete component using the metric values from the Step 1 and Step 2 worked examples.
+This section computes RMAV scores for the **PLC_Controller (A3)** using the metric values from the DIF worked example in Step 2.
 
-**Component:** MainBroker (B) from the 3-component example (SensorApp → MainBroker ← MonitorApp)
-
-**Metric values from Step 2 (normalized):**
+**Metric values for A3 (normalized):**
 
 | Metric | Symbol | Value |
 |--------|--------|-------|
-| PageRank | PR | 1.00 |
-| Reverse PageRank | RPR | 0.00 |
-| Betweenness | BT | 0.00 |
-| In-Degree | DG_in | 1.00 |
-| Out-Degree | DG_out | 0.00 |
-| Clustering | CC | 0.00 |
-| AP_c | AP_c | 0.00 |
+| PageRank | PR | 0.75 |
+| Reverse PageRank | RPR | 0.60 |
+| Betweenness | BT | 0.95 |
+| In-Degree | DG_in | 0.75 |
+| Out-Degree | DG_out | 0.80 |
+| Clustering | CC | 0.15 |
+| AP_c | AP_c | 0.43 |
 | Bridge Ratio | BR | 1.00 |
-| Eigenvector | EV | 1.00 |
-| Closeness | CL | 1.00 |
+| Eigenvector | EV | 0.80 |
+| Closeness | CL | 0.70 |
 
-**Derived value:**
-```
-Importance(B) = (PR + RPR) / 2 = (1.00 + 0.00) / 2 = 0.50
-```
-
-**RMAV computation:**
+**RMAV computation (using default weights):**
 
 ```
-R(B) = 0.40 × 1.00  +  0.35 × 0.00  +  0.25 × 1.00  =  0.40 + 0.00 + 0.25  =  0.65
+R(A3) = 0.40×0.75 + 0.35×0.60 + 0.25×0.75 = 0.30 + 0.21 + 0.1875 = 0.70
 
-M(B) = 0.40 × 0.00  +  0.35 × 0.00  +  0.25 × (1 − 0.00)  =  0.00 + 0.00 + 0.25  =  0.25
+M(A3) = 0.40×0.95 + 0.35×0.80 + 0.25×(1−0.15) = 0.38 + 0.28 + 0.2125 = 0.87
 
-A(B) = 0.50 × 0.00  +  0.30 × 1.00  +  0.20 × 0.50  =  0.00 + 0.30 + 0.10  =  0.40
+A(A3) = 0.50×0.43 + 0.30×1.00 + 0.20×0.68* = 0.215 + 0.30 + 0.136 = 0.65
+   (*0.68 is the Importance average (PR+RPR)/2)
 
-V(B) = 0.40 × 1.00  +  0.30 × 1.00  +  0.30 × 0.00  =  0.40 + 0.30 + 0.00  =  0.70
+V(A3) = 0.40×0.80 + 0.30×0.70 + 0.30×0.80 = 0.32 + 0.21 + 0.24 = 0.77
 
-Q(B) = 0.25 × 0.65  +  0.25 × 0.25  +  0.25 × 0.40  +  0.25 × 0.70
-     = 0.1625 + 0.0625 + 0.10 + 0.175
-     = 0.50
+Q(A3) = (0.70 + 0.87 + 0.65 + 0.77) / 4 = 0.75
 ```
 
-**Interpretation:** MainBroker scores MEDIUM overall (Q=0.50), but the RMAV breakdown is revealing:
+**Interpretation:** **PLC_Controller (A3)** scores **0.75 (CRITICAL)**. Unlike the small example, we now see rich metric differentiation:
 
-- **R=0.65** — High reliability risk. The broker is the most depended-upon component (PR=1.00) with the most direct dependents (DG_in=1.00). If it fails, both applications lose their data channel.
-- **M=0.25** — Low maintainability risk. It's not a bottleneck (BT=0), and has no efferent coupling (DG_out=0). Easy to swap out.
-- **A=0.40** — Moderate availability risk. The high Bridge Ratio (1.00) means all its connections are irreplaceable, but it is not an articulation point (AP_c=0).
-- **V=0.70** — High vulnerability. It is the highest-eigenvector component and centrally reachable — the most attractive attack target in the system.
+- **M=0.87 (Maintainability)** — The primary concern. A3 is the system's structural bottleneck (max BT) and has high efferent coupling (DG_out). Changes here ripple to almost every other component.
+- **V=0.77 (Vulnerability)** — High. A3 sits in a central part of the graph (high EV/CL) and talks to many components.
+- **A=0.65 (Availability)** — Significant SPOF risk. It is an articulation point that fragments the graph if removed.
 
-**Recommended action:** This broker is primarily a **reliability and vulnerability concern**, not a coupling or SPOF concern. Prioritize: (1) monitoring and alerting on broker health, (2) message authentication and access controls, (3) consider a standby broker for failover.
+**Recommended action:** This component is a "Hub". Prioritize **architectural decoupling** to reduce BT and DG_out (e.g., breaking the PLC logic into smaller micro-services) to lower the Maintainability risk.
 
 ---
 

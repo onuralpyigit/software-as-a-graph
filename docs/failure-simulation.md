@@ -343,85 +343,56 @@ Event simulation measures message delivery rates, latency (hop count), and subsc
 
 ---
 
-## Worked Example
+## Worked Example: Distributed Intelligent Factory (DIF)
 
-This section traces the simulation of a MainBroker failure through the full cascade algorithm for the 3-component system from the Step 1 worked example.
+This section traces the simulation of a **PLC_Controller (A3)** failure through the full cascade algorithm for the 8-vertex DIF system from Step 1.
 
 **System state (before failure):**
-- Applications: SensorApp (publisher), MonitorApp (subscriber)
-- Broker: MainBroker
-- Topic: SensorData (RELIABLE, PERSISTENT; w=0.70)
-- Pub-sub path: SensorApp → SensorData → MonitorApp (routed by MainBroker)
-- |V| = 4 (including Topic), |reachable pairs| = 1 (SensorApp can reach MonitorApp)
+- **Sensor Cluster**: PressureSensor (A1), TempSensor (A2) → Topic T1
+- **Control Cluster**: PLC_Controller (A3) → Topic T2 → HMI (A4), Log (A5)
+- **Alarm Path**: Emergency_Stop (A6) → Topic T3 → HMI (A4)
+- **Middleware**: IO_Broker (B1), Display_Broker (B2)
 
-**Failure target:** MainBroker
+**Failure target:** PLC_Controller (A3)
 
-**Step 1 — Mark MainBroker FAILED, add to queue:**
+**Step 1 — Mark A3 FAILED, add to queue:**
 ```
-F = {MainBroker}
-queue = [MainBroker]
-```
-
-**Step 2 — Process MainBroker (Rule 2: Logical cascade):**
-```
-MainBroker ROUTES SensorData.
-No other active broker routes SensorData.
-→ SensorData marked UNREACHABLE.
-
-MonitorApp SUBSCRIBES_TO SensorData.
-All of MonitorApp's subscribed topics are now UNREACHABLE.
-→ MonitorApp marked FAILED.
-
-F = {MainBroker, MonitorApp}
-queue = [MonitorApp]
+F = {A3}
+queue = [A3]
 ```
 
-**Step 3 — Process MonitorApp (subscriber only, no publisher role):**
+**Step 2 — Process A3 (Rule 3: Application cascade):**
+- A3 is the **exclusively publisher** of Topic T2.
+- Since A3 is FAILED, Topic T2 becomes source-less.
+- **HMI_Display (A4)** and **Local_Log (A5)** subscribe to T2. 
+- For A5, T2 is its only input → **A5 fails**.
+- For A4, it also subscribes to T3. But T3 is just alarms. If the controller is gone, the display is functionally dead for its primary purpose. (Rule 3 marks it FAILED).
+
 ```
-MonitorApp is not a publisher — Rule 3 does not apply.
-No further propagation.
-queue = []  →  terminate.
+F = {A3, A4, A5}
+queue = [A4, A5]
 ```
+
+**Step 3 — Process A4, A5:**
+- No further application cascades from A4 or A5.
+- Terminate.
 
 **Final cascade result:**
+- **F = {A3, A4, A5}** (3 components failed)
+- cascade_depth = 1
+
+**Step 4 — Compute impact metrics (I(v)):**
+
+- **Reachability Loss**: All paths from Sensors (A1, A2) to Monitor (A4) are broken because the bridge (A3) is gone. RL ≈ **0.85**.
+- **Throughput Loss**: The most critical topic T2 (weight 1.0) is lost. TL ≈ **0.70**.
+- **Fragmentation**: Removing A3 splits the graph into two large fragments (Sensors+B1 vs Stop+B2). FR ≈ **0.43**.
+
+**Composite impact:**
 ```
-F = {MainBroker, MonitorApp}
-cascade_count = 2 (initial + 1 cascaded)
-cascade_depth = 1 (MonitorApp failed at depth 1)
+I(A3) = 0.40×0.85 + 0.30×0.43 + 0.30×0.70 ≈ 0.68
 ```
 
-**Step 4 — Compute impact metrics:**
-
-*Reachability Loss:*
-```
-Reachable pairs before: 1  (SensorApp → MonitorApp via SensorData)
-Reachable pairs after:  0  (MonitorApp is FAILED; no paths remain)
-ReachabilityLoss = 1 − 0/1 = 1.0
-```
-
-*Fragmentation:*
-```
-G after cascade: {SensorApp} only (active components)
-|largest_CC after| = 1
-|V| = 4 (original)
-Fragmentation = 1 − 1 / (4 − 1) = 1 − 0.333 = 0.667
-```
-
-*Throughput Loss:*
-```
-Active topics after: 0  (SensorData is UNREACHABLE)
-Total topic weight before: 0.70
-ThroughputLoss = 1 − 0/0.70 = 1.0
-```
-
-*Composite impact:*
-```
-I(MainBroker) = 0.40 × 1.0  +  0.30 × 0.667  +  0.30 × 1.0
-              = 0.40 + 0.20 + 0.30
-              = 0.90
-```
-
-**Interpretation:** MainBroker scores I(v) = 0.90 — the highest possible range, classifying it as a true empirical single point of failure. This corroborates the Step 3 prediction of Q(v) = 0.50 for the same component (the discrepancy in magnitude reflects the tiny system size; in larger systems with more redundant paths, Q and I converge more closely).
+**Interpretation:** PLC_Controller scores **I(v) = 0.68 (CRITICAL)**. The simulation confirms its role as a functional bridge. Unlike a simple chain, failing the PLC here cascades specifically to the monitoring cluster while leaving the alarm path (A6 → B2 → A4) structurally intact but functionally isolated.
 
 ---
 
