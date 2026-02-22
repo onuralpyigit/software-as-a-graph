@@ -106,6 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
     fl_target = fl.add_mutually_exclusive_group(required=True)
     fl_target.add_argument("--target", "-t", metavar="COMP_ID", help="Target component to fail")
     fl_target.add_argument("--exhaustive", "-x", action="store_true", help="Fail every component in layer")
+    fl_target.add_argument("--pairwise", "-w", action="store_true", help="Fail every component pair in layer (detect hidden coupling)")
     fl.add_argument("--layer", "-l", choices=LAYER_HELP, default="system", help="Simulation layer")
     fl.add_argument("--cascade-prob", type=float, default=1.0, help="Cascade probability (0-1)")
     fl.add_argument("--monte-carlo", action="store_true", help="Run Monte Carlo stochastic simulation")
@@ -165,6 +166,16 @@ def handle_failure(args, sim, display) -> dict:
         )
         if not args.quiet:
             display.display_exhaustive_results(results)
+        return [r.to_dict() for r in results]
+    elif args.pairwise:
+        results = sim.run_failure_simulation_pairwise(
+            layer=args.layer,
+            cascade_probability=args.cascade_prob,
+        )
+        if not args.quiet:
+            display.print_header(f"Pairwise Failure Analysis: {args.layer.upper()} layer")
+            # Reuse exhaustive display for results table
+            display.display_exhaustive_results(results[:50]) # Show top 50 pairs
         return [r.to_dict() for r in results]
     elif args.monte_carlo:
         # Monte Carlo stochastic simulation

@@ -305,7 +305,17 @@ Simulates the failure of every component in the target layer, one at a time. Pro
 python bin/simulate_graph.py failure --layer system --exhaustive
 ```
 
-Complexity: O(N × (|V| + |E|)) where N = number of components in the target layer.
+Complexity: $O(N \times (|V| + |E|))$ where $N$ = number of components in the target layer.
+
+### Pairwise Mode (Correlated Failures)
+
+Simulates the simultaneous initial failure of all pairs $(v_1, v_2)$ in the target layer. This mode is critical for detecting **superadditive impacts** where $I(v_1, v_2) > I(v_1) + I(v_2)$, revealing hidden couplings or invalidated redundancies that single-failure analysis cannot catch.
+
+```bash
+python bin/simulate_graph.py failure --layer app --pairwise
+```
+
+Complexity: $O(N^2 \times (|V| + |E|))$, manageable for medium-scale systems.
 
 ### Targeted Mode
 

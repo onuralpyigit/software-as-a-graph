@@ -82,53 +82,67 @@ class FailureSimulator:
         if scenario.seed is not None:
             self._rng.seed(scenario.seed)
         
-        # Validate target
-        if scenario.target_id not in self.graph.components:
-            return self._empty_result(scenario, f"Target '{scenario.target_id}' not found")
+        # Validate targets
+        valid_targets = []
+        for tid in scenario.target_ids:
+            if tid in self.graph.components:
+                valid_targets.append(tid)
+            else:
+                self.logger.warning(f"Target '{tid}' not found, skipping.")
         
-        target_comp = self.graph.components[scenario.target_id]
+        if not valid_targets:
+            return self._empty_result_multi(scenario, "No valid targets found")
         
-        self.logger.info(f"Simulating failure: {scenario.target_id} ({target_comp.type})")
+        self.logger.info(f"Simulating failure: {valid_targets}")
         
         # Capture initial state (skip if already cached by exhaustive run)
         if not self._baseline_computed:
             self._compute_baseline()
         
-        # Fail the target
-        self.graph.fail_component(scenario.target_id)
-        failed_set = {scenario.target_id}
-        cascade_sequence = [CascadeEvent(
-            component_id=scenario.target_id,
-            component_type=target_comp.type,
-            cause="initial_failure",
-            depth=0
-        )]
+        # Fail the targets
+        failed_set = set()
+        cascade_sequence = []
+        for tid in valid_targets:
+            target_comp = self.graph.components[tid]
+            self.graph.fail_component(tid)
+            failed_set.add(tid)
+            cascade_sequence.append(CascadeEvent(
+                component_id=tid,
+                component_type=target_comp.type,
+                cause="initial_failure",
+                depth=0
+            ))
         
-        # Propagate cascade
-        max_depth = self._propagate_cascade(
+        # Propagate cascade starting from all initial failed targets
+        max_depth = self._propagate_cascade_multi(
             scenario, 
-            scenario.target_id, 
+            valid_targets, 
             failed_set, 
             cascade_sequence
         )
         
         # Calculate impact metrics
-        impact = self._calculate_impact(scenario.target_id, failed_set)
-        impact.cascade_count = len(failed_set) - 1
+        # For multi-target, we use the first target as the primary identifier if needed
+        primary_target = valid_targets[0]
+        impact = self._calculate_impact(primary_target, failed_set)
+        impact.cascade_count = len(failed_set) - len(valid_targets)
         impact.cascade_depth = max_depth
         
         # Calculate per-layer impacts
         layer_impacts = self._calculate_layer_impacts(failed_set)
         
-        # Determine directly related components
-        related = self._get_related_components(scenario.target_id, target_comp.type)
+        # Determine directly related components (combined list)
+        related = []
+        for tid in valid_targets:
+            comp = self.graph.components[tid]
+            related.extend(self._get_related_components(tid, comp.type))
 
         return FailureResult(
-            target_id=scenario.target_id,
-            target_type=target_comp.type,
-            scenario=scenario.description or f"Failure: {scenario.target_id}",
+            target_id="+".join(valid_targets), # Combined ID for multi-failure
+            target_type="Multi" if len(valid_targets) > 1 else self.graph.components[valid_targets[0]].type,
+            scenario=scenario.description or f"Failure: {', '.join(valid_targets)}",
             impact=impact,
-            cascaded_failures=[c for c in failed_set if c != scenario.target_id],
+            cascaded_failures=[c for c in failed_set if c not in valid_targets],
             cascade_sequence=cascade_sequence,
             layer_impacts=layer_impacts,
             related_components=related,
@@ -168,7 +182,7 @@ class FailureSimulator:
         try:
             for comp_id in component_ids:
                 scenario = FailureScenario(
-                    target_id=comp_id,
+                    target_ids=[comp_id],
                     description=f"Exhaustive failure: {comp_id}",
                     layer=layer,
                     cascade_rule=scenario_template.cascade_rule if scenario_template else CascadeRule.ALL,
@@ -185,6 +199,54 @@ class FailureSimulator:
         # Sort by composite impact (highest first)
         results.sort(key=lambda r: r.impact.composite_impact, reverse=True)
         
+        return results
+
+    def simulate_pairwise(
+        self,
+        scenario_template: Optional[FailureScenario] = None,
+        layer: str = "app"
+    ) -> List[FailureResult]:
+        """
+        Run pairwise failure simulation for components in a layer.
+        
+        Simulates initial failure of all pairs (v1, v2) to detect
+        superadditive impact and redundancy failure.
+        
+        Args:
+            scenario_template: Base scenario configuration
+            layer: Layer to analyze
+            
+        Returns:
+            List of FailureResult sorted by joint impact
+        """
+        results = []
+        component_ids = self.graph.get_analyze_components_by_layer(layer)
+        n = len(component_ids)
+        
+        self.logger.info(f"Running pairwise failure analysis: {n*(n-1)//2} pairs in layer '{layer}'")
+        
+        self.graph.reset()
+        self._compute_baseline()
+        self._baseline_computed = True
+        
+        try:
+            for i in range(n):
+                for j in range(i + 1, n):
+                    v1, v2 = component_ids[i], component_ids[j]
+                    scenario = FailureScenario(
+                        target_ids=[v1, v2],
+                        description=f"Pairwise failure: {v1}+{v2}",
+                        layer=layer,
+                        cascade_rule=scenario_template.cascade_rule if scenario_template else CascadeRule.ALL,
+                        cascade_probability=scenario_template.cascade_probability if scenario_template else 1.0,
+                    )
+                    
+                    result = self.simulate(scenario)
+                    results.append(result)
+        finally:
+            self._baseline_computed = False
+            
+        results.sort(key=lambda r: r.impact.composite_impact, reverse=True)
         return results
     
     def simulate_monte_carlo(
@@ -252,37 +314,18 @@ class FailureSimulator:
             total += getattr(topic_info, 'weight', 1.0)
         return total if total > 0 else float(len(self.graph.topics))
     
-    def _propagate_cascade(
+    def _propagate_cascade_multi(
         self,
         scenario: FailureScenario,
-        initial_target: str,
+        initial_targets: List[str],
         failed_set: Set[str],
         cascade_sequence: List[CascadeEvent]
     ) -> int:
         """
-        Propagate failure cascade from the initial target.
-        
-        Implements three cascade rules:
-        
-        Physical (Node → hosted components):
-            When a Node fails, all Applications and Brokers hosted on it
-            (via RUNS_ON) also fail. This is deterministic — hardware failure
-            always takes down hosted software.
-        
-        Logical (Broker → Topics; Publisher → Subscriber starvation):
-            When a Broker fails, topics exclusively routed through it become
-            unreachable. When all publishers for a topic fail, subscribers
-            experience data starvation (tracked but not marked as failed).
-        
-        Network (Node → Connected Nodes):
-            When a Node fails, connected nodes that become isolated
-            (no remaining connections) are marked as partitioned.
-        
-        Returns:
-            Maximum cascade depth reached
+        Propagate failure cascade from multiple initial targets.
         """
         max_depth = 0
-        queue: List[Tuple[str, int]] = [(initial_target, 0)]
+        queue: List[Tuple[str, int]] = [(tid, 0) for tid in initial_targets]
         
         while queue:
             current_id, depth = queue.pop(0)
@@ -341,15 +384,14 @@ class FailureSimulator:
                                         ))
                                         queue.append((topic_id, depth + 1))
                 
-                # Application failure -> check for publisher starvation
+                # Application failure -> check for publisher/subscriber starvation
                 if current_type == "Application":
-                    publishes_to, _ = self.graph.get_app_topics(current_id)
+                    publishes_to, subscribes_from = self.graph.get_app_topics(current_id)
+                    
+                    # Publisher starvation
                     for topic_id in publishes_to:
                         active_publishers = self.graph.get_publishers(topic_id)
                         if not active_publishers and topic_id not in failed_set:
-                            # All publishers gone — topic is data-starved
-                            # Record as cascade event for tracking, but use a
-                            # distinct cause to differentiate from routing failure
                             if self._rng.random() < scenario.cascade_probability:
                                 failed_set.add(topic_id)
                                 self.graph.fail_component(topic_id)
@@ -357,6 +399,21 @@ class FailureSimulator:
                                     component_id=topic_id,
                                     component_type="Topic",
                                     cause=f"publisher_starvation:{current_id}",
+                                    depth=depth + 1
+                                ))
+                                queue.append((topic_id, depth + 1))
+                    
+                    # Subscriber starvation
+                    for topic_id in subscribes_from:
+                        active_subscribers = self.graph.get_subscribers(topic_id)
+                        if not active_subscribers and topic_id not in failed_set:
+                            if self._rng.random() < scenario.cascade_probability:
+                                failed_set.add(topic_id)
+                                self.graph.fail_component(topic_id)
+                                cascade_sequence.append(CascadeEvent(
+                                    component_id=topic_id,
+                                    component_type="Topic",
+                                    cause=f"subscriber_starvation:{current_id}",
                                     depth=depth + 1
                                 ))
                                 queue.append((topic_id, depth + 1))

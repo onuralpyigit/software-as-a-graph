@@ -273,7 +273,7 @@ class EventResult:
 @dataclass
 class FailureScenario:
     """Configuration for a failure simulation."""
-    target_id: str
+    target_ids: List[str]                            # Simultaneous initial targets
     description: str = ""
     failure_mode: FailureMode = FailureMode.CRASH
     cascade_rule: CascadeRule = CascadeRule.ALL
@@ -281,6 +281,11 @@ class FailureScenario:
     max_cascade_depth: int = 10
     layer: str = "system"
     seed: Optional[int] = None
+
+    @property
+    def target_id(self) -> str:
+        """Backward compatibility for single-target scenarios."""
+        return self.target_ids[0] if self.target_ids else ""
 
 
 @dataclass

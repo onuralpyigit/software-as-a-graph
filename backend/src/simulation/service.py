@@ -63,7 +63,7 @@ class SimulationService:
         simulator = FailureSimulator(graph)
         
         scenario = FailureScenario(
-            target_id=target_id,
+            target_ids=[target_id],
             layer=layer,
             cascade_probability=cascade_probability,
             cascade_rule=CascadeRule.ALL
@@ -78,9 +78,12 @@ class SimulationService:
         simulator = FailureSimulator(graph)
         
         result = simulator.simulate_monte_carlo(
-            target_id=target_id,
-            layer=layer,
-            cascade_probability=cascade_probability,
+            scenario=FailureScenario(
+                target_ids=[target_id],
+                layer=layer,
+                cascade_probability=cascade_probability,
+                cascade_rule=CascadeRule.ALL
+            ),
             n_trials=n_trials
         )
         return result
@@ -92,7 +95,22 @@ class SimulationService:
         
         results = simulator.simulate_exhaustive(
             scenario_template=FailureScenario(
-                target_id="template", # ignored
+                target_ids=["template"], # ignored
+                cascade_probability=cascade_probability,
+                cascade_rule=CascadeRule.ALL
+            ),
+            layer=layer
+        )
+        return results
+
+    def run_failure_simulation_pairwise(self, layer: str = "app", cascade_probability: float = 1.0, **kwargs) -> List[Any]:
+        """Run pairwise failure analysis for a layer."""
+        graph = self._get_graph()
+        simulator = FailureSimulator(graph)
+        
+        results = simulator.simulate_pairwise(
+            scenario_template=FailureScenario(
+                target_ids=["template"],
                 cascade_probability=cascade_probability,
                 cascade_rule=CascadeRule.ALL
             ),
