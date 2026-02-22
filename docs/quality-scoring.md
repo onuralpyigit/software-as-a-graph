@@ -101,22 +101,16 @@ Note: a high CC(v) means v's neighbors are dense and interconnected, offering al
 ### Availability A(v) — SPOF Risk
 
 ```
-A(v) = 0.50 × AP_c(v) + 0.30 × BR(v) + 0.20 × Importance(v)
-```
-
-where:
-
-```
-Importance(v) = (PR(v) + RPR(v)) / 2
+A(v) = 0.50 × AP_c(v) + 0.30 × BR(v) + 0.20 × w(v)
 ```
 
 | Term | Contribution | Rationale |
 |------|-------------|-----------|
 | AP_c(v) | 0.50 | Continuous articulation-point score — measures how much the graph fragments upon v's removal |
 | BR(v) | 0.30 | Bridge ratio — fraction of v's edges that are bridges; high BR means v's connections are irreplaceable |
-| Importance(v) | 0.20 | Average of PR and RPR — ensures highly-connected hubs that are *not* articulation points still contribute to availability risk |
+| w(v) | 0.20 | QoS-derived component weight— ensures highly-critical components (based on domain priority) contribute to availability risk even if they are not structural SPOFs |
 
-Availability has the strongest individual predictor (AP_c with weight 0.50) because structural SPOF status is the clearest architectural indicator of availability failure. The Importance term prevents a well-connected but non-AP hub from scoring zero — such a hub may not partition the graph, but its loss still degrades connectivity.
+Availability uses structural indicators (AP_c, BR) alongside domain priority (w(v)) to identify components where failure would cause significant service disruption. By using $w(v)$ instead of topological hubness ($PR$), we maintain true metric orthogonality across RMAV dimensions.
 
 ### Vulnerability V(v) — Security Exposure
 
@@ -167,13 +161,13 @@ A core design principle is that each raw metric contributes to **at most one** R
 | Clustering Coefficient | CC | | ✓ | | | Local redundancy / modularity |
 | Articulation Point Score | AP_c | | | ✓ | | Structural SPOF detection |
 | Bridge Ratio | BR | | | ✓ | | Irreplaceable connections |
-| Importance | — | | | ✓ | | Derived: (PR + RPR) / 2 — not a raw metric |
+| QoS Weight | w(v) | | | ✓ | | QoS-derived component weight |
 | Eigenvector Centrality | EV | | | | ✓ | Strategic hub connectivity |
 | Closeness Centrality | CL | | | | ✓ | Propagation speed |
 
 **Out-Degree exception:** DG_out appears in both M(v) and V(v). This is the sole deliberate exception, justified by distinct semantics: in Maintainability it measures *coupling complexity* (how many things v depends on, risking change propagation); in Vulnerability it measures *attack surface* (how many outbound paths an adversary can exploit). The two uses are contextually distinct even though the underlying metric is the same.
 
-**The three weight metrics** (w, w_in, w_out) from Step 2 are reported in the output but intentionally excluded from RMAV formulas. They reflect QoS-derived importance rather than topological structure, keeping the RMAV framework a pure topological predictor. This separation also preserves the methodological cleanness of predicting criticality from topology alone.
+**QoS Weight metrics:** The weight metrics (w, w_in, w_out) from Step 2 reflect domain-specific priority. $w(v)$ is included in $A(v)$ to ensure that high-priority components (as defined by system architects) are flagged for availability risk even if they are structurally redundant. $w_{in}$ and $w_{out}$ are reported in the output but currently excluded from RMAV formulas, preserving the topological purity of the other dimensions.
 
 ---
 
@@ -285,20 +279,20 @@ DGin    [ 0.5,  1.0,  1.0 ]
 - **Blend: [0.45, 0.275, 0.275]**
 - *Rationale*: PageRank remains the primary signal for global dependency, but RPR and In-Degree are elevated to ensure local propagation is captured.
 
-**Availability** — criteria: [AP_c, BridgeRatio, Importance]
+**Availability** — criteria: [AP_c, BridgeRatio, QoS-Weight]
 
 ```
-          APc   BR    Imp
+          APc   BR    w
 APc     [ 1.0,  3.0,  5.0 ]   AP_c strongly dominates (structural SPOF is primary signal)
 BR      [ 0.33, 1.0,  2.0 ]
-Imp     [ 0.20, 0.50, 1.0 ]
+w       [ 0.20, 0.50, 1.0 ]
 
 → GM:  [2.466, 0.693, 0.368]  →  Normalized: [0.65, 0.23, 0.12]
   CR ≈ 0.02  (highly consistent)
 ```
 - AHP: [0.65, 0.23, 0.12]
 - **Blend: [0.55, 0.26, 0.19]**
-- *Rationale*: Prevents Articulation Point (AP_c) from completely drowning out Bridge Ratio and component Importance.
+- *Rationale*: Prevents Articulation Point (AP_c) from completely drowning out Bridge Ratio and component QoS Weight.
 
 **Maintainability** — criteria: [Betweenness, OutDegree, (1−Clustering)]
 

@@ -338,7 +338,7 @@ class QualityAnalyzer:
         id_n = _n(m.in_degree_raw,    "in_degree")
         od_n = _n(m.out_degree_raw,   "out_degree")
         cc   = m.clustering_coefficient
-        imp  = (pr + rpr) / 2.0      # importance proxy
+        qw   = _n(m.weight,           "weight")
         psbt = m.pubsub_betweenness  # already in [0,1]
 
         # --- RMAV formulas (v3 — pub-sub betweenness added to Reliability) ---
@@ -357,7 +357,7 @@ class QualityAnalyzer:
         M = w.m_betweenness * bt + w.m_out_degree * od_n + w.m_clustering * (1.0 - cc)
 
         # Availability: SPOF risk (continuous AP score)
-        A = w.a_articulation * ap_c + w.a_bridge_ratio * m.bridge_ratio + w.a_importance * imp
+        A = w.a_articulation * ap_c + w.a_bridge_ratio * m.bridge_ratio + w.a_qos_weight * qw
 
         # Vulnerability: attack surface + strategic importance
         V = w.v_eigenvector * ev + w.v_closeness * cl + w.v_out_degree * od_n
@@ -668,6 +668,7 @@ class QualityAnalyzer:
             "in_degree": max((c.in_degree_raw for c in components), default=0),
             "out_degree": max((c.out_degree_raw for c in components), default=0),
             "total_degree": max((c.total_degree_raw for c in components), default=0),
+            "weight": max((c.weight for c in components), default=1.0),
         }
 
     @staticmethod
@@ -713,6 +714,7 @@ class QualityAnalyzer:
             "in_degree":       [(c.id, c.in_degree_raw)     for c in components],
             "out_degree":      [(c.id, c.out_degree_raw)    for c in components],
             "total_degree":    [(c.id, c.total_degree_raw)  for c in components],
+            "weight":          [(c.id, c.weight)            for c in components],
         }
         return {name: _rank_normalise(vals) for name, vals in metrics.items()}
 
@@ -744,7 +746,7 @@ class QualityAnalyzer:
         
         metrics_to_winsorize = [
             "pagerank", "reverse_pagerank", "betweenness", "closeness", 
-            "eigenvector", "in_degree_raw", "out_degree_raw"
+            "eigenvector", "in_degree_raw", "out_degree_raw", "weight"
         ]
 
         for attr in metrics_to_winsorize:

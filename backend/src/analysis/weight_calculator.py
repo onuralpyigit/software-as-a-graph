@@ -54,7 +54,7 @@ class QualityWeights:
     # Availability weights (SPOF risk)
     a_articulation: float = 0.65     # AHP: (1.0, 3.0, 5.0)
     a_bridge_ratio: float = 0.23
-    a_importance: float = 0.12       
+    a_qos_weight: float = 0.12       # QoS-derived component weight w(v)
 
     # Vulnerability weights (exposure risk)
     v_eigenvector: float = 0.50      # AHP: (1.0, 2.0, 2.0)
@@ -91,7 +91,7 @@ class AHPMatrices:
     Metric assignments (v2):
         Reliability:      PageRank (PR), Reverse PageRank (RPR), In-Degree (ID)
         Maintainability:  Betweenness (BT), Out-Degree (OD), Clustering (CC)
-        Availability:     Articulation Score (AP_c), Bridge Ratio (BR), Importance (IM)
+        Availability:     Articulation Score (AP_c), Bridge Ratio (BR), QoS Weight w(v)
         Vulnerability:    Eigenvector (EV), Closeness (CL), Out-Degree (OD)
     """
     
@@ -103,7 +103,7 @@ class AHPMatrices:
     # Betweenness is critical for coupling; Out-Degree = efferent coupling
     criteria_maintainability: List[List[float]] = None
     
-    # Availability: Articulation Score (AP_c), Bridge Ratio (BR), Importance (IM)
+    # Availability: Articulation Score (AP_c), Bridge Ratio (BR), QoS Weight (w)
     # AP_c is now continuous but still the dominant SPOF indicator
     criteria_availability: List[List[float]] = None
     
@@ -141,7 +141,7 @@ class AHPMatrices:
                 # AP_c  BR   IM
                 [1.0, 3.0, 5.0],  # AP_c (Critical SPOF, now continuous)
                 [0.33, 1.0, 2.0], # BR
-                [0.2, 0.5, 1.0],  # IM
+                [0.2, 0.5, 1.0],  # QoS Weight (w)
             ]
 
         if self.criteria_vulnerability is None:
@@ -258,7 +258,7 @@ class AHPProcessor:
         w_main = self._calculate_priority_vector(self.matrices.criteria_maintainability)
         w_main = self._shrink_weights(w_main)
         
-        # 3. Availability Weights (AP_c, BR, IM)
+        # 3. Availability Weights (AP_c, BR, w)
         w_avail = self._calculate_priority_vector(self.matrices.criteria_availability)
         w_avail = self._shrink_weights(w_avail)
         
@@ -284,7 +284,7 @@ class AHPProcessor:
             # Availability
             a_articulation=w_avail[0],
             a_bridge_ratio=w_avail[1],
-            a_importance=w_avail[2],
+            a_qos_weight=w_avail[2],
             
             # Vulnerability
             v_eigenvector=w_vuln[0],
