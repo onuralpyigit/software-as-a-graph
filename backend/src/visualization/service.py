@@ -479,6 +479,7 @@ class VisualizationService:
                 data.network_nodes,
                 data.network_edges,
                 f"Adjacency Matrix — {layer_def['name']}",
+                rcm_order=data.rcm_order
             )
 
         dash.end_section()

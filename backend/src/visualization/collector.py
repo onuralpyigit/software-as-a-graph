@@ -138,7 +138,8 @@ class LayerDataCollector:
                 for c in analysis.quality.components
                 if hasattr(c, "structural")
             }
-
+            data.rcm_order = analysis.structural.rcm_order
+ 
             self._build_network_data(data, analysis)
 
         except Exception as e:

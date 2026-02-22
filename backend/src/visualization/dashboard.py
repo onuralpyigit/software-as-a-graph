@@ -831,7 +831,8 @@ class DashboardGenerator:
         matrix_id: str,
         nodes: List[Dict[str, Any]],
         edges: List[Dict[str, Any]],
-        title: str = "Dependency Matrix"
+        title: str = "Dependency Matrix",
+        rcm_order: Optional[List[str]] = None
     ) -> None:
         """
         Add an interactive adjacency matrix visualization for dense dependency analysis.
@@ -845,15 +846,20 @@ class DashboardGenerator:
         if not nodes:
             return
         
-        # Sort nodes by type then by level (criticality)
-        type_order = {"Application": 0, "Library": 1, "Topic": 2, "Broker": 3, "Node": 4}
-        level_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "MINIMAL": 4}
-        
-        sorted_nodes = sorted(nodes, key=lambda n: (
-            type_order.get(n.get("type", "Application"), 5),
-            level_order.get(n.get("level", "MINIMAL"), 5),
-            n.get("id", "")
-        ))
+        if rcm_order:
+            # Sort nodes by their position in rcm_order
+            rcm_index = {nid: i for i, nid in enumerate(rcm_order)}
+            sorted_nodes = sorted(nodes, key=lambda n: rcm_index.get(n["id"], 999999))
+        else:
+            # Fallback: Sort by type then by level (criticality)
+            type_order = {"Application": 0, "Library": 1, "Topic": 2, "Broker": 3, "Node": 4}
+            level_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "MINIMAL": 4}
+            
+            sorted_nodes = sorted(nodes, key=lambda n: (
+                type_order.get(n.get("type", "Application"), 5),
+                level_order.get(n.get("level", "MINIMAL"), 5),
+                n.get("id", "")
+            ))
         
         node_ids = [n["id"] for n in sorted_nodes]
         node_index = {nid: i for i, nid in enumerate(node_ids)}
@@ -886,14 +892,14 @@ class DashboardGenerator:
                         "relation": edge_info["relation"]
                     })
         
-        # Prepare node metadata for labels
         node_meta = []
-        for n in sorted_nodes:
+        for i, n in enumerate(sorted_nodes):
             node_meta.append({
                 "id": n["id"],
                 "label": n.get("label", n["id"]).split("\n")[0],
                 "type": n.get("type", "Application"),
-                "level": n.get("level", "MINIMAL")
+                "level": n.get("level", "MINIMAL"),
+                "topo": i
             })
         
         # Calculate cell size based on number of nodes
@@ -910,7 +916,8 @@ class DashboardGenerator:
             f'<div class="matrix-wrapper" style="overflow-x: auto;">',
             f'  <div class="matrix-controls" style="margin-bottom: 10px;">',
             f'    <span style="margin-right: 10px; font-size: 0.85rem;">Sort by:</span>',
-            f'    <button onclick="sortMatrix(\'{matrix_id}\', \'type\')" class="active" style="padding: 4px 10px; margin-right: 5px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; font-size: 0.8rem;">Type</button>',
+            f'    <button onclick="sortMatrix(\'{matrix_id}\', \'topological\')" class="active" style="padding: 4px 10px; margin-right: 5px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; font-size: 0.8rem;">Topological (RCM)</button>',
+            f'    <button onclick="sortMatrix(\'{matrix_id}\', \'type\')" style="padding: 4px 10px; margin-right: 5px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; font-size: 0.8rem;">Type</button>',
             f'    <button onclick="sortMatrix(\'{matrix_id}\', \'level\')" style="padding: 4px 10px; margin-right: 5px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; font-size: 0.8rem;">Criticality</button>',
             f'    <button onclick="sortMatrix(\'{matrix_id}\', \'name\')" style="padding: 4px 10px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; font-size: 0.8rem; margin-right: 5px;">Name</button>',
             f'    <button onclick="exportMatrixView(\'{matrix_id}\')" style="padding: 4px 10px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; font-size: 0.8rem;">📷 Export</button>',
@@ -1112,15 +1119,17 @@ class DashboardGenerator:
             const levelOrder = {{'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'MINIMAL': 4}};
             
             let sortedNodes;
-            if (sortBy === 'type') {{
+            if (sortBy === 'topological') {
+                sortedNodes = [...data.nodes].sort((a, b) => a.topo - b.topo);
+            } else if (sortBy === 'type') {
                 sortedNodes = [...data.nodes].sort((a, b) => 
                     (typeOrder[a.type] || 5) - (typeOrder[b.type] || 5) || a.id.localeCompare(b.id));
-            }} else if (sortBy === 'level') {{
+            } else if (sortBy === 'level') {
                 sortedNodes = [...data.nodes].sort((a, b) => 
                     (levelOrder[a.level] || 5) - (levelOrder[b.level] || 5) || a.id.localeCompare(b.id));
-            }} else {{
+            } else {
                 sortedNodes = [...data.nodes].sort((a, b) => a.id.localeCompare(b.id));
-            }}
+            }
             
             // Create new index mapping
             const newIndex = {{}};

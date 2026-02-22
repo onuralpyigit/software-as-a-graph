@@ -24,13 +24,14 @@
    - [Section 5 — Interactive Network Graph](#section-5--interactive-network-graph)
    - [Section 6 — Dependency Matrix](#section-6--dependency-matrix)
    - [Section 7 — Validation Report](#section-7--validation-report)
-5. [Visual Encoding Reference](#visual-encoding-reference)
-6. [Anti-Pattern Detection](#anti-pattern-detection)
-7. [From Dashboard to Decisions](#from-dashboard-to-decisions)
-8. [Performance](#performance)
-9. [Commands](#commands)
-10. [Programmatic API](#programmatic-api)
-11. [Methodology Summary](#methodology-summary)
+5. [Visualization Design Rationale](#visualization-design-rationale)
+6. [Visual Encoding Reference](#visual-encoding-reference)
+7. [Anti-Pattern Detection](#anti-pattern-detection)
+8. [From Dashboard to Decisions](#from-dashboard-to-decisions)
+9. [Performance](#performance)
+10. [Commands](#commands)
+11. [Programmatic API](#programmatic-api)
+12. [Methodology Summary](#methodology-summary)
 
 ---
 
@@ -236,14 +237,52 @@ Use the network graph for systems up to ~80 components. Above that threshold, ed
 
 ### Section 6 — Dependency Matrix
 
-A heatmap showing component-to-component dependency weights, sorted by Q(v) descending on both axes. The most critical components appear in the top-left corner.
+The Dependency Matrix is a directed adjacency matrix that provides a condensed view of system-wide coupling. While the network graph is best for exploring local neighbourhoods, the matrix scales to hundreds of components without visual saturation.
+
+**Technical Specifications:**
+- **Matrix Type:** Directed adjacency matrix $A$, where $A_{ij} = w(e)$ if a dependency exists from component $i$ to component $j$.
+- **Bandwidth Minimization:** Components are ordered using the **Reverse Cuthill-McKee (RCM)** algorithm (Cuthill & McKee, 1969). RCM reorders nodes to minimize the matrix bandwidth, bringing non-zero cells (dependencies) as close to the diagonal as possible.
+- **Cluster Identification:** In this topological ordering, tightly coupled component clusters emerge as dense blocks along the diagonal. Unlike random or alphabetical ordering, RCM ensures that these blocks represent genuine structural communities rather than ordering artifacts.
 
 **Reading the matrix:**
 
-- **Dense blocks along the diagonal:** Tightly coupled component clusters — these components depend heavily on each other and should be assessed as a unit for redundancy planning
-- **Full rows:** A component with high out-degree — it depends on many others (high efferent coupling, M(v) risk)
-- **Full columns:** A component with high in-degree — many others depend on it (high reliability risk, R(v))
-- **Isolated high-weight cells away from the diagonal:** Surprising cross-cluster dependencies — potential architectural debt worth investigating
+- **Blocks along the diagonal:** Tightly coupled component clusters — these components depend heavily on each other and should be assessed as a unit for redundancy planning.
+- **Full rows:** A component with high out-degree — it depends on many others (high efferent coupling, M(v) risk).
+- **Full columns:** A component with high in-degree — many others depend on it (high reliability risk, R(v)).
+
+#### Worked Example: Topological Reordering
+
+The power of the matrix lies in the reordering. Consider a system with two isolated clusters.
+
+````carousel
+```text
+Unordered Adjacency Matrix
+(Alphabetical)
+
+      A B C D E F
+    A . . X . . .
+    B . . . X . X
+    C X . . . . .
+    D . X . . . .
+    E . . . . . X
+    F . X . . X .
+```
+<!-- slide -->
+```text
+Ordered Adjacency Matrix
+(Topological / RCM)
+
+      A C B D F E
+    A . X . . . .
+    C X . . . . .
+    B . . . X X .
+    D . . X . . .
+    F . . X . . X
+    E . . . . X .
+```
+````
+
+In the **Unordered** view, dependencies appear scattered, and the two functional clusters $\{A, C\}$ and $\{B, D, E, F\}$ are invisible. In the **Topological** view, the clusters emerge as distinct 2x2 and 4x4 blocks. The dashboard defaults to this Topological view to ensure that architectural "gravity" is immediately apparent.
 
 ### Section 7 — Validation Report
 
@@ -254,6 +293,23 @@ Displays all eleven validation metrics from Step 5 with pass/fail badges:
 - **Reported metrics** (Kendall τ, Pearson r, Precision, Recall, Cohen's κ, Top-10 Overlap, NDCG@K, MAE): shown without gates
 
 The validation report answers the question: "Can I trust the Q(v) predictions in this dashboard?" If all primary gates pass, the scatter plot and component table should be used with confidence for architectural decision-making. If any primary gate fails, review the [Interpreting Results](validation.md#interpreting-results) section in the validation docs before acting on the predictions.
+
+---
+
+## Visualization Design Rationale
+
+This section formally justifies the visual encoding decisions used in the dashboards, aligning with graph visualization literature and the specific needs of software architectural analysis.
+
+| Encoding Decision | Theoretical Backing | Domain-Specific Motivation |
+|-------------------|---------------------|---------------------------|
+| **Force-Directed Layout** | Encodes centrality implicitly through emergent positioning (Eades, 1984), where high-degree nodes migrate to the center. | Aligns with the goal of making structural importance visually self-evident without needing explicit annotation or complex navigation. |
+| **Color for Criticality** | Color is a pre-attentive visual feature (Ware, 2012) that allows for rapid detection and categorization during visual search. | Enables engineers to instantly identify high-risk components (e.g., "red nodes") across a dense system graph at a single glance. |
+| **Size for Quality Score** | Human perception of area is highly effective for judging relative magnitude and importance (Cleveland & McGill, 1984). | Provides a quantitative indicator of $Q(v)$, ensuring that the most impactful components dominate the visual field. |
+| **Shape for Type** | Shape is an effective channel for categorical separation without interfering with color or size (Munzner, 2014). | Distinguishes between different architectural roles (e.g., Broker vs. Application) without confounding the risk-based priority. |
+| **Edge Thickness** | Line width is a standard channel for encoding quantitative weights in networks (Gibson et al., 2002). | Surfaces the strength of dependency (QoS-derived weights), highlighting the "heaviest" paths of failure propagation. |
+| **Dependency Matrix** | Heatmap encoding with Reverse Cuthill-McKee (RCM) ordering minimizes matrix bandwidth (Cuthill & McKee, 1969). | Objectively surfaces tightly coupled component clusters as diagonal blocks, eliminating ordering artifacts. |
+
+These choices ensure that the visualization is not merely an implementation detail but a rigorous tool for architectural decision-making, where aesthetics serve the goal of information density and cognitive efficiency.
 
 ---
 

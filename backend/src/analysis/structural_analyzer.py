@@ -43,6 +43,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Any, Optional, Set, Tuple
 
 import networkx as nx
+from networkx.utils import reverse_cuthill_mckee_ordering
 
 from src.core.layers import (
     AnalysisLayer,
@@ -286,6 +287,15 @@ class StructuralAnalyzer:
                 is_bridge=(u, v) in bridges or (v, u) in bridges,
             )
 
+        # --- Bandwidth minimization (RCM Ordering) ---
+        # Used for topological reordering of the dependency matrix to surface
+        # structural clusters.
+        try:
+            rcm_order = list(reverse_cuthill_mckee_ordering(U))
+        except Exception as e:
+            self._logger.warning(f"RCM ordering failed: {e}")
+            rcm_order = list(G.nodes)
+
         # --- Graph-level summary ---
         summary = self._build_summary(G, layer, art_points, bridges)
 
@@ -295,6 +305,7 @@ class StructuralAnalyzer:
             edges=edge_metrics,
             graph_summary=summary,
             qos_profile=qos_profile,
+            rcm_order=rcm_order,
         )
 
     # ------------------------------------------------------------------

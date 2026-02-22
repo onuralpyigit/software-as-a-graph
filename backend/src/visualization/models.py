@@ -173,6 +173,7 @@ class LayerData:
     # Network graph data
     network_nodes: List[Dict[str, Any]] = field(default_factory=list)
     network_edges: List[Dict[str, Any]] = field(default_factory=list)
+    rcm_order: List[str] = field(default_factory=list)
 
     # Name mapping
     component_names: Dict[str, str] = field(default_factory=dict)
