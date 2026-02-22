@@ -91,13 +91,34 @@ The simulation supports four failure modes, each representing a different class 
 | Mode | What It Models | Effect on Target Component | Cascade Behavior |
 |------|---------------|---------------------------|-----------------|
 | **CRASH** | Complete, immediate failure | Fully removed from active graph | Full cascade (all three rules apply) |
-| **DEGRADED** | Partial functionality loss | Reduced capacity — outgoing message weights multiplied by degradation factor (0 < d < 1) | Partial cascade: subscribers may be starved only if remaining capacity drops below their threshold |
-| **PARTITION** | Network isolation | Component cannot send or receive messages, but is still running | Logical isolation cascade: affects all pub-sub paths that cross the partition boundary |
-| **OVERLOAD** | Resource exhaustion | Increasing message drop rate that grows until the component fails or recovers | Probabilistic cascade: propagates stochastically; treated as CRASH in deterministic mode |
+| **DEGRADED** | Partial capacity loss | 50% performance ($\Phi=0.5$) | Starvation cascade: topic fails if Service Level $SL(T) < 0.3$ |
+| **PARTITION** | Network isolation | Component unreachable | Logical isolation cascade: affects cross-boundary paths |
+| **OVERLOAD** | Resource exhaustion | TBD | Future Work: See research extension plan |
 
 **Default mode:** CRASH. This is used for the primary validation because it produces the clearest ground truth — a binary failed/active state with no ambiguity about partial propagation.
 
-**DEGRADED, PARTITION, and OVERLOAD** modes are available for modelling more realistic failure scenarios and are fully configurable via CLI flags. In research validation contexts, CRASH produces the most stable and reproducible impact scores for correlation analysis.
+### Failure Mode Specification
+
+The simulation supports three formally defined failure modes, with a fourth reserved for future development:
+
+1.  **CRASH (Binary):** The component stops completely. Performance $\Phi(v) = 0$.
+2.  **DEGRADED (Partial):** The component continues to operate but at reduced capacity. In this model, $\Phi(v) = 0.5$. This triggers a **Service Level (SL)** assessment for all downstream topics.
+3.  **PARTITION (Network):** Similar to CRASH, but localized to network edges.
+4.  **OVERLOAD (Future Work):** Awaiting implementation of probabilistic temporal growth models. Current validation runs treat OVERLOAD as a placeholder for research extension.
+
+#### Degradation & Starvation Thresholds
+
+For the `DEGRADED` mode, the propagation depends on the aggregate performance of all publishers of a topic.
+
+**Topic Service Level ($SL$):**
+For a topic $T$ with a set of publishers $P(T)$, the service level is the mean performance of its active publishers:
+$$SL(T) = \frac{\sum_{p \in P(T)} \Phi(p)}{|P(T)|}$$
+
+**Starvation Rule:**
+A topic $T$ remains active if $SL(T) \ge \tau$, where the **Starvation Threshold** $\tau = 0.3$.
+If $SL(T) < 0.3$, the topic cascades to failed ($\Phi(T) = 0$), triggering subscriber starvation per Rule 3.
+
+*Rationale:* This threshold ensures that a single degraded publisher (0.5) can sustain a topic, but a cluster where the majority of publishers have failed or are severely degraded will trigger a system-wide cascade.
 
 ---
 

@@ -39,9 +39,9 @@ class EventType(Enum):
 class FailureMode(Enum):
     """Types of component failure modes."""
     CRASH = "crash"           # Complete failure - component stops
-    DEGRADED = "degraded"     # Partial failure - reduced capacity
+    DEGRADED = "degraded"     # Partial failure (50% capacity). Starvation threshold: SL < 0.3
     PARTITION = "partition"   # Network partition - unreachable
-    OVERLOAD = "overload"     # Resource exhaustion
+    OVERLOAD = "overload"     # Resource exhaustion (Future work)
 
 
 class CascadeRule(Enum):
