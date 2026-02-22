@@ -47,6 +47,11 @@ class BenchmarkRecord:
     top5_overlap: float = 0.0
     top10_overlap: float = 0.0
 
+    # --- Baseline Spearman correlations ---
+    spearman_bc: float = 0.0      # Raw Betweenness Centrality
+    spearman_degree: float = 0.0  # Raw Degree Centrality
+    spearman_random: float = 0.0  # Uniform Random ranking
+
     # --- Status ---
     passed: bool = False
     targets_met: int = 0
@@ -90,6 +95,11 @@ class AggregateResult:
     avg_top5: float = 0.0
     avg_top10: float = 0.0
     avg_rmse: float = 0.0
+
+    # Baseline averages
+    avg_spearman_bc: float = 0.0
+    avg_spearman_degree: float = 0.0
+    avg_spearman_random: float = 0.0
 
     # Pass rate
     num_passed: int = 0

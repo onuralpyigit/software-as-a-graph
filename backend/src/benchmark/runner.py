@@ -8,6 +8,7 @@ timing + validation metrics into BenchmarkRecord objects.
 from __future__ import annotations
 
 import logging
+import random
 import statistics
 import time
 import traceback
@@ -21,6 +22,7 @@ from src.generation import GenerationService, load_config
 from src.analysis import AnalysisService
 from src.simulation import SimulationService
 from src.validation import ValidationService, ValidationTargets
+from src.validation.metric_calculator import spearman_correlation
 
 from .models import (
     AggregateResult,
@@ -197,7 +199,38 @@ class BenchmarkRunner:
                 layer=layer,
                 context="Benchmark",
             )
-            return res, (time.time() - t0) * 1000
+
+            # --- Baseline Correlations ---
+            m_ids = list(pred_scores.keys())
+            m_actuals = [actual_scores.get(cid, 0.0) for cid in m_ids]
+            
+            # 1. Betweenness Centrality
+            bc_scores: Dict[str, float] = {}
+            for c in analysis_data.get("structural_analysis", {}).get("components", []):
+                bc_scores[c["id"]] = c["metrics"].get("betweenness", 0.0)
+            m_bc = [bc_scores.get(cid, 0.0) for cid in m_ids]
+            spearman_bc, _ = spearman_correlation(m_bc, m_actuals)
+
+            # 2. Degree Centrality
+            deg_scores: Dict[str, float] = {}
+            for c in analysis_data.get("structural_analysis", {}).get("components", []):
+                deg_scores[c["id"]] = c["metrics"].get("degree", 0.0)
+            m_deg = [deg_scores.get(cid, 0.0) for cid in m_ids]
+            spearman_deg, _ = spearman_correlation(m_deg, m_actuals)
+
+            # 3. Random Ranking
+            rng = random.Random(42) # Deterministic random per validation pass
+            m_rand = [rng.random() for _ in m_ids]
+            spearman_rand, _ = spearman_correlation(m_rand, m_actuals)
+
+            # Return (ValidationResult, extra_metrics_dict, elapsed_ms)
+            extra = {
+                "spearman_bc": spearman_bc,
+                "spearman_degree": spearman_deg,
+                "spearman_random": spearman_rand,
+            }
+
+            return (res, extra), (time.time() - t0) * 1000
 
         except Exception as e:
             self.logger.error("Validation failed for layer %s: %s", layer, e)
@@ -292,11 +325,15 @@ class BenchmarkRunner:
                     continue
 
                 # 5. Validation
-                val_result, val_time = self._run_validation(layer, an_data, sim_data)
+                (val_result, baseline), val_time = self._run_validation(layer, an_data, sim_data)
                 record.time_validation = val_time
 
                 if val_result:
                     self._fill_record_from_validation(record, val_result)
+                    # Set baselines
+                    record.spearman_bc = baseline.get("spearman_bc", 0.0)
+                    record.spearman_degree = baseline.get("spearman_degree", 0.0)
+                    record.spearman_random = baseline.get("spearman_random", 0.0)
                 else:
                     record.error = "Validation failed"
 
@@ -398,6 +435,11 @@ class BenchmarkRunner:
         agg.avg_top5 = _mean("top5_overlap")
         agg.avg_top10 = _mean("top10_overlap")
         agg.avg_rmse = _mean("rmse")
+
+        # Baseline averages
+        agg.avg_spearman_bc = _mean("spearman_bc")
+        agg.avg_spearman_degree = _mean("spearman_degree")
+        agg.avg_spearman_random = _mean("spearman_random")
 
         # Pass rate
         agg.num_passed = sum(1 for r in recs if r.passed)

@@ -65,6 +65,22 @@ class ReportGenerator:
                 f"{a.speedup_ratio:.1f}x |"
             )
 
+        # ── Baseline Comparison ───────────────────────────────────
+        lines.extend([
+            "",
+            "## Baseline Comparison (Spearman ρ)",
+            "",
+            "| Scale | Layer | Composite Q(v) | Betweenness | Degree | Random | Gain (%) |",
+            "|-------|-------|----------------|-------------|--------|--------|----------|",
+        ])
+        for a in summary.aggregates:
+            gain = ((a.avg_spearman - a.avg_spearman_bc) / a.avg_spearman_bc * 100) if a.avg_spearman_bc > 0 else 0.0
+            lines.append(
+                f"| {a.scale} | {a.layer} | **{a.avg_spearman:.3f}** | "
+                f"{a.avg_spearman_bc:.3f} | {a.avg_spearman_degree:.3f} | "
+                f"{a.avg_spearman_random:.3f} | +{gain:.1f}% |"
+            )
+
         # ── Detailed validation ───────────────────────────────────
         lines.extend([
             "",

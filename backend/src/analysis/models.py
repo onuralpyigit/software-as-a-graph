@@ -163,6 +163,20 @@ class LayerAnalysisResult:
             "layer_name": self.layer_name,
             "description": self.description,
             "graph_summary": self.structural.graph_summary.to_dict(),
+            "structural_analysis": {
+                "components": [
+                    {
+                        "id": c.id,
+                        "metrics": {
+                            "betweenness": c.betweenness,
+                            "degree": c.degree,
+                            "in_degree": c.in_degree,
+                            "out_degree": c.out_degree,
+                        }
+                    }
+                    for c in self.structural.components.values()
+                ]
+            },
             "quality_analysis": self.quality.to_dict(),
             "problems": [p.to_dict() for p in self.problems],
             "problem_summary": self.problem_summary.to_dict(),
