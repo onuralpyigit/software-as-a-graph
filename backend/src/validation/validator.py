@@ -145,7 +145,6 @@ class Validator:
             and correlation.spearman_p <= self.targets.spearman_p_max
             and classification.f1_score >= self.targets.f1_score
             and ranking.top_5_overlap >= self.targets.top_5_overlap
-            and error.rmse <= self.targets.rmse_max
         )
 
         return ValidationGroupResult(

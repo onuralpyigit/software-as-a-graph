@@ -269,8 +269,8 @@ Validation uses a three-tier gate system:
 | Gate | Metrics | Pass Condition | Effect |
 |------|---------|---------------|--------|
 | **Primary** | Spearman ρ, p-value, F1-Score, Top-5 Overlap | **All must pass** | If any fails → overall FAIL |
-| **Secondary** | RMSE | Should pass | Failure logged as warning, does not block overall pass |
-| **Reported** | Kendall τ, Pearson r, Precision, Recall, Cohen's κ, Top-10 Overlap, NDCG@K, MAE | Informational | Always computed and reported; no gate |
+| **Secondary** | RMSE, Top-10 Overlap | Should pass | Failure logged as warning, does not block overall pass |
+| **Reported** | Kendall τ, Pearson r, Precision, Recall, Cohen's κ, NDCG@K, MAE | Informational | Always computed and reported; no gate |
 
 **Primary gate thresholds (defaults):**
 
@@ -279,13 +279,14 @@ Validation uses a three-tier gate system:
 | Spearman ρ | ≥ 0.70 |
 | p-value | ≤ 0.05 |
 | F1-Score | ≥ 0.80 |
-| Top-5 Overlap | ≥ 40% |
+| Top-5 Overlap | ≥ 60% |
 
 **Secondary gate threshold:**
 
 | Metric | Threshold |
 |--------|-----------|
 | RMSE | ≤ 0.25 |
+| Top-10 Overlap | ≥ 50% |
 
 All thresholds are configurable via CLI flags (`--spearman`, `--f1`, `--precision`, `--recall`, `--top5`). Raising thresholds is appropriate when validating for a higher-stakes deployment context — for example, a medical device system where the cost of missing a critical component is severe might use `--spearman 0.85 --f1 0.90`.
 

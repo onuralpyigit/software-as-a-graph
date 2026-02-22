@@ -18,7 +18,7 @@ class ValidationTargets:
     recall: float = 0.80
     accuracy: float = 0.75
     cohens_kappa: float = 0.60
-    top_5_overlap: float = 0.40
+    top_5_overlap: float = 0.60
     top_10_overlap: float = 0.50
     ndcg_10: float = 0.70
     rmse_max: float = 0.25

@@ -37,8 +37,8 @@ DEFAULT_TARGETS = ValidationTargets(
     f1_score=0.80,
     precision=0.80,
     recall=0.80,
-    top_5_overlap=0.40,
-    top_10_overlap=0.60,
+    top_5_overlap=0.60,
+    top_10_overlap=0.50,
 )
 
 # Metric names in (record_attr, target_attr) pairs for DRY target counting
