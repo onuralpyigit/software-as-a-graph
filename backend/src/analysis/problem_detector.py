@@ -122,6 +122,10 @@ class ProblemDetector:
         return problems
 
     def _availability_issues(self, c: ComponentQuality) -> List[DetectedProblem]:
+        """
+        Detect availability anti-patterns.
+        Predicate: P_SPOF(v) <=> AP(v) = 1
+        """
         out: List[DetectedProblem] = []
         # SPOF — articulation point
         if c.structural.is_articulation_point:
@@ -144,6 +148,10 @@ class ProblemDetector:
         return out
 
     def _reliability_issues(self, c: ComponentQuality) -> List[DetectedProblem]:
+        """
+        Detect reliability anti-patterns.
+        Predicate: P_Hub(v) <=> S_R(v) > UF(Q_R)
+        """
         out: List[DetectedProblem] = []
         if c.levels.reliability >= CriticalityLevel.CRITICAL:
             out.append(DetectedProblem(
@@ -178,6 +186,11 @@ class ProblemDetector:
         return out
 
     def _maintainability_issues(self, c: ComponentQuality) -> List[DetectedProblem]:
+        """
+        Detect maintainability anti-patterns.
+        Predicate: P_God(v) <=> BC(v) > 0.3 AND S_M(v) > UF(Q_M)
+        Predicate: P_Star(v) <=> (deg^-(v) + deg^+(v)) > 3 AND CC(v) < 0.1
+        """
         out: List[DetectedProblem] = []
         # God component (extreme betweenness)
         if c.levels.maintainability >= CriticalityLevel.CRITICAL and c.structural.betweenness > 0.3:
@@ -215,6 +228,10 @@ class ProblemDetector:
         return out
 
     def _security_issues(self, c: ComponentQuality) -> List[DetectedProblem]:
+        """
+        Detect security anti-patterns.
+        Predicate: P_Target(v) <=> S_V(v) > UF(Q_V)
+        """
         out: List[DetectedProblem] = []
         if c.levels.vulnerability >= CriticalityLevel.CRITICAL:
             out.append(DetectedProblem(
@@ -313,7 +330,62 @@ class ProblemDetector:
         edges: List[EdgeQuality],
         quality: QualityAnalysisResult,
     ) -> List[DetectedProblem]:
+        """
+        Detect systemic anti-patterns.
+        Predicate: P_Cycle(C) <=> C is a simple cycle AND |C| >= 2
+        """
+        import networkx as nx
         problems: List[DetectedProblem] = []
+        
+        # Dependency Cycles
+        G = nx.DiGraph()
+        for e in edges:
+            G.add_edge(e.source, e.target)
+        
+        try:
+            cycles = list(nx.simple_cycles(G))
+            for cycle in cycles:
+                if len(cycle) >= 2:
+                    problems.append(DetectedProblem(
+                        entity_id=" -> ".join(cycle + [cycle[0]]),
+                        entity_type="Architecture",
+                        category=ProblemCategory.ARCHITECTURE.value,
+                        severity="HIGH",
+                        name="Dependency Cycle",
+                        description=f"Circular dependency detected: {' -> '.join(cycle + [cycle[0]])}.",
+                        recommendation="Break the cycle by introducing an interface or using events.",
+                        evidence={"cycle_length": len(cycle), "nodes": cycle}
+                    ))
+        except Exception:
+            pass
+
+        # Chain Topologies
+        try:
+            # Find nodes with deg- <= 1 and deg+ <= 1
+            chain_nodes = [v for v in G.nodes if G.in_degree(v) <= 1 and G.out_degree(v) <= 1]
+            H = G.subgraph(chain_nodes)
+            # Find weakly connected components in H that are simple paths
+            for component in nx.weakly_connected_components(H):
+                if len(component) >= 4:
+                    # Check if it's a simple path (max degree 2 in undirected view)
+                    U_sub = H.subgraph(component).to_undirected()
+                    if all(d <= 2 for _, d in U_sub.degree()):
+                        problems.append(DetectedProblem(
+                            entity_id=f"CHAIN-{''.join(list(component)[:3])}",
+                            entity_type="Architecture",
+                            category=ProblemCategory.ARCHITECTURE.value,
+                            severity="MEDIUM",
+                            name="Chain Topology",
+                            description=(
+                                f"Fragile chain of {len(component)} components detected. "
+                                "Any failure in this sequence isolates downstream nodes."
+                            ),
+                            recommendation="Introduce redundant paths or bypasses to reduce sequence depth.",
+                            evidence={"length": len(component), "nodes": list(component)}
+                        ))
+        except Exception:
+            pass
+
         total = quality.classification_summary.total_components
         if total == 0:
             return problems

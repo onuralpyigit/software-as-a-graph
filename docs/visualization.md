@@ -10,13 +10,7 @@
 
 1. [What This Step Does](#what-this-step-does)
 2. [Two Visualization Surfaces](#two-visualization-surfaces)
-3. [Genieus: Live Web Application](#genieus-live-web-application)
-   - [Dashboard Tab](#dashboard-tab)
-   - [Graph Explorer Tab](#graph-explorer-tab)
-   - [Analysis Tab](#analysis-tab)
-   - [Simulation Tab](#simulation-tab)
-   - [Settings Tab](#settings-tab)
-4. [Static HTML Dashboard](#static-html-dashboard)
+3. [Static HTML Dashboard](#static-html-dashboard)
    - [Section 1 — Executive Overview](#section-1--executive-overview)
    - [Section 2 — Layer Comparison](#section-2--layer-comparison)
    - [Section 3 — Component Details Table](#section-3--component-details-table)
@@ -24,6 +18,12 @@
    - [Section 5 — Interactive Network Graph](#section-5--interactive-network-graph)
    - [Section 6 — Dependency Matrix](#section-6--dependency-matrix)
    - [Section 7 — Validation Report](#section-7--validation-report)
+4. [Genieus: Live Web Application](#genieus-live-web-application)
+   - [Dashboard Tab](#dashboard-tab)
+   - [Graph Explorer Tab](#graph-explorer-tab)
+   - [Analysis Tab](#analysis-tab)
+   - [Simulation Tab](#simulation-tab)
+   - [Settings Tab](#settings-tab)
 5. [Visualization Design Rationale](#visualization-design-rationale)
 6. [Visual Encoding Reference](#visual-encoding-reference)
 7. [Anti-Pattern Detection](#anti-pattern-detection)
@@ -42,10 +42,10 @@ Visualization is the final step. It takes all outputs from Steps 2–5 — struc
 ```
 Steps 2–5 Outputs                Visualization               Output
 ──────────────────               ─────────────               ──────
-M(v)  — metric vectors           Pipeline         →  Genieus live web app
-Q(v)  — quality scores              │                (always-on, interactive)
-I(v)  — impact scores               │             →  Static HTML dashboard
-Spearman ρ, F1, …             ──────┘                (one-shot export)
+M(v)  — metric vectors           Pipeline         →  Static HTML dashboard
+Q(v)  — quality scores              │                (archivable evaluation artifact)
+I(v)  — impact scores               │             →  Genieus live web app
+Spearman ρ, F1, …             ──────┘                (operational practitioner tool)
 ```
 
 The dashboard design follows one principle: every visual element should reduce time-to-decision for a specific architectural concern. Each view answers a different stakeholder question; the [From Dashboard to Decisions](#from-dashboard-to-decisions) section maps questions to views.
@@ -58,76 +58,16 @@ The framework provides two distinct output surfaces that serve different use cas
 
 | Surface | How to Launch | Best For | Output |
 |---------|--------------|----------|--------|
-| **Genieus web app** | `docker compose up` → http://localhost:7000 | Interactive exploration, running analysis live, filtering and searching components | Live web app backed by FastAPI + Neo4j |
-| **Static HTML dashboard** | `python bin/visualize_graph.py` | Sharing reports, archiving results, offline review, thesis figures | Self-contained `.html` file (~1–3 MB) |
+| **Static HTML dashboard** | `python bin/visualize_graph.py` | **Research reproducibility**, archiving results, offline review, thesis appendices | Self-contained, archivable `.html` file (~1–3 MB) |
+| **Genieus web app** | `docker compose up` → http://localhost:7000 | Operational exploration, running live analysis, practitioner troubleshooting | Live web app backed by FastAPI + Neo4j |
 
-Both surfaces render the same underlying data and use the same [visual encoding](#visual-encoding-reference). Choose the web app for exploratory analysis and the static dashboard for documentation and sharing.
-
----
-
-## Genieus: Live Web Application
-
-The Genieus frontend is a Next.js 15 application that communicates with the FastAPI backend (port 8000) and Neo4j database (port 7687). All analysis operations can be triggered and viewed directly from the browser without running any CLI commands.
-
-### Launching
-
-```bash
-# Start the full stack (Neo4j + API + Frontend)
-docker compose up --build
-
-# Access points:
-#   Web dashboard:      http://localhost:7000
-#   API documentation:  http://localhost:8000/docs
-#   Neo4j browser:      http://localhost:7474  (neo4j / password)
-```
-
-### Dashboard Tab
-
-Provides a high-level overview equivalent to Sections 1–4 of the static dashboard:
-
-- **KPI cards:** Component counts, criticality distribution, SPOF count, anti-pattern count, validation pass/fail
-- **Criticality distribution pie chart:** Proportion of CRITICAL / HIGH / MEDIUM / LOW / MINIMAL components
-- **Top-10 critical components list:** Ranked by Q(v) with RMAV sparklines
-- **Validation summary:** Spearman ρ and F1 with pass/fail badges
-
-### Graph Explorer Tab
-
-The most analytically powerful view — an interactive 2D/3D force-directed graph of the dependency network:
-
-- **Filter by layer:** Switch between app, infra, mw, and system layers
-- **Search components:** Type to highlight and centre on specific components
-- **Criticality overlay:** Nodes coloured and sized by criticality level
-- **Component type overlay:** Nodes shaped and coloured by type (Application / Broker / Node / Topic / Library)
-- **Click a node:** Opens a side panel showing all RMAV scores, I(v), criticality level, cascade count, and direct dependencies
-- **2D / 3D toggle:** Three-dimensional layout gives better visual separation for dense graphs (> 100 components)
-
-The Graph Explorer provides the visual proof of the methodology: the most central, largest, reddest nodes in the force-directed layout are exactly the components the analysis predicts as critical — and Step 5 confirms they are.
-
-### Analysis Tab
-
-Run structural analysis and quality scoring on demand from the browser:
-
-- Select a layer and weight mode (equal / AHP)
-- Trigger analysis and watch results update in real time
-- Export results as JSON for use with `validate_graph.py`
-
-### Simulation Tab
-
-Run failure simulation and visualize cascade paths interactively:
-
-- Select a target component and failure mode (CRASH / DEGRADED / PARTITION / OVERLOAD)
-- View the cascade as an animated propagation on the network graph
-- Compare I(v) scores against Q(v) predictions in a live scatter plot
-
-### Settings Tab
-
-Configure the Neo4j connection URI, username, and password. Settings are persisted in browser local storage and used by all API calls.
+Both surfaces render the same underlying data and use the same [visual encoding](#visual-encoding-reference). The framework prioritizes the static dashboard as the **primary evaluation artifact** for academic verification, while Genieus serves as the **operational interface** for real-time deployment.
 
 ---
 
 ## Static HTML Dashboard
 
-The static HTML dashboard is a single self-contained file generated by `visualize_graph.py`. It uses vis.js for the network graph and Chart.js for charts. The file requires no server — open it directly in any browser.
+The static HTML dashboard is the **primary archivable evaluation artifact** of the framework. It is a single self-contained file generated by `visualize_graph.py` that summarizes the complete analytical state of the system. It uses vis.js for the network graph and Chart.js for charts. The file requires no server — open it directly in any browser for reproducible peer review.
 
 The dashboard uses a responsive single-page layout with tabbed layer navigation:
 
@@ -296,6 +236,66 @@ The validation report answers the question: "Can I trust the Q(v) predictions in
 
 ---
 
+## Genieus: Live Web Application
+
+The Genieus web app provides the **operational deployment interface** for real-time practitioner exploration. It is a Next.js 15 application that communicates with the FastAPI backend (port 8000) and Neo4j database (port 7687). All analysis operations can be triggered and viewed directly from the browser without running any CLI commands.
+
+### Launching
+
+```bash
+# Start the full stack (Neo4j + API + Frontend)
+docker compose up --build
+
+# Access points:
+#   Web dashboard:      http://localhost:7000
+#   API documentation:  http://localhost:8000/docs
+#   Neo4j browser:      http://localhost:7474  (neo4j / password)
+```
+
+### Dashboard Tab
+
+Provides a high-level overview equivalent to Sections 1–4 of the static dashboard:
+
+- **KPI cards:** Component counts, criticality distribution, SPOF count, anti-pattern count, validation pass/fail
+- **Criticality distribution pie chart:** Proportion of CRITICAL / HIGH / MEDIUM / LOW / MINIMAL components
+- **Top-10 critical components list:** Ranked by Q(v) with RMAV sparklines
+- **Validation summary:** Spearman ρ and F1 with pass/fail badges
+
+### Graph Explorer Tab
+
+The most analytically powerful view — an interactive 2D/3D force-directed graph of the dependency network:
+
+- **Filter by layer:** Switch between app, infra, mw, and system layers
+- **Search components:** Type to highlight and centre on specific components
+- **Criticality overlay:** Nodes coloured and sized by criticality level
+- **Component type overlay:** Nodes shaped and coloured by type (Application / Broker / Node / Topic / Library)
+- **Click a node:** Opens a side panel showing all RMAV scores, I(v), criticality level, cascade count, and direct dependencies
+- **2D / 3D toggle:** Three-dimensional layout gives better visual separation for dense graphs (> 100 components)
+
+The Graph Explorer provides the visual proof of the methodology: the most central, largest, reddest nodes in the force-directed layout are exactly the components the analysis predicts as critical — and Step 5 confirms they are.
+
+### Analysis Tab
+
+Run structural analysis and quality scoring on demand from the browser:
+
+- Select a layer and weight mode (equal / AHP)
+- Trigger analysis and watch results update in real time
+- Export results as JSON for use with `validate_graph.py`
+
+### Simulation Tab
+
+Run failure simulation and visualize cascade paths interactively:
+
+- Select a target component and failure mode (CRASH / DEGRADED / PARTITION / OVERLOAD)
+- View the cascade as an animated propagation on the network graph
+- Compare I(v) scores against Q(v) predictions in a live scatter plot
+
+### Settings Tab
+
+Configure the Neo4j connection URI, username, and password. Settings are persisted in browser local storage and used by all API calls.
+
+---
+
 ## Visualization Design Rationale
 
 This section formally justifies the visual encoding decisions used in the dashboards, aligning with graph visualization literature and the specific needs of software architectural analysis.
@@ -329,14 +329,14 @@ All visual elements use a consistent encoding across both the Genieus web app an
 
 ### Network Graph Encoding
 
-| Visual Property | Maps To | Notes |
-|----------------|---------|-------|
-| **Node size** | Q(v) quality score | Larger = higher predicted criticality |
-| **Node colour** | Criticality level | Uses colour table above |
-| **Node shape** | Component type | Circle = Application · Diamond = Broker · Square = Node · Triangle = Topic · Star = Library |
-| **Edge thickness** | Dependency weight w(e) | Thicker = higher QoS-derived weight |
-| **Edge arrow** | Dependency direction | Points from dependent to dependency (DEPENDS_ON direction) |
-| **Spatial position** | Force-directed layout | Central = high centrality; peripheral = low degree |
+| Visual Property | Maps To | Theoretical Basis | Notes |
+|:---|:---|:---|:---|
+| **Node size** | Q(v) quality score | Human perception of area is highly effective for judging relative magnitude (Cleveland & McGill, 1984). | Larger = higher predicted criticality |
+| **Node colour** | Criticality level | Color is a pre-attentive visual feature allowing for rapid detection and categorization (Ware, 2012). | Uses colour table above |
+| **Node shape** | Component type | Shape is an effective channel for categorical separation without interfering with color or size (Munzner, 2014). | Circle = Application · Diamond = Broker · Square = Node · Triangle = Topic · Star = Library |
+| **Edge thickness** | Dependency weight w(e) | Line width is a standard channel for encoding quantitative weights in networks (Gibson et al., 2002). | Thicker = higher QoS-derived weight |
+| **Edge arrow** | Dependency direction | Standard graphical convention for directed acyclic/cyclic graphs. | Points from dependent to dependency (DEPENDS_ON direction) |
+| **Spatial position** | Force-directed layout | Encodes centrality implicitly through emergent positioning, where high-degree nodes migrate to center (Eades, 1984). | Central = high centrality; peripheral = low degree |
 
 ### KPI Card Colours
 
@@ -351,16 +351,33 @@ All visual elements use a consistent encoding across both the Genieus web app an
 
 ## Anti-Pattern Detection
 
-The "Problems" KPI counts detected architectural anti-patterns — structural configurations that empirically increase failure risk. The dashboard highlights which components participate in each detected pattern.
+Detected architectural anti-patterns are formally defined as first-order logical predicates over the software graph $G = (V, E)$. This ensure statistical rigor and allows for reproducible detection across different system scales.
 
-| Anti-Pattern | Definition | Risk |
-|-------------|------------|------|
-| **God Component** | A single Application with both in-degree and out-degree in the top 10% of the system | Combines high Reliability risk and high Maintainability risk — failure impact is very broad and it is difficult to change safely |
-| **Circular Dependency** | A directed cycle of length ≥ 2 in the DEPENDS_ON graph | Prevents independent deployment; failure in one component can cascade around the loop |
-| **Chain Topology** | A linear sequence of ≥ 4 components with no branching (maximum in-degree = out-degree = 1) | High fragility — any link in the chain is a SPOF; no redundancy is possible without architectural change |
-| **Isolated Cluster** | A connected subgraph with no edges to the rest of the system other than through a single bridge component | The bridge component is an extreme SPOF; the entire cluster is unreachable if the bridge fails |
+### Formal Notation
 
-Anti-patterns are detected during graph model construction (Step 1) and stored as properties on the relevant components. The dashboard surfaces them as overlays on the network graph (toggle with the "Anti-Patterns" layer button in the Genieus Graph Explorer) and as highlighted rows in the component table.
+- $V$: Set of all components (nodes) in the graph.
+- $E$: Set of all directed dependencies (edges).
+- $deg^-(v)$, $deg^+(v)$: In-degree and out-degree of component $v$.
+- $BC(v)$: Betweenness Centrality (fraction of shortest paths passing through $v$).
+- $CC(v)$: Local Clustering Coefficient.
+- $AP(v) \in \{0, 1\}$: Articulation Point indicator (1 if removing $v$ increases the number of connected components).
+- $B(e) \in \{0, 1\}$: Bridge indicator (1 if removing edge $e$ increases the number of connected components).
+- $S_X(v)$: Adaptive quality score for RMAV dimension $X \in \{R, M, A, V\}$.
+- $UF(Q_X)$: Upper Fence ($Q_3 + 1.5 \cdot IQR$) of the score distribution for dimension $X$.
+
+### Formal Anti-Pattern Predicate Table
+
+| Anti-Pattern | Formal Predicate | Impact |
+| :--- | :--- | :--- |
+| **SPOF (Single Point of Failure)** | $P_{SPOF}(v) \iff AP(v) = 1$ | Structural bottleneck; failure partitions the system. |
+| **Structural Hub** | $P_{Hub}(v) \iff S_R(v) > UF(Q_R)$ | High-impact failure propagation center. |
+| **God Component** | $P_{God}(v) \iff BC(v) > 0.3 \land S_M(v) > UF(Q_M)$ | Over-centralized logic; high maintenance risk. |
+| **Star Anti-Pattern** | $P_{Star}(v) \iff (deg^-(v) + deg^+(v)) > 3 \land CC(v) < 0.1$ | Centralized hub with disconnected neighbors (no redundancy). |
+| **High Value Target** | $P_{Target}(v) \iff S_V(v) > UF(Q_V)$ | High exposure to systemic vulnerability. |
+| **Bridge Link** | $P_{Bridge}(e) \iff B(e) = 1$ | Critical dependency; failure isolates downstream clusters. |
+| **Dependency Cycle** | $P_{Cycle}(C) \iff C \subseteq E \text{ is a simple cycle, } |C| \ge 2$ | Mutual coupling; prevents independent deployment. |
+
+Anti-patterns are detected algorithmically using adaptive thresholds derived from the system's own distribution (the Upper Fence), ensuring that "critical" is defined relative to the specific complexity of the software under analysis rather than arbitrary static numbers.
 
 ---
 
@@ -368,15 +385,15 @@ Anti-patterns are detected during graph model construction (Step 1) and stored a
 
 The dashboard is designed to support specific architectural decisions by different stakeholder roles. This table maps the most common questions to the relevant dashboard view and the action it supports.
 
-| Stakeholder | Question | Dashboard View | Action |
-|-------------|----------|----------------|--------|
-| **Reliability Engineer** | Which components need redundancy most urgently? | Component table: filter CRITICAL + high A(v); network graph: red nodes | Add redundant instance or failover path for top-A(v) CRITICAL components |
-| **Software Architect** | Where is our coupling complexity worst? | Component table: sort by M(v) descending; dependency matrix: full rows | Refactor high-M(v) components to reduce betweenness and out-degree |
-| **DevOps / SRE** | Which components should we monitor most closely? | Component table: filter by SPOF flag; Step 4 I(v) column | Configure health checks, circuit breakers, and alerting for high-I(v) SPOFs |
-| **Security Engineer** | Where should we prioritise hardening? | Component table: sort by V(v) descending | Harden and isolate top-V(v) components; add access controls and anomaly detection |
-| **Engineering Manager** | What is our overall system risk posture? | Executive overview KPI cards; layer comparison | Use Critical/SPOF counts as sprint planning input; target zero CRITICAL at next milestone |
-| **Researcher / Architect** | Are the predictions trustworthy? | Validation report; correlation scatter plot | Accept predictions if primary gates pass; review outliers if any gate fails |
-| **Any stakeholder** | Where are hidden coupling clusters? | Dependency matrix: diagonal blocks | Refactor tightly coupled clusters to improve independent deployability |
+| Stakeholder | Question | Dashboard View | Supporting Metric | Action | ETD | Confidence |
+|:---|:---|:---|:---|:---|:---|:---|
+| **Reliability Engineer** | Which components need redundancy? | Component table: filter CRITICAL + high A(v) | $AP(v) = 1$ OR $S_A(v) > UF(Q_A)$ | Add redundant instance or failover path | < 10m | High |
+| **Software Architect** | Where is our coupling complexity worst? | Component table: sort by M(v) desc; Matrix: full rows | $S_M(v) > UF(Q_M)$ OR $BC(v) > 0.3$ | Refactor high-M(v) components | < 30m | High |
+| **DevOps / SRE** | Which components should we monitor? | Component table: filter SPOF; Step 4 I(v) column | $AP(v) = 1$ AND $I(v) > 0.8$ | Configure alerts and circuit breakers | < 15m | Very High |
+| **Security Engineer** | Where should we prioritise hardening? | Component table: sort by V(v) descending | $S_V(v) > UF(Q_V)$ | Harden and isolate top-V(v) components | < 20m | High |
+| **Engineering Manager** | What is our overall risk posture? | Executive overview KPI cards; Layer comparison | $\sum P(v) > 0$ | Use SPOF counts as sprint planning input | < 5m | Moderate |
+| **Researcher** | Are the predictions trustworthy? | Validation report; Correlation scatter plot | Spearman $\rho \ge 0.70$ AND $p < 0.05$ | Accept predictions for decision-making | < 10m | Very High |
+| **Architect** | Where are hidden coupling clusters? | Dependency matrix: diagonal blocks | $Bandwidth(Matrix)_{RCM}$ | Refactor clusters for independent deployability | < 45m | Moderate |
 
 ---
 
@@ -390,7 +407,9 @@ Dashboard generation time depends on which components are included. The dominant
 | Without network graph (`--no-network`) | < 1 s | 1–2 s | 2–3 s |
 | Without matrix + network (`--no-network --no-matrix`) | < 1 s | < 1 s | < 2 s |
 
-For large systems in automated pipelines (CI/CD), use `--no-network` to keep generation within the 10-second target (SRS REQ-PERF-04). The network graph is most useful for interactive exploration — the Genieus Graph Explorer serves this use case better for large graphs anyway (using lazy loading and WebGL rendering).
+*Measured on 11th Gen Intel Core i7-1185G7 @ 3.00GHz / 32GB RAM. Actual times vary with hardware.*
+
+For research reproducibility and archival, the primary evaluation artifact is the static dashboard. For large systems in automated pipelines (CI/CD), use `--no-network` to keep generation within the 10-second target (SRS REQ-PERF-04). While the Genieus Graph Explorer offers more performant WebGL rendering for very large systems (>300 components), the static dashboard remains the authoritative archivable record for evaluation.
 
 ---
 
