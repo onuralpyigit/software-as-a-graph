@@ -21,12 +21,13 @@ class ValidationService:
         self,
         analysis_service: Any,
         simulation_service: Any,
-        targets: Optional[ValidationTargets] = None
+        targets: Optional[ValidationTargets] = None,
+        ndcg_k: int = 10
     ):
         self.analysis = analysis_service
         self.simulation = simulation_service
         self.targets = targets or ValidationTargets()
-        self.validator = Validator(targets=self.targets)
+        self.validator = Validator(targets=self.targets, ndcg_k=ndcg_k)
         self.logger = logging.getLogger(__name__)
     
     def validate_layers(self, layers: Optional[List[str]] = None) -> PipelineResult:

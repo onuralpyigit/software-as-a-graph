@@ -176,7 +176,10 @@ Q-critical:  Q(v) > Q3_Q + 1.5 × IQR_Q   (outliers in the Q distribution)
 I-critical:  I(v) > Q3_I + 1.5 × IQR_I   (outliers in the I distribution after Winsorization)
 ```
 
-**Note on Robustness**: To mitigate simulation noise and extreme stochastic outliers, $I(v)$ scores are **Winsorized** (capped at the 95th percentile) before constructing the box-plot. This ensures that a single catastrophic cascade doesn't inflate the IQR so much that other truly critical components appear insignificant.
+**Note on Ground Truth (Impact $I(v)$)**: Ground truth scores are computed via the **Exhaustive Failure Simulation** (Step 4). Each component is failed individually, and its impact is measured by the resulting system-wide degradation. 
+- **Determinism**: The simulation is deterministic.
+- **Averaging**: If Monte Carlo simulation is used (e.g., for probabilistic edge weights), $I(v)$ is calculated as the mean impact across all trials to ensure statistical stability.
+- **Robustness**: To mitigate simulation noise and extreme stochastic outliers, $I(v)$ scores are **Winsorized** (capped at the 95th percentile) before constructing the box-plot classification thresholds.
 
 This produces a 2×2 confusion matrix:
 
@@ -239,7 +242,9 @@ where `rel(i)` = I(v) of the component ranked i-th by Q(v) (the relevance of the
 
 Unlike Top-K Overlap (binary set intersection), NDCG@K is position-sensitive: predicting the actual #1 component as #2 is penalized less than predicting it as #10.
 
-K defaults to 10. The `--ndcg-k` flag adjusts K.
+Unlike Top-K Overlap (binary set intersection), NDCG@K is position-sensitive: predicting the actual #1 component as #2 is penalized less than predicting it as #10.
+
+**Parameter K**: By default, $K = \min(10, n)$, where $n$ is the number of components in the layer. This ensures that in small subgraphs ($n < 10$), we evaluate the entire available ranking.
 
 ### Error Metrics
 
@@ -297,21 +302,28 @@ All thresholds are configurable via CLI flags (`--spearman`, `--f1`, `--precisio
 
 ## Validation Targets by Layer and Scale
 
-Targets vary by layer (application layer topology predicts more accurately than infrastructure) and scale (larger systems produce more stable centrality distributions). The full validation matrix from the research:
+The methodology's primary technical contribution and validated predictive performance are focused on the **Application Layer**. While the graph model supports infrastructure-layer components, these are treated as **exploratory results** due to the higher complexity of cross-layer cascading effects.
 
-| Test ID | Layer | Scale | Target ρ | Target F1 | Rationale |
-|---------|-------|-------|----------|-----------|-----------|
-| VT-APP-01 | Application | Small (10–25) | ≥ 0.75 | ≥ 0.75 | Fewer components; less stable distributions |
-| VT-APP-02 | Application | Medium (30–50) | ≥ 0.80 | ≥ 0.80 | Standard target zone |
-| VT-APP-03 | Application | Large (60–100) | ≥ 0.85 | ≥ 0.83 | Strong performance expected |
-| VT-INF-01 | Infrastructure | Small | ≥ 0.50 | ≥ 0.65 | Cross-layer effects reduce accuracy |
-| VT-INF-02 | Infrastructure | Medium | ≥ 0.52 | ≥ 0.66 | |
-| VT-INF-03 | Infrastructure | Large | ≥ 0.54 | ≥ 0.68 | |
-| VT-SYS-01 | System | Small | ≥ 0.70 | ≥ 0.75 | Mixed-layer targets |
-| VT-SYS-02 | System | Medium | ≥ 0.75 | ≥ 0.80 | |
-| VT-SYS-03 | System | Large | ≥ 0.80 | ≥ 0.83 | |
+### Primary Validation Matrix (Application Layer)
 
-**Why infrastructure targets are lower:** Application-layer dependencies are directly captured by the DEPENDS_ON derivation rules (publisher-to-subscriber through shared topics). Infrastructure dependencies involve cross-layer effects — a Node failure cascades to hosted applications through RUNS_ON edges, but the topology of RUNS_ON relationships is not reflected in the application-layer G_analysis(app) that Step 2 analyzes. This is a known methodological limitation and is discussed explicitly in the thesis. The infrastructure layer still passes its own lower targets consistently.
+The following targets are used to verify the core methodology across different system scales:
+
+| Test ID | Scale | Target ρ | Target F1 | Rationale |
+|---------|-------|----------|-----------|-----------|
+| VT-APP-01 | Small (10–25) | ≥ 0.75 | ≥ 0.75 | Fewer components; less stable distributions |
+| VT-APP-02 | Medium (30–50) | ≥ 0.80 | ≥ 0.80 | Standard target zone |
+| VT-APP-03 | Large (60–100) | ≥ 0.85 | ≥ 0.83 | Strong performance expected |
+
+### Exploratory Results (Infrastructure & System)
+
+Infrastructure and mixed-system results are monitored to identify future improvement areas (e.g., QoS-aware hosting relationships). These layers are **not** subject to the same primary pass/fail gates as the Application layer.
+
+| Layer | Expected ρ | Expected F1 | Status |
+|-------|------------|-------------|--------|
+| Infrastructure | 0.50 – 0.55 | 0.60 – 0.70 | Exploratory (Secondary) |
+| System (Mixed) | 0.70 – 0.80 | 0.75 – 0.83 | Exploratory (Secondary) |
+
+**Why infrastructure targets are lower (and exploratory):** Application-layer dependencies are directly captured by the `DEPENDS_ON` derivation rules. Infrastructure dependencies involve cross-layer effects (e.g., a Node failure cascading to multiple containers), which are currently modeled as simple containment rather than complex QoS availability. Refining these weights is a subject for future work.
 
 ---
 
@@ -319,18 +331,18 @@ Targets vary by layer (application layer topology predicts more accurately than 
 
 Results across all validated system scales and domains (ROS 2, IoT, financial trading, healthcare).
 
-### By Layer (Large Scale, 60–100 Components)
+### Results by Layer (Large Scale, 60–100 Components - Primary vs Exploratory)
 
-| Metric | Application Layer | Infrastructure Layer | Default Target |
-|--------|:-----------------:|:--------------------:|:--------------:|
-| Spearman ρ | **0.85** ✓ | 0.54 ✓* | ≥ 0.70 |
-| F1-Score | **0.83** ✓ | 0.68 ✓* | ≥ 0.80 |
+| Metric | Application (Primary) | Infrastructure (Exploratory) | Target (Primary) |
+|--------|:---------------------:|:---------------------------:|:----------------:|
+| Spearman ρ | **0.85** ✓ | 0.54 (Moderate) | ≥ 0.85 |
+| F1-Score | **0.83** ✓ | 0.68 (Moderate) | ≥ 0.83 |
 | Precision | **0.86** ✓ | 0.71 | ≥ 0.80 |
 | Recall | **0.80** ✓ | 0.65 | ≥ 0.80 |
-| Top-5 Overlap | **62%** ✓ | 40% ✓* | ≥ 40% |
-| RMSE | **0.18** ✓ | 0.24 ✓ | ≤ 0.25 |
+| Top-5 Overlap | **62%** ✓ | 40% | ≥ 60% |
+| RMSE | **0.18** ✓ | 0.24 | ≤ 0.20 |
 
-*Infrastructure layer passes against its own layer-specific lower targets (VT-INF-03).
+*Infrastructure results reflect current model limitations in cross-layer propagation and are treated as a feasibility study rather than a primary performance claim.
 
 ### By Scale (Application Layer)
 
@@ -628,6 +640,18 @@ A point estimate (e.g., ρ = 0.85) provides the observed correlation on the full
 #### Interpretation
 - **Metric Stability**: A narrow interval indicates high stability.
 - **Fail Verification**: If the lower bound of the 95% CI is significantly below the target gate (e.g., ρ = 0.72 [0.45, 0.88] while target is 0.70), the pass is considered **fragile** and should be verified with higher simulation trials or on a larger scale.
+
+### Statistical Power and Sample Size
+
+While a minimum of $n \ge 5$ is required for Pearson/Spearman significance, architectural decisions should be made with an awareness of **statistical power**. The following table shows the approximate $n$ required to detect a strong correlation ($\rho = 0.70$) with 80% power at $\alpha = 0.05$:
+
+| Target $\rho$ | Required $n$ ($1-\beta = 0.80$) | Confidence Level |
+|:---:|:---:|:---:|
+| **0.80** | **~10** | High stability |
+| **0.70** | **~14** | Recommended minimum for results |
+| **0.60** | **~19** | Moderate noise sensitivity |
+
+Small systems ($n < 14$) that pass the correlation gate should be treated as **promising indicators** but may require validation on larger system scales to confirm that the agreement is not an artifact of a specific small-world topology.
 
 ---
 

@@ -26,10 +26,12 @@ class Validator:
         targets: Optional[ValidationTargets] = None,
         k_factor: float = 0.75,
         winsorize_actuals: bool = True,
+        ndcg_k: int = 10,
     ):
         self.targets = targets or ValidationTargets()
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
         self.winsorize_actuals = winsorize_actuals
+        self.ndcg_k = ndcg_k
         self.logger = logging.getLogger(__name__)
 
     def validate(
@@ -123,7 +125,7 @@ class Validator:
         
         classification = calculate_classification(pred_crit, actual_crit)
         classification.auc_pr = calculate_auc_pr(pred_vals, actual_crit)
-        ranking = calculate_ranking(predicted, actual)
+        ranking = calculate_ranking(predicted, actual, k_values=[5, self.ndcg_k])
 
         components: List[ComponentComparison] = []
         for i, cid in enumerate(ids):

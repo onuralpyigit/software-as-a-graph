@@ -41,6 +41,7 @@ def calculate_correlation(
         pearson=pearson_r,
         pearson_p=pearson_p,
         kendall=kendall_tau,
+        spearman_kendall_gap=abs(spearman_rho - kendall_tau),
     )
 
 
@@ -182,17 +183,20 @@ def calculate_ranking(
         overlap = len(common) / k if k > 0 else 0.0
         return overlap, pred_ids[:k], actual_ids[:k], list(common)
 
-    overlap_5, pred_5, actual_5, common_5 = top_k_overlap(5)
-    overlap_10, _, _, _ = top_k_overlap(10)
+    k5 = k_values[0]
+    k_ndcg = k_values[1]
 
-    ndcg_5 = _calculate_ndcg(pred_ids, actual, k=5)
-    ndcg_10 = _calculate_ndcg(pred_ids, actual, k=10)
+    overlap_5, pred_5, actual_5, common_5 = top_k_overlap(k5)
+    overlap_ndcg, _, _, _ = top_k_overlap(k_ndcg)
+
+    ndcg_5 = _calculate_ndcg(pred_ids, actual, k=k5)
+    ndcg_ndcg = _calculate_ndcg(pred_ids, actual, k=k_ndcg)
 
     ci_lower, ci_upper = 0.0, 0.0
     n = len(predicted)
-    if n >= 5:
+    if n >= k5:
         ci_lower, ci_upper = _bootstrap_ranking_ci(
-            predicted, actual, k=5,
+            predicted, actual, k=k5,
             n_bootstrap=n_bootstrap,
             confidence=ci_confidence,
             seed=seed,
@@ -202,9 +206,9 @@ def calculate_ranking(
 
     return RankingMetrics(
         top_5_overlap=overlap_5,
-        top_10_overlap=overlap_10,
+        top_10_overlap=overlap_ndcg,
         ndcg_5=ndcg_5,
-        ndcg_10=ndcg_10,
+        ndcg_10=ndcg_ndcg,
         top_5_predicted=pred_5,
         top_5_actual=actual_5,
         top_5_common=common_5,

@@ -69,10 +69,12 @@ class BenchmarkRunner:
         password: str = "password",
         verbose: bool = False,
         targets: Optional[ValidationTargets] = None,
+        ndcg_k: int = 10,
     ):
         self.output_dir = output_dir
         self.verbose = verbose
         self.targets = targets or DEFAULT_TARGETS
+        self.ndcg_k = ndcg_k
         self.logger = logging.getLogger("Benchmark")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -86,7 +88,8 @@ class BenchmarkRunner:
         self.validation_service = ValidationService(
             analysis_service=self.analysis_service,
             simulation_service=self.simulation_service,
-            targets=self.targets
+            targets=self.targets,
+            ndcg_k=self.ndcg_k
         )
 
     # ------------------------------------------------------------------
@@ -251,6 +254,7 @@ class BenchmarkRunner:
             val_result.overall.correlation.spearman_ci_lower,
             val_result.overall.correlation.spearman_ci_upper
         ]
+        record.spearman_kendall_gap = val_result.overall.correlation.spearman_kendall_gap
         record.f1_score = val_result.overall.classification.f1_score
         record.f1_ci = [
             val_result.overall.classification.f1_ci_lower,
@@ -451,6 +455,7 @@ class BenchmarkRunner:
         agg.avg_top10 = _mean("top10_overlap")
         agg.avg_rmse = _mean("rmse")
         agg.avg_auc_pr = _mean("auc_pr")
+        agg.avg_spearman_kendall_gap = _mean("spearman_kendall_gap")
 
         # Average bootstrap CIs
         def _mean_ci(attr: str) -> List[float]:

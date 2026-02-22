@@ -38,6 +38,7 @@ class CorrelationMetrics:
     pearson: float = 0.0
     pearson_p: float = 1.0
     kendall: float = 0.0
+    spearman_kendall_gap: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -46,6 +47,7 @@ class CorrelationMetrics:
             "spearman_ci": [round(self.spearman_ci_lower, 4), round(self.spearman_ci_upper, 4)],
             "pearson": round(self.pearson, 4),
             "kendall": round(self.kendall, 4),
+            "spearman_kendall_gap": round(self.spearman_kendall_gap, 4),
         }
 
 

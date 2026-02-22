@@ -111,6 +111,23 @@ class ReportGenerator:
                 f"{a.avg_time_analysis:.0f} | {a.avg_time_total:.0f} |"
             )
 
+        # ── Diagnostics ───────────────────────────────────────────
+        diagnostics = []
+        for a in summary.aggregates:
+            if a.avg_spearman_kendall_gap > 0.20:
+                diagnostics.append(
+                    f"- **Warning ({a.scale}/{a.layer})**: Spearman-Kendall gap is large ({a.avg_spearman_kendall_gap:.3f}). "
+                    "Agreement may be driven by a few dominant outlier components. Inspect scatter plots."
+                )
+        
+        if diagnostics:
+            lines.extend([
+                "",
+                "## Methodological Diagnostics",
+                "",
+                *diagnostics
+            ])
+
         # ── Errors (if any) ──────────────────────────────────────
         errors = [r for r in summary.records if r.error]
         if errors:

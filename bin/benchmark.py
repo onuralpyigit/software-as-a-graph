@@ -246,6 +246,10 @@ examples:
         "--output", "-o", default="results/benchmark", metavar="DIR",
         help="Output directory for reports (default: results/benchmark)",
     )
+    opts.add_argument(
+        "--ndcg-k", type=int, default=10,
+        help="K for NDCG@K calculation (default: 10)",
+    )
 
     # --- Neo4j ---
     neo4j = parser.add_argument_group("Neo4j Connection")
@@ -315,6 +319,7 @@ def main() -> int:
         uri=args.uri,
         user=args.user,
         password=args.password,
+        ndcg_k=args.ndcg_k,
         verbose=args.verbose,
     ) as runner:
         for i, scenario in enumerate(scenarios, 1):

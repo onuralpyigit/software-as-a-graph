@@ -42,6 +42,7 @@ def main() -> int:
     targets_group.add_argument("--precision", type=float, default=0.80, help="Target precision")
     targets_group.add_argument("--recall", type=float, default=0.80, help="Target recall")
     targets_group.add_argument("--top5", type=float, default=0.40, help="Target top-5 overlap")
+    targets_group.add_argument("--ndcg-k", type=int, default=10, help="K for NDCG@K calculation")
     
     parser.add_argument("--output", "-o", metavar="FILE", help="Export results to JSON")
     parser.add_argument("--json", action="store_true", help="Output JSON to stdout")
@@ -68,7 +69,7 @@ def main() -> int:
         
         analysis_service = AnalysisService(repo)
         simulation_service = SimulationService(repo)
-        val_service = ValidationService(analysis_service, simulation_service, targets=targets)
+        val_service = ValidationService(analysis_service, simulation_service, targets=targets, ndcg_k=args.ndcg_k)
 
         if args.quick:
             predicted_file, actual_file = args.quick
