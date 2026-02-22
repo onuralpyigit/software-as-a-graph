@@ -258,9 +258,17 @@ Random Index values (Saaty, 1980):
 |---|---|---|---|---|---|---|
 | RI | 0.58 | 0.90 | 1.12 | 1.24 | 1.32 | 1.41 |
 
-### Default Pairwise Matrices
+### Weight Shrinkage Strategy
 
-The default weights embedded in the framework were derived from these expert-elicited matrices:
+To address methodological liability and provide stable rankings, we do not use pure AHP weights directly. Instead, we apply a **Formal Shrinkage Procedure** that blends the AHP priority vector with a uniform distribution (equal weights) using a mixing coefficient $\lambda$:
+
+$$w_{final} = \lambda \cdot w_{AHP} + (1 - \lambda) \cdot w_{uniform}$$
+
+- We use a default **$\lambda = 0.7$**.
+- This respects the AHP-derived hierarchy while remaining robust to the extreme dominance of single metrics in small comparison matrices.
+- Blending provides a principled, reproducible alternative to ad-hoc "smoothing."
+
+### Final Weight Distributions ($\lambda = 0.7$)
 
 **Reliability** — criteria: [PageRank, ReversePageRank, InDegree]
 
@@ -271,9 +279,11 @@ RPR     [ 0.5,  1.0,  1.0 ]   RPR and DGin are equally important to each other
 DGin    [ 0.5,  1.0,  1.0 ]
 
 → GM:  [1.587, 0.794, 0.794]  →  Normalized: [0.50, 0.25, 0.25]
-  Default used: [0.40, 0.35, 0.25]   (rounded from empirical tuning)
   CR ≈ 0.00  (perfectly consistent)
 ```
+- AHP: [0.50, 0.25, 0.25]
+- **Blend: [0.45, 0.275, 0.275]**
+- *Rationale*: PageRank remains the primary signal for global dependency, but RPR and In-Degree are elevated to ensure local propagation is captured.
 
 **Availability** — criteria: [AP_c, BridgeRatio, Importance]
 
@@ -284,9 +294,11 @@ BR      [ 0.33, 1.0,  2.0 ]
 Imp     [ 0.20, 0.50, 1.0 ]
 
 → GM:  [2.466, 0.693, 0.368]  →  Normalized: [0.65, 0.23, 0.12]
-  Default used: [0.50, 0.30, 0.20]   (conservative — reduces AP_c dominance)
   CR ≈ 0.02  (highly consistent)
 ```
+- AHP: [0.65, 0.23, 0.12]
+- **Blend: [0.55, 0.26, 0.19]**
+- *Rationale*: Prevents Articulation Point (AP_c) from completely drowning out Bridge Ratio and component Importance.
 
 **Maintainability** — criteria: [Betweenness, OutDegree, (1−Clustering)]
 
@@ -297,9 +309,11 @@ DGout   [ 0.5,  1.0,   2.0 ]
 (1-CC)  [ 0.33, 0.50,  1.0 ]
 
 → GM:  [1.817, 0.909, 0.480]  →  Normalized: [0.54, 0.30, 0.16]
-  Default used: [0.40, 0.35, 0.25]   (smoothed toward equal weighting)
   CR ≈ 0.003  (highly consistent)
 ```
+- AHP: [0.54, 0.30, 0.16]
+- **Blend: [0.48, 0.31, 0.21]**
+- *Rationale*: Betweenness remains the core bottleneck indicator, but Out-Degree (efferent coupling) and Clustering are given weight to reflect local complexity.
 
 **Vulnerability** — criteria: [Eigenvector, Closeness, OutDegree]
 
@@ -310,9 +324,11 @@ CL      [ 0.5,  1.0,  1.0 ]
 DGout   [ 0.5,  1.0,  1.0 ]
 
 → GM:  [1.587, 0.794, 0.794]  →  Normalized: [0.50, 0.25, 0.25]
-  Default used: [0.40, 0.30, 0.30]   (smoothed; DGout elevated slightly)
   CR ≈ 0.00  (perfectly consistent)
 ```
+- AHP: [0.50, 0.25, 0.25]
+- **Blend: [0.45, 0.275, 0.275]**
+- *Rationale*: Eigenvector highlights strategic hubs; Closeness and Out-Degree measure propagation speed and attack surface.
 
 **Overall Q(v)** — criteria: [R, M, A, V]
 

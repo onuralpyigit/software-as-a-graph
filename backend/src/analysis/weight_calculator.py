@@ -42,27 +42,27 @@ class QualityWeights:
         - Mission-critical systems: Increase q_reliability
     """
     # Reliability weights (fault propagation)
-    r_pagerank: float = 0.4
-    r_reverse_pagerank: float = 0.35
+    r_pagerank: float = 0.50         # AHP: (1.0, 2.0, 2.0)
+    r_reverse_pagerank: float = 0.25
     r_in_degree: float = 0.25
     
     # Maintainability weights (efferent coupling complexity)
-    m_betweenness: float = 0.4
-    m_out_degree: float = 0.35       # Efferent coupling — aligns with Martin's Instability
-    m_clustering: float = 0.25       # Note: (1 - clustering) is used in formula
+    m_betweenness: float = 0.54       # AHP: (1.0, 2.0, 3.0)
+    m_out_degree: float = 0.30       
+    m_clustering: float = 0.16       
     
     # Availability weights (SPOF risk)
-    a_articulation: float = 0.5      # Now uses continuous AP_c score
-    a_bridge_ratio: float = 0.3
-    a_importance: float = 0.2        # Combined (PR + RPR) / 2
+    a_articulation: float = 0.65     # AHP: (1.0, 3.0, 5.0)
+    a_bridge_ratio: float = 0.23
+    a_importance: float = 0.12       
 
     # Vulnerability weights (exposure risk)
-    v_eigenvector: float = 0.4
-    v_closeness: float = 0.3
-    v_out_degree: float = 0.3        # Attack surface — outbound traversal paths
+    v_eigenvector: float = 0.50      # AHP: (1.0, 2.0, 2.0)
+    v_closeness: float = 0.25
+    v_out_degree: float = 0.25       
     
     # Overall quality weights (sum should be 1.0)
-    q_reliability: float = 0.25
+    q_reliability: float = 0.25      # Default balanced (1.0 vs 1.0 vs 1.0 vs 1.0)
     q_maintainability: float = 0.25
     q_availability: float = 0.25
     q_vulnerability: float = 0.25
@@ -173,10 +173,30 @@ class AHPMatrices:
 
 
 class AHPProcessor:
-    """Calculates weights from pairwise comparison matrices."""
+    """
+    Calculates weights from pairwise comparison matrices with optional shrinkage.
     
-    def __init__(self, matrices: AHPMatrices = None):
+    Shrinkage (blending) addresses methodological liability by formally 
+    reconciling pure AHP weights with a uniform prior.
+    """
+    
+    def __init__(self, matrices: AHPMatrices = None, shrinkage_factor: float = 0.7):
         self.matrices = matrices or AHPMatrices()
+        self.shrinkage_factor = shrinkage_factor
+
+    def _shrink_weights(self, weights: List[float]) -> List[float]:
+        """
+        Blends AHP weights with a uniform prior using mixing coefficient lambda.
+        w_final = lambda * w_ahp + (1 - lambda) * w_uniform
+        """
+        n = len(weights)
+        if n == 0:
+            return weights
+        uniform_weight = 1.0 / n
+        return [
+            (self.shrinkage_factor * w) + ((1.0 - self.shrinkage_factor) * uniform_weight)
+            for w in weights
+        ]
 
     def _calculate_priority_vector(self, matrix: List[List[float]]) -> List[float]:
         """
@@ -232,18 +252,23 @@ class AHPProcessor:
         
         # 1. Reliability Weights (PR, RPR, ID)
         w_rel = self._calculate_priority_vector(self.matrices.criteria_reliability)
+        w_rel = self._shrink_weights(w_rel)
         
         # 2. Maintainability Weights (BT, OD, CC)
         w_main = self._calculate_priority_vector(self.matrices.criteria_maintainability)
+        w_main = self._shrink_weights(w_main)
         
         # 3. Availability Weights (AP_c, BR, IM)
         w_avail = self._calculate_priority_vector(self.matrices.criteria_availability)
+        w_avail = self._shrink_weights(w_avail)
         
         # 4. Vulnerability Weights (EV, CL, OD)
         w_vuln = self._calculate_priority_vector(self.matrices.criteria_vulnerability)
+        w_vuln = self._shrink_weights(w_vuln)
         
         # 5. Overall Weights (R, M, A, V)
         w_over = self._calculate_priority_vector(self.matrices.criteria_overall)
+        w_over = self._shrink_weights(w_over)
         
         return QualityWeights(
             # Reliability

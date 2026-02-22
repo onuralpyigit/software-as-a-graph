@@ -96,6 +96,7 @@ class QualityAnalyzer:
         k_factor: float = 0.75,
         weights: Optional[QualityWeights] = None,
         use_ahp: bool = False,
+        ahp_shrinkage: float = 0.7,
         normalization_method: str = "robust",
         winsorize: bool = True,
         winsorize_limit: float = 0.05,
@@ -103,7 +104,7 @@ class QualityAnalyzer:
     ) -> None:
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
         self.weights = (
-            AHPProcessor().compute_weights() if use_ahp
+            AHPProcessor(shrinkage_factor=ahp_shrinkage).compute_weights() if use_ahp
             else (weights or QualityWeights())
         )
         self.normalization_method = normalization_method
