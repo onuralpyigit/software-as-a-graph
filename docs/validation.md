@@ -16,6 +16,7 @@
    - [Classification Metrics](#classification-metrics)
    - [Ranking Metrics](#ranking-metrics)
    - [Error Metrics](#error-metrics)
+   - [Reliability-Specific Validation Metrics](#reliability-specific-validation-metrics)
 5. [Pass/Fail Gate System](#passfail-gate-system)
 6. [Validation Targets by Layer and Scale](#validation-targets-by-layer-and-scale)
 7. [Achieved Results](#achieved-results)
@@ -268,6 +269,50 @@ When RMSE >> MAE, a small number of components have large individual prediction 
 
 ---
 
+### Reliability-Specific Validation Metrics
+
+The global Spearman ρ(Q, I) validates the *overall* quality predictor against the global I(v) composite. However, validating R(v) specifically against I(v) conflates reliability failure dynamics with availability loss. The simulation now computes **IR(v)** — a cascade-dynamics-specific ground truth — enabling three dedicated reliability validation metrics.
+
+**ρ(R(v), IR(v)) — Reliability Spearman**
+
+Spearman rank correlation between the topology-predicted reliability scores R(v) and the simulation-derived cascade dynamics scores IR(v).
+
+```
+ρ(R, IR) ≥ 0.75   (reliability-specific target)
+```
+
+This is reported as `reliability_spearman` in the layer validation result and as `dimensional_validation.reliability.spearman` in the JSON output.
+
+**CCR@5 — Cascade Capture Rate**
+
+```
+CCR@K = |Top-K(R(v)) ∩ Top-K(IR(v))| / K
+
+Default K = 5.   Target: CCR@5 ≥ 0.80
+```
+
+Measures whether the top-5 reliability-critical components identified by the topology predictor R(v) are also the top-5 cascade-producing components found by simulation. This is the most operationally relevant metric: if an architect uses the top-5 R(v) components to prioritise hardening work, CCR@5 tells them how many of those choices are correct.
+
+**CME — Cascade Magnitude Error**
+
+```
+CME = mean|rank_R(v) − rank_IR(v)| / |V|
+
+Target: CME ≤ 0.10
+```
+
+Validates that the *scale* of predicted fault propagation matches the simulation-observed cascade magnitude, not just the relative ordering. CME = 0 means perfect rank agreement; CME = 1 means completely reversed ranking normalised by system size.
+
+**False-Alarm Diagnostic**
+
+At runtime the validation service also identifies **reliability false alarms**: components in Top-5 R(v) that appear in the *bottom half* of IR(v). These are components the topology flags as high-risk but the simulation does not confirm as significant cascade sources. False alarms are logged as `WARNING` lines in the console and appear in `dimensional_validation.reliability.false_alarms`.
+
+```
+WARNING: Reliability false alarms (HIGH R(v) but LOW IR(v)): ['A44', 'A48']
+```
+
+False alarms often indicate components with high QoS-weighted in-degree (w_in) that are structurally important but well-protected by redundant publishers or brokers.
+
 ## Pass/Fail Gate System
 
 Validation uses a three-tier gate system:
@@ -276,6 +321,7 @@ Validation uses a three-tier gate system:
 |------|---------|---------------|--------|
 | **Primary** | Spearman ρ, p-value, F1-Score, Top-5 Overlap | **All must pass** | If any fails → overall FAIL |
 | **Secondary** | RMSE, Top-10 Overlap | Should pass | Failure logged as warning, does not block overall pass |
+| **Reliability** | ρ(R,IR), CCR@5, CME | Informational | Computed for Reliability dimension only; not a gate on `passed` |
 | **Reported** | Kendall τ, Pearson r, Precision, Recall, Cohen's κ, NDCG@K, MAE | Informational | Always computed and reported; no gate |
 
 **Primary gate thresholds (defaults):**
@@ -286,6 +332,14 @@ Validation uses a three-tier gate system:
 | p-value | ≤ 0.05 |
 | F1-Score | ≥ 0.80 |
 | Top-5 Overlap | ≥ 60% |
+
+**Reliability dimension targets (informational):**
+
+| Metric | Threshold | Meaning |
+|--------|-----------|--------|
+| ρ(R, IR) | ≥ 0.75 | R predictor agrees with cascade ground truth |
+| CCR@5 | ≥ 0.80 | 4 of 5 predicted high-risk components confirmed by simulation |
+| CME | ≤ 0.10 | Mean rank displacement ≤ 10% of system size |
 
 **Secondary gate threshold:**
 
@@ -499,8 +553,15 @@ If the primary gates fail at a layer that should pass:
 | `ranking.top5_overlap` | float | Top-5 overlap (0–1) |
 | `ranking.top10_overlap` | float | Top-10 overlap (0–1) |
 | `ranking.ndcg_k` | float | NDCG@K |
+| `ranking.ccr_5` | float | CCR@5 (0–1) — reliability only |
+| `ranking.cme` | float | CME — reliability only |
 | `error.rmse` | float | RMSE |
 | `error.mae` | float | MAE |
+| `reliability_spearman` | float | ρ(R(v), IR(v)) — reliability-specific correlation |
+| `dimensional_validation.reliability.spearman` | float | Same as `reliability_spearman` |
+| `dimensional_validation.reliability.ccr_5` | float | CCR@5 |
+| `dimensional_validation.reliability.cme` | float | CME |
+| `dimensional_validation.reliability.ground_truth` | string | Always `"IR(v)"` |
 | `gates.primary_passed` | bool | All four primary gates passed |
 | `gates.secondary_passed` | bool | RMSE gate passed |
 | `passed` | bool | Overall result (= primary_passed) |

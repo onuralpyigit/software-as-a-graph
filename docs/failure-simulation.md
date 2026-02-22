@@ -20,7 +20,9 @@
    - [Reachability Loss](#reachability-loss)
    - [Fragmentation](#fragmentation)
    - [Throughput Loss](#throughput-loss)
+   - [Flow Disruption Score FD(v)](#flow-disruption-score-fdv)
    - [Composite Impact Score I(v)](#composite-impact-score-iv)
+   - [Reliability Ground Truth IR(v)](#reliability-ground-truth-irv)
 7. [Simulation Modes](#simulation-modes)
    - [Exhaustive Mode](#exhaustive-mode)
    - [Targeted Mode](#targeted-mode)
@@ -333,6 +335,38 @@ python bin/simulate_graph.py failure --exhaustive --layer app \
 
 All three weights must sum to 1.0. I(v) ∈ [0, 1] for any valid weight combination.
 
+### Reliability Ground Truth IR(v)
+
+While I(v) measures overall system damage (reachability + fragmentation + throughput + flow disruption), it is designed as an **Availability-biased** composite. Validating the **Reliability dimension R(v)** against I(v) risks conflating two different failure modes.
+
+To provide a cascade-dynamics-specific ground truth, exhaustive simulation also computes **IR(v)** — a reliability-specific impact score that focuses solely on how fault *propagation* behaves after the initial failure:
+
+```
+IR(v) = 0.45 × CascadeReach(v) + 0.35 × WeightedCascadeImpact(v) + 0.20 × NormDepth(v)
+```
+
+| Sub-metric | Formula | Captures |
+|------------|---------|----------|
+| **CascadeReach** | `cascade_count / (|V| − 1)` | Fraction of all other components that fail |
+| **WeightedCascadeImpact** | `Σw(cascaded) / Σw(all)` | Importance-weighted fraction — high-SLA components count more |
+| **NormDepth** | `cascade_depth / max_depth_in_run` | Relative cascade depth vs. worst-case in the same simulation run |
+
+> [!NOTE]
+> **Post-pass computation:** IR(v) sub-fields are populated in a single pass *after* all exhaustive simulations complete, so normalisation denominators (`max_depth_in_run`, `Σw(all)`) are global across the full run. This means IR(v) = 0.0 for any result not produced by `simulate_exhaustive()`.
+
+**IR(v) weights (AHP-derived):**
+
+```
+             CR    WCI   ND
+CR       [ 1.0,  1.5,  2.5 ]   Reach is the primary signal
+WCI      [ 0.67, 1.0,  1.75]   SLA-weight matters but less than pure reach
+ND       [ 0.40, 0.57, 1.0 ]   Depth confirms severity but is a secondary signal
+
+→ Weights: [0.45, 0.35, 0.20]    CR ≈ 0.004 (highly consistent)
+```
+
+IR(v) appears in the simulation output under the `reliability` key and is available for manual inspection (see JSON schema below) and is the ground truth used by Step 5's reliability-specific validation metrics.
+
 ---
 
 ## Simulation Modes
@@ -476,6 +510,10 @@ For each simulated component failure, the output contains:
 | `cascade_count` | int | Total number of failed components (including initial) |
 | `cascade_depth` | int | Maximum BFS depth reached during cascade |
 | `cascaded_failures` | list[string] | IDs of components that failed due to cascade |
+| `cascade_reach` | float [0,1] | IR(v) sub-metric: fraction of other components that cascaded |
+| `weighted_cascade_impact` | float [0,1] | IR(v) sub-metric: SLA-weight-normalised cascade fraction |
+| `normalized_cascade_depth` | float [0,1] | IR(v) sub-metric: depth relative to run-wide maximum |
+| `reliability_impact` | float [0,1] | IR(v) — reliability-specific ground truth (see above) |
 
 In Monte Carlo mode, `reachability_loss`, `fragmentation`, `throughput_loss`, and `composite_impact` are replaced with their means, and `std`, `ci_lower`, and `ci_upper` fields are added.
 
@@ -498,7 +536,13 @@ In Monte Carlo mode, `reachability_loss`, `fragmentation`, `throughput_loss`, an
       "composite_impact": 0.90,
       "cascade_count": 2,
       "cascade_depth": 1,
-      "cascaded_failures": ["MonitorApp"]
+      "cascaded_failures": ["MonitorApp"],
+      "reliability": {
+        "cascade_reach": 0.029,
+        "weighted_cascade_impact": 0.031,
+        "normalized_cascade_depth": 0.25,
+        "reliability_impact": 0.031
+      }
     },
     {
       "component": "SensorApp",
@@ -648,12 +692,13 @@ Top 5 by Impact:
 
 ## What Comes Next
 
-Step 4 produces I(v) ∈ [0, 1] for every component — an empirically grounded ranking of actual failure impact derived from full cascade simulation. Step 5 now has the two rankings it needs:
+Step 4 produces I(v) ∈ [0, 1] for every component — an empirically grounded ranking of actual failure impact derived from full cascade simulation. It also produces **IR(v)** — the reliability-specific cascade dynamics score. Step 5 now has three score sets:
 
-- **Q(v)** from Step 3: predicted criticality from topology
-- **I(v)** from Step 4: actual criticality from failure simulation
+- **R(v)** from Step 3: predicted reliability from topology (RPR + w_in + CDPot)
+- **I(v)** from Step 4: overall failure impact ground truth (Reachability + Fragmentation + Throughput + FD)
+- **IR(v)** from Step 4: reliability-specific cascade dynamics ground truth (CascadeReach + WeightedImpact + NormDepth)
 
-Step 5 computes Spearman ρ, F1-score, precision, recall, and a suite of ranking metrics to quantify how well the topological predictions agree with the simulation ground truth, and reports a pass/fail verdict against the validation targets.
+Step 5 computes Spearman ρ(Q, I), F1, Top-K overlap, RMSE for overall validation, and additionally computes ρ(R, IR), CCR@5, and CME specifically for the Reliability dimension validation.
 
 ---
 

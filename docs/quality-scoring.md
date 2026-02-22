@@ -73,16 +73,19 @@ The default weights shown below are derived from the Analytic Hierarchy Process 
 ### Reliability R(v) — Fault Propagation Risk
 
 ```
-R(v) = 0.40 × PR(v) + 0.35 × RPR(v) + 0.25 × DG_in(v)
+R(v) = 0.40 × RPR(v) + 0.35 × w_in(v) + 0.25 × CDPot(v)
 ```
 
-| Term | Contribution | Rationale |
-|------|-------------|-----------|
-| PR(v) | 0.40 | PageRank captures *transitive* dependence — how many components depend on v directly or through chains |
-| RPR(v) | 0.35 | Reverse PageRank captures the *source* direction — how broadly v's failure can propagate downstream |
-| DG_in(v) | 0.25 | In-degree counts *direct* dependents — the immediate fan-out of a failure at v |
+| Term | Weight | Rationale |
+|------|--------|-----------|
+| RPR(v) | 0.40 | Reverse PageRank — *global* cascade reach; how broadly v's failure propagates in the reverse-dependency direction |
+| w_in(v) | 0.35 | QoS-weighted in-degree — the count of direct dependents weighted by their SLA priority; directly captures *immediate* blast radius without reusing a metric from other dimensions |
+| CDPot(v) | 0.25 | Cascade Depth Potential — derived from RPR and the in/out-degree ratio: `((RPR + DG_in) / 2) × (1 − min(DG_out/DG_in, 1))`. Absorber nodes (many dependents, few outgoing links) score high; fan-out hubs with wide shallow cascades score low. |
 
-A component with high R(v) is one whose failure would propagate broadly and deeply through the dependency graph. The combination of PR (transitive reach), RPR (cascade direction), and in-degree (immediate impact) makes R(v) a comprehensive fault-propagation predictor.
+A component with high R(v) is one whose failure would propagate broadly **and deeply** through the dependency graph. The combination of RPR (global cascade reach), w_in (immediate blast radius weighted by SLA priority), and CDPot (cascade depth signal) makes R(v) a comprehensive fault-propagation predictor while respecting strict metric orthogonality.
+
+> [!NOTE]
+> **CDPot(v) inline formula:** `CDPot = ((RPR + DG_in) / 2) × (1 − min(DG_out / DG_in, 1))`. Fan-out nodes (DG_out ≫ DG_in) → CDPot ≈ 0 (wide but shallow, cascade absorbed quickly). Absorber nodes (DG_in ≫ DG_out) → CDPot is high (deep, self-reinforcing cascade). This replaces the old `pubsub_betweenness` redistribution hack with a clean, explainable depth signal.
 
 ### Maintainability M(v) — Coupling Complexity
 
@@ -152,11 +155,11 @@ A core design principle is that each raw metric contributes to **at most one** R
 
 | Metric | Symbol | R | M | A | V | Rationale |
 |--------|--------|---|---|---|---|-----------|
-| PageRank | PR | ✓ | | | | Transitive influence on downstream failure |
-| Reverse PageRank | RPR | ✓ | | | | Cascade direction from v |
-| In-Degree | DG_in | ✓ | | | | Direct dependents count |
+| Reverse PageRank | RPR | ✓ | | | | Global cascade reach from v (primary R signal) |
+| QoS-Weighted In-Degree | w_in | ✓ | | | | Direct dependents × SLA priority — immediate blast radius |
+| Cascade Depth Potential | CDPot | ✓ | | | | Derived depth signal (RPR + DG ratio) — orthogonal to M, A, V |
 | Betweenness | BT | | ✓ | | | Structural bottleneck position |
-| Out-Degree | DG_out | | ✓ | | ✓ | Efferent coupling (M) and attack surface (V) |
+| Out-Degree | DG_out | | ✓ | | | Efferent coupling |
 | Clustering Coefficient | CC | | ✓ | | | Local redundancy / modularity |
 | Articulation Point Score | AP_c | | | ✓ | | Structural SPOF detection |
 | Bridge Ratio | BR | | | ✓ | | Irreplaceable connections |
@@ -164,9 +167,9 @@ A core design principle is that each raw metric contributes to **at most one** R
 | Eigenvector Centrality | EV | | | | ✓ | Strategic hub connectivity |
 | Closeness Centrality | CL | | | | ✓ | Propagation speed |
 
-**Absolute Orthogonality:** Every raw metric contributes to **exactly one** RMAV dimension (with the documented use of $w(v)$ as a domain-weight overlay in Availability). This ensures that no structural property accumulates disproportionate weight in the overall quality score $Q(v)$, regardless of local connectivity patterns.
+**Absolute Orthogonality:** Every raw metric contributes to **exactly one** RMAV dimension. PageRank (PR) and raw in-degree (DG_in) are no longer used in any dimension — they have been replaced in R(v) by w_in and CDPot, which carry the same signal without reusing metrics from other dimensions.
 
-**QoS Weight metrics:** The weight metrics (w, w_in, w_out) from Step 2 reflect domain-specific priority. $w(v)$ is included in $A(v)$ to ensure that high-priority components (as defined by system architects) are flagged for availability risk even if they are structurally redundant. $w_{in}$ and $w_{out}$ are reported in the output but currently excluded from RMAV formulas, preserving the topological purity of the other dimensions.
+**QoS Weight metrics:** The weight metrics (w, w_in, w_out) from Step 2 reflect domain-specific priority. `w(v)` is included in A(v) to ensure high-priority components are flagged for availability risk. `w_in(v)` is now the second term in R(v), capturing the SLA-weighted immediate blast radius of a failure. `w_out(v)` is reported but not used in any RMAV formula.
 
 ---
 
@@ -263,20 +266,20 @@ $$w_{final} = \lambda \cdot w_{AHP} + (1 - \lambda) \cdot w_{uniform}$$
 
 ### Final Weight Distributions ($\lambda = 0.7$)
 
-**Reliability** — criteria: [PageRank, ReversePageRank, InDegree]
+**Reliability** — criteria: [RPR, w_in, CDPot]
 
 ```
-          PR    RPR   DGin
-PR      [ 1.0,  2.0,  2.0 ]   PR is moderately more important than RPR and DGin
-RPR     [ 0.5,  1.0,  1.0 ]   RPR and DGin are equally important to each other
-DGin    [ 0.5,  1.0,  1.0 ]
+           RPR   w_in  CDPot
+RPR     [ 1.0,  0.67,  2.0 ]   RPR is less important than w_in (direct blast radius is primary)
+w_in    [ 1.5,  1.0,   3.0 ]   w_in dominates: SLA-weighted dependents is the clearest signal
+CDPot   [ 0.5,  0.33,  1.0 ]   CDPot provides a depth penalty (secondary signal)
 
-→ GM:  [1.587, 0.794, 0.794]  →  Normalized: [0.50, 0.25, 0.25]
-  CR ≈ 0.00  (perfectly consistent)
+→ GM:  [1.100, 1.145, 0.693]  →  Normalized: [0.334, 0.348, 0.166]  (sum to ~0.85 before rounding)
+  CR ≈ 0.01  (highly consistent)
 ```
-- AHP: [0.50, 0.25, 0.25]
-- **Blend: [0.45, 0.275, 0.275]**
-- *Rationale*: PageRank remains the primary signal for global dependency, but RPR and In-Degree are elevated to ensure local propagation is captured.
+- AHP: [0.334, 0.500, 0.166]  (pure, before shrinkage)
+- **Blend (λ=0.7): [0.334, 0.450, 0.216]**
+- *Rationale*: QoS-weighted in-degree (w_in) is the strongest immediate signal for fault propagation blast radius. RPR captures global cascade reach. CDPot adds depth discrimination without reusing PageRank or raw DG_in.
 
 **Availability** — criteria: [AP_c, BridgeRatio, QoS-Weight]
 
@@ -382,26 +385,32 @@ This section computes RMAV scores for the **PLC_Controller (A3)** using the metr
 
 **RMAV computation (using default weights):**
 
+First compute CDPot for A3:
 ```
-R(A3) = 0.40×0.75 + 0.35×0.60 + 0.25×0.75 = 0.30 + 0.21 + 0.1875 = 0.70
+CDPot = ((RPR + DG_in) / 2) × (1 − min(DG_out / DG_in, 1))
+       = ((0.60 + 0.75) / 2) × (1 − min(0.80 / 0.75, 1))
+       = 0.675 × (1 − 1.0)   ← DG_out/DG_in > 1, capped at 1
+       = 0.675 × 0.0 = 0.00
+```
+A3 is a fan-out hub: it has more out-degree than in-degree, so CDPot → 0 (wide shallow cascade, not deep).
+
+```
+R(A3) = 0.40×RPR + 0.35×w_in + 0.25×CDPot
+       = 0.40×0.60 + 0.35×0.75* + 0.25×0.00
+       = 0.24 + 0.26 + 0.00 = 0.50
+  (*w_in ≈ DG_in for this example; QoS weights assumed uniform)
 
 M(A3) = 0.40×0.95 + 0.35×0.80 + 0.25×(1−0.15) = 0.38 + 0.28 + 0.2125 = 0.87
 
 A(A3) = 0.50×0.43 + 0.30×1.00 + 0.20×0.68* = 0.215 + 0.30 + 0.136 = 0.65
-   (*0.68 is the Importance average (PR+RPR)/2)
+   (*0.68 is the QoS weight derived from domain priority)
 
-V(A3) = 0.40×0.80 + 0.30×0.70 + 0.30×0.80 = 0.32 + 0.21 + 0.24 = 0.77
+V(A3) = 0.67×0.80 + 0.33×0.70 = 0.536 + 0.231 = 0.77
 
-Q(A3) = (0.70 + 0.87 + 0.65 + 0.77) / 4 = 0.75
+Q(A3) = (0.50 + 0.87 + 0.65 + 0.77) / 4 = 0.70
 ```
 
-**Interpretation:** **PLC_Controller (A3)** scores **0.75 (CRITICAL)**. Unlike the small example, we now see rich metric differentiation:
-
-- **M=0.87 (Maintainability)** — The primary concern. A3 is the system's structural bottleneck (max BT) and has high efferent coupling (DG_out). Changes here ripple to almost every other component.
-- **V=0.77 (Vulnerability)** — High. A3 sits in a central part of the graph (high EV/CL) and talks to many components.
-- **A=0.65 (Availability)** — Significant SPOF risk. It is an articulation point that fragments the graph if removed.
-
-**Recommended action:** This component is a "Hub". Prioritize **architectural decoupling** to reduce BT and DG_out (e.g., breaking the PLC logic into smaller micro-services) to lower the Maintainability risk.
+**Interpretation:** **PLC_Controller (A3)** scores **0.70 (HIGH)**. The formula reveals that A3 has moderate reliability risk (R=0.50) because although it has many direct dependents (w_in) and broad reverse PageRank reach, its fan-out topology means cascades are wide but shallow (CDPot=0). The dominant concern remains **Maintainability** (M=0.87) — A3 is the system's structural bottleneck with max betweenness and high efferent coupling.
 
 ---
 
@@ -525,6 +534,8 @@ HIGH (9 components):
 At this point, every component has a predicted quality score Q(v) ∈ [0, 1] and a criticality classification derived purely from topology. These are **predictions** — they have not yet been validated against real failure behavior.
 
 Step 4 generates **ground-truth impact scores I(v)** by simulating component failures exhaustively and measuring the cascade damage each causes. Step 5 then computes Spearman ρ between Q(v) and I(v) to quantify how accurately topology predicts real failure impact — closing the loop on the methodology's central empirical claim.
+
+For the **Reliability dimension specifically**, Step 4 also produces **IR(v)** — a cascade-dynamics-specific ground truth computed from the same exhaustive run. Step 5 validates R(v) against IR(v) using Spearman ρ(R, IR), Cascade Capture Rate CCR@5, and Cascade Magnitude Error CME — providing a reliability-specific validation signal that is independent of the global I(v) composite.
 
 ---
 
