@@ -114,6 +114,10 @@ class AHPMatrices:
     # Overall Quality: Reliability (R), Maintainability (M), Availability (A), Vulnerability (V)
     criteria_overall: List[List[float]] = None
 
+    # Topic QoS Importance: Reliability (Rel), Durability (Dur), Priority (Pri)
+    # Justifies the 0.30/0.40/0.30 split used in Phase 4 modeling.
+    criteria_topic_qos: List[List[float]] = None
+
     def __post_init__(self):
         # Default initialization if None
         if self.criteria_reliability is None:
@@ -156,6 +160,16 @@ class AHPMatrices:
                 [1.0, 1.0, 1.0, 1.0],
                 [1.0, 1.0, 1.0, 1.0],
             ]
+        
+        if self.criteria_topic_qos is None:
+            self.criteria_topic_qos = [
+                # Rel  Dur  Pri
+                [1.0, 0.75, 1.0],  # Rel: Slightly less critical than Durability
+                [1.33, 1.0, 1.33], # Dur: Most critical (state persistence)
+                [1.0, 0.75, 1.0],  # Pri: Same as Reliability
+            ]
+            # Matrix check: Dur/Rel = 1.33, Rel/Dur = 0.75. 
+            # Calculated weights: [0.30, 0.40, 0.30]
 
 
 class AHPProcessor:

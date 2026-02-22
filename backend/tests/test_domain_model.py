@@ -28,12 +28,12 @@ class TestQoSPolicy:
     """Tests for QoSPolicy weight calculation matching §1.5 scoring table."""
 
     def test_default_qos_weight(self):
-        """Default QoS (BEST_EFFORT, VOLATILE, MEDIUM) → 0.1."""
+        """Default QoS (BEST_EFFORT, VOLATILE, MEDIUM) → ~0.1 (0.3*0 + 0.4*0 + 0.3*0.33)."""
         policy = QoSPolicy()
         assert policy.calculate_weight() == pytest.approx(0.1, abs=0.01)
 
     def test_maximum_qos_weight(self):
-        """Maximum QoS (RELIABLE + PERSISTENT + URGENT) → 1.0."""
+        """Maximum QoS (RELIABLE + PERSISTENT + URGENT) → 1.0 (0.3*1 + 0.4*1 + 0.3*1)."""
         policy = QoSPolicy(
             reliability="RELIABLE",
             durability="PERSISTENT",
@@ -50,33 +50,40 @@ class TestQoSPolicy:
         )
         assert policy.calculate_weight() == pytest.approx(0.0, abs=0.01)
 
-    # --- Individual QoS attribute tests (complete scoring table) ---
+    # --- Individual QoS attribute tests (justified weights) ---
 
     def test_reliable_adds_0_3(self):
+        """Reliability weight = 0.30."""
         policy = QoSPolicy(reliability="RELIABLE", durability="VOLATILE", transport_priority="LOW")
         assert policy.calculate_weight() == pytest.approx(0.3, abs=0.01)
 
     def test_persistent_adds_0_4(self):
+        """Durability weight = 0.40."""
         policy = QoSPolicy(reliability="BEST_EFFORT", durability="PERSISTENT", transport_priority="LOW")
         assert policy.calculate_weight() == pytest.approx(0.4, abs=0.01)
 
     def test_transient_local_adds_0_2(self):
+        """Transient local (0.5) * Durability weight (0.40) = 0.20."""
         policy = QoSPolicy(reliability="BEST_EFFORT", durability="TRANSIENT_LOCAL", transport_priority="LOW")
         assert policy.calculate_weight() == pytest.approx(0.2, abs=0.01)
 
-    def test_transient_adds_0_25(self):
+    def test_transient_adds_0_24(self):
+        """Transient (0.6) * Durability weight (0.40) = 0.24."""
         policy = QoSPolicy(reliability="BEST_EFFORT", durability="TRANSIENT", transport_priority="LOW")
-        assert policy.calculate_weight() == pytest.approx(0.25, abs=0.01)
+        assert policy.calculate_weight() == pytest.approx(0.24, abs=0.01)
 
     def test_urgent_priority_adds_0_3(self):
+        """Urgent (1.0) * Priority weight (0.30) = 0.30."""
         policy = QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="URGENT")
         assert policy.calculate_weight() == pytest.approx(0.3, abs=0.01)
 
     def test_high_priority_adds_0_2(self):
+        """High (0.66) * Priority weight (0.30) ≈ 0.20."""
         policy = QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="HIGH")
         assert policy.calculate_weight() == pytest.approx(0.2, abs=0.01)
 
     def test_medium_priority_adds_0_1(self):
+        """Medium (0.33) * Priority weight (0.30) ≈ 0.10."""
         policy = QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="MEDIUM")
         assert policy.calculate_weight() == pytest.approx(0.1, abs=0.01)
 
@@ -113,7 +120,7 @@ class TestTopicWeight:
         """Lowest possible topic (LOW QoS, tiny size) still gets ε = MIN_TOPIC_WEIGHT."""
         topic = Topic(
             id="t0", name="minimal",
-            size=1,  # 1 byte → S_size ≈ 0.0001
+            size=1,  # 1 byte → size_kb ≈ 0.001 → score ≈ log2(1.001)/50 ≈ 0.00002
             qos=QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="LOW"),
         )
         weight = topic.calculate_weight()
@@ -121,40 +128,41 @@ class TestTopicWeight:
         assert weight > 0.0, "Topic weight must never be zero"
 
     def test_small_topic_weight(self):
-        """1 KB topic with default QoS → ~0.2."""
+        """1 KB topic with default QoS → ~0.12 (0.1 QoS + 0.02 size)."""
         topic = Topic(id="t1", name="small", size=1024)
         weight = topic.calculate_weight()
-        # S_size = log2(1+1)/10 = 0.1, QoS default = 0.1, total ≈ 0.2
-        assert 0.19 < weight < 0.21
+        # QoS default ≈ 0.1, size score = log2(1+1)/50 = 0.02
+        assert 0.11 < weight < 0.13
 
     def test_medium_topic_weight(self):
-        """64 KB topic with RELIABLE QoS → ~0.9."""
+        """64 KB topic with RELIABLE QoS → ~0.52."""
         topic = Topic(
             id="t2", name="medium",
             size=65536,
             qos=QoSPolicy(reliability="RELIABLE"),
         )
         weight = topic.calculate_weight()
-        # QoS = 0.3 + 0.1 (MEDIUM default) = 0.4, S_size ≈ 0.6, total ≈ 1.0
-        assert 0.9 < weight < 1.1
+        # Rel(1.0)*0.3 + Pri(0.33)*0.3 ≈ 0.4. Size score = log2(1+64)/50 ≈ 0.12.
+        assert 0.50 < weight < 0.54
 
     def test_max_topic_weight(self):
-        """Maximum QoS + large size → capped at 2.0."""
+        """Maximum QoS + large size → capped at 1.2."""
         topic = Topic(
             id="t3", name="max",
             size=1_048_576,  # 1 MB
             qos=QoSPolicy(reliability="RELIABLE", durability="PERSISTENT", transport_priority="URGENT"),
         )
         weight = topic.calculate_weight()
-        assert weight == pytest.approx(2.0, abs=0.01)
+        # QoS = 1.0. Size score = min(log2(1+1024)/50, 0.20) = 0.20.
+        assert weight == pytest.approx(1.2, abs=0.01)
 
     def test_size_score_formula(self):
-        """Verify S_size = min(log₂(1 + size/1024) / 10, 1.0) exactly."""
+        """Verify S_size = min(log₂(1 + size/1024) / 50, 0.20) exactly."""
         test_cases = [
-            (64, min(math.log2(1 + 64 / 1024) / 10, 1.0)),
-            (1024, min(math.log2(1 + 1024 / 1024) / 10, 1.0)),
-            (65536, min(math.log2(1 + 65536 / 1024) / 10, 1.0)),
-            (1_048_576, 1.0),  # capped
+            (64, min(math.log2(1 + 64 / 1024) / 50, 0.20)),
+            (1024, min(math.log2(1 + 1024 / 1024) / 50, 0.20)),
+            (65536, min(math.log2(1 + 65536 / 1024) / 50, 0.20)),
+            (10_000_000, 0.20),  # capped
         ]
         for size, expected_size_score in test_cases:
             topic = Topic(
@@ -166,7 +174,7 @@ class TestTopicWeight:
             assert weight == pytest.approx(expected, abs=0.001), f"Failed for size={size}"
 
     def test_weight_range(self):
-        """All weights must be in [MIN_TOPIC_WEIGHT, 2.0]."""
+        """All weights must be in [MIN_TOPIC_WEIGHT, 1.2]."""
         configs = [
             (1, QoSPolicy(reliability="BEST_EFFORT", durability="VOLATILE", transport_priority="LOW")),
             (256, QoSPolicy()),
@@ -176,7 +184,7 @@ class TestTopicWeight:
         for size, qos in configs:
             topic = Topic(id="t", name="test", size=size, qos=qos)
             weight = topic.calculate_weight()
-            assert MIN_TOPIC_WEIGHT <= weight <= 2.0, f"Weight {weight} out of range for size={size}"
+            assert MIN_TOPIC_WEIGHT <= weight <= 1.2, f"Weight {weight} out of range for size={size}"
 
 
 # =========================================================================

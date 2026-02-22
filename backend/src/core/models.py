@@ -82,21 +82,30 @@ class QoSPolicy:
     # QoS scoring constants - centralized for use in both Python and Cypher
     RELIABILITY_SCORES: ClassVar[Dict[str, float]] = {
         "BEST_EFFORT": 0.0,
-        "RELIABLE": 0.3,
+        "RELIABLE": 1.0,  # Full weight if reliable
     }
     DURABILITY_SCORES: ClassVar[Dict[str, float]] = {
         "VOLATILE": 0.0,
-        "TRANSIENT_LOCAL": 0.2,
-        "TRANSIENT": 0.25,
-        "PERSISTENT": 0.4,
+        "TRANSIENT_LOCAL": 0.5,
+        "TRANSIENT": 0.6,
+        "PERSISTENT": 1.0,
     }
     PRIORITY_SCORES: ClassVar[Dict[str, float]] = {
         "LOW": 0.0,
-        "MEDIUM": 0.1,
-        "HIGH": 0.2,
-        "URGENT": 0.3,
+        "MEDIUM": 0.33,
+        "HIGH": 0.66,
+        "URGENT": 1.0,
     }
     
+    # Justification (AHP): 
+    # Durability (0.4) > Reliability (0.3) = Priority (0.3)
+    # Rationale: In DDS systems, durability defines state survival which is 
+    # fundamentally critical for resilience, while reliability/priority 
+    # govern transient delivery quality.
+    W_RELIABILITY: ClassVar[float] = 0.30
+    W_DURABILITY: ClassVar[float] = 0.40
+    W_PRIORITY: ClassVar[float] = 0.30
+
     durability: str = "VOLATILE"
     reliability: str = "BEST_EFFORT"
     transport_priority: str = "MEDIUM"
@@ -117,10 +126,20 @@ class QoSPolicy:
         )
     
     def calculate_weight(self) -> float:
+        """
+        Calculates the weighted QoS score based on AHP-derived coefficients.
+        
+        QoS = 0.30*Rel + 0.40*Dur + 0.30*Pri
+        """
         s_reliability = self.RELIABILITY_SCORES.get(self.reliability, 0.0)
         s_durability = self.DURABILITY_SCORES.get(self.durability, 0.0)
         s_priority = self.PRIORITY_SCORES.get(self.transport_priority, 0.0)
-        return s_reliability + s_durability + s_priority
+        
+        return (
+            self.W_RELIABILITY * s_reliability + 
+            self.W_DURABILITY * s_durability + 
+            self.W_PRIORITY * s_priority
+        )
 
 @dataclass
 class GraphEntity:
@@ -176,8 +195,21 @@ class Topic(GraphEntity):
         }
     
     def calculate_weight(self) -> float:
+        """
+        Topic importance = QoS_Score + Size_Penalty.
+        
+        Refined Size Penalty: 
+        - Logarithmic scaling to avoid dominance by massive messages.
+        - Capped at 0.20 (max 20% of total importance) to preserve 
+          QoS-driven semantics.
+        - Divisor of 50 ensures size only pushes a topic into a higher
+          criticality bracket if it is significantly larger than typical
+          DDS control packets (e.g. > 100KB).
+        """
         qos_weight = self.qos.calculate_weight()
-        size_weight = min(math.log2(1 + self.size / 1024) / 10, 1.0)
+        # size / 1024 converts to KB
+        size_kb = self.size / 1024
+        size_weight = min(math.log2(1 + size_kb) / 50, 0.20)
         return max(MIN_TOPIC_WEIGHT, qos_weight + size_weight)
 
 @dataclass
