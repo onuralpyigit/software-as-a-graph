@@ -343,19 +343,45 @@ class ProblemDetector:
             G.add_edge(e.source, e.target)
         
         try:
-            cycles = list(nx.simple_cycles(G))
-            for cycle in cycles:
+            # Limit the number of cycles to avoid infinite loops in dense graphs
+            MAX_CYCLES = 50
+            cycles = []
+            cycle_limit_reached = False
+            
+            for cycle in nx.simple_cycles(G):
                 if len(cycle) >= 2:
-                    problems.append(DetectedProblem(
-                        entity_id=" -> ".join(cycle + [cycle[0]]),
-                        entity_type="Architecture",
-                        category=ProblemCategory.ARCHITECTURE.value,
-                        severity="HIGH",
-                        name="Dependency Cycle",
-                        description=f"Circular dependency detected: {' -> '.join(cycle + [cycle[0]])}.",
-                        recommendation="Break the cycle by introducing an interface or using events.",
-                        evidence={"cycle_length": len(cycle), "nodes": cycle}
-                    ))
+                    cycles.append(cycle)
+                if len(cycles) >= MAX_CYCLES:
+                    cycle_limit_reached = True
+                    break
+            
+            for cycle in cycles:
+                problems.append(DetectedProblem(
+                    entity_id=" -> ".join(cycle + [cycle[0]]),
+                    entity_type="Architecture",
+                    category=ProblemCategory.ARCHITECTURE.value,
+                    severity="HIGH",
+                    name="Dependency Cycle",
+                    description=f"Circular dependency detected: {' -> '.join(cycle + [cycle[0]])}.",
+                    recommendation="Break the cycle by introducing an interface or using events.",
+                    evidence={"cycle_length": len(cycle), "nodes": cycle}
+                ))
+            
+            if cycle_limit_reached:
+                problems.append(DetectedProblem(
+                    entity_id="SYSTEM", entity_type="System",
+                    category=ProblemCategory.ARCHITECTURE.value, severity="HIGH",
+                    name="Excessive Dependency Cycles",
+                    description=(
+                        f"System contains more than {MAX_CYCLES} dependency cycles. "
+                        f"Only the first {MAX_CYCLES} are reported."
+                    ),
+                    recommendation=(
+                        "Address reported cycles first; then re-run analysis "
+                        "to find remaining cycles."
+                    ),
+                    evidence={"cycle_limit": MAX_CYCLES}
+                ))
         except Exception:
             pass
 
