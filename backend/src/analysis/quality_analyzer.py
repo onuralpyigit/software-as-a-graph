@@ -359,8 +359,8 @@ class QualityAnalyzer:
         # Availability: SPOF risk (continuous AP score)
         A = w.a_articulation * ap_c + w.a_bridge_ratio * m.bridge_ratio + w.a_qos_weight * qw
 
-        # Vulnerability: attack surface + strategic importance
-        V = w.v_eigenvector * ev + w.v_closeness * cl + w.v_out_degree * od_n
+        # Vulnerability: strategic importance + propagation speed
+        V = w.v_eigenvector * ev + w.v_closeness * cl
 
         Q = w.q_reliability * R + w.q_maintainability * M + w.q_availability * A + w.q_vulnerability * V
 

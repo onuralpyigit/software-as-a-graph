@@ -57,9 +57,9 @@ class QualityWeights:
     a_qos_weight: float = 0.12       # QoS-derived component weight w(v)
 
     # Vulnerability weights (exposure risk)
-    v_eigenvector: float = 0.50      # AHP: (1.0, 2.0, 2.0)
-    v_closeness: float = 0.25
-    v_out_degree: float = 0.25       
+    v_eigenvector: float = 0.67      # AHP: (1.0, 2.0)
+    v_closeness: float = 0.33
+    v_out_degree: float = 0.0        # Removed to satisfy absolute orthogonality
     
     # Overall quality weights (sum should be 1.0)
     q_reliability: float = 0.25      # Default balanced (1.0 vs 1.0 vs 1.0 vs 1.0)
@@ -92,7 +92,7 @@ class AHPMatrices:
         Reliability:      PageRank (PR), Reverse PageRank (RPR), In-Degree (ID)
         Maintainability:  Betweenness (BT), Out-Degree (OD), Clustering (CC)
         Availability:     Articulation Score (AP_c), Bridge Ratio (BR), QoS Weight w(v)
-        Vulnerability:    Eigenvector (EV), Closeness (CL), Out-Degree (OD)
+        Vulnerability:    Eigenvector (EV), Closeness (CL)
     """
     
     # Reliability: PageRank (PR), Reverse PageRank (RPR), In-Degree (ID)
@@ -107,8 +107,8 @@ class AHPMatrices:
     # AP_c is now continuous but still the dominant SPOF indicator
     criteria_availability: List[List[float]] = None
     
-    # Vulnerability: Eigenvector (EV), Closeness (CL), Out-Degree (OD)
-    # Out-Degree = attack surface (outbound traversal paths)
+    # Vulnerability: Eigenvector (EV), Closeness (CL)
+    # Strategic reach + propagation speed
     criteria_vulnerability: List[List[float]] = None
     
     # Overall Quality: Reliability (R), Maintainability (M), Availability (A), Vulnerability (V)
@@ -146,10 +146,9 @@ class AHPMatrices:
 
         if self.criteria_vulnerability is None:
             self.criteria_vulnerability = [
-                # EV   CL   OD
-                [1.0, 2.0, 2.0],  # EV (Strategic importance)
-                [0.5, 1.0, 1.0],  # CL (Propagation speed)
-                [0.5, 1.0, 1.0],  # OD (Attack surface)
+                # EV   CL
+                [1.0, 2.0],  # EV (Strategic importance)
+                [0.5, 1.0],  # CL (Propagation speed)
             ]
             
         if self.criteria_overall is None:
@@ -262,7 +261,7 @@ class AHPProcessor:
         w_avail = self._calculate_priority_vector(self.matrices.criteria_availability)
         w_avail = self._shrink_weights(w_avail)
         
-        # 4. Vulnerability Weights (EV, CL, OD)
+        # 4. Vulnerability Weights (EV, CL)
         w_vuln = self._calculate_priority_vector(self.matrices.criteria_vulnerability)
         w_vuln = self._shrink_weights(w_vuln)
         
@@ -289,7 +288,7 @@ class AHPProcessor:
             # Vulnerability
             v_eigenvector=w_vuln[0],
             v_closeness=w_vuln[1],
-            v_out_degree=w_vuln[2],
+            v_out_degree=0.0,
             
             # Overall
             q_reliability=w_over[0],

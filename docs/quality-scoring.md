@@ -112,19 +112,18 @@ A(v) = 0.50 × AP_c(v) + 0.30 × BR(v) + 0.20 × w(v)
 
 Availability uses structural indicators (AP_c, BR) alongside domain priority (w(v)) to identify components where failure would cause significant service disruption. By using $w(v)$ instead of topological hubness ($PR$), we maintain true metric orthogonality across RMAV dimensions.
 
-### Vulnerability V(v) — Security Exposure
+### Vulnerability V(v) — Strategic Exposure
 
 ```
-V(v) = 0.40 × EV(v) + 0.30 × CL(v) + 0.30 × DG_out(v)
+V(v) = 0.67 × EV(v) + 0.33 × CL(v)
 ```
 
 | Term | Contribution | Rationale |
 |------|-------------|-----------|
-| EV(v) | 0.40 | Eigenvector centrality — connection to other high-value hubs signals *strategic* importance |
-| CL(v) | 0.30 | Closeness centrality — short average distance to all others means a compromise propagates quickly |
-| DG_out(v) | 0.30 | Out-degree as *attack surface* — more outbound dependency paths means more vectors for exploitation |
+| EV(v) | 0.67 | Eigenvector centrality — connection to other high-value hubs signals *strategic* importance |
+| CL(v) | 0.33 | Closeness centrality — short average distance to all others means a compromise propagates quickly |
 
-Note that DG_out(v) appears in both M(v) and V(v), with distinct semantic interpretations: *coupling risk* in the context of maintainability, and *attack surface* in the context of security. It is the sole metric shared between two RMAV dimensions; see [Metric Orthogonality](#metric-orthogonality) for the full mapping.
+Vulnerability measures how strategically placed a component is within the network. High Eigenvector centrality identifies nodes connected to other important hubs, making them high-value targets. High Closeness measures how effectively a compromise at `v` could pivot to other parts of the system. By removing Out-Degree from this dimension, we establish absolute metric orthogonality.
 
 ### Overall Quality Q(v)
 
@@ -165,7 +164,7 @@ A core design principle is that each raw metric contributes to **at most one** R
 | Eigenvector Centrality | EV | | | | ✓ | Strategic hub connectivity |
 | Closeness Centrality | CL | | | | ✓ | Propagation speed |
 
-**Out-Degree exception:** DG_out appears in both M(v) and V(v). This is the sole deliberate exception, justified by distinct semantics: in Maintainability it measures *coupling complexity* (how many things v depends on, risking change propagation); in Vulnerability it measures *attack surface* (how many outbound paths an adversary can exploit). The two uses are contextually distinct even though the underlying metric is the same.
+**Absolute Orthogonality:** Every raw metric contributes to **exactly one** RMAV dimension (with the documented use of $w(v)$ as a domain-weight overlay in Availability). This ensures that no structural property accumulates disproportionate weight in the overall quality score $Q(v)$, regardless of local connectivity patterns.
 
 **QoS Weight metrics:** The weight metrics (w, w_in, w_out) from Step 2 reflect domain-specific priority. $w(v)$ is included in $A(v)$ to ensure that high-priority components (as defined by system architects) are flagged for availability risk even if they are structurally redundant. $w_{in}$ and $w_{out}$ are reported in the output but currently excluded from RMAV formulas, preserving the topological purity of the other dimensions.
 
@@ -309,20 +308,16 @@ DGout   [ 0.5,  1.0,   2.0 ]
 - **Blend: [0.48, 0.31, 0.21]**
 - *Rationale*: Betweenness remains the core bottleneck indicator, but Out-Degree (efferent coupling) and Clustering are given weight to reflect local complexity.
 
-**Vulnerability** — criteria: [Eigenvector, Closeness, OutDegree]
+**Vulnerability** — criteria: [Eigenvector, Closeness]
 
 ```
-          EV    CL    DGout
-EV      [ 1.0,  2.0,  2.0 ]
-CL      [ 0.5,  1.0,  1.0 ]
-DGout   [ 0.5,  1.0,  1.0 ]
-
-→ GM:  [1.587, 0.794, 0.794]  →  Normalized: [0.50, 0.25, 0.25]
-  CR ≈ 0.00  (perfectly consistent)
+          EV    CL
+EV      [ 1.0,  2.0 ]
+CL      [ 0.5,  1.0 ]
 ```
-- AHP: [0.50, 0.25, 0.25]
-- **Blend: [0.45, 0.275, 0.275]**
-- *Rationale*: Eigenvector highlights strategic hubs; Closeness and Out-Degree measure propagation speed and attack surface.
+- AHP: [0.67, 0.33]
+- **Blend: [0.57, 0.43]**   (with $\lambda = 0.7$ shrinkage)
+- *Rationale*: Eigenvector highlights strategic hubs; Closeness measures propagation speed.
 
 **Overall Q(v)** — criteria: [R, M, A, V]
 
