@@ -67,6 +67,12 @@ class QualityWeights:
     q_availability: float = 0.25
     q_vulnerability: float = 0.25
     
+    # Impact score weights I(v) (sum should be 1.0)
+    # Formally derived via AHP: Reachability > Fragmentation = Throughput
+    i_reachability: float = 0.40      
+    i_fragmentation: float = 0.30     
+    i_throughput: float = 0.30        
+    
     # Edge quality weights (sum should be 1.0)
     e_betweenness: float = 0.35      # Path importance
     e_bridge: float = 0.30           # SPOF risk
@@ -93,6 +99,7 @@ class AHPMatrices:
         Maintainability:  Betweenness (BT), Out-Degree (OD), Clustering (CC)
         Availability:     Articulation Score (AP_c), Bridge Ratio (BR), QoS Weight w(v)
         Vulnerability:    Eigenvector (EV), Closeness (CL)
+        Impact (I(v)):    Reachability (RL), Fragmentation (FR), Throughput (TL)
     """
     
     # Reliability: PageRank (PR), Reverse PageRank (RPR), In-Degree (ID)
@@ -117,6 +124,10 @@ class AHPMatrices:
     # Topic QoS Importance: Reliability (Rel), Durability (Dur), Priority (Pri)
     # Justifies the 0.30/0.40/0.30 split used in Phase 4 modeling.
     criteria_topic_qos: List[List[float]] = None
+
+    # Impact (I(v)): Reachability (RL), Fragmentation (FR), Throughput (TL)
+    # Justifies the 0.40/0.30/0.30 split used in failure simulation.
+    criteria_impact: List[List[float]] = None
 
     def __post_init__(self):
         # Default initialization if None
@@ -169,6 +180,16 @@ class AHPMatrices:
             ]
             # Matrix check: Dur/Rel = 1.33, Rel/Dur = 0.75. 
             # Calculated weights: [0.30, 0.40, 0.30]
+            
+        if self.criteria_impact is None:
+            self.criteria_impact = [
+                # RL    FR    TL
+                [1.0, 1.33, 1.33],  # RL (Reachability loss: most direct failure)
+                [0.75, 1.0, 1.0],   # FR
+                [0.75, 1.0, 1.0],   # TL (FR and TL equal weight)
+            ]
+            # Matrix check: RL/FR = 1.33, FR/RL = 0.75. 
+            # Calculated weights: [0.40, 0.30, 0.30]
 
 
 class AHPProcessor:
@@ -264,8 +285,12 @@ class AHPProcessor:
         # 4. Vulnerability Weights (EV, CL)
         w_vuln = self._calculate_priority_vector(self.matrices.criteria_vulnerability)
         w_vuln = self._shrink_weights(w_vuln)
+
+        # 5. Impact Weights (RL, FR, TL) - Added for formal derivation
+        w_impact = self._calculate_priority_vector(self.matrices.criteria_impact)
+        w_impact = self._shrink_weights(w_impact)
         
-        # 5. Overall Weights (R, M, A, V)
+        # 6. Overall Weights (R, M, A, V)
         w_over = self._calculate_priority_vector(self.matrices.criteria_overall)
         w_over = self._shrink_weights(w_over)
         
@@ -289,6 +314,11 @@ class AHPProcessor:
             v_eigenvector=w_vuln[0],
             v_closeness=w_vuln[1],
             v_out_degree=0.0,
+            
+            # Impact
+            i_reachability=w_impact[0],
+            i_fragmentation=w_impact[1],
+            i_throughput=w_impact[2],
             
             # Overall
             q_reliability=w_over[0],

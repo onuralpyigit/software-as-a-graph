@@ -303,10 +303,12 @@ class ImpactMetrics:
     cascade_count: int = 0
     cascade_depth: int = 0
     cascade_by_type: Dict[str, int] = field(default_factory=dict)
+    
+    # Impact weights I(v) - Formally derived via AHP in weight_calculator.py
     impact_weights: Dict[str, float] = field(default_factory=lambda: {
-        "reachability": 0.4,
-        "fragmentation": 0.3, 
-        "throughput": 0.3
+        "reachability": 0.40,
+        "fragmentation": 0.30, 
+        "throughput": 0.30
     })
     
     @property
