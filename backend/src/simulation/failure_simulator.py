@@ -68,7 +68,13 @@ class FailureSimulator:
         self._initial_components: int = 0
         self._initial_connected_components: int = 1
         self._initial_total_weight: float = 0.0
+        self._baseline_flows: Set[Tuple[str, str, str]] = set()
         self._baseline_computed: bool = False
+    
+    def set_baseline_flows(self, flows: List[Tuple[str, str, str]]) -> None:
+        """Set the baseline successful flows from event simulation."""
+        self._baseline_flows = set(flows)
+        self.logger.info(f"Set {len(self._baseline_flows)} baseline flows for disruption analysis")
     
     def simulate(self, scenario: FailureScenario) -> FailureResult:
         """
@@ -579,6 +585,27 @@ class FailureSimulator:
             if comp:
                 cascade_by_type[comp.type] += 1
 
+        # === Flow Disruption FD(v) ===
+        if self._baseline_flows:
+            broken_flows = 0
+            for pub_id, topic_id, sub_id in self._baseline_flows:
+                # Flow is broken if Pub, Topic, or Sub is not active
+                # is_active() already considers DEGRADED as active, which is correct for "weakest link" model
+                if not (self.graph.is_active(pub_id) and 
+                        self.graph.is_active(topic_id) and 
+                        self.graph.is_active(sub_id)):
+                    broken_flows += 1
+                    continue
+                
+                # Flow is also broken if no routing broker is active for the topic
+                brokers = self.graph.get_routing_brokers(topic_id)
+                if not any(self.graph.is_active(b) for b in brokers):
+                    broken_flows += 1
+            
+            flow_disruption = broken_flows / len(self._baseline_flows)
+        else:
+            flow_disruption = 0.0
+
         return ImpactMetrics(
             initial_paths=self._initial_paths,
             remaining_paths=remaining_paths,
@@ -591,6 +618,7 @@ class FailureSimulator:
             initial_throughput=total_weight,
             remaining_throughput=total_weight - lost_weight,
             throughput_loss=throughput_loss,
+            flow_disruption=flow_disruption,
             affected_topics=affected_topics,
             affected_subscribers=len(affected_subs),
             affected_publishers=len(affected_pubs),

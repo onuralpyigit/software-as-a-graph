@@ -395,6 +395,13 @@ class EventSimulator:
                 if handled > 0:
                     component_impacts[comp_id] = handled / total_messages
         
+        # Record successful (Pub, Topic, Sub) flows
+        successful_flows = set()
+        for msg in self._messages.values():
+            if msg.delivered_to:
+                for sub_id in msg.delivered_to:
+                    successful_flows.add((msg.source_app, msg.topic_id, sub_id))
+        
         return EventResult(
             source_app=scenario.source_app,
             scenario=scenario.description or f"Event simulation: {scenario.source_app}",
@@ -403,6 +410,7 @@ class EventSimulator:
             affected_topics=list(self._affected_topics),
             reached_subscribers=list(self._reached_subscribers),
             brokers_used=list(self._brokers_used),
+            successful_flows=list(successful_flows),
             component_impacts=component_impacts,
             failed_components=[
                 c.id for c in self.graph.components.values()

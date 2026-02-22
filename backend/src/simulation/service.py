@@ -91,9 +91,20 @@ class SimulationService:
     def run_failure_simulation_exhaustive(self, layer: str = "system", cascade_probability: float = 1.0, **kwargs) -> List[Any]:
         """Run exhaustive failure analysis for all components in a layer."""
         graph = self._get_graph()
-        simulator = FailureSimulator(graph)
+        fail_sim = FailureSimulator(graph)
         
-        results = simulator.simulate_exhaustive(
+        # 1. Discover baseline flows using event simulation
+        event_sim = EventSimulator(graph)
+        event_results = event_sim.simulate_all_publishers(
+            EventScenario(source_app="template", num_messages=50, duration=5.0)
+        )
+        all_flows = []
+        for res in event_results.values():
+            all_flows.extend(res.successful_flows)
+        fail_sim.set_baseline_flows(all_flows)
+        
+        # 2. Run failure simulation
+        results = fail_sim.simulate_exhaustive(
             scenario_template=FailureScenario(
                 target_ids=["template"], # ignored
                 cascade_probability=cascade_probability,
@@ -158,12 +169,15 @@ class SimulationService:
              EventScenario(source_app="template", num_messages=50, duration=5.0)
         )
         
+        # Discover baseline flows for the whole system once
+        all_flows = []
+        for res in event_metrics_system.values():
+            all_flows.extend(res.successful_flows)
+        fail_sim.set_baseline_flows(all_flows)
+        
         # Now populate layer metrics
         for layer in layers:
             # Failure metrics aggregation
-            # We need to re-fetch failure results if not cached? 
-            # Well, simulate_exhaustive is fast enough if baseline is cached (which it handles internally per call)
-            # But we called it above inside the loop.
             fail_results = fail_sim.simulate_exhaustive(layer=layer)
             
             l_metrics = LayerMetrics(layer=layer)

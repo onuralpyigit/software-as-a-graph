@@ -105,7 +105,15 @@ class SimulationGraph:
             elif rel == "SUBSCRIBES_TO":
                 self._subscribers[tgt].append((src, weight))
             elif rel == "ROUTES":
-                self._routing[tgt].append((src, weight))
+                # ROUTES can be Topic -> Broker or Broker -> Topic
+                # We index by Topic for fast provider lookup
+                if src in self.topics:
+                    self._routing[src].append((tgt, weight))
+                elif tgt in self.topics:
+                    self._routing[tgt].append((src, weight))
+                else:
+                    # Fallback to target-based indexing
+                    self._routing[tgt].append((src, weight))
             elif rel == "RUNS_ON":
                 self._hosted_on[src] = tgt
                 self._hosts[tgt].append(src)  # Hosts don't strictly need weight for these cascades
@@ -153,15 +161,15 @@ class SimulationGraph:
     
     def get_publishers(self, topic_id: str) -> List[str]:
         """Get all publishers for a topic."""
-        return [p for p in self._publishers.get(topic_id, []) if self.is_active(p)]
+        return [p[0] for p in self._publishers.get(topic_id, []) if self.is_active(p[0])]
     
     def get_subscribers(self, topic_id: str) -> List[str]:
         """Get all subscribers for a topic."""
-        return [s for s in self._subscribers.get(topic_id, []) if self.is_active(s)]
+        return [s[0] for s in self._subscribers.get(topic_id, []) if self.is_active(s[0])]
     
     def get_routing_brokers(self, topic_id: str) -> List[str]:
         """Get all brokers that route a topic."""
-        return [b for b in self._routing.get(topic_id, []) if self.is_active(b)]
+        return [b[0] for b in self._routing.get(topic_id, []) if self.is_active(b[0])]
     
     def get_hosted_components(self, node_id: str) -> List[str]:
         """Get all components hosted on a node."""
@@ -173,19 +181,19 @@ class SimulationGraph:
     
     def get_connected_nodes(self, node_id: str) -> List[str]:
         """Get nodes connected to a given node."""
-        return [n for n in self._connections.get(node_id, []) if self.is_active(n)]
+        return [n[0] for n in self._connections.get(node_id, []) if self.is_active(n[0])]
     
     def get_app_topics(self, app_id: str) -> Tuple[List[str], List[str]]:
         """Get topics an application publishes to and subscribes from."""
         publishes = []
         subscribes = []
         
-        for topic_id, publishers in self._publishers.items():
-            if app_id in publishers:
+        for topic_id, publisher_list in self._publishers.items():
+            if any(p[0] == app_id for p in publisher_list):
                 publishes.append(topic_id)
         
-        for topic_id, subscribers in self._subscribers.items():
-            if app_id in subscribers:
+        for topic_id, subscriber_list in self._subscribers.items():
+            if any(s[0] == app_id for s in subscriber_list):
                 subscribes.append(topic_id)
         
         return publishes, subscribes

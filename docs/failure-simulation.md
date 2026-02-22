@@ -284,22 +284,33 @@ ThroughputLoss(v) = 1 − (Σ  w(T) for active topics T after cascade)
 
 where `w(T)` is the QoS-derived topic weight from Step 1. A topic T is "active after cascade" if at least one active publisher and one active subscriber both remain. Losing a high-weight (RELIABLE + PERSISTENT + URGENT) topic contributes far more to throughput loss than losing a low-weight (VOLATILE + BEST_EFFORT + LOW) topic.
 
+### Flow Disruption Score FD(v)
+
+Formalizes the integration between event simulation and failure simulation. It measures the fraction of successful communication flows (Publisher-Topic-Subscriber paths) discovered during a healthy event simulation that are interrupted by the failure cascade.
+
+```
+FD(v) = 1 − |SurvivingFlows| / |BaselineFlows|
+```
+
+Where a flow `(P, T, S)` survives only if `P`, `T`, and `S` remain active and `T` has at least one active routing broker. This metric provides a "user-centric" view of impact, as it only counts communication patterns that were empirically shown to be active.
+
 ### Composite Impact Score I(v)
 
 The three metrics combine into a single impact score using a weighted sum. To ensure academic rigor, these weights are formally derived through the **Analytic Hierarchy Process (AHP)** using a pairwise comparison matrix that reflects architectural priorities.
 
 ```
-I(v) = 0.40 × ReachabilityLoss(v) + 0.30 × Fragmentation(v) + 0.30 × ThroughputLoss(v)
+I(v) = 0.35 × ReachabilityLoss(v) + 0.25 × Fragmentation(v) + 0.25 × ThroughputLoss(v) + 0.15 × FD(v)
 ```
 
 **Formal Derivation (AHP):**
 The weights (0.40, 0.30, 0.30) are the principal eigenvectors of the following pairwise comparison matrix (Consistency Ratio < 0.05):
 
-| Criteria | Reachability | Fragmentation | Throughput |
-|----------|--------------|---------------|------------|
-| Reachability | 1.00 | 1.33 | 1.33 |
-| Fragmentation | 0.75 | 1.00 | 1.00 |
-| Throughput | 0.75 | 1.00 | 1.00 |
+| Criteria | Reachability | Fragmentation | Throughput | Flow Disruption |
+|----------|--------------|---------------|------------|-----------------|
+| Reachability | 1.00 | 1.40 | 1.40 | 2.33 |
+| Fragmentation | 0.71 | 1.00 | 1.00 | 1.66 |
+| Throughput | 0.71 | 1.00 | 1.00 | 1.66 |
+| Flow Disruption | 0.43 | 0.60 | 0.60 | 1.00 |
 
 **Rationale for weights:** Reachability loss receives the highest weight (0.40) because broken pub-sub paths are the most direct operational failure in a distributed system. Fragmentation and throughput loss receive equal weight (0.30 each) as complementary structural and capacity measures.
 

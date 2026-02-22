@@ -256,6 +256,7 @@ class EventResult:
     affected_topics: List[str] = field(default_factory=list)
     reached_subscribers: List[str] = field(default_factory=list)
     brokers_used: List[str] = field(default_factory=list)
+    successful_flows: List[Tuple[str, str, str]] = field(default_factory=list) # (Pub, Topic, Sub)
     component_impacts: Dict[str, float] = field(default_factory=dict)
     failed_components: List[str] = field(default_factory=list)
     drop_reasons: Dict[str, int] = field(default_factory=dict)
@@ -319,22 +320,25 @@ class ImpactMetrics:
     affected_publishers: int = 0
     cascade_count: int = 0
     cascade_depth: int = 0
+    flow_disruption: float = 0.0 # Fraction of event-sim flows broken
     cascade_by_type: Dict[str, int] = field(default_factory=dict)
     
     # Impact weights I(v) - Formally derived via AHP in weight_calculator.py
     impact_weights: Dict[str, float] = field(default_factory=lambda: {
-        "reachability": 0.40,
-        "fragmentation": 0.30, 
-        "throughput": 0.30
+        "reachability": 0.35,
+        "fragmentation": 0.25, 
+        "throughput": 0.25,
+        "flow_disruption": 0.15
     })
     
     @property
     def composite_impact(self) -> float:
         w = self.impact_weights
         return (
-            w.get("reachability", 0.4) * self.reachability_loss +
-            w.get("fragmentation", 0.3) * self.fragmentation +
-            w.get("throughput", 0.3) * self.throughput_loss
+            w.get("reachability", 0.35) * self.reachability_loss +
+            w.get("fragmentation", 0.25) * self.fragmentation +
+            w.get("throughput", 0.25) * self.throughput_loss +
+            w.get("flow_disruption", 0.15) * self.flow_disruption
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -349,6 +353,9 @@ class ImpactMetrics:
             },
             "throughput": {
                 "loss_percent": round(self.throughput_loss * 100, 2),
+            },
+            "flow_disruption": {
+                "loss_percent": round(self.flow_disruption * 100, 2),
             },
             "cascade": {
                 "count": self.cascade_count,
