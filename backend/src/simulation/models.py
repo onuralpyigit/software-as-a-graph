@@ -83,6 +83,18 @@ class ComponentInfo:
     @property
     def avg_latency(self) -> float:
         """Average latency per message processed."""
+        if self.messages_sent + self.messages_received == 0:
+            return 0.0
+        return self.total_latency / (self.messages_sent + self.messages_received)
+
+    @property
+    def performance(self) -> float:
+        """Performance level (1.0 = healthy, 0.5 = degraded, 0.0 = failed)."""
+        if self.state == ComponentState.FAILED:
+            return 0.0
+        elif self.state == ComponentState.DEGRADED:
+            return 0.5
+        return 1.0
         total = self.messages_received + self.messages_routed
         return self.total_latency / total if total > 0 else 0.0
     

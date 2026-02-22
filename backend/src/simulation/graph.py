@@ -48,14 +48,14 @@ class SimulationGraph:
         self.topics: Dict[str, TopicInfo] = {}
         
         # Relationship indices for fast lookups
-        self._publishers: Dict[str, List[str]] = defaultdict(list)   # topic -> [apps]
-        self._subscribers: Dict[str, List[str]] = defaultdict(list)  # topic -> [apps]
-        self._routing: Dict[str, List[str]] = defaultdict(list)      # topic -> [brokers]
-        self._hosted_on: Dict[str, str] = {}                         # comp -> node
-        self._hosts: Dict[str, List[str]] = defaultdict(list)        # node -> [comps]
-        self._connections: Dict[str, List[str]] = defaultdict(list)  # node -> [nodes]
-        self._uses: Dict[str, List[str]] = defaultdict(list)         # app/lib -> [libs]
-        self._used_by: Dict[str, List[str]] = defaultdict(list)      # lib -> [apps/libs]
+        self._publishers: Dict[str, List[Tuple[str, float]]] = defaultdict(list)   # topic -> [(apps, weight)]
+        self._subscribers: Dict[str, List[Tuple[str, float]]] = defaultdict(list)  # topic -> [(apps, weight)]
+        self._routing: Dict[str, List[Tuple[str, float]]] = defaultdict(list)      # topic -> [(brokers, weight)]
+        self._hosted_on: Dict[str, str] = {}                                       # comp -> node
+        self._hosts: Dict[str, List[str]] = defaultdict(list)                      # node -> [comps]
+        self._connections: Dict[str, List[Tuple[str, float]]] = defaultdict(list)  # node -> [(nodes, weight)]
+        self._uses: Dict[str, List[str]] = defaultdict(list)                       # app/lib -> [libs]
+        self._used_by: Dict[str, List[str]] = defaultdict(list)                    # lib -> [apps/libs]
         
         # Load graph
         if graph_data:
@@ -95,21 +95,22 @@ class SimulationGraph:
             src = edge.source_id if hasattr(edge, 'source_id') else edge.get('source')
             tgt = edge.target_id if hasattr(edge, 'target_id') else edge.get('target')
             rel = edge.relation_type if hasattr(edge, 'relation_type') else edge.get('relation_type', 'UNKNOWN')
+            weight = edge.weight if hasattr(edge, 'weight') else edge.get('weight', 1.0)
             
-            self.graph.add_edge(src, tgt, relation=rel)
+            self.graph.add_edge(src, tgt, relation=rel, weight=weight)
             
             # Index by relationship type
             if rel == "PUBLISHES_TO":
-                self._publishers[tgt].append(src)
+                self._publishers[tgt].append((src, weight))
             elif rel == "SUBSCRIBES_TO":
-                self._subscribers[tgt].append(src)
+                self._subscribers[tgt].append((src, weight))
             elif rel == "ROUTES":
-                self._routing[tgt].append(src)
+                self._routing[tgt].append((src, weight))
             elif rel == "RUNS_ON":
                 self._hosted_on[src] = tgt
-                self._hosts[tgt].append(src)
+                self._hosts[tgt].append(src)  # Hosts don't strictly need weight for these cascades
             elif rel == "CONNECTS_TO":
-                self._connections[src].append(tgt)
+                self._connections[src].append((tgt, weight))
             elif rel == "USES":
                 self._uses[src].append(tgt)
                 self._used_by[tgt].append(src)
@@ -135,9 +136,11 @@ class SimulationGraph:
             self.components[comp_id].state = ComponentState.ACTIVE
     
     def is_active(self, comp_id: str) -> bool:
-        """Check if a component is active."""
+        """Check if a component is active (including degraded)."""
         comp = self.components.get(comp_id)
-        return comp is not None and comp.state == ComponentState.ACTIVE
+        if not comp:
+            return False
+        return comp.state in (ComponentState.ACTIVE, ComponentState.DEGRADED)
     
     def set_degraded(self, comp_id: str) -> None:
         """Mark a component as degraded."""
@@ -191,38 +194,76 @@ class SimulationGraph:
         """
         Get all publisher -> topic -> subscriber paths.
         
-        When active_only=True, a path is counted only when ALL three conditions hold:
-        1. The publisher is active
-        2. The subscriber is active
-        3. At least one broker routing the topic is active
-        
-        This ensures that broker failures correctly reduce the remaining path count,
-        which directly affects the reachability_loss dimension of I(v).
-        
-        Returns:
-            List of (publisher, topic, subscriber) tuples
+        Returns List of (publisher, topic, subscriber) tuples.
         """
         paths = []
-        
         for topic_id in self.topics:
-            publishers = self._publishers.get(topic_id, [])
-            subscribers = self._subscribers.get(topic_id, [])
+            publishers = [p[0] for p in self._publishers.get(topic_id, [])]
+            subscribers = [s[0] for s in self._subscribers.get(topic_id, [])]
             
             if active_only:
                 publishers = [p for p in publishers if self.is_active(p)]
                 subscribers = [s for s in subscribers if self.is_active(s)]
-                
-                # C6 fix: Skip topics with no active routing broker.
-                # Without a broker, messages cannot be delivered even if both
-                # publisher and subscriber are alive.
-                brokers = self.get_routing_brokers(topic_id)
-                if not brokers:
+                if not self.get_routing_brokers(topic_id):
                     continue
             
             for pub in publishers:
                 for sub in subscribers:
                     paths.append((pub, topic_id, sub))
+        return paths
+
+    def get_weighted_pub_sub_paths(self, active_only: bool = True) -> List[Tuple[str, str, str, float]]:
+        """
+        Get all publisher -> topic -> subscriber paths with their remaining capacity.
         
+        Capacity = min(
+            perf(publisher),
+            weight(pub->topic),
+            max(perf(broker_i) * weight(broker_i->topic)),
+            weight(sub->topic),
+            perf(subscriber)
+        )
+        
+        Returns:
+            List of (publisher, topic, subscriber, capacity)
+        """
+        paths = []
+        
+        for topic_id in self.topics:
+            topic_info = self.topics[topic_id]
+            pubs_raw = self._publishers.get(topic_id, [])
+            subs_raw = self._subscribers.get(topic_id, [])
+            brokers_raw = self._routing.get(topic_id, [])
+            
+            # 1. Broker segment capacity (Max of any active broker path)
+            broker_capacities = []
+            for b_id, b_weight in brokers_raw:
+                if not active_only or self.is_active(b_id):
+                    b_perf = self.components[b_id].performance
+                    broker_capacities.append(b_perf * b_weight)
+            
+            broker_segment_capacity = max(broker_capacities) if broker_capacities else 0.0
+            
+            if active_only and broker_segment_capacity <= 0:
+                continue
+                
+            for p_id, p_weight in pubs_raw:
+                p_perf = self.components[p_id].performance
+                if active_only and p_perf <= 0:
+                    continue
+                    
+                path_prefix_capacity = min(p_perf, p_weight, broker_segment_capacity)
+                
+                for s_id, s_weight in subs_raw:
+                    s_perf = self.components[s_id].performance
+                    if active_only and s_perf <= 0:
+                        continue
+                        
+                    capacity = min(path_prefix_capacity, s_weight, s_perf)
+                    
+                    if not active_only or capacity > 0:
+                        paths.append((p_id, topic_id, s_id, capacity))
+                        
         return paths
 
     def count_active_connected_components(self):  # -> int

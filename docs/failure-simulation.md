@@ -246,15 +246,19 @@ After the cascade terminates, three metrics quantify the damage from failing com
 
 ### Reachability Loss
 
-Measures what fraction of previously possible pub-sub communication paths are now broken.
+Measures what fraction of the aggregate system communication capacity is lost. Unlike binary reachability, this weighted formulation accounts for partial performance degradation in `DEGRADED` components and edge-specific quality constraints.
 
-```
-ReachabilityLoss(v) = 1 − (reachable pairs after removing v and cascade) / (reachable pairs in original G)
-```
+**Formulation:**
+$$ReachabilityLoss = 1 - \frac{\sum_{\text{path } \in \text{Paths}} \text{Capacity}(\text{path})}{\sum_{\text{path } \in \text{Paths}} \text{InitialCapacity}(\text{path})}$$
 
-A "reachable pair" is any (Publisher A, Subscriber B) for which at least one active message path exists through the graph. Reachability is computed on G_structural restricted to ACTIVE components after cascade.
+Where the **Path Capacity** is determined by the "weakest link" along the delivery chain:
+$$\text{Capacity}(P \to T \to S) = \min(\Phi(P), W_{PT}, \text{BrokerSegment}(T), W_{TS}, \Phi(S))$$
 
-A value of 1.0 means all pub-sub communication has been lost. A value of 0.0 means no paths were disrupted.
+- **Broker Segment**: The maximum capacity of any available routing path: $\text{BrokerSegment}(T) = \max_{b \in \text{Brokers}(T)} (\Phi(b) \cdot W_{bT})$.
+- **$\Phi(c)$**: Performance of component $c$ (Active: 1.0, Degraded: 0.5, Failed: 0.0).
+- **$W_{xy}$**: Normalized edge weight/quality of the relationship.
+
+A value of 1.0 means all pub-sub capacity has been lost. A value of 0.0 means no capacity was disrupted.
 
 ### Fragmentation
 

@@ -64,6 +64,7 @@ class FailureSimulator:
         
         # Baseline metrics (computed once per exhaustive run, or per simulate call)
         self._initial_paths: int = 0
+        self._initial_capacity_sum: float = 0.0
         self._initial_components: int = 0
         self._initial_connected_components: int = 1
         self._initial_total_weight: float = 0.0
@@ -315,13 +316,17 @@ class FailureSimulator:
     
     def _compute_baseline(self) -> None:
         """Compute and cache baseline metrics from the current (healthy) graph state."""
-        self._initial_paths = len(self.graph.get_pub_sub_paths(active_only=True))
+        weighted_paths = self.graph.get_weighted_pub_sub_paths(active_only=True)
+        self._initial_paths = len(weighted_paths)
+        self._initial_capacity_sum = sum(p[3] for p in weighted_paths)
+        
         self._initial_components = len([
             c for c in self.graph.components.values()
             if c.type in ("Application", "Broker", "Node") and c.state == ComponentState.ACTIVE
         ])
         self._initial_connected_components = self.graph.count_active_connected_components()
         self._initial_total_weight = self._compute_total_topic_weight()
+        self._baseline_computed = True
     
     def _compute_total_topic_weight(self) -> float:
         """Compute total QoS-weighted topic capacity."""
@@ -493,25 +498,15 @@ class FailureSimulator:
         """
         Calculate impact metrics after failure cascade.
         
-        Three orthogonal dimensions:
-        
-        1. Reachability Loss — fraction of deliverable pub-sub paths broken.
-           A path (publisher → topic → subscriber) is deliverable only when
-           publisher, subscriber, AND at least one routing broker are all active.
-        
-        2. Fragmentation — normalized increase in weakly-connected components
-           of the active subgraph. Measures topology disruption rather than
-           simple component loss (which would overlap with reachability).
-        
-        3. Throughput Loss — QoS-weighted fraction of topic capacity lost.
-           Higher-weight topics (e.g. safety-critical with high reliability
-           QoS) contribute more to the loss than low-priority topics.
+        Metrics use weighted formulation where applicable (Reachability, Throughput).
         """
-        # === Reachability Loss (broker-aware) ===
-        remaining_paths = len(self.graph.get_pub_sub_paths(active_only=True))
+        # === Reachability Loss (weighted path capacity) ===
+        weighted_paths = self.graph.get_weighted_pub_sub_paths(active_only=True)
+        remaining_paths = len(weighted_paths)
+        remaining_capacity_sum = sum(p[3] for p in weighted_paths)
         
-        if self._initial_paths > 0:
-            reachability_loss = 1.0 - (remaining_paths / self._initial_paths)
+        if self._initial_capacity_sum > 0:
+            reachability_loss = 1.0 - (remaining_capacity_sum / self._initial_capacity_sum)
         else:
             reachability_loss = 0.0
         
@@ -583,7 +578,7 @@ class FailureSimulator:
             comp = self.graph.components.get(comp_id)
             if comp:
                 cascade_by_type[comp.type] += 1
-        
+
         return ImpactMetrics(
             initial_paths=self._initial_paths,
             remaining_paths=remaining_paths,
@@ -645,7 +640,7 @@ class FailureSimulator:
                 related.append(f"Routes: {name}")
         return related
     
-    def _empty_result(self, scenario: FailureScenario, reason: str) -> FailureResult:
+    def _empty_result_multi(self, scenario: FailureScenario, reason: str) -> FailureResult:
         """Create an empty result for failed simulations."""
         return FailureResult(
             target_id=scenario.target_id,
