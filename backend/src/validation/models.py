@@ -110,10 +110,13 @@ class RankingMetrics:
     top_5_predicted: List[str] = field(default_factory=list)
     top_5_actual: List[str] = field(default_factory=list)
     top_5_common: List[str] = field(default_factory=list)
+    top_5_ci_lower: float = 0.0
+    top_5_ci_upper: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "top_5_overlap": round(self.top_5_overlap, 4),
+            "top_5_ci": [round(self.top_5_ci_lower, 4), round(self.top_5_ci_upper, 4)],
             "top_10_overlap": round(self.top_10_overlap, 4),
             "ndcg_5": round(self.ndcg_5, 4),
             "ndcg_10": round(self.ndcg_10, 4),

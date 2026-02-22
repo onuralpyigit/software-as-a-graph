@@ -40,11 +40,14 @@ class BenchmarkRecord:
 
     # --- Core validation metrics ---
     spearman: float = 0.0
+    spearman_ci: List[float] = field(default_factory=list)
     f1_score: float = 0.0
+    f1_ci: List[float] = field(default_factory=list)
     precision: float = 0.0
     recall: float = 0.0
     rmse: float = 0.0
     top5_overlap: float = 0.0
+    top5_ci: List[float] = field(default_factory=list)
     top10_overlap: float = 0.0
     auc_pr: float = 0.0
 
@@ -89,11 +92,14 @@ class AggregateResult:
     # Validation (averages)
     avg_spearman: float = 0.0
     std_spearman: float = 0.0
+    avg_spearman_ci: List[float] = field(default_factory=list)
     avg_f1: float = 0.0
     std_f1: float = 0.0
+    avg_f1_ci: List[float] = field(default_factory=list)
     avg_precision: float = 0.0
     avg_recall: float = 0.0
     avg_top5: float = 0.0
+    avg_top5_ci: List[float] = field(default_factory=list)
     avg_top10: float = 0.0
     avg_rmse: float = 0.0
     avg_auc_pr: float = 0.0

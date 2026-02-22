@@ -27,8 +27,9 @@
 13. [Statistical Robustness and Stability](#statistical-robustness-and-stability)
 14. [Comparative Analysis against Baselines](#comparative-analysis-against-baselines)
 15. [Classification Threshold Asymmetry](#classification-threshold-asymmetry)
-16. [Commands](#commands)
-17. [What Comes Next](#what-comes-next)
+16. [Statistical Stability and Confidence Intervals](#statistical-stability-and-confidence-intervals)
+17. [Commands](#commands)
+18. [What Comes Next](#what-comes-next)
 
 ---
 
@@ -611,6 +612,22 @@ The binary classification gate evaluates whether $Q(v)$ and $I(v)$ identify the 
 
 **Mitigation: AUC-PR**
 To complement the fixed-threshold F1 gate, we report **AUC-PR**. Because AUC-PR analyzes the entire Precision-Recall curve by sweeping the threshold through all possible values, it is immune to this specific bias. A high AUC-PR with a low F1-score confirms that the model correctly ranks critical components, even if the fixed box-plot threshold is currently creating a size mismatch.
+
+---
+
+### Statistical Stability and Confidence Intervals
+
+Validation results are reported with **95% Bootstrap Confidence Intervals** (using 1,000 bootstrap iterations) for the primary gate metrics: Spearman ρ, F1-Score, and Top-5 Overlap.
+
+#### Why Bootstrap CIs?
+A point estimate (e.g., ρ = 0.85) provides the observed correlation on the full dataset. However, because software graphs are stochastic and simulation results vary by seed, a point estimate alone does not convey the **stability** of the metric.
+
+- **Sample Size Dependency**: In smaller graphs ($n < 20$), metrics are highly sensitive to single-component outliers. A wide CI (e.g., [0.55, 0.95]) indicates that the result is promising but unstable.
+- **Methodological Credibility**: Reporting CIs aligns with rigorous statistical standards (e.g., APA/IEEE). It ensures that validation claims (e.g., "The model captures 80% of critical components") are transparent about the expected noise floor.
+
+#### Interpretation
+- **Metric Stability**: A narrow interval indicates high stability.
+- **Fail Verification**: If the lower bound of the 95% CI is significantly below the target gate (e.g., ρ = 0.72 [0.45, 0.88] while target is 0.70), the pass is considered **fragile** and should be verified with higher simulation trials or on a larger scale.
 
 ---
 

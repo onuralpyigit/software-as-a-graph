@@ -53,16 +53,15 @@ class ReportGenerator:
             "",
             "## Aggregated Results by Scale / Layer",
             "",
-            "| Scale | Layer | Runs | Pass Rate | Spearman ρ (±σ) | F1 (±σ) | Sim Time (ms) | Speedup |",
-            "|-------|-------|------|-----------|-----------------|---------|---------------|---------|",
+            "| Scale | Layer | Runs | Pass Rate | Spearman ρ [95% CI] | F1 Score [95% CI] | Sim Time (ms) |",
+            "|-------|-------|------|-----------|---------------------|-------------------|---------------|",
         ])
         for a in summary.aggregates:
-            sp = f"{a.avg_spearman:.3f}±{a.std_spearman:.3f}"
-            f1 = f"{a.avg_f1:.3f}±{a.std_f1:.3f}"
+            sp_ci = f"{a.avg_spearman:.3f} [{a.avg_spearman_ci[0]:.2f}, {a.avg_spearman_ci[1]:.2f}]" if a.avg_spearman_ci else f"{a.avg_spearman:.3f}"
+            f1_ci = f"{a.avg_f1:.3f} [{a.avg_f1_ci[0]:.2f}, {a.avg_f1_ci[1]:.2f}]" if a.avg_f1_ci else f"{a.avg_f1:.3f}"
             lines.append(
                 f"| {a.scale} | {a.layer} | {a.num_runs} | {a.pass_rate:.1f}% | "
-                f"{sp} | {f1} | {a.avg_time_simulation:.0f} | "
-                f"{a.speedup_ratio:.1f}x |"
+                f"{sp_ci} | {f1_ci} | {a.avg_time_simulation:.0f} |"
             )
 
         # ── Baseline Comparison ───────────────────────────────────
@@ -86,13 +85,14 @@ class ReportGenerator:
             "",
             "## Detailed Validation Metrics",
             "",
-            "| Scale | Layer | Precision | Recall | Top-5 | AUC-PR | RMSE |",
-            "|-------|-------|-----------|--------|-------|--------|------|",
+            "| Scale | Layer | Precision | Recall | Top-5 Overlap [95% CI] | AUC-PR | RMSE |",
+            "|-------|-------|-----------|--------|------------------------|--------|------|",
         ])
         for a in summary.aggregates:
+            t5_ci = f"{a.avg_top5:.3f} [{a.avg_top5_ci[0]:.2f}, {a.avg_top5_ci[1]:.2f}]" if a.avg_top5_ci else f"{a.avg_top5:.3f}"
             lines.append(
                 f"| {a.scale} | {a.layer} | {a.avg_precision:.3f} | "
-                f"{a.avg_recall:.3f} | {a.avg_top5:.3f} | "
+                f"{a.avg_recall:.3f} | {t5_ci} | "
                 f"{a.avg_auc_pr:.3f} | {a.avg_rmse:.3f} |"
             )
 

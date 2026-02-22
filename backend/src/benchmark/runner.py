@@ -247,10 +247,22 @@ class BenchmarkRunner:
     ) -> None:
         """Extract metrics from a ValidationResult into *record*."""
         record.spearman = val_result.overall.correlation.spearman
+        record.spearman_ci = [
+            val_result.overall.correlation.spearman_ci_lower,
+            val_result.overall.correlation.spearman_ci_upper
+        ]
         record.f1_score = val_result.overall.classification.f1_score
+        record.f1_ci = [
+            val_result.overall.classification.f1_ci_lower,
+            val_result.overall.classification.f1_ci_upper
+        ]
         record.precision = val_result.overall.classification.precision
         record.recall = val_result.overall.classification.recall
         record.top5_overlap = val_result.overall.ranking.top_5_overlap
+        record.top5_ci = [
+            val_result.overall.ranking.top_5_ci_lower,
+            val_result.overall.ranking.top_5_ci_upper
+        ]
         record.top10_overlap = val_result.overall.ranking.top_10_overlap
         record.auc_pr = val_result.overall.classification.auc_pr
         record.rmse = val_result.overall.error.rmse
@@ -439,6 +451,17 @@ class BenchmarkRunner:
         agg.avg_top10 = _mean("top10_overlap")
         agg.avg_rmse = _mean("rmse")
         agg.avg_auc_pr = _mean("auc_pr")
+
+        # Average bootstrap CIs
+        def _mean_ci(attr: str) -> List[float]:
+            lows = [r.__getattribute__(attr)[0] for r in recs if r.__getattribute__(attr)]
+            highs = [r.__getattribute__(attr)[1] for r in recs if r.__getattribute__(attr)]
+            if not lows: return [0.0, 0.0]
+            return [sum(lows) / len(lows), sum(highs) / len(highs)]
+
+        agg.avg_spearman_ci = _mean_ci("spearman_ci")
+        agg.avg_f1_ci = _mean_ci("f1_ci")
+        agg.avg_top5_ci = _mean_ci("top5_ci")
 
         # Baseline averages
         agg.avg_spearman_bc = _mean("spearman_bc")

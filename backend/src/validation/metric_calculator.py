@@ -162,6 +162,9 @@ def calculate_ranking(
     predicted: Dict[str, float],
     actual: Dict[str, float],
     k_values: Optional[List[int]] = None,
+    n_bootstrap: int = 1000,
+    ci_confidence: float = 0.95,
+    seed: int = 42,
 ) -> RankingMetrics:
     if k_values is None:
         k_values = [5, 10]
@@ -185,6 +188,18 @@ def calculate_ranking(
     ndcg_5 = _calculate_ndcg(pred_ids, actual, k=5)
     ndcg_10 = _calculate_ndcg(pred_ids, actual, k=10)
 
+    ci_lower, ci_upper = 0.0, 0.0
+    n = len(predicted)
+    if n >= 5:
+        ci_lower, ci_upper = _bootstrap_ranking_ci(
+            predicted, actual, k=5,
+            n_bootstrap=n_bootstrap,
+            confidence=ci_confidence,
+            seed=seed,
+        )
+    elif n >= 3:
+        ci_lower, ci_upper = overlap_5, overlap_5
+
     return RankingMetrics(
         top_5_overlap=overlap_5,
         top_10_overlap=overlap_10,
@@ -193,7 +208,50 @@ def calculate_ranking(
         top_5_predicted=pred_5,
         top_5_actual=actual_5,
         top_5_common=common_5,
+        top_5_ci_lower=ci_lower,
+        top_5_ci_upper=ci_upper,
     )
+
+
+def _bootstrap_ranking_ci(
+    predicted: Dict[str, float],
+    actual: Dict[str, float],
+    k: int = 5,
+    n_bootstrap: int = 1000,
+    confidence: float = 0.95,
+    seed: int = 42,
+) -> Tuple[float, float]:
+    rng = random.Random(seed)
+    keys = list(predicted.keys())
+    n = len(keys)
+    if n < k:
+        return 0.0, 0.0
+
+    samples: List[float] = []
+    for _ in range(n_bootstrap):
+        # Sample with replacement from keys
+        indices = [rng.randint(0, n - 1) for _ in range(n)]
+        s_keys = [keys[i] for i in indices]
+        
+        # In bootstrap for overlap, we need to be careful.
+        # If we just resample the set, the 'Top-K' changes.
+        s_pred = {f"k_{i}": predicted[k] for i, k in enumerate(s_keys)}
+        s_actual = {f"k_{i}": actual[k] for i, k in enumerate(s_keys)}
+        
+        p_sorted = sorted(s_pred.items(), key=lambda x: x[1], reverse=True)
+        a_sorted = sorted(s_actual.items(), key=lambda x: x[1], reverse=True)
+        
+        p_top = set(x[0] for x in p_sorted[:k])
+        a_top = set(x[0] for x in a_sorted[:k])
+        
+        overlap = len(p_top & a_top) / k
+        samples.append(overlap)
+
+    samples.sort()
+    alpha = (1 - confidence) / 2
+    lo_idx = max(0, int(alpha * len(samples)))
+    hi_idx = min(len(samples) - 1, int((1 - alpha) * len(samples)))
+    return samples[lo_idx], samples[hi_idx]
 
 
 def bootstrap_ci(
