@@ -97,6 +97,8 @@ class QualityAnalyzer:
         weights: Optional[QualityWeights] = None,
         use_ahp: bool = False,
         normalization_method: str = "robust",
+        winsorize: bool = True,
+        winsorize_limit: float = 0.05,
         adapt_qos_weights: bool = True,
     ) -> None:
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
@@ -105,6 +107,8 @@ class QualityAnalyzer:
             else (weights or QualityWeights())
         )
         self.normalization_method = normalization_method
+        self.winsorize = winsorize
+        self.winsorize_limit = winsorize_limit
         self.adapt_qos_weights = adapt_qos_weights
         self._logger = logging.getLogger(__name__)
 
@@ -638,10 +642,13 @@ class QualityAnalyzer:
         """
         Compute normalization factors based on the configured method.
 
-        Methods:
-            'max' : x_norm = x / max(x). Simple, preserves proportions.
-            'robust': x_norm = rank(x) / n. Outlier-resistant, uniform distribution.
+        Steps:
+            1. (Optional) Winsorize: caps extreme outliers at (1 - limit) percentile.
+            2. Scale: 'max' or 'robust' (rank-based).
         """
+        if self.winsorize:
+            components = self._winsorize_components(components, limit=self.winsorize_limit)
+
         if self.normalization_method == "robust":
             return self._normalize_robust(components)
         return self._normalize_max(components)
@@ -707,6 +714,48 @@ class QualityAnalyzer:
             "total_degree":    [(c.id, c.total_degree_raw)  for c in components],
         }
         return {name: _rank_normalise(vals) for name, vals in metrics.items()}
+
+    @staticmethod
+    def _winsorize_components(
+        components: List[StructuralMetrics], 
+        limit: float = 0.05
+    ) -> List[StructuralMetrics]:
+        """
+        Apply winsorization to raw structural metrics.
+        Caps values above the (1 - limit) percentile to mitigate outlier influence.
+        """
+        if not components or limit <= 0:
+            return components
+
+        import copy
+
+        def _get_cap(values: List[float], p: float) -> float:
+            if not values: return 0.0
+            s = sorted(values)
+            n = len(s)
+            k_idx = (n - 1) * p
+            f = int(k_idx)
+            c = min(f + 1, n - 1)
+            return s[f] + (k_idx - f) * (s[c] - s[f])
+
+        # We must copy metrics because we are going to modify them
+        winsorized = [copy.copy(c) for c in components]
+        
+        metrics_to_winsorize = [
+            "pagerank", "reverse_pagerank", "betweenness", "closeness", 
+            "eigenvector", "in_degree_raw", "out_degree_raw"
+        ]
+
+        for attr in metrics_to_winsorize:
+            raw_vals = [getattr(c, attr) for c in components]
+            cap = _get_cap(raw_vals, 1.0 - limit)
+            
+            for c in winsorized:
+                val = getattr(c, attr)
+                if val > cap:
+                    setattr(c, attr, cap)
+        
+        return winsorized
 
     # ------------------------------------------------------------------
     # QoS-aware weight derivation (Fix 3)

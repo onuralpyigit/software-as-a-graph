@@ -142,8 +142,10 @@ Binary classification compares which components are predicted critical (Q-critic
 
 ```
 Q-critical:  Q(v) > Q3_Q + 1.5 × IQR_Q   (outliers in the Q distribution)
-I-critical:  I(v) > Q3_I + 1.5 × IQR_I   (outliers in the I distribution)
+I-critical:  I(v) > Q3_I + 1.5 × IQR_I   (outliers in the I distribution after Winsorization)
 ```
+
+**Note on Robustness**: To mitigate simulation noise and extreme stochastic outliers, $I(v)$ scores are **Winsorized** (capped at the 95th percentile) before constructing the box-plot. This ensures that a single catastrophic cascade doesn't inflate the IQR so much that other truly critical components appear insignificant.
 
 This produces a 2×2 confusion matrix:
 

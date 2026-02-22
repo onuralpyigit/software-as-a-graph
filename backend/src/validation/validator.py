@@ -13,6 +13,7 @@ from .models import (
 from .metric_calculator import (
     calculate_correlation, calculate_error, calculate_classification, calculate_ranking
 )
+from src.analysis.classifier import BoxPlotClassifier
 
 
 class Validator:
@@ -23,10 +24,12 @@ class Validator:
     def __init__(
         self,
         targets: Optional[ValidationTargets] = None,
-        critical_percentile: float = 75.0,
+        k_factor: float = 0.75,
+        winsorize_actuals: bool = True,
     ):
         self.targets = targets or ValidationTargets()
-        self.critical_percentile = critical_percentile
+        self.classifier = BoxPlotClassifier(k_factor=k_factor)
+        self.winsorize_actuals = winsorize_actuals
         self.logger = logging.getLogger(__name__)
 
     def validate(
@@ -107,12 +110,18 @@ class Validator:
         correlation = calculate_correlation(pred_vals, actual_vals)
         error = calculate_error(pred_vals, actual_vals)
 
-        pred_thresh = self._percentile(pred_vals, self.critical_percentile)
-        actual_thresh = self._percentile(actual_vals, self.critical_percentile)
-        pred_crit = [v >= pred_thresh for v in pred_vals]
-        actual_crit = [v >= actual_thresh for v in actual_vals]
-        classification = calculate_classification(pred_crit, actual_crit)
+        # Apply winsorization to actual scores if enabled (mitigate simulation outliers)
+        if self.winsorize_actuals:
+            actual_vals = self._winsorize(actual_vals, limit=0.05)
 
+        # Adaptive thresholding via Box-Plot
+        pred_stats = self.classifier.compute_stats(pred_vals)
+        actual_stats = self.classifier.compute_stats(actual_vals)
+
+        pred_crit = [v > pred_stats.upper_fence for v in pred_vals]
+        actual_crit = [v > actual_stats.upper_fence for v in actual_vals]
+        
+        classification = calculate_classification(pred_crit, actual_crit)
         ranking = calculate_ranking(predicted, actual)
 
         components: List[ComponentComparison] = []
@@ -150,6 +159,13 @@ class Validator:
             targets=self.targets,
             components=components,
         )
+
+    def _winsorize(self, values: List[float], limit: float = 0.05) -> List[float]:
+        """Cap values at (1 - limit) percentile."""
+        if not values or limit <= 0:
+            return values
+        cap = self._percentile(values, (1.0 - limit) * 100)
+        return [min(v, cap) for v in values]
 
     def _percentile(self, values: List[float], p: float) -> float:
         if not values:
