@@ -41,10 +41,13 @@ class QualityWeights:
         - Fast-iteration systems: Increase q_maintainability
         - Mission-critical systems: Increase q_reliability
     """
-    # Reliability weights (fault propagation)
-    r_pagerank: float = 0.50         # AHP: (1.0, 2.0, 2.0)
-    r_reverse_pagerank: float = 0.25
-    r_in_degree: float = 0.25
+    # Reliability weights (fault propagation) — R(v) = RPR + w_in + CDPot (v4)
+    # r_pagerank and r_in_degree are kept at 0.0 for backward-compat serialisation only.
+    r_pagerank: float = 0.0          # Deprecated (v4): superseded by w_in; kept for compat
+    r_reverse_pagerank: float = 0.40 # AHP leader: propagation reach (RPR)
+    r_in_degree: float = 0.0         # Deprecated (v4): subsumed by w_in; kept for compat
+    r_w_in: float = 0.35             # QoS-weighted in-degree (promoted from 'Reported only')
+    r_cdpot: float = 0.25            # Cascade Depth Potential (derived, depth signal)
     
     # Maintainability weights (efferent coupling complexity)
     m_betweenness: float = 0.54       # AHP: (1.0, 2.0, 3.0)
@@ -94,16 +97,19 @@ class AHPMatrices:
     Stores pairwise comparison matrices for all quality dimensions.
     Default values reflect a balanced/standard architectural perspective.
     
-    Metric assignments (v2):
-        Reliability:      PageRank (PR), Reverse PageRank (RPR), In-Degree (ID)
+    Metric assignments (v4):
+        Reliability:      Reverse PageRank (RPR), QoS-Weighted In-Degree (w_in), CDPot
         Maintainability:  Betweenness (BT), Out-Degree (OD), Clustering (CC)
         Availability:     Articulation Score (AP_c), Bridge Ratio (BR), QoS Weight w(v)
         Vulnerability:    Eigenvector (EV), Closeness (CL)
-        Impact (I(v)):    Reachability (RL), Fragmentation (FR), Throughput (TL)
+        Impact I(v):      Reachability (RL), Fragmentation (FR), Throughput (TL), Flow Disruption (FD)
+        Impact IR(v):     Cascade Reach (CR), Weighted Cascade Impact (WCI), Normalised Depth (ND)
     """
     
-    # Reliability: PageRank (PR), Reverse PageRank (RPR), In-Degree (ID)
-    # PR is often slightly more important for global importance
+    # Reliability v4: Reverse PageRank (RPR), QoS-Weighted In-Degree (w_in), CDPot
+    # RPR: primary propagation reach
+    # w_in: QoS-weighted dependent count — richer than raw DG_in
+    # CDPot: derived depth signal (no new algorithm needed)
     criteria_reliability: List[List[float]] = None
     
     # Maintainability: Betweenness (BT), Out-Degree (OD), Clustering (CC)
@@ -133,11 +139,12 @@ class AHPMatrices:
         # Default initialization if None
         if self.criteria_reliability is None:
             self.criteria_reliability = [
-                # PR   RPR  ID
-                [1.0, 2.0, 2.0],  # PR
-                [0.5, 1.0, 1.0],  # RPR
-                [0.5, 1.0, 1.0],  # ID
+                # RPR   w_in  CDPot
+                [1.0,  0.67, 2.0],  # RPR  (primary propagation reach)
+                [1.5,  1.0,  3.0],  # w_in (QoS-weighted dependents; richer than raw DG_in)
+                [0.5,  0.33, 1.0],  # CDPot (derived depth signal)
             ]
+            # AHP-derived weights (geometric mean + shrinkage=0.7) ≈ (0.40, 0.35, 0.25)
             
         if self.criteria_maintainability is None:
             self.criteria_maintainability = [
@@ -270,7 +277,7 @@ class AHPProcessor:
     def compute_weights(self) -> QualityWeights:
         """Process all matrices and return a populated QualityWeights object."""
         
-        # 1. Reliability Weights (PR, RPR, ID)
+        # 1. Reliability Weights v4 (RPR, w_in, CDPot)
         w_rel = self._calculate_priority_vector(self.matrices.criteria_reliability)
         w_rel = self._shrink_weights(w_rel)
         
@@ -295,10 +302,12 @@ class AHPProcessor:
         w_over = self._shrink_weights(w_over)
         
         return QualityWeights(
-            # Reliability
-            r_pagerank=w_rel[0],
-            r_reverse_pagerank=w_rel[1],
-            r_in_degree=w_rel[2],
+            # Reliability v4: (RPR, w_in, CDPot)
+            r_pagerank=0.0,               # Deprecated
+            r_reverse_pagerank=w_rel[0],  # RPR — primary
+            r_in_degree=0.0,              # Deprecated; subsumed by w_in
+            r_w_in=w_rel[1],              # QoS-weighted in-degree
+            r_cdpot=w_rel[2],             # Cascade Depth Potential
             
             # Maintainability
             m_betweenness=w_main[0],

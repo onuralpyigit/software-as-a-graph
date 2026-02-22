@@ -222,6 +222,48 @@ class FailureSimulator:
         # Sort by composite impact (highest first)
         results.sort(key=lambda r: r.impact.composite_impact, reverse=True)
         
+        # --- IR(v) post-pass --------------------------------------------------
+        # Compute the three Reliability-specific sub-fields for each result.
+        # Requires knowing total graph size and weight; executed after all runs
+        # so normalisation denominators are available.
+        
+        total_components = len(self.graph.components)
+        
+        # Total QoS weight across all components in the graph
+        total_weight = sum(
+            getattr(c, 'weight', 1.0)
+            for c in self.graph.components.values()
+        )
+        if total_weight <= 0:
+            total_weight = max(total_components, 1)
+        
+        max_observed_depth = max(
+            (r.impact.cascade_depth for r in results if r.impact.cascade_depth > 0),
+            default=1
+        )
+        
+        for r in results:
+            n = total_components - 1  # exclude the failed component itself
+            
+            # cascade_reach = fraction of all (other) components that failed
+            r.impact.cascade_reach = (
+                len(r.cascaded_failures) / n if n > 0 else 0.0
+            )
+            
+            # weighted_cascade_impact = importance-weighted failure fraction
+            cascaded_weight = sum(
+                getattr(self.graph.components[cid], 'weight', 1.0)
+                for cid in r.cascaded_failures
+                if cid in self.graph.components
+            )
+            r.impact.weighted_cascade_impact = cascaded_weight / total_weight
+            
+            # normalized_cascade_depth = depth relative to run-wide maximum
+            r.impact.normalized_cascade_depth = (
+                r.impact.cascade_depth / max_observed_depth
+                if max_observed_depth > 0 else 0.0
+            )
+        
         return results
 
     def simulate_pairwise(

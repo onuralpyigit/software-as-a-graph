@@ -6,23 +6,24 @@ overall quality score, then classifies every component and edge using the
 Box-Plot method (adaptive, data-driven thresholds).
 
 Formulas (per component v):
-    R(v) = w_pr·PR   + w_rpr·RPR   + w_in·InDeg           (Reliability)
+    R(v) = w_rpr·RPR + w_win·w_in + w_cdp·CDPot          (Reliability)
     M(v) = w_bt·BC   + w_od·OutDeg + w_cl·(1 – CC)        (Maintainability)
     A(v) = w_ap·AP_c + w_br·Bridge + w_imp·Importance      (Availability)
     V(v) = w_ev·Eig  + w_cl·Close  + w_od·OutDeg           (Vulnerability)
     Q(v) = w_R·R(v)  + w_M·M(v)    + w_A·A(v) + w_V·V(v)  (Overall)
 
-Design changes (v2):
-    - Metric orthogonality: In-Degree exclusive to R(v), Out-Degree shared
-      between M(v) and V(v) with distinct semantics (efferent coupling vs
-      attack surface). No raw metric appears in more than two dimensions.
-    - Continuous AP: Binary is_articulation_point replaced by AP_c(v)
-      measuring reachability loss after node removal.
-    - Out-Degree in M(v): Efferent coupling aligns with SE maintainability
-      theory (Martin's Instability metric).
-    - Out-Degree in V(v): Outbound connections = traversable attack surface.
-    - Edge RMAV: Edges scored with endpoint-aware formulas instead of ad-hoc
-      weights.
+R(v) v4 metrics:
+    RPR(v)   — Reverse PageRank on G^T: propagation reach
+    w_in(v)  — QoS-weighted in-degree (promoted from 'Reported only')
+    CDPot(v) — Cascade Depth Potential (derived, no new algorithm):
+                ((RPR + DG_in) / 2) × (1 − min(DG_out / DG_in, 1))
+
+Design changes (v4):
+    - R(v) formula: PR(v) removed (correlated with RPR); DG_in replaced by w_in
+      (QoS-weighted — strictly more informative than unweighted in-degree);
+      CDPot added as derived depth signal without new algorithm cost.
+    - pubsub_betweenness removed from R(v): it belongs in Maintainability via
+      betweenness; its redistribution hack is eliminated for a cleaner formula.
 
 Classification (Box-Plot):
     CRITICAL : score > Q3 + k×IQR
@@ -341,17 +342,18 @@ class QualityAnalyzer:
         qw   = _n(m.weight,           "weight")
         psbt = m.pubsub_betweenness  # already in [0,1]
 
-        # --- RMAV formulas (v3 — pub-sub betweenness added to Reliability) ---
+        # --- Reliability: R(v) v4 = RPR + w_in + CDPot ---
+        # CDPot(v) = ((RPR + DG_in) / 2) × (1 − min(DG_out / DG_in, 1))
+        # Depth penalty: high out/in ratio → shallow fan-out cascade (less CDPot)
+        # High in/out ratio → deep absorber cascade (more CDPot)
+        _denom = max(id_n, 1e-9)  # avoid division by zero
+        _cdpot_reach = (rpr + id_n) / 2.0
+        _cdpot_depth = 1.0 - min(od_n / _denom, 1.0)
+        cdpot = _cdpot_reach * _cdpot_depth
 
-        # Reliability: fault propagation risk via DEPENDS_ON + pub-sub fabric
-        # Weight split: r_pubsub_betweenness steals 0.20 from r_pagerank
-        r_ps_weight = getattr(w, 'r_pubsub_betweenness', 0.20)
-        r_pr_eff = w.r_pagerank * (1.0 - r_ps_weight)
-        r_rpr_eff = w.r_reverse_pagerank * (1.0 - r_ps_weight)
-        r_id_eff  = w.r_in_degree * (1.0 - r_ps_weight)
-        total_r_orig = r_pr_eff + r_rpr_eff + r_id_eff + r_ps_weight
-        # Renormalise so the 4-term sum stays at 1.0
-        R = (r_pr_eff * pr + r_rpr_eff * rpr + r_id_eff * id_n + r_ps_weight * psbt) / total_r_orig
+        # qw serves as the normalised w_in: QoS-derived component weight already
+        # incorporates both dependent count and QoS quality of those dependencies.
+        R = w.r_reverse_pagerank * rpr + getattr(w, 'r_w_in', 0.35) * qw + getattr(w, 'r_cdpot', 0.25) * cdpot
 
         # Maintainability: efferent coupling + bottleneck position
         M = w.m_betweenness * bt + w.m_out_degree * od_n + w.m_clustering * (1.0 - cc)
@@ -574,7 +576,11 @@ class QualityAnalyzer:
             total = sum(perturbed)
             return [p / total for p in perturbed]
 
-        r_weights = _perturb_group(w.r_pagerank, w.r_reverse_pagerank, w.r_in_degree)
+        r_weights = _perturb_group(
+            w.r_reverse_pagerank,
+            getattr(w, 'r_w_in', 0.35),
+            getattr(w, 'r_cdpot', 0.25),
+        )
         m_weights = _perturb_group(w.m_betweenness, w.m_out_degree, w.m_clustering)
         a_weights = _perturb_group(w.a_articulation, w.a_bridge_ratio, w.a_importance)
         v_weights = _perturb_group(w.v_eigenvector, w.v_closeness, w.v_out_degree)
@@ -583,7 +589,8 @@ class QualityAnalyzer:
         )
 
         return QualityWeights(
-            r_pagerank=r_weights[0], r_reverse_pagerank=r_weights[1], r_in_degree=r_weights[2],
+            r_pagerank=0.0, r_reverse_pagerank=r_weights[0], r_in_degree=0.0,
+            r_w_in=r_weights[1], r_cdpot=r_weights[2],
             m_betweenness=m_weights[0], m_out_degree=m_weights[1], m_clustering=m_weights[2],
             a_articulation=a_weights[0], a_bridge_ratio=a_weights[1], a_importance=a_weights[2],
             v_eigenvector=v_weights[0], v_closeness=v_weights[1], v_out_degree=v_weights[2],

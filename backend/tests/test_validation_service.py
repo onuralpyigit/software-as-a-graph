@@ -583,9 +583,9 @@ class TestPassFailLogic:
         assert result.overall.targets.spearman == 0.99
 
     def test_top5_overlap_default_aligned_with_docs(self):
-        """Default top_5_overlap should be 0.40 (aligned with documentation)."""
+        """Default top_5_overlap should be 0.60 (tightened in v4 to align with reliability targets)."""
         targets = ValidationTargets()
-        assert targets.top_5_overlap == 0.40
+        assert targets.top_5_overlap == 0.60
 
 
 # =============================================================================

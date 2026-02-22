@@ -126,11 +126,71 @@ class ValidationService:
             context=layer_def.name
         )
 
-        # 4. Per-dimension correlation (informational, Fix 5)
+        # 4. Per-dimension correlation — Reliability uses IR(v) ground truth
+        # (ρ(R(v), IR(v)) instead of ρ(R(v), reachability_loss))
+        self.logger.info("Computing reliability-specific validation (IR(v) ground truth)...")
         dimensional_validation = {}
-        from src.validation.metric_calculator import calculate_correlation
+        from src.validation.metric_calculator import (
+            calculate_correlation, calculate_ccr_at_k, calculate_cme
+        )
+
+        # Build reliability-specific ground truth IR(v)
+        actual_reliability_impact = {
+            r.target_id: r.impact.reliability_impact for r in sim_results
+        }
+
+        # ρ(R(v), IR(v)): reliability predictor vs cascade-specific ground truth
+        try:
+            common_r = sorted(set(pred_reliability) & set(actual_reliability_impact))
+            if len(common_r) >= 3:
+                p_r_vals = [float(pred_reliability[k])          for k in common_r]
+                a_ir_vals = [float(actual_reliability_impact[k]) for k in common_r]
+                r_corr = calculate_correlation(p_r_vals, a_ir_vals)
+                reliability_spearman = r_corr.spearman
+
+                # CCR@5: Cascade Capture Rate
+                pred_r_dict = {k: pred_reliability[k]          for k in common_r}
+                act_ir_dict = {k: actual_reliability_impact[k] for k in common_r}
+                ccr5 = calculate_ccr_at_k(pred_r_dict, act_ir_dict, k=5)
+                cme = calculate_cme(pred_r_dict, act_ir_dict)
+
+                dimensional_validation["reliability"] = {
+                    "spearman": round(r_corr.spearman, 4),
+                    "spearman_p": round(r_corr.spearman_p, 6),
+                    "ccr_5": round(ccr5, 4),
+                    "cme": round(cme, 4),
+                    "n": len(common_r),
+                    "ground_truth": "IR(v)",
+                }
+                self.logger.info(
+                    "Reliability dim [%s]: \u03c1(R,IR)=%.3f (n=%d), CCR@5=%.3f, CME=%.4f",
+                    sim_layer.value, r_corr.spearman, len(common_r), ccr5, cme,
+                )
+
+                # False-alarm diagnostic: HIGH/CRITICAL R predicted but LOW IR
+                pred_r_sorted = sorted(pred_r_dict.items(), key=lambda x: x[1], reverse=True)
+                top_r_ids = {cid for cid, _ in pred_r_sorted[:5]}
+                ir_sorted = sorted(act_ir_dict.items(), key=lambda x: x[1], reverse=True)
+                bottom_ir_n = max(1, len(ir_sorted) // 2)
+                bottom_ir_ids = {cid for cid, _ in ir_sorted[bottom_ir_n:]}
+                false_alarms = top_r_ids & bottom_ir_ids
+                if false_alarms:
+                    self.logger.warning(
+                        "Reliability false alarms (HIGH R(v) but LOW IR(v)): %s",
+                        sorted(false_alarms),
+                    )
+            else:
+                reliability_spearman = 0.0
+                ccr5 = 0.0
+                cme = 0.0
+        except Exception as e:
+            self.logger.debug("Reliability-specific validation skipped: %s", e)
+            reliability_spearman = 0.0
+            ccr5 = 0.0
+            cme = 0.0
+
+        # Availability and Vulnerability dimensional correlations (existing; kept for reference)
         for dim_name, pred_dim, actual_dim in [
-            ("reliability",    pred_reliability,   actual_reachability),
             ("availability",   pred_availability,  actual_fragmentation),
             ("vulnerability",  pred_vulnerability, actual_throughput),
         ]:
@@ -167,6 +227,7 @@ class ValidationService:
             top_5_overlap=validation_res.overall.ranking.top_5_overlap,
             top_10_overlap=validation_res.overall.ranking.top_10_overlap,
             rmse=validation_res.overall.error.rmse,
+            reliability_spearman=reliability_spearman,
             
             passed=validation_res.passed,
             comparisons=validation_res.overall.components,

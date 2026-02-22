@@ -330,6 +330,23 @@ class ImpactMetrics:
         "throughput": 0.25,
         "flow_disruption": 0.15
     })
+
+    # -----------------------------------------------------------------------
+    # IR(v): Reliability-specific ground truth (fault propagation dynamics)
+    # -----------------------------------------------------------------------
+    # Populated by failure_simulator.simulate_exhaustive() in a post-pass.
+    # cascade_reach = cascade_count / (|V| - 1)
+    # weighted_cascade_impact = Σw(cascaded) / Σw(all)
+    # normalized_cascade_depth = cascade_depth / max_observed_depth_in_run
+    cascade_reach: float = 0.0
+    weighted_cascade_impact: float = 0.0
+    normalized_cascade_depth: float = 0.0
+
+    reliability_weights: Dict[str, float] = field(default_factory=lambda: {
+        "cascade_reach": 0.45,
+        "weighted_cascade_impact": 0.35,
+        "normalized_depth": 0.20,
+    })
     
     @property
     def composite_impact(self) -> float:
@@ -339,6 +356,22 @@ class ImpactMetrics:
             w.get("fragmentation", 0.25) * self.fragmentation +
             w.get("throughput", 0.25) * self.throughput_loss +
             w.get("flow_disruption", 0.15) * self.flow_disruption
+        )
+
+    @property
+    def reliability_impact(self) -> float:
+        """IR(v) — Reliability-specific ground truth from fault propagation dynamics.
+
+        Measures cascade propagation directly rather than Availability-biased
+        structural connectivity loss.  Only meaningful after the exhaustive
+        simulation post-pass has populated cascade_reach, weighted_cascade_impact,
+        and normalized_cascade_depth.  Defaults to 0.0 until then.
+        """
+        w = self.reliability_weights
+        return (
+            w.get("cascade_reach", 0.45) * self.cascade_reach +
+            w.get("weighted_cascade_impact", 0.35) * self.weighted_cascade_impact +
+            w.get("normalized_depth", 0.20) * self.normalized_cascade_depth
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -362,6 +395,12 @@ class ImpactMetrics:
                 "depth": self.cascade_depth,
             },
             "composite_impact": round(self.composite_impact, 4),
+            "reliability": {
+                "cascade_reach": round(self.cascade_reach, 4),
+                "weighted_cascade_impact": round(self.weighted_cascade_impact, 4),
+                "normalized_cascade_depth": round(self.normalized_cascade_depth, 4),
+                "reliability_impact": round(self.reliability_impact, 4),
+            },
         }
 
 

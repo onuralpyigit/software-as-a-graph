@@ -415,6 +415,62 @@ def _calculate_ndcg(ranked_ids: List[str], relevance: Dict[str, float], k: int) 
     return dcg / idcg if idcg > 0 else 0.0
 
 
+def calculate_ccr_at_k(
+    predicted: Dict[str, float],
+    actual: Dict[str, float],
+    k: int = 5,
+) -> float:
+    """Cascade Capture Rate @ K.
+
+    CCR@K = |Top-K(R(v)) ∩ Top-K(IR(v))| / K
+
+    Measures how many of the top-K reliability-critical components
+    identified by the topology predictor also appear in the top-K
+    cascade-producing components from simulation ground truth.
+    Target: CCR@5 ≥ 0.80.
+    """
+    if not predicted or not actual or k <= 0:
+        return 0.0
+    pred_sorted = sorted(predicted.items(), key=lambda x: x[1], reverse=True)
+    actual_sorted = sorted(actual.items(), key=lambda x: x[1], reverse=True)
+    pred_top_k = {x[0] for x in pred_sorted[:k]}
+    actual_top_k = {x[0] for x in actual_sorted[:k]}
+    common = pred_top_k & actual_top_k
+    return len(common) / k
+
+
+def calculate_cme(
+    predicted: Dict[str, float],
+    actual: Dict[str, float],
+) -> float:
+    """Cascade Magnitude Error (rank distance, normalised by system size).
+
+    CME = mean|rank_R(v) - rank_IR(v)| / |V|
+
+    Validates that the *scale* of predicted fault propagation matches
+    the simulation-observed cascade magnitude, not just the ranking.  
+    Target: CME ≤ 0.10.
+    """
+    common = sorted(set(predicted) & set(actual))
+    n = len(common)
+    if n < 2:
+        return 0.0
+
+    def _rank_map(scores: Dict[str, float], ids: List[str]) -> Dict[str, int]:
+        """Return 1-based rank for each id (lower score = higher rank number)."""
+        sorted_ids = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        return {cid: i + 1 for i, (cid, _) in enumerate(sorted_ids)}
+
+    pred_ranks = _rank_map(predicted, common)
+    actual_ranks = _rank_map(actual, common)
+
+    total_rank_error = sum(
+        abs(pred_ranks.get(cid, n) - actual_ranks.get(cid, n))
+        for cid in common
+    )
+    return (total_rank_error / n) / n  # normalise by system size
+
+
 def _bootstrap_classification_ci(
     pred_crit: List[bool],
     actual_crit: List[bool],

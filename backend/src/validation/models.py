@@ -23,6 +23,10 @@ class ValidationTargets:
     ndcg_10: float = 0.70
     rmse_max: float = 0.25
     mae_max: float = 0.20
+    # Reliability-specific targets
+    ccr_5: float = 0.80      # Cascade Capture Rate @ 5: CCR@5 ≥ 0.80
+    cme: float = 0.10        # Cascade Magnitude Error: CME ≤ 0.10
+    reliability_spearman: float = 0.75  # ρ(R(v), IR(v)) ≥ 0.75
 
     def to_dict(self) -> Dict[str, float]:
         return {k: v for k, v in asdict(self).items() if isinstance(v, (float, int))}
@@ -114,6 +118,9 @@ class RankingMetrics:
     top_5_common: List[str] = field(default_factory=list)
     top_5_ci_lower: float = 0.0
     top_5_ci_upper: float = 0.0
+    # Reliability-specific ranking metrics
+    ccr_5: float = 0.0   # Cascade Capture Rate @ 5
+    cme: float = 0.0     # Cascade Magnitude Error
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -127,6 +134,8 @@ class RankingMetrics:
                 "actual": self.top_5_actual,
                 "common": self.top_5_common,
             },
+            "ccr_5": round(self.ccr_5, 4),
+            "cme": round(self.cme, 4),
         }
 
 
@@ -234,6 +243,7 @@ class LayerValidationResult:
     top_5_overlap: float = 0.0
     top_10_overlap: float = 0.0
     rmse: float = 0.0
+    reliability_spearman: float = 0.0  # ρ(R(v), IR(v)) — reliability-specific correlation
     passed: bool = False
     comparisons: List[ComponentComparison] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -250,6 +260,7 @@ class LayerValidationResult:
                 "f1_score": round(self.f1_score, 4),
                 "top_5_overlap": round(self.top_5_overlap, 4),
                 "rmse": round(self.rmse, 4),
+                "reliability_spearman": round(self.reliability_spearman, 4),
             },
             "validation_result": self.validation_result.to_dict() if self.validation_result else None,
             "warnings": self.warnings,
