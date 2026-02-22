@@ -46,6 +46,7 @@ class BenchmarkRecord:
     rmse: float = 0.0
     top5_overlap: float = 0.0
     top10_overlap: float = 0.0
+    auc_pr: float = 0.0
 
     # --- Baseline Spearman correlations ---
     spearman_bc: float = 0.0      # Raw Betweenness Centrality
@@ -95,6 +96,7 @@ class AggregateResult:
     avg_top5: float = 0.0
     avg_top10: float = 0.0
     avg_rmse: float = 0.0
+    avg_auc_pr: float = 0.0
 
     # Baseline averages
     avg_spearman_bc: float = 0.0

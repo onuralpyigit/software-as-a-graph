@@ -26,8 +26,9 @@
 12. [Methodological Limitations](#methodological-limitations)
 13. [Statistical Robustness and Stability](#statistical-robustness-and-stability)
 14. [Comparative Analysis against Baselines](#comparative-analysis-against-baselines)
-15. [Commands](#commands)
-16. [What Comes Next](#what-comes-next)
+15. [Classification Threshold Asymmetry](#classification-threshold-asymmetry)
+16. [Commands](#commands)
+17. [What Comes Next](#what-comes-next)
 
 ---
 
@@ -205,13 +206,12 @@ P_e = ((TP+FP)/n × (TP+FN)/n) +             (expected agreement by chance)
 
 κ corrects for agreement that would occur by random chance. A model that randomly predicts a small fraction of components as critical will show low Precision but moderate F1 — κ ≤ 0 would expose this. κ ≥ 0.60 is the standard threshold for "substantial agreement" (Landis & Koch, 1977).
 
-| κ Range | Interpretation |
-|---------|---------------|
-| 0.81 – 1.00 | Almost perfect |
-| 0.61 – 0.80 | Substantial |
-| 0.41 – 0.60 | Moderate |
-| 0.21 – 0.40 | Fair |
 | ≤ 0.20 | Slight or worse |
+|---------|---------------|
+
+**AUC-PR (Area Under the Precision-Recall Curve)**
+
+A threshold-free metric that measures the quality of the ranking for classification purposes. AUC-PR integrates the precision-recall trade-off across all possible thresholds. Unlike F1-Score, it is independent of the box-plot threshold choice and provides a more robust estimate of classification performance when the number of predicted and actual critical components differs significantly.
 
 ### Ranking Metrics
 
@@ -598,6 +598,19 @@ To prove the value of the multi-dimensional $Q(v)$ score, we compare its perform
 - **Dominance over BC**: $Q(v)$ consistently outperforms Betweenness Centrality by a margin of **13–15%**. This answers the primary architectural question: structural bridging (BC) is a major factor in failure impact, but it is not sufficient. $Q(v)$ adds value by integrating reliability and availability weights.
 - **The "High Degree" Phenomenon**: In synthetic graphs, Degree Centrality shows very high correlation (0.95). This is a known artifact of synthetic topology generators where high-degree hubs inevitably become single points of failure.
 - **Why use $Q(v)$?**: While degree is a strong proxy for impact in simple cascades, it fails to capture **architectural risk** (e.g., a low-degree component that is highly unreliable or hard to maintain). $Q(v)$ provides a balanced risk profile that considers not just "how many links" but "what kind of service" is being provided.
+
+---
+
+### Classification Threshold Asymmetry
+
+The binary classification gate evaluates whether $Q(v)$ and $I(v)$ identify the same set of "critical" components. However, because the box-plot threshold is applied independently to both distributions, it creates a potential **size asymmetry bias**:
+
+1.  **Independent Thresholding**: $Q$-critical components are the top $\sim5-10\%$ of the $Q$ distribution. $I$-critical components are the top $\sim5-10\%$ of the $I$ distribution.
+2.  **Bias Mechanism**: If the $Q$ distribution is highly concentrated (e.g., many components with similar scores) but the $I$ distribution is sparse, $I$ might label 8 components as critical while $Q$ labels only 3. 
+3.  **Impact on Metrics**: In this example, even if all 3 $Q$-critical components match $I$-critical ones ($TP=3, FP=0$), the Recall is capped at $3/8 = 37.5\%$. This "hidden bias" can systematically depress F1-scores for otherwise high-quality models.
+
+**Mitigation: AUC-PR**
+To complement the fixed-threshold F1 gate, we report **AUC-PR**. Because AUC-PR analyzes the entire Precision-Recall curve by sweeping the threshold through all possible values, it is immune to this specific bias. A high AUC-PR with a low F1-score confirms that the model correctly ranks critical components, even if the fixed box-plot threshold is currently creating a size mismatch.
 
 ---
 

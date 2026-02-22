@@ -72,6 +72,7 @@ class ClassificationMetrics:
     f1_ci_upper: float = 0.0
     accuracy: float = 0.0
     cohens_kappa: float = 0.0
+    auc_pr: float = 0.0
     true_positives: int = 0
     false_positives: int = 0
     true_negatives: int = 0
@@ -94,6 +95,7 @@ class ClassificationMetrics:
             "f1_ci": [round(self.f1_ci_lower, 4), round(self.f1_ci_upper, 4)],
             "accuracy": round(self.accuracy, 4),
             "cohens_kappa": round(self.cohens_kappa, 4),
+            "auc_pr": round(self.auc_pr, 4),
             "confusion_matrix": self.confusion_matrix,
         }
 

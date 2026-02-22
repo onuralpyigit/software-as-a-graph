@@ -252,7 +252,10 @@ class BenchmarkRunner:
         record.recall = val_result.overall.classification.recall
         record.top5_overlap = val_result.overall.ranking.top_5_overlap
         record.top10_overlap = val_result.overall.ranking.top_10_overlap
+        record.auc_pr = val_result.overall.classification.auc_pr
         record.rmse = val_result.overall.error.rmse
+        
+        # passed is already set in run_scenario or _run_validation
         record.passed = val_result.passed
 
         # Count how many targets are met
@@ -435,6 +438,7 @@ class BenchmarkRunner:
         agg.avg_top5 = _mean("top5_overlap")
         agg.avg_top10 = _mean("top10_overlap")
         agg.avg_rmse = _mean("rmse")
+        agg.avg_auc_pr = _mean("auc_pr")
 
         # Baseline averages
         agg.avg_spearman_bc = _mean("spearman_bc")

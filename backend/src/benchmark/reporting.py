@@ -86,14 +86,14 @@ class ReportGenerator:
             "",
             "## Detailed Validation Metrics",
             "",
-            "| Scale | Layer | Precision | Recall | Top-5 | Top-10 | RMSE |",
+            "| Scale | Layer | Precision | Recall | Top-5 | AUC-PR | RMSE |",
             "|-------|-------|-----------|--------|-------|--------|------|",
         ])
         for a in summary.aggregates:
             lines.append(
                 f"| {a.scale} | {a.layer} | {a.avg_precision:.3f} | "
                 f"{a.avg_recall:.3f} | {a.avg_top5:.3f} | "
-                f"{a.avg_top10:.3f} | {a.avg_rmse:.3f} |"
+                f"{a.avg_auc_pr:.3f} | {a.avg_rmse:.3f} |"
             )
 
         # ── Performance ───────────────────────────────────────────

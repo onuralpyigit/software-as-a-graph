@@ -117,6 +117,47 @@ def calculate_classification(
     )
 
 
+def calculate_auc_pr(predicted_scores: Sequence[float], actual_critical: Sequence[bool]) -> float:
+    """
+    Calculates Area Under the Precision-Recall Curve (AUC-PR).
+    Uses trapezoidal integration of sorted precision/recall points.
+    """
+    if not predicted_scores or not actual_critical or len(predicted_scores) != len(actual_critical):
+        return 0.0
+
+    # Sort by predicted scores descending
+    sorted_pairs = sorted(zip(predicted_scores, actual_critical), key=lambda x: x[0], reverse=True)
+    
+    tp = 0
+    fp = 0
+    total_positives = sum(1 for x in actual_critical if x)
+    
+    if total_positives == 0:
+        return 0.0
+
+    precisions = [1.0]
+    recalls = [0.0]
+    
+    for _, is_positive in sorted_pairs:
+        if is_positive:
+            tp += 1
+        else:
+            fp += 1
+        
+        precision = tp / (tp + fp)
+        recall = tp / total_positives
+        
+        precisions.append(precision)
+        recalls.append(recall)
+        
+    # Trapezoidal integration
+    auc = 0.0
+    for i in range(1, len(precisions)):
+        auc += (recalls[i] - recalls[i-1]) * (precisions[i] + precisions[i-1]) / 2
+        
+    return auc
+
+
 def calculate_ranking(
     predicted: Dict[str, float],
     actual: Dict[str, float],

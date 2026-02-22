@@ -11,7 +11,7 @@ from .models import (
     ValidationResult, ValidationGroupResult, ComponentComparison
 )
 from .metric_calculator import (
-    calculate_correlation, calculate_error, calculate_classification, calculate_ranking
+    calculate_correlation, calculate_error, calculate_classification, calculate_ranking, calculate_auc_pr
 )
 from src.analysis.classifier import BoxPlotClassifier
 
@@ -122,6 +122,7 @@ class Validator:
         actual_crit = [v > actual_stats.upper_fence for v in actual_vals]
         
         classification = calculate_classification(pred_crit, actual_crit)
+        classification.auc_pr = calculate_auc_pr(pred_vals, actual_crit)
         ranking = calculate_ranking(predicted, actual)
 
         components: List[ComponentComparison] = []
