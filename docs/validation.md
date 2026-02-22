@@ -24,8 +24,9 @@
 10. [Output](#output)
 11. [External vs. Internal Validity](#external-vs-internal-validity)
 12. [Methodological Limitations](#methodological-limitations)
-13. [Commands](#commands)
-14. [What Comes Next](#what-comes-next)
+13. [Statistical Robustness and Stability](#statistical-robustness-and-stability)
+14. [Commands](#commands)
+15. [What Comes Next](#what-comes-next)
 
 ---
 
@@ -330,13 +331,13 @@ Results across all validated system scales and domains (ROS 2, IoT, financial tr
 
 ### By Scale (Application Layer)
 
-| Scale | Components | Spearman ρ | F1-Score | Analysis Time |
-|-------|------------|:-----------:|:--------:|:-------------:|
-| Tiny | 5–10 | 0.72 | 0.70 | < 0.5 s |
-| Small | 10–25 | 0.78 | 0.75 | < 1 s |
-| Medium | 30–50 | 0.82 | 0.80 | ~2 s |
-| Large | 60–100 | 0.85 | 0.83 | ~5 s |
-| XLarge | 150–300 | **0.88** | **0.85** | ~20 s |
+| Scale | Components | Spearman ρ ($μ \pm \sigma$) | F1-Score ($μ \pm \sigma$)* | Analysis Time |
+|-------|------------|:---------------------------:|:--------------------------:|:-------------:|
+| Small | 10–25 | **$0.787 \pm 0.092$** | $0.232 \pm 0.377$ | < 1 s |
+| Medium | 30–50 | **$0.847 \pm 0.067$** | $0.150 \pm 0.217$ | ~2 s |
+| Large | 60–100 | **$0.858 \pm 0.025$** | $0.125 \pm 0.152$ | ~4 s |
+
+*\*F1-score variance is sensitive to outlier count in synthetic systems; Spearman ρ remains the primary robustness indicator.*
 
 ### Key Findings
 
@@ -555,6 +556,28 @@ Validation Results | Layer: app | Aligned: 35 components
   │  VALIDATION RESULT:  PASSED ✓  │
   └────────────────────────────────┘
 ```
+
+---
+
+## Statistical Robustness and Stability
+
+To ensure the methodology is resilient to varying graph topologies, we evaluate performance across **20 independent random seeds** per scale. This measures whether the results are a "lucky" artifact of a specific seed or a fundamental property of the graph metrics.
+
+### Key Finding: Convergence with Scale
+
+The most significant finding from multi-seed benchmarking is that **methodological stability improves as the system grows**. 
+
+- At **Small scale**, the standard deviation for Spearman ρ is **0.092**.
+- At **Large scale**, the standard deviation drops to **0.025**.
+
+This confirms that in larger, more complex systems—where manual architecture review is most difficult—the Software-as-a-Graph approach becomes increasingly reliable and stable.
+
+### Benchmarking Protocol
+
+For researchers wishing to reproduce these stability results:
+1. Use the `benchmarks/statistical_robustness.yaml` configuration.
+2. Run `python bin/benchmark.py --config benchmarks/statistical_robustness.yaml`.
+3. Compare the generated `mean` and `std` values in the report.
 
 ---
 

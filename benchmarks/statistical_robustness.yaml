@@ -1,0 +1,13 @@
+scenarios:
+  - name: VT-APP-01-Small
+    scale: small
+    layers: ["app"]
+    runs: 20
+  - name: VT-APP-02-Medium
+    scale: medium
+    layers: ["app"]
+    runs: 20
+  - name: VT-APP-03-Large
+    scale: large
+    layers: ["app"]
+    runs: 20
