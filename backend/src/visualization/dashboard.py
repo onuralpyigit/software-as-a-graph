@@ -1119,17 +1119,17 @@ class DashboardGenerator:
             const levelOrder = {{'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'MINIMAL': 4}};
             
             let sortedNodes;
-            if (sortBy === 'topological') {
+            if (sortBy === 'topological') {{
                 sortedNodes = [...data.nodes].sort((a, b) => a.topo - b.topo);
-            } else if (sortBy === 'type') {
+            }} else if (sortBy === 'type') {{
                 sortedNodes = [...data.nodes].sort((a, b) => 
                     (typeOrder[a.type] || 5) - (typeOrder[b.type] || 5) || a.id.localeCompare(b.id));
-            } else if (sortBy === 'level') {
+            }} else if (sortBy === 'level') {{
                 sortedNodes = [...data.nodes].sort((a, b) => 
                     (levelOrder[a.level] || 5) - (levelOrder[b.level] || 5) || a.id.localeCompare(b.id));
-            } else {
+            }} else {{
                 sortedNodes = [...data.nodes].sort((a, b) => a.id.localeCompare(b.id));
-            }
+            }}
             
             // Create new index mapping
             const newIndex = {{}};
