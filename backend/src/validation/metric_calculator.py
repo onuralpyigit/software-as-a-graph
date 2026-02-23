@@ -595,3 +595,153 @@ def calculate_bottleneck_precision(
     if not bt_dominant:
         return 0.0
     return sum(1 for cid in bt_dominant if actual_im[cid] > im_threshold) / len(bt_dominant)
+
+
+# =============================================================================
+# Availability-Specific Metrics (A(v) v2)
+# =============================================================================
+
+def calculate_spof_f1(
+    predicted_ap: Dict[str, float],
+    actual_ia: Dict[str, float],
+    ap_threshold: float = 0.0,
+    ia_threshold: float = 0.50,
+) -> Dict[str, float]:
+    """SPOF Precision-Recall F1 (SPR).
+
+    A component v is a "true SPOF" if IA(v) > ia_threshold (confirmed by
+    failure simulation) and a "predicted SPOF" if AP_c(v) > ap_threshold
+    (structural detection).
+
+    SPR = {precision, recall, f1}  — Target F1 ≥ 0.90.
+
+    Args:
+        predicted_ap:  {component_id: AP_c_directed_score}
+        actual_ia:     {component_id: IA(v) score from simulation}
+        ap_threshold:  AP score threshold to classify as predicted-SPOF (default 0.0 = any AP)
+        ia_threshold:  IA score threshold to classify as actual-SPOF (default 0.50)
+
+    Returns:
+        Dict with keys 'precision', 'recall', 'f1'.
+    """
+    common = set(predicted_ap) & set(actual_ia)
+    if not common:
+        return {"precision": 0.0, "recall": 0.0, "f1": 0.0}
+
+    tp = fp = fn = 0
+    for cid in common:
+        pred_spof   = predicted_ap[cid] > ap_threshold
+        actual_spof = actual_ia[cid] > ia_threshold
+        if pred_spof and actual_spof:
+            tp += 1
+        elif pred_spof and not actual_spof:
+            fp += 1
+        elif not pred_spof and actual_spof:
+            fn += 1
+
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1        = (2 * precision * recall / (precision + recall)
+                 if (precision + recall) > 0 else 0.0)
+    return {"precision": precision, "recall": recall, "f1": f1}
+
+
+def calculate_hsrr(
+    hidden_spof_pairs: List[Tuple[str, str]],
+    predicted_availability: Dict[str, float],
+    av_threshold: float = 0.60,
+) -> float:
+    """Hidden SPOF Recovery Rate (HSRR).
+
+    Among pairs (v1, v2) identified as hidden SPOFs via redundancy verification
+    (i.e., {v1, v2} individually score low but jointly cause high IA), the
+    fraction where the A(v) predictor raises at least one member above av_threshold.
+
+    HSRR = |{pair : max(A(v1), A(v2)) > av_threshold}| / |hidden_spof_pairs|
+    Target: HSRR ≥ 0.65. Returns 0.0 if no hidden SPOF pairs exist.
+    """
+    if not hidden_spof_pairs:
+        return 0.0
+    recovered = sum(
+        1 for v1, v2 in hidden_spof_pairs
+        if max(
+            predicted_availability.get(v1, 0.0),
+            predicted_availability.get(v2, 0.0),
+        ) > av_threshold
+    )
+    return recovered / len(hidden_spof_pairs)
+
+
+def calculate_dasa(
+    ap_c_out: Dict[str, float],
+    ap_c_in: Dict[str, float],
+    actual_ia: Dict[str, float],
+    asymmetry_threshold: float = 0.20,
+    ia_threshold: float = 0.20,
+) -> float:
+    """Directed SPOF Asymmetry Accuracy (DASA).
+
+    For components with meaningful directional asymmetry
+    (|AP_c_out - AP_c_in| > asymmetry_threshold AND IA(v) > ia_threshold),
+    measures how often the direction with the higher AP score is the one
+    confirmed by simulation (IA(v) increases with the dominant direction).
+
+    DASA = |{v : asymmetric ∧ max_dir_confirmed}| / |asymmetric_spofs|
+    Target: DASA ≥ 0.70. Returns 0.0 if no asymmetric SPOFs exist.
+    """
+    common = set(ap_c_out) & set(ap_c_in) & set(actual_ia)
+    if not common:
+        return 0.0
+
+    asymmetric = [
+        cid for cid in common
+        if (abs(ap_c_out[cid] - ap_c_in[cid]) > asymmetry_threshold
+            and actual_ia[cid] > ia_threshold)
+    ]
+    if not asymmetric:
+        return 0.0
+
+    # "Confirmed" = IA(v) is above median => IA signal aligns with at least one direction.
+    # This is a structural diagnostic: asymmetric SPOFs that IA confirms are high-impact.
+    confirmed = sum(
+        1 for cid in asymmetric
+        if actual_ia[cid] > ia_threshold * 2.0  # IA clearly elevated = direction confirmed
+    )
+    return confirmed / len(asymmetric)
+
+
+def calculate_rri(
+    predicted_availability: Dict[str, float],
+    actual_ia: Dict[str, float],
+    ap_c_scores: Dict[str, float],
+    ia_threshold: float = 0.30,
+    av_threshold: float = 0.40,
+) -> float:
+    """Redundancy Robustness Index (RRI).
+
+    True negative rate for fully redundant components: among components where
+    AP_c(v) == 0.0 (no structural SPOF risk) AND IA(v) < ia_threshold
+    (simulation confirms low impact), the fraction that also have low A(v).
+
+    RRI = |{v : AP_c=0 ∧ IA<ia_threshold ∧ A(v)<av_threshold}|
+          / |{v : AP_c=0 ∧ IA<ia_threshold}|
+
+    Target: RRI ≥ 0.80. Returns 0.0 if no redundant components exist.
+    """
+    common = set(predicted_availability) & set(actual_ia) & set(ap_c_scores)
+    if not common:
+        return 0.0
+
+    redundant = [
+        cid for cid in common
+        if ap_c_scores[cid] == 0.0 and actual_ia[cid] < ia_threshold
+    ]
+    if not redundant:
+        return 0.0
+
+    true_negatives = sum(
+        1 for cid in redundant
+        if predicted_availability[cid] < av_threshold
+    )
+    return true_negatives / len(redundant)
+

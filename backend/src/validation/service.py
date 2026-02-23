@@ -250,9 +250,8 @@ class ValidationService:
             self.logger.debug("Maintainability-specific validation skipped: %s", e)
             maintainability_spearman = 0.0
 
-        # Availability and Vulnerability dimensional correlations (existing; kept for reference)
+        # Vulnerability dimensional correlation (proxy: throughput_loss)
         for dim_name, pred_dim, actual_dim in [
-            ("availability",   pred_availability,  actual_fragmentation),
             ("vulnerability",  pred_vulnerability, actual_throughput),
         ]:
             try:
@@ -272,6 +271,60 @@ class ValidationService:
             except Exception as e:
                 self.logger.debug("Dimensional validation skipped for %s: %s", dim_name, e)
 
+        # 6. Availability-specific validation — ρ(A(v), IA(v)) + SPOF_F1 + RRI
+        self.logger.info("Computing availability-specific validation (IA(v) ground truth)...")
+        availability_spearman = 0.0
+
+        from src.validation.metric_calculator import (
+            calculate_spof_f1, calculate_rri,
+        )
+
+        actual_availability_impact = {
+            r.target_id: r.impact.availability_impact for r in sim_results
+        }
+
+        try:
+            common_a = sorted(set(pred_availability) & set(actual_availability_impact))
+            if len(common_a) >= 3:
+                p_a_vals  = [float(pred_availability[k])          for k in common_a]
+                a_ia_vals = [float(actual_availability_impact[k]) for k in common_a]
+                a_corr = calculate_correlation(p_a_vals, a_ia_vals)
+                availability_spearman = a_corr.spearman
+
+                # AP_c_directed scores: use is_articulation_point flag as structural proxy
+                pred_ap_c_dir = {
+                    c.id: (1.0 if c.structural.is_articulation_point else 0.0)
+                    for c in analysis_result.quality.components
+                    if c.id in common_a
+                }
+
+                pred_a_dict = {k: pred_availability[k]          for k in common_a}
+                act_ia_dict = {k: actual_availability_impact[k] for k in common_a}
+
+                spof_f1_res = calculate_spof_f1(pred_ap_c_dir, act_ia_dict)
+                rri_val     = calculate_rri(pred_a_dict, act_ia_dict, pred_ap_c_dir)
+
+                dimensional_validation["availability"] = {
+                    "spearman":      round(a_corr.spearman, 4),
+                    "spearman_p":    round(a_corr.spearman_p, 6),
+                    "spof_f1":       round(spof_f1_res["f1"], 4),
+                    "spof_precision": round(spof_f1_res["precision"], 4),
+                    "spof_recall":   round(spof_f1_res["recall"], 4),
+                    "rri":           round(rri_val, 4),
+                    "n":             len(common_a),
+                    "ground_truth":  "IA(v)",
+                }
+                self.logger.info(
+                    "Availability dim [%s]: \u03c1(A,IA)=%.3f (n=%d), SPOF_F1=%.3f, RRI=%.3f",
+                    sim_layer.value, a_corr.spearman, len(common_a),
+                    spof_f1_res["f1"], rri_val,
+                )
+            else:
+                availability_spearman = 0.0
+        except Exception as e:
+            self.logger.debug("Availability-specific validation skipped: %s", e)
+            availability_spearman = 0.0
+
 
         return LayerValidationResult(
             layer=sim_layer.value,
@@ -290,6 +343,7 @@ class ValidationService:
             rmse=validation_res.overall.error.rmse,
             reliability_spearman=reliability_spearman,
             maintainability_spearman=maintainability_spearman,
+            availability_spearman=availability_spearman,
 
             passed=validation_res.passed,
             comparisons=validation_res.overall.components,

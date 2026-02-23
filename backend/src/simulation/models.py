@@ -408,7 +408,41 @@ class ImpactMetrics:
             w.get("weighted_change_impact", 0.35) * self.weighted_change_impact +
             w.get("normalized_change_depth", 0.20) * self.normalized_change_depth
         )
-    
+
+    # -----------------------------------------------------------------------
+    # IA(v): Availability-specific ground truth (connectivity disruption)
+    # -----------------------------------------------------------------------
+    # Populated by failure_simulator.simulate_exhaustive() in an IA(v) post-pass.
+    # weighted_reachability_loss       = QoS-weighted fraction of broken pub-sub paths
+    # weighted_fragmentation           = importance-weighted graph partition severity
+    # path_breaking_throughput_loss    = throughput lost ONLY via PARTITION_LOSS events
+    weighted_reachability_loss: float = 0.0
+    weighted_fragmentation: float = 0.0
+    path_breaking_throughput_loss: float = 0.0
+
+    availability_weights: Dict[str, float] = field(default_factory=lambda: {
+        "weighted_reachability": 0.50,
+        "weighted_fragmentation": 0.35,
+        "path_breaking_throughput": 0.15,
+    })
+
+    @property
+    def availability_impact(self) -> float:
+        """IA(v) — Availability-specific ground truth from connectivity disruption.
+
+        Measures the structural connectivity loss caused by removing v,
+        separated from cascade-propagation effects (which are measured by IR(v)).
+        QoS-weighting ensures high-priority paths contribute more.
+        Only meaningful after the IA(v) post-pass in simulate_exhaustive().
+        Defaults to 0.0 until then.
+        """
+        w = self.availability_weights
+        return (
+            w.get("weighted_reachability", 0.50) * self.weighted_reachability_loss +
+            w.get("weighted_fragmentation", 0.35) * self.weighted_fragmentation +
+            w.get("path_breaking_throughput", 0.15) * self.path_breaking_throughput_loss
+        )
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "reachability": {
@@ -442,7 +476,14 @@ class ImpactMetrics:
                 "normalized_change_depth": round(self.normalized_change_depth, 4),
                 "maintainability_impact": round(self.maintainability_impact, 4),
             },
+            "availability": {
+                "weighted_reachability_loss": round(self.weighted_reachability_loss, 4),
+                "weighted_fragmentation": round(self.weighted_fragmentation, 4),
+                "path_breaking_throughput_loss": round(self.path_breaking_throughput_loss, 4),
+                "availability_impact": round(self.availability_impact, 4),
+            },
         }
+
 
 
 @dataclass

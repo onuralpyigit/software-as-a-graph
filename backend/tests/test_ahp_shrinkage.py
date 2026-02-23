@@ -43,10 +43,19 @@ def test_shrinkage():
     # After blending, w_in should be the largest active weight
     assert weights_blend.r_w_in >= weights_blend.r_cdpot, "w_in should dominate CDPot"
 
-    # 4. Availability Blend: unchanged from before
-    print(f"Blend (0.7) A weights: {weights_blend.a_articulation:.3f}, {weights_blend.a_bridge_ratio:.3f}, {weights_blend.a_qos_weight:.3f}")
-    # w = 0.7*0.65 + 0.3*0.333 = 0.455 + 0.10 = 0.555
-    assert abs(weights_blend.a_articulation - 0.555) < 0.01
+    # 4. Availability Blend v2: a_qspof is now the primary SPOF weight; deprecated a_articulation=0
+    print(f"Blend (0.7) A weights v2: qspof={weights_blend.a_qspof:.3f}, br={weights_blend.a_bridge_ratio:.3f}, ap_dir={weights_blend.a_ap_c_directed:.3f}, cdi={weights_blend.a_cdi:.3f}")
+    # Deprecated fields must be 0.0 in v2
+    assert weights_blend.a_articulation == 0.0, "a_articulation must be 0.0 (deprecated in v2)"
+    assert weights_blend.a_qos_weight == 0.0,  "a_qos_weight must be 0.0 (deprecated in v2)"
+    # Active v2 weights must be positive
+    assert weights_blend.a_qspof > 0.0
+    assert weights_blend.a_bridge_ratio > 0.0
+    assert weights_blend.a_ap_c_directed > 0.0
+    assert weights_blend.a_cdi > 0.0
+    # Active weights must sum roughly to 1.0
+    active_a = weights_blend.a_qspof + weights_blend.a_bridge_ratio + weights_blend.a_ap_c_directed + weights_blend.a_cdi
+    assert abs(active_a - 1.0) < 0.05, f"A(v) v2 active weights should sum ~1.0, got {active_a:.4f}"
 
     print("\nAll AHP shrinkage tests passed!")
 

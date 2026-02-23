@@ -420,6 +420,28 @@ IM(v) appears in the simulation output under the `maintainability` key. It is th
 
 ---
 
+### Availability Ground Truth IA(v)
+
+While I(v) measures overall failure severity and IR(v) focuses on cascade dynamics, the **Availability dimension A(v)** answers: *how much pure connectivity is lost when this component fails?* Validating A(v) against generic impact metrics risks conflating structural SPOF risk with SLA priority or fault propagation.
+
+To provide an availability-specific ground truth, exhaustive simulation computes **IA(v)** — an impact score derived strictly from non-redundant structural connectivity loss:
+
+```
+IA(v) = 0.50 × WeightedReachabilityLoss + 0.35 × WeightedFragmentation + 0.15 × PathBreakingThroughputLoss
+```
+
+| Sub-metric | Captures |
+|------------|----------|
+| **WeightedReachabilityLoss** | QoS-weighted fraction of broken pub-sub communication paths |
+| **WeightedFragmentation** | The partition severity caused by removing the node (continuous articulation) |
+| **PathBreakingThroughputLoss** | Approximates throughput loss originating purely from structural logic partition |
+
+**Hidden SPOF Recovery:** During the IA(v) post-pass, the simulator also runs a `_compute_redundancy_verification()` pass. It sweeps pairwise `ImpactMetrics` identifying fully unmitigated node pairs causing total partition. These $N+1$ validation targets feed directly into Step 5's **HSRR (Hidden SPOF Recovery Rate)** metric.
+
+IA(v) appears in the simulation output under the `availability` key. It is the ground truth used by Step 5's availability-specific validation metrics (SPOF_F1, HSRR, DASA, RRI).
+
+---
+
 ## Simulation Modes
 
 ### Exhaustive Mode
@@ -565,6 +587,8 @@ For each simulated component failure, the output contains:
 | `weighted_cascade_impact` | float [0,1] | IR(v) sub-metric: SLA-weight-normalised cascade fraction |
 | `normalized_cascade_depth` | float [0,1] | IR(v) sub-metric: depth relative to run-wide maximum |
 | `reliability_impact` | float [0,1] | IR(v) — reliability-specific ground truth (see above) |
+| `availability` | dict | IA(v) sub-metrics (weighted_reachability_loss, weighted_fragmentation, etc.) |
+| `hidden_spof_pairs` | list[string] | Pairs of components verified to cause severe partition if both fail |
 
 In Monte Carlo mode, `reachability_loss`, `fragmentation`, `throughput_loss`, and `composite_impact` are replaced with their means, and `std`, `ci_lower`, and `ci_upper` fields are added.
 
@@ -593,7 +617,16 @@ In Monte Carlo mode, `reachability_loss`, `fragmentation`, `throughput_loss`, an
         "weighted_cascade_impact": 0.031,
         "normalized_cascade_depth": 0.25,
         "reliability_impact": 0.031
-      }
+      },
+      "availability": {
+        "weighted_reachability_loss": 0.90,
+        "weighted_fragmentation": 0.667,
+        "path_breaking_throughput_loss": 0.88,
+        "availability_impact": 0.82
+      },
+      "hidden_spof_pairs": [
+        ["MainBroker", "BackupBroker"]
+      ]
     },
     {
       "component": "SensorApp",
@@ -755,14 +788,17 @@ Step 5 now has five score sets to work with:
 | **Q(v)** | Step 3 | Overall topology quality (validated against I(v)) |
 | **R(v)** | Step 3 | Fault propagation risk (validated against IR(v)) |
 | **M(v)** | Step 3 | Coupling complexity (validated against IM(v)) |
+| **A(v)** | Step 3 | Structural SPOF and connectivity risk (validated against IA(v)) |
 | **I(v)** | Step 4 | Overall failure impact ground truth |
 | **IR(v)** | Step 4 | Reliability-specific cascade dynamics ground truth |
 | **IM(v)** | Step 4 | Maintainability-specific change propagation ground truth |
+| **IA(v)** | Step 4 | Availability-specific structural connectivity ground truth |
 
 Step 5 computes:
 - **Overall:** ρ(Q, I), F1, Top-K overlap, RMSE
 - **Reliability-specific:** ρ(R, IR), CCR@5, CME
 - **Maintainability-specific:** ρ(M, IM), COCR@5, Coupling Tier Agreement (κ_CTA), Bottleneck Precision (BP)
+- **Availability-specific:** ρ(A, IA), SPOF Precision-Recall F1 (SPOF_F1), Hidden SPOF Recovery Rate (HSRR), Directed SPOF Asymmetry (DASA), Redundancy Robustness (RRI)
 
 ---
 

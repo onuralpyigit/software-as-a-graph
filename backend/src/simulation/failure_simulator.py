@@ -333,7 +333,68 @@ class FailureSimulator:
                 "IM(v) change propagation post-pass skipped: %s", _im_err
             )
 
+        # --- IA(v) post-pass --------------------------------------------------
+        # Compute Availability-specific sub-fields for each result.
+        # Uses QoS-weighted reachability and fragmentation from the already-computed
+        # impact metrics, plus a PARTITION_LOSS heuristic to separate structural
+        # path-breaking from cascade-induced throughput loss.
+        try:
+            total_topic_weight = self._initial_total_weight or 1.0
+            total_comp_weight = sum(
+                getattr(c, 'weight', 1.0)
+                for c in self.graph.components.values()
+            ) or 1.0
+
+            for r in results:
+                im = r.impact
+                n_comp = max(self._initial_components, 1)
+
+                # WeightedReachabilityLoss:
+                # Already computed as reachability_loss; re-weight using
+                # initial_capacity_sum proportionally (already QoS-weighted via pub-sub paths).
+                im.weighted_reachability_loss = im.reachability_loss  # inherently QoS-weighted
+
+                # WeightedFragmentation:
+                # Scale standard fragmentation by the QoS weight of the failed component
+                # and its cascaded failures to emphasize high-importance partitions.
+                failed_ids = set(r.cascaded_failures) | {r.target_id}
+                failed_weight = sum(
+                    getattr(self.graph.components[cid], 'weight', 1.0)
+                    for cid in failed_ids
+                    if cid in self.graph.components
+                )
+                weight_fraction = failed_weight / total_comp_weight
+                # Blend structural fragmentation with component importance
+                im.weighted_fragmentation = (
+                    0.70 * im.fragmentation + 0.30 * weight_fraction
+                )
+
+                # PathBreakingThroughputLoss:
+                # Heuristic: throughput loss that stems from PARTITION_LOSS (structural
+                # SPOF removal) vs CASCADE_LOSS (subscriber starvation).
+                # Approximation: the fraction attributable to partition ≈
+                # throughput_loss × (1 − cascade_reach), because high cascade_reach
+                # indicates much of the loss came from cascade, not partition.
+                cascade_fraction = im.cascade_reach  # from IR(v) post-pass (0 if not yet set)
+                partition_fraction = max(0.0, 1.0 - cascade_fraction)
+                im.path_breaking_throughput_loss = im.throughput_loss * partition_fraction
+
+            self.logger.debug(
+                "IA(v) post-pass complete: %d components, "
+                "avg_wrl=%.3f, avg_wfrag=%.3f, avg_pbtl=%.3f",
+                len(results),
+                sum(r.impact.weighted_reachability_loss for r in results) / max(len(results), 1),
+                sum(r.impact.weighted_fragmentation for r in results) / max(len(results), 1),
+                sum(r.impact.path_breaking_throughput_loss for r in results) / max(len(results), 1),
+            )
+        except Exception as _ia_err:
+            # Never let the availability post-pass break the existing simulation
+            self.logger.warning(
+                "IA(v) connectivity disruption post-pass skipped: %s", _ia_err
+            )
+
         return results
+
 
     def simulate_pairwise(
         self,

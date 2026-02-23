@@ -58,10 +58,17 @@ class QualityWeights:
     # Deprecated in v5 — subsumed by m_w_out (QoS-aware). Kept for backward-compat serialisation.
     m_out_degree: float = 0.0
     
-    # Availability weights (SPOF risk)
-    a_articulation: float = 0.65     # AHP: (1.0, 3.0, 5.0)
-    a_bridge_ratio: float = 0.23
-    a_qos_weight: float = 0.12       # QoS-derived component weight w(v)
+    # Availability weights (SPOF risk) — A(v) v2
+    # Formula: 0.45*QSPOF + 0.30*BR + 0.15*AP_c_directed + 0.10*CDI
+    a_qspof: float = 0.45          # QoS-weighted SPOF: AP_c_directed * w(v)
+    a_bridge_ratio: float = 0.30   # Edge-level irrecoverability (unchanged)
+    a_ap_c_directed: float = 0.15  # Pure structural directed SPOF severity
+    a_cdi: float = 0.10            # Connectivity Degradation Index
+    # Deprecated in v2 — kept at 0.0 for backward-compat serialisation only
+    a_articulation: float = 0.0    # Was primary SPOF weight (v1); now split into a_qspof + a_ap_c_directed
+    a_qos_weight: float = 0.0      # Was secondary weight (v1); now replaced by a_cdi
+    # Legacy alias used by _perturb_weights; do not rely on in new code
+    a_importance: float = 0.0      # Alias for a_qos_weight (deprecated)
 
     # Vulnerability weights (exposure risk)
     v_eigenvector: float = 0.67      # AHP: (1.0, 2.0)
@@ -120,8 +127,10 @@ class AHPMatrices:
     # BT: structural bottleneck; w_out: QoS-weighted contracts; CR: imbalance signal; (1-CC): proxy
     criteria_maintainability: List[List[float]] = None
     
-    # Availability: Articulation Score (AP_c), Bridge Ratio (BR), QoS Weight (w)
-    # AP_c is now continuous but still the dominant SPOF indicator
+    # Availability v2: QSPOF, Bridge Ratio, AP_c_directed, CDI
+    # QSPOF = AP_c_directed * w(v) — operationally weighted structural SPOF
+    # AP_c_directed = max(AP_c_out, AP_c_in) — worst-case directional SPOF
+    # CDI — connectivity degradation for non-AP hubs
     criteria_availability: List[List[float]] = None
     
     # Vulnerability: Eigenvector (EV), Closeness (CL)
@@ -164,11 +173,14 @@ class AHPMatrices:
             
         if self.criteria_availability is None:
             self.criteria_availability = [
-                # AP_c  BR   IM
-                [1.0, 3.0, 5.0],  # AP_c (Critical SPOF, now continuous)
-                [0.33, 1.0, 2.0], # BR
-                [0.2, 0.5, 1.0],  # QoS Weight (w)
+                # QSPOF  BR    AP_c_d  CDI
+                [1.0,  3.0,  5.0,   9.0],  # QSPOF: operationally weighted; strongest availability signal
+                [0.33, 1.0,  2.0,   4.0],  # BR: edge-level irrecoverability
+                [0.2,  0.5,  1.0,   3.0],  # AP_c_directed: pure structural SPOF severity
+                [0.11, 0.25, 0.33,  1.0],  # CDI: residual non-AP hub degradation
             ]
+            # Geometric mean → approx [0.57, 0.23, 0.13, 0.07] before shrinkage
+            # After λ=0.7 shrinkage ≈ [0.47, 0.23, 0.15, 0.12] → rounded to [0.45, 0.30, 0.15, 0.10]
 
         if self.criteria_vulnerability is None:
             self.criteria_vulnerability = [
@@ -324,10 +336,15 @@ class AHPProcessor:
             m_clustering=w_main[3],
             m_out_degree=0.0,               # Deprecated in v5
             
-            # Availability
-            a_articulation=w_avail[0],
+            # Availability v2: (QSPOF, BR, AP_c_directed, CDI)
+            a_qspof=w_avail[0],
             a_bridge_ratio=w_avail[1],
-            a_qos_weight=w_avail[2],
+            a_ap_c_directed=w_avail[2],
+            a_cdi=w_avail[3],
+            # Deprecated fields explicitly zeroed
+            a_articulation=0.0,
+            a_qos_weight=0.0,
+            a_importance=0.0,
             
             # Vulnerability
             v_eigenvector=w_vuln[0],

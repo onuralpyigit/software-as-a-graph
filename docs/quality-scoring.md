@@ -105,19 +105,20 @@ M(v) = 0.40 × BT(v) + 0.35 × w_out(v) + 0.15 × CouplingRisk(v) + 0.10 × (1 �
 
 A component with high M(v) is one that is a structural bottleneck (`BT` high), has many tightly-contracted outgoing dependencies (`w_out` high), and sits at an unstable coupling boundary (`CouplingRisk` near 1). Such a component is both hard to change and likely to propagate that change widely.
 
-### Availability A(v) — SPOF Risk
+### Availability A(v) — SPOF Risk and Connectivity
 
 ```
-A(v) = 0.50 × AP_c(v) + 0.30 × BR(v) + 0.20 × w(v)
+A(v) = 0.45 × QSPOF(v) + 0.30 × BR(v) + 0.15 × AP_{c-directed}(v) + 0.10 × CDI(v)
 ```
 
 | Term | Contribution | Rationale |
 |------|-------------|-----------|
-| AP_c(v) | 0.50 | Continuous articulation-point score — measures how much the graph fragments upon v's removal |
-| BR(v) | 0.30 | Bridge ratio — fraction of v's edges that are bridges; high BR means v's connections are irreplaceable |
-| w(v) | 0.20 | QoS-derived component weight— ensures highly-critical components (based on domain priority) contribute to availability risk even if they are not structural SPOFs |
+| QSPOF(v) | 0.45 | QoS-weighted SPOF Severity `(AP_{c-directed} × w(v))` — ensures highly-critical components acting as bottlenecks dominate the availability risk. |
+| BR(v) | 0.30 | Bridge ratio — fraction of v's edges that are bridges. High BR means v's connections are irreplaceable structural foundations. |
+| AP_c-directed(v) | 0.15 | Directed articulation score `max(AP_out, AP_in)` — measures how much the graph fragments upon v's removal in terms of directed paths. |
+| CDI(v) | 0.10 | Connectivity Degradation Index — uses All-Pairs Shortest Paths (APSP) to measure the elongation or severing of paths due to v's removal (catches non-articulation risk). |
 
-Availability uses structural indicators (AP_c, BR) alongside domain priority (w(v)) to identify components where failure would cause significant service disruption. By using $w(v)$ instead of topological hubness ($PR$), we maintain true metric orthogonality across RMAV dimensions.
+Availability uses structural indicators (QSPOF, BR, CDI) to identify components where failure would cause significant service connectivity disruption. By grounding this dimension purely in path-breaking topology and QoS weights rather than generic hubness or reliability factors, true orthogonality is maintained.
 
 ### Vulnerability V(v) — Strategic Exposure
 
