@@ -90,16 +90,20 @@ A component with high R(v) is one whose failure would propagate broadly **and de
 ### Maintainability M(v) — Coupling Complexity
 
 ```
-M(v) = 0.40 × BT(v) + 0.35 × DG_out(v) + 0.25 × (1 − CC(v))
+M(v) = 0.40 × BT(v) + 0.35 × w_out(v) + 0.15 × CouplingRisk(v) + 0.10 × (1 − CC(v))
 ```
 
-| Term | Contribution | Rationale |
-|------|-------------|-----------|
+| Term | Weight | Rationale |
+|------|--------|-----------|
 | BT(v) | 0.40 | Betweenness identifies *bottleneck* position — v lies on many shortest dependency paths |
-| DG_out(v) | 0.35 | Out-degree measures *efferent coupling* — how many components v directly depends on |
-| (1 − CC(v)) | 0.25 | Inverted clustering: low clustering means v's neighbors are *not* interconnected, so v cannot be removed without disrupting many unique paths |
+| w_out(v) | 0.35 | QoS-weighted efferent coupling — count of outgoing dependencies weighted by their SLA class; strictly more informative than raw DG_out |
+| CouplingRisk(v) | 0.15 | Afferent/efferent imbalance: `1 − |2·Instability − 1|` where `Instability = DG_out / (DG_in + DG_out + ε)`. Maximised at Instability=0.5 (embedded on both sides); 0 for pure sinks or pure sources. |
+| (1 − CC(v)) | 0.10 | Direction-agnostic proxy: sparse neighborhood → harder to refactor. Weight reduced from 0.25 (v4) because CC does not distinguish efferent from afferent structure. |
 
-Note: a high CC(v) means v's neighbors are dense and interconnected, offering alternative paths — lower maintainability risk. The inversion `(1 − CC)` converts this into a risk score: sparse neighborhood → harder to refactor safely.
+> [!NOTE]
+> **M(v) v5 design changes:**  Raw out-degree `DG_out` demoted — its signal is fully subsumed by the QoS-aware `w_out`. `CouplingRisk` captures the additional imbalance signal (neither a pure source nor a pure sink is maximally risky). This preserves strict metric orthogonality: `w_out` is used in M(v) and nowhere else.
+
+A component with high M(v) is one that is a structural bottleneck (`BT` high), has many tightly-contracted outgoing dependencies (`w_out` high), and sits at an unstable coupling boundary (`CouplingRisk` near 1). Such a component is both hard to change and likely to propagate that change widely.
 
 ### Availability A(v) — SPOF Risk
 
@@ -159,17 +163,16 @@ A core design principle is that each raw metric contributes to **at most one** R
 | QoS-Weighted In-Degree | w_in | ✓ | | | | Direct dependents × SLA priority — immediate blast radius |
 | Cascade Depth Potential | CDPot | ✓ | | | | Derived depth signal (RPR + DG ratio) — orthogonal to M, A, V |
 | Betweenness | BT | | ✓ | | | Structural bottleneck position |
-| Out-Degree | DG_out | | ✓ | | | Efferent coupling |
-| Clustering Coefficient | CC | | ✓ | | | Local redundancy / modularity |
+| QoS-Weighted Out-Degree | w_out | | ✓ | | | QoS-weighted efferent coupling — promoted from "Reported only" in v5 |
+| Coupling Risk | CouplingRisk | | ✓ | | | Afferent/efferent imbalance (derived) — new in v5 |
+| Clustering Coefficient | CC | | ✓ | | | Direction-agnostic modularity proxy (weight reduced in v5) |
 | Articulation Point Score | AP_c | | | ✓ | | Structural SPOF detection |
 | Bridge Ratio | BR | | | ✓ | | Irreplaceable connections |
 | QoS Weight | w(v) | | | ✓ | | QoS-derived component weight |
 | Eigenvector Centrality | EV | | | | ✓ | Strategic hub connectivity |
 | Closeness Centrality | CL | | | | ✓ | Propagation speed |
 
-**Absolute Orthogonality:** Every raw metric contributes to **exactly one** RMAV dimension. PageRank (PR) and raw in-degree (DG_in) are no longer used in any dimension — they have been replaced in R(v) by w_in and CDPot, which carry the same signal without reusing metrics from other dimensions.
-
-**QoS Weight metrics:** The weight metrics (w, w_in, w_out) from Step 2 reflect domain-specific priority. `w(v)` is included in A(v) to ensure high-priority components are flagged for availability risk. `w_in(v)` is now the second term in R(v), capturing the SLA-weighted immediate blast radius of a failure. `w_out(v)` is reported but not used in any RMAV formula.
+**Absolute Orthogonality:** Every raw metric contributes to **exactly one** RMAV dimension. `DG_out` (raw out-degree) is no longer active in any dimension — it has been replaced in M(v) by `w_out` (QoS-weighted) and the derived `CouplingRisk`. PageRank (PR) and raw in-degree (DG_in) are reported but not used in any dimension formula.
 
 ---
 
@@ -296,20 +299,21 @@ w       [ 0.20, 0.50, 1.0 ]
 - **Blend: [0.55, 0.26, 0.19]**
 - *Rationale*: Prevents Articulation Point (AP_c) from completely drowning out Bridge Ratio and component QoS Weight.
 
-**Maintainability** — criteria: [Betweenness, OutDegree, (1−Clustering)]
+**Maintainability** — criteria: [Betweenness, w_out, CouplingRisk, (1−Clustering)] — **v5: 4×4 matrix**
 
 ```
-          BT    DGout  (1-CC)
-BT      [ 1.0,  2.0,   3.0 ]
-DGout   [ 0.5,  1.0,   2.0 ]
-(1-CC)  [ 0.33, 0.50,  1.0 ]
+           BT     w_out   CR    (1-CC)
+BT      [ 1.00,  1.14,  2.67,  4.00 ]  BT: primary bottleneck signal
+w_out   [ 0.88,  1.00,  2.33,  3.50 ]  w_out: QoS-weighted efferent coupling
+CR      [ 0.375, 0.43,  1.00,  1.50 ]  CouplingRisk: imbalance signal
+(1-CC)  [ 0.25,  0.286, 0.667, 1.00 ]  (1-CC): direction-agnostic proxy (secondary)
 
-→ GM:  [1.817, 0.909, 0.480]  →  Normalized: [0.54, 0.30, 0.16]
+→ GM:  [1.69, 1.49, 0.64, 0.42]  →  Normalized: [0.397, 0.350, 0.150, 0.099]  (≈ 0.40/0.35/0.15/0.10)
   CR ≈ 0.003  (highly consistent)
 ```
-- AHP: [0.54, 0.30, 0.16]
-- **Blend: [0.48, 0.31, 0.21]**
-- *Rationale*: Betweenness remains the core bottleneck indicator, but Out-Degree (efferent coupling) and Clustering are given weight to reflect local complexity.
+- AHP: [0.397, 0.350, 0.150, 0.099]
+- **Blend (λ=0.7): [0.405, 0.370, 0.180, 0.145]**
+- *Rationale*: Betweenness remains the primary bottleneck indicator. `w_out` replaces raw `DG_out` (QoS-aware, same signal, strictly more informative). `CouplingRisk` captures the imbalance signal without re-introducing `DG_in`. `(1−CC)` weight drops from 0.25→0.10 to reflect its direction-agnostic nature.
 
 **Vulnerability** — criteria: [Eigenvector, Closeness]
 
@@ -400,17 +404,30 @@ R(A3) = 0.40×RPR + 0.35×w_in + 0.25×CDPot
        = 0.24 + 0.26 + 0.00 = 0.50
   (*w_in ≈ DG_in for this example; QoS weights assumed uniform)
 
-M(A3) = 0.40×0.95 + 0.35×0.80 + 0.25×(1−0.15) = 0.38 + 0.28 + 0.2125 = 0.87
+```
+M(v) v5 — first add w_out and compute CouplingRisk:
 
-A(A3) = 0.50×0.43 + 0.30×1.00 + 0.20×0.68* = 0.215 + 0.30 + 0.136 = 0.65
-   (*0.68 is the QoS weight derived from domain priority)
+  Instability(A3) = DG_out / (DG_in + DG_out + ε)
+                  = 0.80 / (0.75 + 0.80 + ε)
+                  ≈ 0.516
 
-V(A3) = 0.67×0.80 + 0.33×0.70 = 0.536 + 0.231 = 0.77
+  CouplingRisk(A3) = 1 − |2 × 0.516 − 1|
+                   = 1 − |0.032|
+                   ≈ 0.968     ← near maximum: A3 is deeply embedded on both sides
 
-Q(A3) = (0.50 + 0.87 + 0.65 + 0.77) / 4 = 0.70
+  w_out(A3) ≈ 0.80  (QoS-weighted; approximately equal to DG_out for uniform weights)
+
+M(A3) = 0.40×BT + 0.35×w_out + 0.15×CouplingRisk + 0.10×(1−CC)
+      = 0.40×0.95 + 0.35×0.80 + 0.15×0.968 + 0.10×(1−0.15)
+      = 0.38 + 0.28 + 0.145 + 0.085
+      = 0.89
 ```
 
-**Interpretation:** **PLC_Controller (A3)** scores **0.70 (HIGH)**. The formula reveals that A3 has moderate reliability risk (R=0.50) because although it has many direct dependents (w_in) and broad reverse PageRank reach, its fan-out topology means cascades are wide but shallow (CDPot=0). The dominant concern remains **Maintainability** (M=0.87) — A3 is the system's structural bottleneck with max betweenness and high efferent coupling.
+**Interpretation:** **PLC_Controller (A3)** scores **0.89 (HIGH) on Maintainability** under v5, up from 0.87 under v4. The new CouplingRisk=0.968 (near-maximum) reflects that A3 has nearly equal afferent and efferent degree — it is embedded on both sides of the dependency graph, making it the hardest component to safely refactor.
+
+```
+Q(A3) = (0.50 + 0.89 + 0.65 + 0.77) / 4 = 0.70
+```
 
 ---
 

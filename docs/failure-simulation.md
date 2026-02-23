@@ -23,6 +23,7 @@
    - [Flow Disruption Score FD(v)](#flow-disruption-score-fdv)
    - [Composite Impact Score I(v)](#composite-impact-score-iv)
    - [Reliability Ground Truth IR(v)](#reliability-ground-truth-irv)
+   - [Maintainability Ground Truth IM(v)](#maintainability-ground-truth-imv)
 7. [Simulation Modes](#simulation-modes)
    - [Exhaustive Mode](#exhaustive-mode)
    - [Targeted Mode](#targeted-mode)
@@ -369,6 +370,56 @@ IR(v) appears in the simulation output under the `reliability` key and is availa
 
 ---
 
+### Maintainability Ground Truth IM(v)
+
+While I(v) and IR(v) measure **runtime fault impact** (component removal → cascade → damage), the **Maintainability dimension M(v)** answers a fundamentally different question: *how far does a development-time change propagate through the codebase?* Validating M(v) against runtime failure impact would conflate two distinct operational concerns.
+
+To provide a change-dynamics-specific ground truth, exhaustive simulation also computes **IM(v)** — a maintainability-specific impact score derived from **change propagation** on the *transposed analytical dependency graph* Gᵀ:
+
+```
+IM(v) = 0.45 × ChangeReach(v) + 0.35 × WeightedChangeImpact(v) + 0.20 × NormChangeDepth(v)
+```
+
+| Sub-metric | Formula | Captures |
+|------------|---------|----------|
+| **ChangeReach** | `|reached| / (|V| − 1)` | Fraction of all other components that must adapt to a change at v |
+| **WeightedChangeImpact** | `Σ max_path_weight(u) / Σ weight(all u)` | Importance-weighted adaptation cost |
+| **NormChangeDepth** | `max_bfs_depth / global_max_change_depth` | Relative propagation depth vs. worst-case in the same run |
+
+#### Change Propagation Algorithm
+
+The simulation traverses Gᵀ (reversed DEPENDS_ON edges) via BFS from each component v. In Gᵀ, an edge `v → u` means: "if v's interface changes, u may need to adapt."
+
+At each neighbour u, BFS applies **two stop conditions** (u is *reached* regardless; stop gates further propagation *through* u):
+
+| Stop Condition | Trigger | Rationale |
+|---------------|---------|----------|
+| **Loose-coupling stop** | Edge weight < θ_loose (default 0.20) | VOLATILE / BEST_EFFORT contracts are weakly committed; the dependent can absorb the change |
+| **Stable-interface stop** | Instability(u) < θ_stable (default 0.20) | Highly stable components (many afferent, few efferent) act as interface boundaries |
+
+where `Instability(u) = DG_out(u) / (DG_in(u) + DG_out(u) + ε)`.
+
+> [!NOTE]
+> **Simulation model:** IM(v) operates on G_analysis (DEPENDS_ON / USES edges), not G_structural (PUBLISHES_TO / RUNS_ON). This is intentional — change propagation follows *architectural dependencies*, not physical infrastructure. The simulator derives these edges from SUBSCRIBES_TO and USES relationships in the simulation graph.
+
+> [!NOTE]
+> **Non-breaking post-pass:** The IM(v) computation runs as a second post-pass after all exhaustive failure simulations complete. It is wrapped in a try/except guard; if DEPENDS_ON edge data is unavailable the fields default to 0.0 without breaking the simulation output.
+
+**IM(v) weights (same AHP structure as IR(v)):**
+
+```
+              CR    WCI   ND
+CR        [ 1.0,  1.5,  2.5 ]   Reach is the primary signal
+WCI       [ 0.67, 1.0,  1.75]   Importance weighting adds precision
+ND        [ 0.40, 0.57, 1.0 ]   Depth confirms severity (secondary)
+
+→ Weights: [0.45, 0.35, 0.20]    CR ≈ 0.004
+```
+
+IM(v) appears in the simulation output under the `maintainability` key. It is the ground truth used by Step 5's maintainability-specific validation metrics (COCR@5, Coupling Tier Agreement κ, Bottleneck Precision).
+
+---
+
 ## Simulation Modes
 
 ### Exhaustive Mode
@@ -692,13 +743,26 @@ Top 5 by Impact:
 
 ## What Comes Next
 
-Step 4 produces I(v) ∈ [0, 1] for every component — an empirically grounded ranking of actual failure impact derived from full cascade simulation. It also produces **IR(v)** — the reliability-specific cascade dynamics score. Step 5 now has three score sets:
+Step 4 produces I(v) ∈ [0, 1] for every component — an empirically grounded ranking of actual failure impact from full cascade simulation. It also produces two dimension-specific ground truth scores:
 
-- **R(v)** from Step 3: predicted reliability from topology (RPR + w_in + CDPot)
-- **I(v)** from Step 4: overall failure impact ground truth (Reachability + Fragmentation + Throughput + FD)
-- **IR(v)** from Step 4: reliability-specific cascade dynamics ground truth (CascadeReach + WeightedImpact + NormDepth)
+- **IR(v)** — Reliability ground truth: how fault *cascades* propagate (runtime dynamics)
+- **IM(v)** — Maintainability ground truth: how development-time *changes* propagate (change propagation on Gᵀ)
 
-Step 5 computes Spearman ρ(Q, I), F1, Top-K overlap, RMSE for overall validation, and additionally computes ρ(R, IR), CCR@5, and CME specifically for the Reliability dimension validation.
+Step 5 now has five score sets to work with:
+
+| Score | From | Validates |
+|-------|------|-----------|
+| **Q(v)** | Step 3 | Overall topology quality (validated against I(v)) |
+| **R(v)** | Step 3 | Fault propagation risk (validated against IR(v)) |
+| **M(v)** | Step 3 | Coupling complexity (validated against IM(v)) |
+| **I(v)** | Step 4 | Overall failure impact ground truth |
+| **IR(v)** | Step 4 | Reliability-specific cascade dynamics ground truth |
+| **IM(v)** | Step 4 | Maintainability-specific change propagation ground truth |
+
+Step 5 computes:
+- **Overall:** ρ(Q, I), F1, Top-K overlap, RMSE
+- **Reliability-specific:** ρ(R, IR), CCR@5, CME
+- **Maintainability-specific:** ρ(M, IM), COCR@5, Coupling Tier Agreement (κ_CTA), Bottleneck Precision (BP)
 
 ---
 
