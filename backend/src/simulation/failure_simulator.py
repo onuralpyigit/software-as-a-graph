@@ -264,6 +264,75 @@ class FailureSimulator:
                 if max_observed_depth > 0 else 0.0
             )
         
+        # --- IM(v) post-pass --------------------------------------------------
+        # Compute the three Maintainability-specific sub-fields for each result.
+        # Uses ChangePropagationSimulator on the transposed DEPENDS_ON graph (G^T).
+        # This is a development-time change propagation model, distinct from the
+        # runtime failure cascade above.
+        try:
+            from .change_propagation import ChangePropagationSimulator
+
+            # Build DEPENDS_ON edge list from the analysis graph.
+            # We use the raw graph relationships annotated with edge weights.
+            # dependency_weight is the QoS-derived weight on each DEPENDS_ON arc.
+            dep_edges: List[Tuple[str, str, float]] = []
+            for comp_id, comp in self.graph.components.items():
+                # Outgoing DEPENDS_ON: comp -> its dependencies
+                # Edge weight stored as dependency_weight_out / out_degree_raw if available
+                weight_out = getattr(comp, 'dependency_weight_out', None)
+                out_raw = max(getattr(comp, 'out_degree_raw', 0), 0)
+                if weight_out is None:
+                    weight_out = float(out_raw)
+                # Distribute weight evenly across outgoing edges as an approximation
+                per_edge_w = weight_out / out_raw if out_raw > 0 else 0.0
+                # Retrieve outgoing neighbors from the raw adjacency
+                for neighbor_id in self.graph.get_depends_on_targets(comp_id):
+                    dep_edges.append((comp_id, neighbor_id, per_edge_w))
+
+            all_ids = list(self.graph.components.keys())
+            comp_weights = {
+                cid: getattr(c, 'weight', 1.0)
+                for cid, c in self.graph.components.items()
+            }
+            comp_in_deg = {
+                cid: getattr(c, 'in_degree_raw', 0)
+                for cid, c in self.graph.components.items()
+            }
+            comp_out_deg = {
+                cid: getattr(c, 'out_degree_raw', 0)
+                for cid, c in self.graph.components.items()
+            }
+
+            cp_sim = ChangePropagationSimulator(theta_loose=0.20, theta_stable=0.20)
+            cp_results = cp_sim.simulate_all(
+                component_ids=all_ids,
+                dependency_edges=dep_edges,
+                component_weights=comp_weights,
+                component_in_degrees=comp_in_deg,
+                component_out_degrees=comp_out_deg,
+            )
+
+            # Map IM(v) sub-metrics back into each FailureResult.impact
+            for r in results:
+                cid = r.target_id
+                cp = cp_results.get(cid)
+                if cp is not None:
+                    r.impact.change_reach = cp.change_reach
+                    r.impact.weighted_change_impact = cp.weighted_change_impact
+                    r.impact.normalized_change_depth = cp.normalized_change_depth
+
+            self.logger.debug(
+                "IM(v) post-pass complete: %d components, "
+                "avg_change_reach=%.3f",
+                len(results),
+                sum(r.impact.change_reach for r in results) / max(len(results), 1),
+            )
+        except Exception as _im_err:
+            # Never let the maintainability post-pass break the existing simulation
+            self.logger.warning(
+                "IM(v) change propagation post-pass skipped: %s", _im_err
+            )
+
         return results
 
     def simulate_pairwise(

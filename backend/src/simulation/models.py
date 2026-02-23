@@ -347,6 +347,25 @@ class ImpactMetrics:
         "weighted_cascade_impact": 0.35,
         "normalized_depth": 0.20,
     })
+
+    # -----------------------------------------------------------------------
+    # IM(v): Maintainability-specific ground truth (change propagation)
+    # -----------------------------------------------------------------------
+    # Populated by ChangePropagationSimulator in a post-pass after exhaustive
+    # failure simulation. Based on BFS traversal of G^T (transposed DEPENDS_ON
+    # graph) with loose-coupling and stable-interface stop conditions.
+    # change_reach = |reached| / (|V| - 1)
+    # weighted_change_impact = Σ max_path_weight(u) / Σ weight(all u)
+    # normalized_change_depth = max_bfs_depth / global_max_change_depth
+    change_reach: float = 0.0
+    weighted_change_impact: float = 0.0
+    normalized_change_depth: float = 0.0
+
+    maintainability_weights: Dict[str, float] = field(default_factory=lambda: {
+        "change_reach": 0.45,
+        "weighted_change_impact": 0.35,
+        "normalized_change_depth": 0.20,
+    })
     
     @property
     def composite_impact(self) -> float:
@@ -372,6 +391,22 @@ class ImpactMetrics:
             w.get("cascade_reach", 0.45) * self.cascade_reach +
             w.get("weighted_cascade_impact", 0.35) * self.weighted_cascade_impact +
             w.get("normalized_depth", 0.20) * self.normalized_cascade_depth
+        )
+
+    @property
+    def maintainability_impact(self) -> float:
+        """IM(v) — Maintainability-specific ground truth from change propagation.
+
+        Measures how far a development-time change at v propagates through the
+        dependency graph (G^T traversal with stop conditions). Only meaningful
+        after ChangePropagationSimulator has populated change_reach,
+        weighted_change_impact, and normalized_change_depth.  Defaults to 0.0.
+        """
+        w = self.maintainability_weights
+        return (
+            w.get("change_reach", 0.45) * self.change_reach +
+            w.get("weighted_change_impact", 0.35) * self.weighted_change_impact +
+            w.get("normalized_change_depth", 0.20) * self.normalized_change_depth
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -400,6 +435,12 @@ class ImpactMetrics:
                 "weighted_cascade_impact": round(self.weighted_cascade_impact, 4),
                 "normalized_cascade_depth": round(self.normalized_cascade_depth, 4),
                 "reliability_impact": round(self.reliability_impact, 4),
+            },
+            "maintainability": {
+                "change_reach": round(self.change_reach, 4),
+                "weighted_change_impact": round(self.weighted_change_impact, 4),
+                "normalized_change_depth": round(self.normalized_change_depth, 4),
+                "maintainability_impact": round(self.maintainability_impact, 4),
             },
         }
 

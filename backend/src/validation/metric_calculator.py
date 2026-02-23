@@ -501,3 +501,97 @@ def _bootstrap_classification_ci(
     lo_idx = max(0, int(alpha * len(samples)))
     hi_idx = min(len(samples) - 1, int((1 - alpha) * len(samples)))
     return samples[lo_idx], samples[hi_idx]
+
+
+# =============================================================================
+# Maintainability-Specific Metrics  (M(v) v5 / IM(v))
+# =============================================================================
+
+def calculate_cocr_at_k(
+    predicted: Dict[str, float],
+    actual: Dict[str, float],
+    k: int = 5,
+) -> float:
+    """Change Obligation Capture Rate @ K  (COCR@K).
+
+    COCR@K = |Top-K(M(v)) ∩ Top-K(IM(v))| / K
+
+    Structurally identical to CCR@K for Reliability.
+    Target: COCR@5 ≥ 0.75.
+    """
+    common = sorted(set(predicted) & set(actual))
+    if not common or k <= 0:
+        return 0.0
+    effective_k = min(k, len(common))
+    pred_top = set(sorted(common, key=lambda c: predicted[c], reverse=True)[:effective_k])
+    actual_top = set(sorted(common, key=lambda c: actual[c], reverse=True)[:effective_k])
+    return len(pred_top & actual_top) / effective_k
+
+
+def calculate_weighted_kappa_cta(
+    predicted: Dict[str, float],
+    actual: Dict[str, float],
+) -> float:
+    """Coupling Tier Agreement — weighted Cohen's κ across 3 ordered tiers.
+
+    Partitions into High (top 25%), Medium (middle 50%), Low (bottom 25%).
+    Ordinal weight matrix:  same=0.0, adjacent=0.5, extreme=1.0.
+    κ_weighted = 1 − (Σ w_ij·p_ij) / (Σ w_ij·e_ij).
+    Target: κ_weighted ≥ 0.55.
+    """
+    common = sorted(set(predicted) & set(actual))
+    n = len(common)
+    if n < 3:
+        return 0.0
+
+    def _tier(vals: List[float]) -> List[int]:
+        sv = sorted(vals)
+        q1 = sv[max(0, int(n * 0.25) - 1)]
+        q3 = sv[min(n - 1, int(n * 0.75))]
+        return [2 if v > q3 else (1 if v >= q1 else 0) for v in vals]
+
+    pred_tiers = _tier([predicted[c] for c in common])
+    actual_tiers = _tier([actual[c] for c in common])
+
+    W = [[0.0, 0.5, 1.0], [0.5, 0.0, 0.5], [1.0, 0.5, 0.0]]
+    conf = [[0] * 3 for _ in range(3)]
+    for p_t, a_t in zip(pred_tiers, actual_tiers):
+        conf[p_t][a_t] += 1
+
+    row_sums = [sum(conf[i]) for i in range(3)]
+    col_sums = [sum(conf[i][j] for i in range(3)) for j in range(3)]
+
+    obs_w = sum(W[i][j] * conf[i][j] / n for i in range(3) for j in range(3))
+    exp_w = sum(W[i][j] * (row_sums[i] / n) * (col_sums[j] / n) for i in range(3) for j in range(3))
+
+    if exp_w == 0.0:
+        return 1.0 if obs_w == 0.0 else 0.0
+    return max(-1.0, min(1.0, 1.0 - obs_w / exp_w))
+
+
+def calculate_bottleneck_precision(
+    predicted_bt: Dict[str, float],
+    predicted_w_out: Dict[str, float],
+    actual_im: Dict[str, float],
+    bt_threshold: float = 0.60,
+    w_out_threshold: float = 0.30,
+    im_threshold: float = 0.50,
+) -> float:
+    """Bottleneck Precision (BP).
+
+    Among BT-dominant components (BT > bt_threshold AND w_out < w_out_threshold),
+    the fraction that also have high IM(v) (> im_threshold).
+
+    BP = |{v : BT-dominant ∧ IM(v) > im_threshold}| / |{v : BT-dominant}|
+    Target: BP ≥ 0.70. Returns 0.0 if no BT-dominant components exist.
+    """
+    common = set(predicted_bt) & set(predicted_w_out) & set(actual_im)
+    if not common:
+        return 0.0
+    bt_dominant = [
+        cid for cid in common
+        if predicted_bt[cid] > bt_threshold and predicted_w_out[cid] < w_out_threshold
+    ]
+    if not bt_dominant:
+        return 0.0
+    return sum(1 for cid in bt_dominant if actual_im[cid] > im_threshold) / len(bt_dominant)

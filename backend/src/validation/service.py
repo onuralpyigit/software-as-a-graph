@@ -131,7 +131,8 @@ class ValidationService:
         self.logger.info("Computing reliability-specific validation (IR(v) ground truth)...")
         dimensional_validation = {}
         from src.validation.metric_calculator import (
-            calculate_correlation, calculate_ccr_at_k, calculate_cme
+            calculate_correlation, calculate_ccr_at_k, calculate_cme,
+            calculate_cocr_at_k, calculate_weighted_kappa_cta, calculate_bottleneck_precision,
         )
 
         # Build reliability-specific ground truth IR(v)
@@ -189,6 +190,66 @@ class ValidationService:
             ccr5 = 0.0
             cme = 0.0
 
+        # 5. Maintainability-specific validation — ρ(M(v), IM(v))
+        self.logger.info("Computing maintainability-specific validation (IM(v) ground truth)...")
+        maintainability_spearman = 0.0
+
+        pred_maintainability = {c.id: c.scores.maintainability for c in analysis_result.quality.components}
+        actual_maintainability_impact = {
+            r.target_id: r.impact.maintainability_impact for r in sim_results
+        }
+
+        try:
+            common_m = sorted(set(pred_maintainability) & set(actual_maintainability_impact))
+            if len(common_m) >= 3:
+                p_m_vals = [float(pred_maintainability[k])           for k in common_m]
+                a_im_vals = [float(actual_maintainability_impact[k]) for k in common_m]
+                m_corr = calculate_correlation(p_m_vals, a_im_vals)
+                maintainability_spearman = m_corr.spearman
+
+                # COCR@5
+                pred_m_dict = {k: pred_maintainability[k]           for k in common_m}
+                act_im_dict = {k: actual_maintainability_impact[k]  for k in common_m}
+                cocr5 = calculate_cocr_at_k(pred_m_dict, act_im_dict, k=5)
+
+                # Weighted-κ Coupling Tier Agreement
+                kappa_cta = calculate_weighted_kappa_cta(pred_m_dict, act_im_dict)
+
+                # Bottleneck Precision: needs per-component BT and w_out scores
+                # BT is structural.betweenness; w_out is structural.dependency_weight_out
+                pred_bt_dict = {
+                    c.id: c.structural.betweenness
+                    for c in analysis_result.quality.components
+                    if c.id in common_m
+                }
+                pred_wout_dict = {
+                    c.id: c.structural.dependency_weight_out
+                    for c in analysis_result.quality.components
+                    if c.id in common_m
+                }
+                bp = calculate_bottleneck_precision(pred_bt_dict, pred_wout_dict, act_im_dict)
+
+                dimensional_validation["maintainability"] = {
+                    "spearman": round(m_corr.spearman, 4),
+                    "spearman_p": round(m_corr.spearman_p, 6),
+                    "cocr_5": round(cocr5, 4),
+                    "weighted_kappa_cta": round(kappa_cta, 4),
+                    "bottleneck_precision": round(bp, 4),
+                    "n": len(common_m),
+                    "ground_truth": "IM(v)",
+                }
+                self.logger.info(
+                    "Maintainability dim [%s]: ρ(M,IM)=%.3f (n=%d), "
+                    "COCR@5=%.3f, κ_CTA=%.3f, BP=%.3f",
+                    sim_layer.value, m_corr.spearman, len(common_m),
+                    cocr5, kappa_cta, bp,
+                )
+            else:
+                maintainability_spearman = 0.0
+        except Exception as e:
+            self.logger.debug("Maintainability-specific validation skipped: %s", e)
+            maintainability_spearman = 0.0
+
         # Availability and Vulnerability dimensional correlations (existing; kept for reference)
         for dim_name, pred_dim, actual_dim in [
             ("availability",   pred_availability,  actual_fragmentation),
@@ -219,7 +280,7 @@ class ValidationService:
             simulated_components=validation_res.actual_count,
             matched_components=validation_res.matched_count,
             validation_result=validation_res,
-            
+
             spearman=validation_res.overall.correlation.spearman,
             f1_score=validation_res.overall.classification.f1_score,
             precision=validation_res.overall.classification.precision,
@@ -228,7 +289,8 @@ class ValidationService:
             top_10_overlap=validation_res.overall.ranking.top_10_overlap,
             rmse=validation_res.overall.error.rmse,
             reliability_spearman=reliability_spearman,
-            
+            maintainability_spearman=maintainability_spearman,
+
             passed=validation_res.passed,
             comparisons=validation_res.overall.components,
             warnings=validation_res.warnings,

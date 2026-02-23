@@ -379,6 +379,32 @@ class SimulationGraph:
             Dict mapping broker ID to list of routed topic IDs
         """
         return dict(self._routing)
+
+    def get_depends_on_targets(self, comp_id: str) -> List[str]:
+        """
+        Get the components that `comp_id` depends on (outgoing DEPENDS_ON arcs).
+
+        Since SimulationGraph does not explicitly store DEPENDS_ON relationships,
+        this method derives them from the raw structural edges:
+          - SUBSCRIBES_TO: subscriber depends on the topic (and by extension its
+            publishers), so the topic is a dependency target.
+          - USES: app/component depends on the library it uses.
+
+        These are the same dependency semantics used by the quality analyser
+        when building G_analysis. This keeps the IM(v) simulation consistent
+        with the analysis layer without requiring a separate graph load.
+
+        Returns:
+            List of component IDs that `comp_id` depends on (may be empty).
+        """
+        targets: List[str] = []
+        # SUBSCRIBES_TO: comp_id subscribes to topics (depends on topic chain)
+        for topic_id, subs in self._subscribers.items():
+            if any(s[0] == comp_id for s in subs):
+                targets.append(topic_id)
+        # USES: comp_id uses libraries
+        targets.extend(self._uses.get(comp_id, []))
+        return targets
     
     # =========================================================================
     # Layer Filtering

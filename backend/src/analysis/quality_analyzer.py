@@ -1,36 +1,40 @@
 """
-Quality Analyzer
+ Quality Analyzer
 
-Computes composite quality scores for the four RMAV dimensions and an
-overall quality score, then classifies every component and edge using the
-Box-Plot method (adaptive, data-driven thresholds).
+ Computes composite quality scores for the four RMAV dimensions and an
+ overall quality score, then classifies every component using the
+ Box-Plot method (adaptive, data-driven thresholds).
 
-Formulas (per component v):
-    R(v) = w_rpr·RPR + w_win·w_in + w_cdp·CDPot          (Reliability)
-    M(v) = w_bt·BC   + w_od·OutDeg + w_cl·(1 – CC)        (Maintainability)
-    A(v) = w_ap·AP_c + w_br·Bridge + w_imp·Importance      (Availability)
-    V(v) = w_ev·Eig  + w_cl·Close  + w_od·OutDeg           (Vulnerability)
-    Q(v) = w_R·R(v)  + w_M·M(v)    + w_A·A(v) + w_V·V(v)  (Overall)
+ Formulas (per component v):
+     R(v) = w_rpr·RPR + w_win·w_in + w_cdp·CDPot          (Reliability)
+     M(v) = w_bt·BC   + w_wo·w_out + w_cr·CR + w_cl·(1–CC) (Maintainability v5)
+     A(v) = w_ap·AP_c + w_br·Bridge + w_imp·Importance      (Availability)
+     V(v) = w_ev·Eig  + w_cl·Close                          (Vulnerability)
+     Q(v) = w_R·R(v)  + w_M·M(v)    + w_A·A(v) + w_V·V(v)  (Overall)
 
-R(v) v4 metrics:
-    RPR(v)   — Reverse PageRank on G^T: propagation reach
-    w_in(v)  — QoS-weighted in-degree (promoted from 'Reported only')
-    CDPot(v) — Cascade Depth Potential (derived, no new algorithm):
-                ((RPR + DG_in) / 2) × (1 − min(DG_out / DG_in, 1))
+ M(v) v5 metrics:
+     BT(v)           — Betweenness: structural bottleneck position (unchanged)
+     w_out(v)        — QoS-weighted efferent coupling (promoted from 'Reported only');
+                       sum of DEPENDS_ON edge weights on outgoing edges
+     CouplingRisk(v) — 1 − |2·Instability − 1|, where
+                       Instability = DG_out / (DG_in + DG_out + ε);
+                       maximised at Instability=0.5 (deeply embedded on both sides);
+                       minimised at 0 (pure sink) or 1 (pure source)
+     (1−CC(v))       — Direction-agnostic proxy; weight reduced from 0.25 to 0.10
 
-Design changes (v4):
-    - R(v) formula: PR(v) removed (correlated with RPR); DG_in replaced by w_in
-      (QoS-weighted — strictly more informative than unweighted in-degree);
-      CDPot added as derived depth signal without new algorithm cost.
-    - pubsub_betweenness removed from R(v): it belongs in Maintainability via
-      betweenness; its redistribution hack is eliminated for a cleaner formula.
+ Design changes (v5):
+     - DG_out(v) demoted from M(v): subsumed by QoS-aware w_out.
+     - w_out(v) promoted from 'Reported only' into active metric.
+     - CouplingRisk(v) added: captures afferent/efferent coupling imbalance
+       without adding DG_in(v) directly (orthogonality preserved).
+     - (1−CC) weight reduced (0.25 → 0.10): direction-agnostic signal.
 
-Classification (Box-Plot):
-    CRITICAL : score > Q3 + k×IQR
-    HIGH     : score > Q3
-    MEDIUM   : score > Median
-    LOW      : score > Q1
-    MINIMAL  : score ≤ Q1
+ Classification (Box-Plot):
+     CRITICAL : score > Q3 + k×IQR
+     HIGH     : score > Q3
+     MEDIUM   : score > Median
+     LOW      : score > Q1
+     MINIMAL  : score ≤ Q1
 """
 
 from __future__ import annotations
@@ -355,8 +359,21 @@ class QualityAnalyzer:
         # incorporates both dependent count and QoS quality of those dependencies.
         R = w.r_reverse_pagerank * rpr + getattr(w, 'r_w_in', 0.35) * qw + getattr(w, 'r_cdpot', 0.25) * cdpot
 
-        # Maintainability: efferent coupling + bottleneck position
-        M = w.m_betweenness * bt + w.m_out_degree * od_n + w.m_clustering * (1.0 - cc)
+        # Maintainability: M(v) v5 — coupling complexity
+        # w_out: QoS-weighted efferent coupling (dependency_weight_out, rank-normalised)
+        w_out_n = _n(m.dependency_weight_out, "w_out")
+        # CouplingRisk = 1 - |2*Instability - 1|
+        # Instability = DG_out / (DG_in + DG_out + ε)
+        # Maximised at Instability=0.5 (deeply embedded); minimised near 0 or 1 (pure sink/source)
+        _eps = 1e-9
+        _instability = od_n / (id_n + od_n + _eps)
+        coupling_risk = 1.0 - abs(2.0 * _instability - 1.0)
+        M = (
+            w.m_betweenness * bt
+            + getattr(w, 'm_w_out', 0.35) * w_out_n
+            + getattr(w, 'm_coupling_risk', 0.15) * coupling_risk
+            + w.m_clustering * (1.0 - cc)
+        )
 
         # Availability: SPOF risk (continuous AP score)
         A = w.a_articulation * ap_c + w.a_bridge_ratio * m.bridge_ratio + w.a_qos_weight * qw
@@ -581,7 +598,12 @@ class QualityAnalyzer:
             getattr(w, 'r_w_in', 0.35),
             getattr(w, 'r_cdpot', 0.25),
         )
-        m_weights = _perturb_group(w.m_betweenness, w.m_out_degree, w.m_clustering)
+        m_weights = _perturb_group(
+            w.m_betweenness,
+            getattr(w, 'm_w_out', 0.35),
+            getattr(w, 'm_coupling_risk', 0.15),
+            w.m_clustering,
+        )
         a_weights = _perturb_group(w.a_articulation, w.a_bridge_ratio, w.a_importance)
         v_weights = _perturb_group(w.v_eigenvector, w.v_closeness, w.v_out_degree)
         q_weights = _perturb_group(
@@ -591,7 +613,9 @@ class QualityAnalyzer:
         return QualityWeights(
             r_pagerank=0.0, r_reverse_pagerank=r_weights[0], r_in_degree=0.0,
             r_w_in=r_weights[1], r_cdpot=r_weights[2],
-            m_betweenness=m_weights[0], m_out_degree=m_weights[1], m_clustering=m_weights[2],
+            m_betweenness=m_weights[0], m_w_out=m_weights[1],
+            m_coupling_risk=m_weights[2], m_clustering=m_weights[3],
+            m_out_degree=0.0,
             a_articulation=a_weights[0], a_bridge_ratio=a_weights[1], a_importance=a_weights[2],
             v_eigenvector=v_weights[0], v_closeness=v_weights[1], v_out_degree=v_weights[2],
             q_reliability=q_weights[0], q_maintainability=q_weights[1],
@@ -676,6 +700,7 @@ class QualityAnalyzer:
             "out_degree": max((c.out_degree_raw for c in components), default=0),
             "total_degree": max((c.total_degree_raw for c in components), default=0),
             "weight": max((c.weight for c in components), default=1.0),
+            "w_out": max((c.dependency_weight_out for c in components), default=1.0),
         }
 
     @staticmethod
@@ -722,6 +747,7 @@ class QualityAnalyzer:
             "out_degree":      [(c.id, c.out_degree_raw)    for c in components],
             "total_degree":    [(c.id, c.total_degree_raw)  for c in components],
             "weight":          [(c.id, c.weight)            for c in components],
+            "w_out":           [(c.id, c.dependency_weight_out) for c in components],
         }
         return {name: _rank_normalise(vals) for name, vals in metrics.items()}
 
