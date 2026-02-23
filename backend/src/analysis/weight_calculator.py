@@ -70,10 +70,15 @@ class QualityWeights:
     # Legacy alias used by _perturb_weights; do not rely on in new code
     a_importance: float = 0.0      # Alias for a_qos_weight (deprecated)
 
-    # Vulnerability weights (exposure risk)
-    v_eigenvector: float = 0.67      # AHP: (1.0, 2.0)
-    v_closeness: float = 0.33
-    v_out_degree: float = 0.0        # Removed to satisfy absolute orthogonality
+    # Vulnerability weights (exposure risk) — V(v) v2
+    # Formula: 0.40*REV + 0.35*RCL + 0.25*QADS
+    v_reverse_eigenvector: float = 0.40 # AHP primary: G^T eigenvector (strategic attack reach)
+    v_reverse_closeness: float = 0.35   # AHP secondary: G^T closeness (propagation speed)
+    v_qads: float = 0.25                # QoS-weighted dependent surface (w_in)
+    # Deprecated in v2 — kept at 0.0 for backward-compat serialisation only
+    v_eigenvector: float = 0.0
+    v_closeness: float = 0.0
+    v_out_degree: float = 0.0
     
     # Overall quality weights (sum should be 1.0)
     q_reliability: float = 0.25      # Default balanced (1.0 vs 1.0 vs 1.0 vs 1.0)
@@ -112,7 +117,7 @@ class AHPMatrices:
         Reliability:      Reverse PageRank (RPR), QoS-Weighted In-Degree (w_in), CDPot
         Maintainability:  Betweenness (BT), Out-Degree (OD), Clustering (CC)
         Availability:     Articulation Score (AP_c), Bridge Ratio (BR), QoS Weight w(v)
-        Vulnerability:    Eigenvector (EV), Closeness (CL)
+        Vulnerability:    Reverse Eigenvector (REV), Reverse Closeness (RCL), QADS (w_in)
         Impact I(v):      Reachability (RL), Fragmentation (FR), Throughput (TL), Flow Disruption (FD)
         Impact IR(v):     Cascade Reach (CR), Weighted Cascade Impact (WCI), Normalised Depth (ND)
     """
@@ -133,8 +138,8 @@ class AHPMatrices:
     # CDI — connectivity degradation for non-AP hubs
     criteria_availability: List[List[float]] = None
     
-    # Vulnerability: Eigenvector (EV), Closeness (CL)
-    # Strategic reach + propagation speed
+    # Vulnerability v2: Reverse Eigenvector (REV), Reverse Closeness (RCL), QADS
+    # Strategic reach + propagation speed + QoS attack surface
     criteria_vulnerability: List[List[float]] = None
     
     # Overall Quality: Reliability (R), Maintainability (M), Availability (A), Vulnerability (V)
@@ -184,10 +189,12 @@ class AHPMatrices:
 
         if self.criteria_vulnerability is None:
             self.criteria_vulnerability = [
-                # EV   CL
-                [1.0, 2.0],  # EV (Strategic importance)
-                [0.5, 1.0],  # CL (Propagation speed)
+                # REV   RCL   QADS
+                [1.0,  1.14,  1.6],  # REV (Strategic dependent reach)
+                [0.88, 1.0,   1.4],  # RCL (Propagation speed)
+                [0.62, 0.71,  1.0],  # QADS (QoS-weighted surface)
             ]
+            # Matrix check: geometric mean approx [0.40, 0.35, 0.25]
             
         if self.criteria_overall is None:
             self.criteria_overall = [
@@ -309,7 +316,7 @@ class AHPProcessor:
         w_avail = self._calculate_priority_vector(self.matrices.criteria_availability)
         w_avail = self._shrink_weights(w_avail)
         
-        # 4. Vulnerability Weights (EV, CL)
+        # 4. Vulnerability Weights v2 (REV, RCL, QADS)
         w_vuln = self._calculate_priority_vector(self.matrices.criteria_vulnerability)
         w_vuln = self._shrink_weights(w_vuln)
 
@@ -346,9 +353,13 @@ class AHPProcessor:
             a_qos_weight=0.0,
             a_importance=0.0,
             
-            # Vulnerability
-            v_eigenvector=w_vuln[0],
-            v_closeness=w_vuln[1],
+            # Vulnerability v2: (REV, RCL, QADS)
+            v_reverse_eigenvector=w_vuln[0],
+            v_reverse_closeness=w_vuln[1],
+            v_qads=w_vuln[2],
+            # Deprecated
+            v_eigenvector=0.0,
+            v_closeness=0.0,
             v_out_degree=0.0,
             
             # Impact

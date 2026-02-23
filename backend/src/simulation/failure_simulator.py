@@ -91,6 +91,10 @@ class FailureSimulator:
         
         if scenario.seed is not None:
             self._rng.seed(scenario.seed)
+            
+        # Ensure target_ids is a list (handles legacy single-target string passing)
+        if isinstance(scenario.target_ids, str):
+            scenario.target_ids = [scenario.target_ids]
         
         # Validate targets
         valid_targets = []
@@ -333,6 +337,55 @@ class FailureSimulator:
                 "IM(v) change propagation post-pass skipped: %s", _im_err
             )
 
+        # --- IV(v) post-pass --------------------------------------------------
+        # Compute Vulnerability-specific sub-fields for each result.
+        # Uses CompromisePropagationSimulator on the transposed DEPENDS_ON graph (G^T).
+        try:
+            from .compromise_propagation import CompromisePropagationSimulator
+
+            dep_edges_v: List[Tuple[str, str, float]] = []
+            for comp_id, comp in self.graph.components.items():
+                weight_out = getattr(comp, 'dependency_weight_out', None)
+                out_raw = max(getattr(comp, 'out_degree_raw', 0), 0)
+                if weight_out is None:
+                    weight_out = float(out_raw)
+                per_edge_w = weight_out / out_raw if out_raw > 0 else 0.0
+                for neighbor_id in self.graph.get_depends_on_targets(comp_id):
+                    dep_edges_v.append((comp_id, neighbor_id, per_edge_w))
+
+            all_ids_v = list(self.graph.components.keys())
+            comp_weights_v = {
+                cid: getattr(c, 'weight', 1.0)
+                for cid, c in self.graph.components.items()
+            }
+
+            cp_sim = CompromisePropagationSimulator(theta_trust=0.30)
+            cp_results = cp_sim.simulate_all(
+                component_ids=all_ids_v,
+                dependency_edges=dep_edges_v,
+                component_weights=comp_weights_v,
+            )
+
+            for r in results:
+                cid = r.target_id
+                cp = cp_results.get(cid)
+                if cp is not None:
+                    r.impact.attack_reach = cp.attack_reach
+                    r.impact.weighted_attack_impact = cp.weighted_attack_impact
+                    r.impact.high_value_contamination = cp.high_value_contamination
+                    r.impact.critical_paths = cp.critical_paths
+
+            self.logger.debug(
+                "IV(v) post-pass complete: %d components, "
+                "avg_attack_reach=%.3f",
+                len(results),
+                sum(r.impact.attack_reach for r in results) / max(len(results), 1),
+            )
+        except Exception as _iv_err:
+            self.logger.warning(
+                "IV(v) compromise propagation post-pass skipped: %s", _iv_err
+            )
+
         # --- IA(v) post-pass --------------------------------------------------
         # Compute Availability-specific sub-fields for each result.
         # Uses QoS-weighted reachability and fragmentation from the already-computed
@@ -467,7 +520,7 @@ class FailureSimulator:
         
         for trial in range(n_trials):
             trial_scenario = FailureScenario(
-                target_id=scenario.target_id,
+                target_ids=scenario.target_ids,
                 description=f"Monte Carlo trial {trial}",
                 failure_mode=scenario.failure_mode,
                 cascade_rule=scenario.cascade_rule,
@@ -564,11 +617,11 @@ class FailureSimulator:
                 # Broker failure -> Topics with no remaining routing brokers
                 if current_type == "Broker" and performance.get(current_id, 1.0) == 0.0:
                     for topic_id, brokers in self.graph._routing.items():
-                        if current_id in brokers:
+                        if any(b[0] == current_id for b in brokers):
                             # Check if topic still has active brokers
                             active_brokers = [
-                                b for b in brokers 
-                                if b not in failed_set and self.graph.is_active(b)
+                                b[0] for b in brokers 
+                                if b[0] not in failed_set and self.graph.is_active(b[0])
                             ]
                             
                             if not active_brokers:
@@ -599,7 +652,7 @@ class FailureSimulator:
                         if not publishers:
                             continue
                             
-                        sl = sum(performance.get(p, 1.0) for p in publishers) / len(publishers)
+                        sl = sum(performance.get(p[0], 1.0) for p in publishers) / len(publishers)
                         
                         if sl < self.STARVATION_THRESHOLD:
                             # SL is too low — Topic fails
@@ -618,7 +671,8 @@ class FailureSimulator:
                 # Topic failure -> Subscriber starvation
                 if current_type == "Topic" and performance.get(current_id, 1.0) == 0.0:
                     subscribers = self.graph._subscribers.get(current_id, [])
-                    for sub_id in subscribers:
+                    for sub in subscribers:
+                        sub_id = sub[0]
                         if sub_id in failed_set:
                             continue
                             

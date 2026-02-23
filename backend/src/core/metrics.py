@@ -36,7 +36,9 @@ class StructuralMetrics:
     reverse_pagerank: float = 0.0   # Influence on failure propagation
     betweenness: float = 0.0        # Bridge/bottleneck centrality
     closeness: float = 0.0          # Average distance to all nodes
+    reverse_closeness: float = 0.0  # Average distance from all nodes (G^T closeness)
     eigenvector: float = 0.0        # Influence via neighbor importance
+    reverse_eigenvector: float = 0.0 # Influence via dependent importance (G^T eigenvector)
     
     # === Degree Metrics ===
     degree: float = 0.0             # Total degree centrality (normalized)

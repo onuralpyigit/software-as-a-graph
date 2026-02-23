@@ -43,14 +43,14 @@ def test_pairwise_logic():
     # 2. Test another single failure (Node2)
     res2 = sim.simulate(FailureScenario(target_ids=["Node2"]))
     assert "App2" in res2.cascaded_failures
-    assert "T1" in res2.cascaded_failures # Subscriber starvation (now implemented)
+    # Note: Subscriber failure (App2) does not starve Topic (T1), only Publisher failure does.
     impact2 = res2.impact.composite_impact
     
     # 3. Test pairwise failure
     res_pair = sim.simulate(FailureScenario(target_ids=["Node1", "Node2"]))
     assert "App1" in res_pair.cascaded_failures
     assert "App2" in res_pair.cascaded_failures
-    assert "T1" in res_pair.cascaded_failures
+    assert "T1" in res_pair.cascaded_failures # Still fails because App1 (Publisher) failed
     impact_pair = res_pair.impact.composite_impact
     
     print(f"\nImpact Node1: {impact1:.4f}")

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Set, Tuple, Any, Optional
+from typing import Dict, List, Set, Tuple, Any, Optional, Union
 from enum import Enum
 
 
@@ -14,6 +14,7 @@ class ComponentState(Enum):
     FAILED = "failed"
     DEGRADED = "degraded"
     OVERLOADED = "overloaded"
+    COMPROMISED = "compromised"
 
 
 class RelationType(Enum):
@@ -94,9 +95,8 @@ class ComponentInfo:
             return 0.0
         elif self.state == ComponentState.DEGRADED:
             return 0.5
+        # COMPROMISED continues to operate (return 1.0) but produces malicious output
         return 1.0
-        total = self.messages_received + self.messages_routed
-        return self.total_latency / total if total > 0 else 0.0
     
     @property
     def throughput(self) -> int:
@@ -286,7 +286,7 @@ class EventResult:
 @dataclass
 class FailureScenario:
     """Configuration for a failure simulation."""
-    target_ids: List[str]                            # Simultaneous initial targets
+    target_ids: Union[str, List[str]]                # Simultaneous initial targets
     description: str = ""
     failure_mode: FailureMode = FailureMode.CRASH
     cascade_rule: CascadeRule = CascadeRule.ALL
@@ -299,6 +299,10 @@ class FailureScenario:
     def target_id(self) -> str:
         """Backward compatibility for single-target scenarios."""
         return self.target_ids[0] if self.target_ids else ""
+
+    def __post_init__(self):
+        if isinstance(self.target_ids, str):
+            self.target_ids = [self.target_ids]
 
 
 @dataclass
@@ -443,6 +447,39 @@ class ImpactMetrics:
             w.get("path_breaking_throughput", 0.15) * self.path_breaking_throughput_loss
         )
 
+    # -----------------------------------------------------------------------
+    # IV(v): Vulnerability-specific ground truth (compromise propagation)
+    # -----------------------------------------------------------------------
+    # Populated by CompromisePropagationSimulator post-pass.
+    # attack_reach = fraction of reachable components via G^T paths over threshold
+    # weighted_attack_impact = weighted sum of contaminated components
+    # high_value_contamination = distance-discounted sum of high-value paths
+    attack_reach: float = 0.0
+    weighted_attack_impact: float = 0.0
+    high_value_contamination: float = 0.0
+    critical_paths: List[List[str]] = field(default_factory=list)
+
+    vulnerability_weights: Dict[str, float] = field(default_factory=lambda: {
+        "attack_reach": 0.40,
+        "weighted_attack_impact": 0.35,
+        "high_value_contamination": 0.25,
+    })
+
+    @property
+    def vulnerability_impact(self) -> float:
+        """IV(v) — Vulnerability-specific ground truth from compromise propagation.
+
+        Measures the security impact if v is compromised, computing adversarial
+        reach over the trusted G^T topology. Only meaningful after the
+        CompromisePropagationSimulator completes its pass. Defaults to 0.0.
+        """
+        w = self.vulnerability_weights
+        return (
+            w.get("attack_reach", 0.40) * self.attack_reach +
+            w.get("weighted_attack_impact", 0.35) * self.weighted_attack_impact +
+            w.get("high_value_contamination", 0.25) * self.high_value_contamination
+        )
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "reachability": {
@@ -481,6 +518,12 @@ class ImpactMetrics:
                 "weighted_fragmentation": round(self.weighted_fragmentation, 4),
                 "path_breaking_throughput_loss": round(self.path_breaking_throughput_loss, 4),
                 "availability_impact": round(self.availability_impact, 4),
+            },
+            "vulnerability": {
+                "attack_reach": round(self.attack_reach, 4),
+                "weighted_attack_impact": round(self.weighted_attack_impact, 4),
+                "high_value_contamination": round(self.high_value_contamination, 4),
+                "vulnerability_impact": round(self.vulnerability_impact, 4),
             },
         }
 

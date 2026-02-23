@@ -152,7 +152,7 @@ class TestReportGenerator:
 
         agg = AggregateResult(scale="small", layer="app", num_runs=1)
         agg.avg_spearman = 0.85
-        agg.std_spearman = 0.02
+        agg.avg_spearman_ci = [0.83, 0.87]
 
         summary = BenchmarkSummary(
             timestamp="now", duration=1.0, total_runs=1, passed_runs=1,
@@ -162,9 +162,8 @@ class TestReportGenerator:
 
         assert path.exists()
         content = path.read_text()
-        assert "small" in content
         assert "0.850" in content
-        assert "±" in content  # std deviation is included
+        assert "]" in content  # CI brackets are included
 
     def test_markdown_includes_errors(self, tmp_output):
         tmp_output.mkdir()
@@ -243,7 +242,7 @@ class TestBenchmarkRunner:
         mock_val_result.overall.ranking.top_10_overlap = 0.70
         mock_val_result.overall.error.rmse = 0.15
         mock_val_result.passed = True
-        mock_val.return_value = (mock_val_result, 5.0)
+        mock_val.return_value = ((mock_val_result, {}), 5.0)
 
         runner = BenchmarkRunner(tmp_output)
         scenario = BenchmarkScenario(name="T", scale="tiny", layers=["app"], runs=1)

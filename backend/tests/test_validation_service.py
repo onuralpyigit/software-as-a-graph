@@ -79,20 +79,26 @@ class TestValidationService:
         # Setup Analysis Result
         comps = []
         sim_results = []
-        for i, char in enumerate(['A', 'B', 'C']):
+        # Use 5 components with one outlier so BoxPlotClassifier identifies a critical component
+        values = [0.95, 0.50, 0.45, 0.40, 0.35]
+        for i, char in enumerate(['A', 'B', 'C', 'D', 'E']):
             # Analysis
             comp = MagicMock()
             comp.id = char
             comp.type = "Application"
-            comp.scores.overall = 0.8 - (i * 0.1)  # Perfect match with variance
+            comp.scores.overall = values[i]
             comp.structural.name = f"App {char}"
+            comp.structural.is_articulation_point = (i == 0)
             comps.append(comp)
             
             # Simulation
             fail_res = MagicMock(spec=FailureResult)
             fail_res.target_id = char
             fail_res.impact = MagicMock(spec=ImpactMetrics)
-            fail_res.impact.composite_impact = 0.8 - (i * 0.1) # Perfect match with variance
+            fail_res.impact.composite_impact = values[i]
+            fail_res.impact.availability_impact = values[i]
+            fail_res.impact.vulnerability_impact = values[i]
+            fail_res.impact.attack_reach = values[i]
             sim_results.append(fail_res)
         
         mock_analysis_res = MagicMock(spec=LayerAnalysisResult)
@@ -106,9 +112,9 @@ class TestValidationService:
         result = validation_service.validate_layers(layers=["app"])
         
         layer_res = result.layers["app"]
-        assert layer_res.predicted_components == 3
-        assert layer_res.simulated_components == 3
-        assert layer_res.matched_components == 3
+        assert layer_res.predicted_components == 5
+        assert layer_res.simulated_components == 5
+        assert layer_res.matched_components == 5
         assert layer_res.passed is True
         
         # Verify data passed to validator (implicitly via result checks)
@@ -502,10 +508,14 @@ class TestPassFailLogic:
 
     @staticmethod
     def _make_monotonic_data(n: int):
-        """Helper: generate perfectly correlated test data."""
-        pred = {f"c{i}": (i + 1) / n for i in range(n)}
-        # Add slight noise to avoid perfect prediction (RMSE = 0 trivially passes)
-        actual = {f"c{i}": (i + 1) / n + 0.01 for i in range(n)}
+        """Helper: generate perfectly correlated test data with an outlier."""
+        pred = {f"c{i}": (i + 1) / n for i in range(n - 1)}
+        actual = {f"c{i}": (i + 1) / n + 0.01 for i in range(n - 1)}
+        
+        # Add an outlier to trigger critical classification
+        pred[f"c{n-1}"] = 3.0
+        actual[f"c{n-1}"] = 3.01
+        
         types = {f"c{i}": "App" for i in range(n)}
         return pred, actual, types
 
@@ -518,7 +528,7 @@ class TestPassFailLogic:
             f1_score=0.30,
             top_5_overlap=0.20,
             rmse_max=0.50,
-        ))
+        ), winsorize_actuals=False)
         result = validator.validate(pred, actual, types)
         assert result.passed is True
 
@@ -528,7 +538,7 @@ class TestPassFailLogic:
         pred = {f"c{i}": (20 - i) / 20 for i in range(20)}
         actual = {f"c{i}": (i + 1) / 20 for i in range(20)}
         types = {f"c{i}": "App" for i in range(20)}
-        validator = Validator(targets=ValidationTargets(spearman=0.70))
+        validator = Validator(targets=ValidationTargets(spearman=0.70), winsorize_actuals=False)
         result = validator.validate(pred, actual, types)
         assert result.passed is False
 
@@ -541,7 +551,7 @@ class TestPassFailLogic:
             f1_score=0.0,
             top_5_overlap=0.0,
             rmse_max=10.0,
-        ))
+        ), winsorize_actuals=False)
         pred = {"A": 0.9, "B": 0.5, "C": 0.1}
         actual = {"A": 0.8, "B": 0.4, "C": 0.2}
         types = {"A": "App", "B": "App", "C": "App"}
@@ -558,7 +568,7 @@ class TestPassFailLogic:
             f1_score=0.0,
             top_5_overlap=0.0,
             rmse_max=0.01,  # very strict RMSE
-        ))
+        ), winsorize_actuals=False)
         # Same ordering but large offset
         pred = {f"c{i}": i / 10 for i in range(10)}
         actual = {f"c{i}": i / 10 + 0.5 for i in range(10)}
@@ -576,7 +586,7 @@ class TestPassFailLogic:
             top_5_overlap=0.99,
             rmse_max=0.001,
         )
-        validator = Validator(targets=targets)
+        validator = Validator(targets=targets, winsorize_actuals=False)
         pred, actual, types = self._make_monotonic_data(20)
         result = validator.validate(pred, actual, types)
         # Very strict targets - unlikely to pass with slight noise
@@ -682,11 +692,13 @@ class TestRealisticScale:
     def test_medium_scale_monotonic(self):
         """50 components with perfect ranking should pass easily."""
         n = 50
-        pred = {f"c{i}": (i + 1) / n for i in range(n)}
-        actual = {f"c{i}": (i + 1) / n + 0.005 for i in range(n)}
+        pred = {f"c{i}": (i + 1) / n for i in range(n - 1)}
+        pred[f"c{n-1}"] = 5.0  # outlier
+        actual = {f"c{i}": (i + 1) / n + 0.005 for i in range(n - 1)}
+        actual[f"c{n-1}"] = 5.01  # outlier
         types = {f"c{i}": "Application" for i in range(n)}
 
-        validator = Validator()
+        validator = Validator(winsorize_actuals=False)
         result = validator.validate(pred, actual, types)
         assert result.overall.correlation.spearman > 0.95
         assert result.overall.correlation.spearman_p < 0.001
@@ -697,12 +709,12 @@ class TestRealisticScale:
         import random
         rng = random.Random(42)
         n = 50
-        base = [(i + 1) / n for i in range(n)]
+        base = [(i + 1) / n for i in range(n - 1)] + [5.0]
         pred = {f"c{i}": base[i] for i in range(n)}
         actual = {f"c{i}": base[i] + rng.gauss(0, 0.05) for i in range(n)}
         types = {f"c{i}": "Application" for i in range(n)}
 
-        validator = Validator()
+        validator = Validator(winsorize_actuals=False)
         result = validator.validate(pred, actual, types)
         assert result.overall.correlation.spearman > 0.70
         assert result.overall.correlation.spearman_p < 0.05

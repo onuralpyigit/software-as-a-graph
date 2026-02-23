@@ -38,6 +38,14 @@ class ValidationTargets:
     hsrr: float = 0.65                       # Hidden SPOF Recovery Rate ≥ 0.65
     dasa: float = 0.70                       # Directed SPOF Asymmetry Accuracy ≥ 0.70
     rri: float = 0.80                        # Redundancy Robustness Index ≥ 0.80
+    # Vulnerability-specific targets (V(v) v2)
+    vulnerability_spearman: float = 0.70     # ρ(V(v), IV(v)) ≥ 0.70
+    dvs: float = 0.05                        # Direction Validation Score > 0.05
+    ahcr_5: float = 0.70                     # Attack Hub Capture Rate @5 ≥ 0.70
+    ttsa: float = 0.15                       # Trust Threshold Sensitivity Analysis ≤ 0.15
+    ftr: float = 0.25                        # False Target Rate ≤ 0.25
+    apar: float = 0.60                       # Attack Path Agreement Rate ≥ 0.60
+    cdcc: float = 0.40                       # Cross-Dimensional Contamination Check ≤ 0.40
 
     def to_dict(self) -> Dict[str, float]:
         return {k: v for k, v in asdict(self).items() if isinstance(v, (float, int))}
@@ -257,6 +265,7 @@ class LayerValidationResult:
     reliability_spearman: float = 0.0  # ρ(R(v), IR(v)) — reliability-specific correlation
     maintainability_spearman: float = 0.0  # ρ(M(v), IM(v)) — maintainability-specific correlation
     availability_spearman: float = 0.0  # ρ(A(v), IA(v)) — availability-specific correlation
+    vulnerability_spearman: float = 0.0  # ρ(V(v), IV(v)) — vulnerability-specific correlation
     passed: bool = False
     comparisons: List[ComponentComparison] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -276,6 +285,7 @@ class LayerValidationResult:
                 "reliability_spearman": round(self.reliability_spearman, 4),
                 "maintainability_spearman": round(self.maintainability_spearman, 4),
                 "availability_spearman": round(self.availability_spearman, 4),
+                "vulnerability_spearman": round(self.vulnerability_spearman, 4),
             },
             "validation_result": self.validation_result.to_dict() if self.validation_result else None,
             "warnings": self.warnings,

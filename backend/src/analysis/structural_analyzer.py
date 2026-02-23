@@ -172,19 +172,23 @@ class StructuralAnalyzer:
         # --- Centrality metrics on the directed graph ---
         # PageRank: weights as importance (raw)
         pagerank = nx.pagerank(G, alpha=self.damping_factor, weight="weight")
-        reverse_pagerank = nx.pagerank(G.reverse(), alpha=self.damping_factor, weight="weight")
+        G_rev = G.reverse()
+        reverse_pagerank = nx.pagerank(G_rev, alpha=self.damping_factor, weight="weight")
 
         # Betweenness: weights as distance (inverted)
         betweenness = nx.betweenness_centrality(G_dist, weight="weight", normalized=True)
 
         # Harmonic closeness: no weights (topological proximity)
         closeness = nx.harmonic_centrality(G)
+        reverse_closeness = nx.harmonic_centrality(G_rev)
         # Normalize harmonic centrality to [0, 1] by dividing by (n-1)
         if n_nodes > 1:
             closeness = {v: c / (n_nodes - 1) for v, c in closeness.items()}
+            reverse_closeness = {v: c / (n_nodes - 1) for v, c in reverse_closeness.items()}
 
         # Eigenvector with Katz fallback
         eigenvector = self._safe_eigenvector(G)
+        reverse_eigenvector = self._safe_eigenvector(G_rev)
 
         # --- Degree ---
         in_deg = dict(G.in_degree())
@@ -243,7 +247,9 @@ class StructuralAnalyzer:
                 reverse_pagerank=reverse_pagerank.get(nid, 0.0),
                 betweenness=betweenness.get(nid, 0.0),
                 closeness=closeness.get(nid, 0.0),
+                reverse_closeness=reverse_closeness.get(nid, 0.0),
                 eigenvector=eigenvector.get(nid, 0.0),
+                reverse_eigenvector=reverse_eigenvector.get(nid, 0.0),
                 # Degree (normalized)
                 degree=total_raw / (2 * (n_nodes - 1)) if n_nodes > 1 else 0.0,
                 in_degree=raw_in / (n_nodes - 1) if n_nodes > 1 else 0.0,

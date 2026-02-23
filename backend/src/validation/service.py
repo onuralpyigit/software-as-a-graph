@@ -250,26 +250,78 @@ class ValidationService:
             self.logger.debug("Maintainability-specific validation skipped: %s", e)
             maintainability_spearman = 0.0
 
-        # Vulnerability dimensional correlation (proxy: throughput_loss)
-        for dim_name, pred_dim, actual_dim in [
-            ("vulnerability",  pred_vulnerability, actual_throughput),
-        ]:
-            try:
-                common = sorted(set(pred_dim) & set(actual_dim))
-                if len(common) >= 3:
-                    p_vals = [float(pred_dim[k]) for k in common]
-                    a_vals = [float(actual_dim[k]) for k in common]
-                    corr = calculate_correlation(p_vals, a_vals)
-                    dimensional_validation[dim_name] = {
-                        "spearman": round(corr.spearman, 4),
-                        "n": len(common),
-                    }
-                    self.logger.info(
-                        "Dim validation [%s] %s: \u03c1=%.3f (n=%d)",
-                        sim_layer.value, dim_name, corr.spearman, len(common),
-                    )
-            except Exception as e:
-                self.logger.debug("Dimensional validation skipped for %s: %s", dim_name, e)
+        # 6. Vulnerability-specific validation — ρ(V(v), IV(v))
+        self.logger.info("Computing vulnerability-specific validation (IV(v) ground truth)...")
+        vulnerability_spearman = 0.0
+
+        from src.validation.metric_calculator import (
+            calculate_ahcr_at_k, calculate_ftr, calculate_apar
+        )
+
+        actual_vulnerability_impact = {
+            r.target_id: r.impact.vulnerability_impact for r in sim_results
+        }
+        actual_attack_reach = {
+            r.target_id: r.impact.attack_reach for r in sim_results
+        }
+
+        try:
+            common_v = sorted(set(pred_vulnerability) & set(actual_vulnerability_impact))
+            if len(common_v) >= 3:
+                p_v_vals  = [float(pred_vulnerability[k]) for k in common_v]
+                a_iv_vals = [float(actual_vulnerability_impact[k]) for k in common_v]
+                v_corr = calculate_correlation(p_v_vals, a_iv_vals)
+                vulnerability_spearman = v_corr.spearman
+
+                pred_v_dict = {k: pred_vulnerability[k] for k in common_v}
+                act_iv_dict = {k: actual_vulnerability_impact[k] for k in common_v}
+                
+                # AHCR@5
+                ahcr_5 = calculate_ahcr_at_k(pred_v_dict, act_iv_dict, k=5)
+                
+                # FTR
+                act_reach_dict = {k: actual_attack_reach[k] for k in common_v}
+                ftr = calculate_ftr(pred_v_dict, act_reach_dict, v_threshold=0.60, reach_threshold=0.10)
+                
+                # APAR
+                paths_all = []
+                for r in sim_results:
+                    if r.impact.critical_paths:
+                        paths_all.extend(r.impact.critical_paths)
+                apar = calculate_apar(pred_v_dict, paths_all, v_threshold=0.60)
+                
+                # CDCC: Cross-Dimensional Contamination Check (Rank divergence V vs A)
+                p_a_vals_for_cdcc = [float(pred_availability[k]) for k in common_v if k in pred_availability]
+                p_v_vals_for_cdcc = [float(pred_vulnerability[k]) for k in common_v if k in pred_availability]
+                
+                cdcc = 0.0
+                if len(p_a_vals_for_cdcc) >= 3:
+                    from src.validation.metric_calculator import spearman_correlation
+                    cdcc_res, _ = spearman_correlation(p_v_vals_for_cdcc, p_a_vals_for_cdcc)
+                    cdcc = cdcc_res
+
+                dimensional_validation["vulnerability"] = {
+                    "spearman": round(v_corr.spearman, 4),
+                    "spearman_p": round(v_corr.spearman_p, 6),
+                    "ahcr_5": round(ahcr_5, 4),
+                    "ftr": round(ftr, 4),
+                    "apar": round(apar, 4),
+                    "cdcc": round(cdcc, 4),
+                    "n": len(common_v),
+                    "ground_truth": "IV(v)",
+                }
+                
+                self.logger.info(
+                    "Vulnerability dim [%s]: ρ(V,IV)=%.3f (n=%d), "
+                    "AHCR@5=%.3f, FTR=%.3f, APAR=%.3f, CDCC=%.3f",
+                    sim_layer.value, v_corr.spearman, len(common_v),
+                    ahcr_5, ftr, apar, cdcc
+                )
+            else:
+                vulnerability_spearman = 0.0
+        except Exception as e:
+            self.logger.debug("Vulnerability-specific validation skipped: %s", e)
+            vulnerability_spearman = 0.0
 
         # 6. Availability-specific validation — ρ(A(v), IA(v)) + SPOF_F1 + RRI
         self.logger.info("Computing availability-specific validation (IA(v) ground truth)...")
@@ -344,6 +396,7 @@ class ValidationService:
             reliability_spearman=reliability_spearman,
             maintainability_spearman=maintainability_spearman,
             availability_spearman=availability_spearman,
+            vulnerability_spearman=vulnerability_spearman,
 
             passed=validation_res.passed,
             comparisons=validation_res.overall.components,

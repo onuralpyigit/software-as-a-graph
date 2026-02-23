@@ -745,3 +745,71 @@ def calculate_rri(
     )
     return true_negatives / len(redundant)
 
+# =============================================================================
+# Vulnerability-Specific Metrics (V(v) v2 / IV(v))
+# =============================================================================
+
+def calculate_ahcr_at_k(
+    predicted: Dict[str, float],
+    actual: Dict[str, float],
+    k: int = 5,
+) -> float:
+    """Attack Hub Capture Rate @ K (AHCR@K).
+
+    AHCR@K = |Top-K(V(v)) \\cap Top-K(IV(v))| / K
+
+    Target: AHCR@5 >= 0.70.
+    """
+    common = sorted(set(predicted) & set(actual))
+    if not common or k <= 0:
+        return 0.0
+    effective_k = min(k, len(common))
+    pred_top = set(sorted(common, key=lambda c: predicted[c], reverse=True)[:effective_k])
+    actual_top = set(sorted(common, key=lambda c: actual[c], reverse=True)[:effective_k])
+    return len(pred_top & actual_top) / effective_k
+
+
+def calculate_ftr(
+    predicted: Dict[str, float],
+    actual_reach: Dict[str, float],
+    v_threshold: float = 0.60,
+    reach_threshold: float = 0.10,
+) -> float:
+    """False Target Rate (FTR).
+
+    FTR = |{v: V(v) > v_threshold AND IV(v)_reach < reach_threshold}| / |{v: V(v) > v_threshold}|
+
+    Target: FTR <= 0.25 (Lower is better).
+    """
+    common = sorted(set(predicted) & set(actual_reach))
+    if not common:
+        return 0.0
+
+    predicted_high = [cid for cid in common if predicted[cid] > v_threshold]
+    if not predicted_high:
+        return 0.0
+
+    false_targets = sum(1 for cid in predicted_high if actual_reach[cid] < reach_threshold)
+    return false_targets / len(predicted_high)
+
+
+def calculate_apar(
+    predicted: Dict[str, float],
+    critical_paths: List[List[str]],
+    v_threshold: float = 0.60,
+) -> float:
+    """Attack Path Agreement Rate (APAR).
+
+    APAR = |{v: V(v) > v_threshold AND v in critical_paths}| / |{v: V(v) > v_threshold}|
+
+    Target: APAR >= 0.60.
+    """
+    predicted_high = [cid for cid, score in predicted.items() if score > v_threshold]
+    if not predicted_high:
+        return 0.0
+
+    path_nodes = {node for path in critical_paths for node in path}
+    
+    agreed = sum(1 for cid in predicted_high if cid in path_nodes)
+    return agreed / len(predicted_high)
+

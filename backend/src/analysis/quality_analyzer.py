@@ -409,7 +409,9 @@ class QualityAnalyzer:
         rpr  = _n(m.reverse_pagerank, "reverse_pagerank")
         bt   = _n(m.betweenness,      "betweenness")
         cl   = _n(m.closeness,        "closeness")
+        rcl  = _n(m.reverse_closeness,"reverse_closeness")
         ev   = _n(m.eigenvector,      "eigenvector")
+        rev  = _n(m.reverse_eigenvector,"reverse_eigenvector")
         id_n = _n(m.in_degree_raw,    "in_degree")
         od_n = _n(m.out_degree_raw,   "out_degree")
         cc   = m.clustering_coefficient
@@ -451,8 +453,13 @@ class QualityAnalyzer:
             + getattr(w, 'a_cdi',           0.10) * cdi
         )
 
-        # Vulnerability: strategic importance + propagation speed
-        V = w.v_eigenvector * ev + w.v_closeness * cl
+        # Vulnerability: strategic dependent reach + propagation speed + QoS attack surface
+        w_in_n = _n(m.dependency_weight_in, "w_in")
+        V = (
+            getattr(w, 'v_reverse_eigenvector', 0.40) * rev
+            + getattr(w, 'v_reverse_closeness', 0.35) * rcl
+            + getattr(w, 'v_qads', 0.25) * w_in_n
+        )
 
         Q = w.q_reliability * R + w.q_maintainability * M + w.q_availability * A + w.q_vulnerability * V
 
@@ -691,7 +698,11 @@ class QualityAnalyzer:
             getattr(w, 'a_ap_c_directed', 0.15),
             getattr(w, 'a_cdi', 0.10),
         )
-        v_weights = _perturb_group(w.v_eigenvector, w.v_closeness, w.v_out_degree)
+        v_weights = _perturb_group(
+            getattr(w, 'v_reverse_eigenvector', 0.40),
+            getattr(w, 'v_reverse_closeness', 0.35),
+            getattr(w, 'v_qads', 0.25)
+        )
         q_weights = _perturb_group(
             w.q_reliability, w.q_maintainability, w.q_availability, w.q_vulnerability
         )
@@ -705,7 +716,8 @@ class QualityAnalyzer:
             a_qspof=a_weights[0], a_bridge_ratio=a_weights[1],
             a_ap_c_directed=a_weights[2], a_cdi=a_weights[3],
             a_articulation=0.0, a_qos_weight=0.0, a_importance=0.0,
-            v_eigenvector=v_weights[0], v_closeness=v_weights[1], v_out_degree=v_weights[2],
+            v_reverse_eigenvector=v_weights[0], v_reverse_closeness=v_weights[1], v_qads=v_weights[2],
+            v_eigenvector=0.0, v_closeness=0.0, v_out_degree=0.0,
             q_reliability=q_weights[0], q_maintainability=q_weights[1],
             q_availability=q_weights[2], q_vulnerability=q_weights[3],
         )
@@ -784,12 +796,15 @@ class QualityAnalyzer:
             "reverse_pagerank": max((c.reverse_pagerank for c in components), default=0),
             "betweenness": max((c.betweenness for c in components), default=0),
             "closeness": max((c.closeness for c in components), default=0),
+            "reverse_closeness": max((c.reverse_closeness for c in components), default=0),
             "eigenvector": max((c.eigenvector for c in components), default=0),
+            "reverse_eigenvector": max((c.reverse_eigenvector for c in components), default=0),
             "in_degree": max((c.in_degree_raw for c in components), default=0),
             "out_degree": max((c.out_degree_raw for c in components), default=0),
             "total_degree": max((c.total_degree_raw for c in components), default=0),
             "weight": max((c.weight for c in components), default=1.0),
             "w_out": max((c.dependency_weight_out for c in components), default=1.0),
+            "w_in": max((c.dependency_weight_in for c in components), default=1.0),
         }
 
     @staticmethod
@@ -831,12 +846,15 @@ class QualityAnalyzer:
             "reverse_pagerank":[(c.id, c.reverse_pagerank)  for c in components],
             "betweenness":     [(c.id, c.betweenness)       for c in components],
             "closeness":       [(c.id, c.closeness)         for c in components],
+            "reverse_closeness":[(c.id, c.reverse_closeness)for c in components],
             "eigenvector":     [(c.id, c.eigenvector)       for c in components],
+            "reverse_eigenvector":[(c.id, c.reverse_eigenvector)for c in components],
             "in_degree":       [(c.id, c.in_degree_raw)     for c in components],
             "out_degree":      [(c.id, c.out_degree_raw)    for c in components],
             "total_degree":    [(c.id, c.total_degree_raw)  for c in components],
             "weight":          [(c.id, c.weight)            for c in components],
             "w_out":           [(c.id, c.dependency_weight_out) for c in components],
+            "w_in":            [(c.id, c.dependency_weight_in)  for c in components],
         }
         return {name: _rank_normalise(vals) for name, vals in metrics.items()}
 
@@ -867,8 +885,8 @@ class QualityAnalyzer:
         winsorized = [copy.copy(c) for c in components]
         
         metrics_to_winsorize = [
-            "pagerank", "reverse_pagerank", "betweenness", "closeness", 
-            "eigenvector", "in_degree_raw", "out_degree_raw", "weight"
+            "pagerank", "reverse_pagerank", "betweenness", "closeness", "reverse_closeness",
+            "eigenvector", "reverse_eigenvector", "in_degree_raw", "out_degree_raw", "weight"
         ]
 
         for attr in metrics_to_winsorize:

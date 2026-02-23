@@ -174,7 +174,7 @@ class TestLogicalCascade:
 
         starvation_events = [
             e for e in result.cascade_sequence
-            if "publisher_starvation" in e.cause
+            if "sl_starvation" in e.cause
         ]
         assert len(starvation_events) > 0
 
@@ -333,13 +333,14 @@ class TestImpactWeights:
     """Tests for configurable composite impact weights."""
 
     def test_default_weights(self):
-        """Default weights: reachability=0.4, fragmentation=0.3, throughput=0.3."""
+        """Default weights: reachability=0.35, fragmentation=0.25, throughput=0.25, flow_disruption=0.15."""
         metrics = ImpactMetrics(
             reachability_loss=1.0,
             fragmentation=0.0,
             throughput_loss=0.0,
+            flow_disruption=0.0,
         )
-        assert metrics.composite_impact == pytest.approx(0.4, abs=0.01)
+        assert metrics.composite_impact == pytest.approx(0.35, abs=0.01)
 
     def test_custom_weights(self):
         """Custom weights should change composite impact."""
@@ -357,8 +358,9 @@ class TestImpactWeights:
             reachability_loss=0.5,
             fragmentation=0.5,
             throughput_loss=0.5,
+            flow_disruption=0.5,
         )
-        expected = 0.4 * 0.5 + 0.3 * 0.5 + 0.3 * 0.5
+        expected = 0.35 * 0.5 + 0.25 * 0.5 + 0.25 * 0.5 + 0.15 * 0.5
         assert metrics.composite_impact == pytest.approx(expected, abs=0.01)
 
 
