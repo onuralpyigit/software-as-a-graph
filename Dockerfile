@@ -48,7 +48,21 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ============================================
-# Stage 4: Final Production Image (with Neo4j)
+# Stage 4: Neo4j Plugin Builder (Maven)
+# ============================================
+FROM eclipse-temurin:17-jdk AS plugin-builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends maven && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY neo4j-plugin/graph-relationship-manager/pom.xml ./pom.xml
+# Download dependencies first for better caching
+RUN mvn dependency:go-offline -B
+COPY neo4j-plugin/graph-relationship-manager/src ./src
+RUN mvn clean package -DskipTests -B
+
+# ============================================
+# Stage 5: Final Production Image (with Neo4j)
 # ============================================
 FROM python:3.11-slim
 
@@ -77,10 +91,15 @@ RUN wget -O neo4j.tar.gz https://dist.neo4j.org/neo4j-community-${NEO4J_VERSION}
     rm neo4j.tar.gz && \
     mkdir -p ${NEO4J_HOME}/data ${NEO4J_HOME}/logs ${NEO4J_HOME}/import ${NEO4J_HOME}/plugins
 
+# Copy the custom Neo4j plugin JAR from the plugin builder stage
+COPY --from=plugin-builder /build/target/graph-relationship-manager-1.0.0.jar ${NEO4J_HOME}/plugins/
+
 # Configure Neo4j
 RUN sed -i 's/#server.default_listen_address=127.0.0.1/server.default_listen_address=0.0.0.0/' ${NEO4J_CONF}/neo4j.conf && \
     sed -i 's/#server.bolt.listen_address=:7687/server.bolt.listen_address=0.0.0.0:7687/' ${NEO4J_CONF}/neo4j.conf && \
-    sed -i 's/#server.http.listen_address=:7474/server.http.listen_address=0.0.0.0:7474/' ${NEO4J_CONF}/neo4j.conf
+    sed -i 's/#server.http.listen_address=:7474/server.http.listen_address=0.0.0.0:7474/' ${NEO4J_CONF}/neo4j.conf && \
+    echo 'dbms.security.procedures.unrestricted=custom.*' >> ${NEO4J_CONF}/neo4j.conf && \
+    echo 'dbms.security.procedures.allowlist=custom.*' >> ${NEO4J_CONF}/neo4j.conf
 
 ENV PATH="${NEO4J_HOME}/bin:${PATH}"
 
