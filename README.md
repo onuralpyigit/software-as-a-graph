@@ -3,7 +3,7 @@
 **Predict which components in a distributed system will cause the most damage when they fail — using only the system's architecture.**
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Next.js 15](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![Docker](https://img.shields.io/badge/docker-compose-blue)](https://www.docker.com/)
 [![Neo4j 5.x](https://img.shields.io/badge/neo4j-5.x-green.svg)](https://neo4j.com/)
 [![IEEE RASSE 2025](https://img.shields.io/badge/IEEE-RASSE%202025-orange.svg)](#citation)
@@ -20,10 +20,11 @@
 6. [Web Interface (Genieus)](#web-interface-genieus)
 7. [Development Setup (CLI)](#development-setup-cli)
 8. [How It Works — The 6-Step Pipeline](#how-it-works--the-6-step-pipeline)
-9. [Project Structure](#project-structure)
-10. [Research Context](#research-context)
-11. [Citation](#citation)
-12. [License](#license)
+9. [RMAV Quality Scoring](#rmav-quality-scoring)
+10. [Project Structure](#project-structure)
+11. [Research Context](#research-context)
+12. [Citation](#citation)
+13. [License](#license)
 
 ---
 
@@ -39,22 +40,25 @@ We treat your system architecture as a graph and apply topological analysis to *
 
 > **A component's position in the dependency graph reliably predicts its real-world failure impact.**
 
-Applications, brokers, topics, and infrastructure nodes are modeled as vertices. Their publish-subscribe relationships become weighted directed edges, with weights derived from QoS settings (reliability, durability, priority, message size). Graph-theoretic metrics — PageRank, betweenness centrality, articulation point detection — are then combined into an **RMAV quality score** (Reliability, Maintainability, Availability, Vulnerability) using AHP-derived weights.
+Applications, brokers, topics, and infrastructure nodes are modelled as vertices. Their publish-subscribe relationships become weighted directed edges, with weights derived from QoS settings (reliability, durability, priority, message size). Graph-theoretic metrics — Reverse PageRank, betweenness centrality, articulation point detection, bridge ratio, and more — are combined into an **RMAV composite quality score** (Reliability, Maintainability, Availability, Vulnerability) using AHP-derived weights.
+
+Ground-truth impact scores are produced by four parallel failure simulators (cascade, change-propagation, connectivity-loss, and compromise-propagation), each aligned to one RMAV dimension.
 
 This shifts the analysis paradigm from reactive runtime monitoring to **proactive pre-deployment prediction**.
 
 ## Empirical Validation
 
-The methodology has been empirically validated across multiple system scales and domains:
+The methodology has been empirically validated across 8 scenario datasets spanning multiple system scales and domains:
 
 | Metric | Target | Achieved |
 |--------|--------|----------|
-| Spearman correlation (ρ) | ≥ 0.70 | **0.876** |
-| F1-score | ≥ 0.90 | **> 0.90** |
+| Spearman correlation ρ(Q*, I*) | ≥ 0.85 | **> 0.85** |
+| Overall F1-score | ≥ 0.90 | **> 0.90** |
+| Predictive Gain (PG) vs. degree baseline | > 0.03 | **> 0.03** |
 | Analysis layer | — | Application layer outperforms infrastructure layer |
 | Scale effect | — | Prediction accuracy improves with system size |
 
-Validation domains include ROS 2 autonomous vehicles, IoT smart city deployments, financial trading platforms, and healthcare systems.
+Validation domains include ROS 2 autonomous vehicles, IoT smart cities, financial trading platforms, and healthcare systems.
 
 ## Supported Platforms
 
@@ -79,7 +83,7 @@ The fastest way to run the full system — web dashboard, REST API, and graph da
 git clone https://github.com/<your-org>/software-as-a-graph.git
 cd software-as-a-graph
 
-# Start the full stack
+# Build and start all services
 docker compose up --build
 ```
 
@@ -91,31 +95,25 @@ Once running, open:
 | REST API (FastAPI docs) | http://localhost:8000/docs | — |
 | Neo4j Browser | http://localhost:7474 | `neo4j` / `password` |
 
-> **Note:** Default Neo4j credentials (`neo4j` / `password`) are for local development only. Change them via the `NEO4J_AUTH` environment variable in `docker-compose.yml` before any shared or production deployment.
+> **Note:** Default Neo4j credentials (`neo4j` / `password`) are for local development only. Change them in the root `.env` file before any shared or production deployment.
 
-### Running a Pre-Built Docker Image
-
-If you have a pre-built Docker image (e.g., from `docker build`), you can run it directly with:
+### Running a Pre-Built Image
 
 ```bash
 docker run --name genieus --network host genieus:1.0.0
 ```
 
-- `--name genieus` — Names the container for easier management
-- `--network host` — Uses the host network, allowing the container to connect to services running on localhost (e.g., Neo4j on port 7687)
-- `genieus:1.0.0` — The image name and tag
-
-This is useful when deploying a specific version of the application alongside an existing Neo4j instance.
+`--network host` allows the container to connect to Neo4j running on the host (port 7687). Useful for deploying a specific image alongside an existing Neo4j instance.
 
 ---
 
 ## Web Interface (Genieus)
 
-The **Genieus** dashboard provides an interactive frontend for the full analysis pipeline:
+The **Genieus** dashboard (Next.js 16, React 19, TypeScript) provides an interactive frontend for the full analysis pipeline:
 
 1. **Dashboard** — High-level KPIs, criticality distribution heatmap, and top critical component list.
 2. **Graph Explorer** — Interactive 2D/3D force-directed graph. Filter by layer (app / infra / middleware / system), search components, and inspect dependency details.
-3. **Analysis** — Trigger structural analysis and quality scoring for a selected layer.
+3. **Analysis** — Trigger structural analysis and RMAV quality scoring for a selected layer.
 4. **Simulation** — Simulate component failures and visualise cascade propagation paths.
 5. **Settings** — Configure the Neo4j connection (URI, credentials, database name).
 
@@ -127,19 +125,19 @@ Use the CLI when you want to run individual pipeline stages, integrate with scri
 
 ### Prerequisites
 
-- Python 3.9+
-- Neo4j 5.x (either via Docker or a local installation with the APOC and GDS plugins)
+- Python 3.9+ (virtual environment recommended — `software_system_env/` is `.gitignore`d)
+- Neo4j 5.x (via Docker or a local installation with the APOC and GDS plugins)
 - Node.js 18+ (frontend only)
 
 ### Backend & CLI
 
 ```bash
 # Install Python dependencies
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 
 # Copy and configure environment variables
-cp .env.example .env
-# Edit .env: set NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD as needed
+cp backend/.env.example backend/.env
+# Edit backend/.env: set NEO4J_HOST, NEO4J_BOLT_PORT, NEO4J_USERNAME, NEO4J_PASSWORD
 
 # Run the full pipeline in one command
 python bin/run.py --all --layer system
@@ -148,35 +146,63 @@ python bin/run.py --all --layer system
 ### Frontend (optional)
 
 ```bash
-cd genieus
+cd frontend
 npm install
-npm run dev
-# Runs on http://localhost:7000
+npm run dev           # http://localhost:7000
+
+# Regenerate the API client from the OpenAPI spec (after backend changes)
+npm run generate-client
 ```
 
 ### Individual Pipeline Scripts
 
-Each step of the methodology has its own CLI script in `bin/`:
+Each step has its own CLI script in `bin/`. All scripts must be run from the repo root:
 
 ```bash
 # Step 1 — Generate synthetic topology & import into Neo4j
-python bin/generate_graph.py --scale medium --output data/system.json
-python bin/import_graph.py --input data/system.json --clear
+python bin/generate_graph.py --scale medium --output input/system.json
+python bin/import_graph.py --input input/system.json --clear
 
-# Step 2 & 3 — Structural analysis + RMAV quality scoring
+# Steps 2 & 3 — Structural analysis + RMAV quality scoring
 python bin/analyze_graph.py --layer system
 
-# Step 4 — Failure simulation (produces ground-truth impact scores)
+# Step 4 — Failure simulation (produces per-dimension ground-truth scores)
 python bin/simulate_graph.py failure --layer system --exhaustive
 
-# Step 5 — Statistical validation (Spearman ρ, F1-score, etc.)
+# Step 5 — Statistical validation (Spearman ρ, F1-score, per-RMAV metrics)
 python bin/validate_graph.py --layer system
 
-# Step 6 — Interactive HTML dashboard
-python bin/visualize_graph.py --layer system --output dashboard.html --open
+# Step 6 — Interactive HTML dashboard (self-contained, no server needed)
+python bin/visualize_graph.py --layer system --output output/dashboard.html --open
 ```
 
 The `--layer` flag accepts `app`, `infra`, `mw`, or `system` (all layers combined).
+
+Additional utility scripts:
+
+```bash
+# Export graph data from Neo4j
+python bin/export_graph.py --layer system --output output/graph_export.json
+
+# Benchmark across all scale presets
+python bin/benchmark.py
+
+# Run the full pipeline across all 8 domain scenarios
+bash bin/run_scenarios.sh
+
+# Ground the SPOF threshold empirically across all 8 scenarios
+python bin/ground_threshold.py
+```
+
+### Running Tests
+
+```bash
+cd backend
+pytest                # All tests
+pytest -x             # Stop on first failure
+pytest tests/test_analysis_service.py   # Single file
+pytest -k "reliability"                 # Filter by name
+```
 
 ### Programmatic API
 
@@ -184,9 +210,10 @@ For Python-based integration, see the annotated examples in `examples/`:
 
 | File | What it demonstrates |
 |------|----------------------|
+| `examples/example_end_to_end.py` | Full pipeline from generation to validation |
 | `examples/example_generation.py` | Generating topology data programmatically |
 | `examples/example_import.py` | Importing a graph into Neo4j via the Python API |
-| `examples/example_analysis.py` | Running structural and quality analysis |
+| `examples/example_analysis.py` | Running structural and RMAV quality analysis |
 | `examples/example_simulation.py` | Running failure and event simulations |
 | `examples/example_validation.py` | Validating predictions against ground truth |
 | `examples/example_visualization.py` | Generating HTML dashboards |
@@ -220,11 +247,11 @@ Architecture JSON
 | Step | What It Does | Key Output |
 |------|-------------|------------|
 | **1. [Graph Model](docs/graph-model.md)** | Converts topology JSON to a weighted directed graph G(V, E, w); derives DEPENDS_ON edges from pub-sub relationships | G_structural and G_analysis(l) |
-| **2. [Structural Analysis](docs/structural-analysis.md)** | Computes PageRank, Reverse PageRank, betweenness centrality, articulation points, and clustering coefficients | Metric vector M(v) per component |
-| **3. [Quality Scoring](docs/quality-scoring.md)** | Maps M(v) to RMAV dimensions using AHP-derived weights; classifies criticality via box-plot adaptive thresholds | Quality score Q(v) ∈ {LOW, MEDIUM, HIGH, CRITICAL} |
-| **4. [Failure Simulation](docs/failure-simulation.md)** | Injects faults exhaustively and propagates cascades through G_structural | Ground-truth impact score I(v) per component |
-| **5. [Validation](docs/validation.md)** | Computes Spearman ρ between Q(v) and I(v); evaluates classification accuracy (F1, precision, recall) | Statistical evidence of predictive validity |
-| **6. [Visualization](docs/visualization.md)** | Renders interactive dashboards with network graphs, dependency matrices, and layer comparison views | `dashboard.html` (self-contained) |
+| **2. [Structural Analysis](docs/structural-analysis.md)** | Computes Reverse PageRank, betweenness, closeness, eigenvector centralities, bridge ratio, articulation points, clustering | Metric vector M(v) per component |
+| **3. [Quality Scoring](docs/quality-scoring.md)** | Maps M(v) to RMAV dimensions using AHP-derived weights; classifies criticality via box-plot adaptive thresholds | Q*(v) composite score and Q(v) ∈ {MINIMAL, LOW, MEDIUM, HIGH, CRITICAL} |
+| **4. [Failure Simulation](docs/failure-simulation.md)** | Runs four parallel simulators (cascade, change-propagation, connectivity-loss, compromise-propagation) | Per-dimension ground-truth scores IR(v), IM(v), IA(v), IV(v) and composite I*(v) |
+| **5. [Validation](docs/validation.md)** | Computes Spearman ρ and Kendall τ between Q*(v) and I*(v) and per-dimension pairs; evaluates F1, NDCG@K, Top-K overlap, and specialist metrics | Statistical evidence of predictive validity |
+| **6. [Visualization](docs/visualization.md)** | Renders interactive dashboards with network graphs, dependency matrices, and layer comparison views | `dashboard.html` (fully self-contained) |
 
 ### Scale Presets
 
@@ -240,43 +267,112 @@ The synthetic generator supports five scale presets for rapid experimentation:
 
 ---
 
+## RMAV Quality Scoring
+
+Quality scores are computed per component v. AHP weights use a shrinkage factor λ=0.7 (blending learned weights with a uniform prior for robustness on small graphs).
+
+### Reliability — R(v)
+
+```
+R(v) = 0.40·RPR + 0.35·w_in + 0.25·CDPot
+```
+
+- **RPR**: Reverse PageRank (fault propagation reach in G^T)
+- **w_in**: QoS-weighted in-degree (dependent count weighted by topic priority/QoS)
+- **CDPot**: Cascade Depth Potential — `((RPR + w_in) / 2) × (1 − min(w_out / w_in, 1))`
+
+### Maintainability — M(v)
+
+```
+M(v) = 0.40·BT + 0.35·w_out + 0.15·CouplingRisk + 0.10·(1 − CC)
+```
+
+- **BT**: Betweenness centrality (structural bottleneck position)
+- **w_out**: QoS-weighted efferent coupling (outgoing dependency weight)
+- **CouplingRisk**: `1 − |2·Instability − 1|` — maximised at 0.5 (deeply embedded on both sides)
+- **(1−CC)**: Inverse clustering coefficient (direction-agnostic coupling proxy)
+
+### Availability — A(v)
+
+```
+A(v) = 0.45·QSPOF + 0.30·BR + 0.15·AP_c_directed + 0.10·CDI
+```
+
+- **QSPOF**: `AP_c_directed × w(v)` — QoS-scaled SPOF severity
+- **BR**: Bridge ratio (fraction of incident edges that are bridges)
+- **AP_c_directed**: `max(AP_c_out, AP_c_in)` — worst-case directional articulation point score
+- **CDI**: Connectivity Degradation Index — normalised increase in average path length when v is removed
+
+### Vulnerability — V(v)
+
+```
+V(v) = 0.40·REV + 0.35·RCL + 0.25·QADS
+```
+
+- **REV**: Reverse Eigenvector centrality on G^T (strategic attack reach)
+- **RCL**: Reverse Closeness centrality on G^T (adversarial propagation speed)
+- **QADS**: QoS-weighted attack-dependent surface (inbound dependency weight)
+
+### Composite Score
+
+```
+Q*(v) = 0.25·R(v) + 0.25·M(v) + 0.25·A(v) + 0.25·V(v)
+```
+
+Dimension weights are configurable; equal weights are used as the default, assuming balanced system priorities. Criticality is classified via box-plot adaptive thresholds into five labels: `MINIMAL`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`.
+
+---
+
 ## Project Structure
 
 ```
 software-as-a-graph/
-├── genieus/                    # Next.js 15 web dashboard
-├── api.py                      # FastAPI backend entry point
+├── frontend/                   # Next.js 16 web dashboard (Genieus)
 ├── docker-compose.yml          # Full-stack orchestration
+├── Dockerfile                  # All-in-one production image
 │
-├── bin/                        # CLI entry points (one per pipeline step)
+├── bin/                        # CLI entry points (run from repo root)
 │   ├── run.py                  #   Pipeline orchestrator (runs all steps)
+│   ├── run_scenarios.sh        #   Batch-run all 8 domain scenarios
 │   ├── generate_graph.py       #   Synthetic topology generation
 │   ├── import_graph.py         #   Neo4j import & dependency derivation
-│   ├── analyze_graph.py        #   Structural analysis + quality scoring
-│   ├── simulate_graph.py       #   Failure simulation
+│   ├── analyze_graph.py        #   Structural analysis + RMAV quality scoring
+│   ├── simulate_graph.py       #   Failure simulation (failure / event / report)
 │   ├── validate_graph.py       #   Statistical validation
-│   └── visualize_graph.py      #   Dashboard generation
+│   ├── visualize_graph.py      #   Dashboard generation
+│   ├── export_graph.py         #   Export graph data from Neo4j
+│   ├── benchmark.py            #   Benchmarking across scale presets
+│   └── ground_threshold.py     #   Empirical SPOF threshold grounding
 │
-├── src/                        # Python source (hexagonal architecture)
-│   ├── core/                   #   Domain models (GraphData, ComponentData)
-│   │                           #   Ports (IGraphRepository) & adapters (Neo4j)
-│   ├── analysis/               #   Structural metrics + RMAV quality scoring
-│   ├── simulation/             #   Event-based failure propagation
-│   ├── validation/             #   Spearman, F1, classification metrics
-│   ├── visualization/          #   Dashboard & chart generation
-│   ├── generation/             #   Synthetic graph generation
-│   └── cli/                    #   Shared CLI utilities
+├── backend/                    # Python backend (hexagonal architecture)
+│   ├── api/                    #   FastAPI application & routers
+│   ├── src/                    #   Domain source code
+│   │   ├── core/               #     Domain models, ports, Neo4j & memory repos
+│   │   ├── analysis/           #     Structural metrics + RMAV quality scoring
+│   │   ├── simulation/         #     Four parallel failure/event simulators
+│   │   ├── validation/         #     Per-dimension statistical validation
+│   │   ├── visualization/      #     Dashboard & chart generation
+│   │   ├── generation/         #     Synthetic graph generation
+│   │   ├── benchmark/          #     Benchmarking services
+│   │   └── cli/                #     Shared CLI utilities
+│   ├── tests/                  #   Pytest unit & integration tests (24 files)
+│   └── requirements.txt        #   Python dependencies
 │
 ├── examples/                   # Annotated Python usage examples
-├── config/                     # Scale preset YAML configs
-├── docs/                       # Per-step methodology documentation
-│   ├── graph-model.md
-│   ├── structural-analysis.md
-│   ├── quality-scoring.md
-│   ├── failure-simulation.md
-│   ├── validation.md
-│   └── visualization.md
-└── tests/                      # Pytest unit & integration tests
+├── input/                      # Topology JSON & YAML scenario configs (8 scenarios)
+├── output/                     # Pipeline output artefacts (dashboards, reports)
+├── results/                    # Validation results from previous runs
+├── benchmarks/                 # Benchmark data
+└── docs/                       # Per-step methodology documentation
+    ├── graph-model.md
+    ├── structural-analysis.md
+    ├── quality-scoring.md
+    ├── failure-simulation.md
+    ├── validation.md
+    ├── visualization.md
+    ├── SRS.md                  #   Software Requirements Specification
+    ├── SDD.md                  #   Software Design Description
+    └── STD.md                  #   Software Test Description
 ```
 
 ---
@@ -290,7 +386,7 @@ The underlying methodology was peer-reviewed and published at:
 > **IEEE International Conference on Recent Advances in Systems Science and Engineering (RASSE 2025)**
 > *A Graph-Based Dependency Analysis Method for Identifying Critical Components in Distributed Publish-Subscribe Systems*
 
-The primary research contribution is the demonstration that **topological graph metrics can reliably predict real-world failure impact without runtime instrumentation**, validated empirically across four application domains and multiple system scales.
+The primary research contribution is the demonstration that **topological graph metrics can reliably predict real-world failure impact without runtime instrumentation**, validated empirically across four application domains (autonomous vehicles, IoT, financial trading, healthcare) and multiple system scales.
 
 ---
 

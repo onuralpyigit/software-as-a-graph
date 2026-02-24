@@ -73,16 +73,16 @@ The default weights shown below are derived from the Analytic Hierarchy Process 
 ### Reliability R(v) — Fault Propagation Risk
 
 ```
-R(v) = 0.40 × RPR(v) + 0.35 × w_in(v) + 0.25 × CDPot(v)
+R(v) = 0.45 × RPR(v) + 0.30 × DG_in(v) + 0.25 × CDPot(v)
 ```
 
 | Term | Weight | Rationale |
 |------|--------|-----------|
-| RPR(v) | 0.40 | Reverse PageRank — *global* cascade reach; how broadly v's failure propagates in the reverse-dependency direction |
-| w_in(v) | 0.35 | QoS-weighted in-degree — the count of direct dependents weighted by their SLA priority; directly captures *immediate* blast radius without reusing a metric from other dimensions |
+| RPR(v) | 0.45 | Reverse PageRank — *global* cascade reach; how broadly v's failure propagates in the reverse-dependency direction |
+| DG_in(v) | 0.30 | In-degree — the count of direct dependents; directly captures *immediate* structural blast radius |
 | CDPot(v) | 0.25 | Cascade Depth Potential — derived from RPR and the in/out-degree ratio: `((RPR + DG_in) / 2) × (1 − min(DG_out/DG_in, 1))`. Absorber nodes (many dependents, few outgoing links) score high; fan-out hubs with wide shallow cascades score low. |
 
-A component with high R(v) is one whose failure would propagate broadly **and deeply** through the dependency graph. The combination of RPR (global cascade reach), w_in (immediate blast radius weighted by SLA priority), and CDPot (cascade depth signal) makes R(v) a comprehensive fault-propagation predictor while respecting strict metric orthogonality.
+A component with high R(v) is one whose failure would propagate broadly **and deeply** through the dependency graph. The combination of RPR (global cascade reach), DG_in (immediate structural blast radius), and CDPot (cascade depth signal) makes R(v) a comprehensive fault-propagation predictor while respecting strict metric orthogonality.
 
 > [!NOTE]
 > **CDPot(v) inline formula:** `CDPot = ((RPR + DG_in) / 2) × (1 − min(DG_out / DG_in, 1))`. Fan-out nodes (DG_out ≫ DG_in) → CDPot ≈ 0 (wide but shallow, cascade absorbed quickly). Absorber nodes (DG_in ≫ DG_out) → CDPot is high (deep, self-reinforcing cascade). This replaces the old `pubsub_betweenness` redistribution hack with a clean, explainable depth signal.
@@ -123,15 +123,16 @@ Availability uses structural indicators (QSPOF, BR, CDI) to identify components 
 ### Vulnerability V(v) — Strategic Exposure
 
 ```
-V(v) = 0.67 × EV(v) + 0.33 × CL(v)
+V(v) = 0.40 × REV(v) + 0.35 × RCL(v) + 0.25 × w_in(v)
 ```
 
 | Term | Contribution | Rationale |
 |------|-------------|-----------|
-| EV(v) | 0.67 | Eigenvector centrality — connection to other high-value hubs signals *strategic* importance |
-| CL(v) | 0.33 | Closeness centrality — short average distance to all others means a compromise propagates quickly |
+| REV(v) | 0.40 | Reverse Eigenvector centrality — connection to downstream critical components signals *strategic exposure* to dependent failures |
+| RCL(v) | 0.35 | Reverse Closeness centrality — short propagation paths from dependents means vulnerabilities can be exploited rapidly from many sources |
+| w_in(v) | 0.25 | QoS-weighted in-degree — immediate attack surface exposed to dependents weighted by their SLA priority |
 
-Vulnerability measures how strategically placed a component is within the network. High Eigenvector centrality identifies nodes connected to other important hubs, making them high-value targets. High Closeness measures how effectively a compromise at `v` could pivot to other parts of the system. By removing Out-Degree from this dimension, we establish absolute metric orthogonality.
+Vulnerability measures how strategically exposed a component is to issues from its dependents. High Reverse Eigenvector identifies nodes downstream from other important hubs. High Reverse Closeness measures how effectively an attack from dependents could pivot to `v`. `w_in(v)` quantifies the immediate dependent attack surface. This ensures absolute metric orthogonality, giving Vulernability its own distinct structural profile.
 
 ### Overall Quality Q(v)
 
@@ -161,7 +162,8 @@ A core design principle is that each raw metric contributes to **at most one** R
 | Metric | Symbol | R | M | A | V | Rationale |
 |--------|--------|---|---|---|---|-----------|
 | Reverse PageRank | RPR | ✓ | | | | Global cascade reach from v (primary R signal) |
-| QoS-Weighted In-Degree | w_in | ✓ | | | | Direct dependents × SLA priority — immediate blast radius |
+| In-Degree | DG_in | ✓ | | | | Direct dependents — immediate structural blast radius |
+| QoS-Weighted In-Degree | w_in | | | | ✓ | Direct dependents × SLA priority — immediate attack surface |
 | Cascade Depth Potential | CDPot | ✓ | | | | Derived depth signal (RPR + DG ratio) — orthogonal to M, A, V |
 | Betweenness | BT | | ✓ | | | Structural bottleneck position |
 | QoS-Weighted Out-Degree | w_out | | ✓ | | | QoS-weighted efferent coupling — promoted from "Reported only" in v5 |
@@ -170,8 +172,8 @@ A core design principle is that each raw metric contributes to **at most one** R
 | Articulation Point Score | AP_c | | | ✓ | | Structural SPOF detection |
 | Bridge Ratio | BR | | | ✓ | | Irreplaceable connections |
 | QoS Weight | w(v) | | | ✓ | | QoS-derived component weight |
-| Eigenvector Centrality | EV | | | | ✓ | Strategic hub connectivity |
-| Closeness Centrality | CL | | | | ✓ | Propagation speed |
+| Reverse Eigenvector Centrality | REV | | | | ✓ | Strategic exposure to downstream dependents |
+| Reverse Closeness Centrality | RCL | | | | ✓ | Vulnerability propagation speed from downstream |
 
 **Absolute Orthogonality:** Every raw metric contributes to **exactly one** RMAV dimension. `DG_out` (raw out-degree) is no longer active in any dimension — it has been replaced in M(v) by `w_out` (QoS-weighted) and the derived `CouplingRisk`. PageRank (PR) and raw in-degree (DG_in) are reported but not used in any dimension formula.
 
@@ -270,20 +272,20 @@ $$w_{final} = \lambda \cdot w_{AHP} + (1 - \lambda) \cdot w_{uniform}$$
 
 ### Final Weight Distributions ($\lambda = 0.7$)
 
-**Reliability** — criteria: [RPR, w_in, CDPot]
+**Reliability** — criteria: [RPR, DG_in, CDPot]
 
 ```
-           RPR   w_in  CDPot
-RPR     [ 1.0,  0.67,  2.0 ]   RPR is less important than w_in (direct blast radius is primary)
-w_in    [ 1.5,  1.0,   3.0 ]   w_in dominates: SLA-weighted dependents is the clearest signal
-CDPot   [ 0.5,  0.33,  1.0 ]   CDPot provides a depth penalty (secondary signal)
+           RPR    DG_in  CDPot
+RPR     [ 1.00,  3.00,  5.00 ] RPR dominates DG_in moderately and CDPot strongly
+DG_in   [ 0.33,  1.00,  2.00 ] DG_in dominates CDPot moderately
+CDPot   [ 0.20,  0.50,  1.00 ] CDPot provides a depth penalty (secondary signal)
 
-→ GM:  [1.100, 1.145, 0.693]  →  Normalized: [0.334, 0.348, 0.166]  (sum to ~0.85 before rounding)
-  CR ≈ 0.01  (highly consistent)
+→ GM:  [2.466, 0.874, 0.464]  →  Normalized: [0.648, 0.230, 0.122]
+  CR ≈ 0.003  (highly consistent)
 ```
-- AHP: [0.334, 0.500, 0.166]  (pure, before shrinkage)
-- **Blend (λ=0.7): [0.334, 0.450, 0.216]**
-- *Rationale*: QoS-weighted in-degree (w_in) is the strongest immediate signal for fault propagation blast radius. RPR captures global cascade reach. CDPot adds depth discrimination without reusing PageRank or raw DG_in.
+- AHP: [0.648, 0.230, 0.122]  (pure, before shrinkage)
+- **Blend (λ=0.7): [0.554, 0.261, 0.185]**
+- *Rationale*: Reverse PageRank (RPR) is the strongest global signal for fault propagation blast radius. In-degree (DG_in) captures immediate structural blast radius. CDPot adds depth discrimination without reusing PageRank.
 
 **Availability** — criteria: [AP_c, BridgeRatio, QoS-Weight]
 
@@ -316,16 +318,17 @@ CR      [ 0.375, 0.43,  1.00,  1.50 ]  CouplingRisk: imbalance signal
 - **Blend (λ=0.7): [0.405, 0.370, 0.180, 0.145]**
 - *Rationale*: Betweenness remains the primary bottleneck indicator. `w_out` replaces raw `DG_out` (QoS-aware, same signal, strictly more informative). `CouplingRisk` captures the imbalance signal without re-introducing `DG_in`. `(1−CC)` weight drops from 0.25→0.10 to reflect its direction-agnostic nature.
 
-**Vulnerability** — criteria: [Eigenvector, Closeness]
+**Vulnerability** — criteria: [REV, RCL, w_in]
 
 ```
-          EV    CL
-EV      [ 1.0,  2.0 ]
-CL      [ 0.5,  1.0 ]
+          REV   RCL   w_in
+REV     [ 1.00, 1.14, 1.60 ]
+RCL     [ 0.88, 1.00, 1.40 ]
+w_in    [ 0.62, 0.71, 1.00 ]
 ```
-- AHP: [0.67, 0.33]
-- **Blend: [0.57, 0.43]**   (with $\lambda = 0.7$ shrinkage)
-- *Rationale*: Eigenvector highlights strategic hubs; Closeness measures propagation speed.
+- AHP: [0.395, 0.345, 0.260]
+- **Blend (λ=0.7): [0.377, 0.342, 0.282]**
+- *Rationale*: Reverse Eigenvector targets strategic downstream relationships; Reverse Closeness measures vulnerability propagation speed; QoS-weighted in-degree measures immediate downstream attack surface.
 
 **Overall Q(v)** — criteria: [R, M, A, V]
 
@@ -385,8 +388,9 @@ This section computes RMAV scores for the **PLC_Controller (A3)** using the metr
 | Clustering | CC | 0.15 |
 | AP_c | AP_c | 0.43 |
 | Bridge Ratio | BR | 1.00 |
-| Eigenvector | EV | 0.80 |
-| Closeness | CL | 0.70 |
+| Reverse Eigenvector | REV | 0.80 |
+| Reverse Closeness | RCL | 0.70 |
+| QoS-Weighted In-Degree | w_in | 0.75 |
 
 **RMAV computation (using default weights):**
 
@@ -400,11 +404,9 @@ CDPot = ((RPR + DG_in) / 2) × (1 − min(DG_out / DG_in, 1))
 A3 is a fan-out hub: it has more out-degree than in-degree, so CDPot → 0 (wide shallow cascade, not deep).
 
 ```
-R(A3) = 0.40×RPR + 0.35×w_in + 0.25×CDPot
-       = 0.40×0.60 + 0.35×0.75* + 0.25×0.00
-       = 0.24 + 0.26 + 0.00 = 0.50
-  (*w_in ≈ DG_in for this example; QoS weights assumed uniform)
-
+R(A3) = 0.45×RPR + 0.30×DG_in + 0.25×CDPot
+       = 0.45×0.60 + 0.30×0.75 + 0.25×0.00
+       = 0.27 + 0.225 + 0.00 = 0.495
 ```
 M(v) v5 — first add w_out and compute CouplingRisk:
 

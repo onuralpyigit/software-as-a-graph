@@ -313,6 +313,18 @@ WARNING: Reliability false alarms (HIGH R(v) but LOW IR(v)): ['A44', 'A48']
 
 False alarms often indicate components with high QoS-weighted in-degree (w_in) that are structurally important but well-protected by redundant publishers or brokers.
 
+### System Health Metrics
+
+In addition to component-level validation, the validation service computes global **System Health Metrics** based on the Q*(v) distribution. These metrics quantify the overall structural resilience of the system:
+
+| Metric | Definition | Interpretation |
+|--------|------------|----------------|
+| **H_R, H_M, H_A, H_V** | `1.0 - (mean of dimension scores)` | Dimensional health. A high score (near 1.0) means the system is generally structurally safe against that dimension's failure mode. |
+| **SRI (System Resilience Index)** | Weighted sum of dimensional health | An overall macro-level score indicating the baseline structural health of the architecture. |
+| **RCI (Risk Concentration Index)** | Gini coefficient of the Q*(v) distribution | Measures whether risk is distributed evenly across many components (low RCI) or highly concentrated in a few critical hubs (high RCI). |
+
+These metrics are available in the validation JSON output under `system_health` and can be used to track architectural drift over time.
+
 ## Pass/Fail Gate System
 
 Validation uses a three-tier gate system:
@@ -324,14 +336,16 @@ Validation uses a three-tier gate system:
 | **Reliability** | ρ(R,IR), CCR@5, CME | Informational | Computed for Reliability dimension only; not a gate on `passed` |
 | **Reported** | Kendall τ, Pearson r, Precision, Recall, Cohen's κ, NDCG@K, MAE | Informational | Always computed and reported; no gate |
 
-**Primary gate thresholds (defaults):**
+**Primary gate thresholds (defaults) — Q*(v) composite:**
 
 | Metric | Threshold |
 |--------|-----------|
-| Spearman ρ | ≥ 0.70 |
+| Spearman ρ | ≥ 0.85 |
 | p-value | ≤ 0.05 |
-| F1-Score | ≥ 0.80 |
-| Top-5 Overlap | ≥ 60% |
+| F1-Score | ≥ 0.90 |
+| Top-5 Overlap | ≥ 80% |
+| Predictive Gain | > 0.03 |
+| Max Inter-dim Correlation | ≤ 0.70 |
 
 **Reliability dimension targets (informational):**
 
@@ -360,13 +374,13 @@ The methodology's primary technical contribution and validated predictive perfor
 
 ### Primary Validation Matrix (Application Layer)
 
-The following targets are used to verify the core methodology across different system scales:
+The following targets are used to verify the core methodology across different system scales, raised for the v5 composite formulation Q*(v):
 
-| Test ID | Scale | Target ρ | Target F1 | Rationale |
-|---------|-------|----------|-----------|-----------|
-| VT-APP-01 | Small (10–25) | ≥ 0.75 | ≥ 0.75 | Fewer components; less stable distributions |
-| VT-APP-02 | Medium (30–50) | ≥ 0.80 | ≥ 0.80 | Standard target zone |
-| VT-APP-03 | Large (60–100) | ≥ 0.85 | ≥ 0.83 | Strong performance expected |
+| Test ID | Scale | Target ρ | Target F1 | Target Top-5 | Rationale |
+|---------|-------|----------|-----------|--------------|-----------|
+| VT-APP-01 | Small (10–25) | ≥ 0.80 | ≥ 0.85 | ≥ 60% | Fewer components; less stable distributions |
+| VT-APP-02 | Medium (30–50) | ≥ 0.83 | ≥ 0.88 | ≥ 70% | Standard target zone |
+| VT-APP-03 | Large (60–100) | ≥ 0.85 | ≥ 0.90 | ≥ 80% | Strong performance expected |
 
 ### Exploratory Results (Infrastructure & System)
 
