@@ -1,0 +1,24 @@
+[Unit]
+Description=Genieus - Graph-Based Distributed System Analysis
+Documentation=https://github.com/onuralpyigit/software-as-a-graph
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=10
+
+ExecStartPre=-/usr/bin/docker rm -f genieus
+ExecStartPre=-/usr/bin/docker volume create genieus-data
+ExecStart=/usr/bin/docker run --name genieus \
+    -v genieus-data:/var/lib/neo4j/data \
+    -p 7474:7474 \
+    -p 7687:7687 \
+    -p 8000:8000 \
+    -p 7000:7000 \
+    genieus:1.0.0
+ExecStop=/usr/bin/docker stop genieus
+
+[Install]
+WantedBy=multi-user.target
