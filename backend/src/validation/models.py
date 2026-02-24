@@ -46,6 +46,12 @@ class ValidationTargets:
     ftr: float = 0.25                        # False Target Rate ≤ 0.25
     apar: float = 0.60                       # Attack Path Agreement Rate ≥ 0.60
     cdcc: float = 0.40                       # Cross-Dimensional Contamination Check ≤ 0.40
+    # Composite Q*(v) vs I*(v) targets
+    composite_spearman: float = 0.85         # ρ(Q*(v), I*(v)) ≥ 0.85 (exceeds best single-dimension)
+    composite_f1: float = 0.90              # Classification F1 on I*(v) ≥ 0.90
+    composite_top5_overlap: float = 0.80    # Top-5 overlap Q* vs I* ≥ 0.80 (4-signal combination)
+    predictive_gain: float = 0.03           # PG = ρ_composite − max(dim ρ) > 0.03
+    max_interdim_correlation: float = 0.70  # No pairwise dim Spearman above 0.70 (orthogonality)
 
     def to_dict(self) -> Dict[str, float]:
         return {k: v for k, v in asdict(self).items() if isinstance(v, (float, int))}
@@ -266,6 +272,11 @@ class LayerValidationResult:
     maintainability_spearman: float = 0.0  # ρ(M(v), IM(v)) — maintainability-specific correlation
     availability_spearman: float = 0.0  # ρ(A(v), IA(v)) — availability-specific correlation
     vulnerability_spearman: float = 0.0  # ρ(V(v), IV(v)) — vulnerability-specific correlation
+    # Composite Q*(v) vs I*(v)
+    composite_spearman: float = 0.0     # ρ(Q*(v), I*(v)) — the primary composite validation gate
+    predictive_gain: float = 0.0        # PG = ρ_composite − max(dim ρ) > 0.03
+    system_health: Dict[str, float] = field(default_factory=dict)
+    # system_health keys: H_R, H_M, H_A, H_V, SRI, RCI
     passed: bool = False
     comparisons: List[ComponentComparison] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -286,10 +297,14 @@ class LayerValidationResult:
                 "maintainability_spearman": round(self.maintainability_spearman, 4),
                 "availability_spearman": round(self.availability_spearman, 4),
                 "vulnerability_spearman": round(self.vulnerability_spearman, 4),
+                "composite_spearman": round(self.composite_spearman, 4),
+                "predictive_gain": round(self.predictive_gain, 4),
+                "system_health": {k: round(v, 4) for k, v in self.system_health.items()},
             },
             "validation_result": self.validation_result.to_dict() if self.validation_result else None,
             "warnings": self.warnings,
         }
+
 
 
 @dataclass

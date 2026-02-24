@@ -377,6 +377,147 @@ class ValidationService:
             self.logger.debug("Availability-specific validation skipped: %s", e)
             availability_spearman = 0.0
 
+        # ── 7. Composite I*(v), ρ(Q*(v), I*(v)), Predictive Gain, Orthogonality ──
+        self.logger.info("Computing composite I*(v) and system health metrics...")
+        composite_spearman = 0.0
+        predictive_gain = 0.0
+        system_health: dict = {}
+
+        try:
+            # Build composite ground truth I*(v) = equal-weighted sum of dimension ground truths
+            # Default: equal weights (0.25 each) as empirically motivated baseline.
+            # Once dimension-specific ρ values are known, weights can be updated via
+            # w_d = ρ_actual(d) / Σ ρ_actual(d'). For now we use equal weights.
+            dim_weights = dict(r=0.25, m=0.25, a=0.25, v=0.25)
+            composite_i_star: dict = {}
+            for cid in (
+                set(actual_reliability_impact)
+                & set(actual_maintainability_impact)
+                & set(actual_availability_impact)
+                & set(actual_vulnerability_impact)
+            ):
+                composite_i_star[cid] = (
+                    dim_weights["r"] * actual_reliability_impact.get(cid, 0.0)
+                    + dim_weights["m"] * actual_maintainability_impact.get(cid, 0.0)
+                    + dim_weights["a"] * actual_availability_impact.get(cid, 0.0)
+                    + dim_weights["v"] * actual_vulnerability_impact.get(cid, 0.0)
+                )
+
+            # ρ(Q*(v), I*(v))
+            common_comp = sorted(set(pred_scores) & set(composite_i_star))
+            if len(common_comp) >= 3:
+                comp_corr = calculate_correlation(
+                    [float(pred_scores[k])      for k in common_comp],
+                    [float(composite_i_star[k]) for k in common_comp],
+                )
+                composite_spearman = comp_corr.spearman
+
+                # Predictive gain: composite vs best single-dimension predictor
+                best_dim = max(
+                    reliability_spearman, maintainability_spearman,
+                    availability_spearman, vulnerability_spearman,
+                )
+                predictive_gain = composite_spearman - best_dim
+
+                self.logger.info(
+                    "Composite [%s]: ρ(Q*,I*)=%.3f, PG=%.3f (n=%d)",
+                    sim_layer.value, composite_spearman, predictive_gain, len(common_comp),
+                )
+
+            # ── Pairwise inter-dimension orthogonality check ──
+            pred_r_all = {c.id: c.scores.reliability    for c in analysis_result.quality.components}
+            pred_m_all = {c.id: c.scores.maintainability for c in analysis_result.quality.components}
+            pred_a_all = {c.id: c.scores.availability   for c in analysis_result.quality.components}
+            pred_v_all = {c.id: c.scores.vulnerability  for c in analysis_result.quality.components}
+
+            from src.validation.metric_calculator import spearman_correlation
+            pairs = [
+                ("R*vsM*", pred_r_all, pred_m_all),
+                ("R*vsA*", pred_r_all, pred_a_all),
+                ("R*vsV*", pred_r_all, pred_v_all),
+                ("M*vsA*", pred_m_all, pred_a_all),
+                ("M*vsV*", pred_m_all, pred_v_all),
+                ("A*vsV*", pred_a_all, pred_v_all),
+            ]
+            interdim_rhos: dict = {}
+            for label, d1, d2 in pairs:
+                common_p = sorted(set(d1) & set(d2))
+                if len(common_p) >= 3:
+                    rho, _ = spearman_correlation(
+                        [float(d1[k]) for k in common_p],
+                        [float(d2[k]) for k in common_p],
+                    )
+                    interdim_rhos[label] = round(rho, 4)
+                    if abs(rho) > self.targets.max_interdim_correlation:
+                        self.logger.warning(
+                            "Orthogonality violation! %s ρ=%.3f > %.2f threshold",
+                            label, rho, self.targets.max_interdim_correlation,
+                        )
+
+            # ── System Health: H_R/M/A/V, SRI, RCI (Gini) ──
+            all_comps = analysis_result.quality.components
+            if all_comps:
+                n_c = len(all_comps)
+                # Importance weights w(v): use QoS weight from structural metrics
+                w_vals = [max(c.structural.weight, 1e-9) for c in all_comps]
+                w_sum = sum(w_vals)
+
+                def _h(scores_iter):
+                    """Importance-weighted complement of mean (system health in dim)."""
+                    numerator = sum(sc * ww for sc, ww in zip(scores_iter, w_vals))
+                    return 1.0 - (numerator / w_sum)
+
+                r_scores = [c.scores.reliability    for c in all_comps]
+                m_scores = [c.scores.maintainability for c in all_comps]
+                a_scores = [c.scores.availability   for c in all_comps]
+                v_scores = [c.scores.vulnerability  for c in all_comps]
+                q_scores = [c.scores.overall        for c in all_comps]
+
+                h_r = _h(r_scores)
+                h_m = _h(m_scores)
+                h_a = _h(a_scores)
+                h_v = _h(v_scores)
+
+                # SRI = Σ w_d × (1 − H_d) — weighted systemic risk index
+                sri = (
+                    dim_weights["r"] * (1 - h_r)
+                    + dim_weights["m"] * (1 - h_m)
+                    + dim_weights["a"] * (1 - h_a)
+                    + dim_weights["v"] * (1 - h_v)
+                )
+
+                # RCI = Gini coefficient of Q*(v) distribution
+                q_sorted = sorted(q_scores)
+                gini_sum = sum(
+                    (2 * (i + 1) - n_c - 1) * q_sorted[i]
+                    for i in range(n_c)
+                )
+                rci = abs(gini_sum) / (n_c * sum(q_sorted)) if sum(q_sorted) > 0 else 0.0
+
+                system_health = {
+                    "H_R": round(h_r, 4),
+                    "H_M": round(h_m, 4),
+                    "H_A": round(h_a, 4),
+                    "H_V": round(h_v, 4),
+                    "SRI": round(sri, 4),
+                    "RCI": round(rci, 4),
+                }
+                self.logger.info(
+                    "System health [%s]: SRI=%.3f RCI=%.3f  H(R/M/A/V)=%.3f/%.3f/%.3f/%.3f",
+                    sim_layer.value, sri, rci, h_r, h_m, h_a, h_v,
+                )
+
+            dimensional_validation["composite"] = {
+                "spearman":         round(composite_spearman, 4),
+                "predictive_gain":  round(predictive_gain, 4),
+                "interdim_rhos":    interdim_rhos,
+                "system_health":    system_health,
+                "n":                len(common_comp) if 'common_comp' in dir() else 0,
+                "ground_truth":     "I*(v) = 0.25×IR + 0.25×IM + 0.25×IA + 0.25×IV",
+            }
+
+        except Exception as e:
+            self.logger.warning("Composite validation failed: %s", e)
 
         return LayerValidationResult(
             layer=sim_layer.value,
@@ -397,6 +538,9 @@ class ValidationService:
             maintainability_spearman=maintainability_spearman,
             availability_spearman=availability_spearman,
             vulnerability_spearman=vulnerability_spearman,
+            composite_spearman=composite_spearman,
+            predictive_gain=predictive_gain,
+            system_health=system_health,
 
             passed=validation_res.passed,
             comparisons=validation_res.overall.components,
@@ -408,3 +552,4 @@ class ValidationService:
     def validate_from_data(self, predicted, actual) -> ValidationResult:
         """Quick validation helper."""
         return self.validator.validate(predicted, actual, context="Quick Validation")
+

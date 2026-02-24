@@ -41,12 +41,13 @@ class QualityWeights:
         - Fast-iteration systems: Increase q_maintainability
         - Mission-critical systems: Increase q_reliability
     """
-    # Reliability weights (fault propagation) — R(v) = RPR + w_in + CDPot (v4)
-    # r_pagerank and r_in_degree are kept at 0.0 for backward-compat serialisation only.
-    r_pagerank: float = 0.0          # Deprecated (v4): superseded by w_in; kept for compat
-    r_reverse_pagerank: float = 0.40 # AHP leader: propagation reach (RPR)
-    r_in_degree: float = 0.0         # Deprecated (v4): subsumed by w_in; kept for compat
-    r_w_in: float = 0.35             # QoS-weighted in-degree (promoted from 'Reported only')
+    # Reliability weights (fault propagation) — R*(v) = RPR + DG_in + CDPot (v5)
+    # r_pagerank kept at 0.0 for backward-compat serialisation only.
+    # r_w_in demoted to 0.0: w_in is now exclusively assigned to V*(v) as QADS.
+    r_pagerank: float = 0.0          # Deprecated (v4): superseded; kept for compat
+    r_reverse_pagerank: float = 0.45 # AHP leader: propagation reach (RPR); weight increased from 0.40
+    r_in_degree: float = 0.30        # Reinstatement (v5): count-based immediate-dependents signal
+    r_w_in: float = 0.0             # Deprecated (v5): reassigned to V*(v) as QADS; kept for compat
     r_cdpot: float = 0.25            # Cascade Depth Potential (derived, depth signal)
     
     # Maintainability weights (coupling complexity) — M(v) v5
@@ -113,12 +114,12 @@ class AHPMatrices:
     Stores pairwise comparison matrices for all quality dimensions.
     Default values reflect a balanced/standard architectural perspective.
     
-    Metric assignments (v4):
-        Reliability:      Reverse PageRank (RPR), QoS-Weighted In-Degree (w_in), CDPot
-        Maintainability:  Betweenness (BT), Out-Degree (OD), Clustering (CC)
-        Availability:     Articulation Score (AP_c), Bridge Ratio (BR), QoS Weight w(v)
+    Metric assignments (v5):
+        Reliability:      Reverse PageRank (RPR), In-Degree (DG_in), CDPot    [w_in REMOVED — exclusively QADS in V*]
+        Maintainability:  Betweenness (BT), w_out (QoS-efferent), CouplingRisk (CR), (1-CC)
+        Availability:     QSPOF, Bridge Ratio (BR), AP_c_directed, CDI
         Vulnerability:    Reverse Eigenvector (REV), Reverse Closeness (RCL), QADS (w_in)
-        Impact I(v):      Reachability (RL), Fragmentation (FR), Throughput (TL), Flow Disruption (FD)
+        Impact I*(v):     IR(v), IM(v), IA(v), IV(v) — multi-phenomenon unified ground truth
         Impact IR(v):     Cascade Reach (CR), Weighted Cascade Impact (WCI), Normalised Depth (ND)
     """
     
@@ -157,12 +158,12 @@ class AHPMatrices:
         # Default initialization if None
         if self.criteria_reliability is None:
             self.criteria_reliability = [
-                # RPR   w_in  CDPot
-                [1.0,  0.67, 2.0],  # RPR  (primary propagation reach)
-                [1.5,  1.0,  3.0],  # w_in (QoS-weighted dependents; richer than raw DG_in)
-                [0.5,  0.33, 1.0],  # CDPot (derived depth signal)
+                # RPR   DG_in CDPot
+                [1.0,  1.5,   2.0],  # RPR  (primary propagation reach; increased from 0.40→0.45)
+                [0.67, 1.0,   1.5],  # DG_in (count-based immediate dependents; reinstated at 0.30)
+                [0.5,  0.667, 1.0],  # CDPot (derived depth signal; unchanged at 0.25)
             ]
-            # AHP-derived weights (geometric mean + shrinkage=0.7) ≈ (0.40, 0.35, 0.25)
+            # AHP-derived weights (geometric mean + shrinkage=0.7) ≈ (0.45, 0.30, 0.25)
             
         if self.criteria_maintainability is None:
             self.criteria_maintainability = [
@@ -198,11 +199,14 @@ class AHPMatrices:
             
         if self.criteria_overall is None:
             self.criteria_overall = [
-                # R    M    A    V
-                [1.0, 1.0, 1.0, 1.0],  # Balanced default
-                [1.0, 1.0, 1.0, 1.0],
-                [1.0, 1.0, 1.0, 1.0],
-                [1.0, 1.0, 1.0, 1.0],
+                # R     M     A     V
+                # Theoretically motivated: structural alignment A > R > M > V
+                # with prediction strength based on each dimension's simulation ground truth.
+                # CR ≈ 0.02 → AHP weights ≈ [0.24, 0.17, 0.43, 0.16]
+                [1.0,  1.5,  0.5,  2.0],   # R: strong vs M/V; weaker vs A
+                [0.67, 1.0,  0.33, 1.5],   # M: weakest overall
+                [2.0,  3.0,  1.0,  3.0],   # A: dominant (highest structural alignment)
+                [0.5,  0.67, 0.33, 1.0],   # V: second-weakest (G^T metric alignment)
             ]
         
         if self.criteria_topic_qos is None:
@@ -329,12 +333,12 @@ class AHPProcessor:
         w_over = self._shrink_weights(w_over)
         
         return QualityWeights(
-            # Reliability v4: (RPR, w_in, CDPot)
+            # Reliability v5: (RPR, DG_in, CDPot) — w_in now exclusively QADS in V*
             r_pagerank=0.0,               # Deprecated
-            r_reverse_pagerank=w_rel[0],  # RPR — primary
-            r_in_degree=0.0,              # Deprecated; subsumed by w_in
-            r_w_in=w_rel[1],              # QoS-weighted in-degree
-            r_cdpot=w_rel[2],             # Cascade Depth Potential
+            r_reverse_pagerank=w_rel[0],  # RPR — primary (0.45)
+            r_in_degree=w_rel[1],         # DG_in — count-based immediate dependents (0.30)
+            r_w_in=0.0,                   # Deprecated in v5; reassigned to V*(v) as QADS
+            r_cdpot=w_rel[2],             # Cascade Depth Potential (0.25)
             
             # Maintainability v5: (BT, w_out, CouplingRisk, (1-CC))
             m_betweenness=w_main[0],

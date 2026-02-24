@@ -6,28 +6,18 @@
  Box-Plot method (adaptive, data-driven thresholds).
 
  Formulas (per component v):
-     R(v) = w_rpr·RPR + w_win·w_in + w_cdp·CDPot          (Reliability)
-     M(v) = w_bt·BC   + w_wo·w_out + w_cr·CR + w_cl·(1–CC) (Maintainability v5)
-     A(v) = w_ap·AP_c + w_br·Bridge + w_imp·Importance      (Availability)
-     V(v) = w_ev·Eig  + w_cl·Close                          (Vulnerability)
-     Q(v) = w_R·R(v)  + w_M·M(v)    + w_A·A(v) + w_V·V(v)  (Overall)
+     R*(v) = 0.45×RPR + 0.30×DG_in + 0.25×CDPot          (Reliability v5)
+     M*(v) = 0.40×BT  + 0.35×w_out + 0.15×CR + 0.10×(1–CC) (Maintainability v5)
+     A*(v) = 0.45×QSPOF + 0.30×BR + 0.15×AP_c + 0.10×CDI  (Availability v2)
+     V*(v) = 0.40×REV  + 0.35×RCL  + 0.25×QADS              (Vulnerability v2)
+     Q*(v) = w_R×R*(v) + w_M×M*(v) + w_A×A*(v) + w_V×V*(v)  (Overall)
 
- M(v) v5 metrics:
-     BT(v)           — Betweenness: structural bottleneck position (unchanged)
-     w_out(v)        — QoS-weighted efferent coupling (promoted from 'Reported only');
-                       sum of DEPENDS_ON edge weights on outgoing edges
-     CouplingRisk(v) — 1 − |2·Instability − 1|, where
-                       Instability = DG_out / (DG_in + DG_out + ε);
-                       maximised at Instability=0.5 (deeply embedded on both sides);
-                       minimised at 0 (pure sink) or 1 (pure source)
-     (1−CC(v))       — Direction-agnostic proxy; weight reduced from 0.25 to 0.10
-
- Design changes (v5):
-     - DG_out(v) demoted from M(v): subsumed by QoS-aware w_out.
-     - w_out(v) promoted from 'Reported only' into active metric.
-     - CouplingRisk(v) added: captures afferent/efferent coupling imbalance
-       without adding DG_in(v) directly (orthogonality preserved).
-     - (1−CC) weight reduced (0.25 → 0.10): direction-agnostic signal.
+ R*(v) v5 change:
+     w_in (QoS-weighted in-degree) removed from R*(v).
+     w_in is now exclusively assigned to V*(v) as QADS (orthogonality resolved).
+     DG_in (raw in-degree, normalised) replaces it at weight 0.30.
+     RPR weight increases from 0.40 → 0.45 to compensate.
+     CDPot retains depth signal at 0.25.
 
  Classification (Box-Plot):
      CRITICAL : score > Q3 + k×IQR
@@ -41,9 +31,9 @@ from __future__ import annotations
 
 import logging
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Sequence
+from typing import Dict, List, Optional, Any
 
 import networkx as nx
 
@@ -61,6 +51,54 @@ from src.core.metrics import (
 from .models import StructuralAnalysisResult
 from src.core.layers import AnalysisLayer
 from .weight_calculator import AHPProcessor, QualityWeights
+
+
+# ---------------------------------------------------------------------------
+# Criticality Profile
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CriticalityProfile:
+    """
+    Per-component criticality flags for each RMAV dimension and the composite.
+
+    Each flag is True if the component's score exceeds the upper fence
+    (Q3 + k×IQR) of the corresponding dimension's box-plot distribution.
+
+    The ``pattern`` property maps the four-dimensional flag tuple to a named
+    architectural risk pattern useful for triage and remediation guidance.
+    """
+    r_crit: bool = False
+    m_crit: bool = False
+    a_crit: bool = False
+    v_crit: bool = False
+    q_crit: bool = False
+
+    _PATTERNS = {
+        (True,  True,  True,  True):  "Total Hub",
+        (True,  False, False, False): "Reliability Hub",
+        (False, True,  False, False): "Bottleneck",
+        (False, False, True,  False): "SPOF",
+        (False, False, False, True):  "Attack Target",
+        (True,  False, True,  False): "Fragile Hub",
+        (False, True,  False, True):  "Exposed Bottleneck",
+    }
+
+    @property
+    def pattern(self) -> str:
+        """Named pattern from (R_crit, M_crit, A_crit, V_crit) tuple."""
+        flag = (self.r_crit, self.m_crit, self.a_crit, self.v_crit)
+        return self._PATTERNS.get(flag, "Composite Risk")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "r_crit": self.r_crit,
+            "m_crit": self.m_crit,
+            "a_crit": self.a_crit,
+            "v_crit": self.v_crit,
+            "q_crit": self.q_crit,
+            "pattern": self.pattern,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -353,6 +391,7 @@ class QualityAnalyzer:
         # Classify each dimension with box-plot (or percentile fallback)
         dim_keys = ["reliability", "maintainability", "availability", "vulnerability", "overall"]
         level_maps: Dict[str, Dict[str, CriticalityLevel]] = {}
+        upper_fences: Dict[str, float] = {}  # per-dimension upper-fence for CriticalityProfile
 
         use_percentile_fallback = len(scored) < MIN_BOXPLOT_SAMPLE
 
@@ -360,11 +399,16 @@ class QualityAnalyzer:
             data = [{"id": c.id, "score": getattr(c.scores, dim)} for c in scored]
             if use_percentile_fallback:
                 level_maps[dim] = self._percentile_classify(data)
+                scores_sorted = sorted(d["score"] for d in data)
+                n_d = len(scores_sorted)
+                # Top ~10 % treated as the "upper fence" in the percentile path
+                upper_fences[dim] = scores_sorted[max(0, int(n_d * 0.90))] if n_d > 0 else 1.0
             else:
                 result = self.classifier.classify(data, metric_name=dim)
                 level_maps[dim] = {item.id: item.level for item in result.items}
+                upper_fences[dim] = result.stats.upper_fence if result.stats else 1.0
 
-        # Apply classified levels
+        # Apply classified levels and CriticalityProfile
         for c in scored:
             c.levels = QualityLevels(
                 reliability=level_maps["reliability"].get(c.id, CriticalityLevel.MINIMAL),
@@ -373,10 +417,19 @@ class QualityAnalyzer:
                 vulnerability=level_maps["vulnerability"].get(c.id, CriticalityLevel.MINIMAL),
                 overall=level_maps["overall"].get(c.id, CriticalityLevel.MINIMAL),
             )
+            # CriticalityProfile: True iff score > upper_fence for that dimension
+            c.profile = CriticalityProfile(
+                r_crit=c.scores.reliability     > upper_fences.get("reliability",     1.0),
+                m_crit=c.scores.maintainability > upper_fences.get("maintainability", 1.0),
+                a_crit=c.scores.availability    > upper_fences.get("availability",    1.0),
+                v_crit=c.scores.vulnerability   > upper_fences.get("vulnerability",   1.0),
+                q_crit=c.scores.overall         > upper_fences.get("overall",         1.0),
+            )
 
         # Sort by overall score descending
         scored.sort(key=lambda c: c.scores.overall, reverse=True)
         return scored
+
 
     def _compute_rmav(
         self, m: StructuralMetrics, norm: Dict[str, Any], ap_c: float,
@@ -418,13 +471,20 @@ class QualityAnalyzer:
         qw   = _n(m.weight,           "weight")
         psbt = m.pubsub_betweenness  # already in [0,1]
 
-        # --- Reliability: R(v) v4 = RPR + w_in + CDPot ---
+        # --- Reliability: R*(v) v5 = RPR + DG_in + CDPot ---
+        # w_in removed from R*(v) — exclusively assigned to V*(v) as QADS.
+        # DG_in (id_n) reinstated at weight 0.30 as count-based immediate-dependents.
+        # RPR weight raised 0.40 → 0.45 to compensate.
         _denom = max(id_n, 1e-9)
         _cdpot_reach = (rpr + id_n) / 2.0
         _cdpot_depth = 1.0 - min(od_n / _denom, 1.0)
         cdpot = _cdpot_reach * _cdpot_depth
 
-        R = w.r_reverse_pagerank * rpr + getattr(w, 'r_w_in', 0.35) * qw + getattr(w, 'r_cdpot', 0.25) * cdpot
+        R = (
+            w.r_reverse_pagerank * rpr
+            + getattr(w, 'r_in_degree', 0.30) * id_n
+            + getattr(w, 'r_cdpot', 0.25) * cdpot
+        )
 
         # Maintainability: M(v) v5 — coupling complexity
         w_out_n = _n(m.dependency_weight_out, "w_out")
@@ -683,7 +743,7 @@ class QualityAnalyzer:
 
         r_weights = _perturb_group(
             w.r_reverse_pagerank,
-            getattr(w, 'r_w_in', 0.35),
+            getattr(w, 'r_in_degree', 0.30),
             getattr(w, 'r_cdpot', 0.25),
         )
         m_weights = _perturb_group(
@@ -708,8 +768,8 @@ class QualityAnalyzer:
         )
 
         return QualityWeights(
-            r_pagerank=0.0, r_reverse_pagerank=r_weights[0], r_in_degree=0.0,
-            r_w_in=r_weights[1], r_cdpot=r_weights[2],
+            r_pagerank=0.0, r_reverse_pagerank=r_weights[0], r_in_degree=r_weights[1],
+            r_w_in=0.0, r_cdpot=r_weights[2],
             m_betweenness=m_weights[0], m_w_out=m_weights[1],
             m_coupling_risk=m_weights[2], m_clustering=m_weights[3],
             m_out_degree=0.0,

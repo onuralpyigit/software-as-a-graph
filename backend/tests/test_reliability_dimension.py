@@ -21,30 +21,31 @@ from src.validation.metric_calculator import calculate_ccr_at_k, calculate_cme
 
 class TestQualityWeightsV4:
 
-    def test_default_weights_have_r_w_in_and_r_cdpot(self):
-        """QualityWeights must expose r_w_in and r_cdpot with sensible defaults."""
+    def test_default_weights_have_r_in_degree_and_r_cdpot(self):
+        """QualityWeights v5 must expose r_in_degree and r_cdpot with sensible defaults."""
         w = QualityWeights()
-        assert hasattr(w, 'r_w_in'), "r_w_in field missing from QualityWeights"
+        assert hasattr(w, 'r_in_degree'), "r_in_degree field missing from QualityWeights"
         assert hasattr(w, 'r_cdpot'), "r_cdpot field missing from QualityWeights"
-        assert w.r_w_in > 0.0, "r_w_in should be positive"
+        assert w.r_in_degree > 0.0, "r_in_degree should be positive (reinstated in v5)"
         assert w.r_cdpot > 0.0, "r_cdpot should be positive"
 
-    def test_deprecated_r_pagerank_and_r_in_degree_are_zero(self):
-        """r_pagerank and r_in_degree must be 0.0 (deprecated in v4)."""
+    def test_deprecated_r_pagerank_and_r_w_in_are_zero(self):
+        """r_pagerank and r_w_in must be 0.0 in v5 (r_w_in reassigned to V* as QADS)."""
         w = QualityWeights()
-        assert w.r_pagerank == 0.0, "r_pagerank should be deprecated (0.0) in v4"
-        assert w.r_in_degree == 0.0, "r_in_degree should be deprecated (0.0) in v4"
+        assert w.r_pagerank == 0.0, "r_pagerank should be deprecated (0.0) in v5"
+        assert w.r_w_in == 0.0, "r_w_in should be deprecated (0.0) in v5 — exclusively QADS in V*"
 
     def test_ahp_computed_weights_are_positive_and_sum_near_active_terms(self):
         """AHP-computed reliability weights should be positive and roughly sum to 1."""
         proc = AHPProcessor()
         w = proc.compute_weights()
-        active = w.r_reverse_pagerank + w.r_w_in + w.r_cdpot
+        # v5: active terms are RPR, DG_in, CDPot
+        active = w.r_reverse_pagerank + w.r_in_degree + w.r_cdpot
         assert active == pytest.approx(1.0, abs=0.05), (
-            f"Active R(v) weights should sum ~1.0, got {active:.4f}"
+            f"Active R*(v) weights should sum ~1.0, got {active:.4f}"
         )
         assert w.r_reverse_pagerank > 0.0
-        assert w.r_w_in > 0.0
+        assert w.r_in_degree > 0.0
         assert w.r_cdpot > 0.0
 
     def test_ahp_reliability_matrix_is_3x3(self):

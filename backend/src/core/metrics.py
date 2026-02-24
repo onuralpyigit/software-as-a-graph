@@ -255,30 +255,35 @@ class QualityLevels:
 class ComponentQuality:
     """
     Complete quality assessment for a single component.
-    
-    Combines raw structural metrics with computed quality scores
-    and classification levels.
+
+    Combines raw structural metrics with computed quality scores,
+    classification levels, and a CriticalityProfile (5-tuple of binary
+    criticality flags per RMAV dimension + composite).
     """
     id: str
     type: str
     scores: QualityScores
     levels: QualityLevels
     structural: StructuralMetrics
-    
+    profile: Optional[Any] = None  # CriticalityProfile; Any avoids circular import
+
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "id": self.id,
             "type": self.type,
             "scores": self.scores.to_dict(),
             "levels": self.levels.to_dict(),
             "structural": self.structural.to_dict(),
         }
-    
+        if self.profile is not None and hasattr(self.profile, "to_dict"):
+            result["profile"] = self.profile.to_dict()
+        return result
+
     @property
     def is_critical(self) -> bool:
         """Check if component is classified as CRITICAL overall."""
         return self.levels.overall == CriticalityLevel.CRITICAL
-    
+
     @property
     def requires_attention(self) -> bool:
         """Check if component requires attention (CRITICAL or HIGH)."""
