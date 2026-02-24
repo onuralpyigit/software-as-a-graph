@@ -14,10 +14,10 @@ The project is a full-stack application with three main components:
 - **Language:** Python 3.9+
 - **API:** FastAPI (`backend/api/main.py`) with routers for health, graph, analysis, components, statistics, simulation, classification, and validation
 - **Source code:** `backend/src/` — modular packages:
-  - `core/` — domain models (`models.py`), metrics, layers, Neo4j repository (`neo4j_repo.py`), memory repository, criticality, exporters/importers
-  - `analysis/` — structural and quality analysis services
-  - `simulation/` — event and failure simulation services
-  - `validation/` — validation logic
+  - `core/` — domain models (`models.py`), metrics, layers, Neo4j repository (`neo4j_repo.py`), memory repository, criticality, exporters/importers, interfaces
+  - `analysis/` — structural analyzer, quality analyzer, weight calculator (AHP), classifier, statistics service, problem detector
+  - `simulation/` — event simulator, failure simulator, change propagation simulator, compromise propagation simulator, simulation graph, models, service
+  - `validation/` — validation logic, validator, metric calculator, models
   - `visualization/` — dashboard and visualization services
   - `generation/` — graph generation logic
   - `benchmark/` — benchmarking services
@@ -37,6 +37,7 @@ The project is a full-stack application with three main components:
 ### CLI Tools (`bin/`)
 Pipeline scripts that can run independently or via the orchestrator:
 - `run.py` — End-to-end pipeline orchestrator
+- `run_scenarios.sh` — Batch-run the pipeline across all 8 scenario datasets
 - `generate_graph.py` — Synthetic graph data generation
 - `import_graph.py` — Import graph data into Neo4j
 - `analyze_graph.py` — Structural and quality analysis
@@ -45,6 +46,7 @@ Pipeline scripts that can run independently or via the orchestrator:
 - `visualize_graph.py` — Static HTML dashboard generation
 - `benchmark.py` — Benchmarking across scales
 - `export_graph.py` — Export graph data
+- `ground_threshold.py` — SPOF threshold grounding: sweeps all 8 scenarios, computes F1/AUC to justify the I(v) > 0.5 SPOF threshold empirically
 
 ## Development
 
@@ -87,8 +89,11 @@ pip install -r backend/requirements.txt
 # Start the API server
 cd backend && uvicorn api.main:app --reload --port 8000
 
-# Run CLI pipeline
+# Run CLI pipeline (single scenario)
 python bin/run.py --all --layer system
+
+# Run all 8 scenarios
+bash bin/run_scenarios.sh
 ```
 
 ### Running Frontend Locally
@@ -111,7 +116,26 @@ pytest -k "test_name"  # Run by test name pattern
 **Test configuration:** `backend/pytest.ini`  
 **Test markers:** `slow` (skip with `--quick`), `integration`  
 **Test timeout:** 120 seconds per test  
-**Test files:** `backend/tests/test_*.py` — organized by service (analysis, simulation, validation, visualization, benchmark, generation, domain model, CLI, API statistics)
+**Test files:** `backend/tests/test_*.py` — coverage includes:
+  - `test_analysis_service.py` — structural & quality analysis
+  - `test_simulation_service.py` — failure and event simulation
+  - `test_validation_service.py` — validation pipeline
+  - `test_visualization_service.py` — dashboard generation
+  - `test_benchmark_service.py` — benchmark service
+  - `test_domain_model.py` — core models
+  - `test_cli.py` — all CLI scripts
+  - `test_api_statistics.py` — API statistics endpoints
+  - `test_generation_service.py` — graph generation
+  - **Dimension-specific tests:**
+    - `test_reliability_dimension.py` — R(v) v4, IR(v), CCR@K, CME
+    - `test_maintainability_dimension.py` — M(v) v5, IM(v), COCR@K, weighted-κ CTA, Bottleneck Precision
+    - `test_availability_dimension.py` — A(v) v2, IA(v), SPOF_F1, RRI
+    - `test_vulnerability_dimension.py` — V(v) v2, IV(v), AHCR@K, FTR, APAR
+  - **Orthogonality & sensitivity tests:**
+    - `test_availability_orthogonality.py`, `test_vulnerability_orthogonality.py`
+    - `test_weight_sensitivity.py`, `test_ahp_shrinkage.py`
+    - `test_impact_sensitivity.py`, `test_weighted_reachability.py`
+    - `test_pairwise_failure.py`, `test_failure_modes.py`, `test_flow_disruption.py`
 
 ## Key Patterns & Conventions
 
@@ -122,6 +146,7 @@ pytest -k "test_name"  # Run by test name pattern
 - **API routers** in `backend/api/routers/` follow a consistent pattern with dependency injection via `backend/api/dependencies.py`
 - **Graph layers:** The system supports four graph layers: `app`, `infra`, `mw` (middleware), `system`
 - **Input data:** Topology JSON files in `input/` (e.g., `system.json`, `dataset.json`) and YAML configs (`graph_config.yaml`)
+- **Scenarios:** 8 domain scenarios under `input/scenario_0N_*.yaml` (autonomous vehicle, IoT, financial trading, healthcare, hub-and-spoke, microservices, enterprise XL, tiny regression)
 
 ### Frontend
 - **App Router** (Next.js `app/` directory)
@@ -142,13 +167,121 @@ Architecture → Graph → Metrics → Scores → Simulation → Validation → 
 ```
 
 1. **Graph Model** — Converts topology JSON to a weighted directed graph in Neo4j
-2. **Structural Analysis** — Computes centrality metrics (PageRank, Betweenness, Closeness, etc.)
-3. **Quality Scoring** — Maps metrics to quality dimensions (RMAV) using AHP weights
-4. **Failure Simulation** — Injects faults, measures cascade impact (exhaustive or Monte Carlo)
-5. **Validation** — Statistically compares predictions against simulation ground truth
+2. **Structural Analysis** — Computes centrality metrics (Reverse PageRank, Betweenness, Closeness, Eigenvector, Reverse variants, Bridge Ratio, Clustering, etc.)
+3. **Quality Scoring** — Maps metrics to RMAV dimensions using AHP-derived weights (see below)
+4. **Failure Simulation** — Injects faults; runs four parallel ground-truth simulators; exhaustive or Monte Carlo modes
+5. **Validation** — Per-dimension statistical comparison: overall Q(v) vs I(v) plus per-RMAV-dimension comparators
 6. **Visualization** — Generates interactive dashboards (web or static HTML)
+
+## RMAV Quality Scoring Formulas
+
+Quality scores are computed per component v. Weights are derived via AHP with shrinkage factor λ=0.7 (blends with uniform prior).
+
+### Reliability — R(v) v4
+```
+R(v) = 0.40·RPR + 0.35·w_in + 0.25·CDPot
+```
+- **RPR**: Reverse PageRank (fault propagation reach)
+- **w_in**: QoS-weighted in-degree (dependent count weighted by topic priority/QoS)
+- **CDPot**: Cascade Depth Potential = `((RPR + w_in) / 2) * (1 - min(w_out / w_in, 1))`
+
+### Maintainability — M(v) v5
+```
+M(v) = 0.40·BT + 0.35·w_out + 0.15·CouplingRisk + 0.10·(1 − CC)
+```
+- **BT**: Betweenness centrality (structural bottleneck position)
+- **w_out**: QoS-weighted efferent coupling (outgoing dependency weight)
+- **CouplingRisk**: `1 − |2·Instability − 1|` where `Instability = DG_out / (DG_in + DG_out)` — maximised at 0.5 (deeply embedded on both sides)
+- **(1−CC)**: Inverse clustering coefficient (direction-agnostic proxy, reduced weight)
+
+### Availability — A(v) v2
+```
+A(v) = 0.45·QSPOF + 0.30·BR + 0.15·AP_c_directed + 0.10·CDI
+```
+- **QSPOF**: `AP_c_directed × w(v)` — QoS-scaled SPOF severity
+- **BR**: Bridge ratio (fraction of incident edges that are bridges)
+- **AP_c_directed**: `max(AP_c_out, AP_c_in)` — worst-case directional articulation point score; `AP_c_out = 1 - |largest_CC(G \ {v})| / (|V|−1)`
+- **CDI**: Connectivity Degradation Index — normalised increase in average path length after removing v
+
+### Vulnerability — V(v) v2
+```
+V(v) = 0.40·REV + 0.35·RCL + 0.25·QADS
+```
+- **REV**: Reverse Eigenvector centrality on G^T (strategic attack reach)
+- **RCL**: Reverse Closeness centrality on G^T (adversarial propagation speed)
+- **QADS**: QoS-weighted attack-dependent surface (w_in — inbound dependency weight)
+
+### Overall Quality
+```
+Q(v) = 0.25·R(v) + 0.25·M(v) + 0.25·A(v) + 0.25·V(v)   [default equal weights]
+```
+Dimension weights are configurable; defaults assume balanced system priorities.
+
+### Classification (Box-Plot)
+- `CRITICAL`: score > Q3 + k×IQR (k=0.75 by default)
+- `HIGH`: score > Q3
+- `MEDIUM`: score > Median
+- `LOW`: score > Q1
+- `MINIMAL`: score ≤ Q1
+- For samples < 12: fixed percentile fallback (top 10% → CRITICAL, etc.)
+
+## Simulation Ground Truths
+
+The failure simulator runs four concurrent post-passes after exhaustive simulation, producing per-RMAV ground truth values for each component.
+
+### Overall Impact — I(v)
+```
+I(v) = 0.35·reachability_loss + 0.25·fragmentation + 0.25·throughput_loss + 0.15·flow_disruption
+```
+- `flow_disruption`: fraction of event-simulation flows interrupted by v's failure
+
+### Reliability Ground Truth — IR(v)
+```
+IR(v) = 0.45·CascadeReach + 0.35·WeightedCascadeImpact + 0.20·NormalizedCascadeDepth
+```
+Measures fault-propagation dynamics (cascade spread and depth); orthogonal to connectivity-loss (Availability).
+
+### Maintainability Ground Truth — IM(v)
+```
+IM(v) = 0.45·ChangeReach + 0.35·WeightedChangeImpact + 0.20·NormalizedChangeDepth
+```
+Computed by `ChangePropagationSimulator` via BFS on the transposed DEPENDS_ON graph G^T.
+- Stop conditions: loose-coupling (edge weight < θ_loose=0.20) and stable-interface (Instability(u) < θ_stable=0.20)
+- Models development-time change propagation, not runtime failure.
+
+### Availability Ground Truth — IA(v)
+```
+IA(v) = 0.50·WeightedReachabilityLoss + 0.35·WeightedFragmentation + 0.15·PathBreakingThroughputLoss
+```
+QoS-weighted connectivity disruption from removing v; orthogonal to cascade-propagation (IR(v)).
+
+### Vulnerability Ground Truth — IV(v)
+```
+IV(v) = 0.40·AttackReach + 0.35·WeightedAttackImpact + 0.25·HighValueContamination
+```
+Computed by `CompromisePropagationSimulator` via BFS on G^T with a trust threshold θ_trust=0.30.
+- Models adversarial compromise propagation over trusted dependency graph.
+
+## Validation Metrics (per dimension)
+
+Each RMAV dimension has its own specialist validator and set of metrics in `validation/metric_calculator.py`.
+
+| Dimension | Spearman Target | Additional Metrics |
+|---|---|---|
+| **Overall** | ρ(Q, I) | F1, Precision, Recall, NDCG@K, Top-5/10 overlap, RMSE |
+| **Reliability** | ρ(R, IR) | CCR@5 (Cascade Capture Rate), CME (Cascade Magnitude Error) |
+| **Maintainability** | ρ(M, IM) | COCR@5 (Change Overlap Capture Rate), weighted-κ CTA, Bottleneck Precision |
+| **Availability** | ρ(A, IA) | SPOF_F1 (SPOF classification F1), RRI (Robustness Rank Improvement) |
+| **Vulnerability** | ρ(V, IV) | AHCR@5 (Attack Hit Capture Rate), FTR (False Trust Rate), APAR (Attack Path Agreement Rate), CDCC (Cross-Dimensional Contamination Check) |
+
+Validation also reports statistical power tables and Spearman–Kendall gap diagnostics.
 
 ## Documentation
 
-- `docs/` contains detailed documentation for each pipeline step as well as SDD, SRS, and STD documents
+- `docs/` contains detailed documentation for each pipeline step:
+  - `graph-model.md`, `structural-analysis.md`, `quality-scoring.md`, `failure-simulation.md`, `validation.md`, `visualization.md`
+  - `SDD.md` (Software Design Description), `SRS.md` (Requirements), `STD.md` (Test Description)
 - `examples/` contains runnable example scripts for programmatic API usage
+- `output/` — pipeline output artefacts (dashboards, reports, exported graphs)
+- `results/` — validation results from previous runs
+- `benchmarks/` — benchmark data
