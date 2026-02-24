@@ -2,13 +2,20 @@ import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { X } from 'lucide-react'
+import { X, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 import type { GraphNode } from '@/lib/types/api'
+
+interface ConnectionBreakdown {
+  type: string
+  incoming: number
+  outgoing: number
+}
 
 interface NodeDetailsCardProps {
   node: GraphNode
   onClose: () => void
   getConnectionCount: (nodeId: string) => number
+  getConnectionBreakdown: (nodeId: string) => ConnectionBreakdown[]
   getNodeIcon: (type: string) => React.ComponentType<any>
   nodeColorByType: Record<string, string>
 }
@@ -17,22 +24,24 @@ export function NodeDetailsCard({
   node,
   onClose,
   getConnectionCount,
+  getConnectionBreakdown,
   getNodeIcon,
   nodeColorByType
 }: NodeDetailsCardProps) {
   const NodeIcon = getNodeIcon(node.type)
   const connectionCount = getConnectionCount(node.id)
+  const connectionBreakdown = getConnectionBreakdown(node.id)
 
   return (
     <Card className="border flex flex-col h-full bg-white dark:bg-black">
-        <CardHeader className="pb-3 pt-4 px-4 flex-shrink-0 border-b bg-white dark:bg-black">
+        <CardHeader className="!py-2.5 px-3 flex-shrink-0 border-b bg-white dark:bg-black">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <NodeIcon className="h-4 w-4 flex-shrink-0" style={{ color: nodeColorByType[node.type] }} />
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <NodeIcon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: nodeColorByType[node.type] }} />
                 <CardTitle className="text-sm truncate">{node.label}</CardTitle>
               </div>
-              <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-1.5 text-xs">
                 <span className="opacity-60">{node.type}</span>
                 <span className="opacity-40">•</span>
                 <span className="opacity-60">{connectionCount} connections</span>
@@ -48,7 +57,7 @@ export function NodeDetailsCard({
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="pt-3 pb-3 px-4 space-y-1 flex-1 overflow-y-auto">
+        <CardContent className="py-2 px-3 flex-1 overflow-y-auto">
           {/* Node Details */}
           {(() => {
             // Get all properties from node - they can be in node.properties or directly on node
@@ -108,9 +117,9 @@ export function NodeDetailsCard({
             };
             
             return (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {/* Always show Node ID first */}
-                <div className="p-2 bg-muted/30 rounded border">
+                <div className="py-1.5 px-2 bg-muted/30 rounded border">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] opacity-60">Node ID</span>
                     <span className="font-mono text-[10px] text-right break-all">
@@ -123,7 +132,7 @@ export function NodeDetailsCard({
                 {displayFields.length > 0 && displayFields.map(([key, value]) => (
                   <div 
                     key={key} 
-                    className="p-2 rounded border bg-muted/30"
+                    className="py-1.5 px-2 rounded border bg-muted/30"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] opacity-60">
@@ -135,6 +144,33 @@ export function NodeDetailsCard({
                     </div>
                   </div>
                 ))}
+
+                {/* Connection breakdown by type */}
+                {connectionBreakdown.length > 0 && (
+                  <div className="mt-2 pt-2 border-t">
+                    <span className="text-[10px] font-medium opacity-60 uppercase tracking-wider">Connections by Type</span>
+                    <div className="mt-1 space-y-1">
+                      {connectionBreakdown.map(({ type, incoming, outgoing }) => (
+                        <div key={type} className="py-1.5 px-2 rounded border bg-muted/30">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-medium truncate" title={type}>{type}</span>
+                            <span className="text-[10px] tabular-nums opacity-70">{incoming + outgoing}</span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5">
+                            <div className="flex items-center gap-1">
+                              <ArrowDownLeft className="h-2.5 w-2.5 opacity-50" />
+                              <span className="text-[10px] tabular-nums opacity-60">{incoming} in</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <ArrowUpRight className="h-2.5 w-2.5 opacity-50" />
+                              <span className="text-[10px] tabular-nums opacity-60">{outgoing} out</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}

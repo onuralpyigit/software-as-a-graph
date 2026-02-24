@@ -122,6 +122,28 @@ function ExplorerContent() {
     }).length
   }
 
+  // Get connection breakdown by type for a node
+  const getConnectionBreakdown = (nodeId: string): { type: string; incoming: number; outgoing: number }[] => {
+    if (!dataToFilter) return []
+    const breakdown = new Map<string, { incoming: number; outgoing: number }>()
+    for (const link of dataToFilter.links) {
+      const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id
+      const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id
+      if (sourceId === nodeId) {
+        const entry = breakdown.get(link.type) || { incoming: 0, outgoing: 0 }
+        entry.outgoing++
+        breakdown.set(link.type, entry)
+      } else if (targetId === nodeId) {
+        const entry = breakdown.get(link.type) || { incoming: 0, outgoing: 0 }
+        entry.incoming++
+        breakdown.set(link.type, entry)
+      }
+    }
+    return Array.from(breakdown.entries())
+      .map(([type, counts]) => ({ type, ...counts }))
+      .sort((a, b) => (b.incoming + b.outgoing) - (a.incoming + a.outgoing))
+  }
+
   // Get connection type between parent and child
   const getConnectionType = (parentId: string, childId: string): string | null => {
     const result = getConnectionTypeAndDirection(parentId, childId)
@@ -875,6 +897,7 @@ function ExplorerContent() {
                 node={selectedNode}
                 onClose={() => setSelectedNode(null)}
                 getConnectionCount={getConnectionCount}
+                getConnectionBreakdown={getConnectionBreakdown}
                 getNodeIcon={getNodeIcon}
                 nodeColorByType={nodeColorByType}
               />
