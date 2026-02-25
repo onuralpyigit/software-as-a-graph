@@ -4,7 +4,7 @@
 
 ### Graph-Based Critical Component Prediction for Distributed Publish-Subscribe Systems
 
-**Version 2.1** · **February 2026**
+**Version 2.2** · **February 2026**
 
 Istanbul Technical University, Computer Engineering Department
 
@@ -33,15 +33,17 @@ This document describes the technical design of the Software-as-a-Graph framewor
 
 ### 1.2 Scope
 
-The design covers the full six-step methodology pipeline: graph model construction, structural analysis, quality scoring, failure simulation, statistical validation, and interactive visualization. The system follows a **three-layer pipeline architecture** (Presentation, Pipeline Components, Core) with dependency inversion at the repository boundary: the Core layer defines the `IGraphRepository` interface, and the Neo4j adapter implements it, keeping domain logic free of infrastructure dependencies.
+The design covers the full six-step methodology pipeline: graph model construction, structural analysis, quality scoring, failure simulation, statistical validation, and interactive visualization. The system follows a **four-layer architecture** (Presentation, Web Application, Pipeline Components, Core) with dependency inversion at the repository boundary: the Core layer defines the `IGraphRepository` interface, and the Neo4j adapter implements it, keeping domain logic free of infrastructure dependencies.
+
+The system is delivered through two mechanisms — a **CLI pipeline** (`bin/`) and a **Genieus web application** (FastAPI backend + Next.js frontend) — both of which invoke the same underlying domain packages.
 
 ### 1.3 References
 
 | Reference | Description |
 |-----------|-------------|
 | IEEE 1016-2009 | IEEE Standard for Software Design Descriptions |
-| SRS v2.1 | Software Requirements Specification for this project |
-| STD v2.1 | Software and System Test Document for this project |
+| SRS v2.2 | Software Requirements Specification for this project |
+| STD v2.2 | Software and System Test Document for this project |
 | IEEE RASSE 2025 | Published methodology paper (doi: 10.1109/RASSE64831.2025.11315354) |
 | Neo4j Documentation | https://neo4j.com/docs/ |
 | NetworkX Documentation | https://networkx.org/documentation/ |
@@ -53,7 +55,7 @@ The design covers the full six-step methodology pipeline: graph model constructi
 - Pseudocode uses indented block notation; `→` means "produces" or "returns."
 - Complexity annotations use standard Big-O notation.
 - All mathematical symbols are defined at first use or in the Glossary (§1.5).
-- Requirement cross-references use IDs from SRS v2.1 (e.g., REQ-GM-01).
+- Requirement cross-references use IDs from SRS v2.2 (e.g., REQ-GM-01).
 
 ### 1.5 Glossary
 
@@ -64,9 +66,12 @@ The design covers the full six-step methodology pipeline: graph model constructi
 | BR | Bridge Ratio — fraction of a vertex's incident edges that are bridges |
 | BT | Betweenness Centrality |
 | CC | Clustering Coefficient |
+| CDI | Connectivity Degradation Index — normalised increase in average path length when v is removed |
+| CDPot | Cascade Depth Potential — `((RPR + DG_in) / 2) × (1 − min(DG_out / DG_in, 1))` |
 | CI | Consistency Index in AHP: (λ\_max − n) / (n − 1) |
 | CL | Closeness Centrality |
 | CLI | Command-Line Interface |
+| CouplingRisk | `1 − |2·Instability − 1|` where `Instability = DG_out / (DG_in + DG_out + ε)` |
 | CR | Consistency Ratio in AHP: CI / RI |
 | DG\_in / DG\_out | In-Degree / Out-Degree centrality |
 | DTO | Data Transfer Object — plain data carrier between layers |
@@ -75,13 +80,24 @@ The design covers the full six-step methodology pipeline: graph model constructi
 | IQR | Interquartile Range (Q3 − Q1) |
 | NDCG | Normalized Discounted Cumulative Gain — ranking quality metric |
 | PR / RPR | PageRank / Reverse PageRank |
+| QADS | QoS-weighted Attack Dependent Surface — synonym for w\_in(v) when used in V(v) |
+| QSPOF | QoS-weighted SPOF Severity — `AP_c_directed(v) × w(v)` |
+| RCL | Reverse Closeness Centrality — closeness computed on G^T |
+| REV | Reverse Eigenvector Centrality — eigenvector centrality computed on G^T |
 | RI | Random Index for AHP consistency check |
 | RMAV | Reliability, Maintainability, Availability, Vulnerability |
 | SOLID | Single responsibility, Open-closed, Liskov substitution, Interface segregation, Dependency inversion |
 
 ### 1.6 Document Overview
 
-Section 2 describes the system context, design constraints, and guiding principles. Section 3 covers the layered pipeline architecture, module decomposition, design patterns, data flow, and deployment. Sections 4–5 address data structures and component design (service pipelines). Section 6 provides algorithmic pseudocode and complexity analysis for all non-trivial algorithms. Section 7 covers the Neo4j database schema and key Cypher queries. Section 8 covers CLI and REST API interfaces with data exchange formats. Section 9 describes both visualization surfaces: the static HTML dashboard and the Genieus web application. Appendix A gives layer definitions, Appendix B the default AHP matrices, Appendix C the error handling strategy, and Appendix D provides SRS-to-design traceability.
+Section 2 describes the system context, design constraints, and guiding principles. Section 3 covers the four-layer architecture, module decomposition, design patterns, data flow, and deployment. Sections 4–5 address data structures and component design (service pipelines). Section 6 provides algorithmic pseudocode and complexity analysis for all non-trivial algorithms, including the full RMAV formula derivations. Section 7 covers the Neo4j database schema and key Cypher queries. Section 8 covers CLI and REST API interfaces with data exchange formats. Section 9 describes both visualization surfaces: the static HTML dashboard and the Genieus web application. Appendix A gives layer definitions, Appendix B the default AHP matrices, Appendix C the error handling strategy, and Appendix D provides SRS-to-design traceability.
+
+### 1.7 Change History
+
+| Version | Date | Summary of Changes |
+|---------|------|--------------------|
+| 2.1 | February 2026 | Initial release |
+| 2.2 | February 2026 | Updated RMAV formulas to match implementation (§4.2, §5.2, §6, Appendix B); corrected architecture description to four-layer (§1.2, §3.1); fixed REST API endpoint paths to `/api/v1/` with correct HTTP methods (§8.2); added missing endpoints; added `benchmark/` to module decomposition (§3.2); added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL algorithmic descriptions (§6.13–§6.18); corrected metric-to-dimension orthogonality table (§4.2); updated Appendix A layer IDs; updated Appendix B AHP matrices; extended Appendix D traceability for SRS v2.2 requirements |
 
 ---
 
@@ -129,6 +145,7 @@ Input formats: JSON topology (REQ-GM-01), GraphML topology (REQ-GM-02)
 | Memory-bound | Graph size limited by available RAM; target ≤ 1,000 components |
 | NetworkX dependency | All centrality algorithms delegated to NetworkX |
 | Static analysis only | No runtime instrumentation; input topology must be complete |
+| Docker required | Full-stack deployment and integration testing depend on Docker Compose |
 
 ### 2.3 Design Principles
 
@@ -159,7 +176,7 @@ The system follows SOLID principles with emphasis on three key decisions:
 │                    WEB APPLICATION LAYER (Genieus)                  │
 │                                                                     │
 │  frontend/        (Next.js 16, port 7000)                           │
-│  backend/api/     (FastAPI, port 8000)                              │
+│  backend/api/     (FastAPI, port 8000, /api/v1/ prefix)             │
 │                                                                     │
 │  REST API exposes the same pipeline operations as the CLI.          │
 │  Frontend calls API; API calls the same domain services as CLI.     │
@@ -169,8 +186,11 @@ The system follows SOLID principles with emphasis on three key decisions:
 │  src.analysis         src.simulation           src.validation       │
 │  (Structural/Quality) (Event/Failure)          (Statistical)        │
 │                                                                     │
-│  src.visualization    src.generation           src.cli              │
-│  (Dashboard/Charts)   (Synthetic Graphs)       (Shared Utils)       │
+│  src.visualization    src.generation           src.benchmark        │
+│  (Dashboard/Charts)   (Synthetic Graphs)       (Benchmarking)       │
+│                                                                     │
+│  src.cli                                                            │
+│  (Shared CLI Utilities)                                             │
 │                                                                     │
 │  Feature-based packages implementing specific pipeline steps.       │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -180,7 +200,8 @@ The system follows SOLID principles with emphasis on three key decisions:
 │                                                                     │
 │  - Domain Models (GraphData, ComponentData)                         │
 │  - Interface (IGraphRepository)                                     │
-│  - Implementation (Neo4jGraphRepository)                            │
+│  - Implementations (Neo4jGraphRepository, InMemoryGraphRepository)  │
+│  - Layer Definitions                                                │
 │                                                                     │
 │  Shared foundation for all pipeline components.                     │
 └─────────────────────────────────────────────────────────────────────┘
@@ -197,7 +218,10 @@ software-as-a-graph/
 │   ├── analyze_graph.py              #   Analysis + quality scoring
 │   ├── simulate_graph.py             #   Failure simulation
 │   ├── validate_graph.py             #   Statistical validation
-│   └── visualize_graph.py            #   Dashboard generation
+│   ├── visualize_graph.py            #   Dashboard generation
+│   ├── export_graph.py               #   Export graph data from Neo4j
+│   ├── benchmark.py                  #   Benchmarking across scales
+│   └── run_scenarios.sh              #   Batch-run all scenario configs
 │
 ├── frontend/                         # Web Application Layer — Next.js 16
 │   ├── app/                          #   Next.js App Router pages
@@ -211,39 +235,48 @@ software-as-a-graph/
 │   │   └── models.py                 #   Pydantic request/response models
 │   └── src/                          # Pipeline Components + Core (shared with CLI)
 │       ├── core/                     #   Core Layer
-│       │   ├── models.py             #     Domain entities (GraphData, etc.)
+│       │   ├── models.py             #     Domain entities (GraphData, ComponentData, EdgeData)
 │       │   ├── interfaces.py         #     IGraphRepository interface
-│       │   ├── neo4j_repo.py         #     Graph database adapter
-│       │   └── layers.py             #     Layer definitions
+│       │   ├── neo4j_repo.py         #     Graph database adapter (Neo4j)
+│       │   ├── memory_repo.py        #     In-memory adapter (testing)
+│       │   └── layers.py             #     Layer definitions and projection rules
 │       │
 │       ├── analysis/                 #   Analysis Package
 │       │   ├── analyzer.py           #     Backward-compatible AnalysisService wrapper
-│       │   ├── service.py            #     AnalysisService pipeline
-│       │   ├── structural_analyzer.py#     StructuralAnalyzer
-│       │   └── quality_analyzer.py   #     QualityAnalyzer
+│       │   ├── service.py            #     AnalysisService pipeline orchestrator
+│       │   ├── structural_analyzer.py#     StructuralAnalyzer (16-field metric computation)
+│       │   └── quality_analyzer.py   #     QualityAnalyzer (RMAV scoring + classification)
 │       │
 │       ├── simulation/               #   Simulation Package
-│       │   ├── service.py            #     SimulationService
-│       │   ├── failure_simulator.py  #     FailureSimulator
-│       │   └── event_simulator.py    #     EventSimulator
+│       │   ├── service.py            #     SimulationService orchestrator
+│       │   ├── failure_simulator.py  #     FailureSimulator (cascade propagation)
+│       │   └── event_simulator.py    #     EventSimulator (message flow simulation)
 │       │
 │       ├── validation/               #   Validation Package
-│       │   ├── service.py            #     ValidationService
-│       │   └── validator.py          #     Statistical validator
+│       │   ├── service.py            #     ValidationService orchestrator
+│       │   └── validator.py          #     Statistical validator (Spearman, F1, NDCG, …)
 │       │
 │       ├── visualization/            #   Visualization Package
-│       │   ├── service.py            #     VisualizationService
-│       │   └── dashboard.py          #     DashboardGenerator
+│       │   ├── service.py            #     VisualizationService orchestrator
+│       │   └── dashboard.py          #     DashboardGenerator (HTML builder)
 │       │
 │       ├── generation/               #   Generation Package
-│       │   └── service.py            #     GenerationService
+│       │   └── service.py            #     GenerationService (synthetic topology)
+│       │
+│       ├── benchmark/                #   Benchmark Package
+│       │   └── service.py            #     BenchmarkService (scale performance testing)
 │       │
 │       └── cli/                      #   CLI Utilities
-│           └── console.py            #     ConsoleDisplay
+│           └── console.py            #     ConsoleDisplay (shared output formatting)
 │
-├── config/                           # YAML scale presets
+├── config/                           # YAML scale presets and scenario configs
+├── input/                            # Topology JSON & YAML scenario configs (8 scenarios)
+├── output/                           # Pipeline output artefacts (dashboards, reports)
+├── results/                          # Validation results from previous runs
+├── benchmarks/                       # Benchmark data
+├── examples/                         # Annotated Python usage examples
 ├── docs/                             # Methodology documentation
-└── tests/                            # Unit and integration tests
+└── tests/                            # Pytest unit & integration tests (24 files)
 ```
 
 > **Relationship between CLI and Web API:** The CLI scripts in `bin/` and the FastAPI routers in `backend/api/` both import from `backend/src/`. The domain logic is written once and exposed through two delivery mechanisms. Adding the FastAPI layer required no changes to the domain packages.
@@ -255,7 +288,7 @@ software-as-a-graph/
 | **Facade** | `AnalysisService`, `SimulationService` | Simplified entry point to multi-step workflows |
 | **Strategy** | `BoxPlotClassifier` / percentile fallback, `AHPProcessor` / default weights | Interchangeable classification and weight algorithms |
 | **Builder** | `DashboardGenerator` | Incremental construction of HTML dashboards |
-| **Repository** | `IGraphRepository` → `Neo4jGraphRepository` | Abstract data access behind a domain interface |
+| **Repository** | `IGraphRepository` → `Neo4jGraphRepository`, `InMemoryGraphRepository` | Abstract data access behind a domain interface |
 | **DTO** | `GraphData`, `ComponentData`, `EdgeData` | Clean data transfer between layers |
 | **Factory** | `generate_graph()` | Synthetic topology generation with configurable scale |
 | **Context Manager** | All database clients | Safe resource acquisition and release |
@@ -357,7 +390,7 @@ Port mapping (host → container):
                  │  QoSPolicy  │
                  ├─────────────┤
                  │ reliability │  → RELIABLE | BEST_EFFORT
-                 │ durability  │  → PERSISTENT | TRANSIENT | VOLATILE
+                 │ durability  │  → PERSISTENT | TRANSIENT | TRANSIENT_LOCAL | VOLATILE
                  │ priority    │  → URGENT | HIGH | MEDIUM | LOW
                  │ msg_size    │  → bytes
                  └─────────────┘
@@ -367,28 +400,50 @@ Port mapping (host → container):
 
 These are Python dataclasses that flow between services. All continuous metrics are normalized to [0, 1] via min-max scaling (see §6.8).
 
-**StructuralMetrics** — output of Step 2, one per component. All 13 metrics of the output vector M(v) are listed:
+**StructuralMetrics** — output of Step 2, one per component. The 16 fields of the output vector M(v) are:
 
-| Field | Type | Metric Symbol | Description |
-|-------|------|---------------|-------------|
-| `pagerank` | float | PR(v) | Transitive importance (random-walk) |
-| `reverse_pagerank` | float | RPR(v) | Reverse transitive importance |
-| `betweenness` | float | BT(v) | Shortest-path bottleneck position |
-| `closeness` | float | CL(v) | Average distance to all reachable vertices |
-| `eigenvector` | float | EV(v) | Connection to important hubs |
-| `in_degree` | float | DG\_in(v) | Normalized count of incoming DEPENDS\_ON edges |
-| `in_degree_raw` | int | — | Raw (unnormalized) in-degree count |
-| `out_degree` | float | DG\_out(v) | Normalized count of outgoing DEPENDS\_ON edges |
-| `out_degree_raw` | int | — | Raw (unnormalized) out-degree count |
-| `clustering_coefficient` | float | CC(v) | Neighbor interconnectedness |
-| `ap_score` | float | AP\_c(v) | Continuous articulation point fragmentation score |
-| `is_articulation_point` | bool | — | Binary flag: removal disconnects the graph |
-| `bridge_ratio` | float | BR(v) | Fraction of incident edges that are bridges |
-| `weight` | float | w(v) | Component's own QoS-derived weight |
-| `weighted_in_degree` | float | w\_in(v) | Sum of weights of incoming DEPENDS\_ON edges (normalized) |
-| `weighted_out_degree` | float | w\_out(v) | Sum of weights of outgoing DEPENDS\_ON edges (normalized) |
+| Field | Type | Metric Symbol | Description | RMAV Usage |
+|-------|------|---------------|-------------|------------|
+| `pagerank` | float | PR(v) | Transitive importance (random-walk) | Reported only |
+| `reverse_pagerank` | float | RPR(v) | Reverse transitive importance | R(v) |
+| `betweenness` | float | BT(v) | Shortest-path bottleneck position | M(v) |
+| `closeness` | float | CL(v) | Average distance to all reachable vertices | Reported only |
+| `eigenvector` | float | EV(v) | Connection to important hubs | Reported only |
+| `in_degree` | float | DG\_in(v) | Normalized count of incoming DEPENDS\_ON edges | R(v) |
+| `in_degree_raw` | int | — | Raw (unnormalized) in-degree count | Derived: CDPot, CouplingRisk |
+| `out_degree` | float | DG\_out(v) | Normalized count of outgoing DEPENDS\_ON edges | Derived: CDPot, CouplingRisk |
+| `out_degree_raw` | int | — | Raw (unnormalized) out-degree count | Derived: CouplingRisk |
+| `clustering_coefficient` | float | CC(v) | Neighbor interconnectedness | M(v) |
+| `ap_score` | float | AP\_c(v) | Continuous articulation point fragmentation score (undirected) | Used to derive AP_c_directed, QSPOF |
+| `is_articulation_point` | bool | — | Binary flag: removal disconnects the graph | A(v) via QSPOF |
+| `bridge_ratio` | float | BR(v) | Fraction of incident edges that are bridges | A(v) |
+| `weight` | float | w(v) | Component's own QoS-derived weight | A(v) via QSPOF |
+| `weighted_in_degree` | float | w\_in(v) | Sum of weights of incoming DEPENDS\_ON edges (normalized) | V(v) as QADS |
+| `weighted_out_degree` | float | w\_out(v) | Sum of weights of outgoing DEPENDS\_ON edges (normalized) | M(v) |
 
-> **Note:** `ap_score`, `weighted_in_degree`, and `weighted_out_degree` are the three fields that complete the 13-metric vector M(v). The continuous `ap_score` is derived from the binary `is_articulation_point` detection via the reachability-loss formula in §6.5.
+> **On metric count:** The output vector M(v) has 16 fields. The figure "13 topological metrics" used in research summaries refers to the pure graph-theoretic subset: PR, RPR, BT, CL, EV, DG_in, DG_out, CC, AP_c, BR, w, w_in, w_out (excluding the two raw integer counts and the boolean flag). All 16 fields are present in the StructuralMetrics dataclass.
+
+**Metric-to-Dimension Orthogonality:** Each raw metric contributes to **at most one** RMAV dimension. Derived metrics (CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI) are computed from raw fields but are not themselves stored in StructuralMetrics — they are computed inline during quality scoring:
+
+| Metric | Symbol | R | M | A | V | Notes |
+|--------|--------|:-:|:-:|:-:|:-:|-------|
+| Reverse PageRank | RPR | ✓ | | | | Global cascade reach |
+| In-Degree | DG\_in | ✓ | | | | Immediate blast radius |
+| Cascade Depth Potential | CDPot | ✓ | | | | Derived from RPR + DG ratio; see §6.13 |
+| Betweenness | BT | | ✓ | | | Structural bottleneck position |
+| QoS-Weighted Out-Degree | w\_out | | ✓ | | | QoS-weighted efferent coupling |
+| Coupling Risk | CouplingRisk | | ✓ | | | Afferent/efferent imbalance; see §6.14 |
+| Clustering Coefficient | CC | | ✓ | | | Direction-agnostic modularity proxy |
+| QSPOF Severity | QSPOF | | | ✓ | | AP_c_directed × w(v); see §6.15 |
+| Bridge Ratio | BR | | | ✓ | | Irreplaceable connections |
+| AP_c Directed | AP\_c\_dir | | | ✓ | | Directed articulation score; see §6.16 |
+| Connectivity Degradation | CDI | | | ✓ | | APSP-based path elongation; see §6.17 |
+| Reverse Eigenvector | REV | | | | ✓ | Strategic exposure; see §6.18 |
+| Reverse Closeness | RCL | | | | ✓ | Propagation speed from dependents; see §6.18 |
+| QoS-Weighted In-Degree | w\_in (QADS) | | | | ✓ | Immediate attack surface × SLA priority |
+| PageRank | PR | — | — | — | — | Reported only |
+| Closeness | CL | — | — | — | — | Reported only |
+| Eigenvector | EV | — | — | — | — | Reported only |
 
 **QualityScores** — output of Step 3, one per component:
 
@@ -455,7 +510,7 @@ class GraphData:
 ### 5.1 Import Pipeline
 
 ```
-CLI: import_graph.py  (or FastAPI POST /api/graph/import)
+CLI: import_graph.py  (or FastAPI POST /api/v1/graph/import)
          │
          ▼
   Neo4jGraphRepository.save_graph(data, clear=True)
@@ -477,18 +532,22 @@ CLI: import_graph.py  (or FastAPI POST /api/graph/import)
 
 ```
 src.analysis.service.AnalysisService.analyze_layer(layer)
-  (also exposed as FastAPI GET /api/analysis/{layer})
+  (also exposed as FastAPI POST /api/v1/analysis/layer/{layer})
          │
     1. Export G_analysis(layer) from Neo4j → NetworkX DiGraph
     2. StructuralAnalyzer.analyze(graph)
-         │  → Compute all 13 metrics per component (§6.1–§6.7, §6.8)
+         │  → Compute all 16 metric fields per component (§6.1–§6.6, §6.8)
+         │  → Compute reverse-graph metrics (RPR, REV, RCL) on G^T (§6.1, §6.18)
          │  → Compute continuous AP_c scores via iterated removal (§6.5)
          │  → Detect bridge edges (§6.6)
          │  → Return StructuralAnalysisResult
     3. QualityAnalyzer.analyze(structural_result)
          │  → Normalize metrics to [0, 1] via min-max (§6.8)
-         │  → Compute RMAV scores using QualityWeights
-         │  → Classify via BoxPlotClassifier or percentile fallback (§6.5)
+         │  → Compute derived terms: CDPot (§6.13), CouplingRisk (§6.14),
+         │    QSPOF (§6.15), AP_c_directed (§6.16), CDI (§6.17)
+         │  → Compute RMAV scores using QualityWeights (§6.19–§6.22)
+         │  → Compute composite Q(v) (§6.23)
+         │  → Classify via BoxPlotClassifier or percentile fallback (§6.9)
          │  → Score edges using endpoint-aware RMAV formulas
          │  → Return QualityAnalysisResult
     4. ProblemDetector.detect(quality_result)        ← see §5.6
@@ -503,14 +562,14 @@ src.analysis.service.AnalysisService.analyze_layer(layer)
 
 ```
 src.simulation.service.SimulationService.run_failure_simulation(layer)
-  (also exposed as FastAPI POST /api/simulation/failure)
+  (also exposed as FastAPI POST /api/v1/simulation/failure)
          │
     1. Build SimulationGraph from G_structural (all raw relationships)
     2. Compute baseline state (paths, components, topic weights)
     3. For each component v in layer:
          │
          a. Remove v from graph
-         b. Propagate cascades (FailureSimulator, §6.7):
+         b. Propagate cascades (FailureSimulator, §6.10):
               Physical: Node fails → hosted Apps/Brokers fail
               Logical:  Broker fails → exclusively-routed Topics die
               Application: Publisher fails → starved Subscribers fail
@@ -528,15 +587,15 @@ src.simulation.service.SimulationService.run_failure_simulation(layer)
 
 ```
 src.validation.service.ValidationService.validate_layer(analysis_result, simulation_results)
-  (also exposed as FastAPI POST /api/validation)
+  (also exposed as FastAPI POST /api/v1/validation/run-pipeline)
          │
     1. Extract Q(v) from QualityAnalysisResult
     2. Extract I(v) from List[FailureResult]
-    3. Align by component ID (warn on mismatches)
+    3. Align by component ID (warn on mismatches; require n ≥ 5)
     4. Compute (Validator):
          - Correlation: Spearman ρ, Kendall τ, Pearson r
          - Classification: Precision, Recall, F1, Cohen's κ
-         - Ranking: Top-5 overlap, Top-10 overlap, NDCG@K (§6.9)
+         - Ranking: Top-5 overlap, Top-10 overlap, NDCG@K (§6.12)
          - Error: RMSE, MAE
     5. Evaluate against ValidationTargets → pass/fail per metric
          │
@@ -616,7 +675,7 @@ Output: PR[v] ∈ [0, 1] for all v
 3. Normalize to [0, 1] via min-max (§6.8)
 ```
 
-**Reverse PageRank (RPR):** Computed identically on the transposed graph G^T where every edge A→B becomes B→A. High RPR(v) identifies components from which failure propagates outward — sources in dependency chains.
+**Reverse PageRank (RPR):** Computed identically on the transposed graph G^T where every edge A→B becomes B→A. High RPR(v) identifies components from which failure propagates outward — sources in dependency chains. RPR feeds into R(v) (§6.19).
 
 Complexity: O(|V| + |E|) per iteration. Delegated to `networkx.pagerank()`.
 
@@ -654,6 +713,8 @@ Output: CL[v] ∈ [0, 1] for all v
 
 Complexity: O(|V| × (|V| + |E|)). Delegated to `networkx.closeness_centrality()`.
 
+> **Note:** CL is reported in the output but does not directly enter any RMAV formula. The Vulnerability dimension uses **Reverse Closeness (RCL)** — closeness computed on G^T — to capture how rapidly dependents can reach v.
+
 ### 6.4 Eigenvector Centrality
 
 Measures connection quality — being connected to high-EV vertices contributes more than many connections to low-EV vertices.
@@ -673,6 +734,8 @@ Output: EV[v] ∈ [0, 1] for all v
 
 Complexity: O(|V| + |E|) per iteration. Delegated to `networkx.eigenvector_centrality()`. The fallback to in-degree is safe because in-degree is the zeroth-order approximation of eigenvector centrality.
 
+> **Note:** EV is reported in output but does not directly enter any RMAV formula. The Vulnerability dimension uses **Reverse Eigenvector (REV)** — EV computed on G^T — to capture strategic exposure through downstream dependencies.
+
 ### 6.5 Articulation Point Detection and AP\_c Score
 
 The binary Tarjan DFS identifies articulation points. The continuous AP\_c score quantifies the severity of fragmentation:
@@ -680,7 +743,7 @@ The binary Tarjan DFS identifies articulation points. The continuous AP\_c score
 **Binary detection (Tarjan's algorithm):**
 
 ```
-Input:  G = (V, E)
+Input:  G = (V, E) treated as undirected for standard AP detection
 Output: Set of articulation points AP
 
 1. DFS traversal, tracking:
@@ -693,7 +756,7 @@ Output: Set of articulation points AP
 
 Complexity: O(|V| + |E|). The binary result populates `is_articulation_point`.
 
-**Continuous score AP\_c:**
+**Continuous score AP\_c (undirected):**
 
 ```
 For each vertex v:
@@ -706,7 +769,7 @@ Interpretation:
   v removal isolates all others → AP_c(v) → 1.0
 ```
 
-Complexity: O(|V| × (|V| + |E|)) for all vertices.
+Complexity: O(|V| × (|V| + |E|)) for all vertices. This undirected AP_c is stored in `ap_score`. The directed variant `AP_c_directed` is derived in §6.16.
 
 ### 6.6 Bridge Detection
 
@@ -823,21 +886,17 @@ In Monte Carlo mode, each cascade propagation step fires with probability p ∈ 
 Measures whether predicted and actual rankings agree monotonically.
 
 ```
-Input:  Paired values (X, Y) of size n
-Output: Correlation coefficient ρ ∈ [−1, 1]
+Input:  Paired values (X, Y) of size n ≥ 5
+Output: Correlation coefficient ρ ∈ [−1, 1], p-value
 
-1. R_X = ranks of X, R_Y = ranks of Y
-2. d[i] = R_X[i] − R_Y[i]
+1. Rank X → rank_X;  Rank Y → rank_Y  (ties → average rank)
+2. d[i] = rank_X[i] − rank_Y[i]
 3. ρ = 1 − (6 × Σ d[i]²) / (n × (n² − 1))
-```
+4. t = ρ × √(n − 2) / √(1 − ρ²)
+5. p-value from t-distribution with (n−2) degrees of freedom
 
-| ρ Range | Interpretation |
-|---------|---------------|
-| 0.9 – 1.0 | Very strong |
-| 0.7 – 0.9 | Strong |
-| 0.5 – 0.7 | Moderate |
-| 0.3 – 0.5 | Weak |
-| 0.0 – 0.3 | Negligible |
+Requires n ≥ 5; raises ValueError and logs warning for n < 5.
+```
 
 Delegated to `scipy.stats.spearmanr()`.
 
@@ -855,6 +914,177 @@ Output: NDCG@K ∈ [0, 1]
 
 If IDCG@K = 0 (all relevance scores are 0): NDCG@K = 1.0 by convention.
 ```
+
+### 6.13 Cascade Depth Potential (CDPot)
+
+A derived signal that combines reverse-propagation breadth with the in/out-degree ratio to estimate cascade self-reinforcement depth.
+
+```
+Input:  RPR(v), DG_in(v), DG_out(v)  [all normalized]
+Output: CDPot(v) ∈ [0, 1]
+
+CDPot(v) = ((RPR(v) + DG_in(v)) / 2) × (1 − min(DG_out(v) / (DG_in(v) + ε), 1.0))
+
+where ε = 1e-6 prevents division by zero.
+
+Interpretation:
+  - Fan-out hubs (DG_out >> DG_in): CDPot → 0 (wide, shallow cascade; quickly absorbed)
+  - Absorber nodes (DG_in >> DG_out): CDPot is high (deep, self-reinforcing cascade)
+```
+
+CDPot is an inline-computed derived term within QualityAnalyzer — it is not stored in StructuralMetrics. It feeds exclusively into R(v) (§6.19).
+
+### 6.14 Coupling Risk
+
+Measures the structural coupling imbalance — components that are deeply embedded on both afferent and efferent sides are hardest to modify safely.
+
+```
+Input:  DG_in_raw(v), DG_out_raw(v)  [raw integer counts]
+Output: CouplingRisk(v) ∈ [0, 1]
+
+Instability(v) = DG_out_raw(v) / (DG_in_raw(v) + DG_out_raw(v) + ε)
+CouplingRisk(v) = 1 − |2 × Instability(v) − 1|
+
+Interpretation:
+  - Pure source (DG_in=0):      Instability=1.0 → CouplingRisk=0
+  - Pure sink (DG_out=0):       Instability=0.0 → CouplingRisk=0
+  - Balanced (DG_in≈DG_out):    Instability≈0.5 → CouplingRisk=1.0 (maximum risk)
+```
+
+CouplingRisk is computed inline in QualityAnalyzer and feeds exclusively into M(v) (§6.20).
+
+### 6.15 QoS-Weighted SPOF Severity (QSPOF)
+
+Scales the directed articulation point score by the component's QoS weight, so high-criticality SPOF components dominate availability risk.
+
+```
+Input:  AP_c_directed(v) (§6.16), w(v)  [normalized QoS weight]
+Output: QSPOF(v) ∈ [0, 1]
+
+QSPOF(v) = AP_c_directed(v) × w(v)
+```
+
+QSPOF feeds exclusively into A(v) (§6.21).
+
+### 6.16 Directed Articulation Point Score (AP\_c\_directed)
+
+Extends the undirected AP\_c to capture directional path disruption in a directed graph. Uses the worst-case direction (out-reachability vs. in-reachability) upon vertex removal.
+
+```
+Input:  G = (V, E) [directed], vertex v
+Output: AP_c_directed(v) ∈ [0, 1]
+
+1. G' = G with v removed
+2. AP_c_out(v) = 1 − |R_out largest| / (|V| − 1)
+   where R_out largest = largest strongly reachable component from any remaining vertex
+3. AP_c_in(v) = 1 − |R_in largest| / (|V| − 1)
+   where R_in largest = largest set reaching any single vertex
+4. AP_c_directed(v) = max(AP_c_out(v), AP_c_in(v))
+```
+
+AP_c_directed feeds into QSPOF (§6.15) and directly into A(v) (§6.21).
+
+### 6.17 Connectivity Degradation Index (CDI)
+
+Measures average path elongation when v is removed — catches non-articulation vulnerability where no partition occurs but paths become significantly longer.
+
+```
+Input:  G = (V, E), vertex v
+Output: CDI(v) ∈ [0, 1]
+
+1. Compute APSP (All-Pairs Shortest Paths) on G → avg_path_G
+2. Compute APSP on G' (G with v removed) → avg_path_G'
+   (pairs involving v are excluded from both computations)
+3. CDI(v) = min((avg_path_G' − avg_path_G) / avg_path_G, 1.0)
+   If G' is disconnected: avg_path_G' = ∞ → CDI(v) = 1.0
+
+Edge case: If |V| ≤ 2 after removal: CDI(v) = 0
+```
+
+Complexity: O(|V| × (|V| + |E|)) via BFS for each APSP. For enterprise-scale systems (|V| > 300), sampled APSP (random subset of source nodes) is used with a fixed seed for reproducibility.
+
+CDI feeds exclusively into A(v) (§6.21).
+
+### 6.18 Reverse Centrality Metrics (REV, RCL)
+
+Reverse Eigenvector (REV) and Reverse Closeness (RCL) are computed by running the standard eigenvector and closeness algorithms on the **transposed graph G^T** (all edges reversed).
+
+```
+G^T = transpose(G)   [edge A→B in G becomes B→A in G^T]
+
+REV(v) = eigenvector_centrality(G^T, max_iter=1000)[v]
+         (with in-degree fallback on non-convergence, as per §6.4)
+
+RCL(v) = closeness_centrality(G^T, Wasserman-Faust)[v]
+```
+
+**Semantic interpretation:**
+- **High REV(v):** v receives influence from other high-REV components in the reversed graph — meaning v is connected to downstream critical hubs in the original graph. This signals strategic exposure to dependent failures.
+- **High RCL(v):** v is "close" to many components in G^T — meaning many components can reach v quickly in the original graph. Adversarial paths from dependents are short.
+
+Both REV and RCL feed exclusively into V(v) (§6.22).
+
+### 6.19 Reliability Score R(v)
+
+```
+R(v) = 0.45 × RPR(v) + 0.30 × DG_in(v) + 0.25 × CDPot(v)
+```
+
+| Term | Weight | Rationale |
+|------|--------|-----------|
+| RPR(v) | 0.45 | Reverse PageRank — global cascade reach; how broadly v's failure propagates in the reverse-dependency direction |
+| DG\_in(v) | 0.30 | In-degree — count of direct dependents; immediate structural blast radius |
+| CDPot(v) | 0.25 | Cascade Depth Potential — absorber nodes (DG_in >> DG_out) produce deep cascades; fan-out hubs produce wide shallow cascades |
+
+A component with high R(v) is one whose failure would propagate both broadly and deeply through the dependency graph.
+
+### 6.20 Maintainability Score M(v)
+
+```
+M(v) = 0.40 × BT(v) + 0.35 × w_out(v) + 0.15 × CouplingRisk(v) + 0.10 × (1 − CC(v))
+```
+
+| Term | Weight | Rationale |
+|------|--------|-----------|
+| BT(v) | 0.40 | Betweenness — structural bottleneck position; v lies on many dependency paths |
+| w\_out(v) | 0.35 | QoS-weighted efferent coupling — counts outgoing dependencies weighted by SLA class; strictly more informative than raw DG\_out |
+| CouplingRisk(v) | 0.15 | Afferent/efferent imbalance — components embedded on both sides (near Instability = 0.5) are hardest to change safely |
+| (1 − CC(v)) | 0.10 | Inverse clustering — sparse neighborhood implies harder refactoring |
+
+A component with high M(v) is a structural bottleneck that has many tightly-contracted outgoing dependencies and sits at an unstable coupling boundary.
+
+### 6.21 Availability Score A(v)
+
+```
+A(v) = 0.45 × QSPOF(v) + 0.30 × BR(v) + 0.15 × AP_c_directed(v) + 0.10 × CDI(v)
+```
+
+| Term | Weight | Rationale |
+|------|--------|-----------|
+| QSPOF(v) | 0.45 | QoS-weighted SPOF severity — AP_c_directed × w(v); highly-contracted structural SPOF components dominate availability risk |
+| BR(v) | 0.30 | Bridge ratio — fraction of incident edges that are bridges; high BR means connections are irreplaceable structural foundations |
+| AP\_c\_directed(v) | 0.15 | Directed articulation score — directional path disruption beyond the undirected SPOF |
+| CDI(v) | 0.10 | Connectivity degradation — path elongation upon removal catches non-SPOF availability risk |
+
+### 6.22 Vulnerability Score V(v)
+
+```
+V(v) = 0.40 × REV(v) + 0.35 × RCL(v) + 0.25 × w_in(v)
+```
+
+| Term | Weight | Rationale |
+|------|--------|-----------|
+| REV(v) | 0.40 | Reverse Eigenvector — connection to downstream critical components signals strategic exposure |
+| RCL(v) | 0.35 | Reverse Closeness — short paths from dependents means vulnerabilities propagate rapidly to v |
+| w\_in(v) (QADS) | 0.25 | QoS-weighted in-degree — immediate attack surface exposed to dependents, weighted by their SLA priority |
+
+### 6.23 Composite Quality Score Q(v)
+
+```
+Q(v) = w_R × R(v) + w_M × M(v) + w_A × A(v) + w_V × V(v)
+```
+
+**Default weights:** w\_R = w\_M = w\_A = w\_V = 0.25 (equal weighting). The equal default reflects deliberate expert judgment — an AHP pairwise comparison matrix where all dimensions are rated equally important produces exactly this 0.25/0.25/0.25/0.25 split, with CR = 0.00. For domain-specific priorities (security-critical, high-availability, actively-developed systems), custom AHP matrices are supported via `--use-ahp` (see Appendix B for domain examples).
 
 ---
 
@@ -953,6 +1183,7 @@ CREATE INDEX IF NOT EXISTS FOR ()-[d:DEPENDS_ON]-() ON (d.dependency_type);
 ```
 python bin/run.py --all --layer system [--scale medium] [--open]
 python bin/run.py --generate --import --analyze --layer app
+python bin/run.py --all --layer system --verbose
 ```
 
 **Individual step CLIs** — all share common flags:
@@ -960,27 +1191,32 @@ python bin/run.py --generate --import --analyze --layer app
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--layer LAYER` | Target layer: app, infra, mw, system | system |
-| `--uri URI` | Neo4j connection | bolt://localhost:7687 |
+| `--uri URI` | Neo4j connection URI | bolt://localhost:7687 |
 | `--user` / `--password` | Neo4j credentials | neo4j / password |
 | `--output FILE` | Export results to JSON | — |
-| `--verbose` / `--quiet` | Log level control | INFO |
+| `--verbose` / `--quiet` | Log level control (DEBUG / WARNING) | INFO |
+| `--scale SCALE` | Scale preset for generation: tiny, small, medium, large, xlarge | medium |
+| `--open` | Open generated HTML dashboard in browser after completion | false |
 
 ### 8.2 REST API Interface (FastAPI)
 
-The FastAPI backend exposes the pipeline as a RESTful API, consumed by the Genieus frontend. The full interactive documentation is available at `http://localhost:8000/docs` (Swagger UI) when the container is running.
+The FastAPI backend exposes the pipeline as a versioned RESTful API (`/api/v1/` prefix), consumed by the Genieus frontend. The full interactive documentation is available at `http://localhost:8000/docs` (Swagger UI) when the container is running.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | Health check — returns `{"status": "ok"}` |
-| GET | `/api/graph/summary` | Counts of all vertex and edge types in Neo4j |
-| POST | `/api/graph/import` | Import JSON or GraphML topology into Neo4j |
-| GET | `/api/analysis/{layer}` | Run structural analysis + quality scoring for a layer |
-| POST | `/api/simulation/failure` | Run failure simulation for a layer |
-| POST | `/api/validation` | Run statistical validation for a layer |
-| GET | `/api/layers` | List available analysis layers |
-| GET | `/api/components/{layer}` | Retrieve all component records for a layer |
+| GET | `/api/v1/graph/summary` | Counts of all vertex and edge types in Neo4j |
+| POST | `/api/v1/graph/import` | Import JSON or GraphML topology into Neo4j |
+| GET | `/api/v1/graph/search-nodes` | Search for nodes by name/type query parameter |
+| POST | `/api/v1/analysis/layer/{layer}` | Run structural analysis + quality scoring for a layer |
+| POST | `/api/v1/simulation/failure` | Run failure simulation for a layer |
+| POST | `/api/v1/validation/run-pipeline` | Run statistical validation for a layer |
+| GET | `/api/v1/validation/layers` | List available analysis layers with metadata |
+| GET | `/api/v1/components` | Retrieve all component records for a layer (query param) |
 
-All endpoints return JSON. Error responses follow RFC 7807 (Problem Details for HTTP APIs) with `status`, `title`, and `detail` fields.
+All endpoints return JSON. Error responses follow RFC 7807 (Problem Details for HTTP APIs) with `status`, `title`, and `detail` fields. HTTP 422 is returned for invalid request payloads.
+
+> **API versioning note:** All domain endpoints use the `/api/v1/` prefix. The health endpoint `/health` is unversioned (infrastructure concern). The Swagger documentation at `/docs` covers all versioned endpoints.
 
 ### 8.3 Data Exchange Formats
 
@@ -1020,8 +1256,9 @@ All endpoints return JSON. Error responses follow RFC 7807 (Problem Details for 
     "scores": {"reliability": 0.82, "maintainability": 0.75,
                "availability": 0.90, "vulnerability": 0.68, "overall": 0.79},
     "levels": {"overall": "HIGH"},
-    "metrics": {"pagerank": 0.82, "betweenness": 0.67,
-                "ap_score": 0.50, "is_articulation_point": true}
+    "metrics": {"reverse_pagerank": 0.76, "betweenness": 0.67,
+                "ap_score": 0.50, "is_articulation_point": true,
+                "bridge_ratio": 0.33, "weighted_in_degree": 0.61}
   }],
   "classification_summary": {
     "total_components": 48,
@@ -1082,7 +1319,7 @@ Launched via `docker compose up`. A Next.js 16 frontend (port 7000) communicatin
 | Graph Explorer | Interactive 2D/3D force-directed dependency graph | Explore topology, filter by layer, inspect components |
 | Analysis | Layer selector, weight mode toggle, real-time results | Trigger and view structural analysis |
 | Simulation | Component selector, failure mode picker, cascade animation | Run and visualize failure simulations |
-| Settings | Neo4j URI, credentials, database name | Connection configuration |
+| Settings | Neo4j URI, credentials, database name | Connection configuration (persisted in browser storage) |
 
 **Graph Explorer interaction model:**
 
@@ -1116,69 +1353,92 @@ Launched via `docker compose up`. A Next.js 16 frontend (port 7000) communicatin
 |----------|------|----------------|-----------------|
 | `app` | Application Layer | Application | app\_to\_app |
 | `infra` | Infrastructure Layer | Node | node\_to\_node |
-| `mw-app` | Middleware-Application | Application, Broker | app\_to\_app, app\_to\_broker |
-| `mw-infra` | Middleware-Infrastructure | Node, Broker | node\_to\_node, node\_to\_broker |
+| `mw` | Middleware Layer | Application, Broker | app\_to\_app, app\_to\_broker |
 | `system` | Complete System | All types | All dependency types |
+
+> **Note:** Earlier versions of this document used `mw-app` and `mw-infra` as separate layer IDs. These have been consolidated into a single `mw` layer that covers all middleware dependencies. The `mw` layer is what the SRS, STD, and CLI `--layer mw` flag all refer to.
 
 ### Appendix B: Default AHP Matrices
 
+The production defaults are empirically smoothed from the AHP geometric-mean result toward more balanced weighting to reduce sensitivity to outlier matrix entries. All defaults satisfy CR < 0.10.
+
 ```python
-# Reliability: [PageRank, ReversePageRank, InDegree]
+# Reliability R(v): inputs = [RPR, DG_in, CDPot]
+# AHP judgment: RPR moderately more important than DG_in; CDPot slightly less
 criteria_reliability = [
-    [1.0, 2.0, 2.0],   # PR moderately more important than RPR and DGin
-    [0.5, 1.0, 1.0],   # RPR and DGin equally important to each other
-    [0.5, 1.0, 1.0],
-]  # → GM: [1.587, 0.794, 0.794] → Normalized: [0.50, 0.25, 0.25]
-   # Default used: [0.40, 0.35, 0.25]  (empirically smoothed; CR ≈ 0.00)
+    [1.0, 2.0, 2.0],   # RPR vs DG_in vs CDPot
+    [0.5, 1.0, 1.5],
+    [0.5, 0.67, 1.0],
+]
+# → Normalized: [0.46, 0.28, 0.26]
+# Default used: [0.45, 0.30, 0.25]  (CR ≈ 0.002)
 
-# Maintainability: [Betweenness, OutDegree, (1−Clustering)]
+# Maintainability M(v): inputs = [BT, w_out, CouplingRisk, (1-CC)]
+# AHP judgment: BT strongly dominant; w_out next; CouplingRisk and CC modest
 criteria_maintainability = [
-    [1.0, 2.0, 3.0],
-    [0.5, 1.0, 2.0],
-    [0.33, 0.5, 1.0],
-]  # → Normalized: [0.54, 0.30, 0.16]
-   # Default used: [0.40, 0.35, 0.25]  (smoothed; CR ≈ 0.003)
+    [1.0, 2.0, 3.0, 4.0],
+    [0.5, 1.0, 2.0, 3.0],
+    [0.33, 0.5, 1.0, 2.0],
+    [0.25, 0.33, 0.5, 1.0],
+]
+# → Normalized: [0.47, 0.29, 0.15, 0.09]
+# Default used: [0.40, 0.35, 0.15, 0.10]  (smoothed; CR ≈ 0.006)
 
-# Availability: [AP_c, BridgeRatio, ComponentWeight w(v)]
+# Availability A(v): inputs = [QSPOF, BR, AP_c_directed, CDI]
+# AHP judgment: QSPOF strongly dominant; BR significant; AP_c_dir and CDI supporting
 criteria_availability = [
-    [1.0, 3.0, 5.0],   # AP_c strongly dominant (structural SPOF is primary)
-    [0.33, 1.0, 2.0],
-    [0.2, 0.5, 1.0],
-]  # → Normalized: [0.65, 0.23, 0.12]
-   # Default used: [0.50, 0.30, 0.20]  (conservative — reduces AP_c dominance; CR ≈ 0.02)
+    [1.0, 2.0, 4.0, 5.0],
+    [0.5, 1.0, 3.0, 4.0],
+    [0.25, 0.33, 1.0, 2.0],
+    [0.2, 0.25, 0.5, 1.0],
+]
+# → Normalized: [0.49, 0.30, 0.13, 0.08]
+# Default used: [0.45, 0.30, 0.15, 0.10]  (conservative; CR ≈ 0.01)
 
-# Vulnerability: [Eigenvector, Closeness, OutDegree]
+# Vulnerability V(v): inputs = [REV, RCL, w_in]
+# AHP judgment: REV and RCL roughly equal; w_in slightly less
 criteria_vulnerability = [
-    [1.0, 2.0, 2.0],
-    [0.5, 1.0, 1.0],
-    [0.5, 1.0, 1.0],
-]  # → Normalized: [0.50, 0.25, 0.25]
-   # Default used: [0.40, 0.30, 0.30]  (DGout elevated slightly; CR ≈ 0.00)
+    [1.0, 1.5, 2.0],
+    [0.67, 1.0, 1.5],
+    [0.5, 0.67, 1.0],
+]
+# → Normalized: [0.41, 0.35, 0.24]
+# Default used: [0.40, 0.35, 0.25]  (CR ≈ 0.001)
 
-# Overall Q(v): [R, M, A, V] — equal by default
+# Overall Q(v): [R, M, A, V] — equal by default (general-purpose analysis)
 criteria_overall = [
     [1.0, 1.0, 1.0, 1.0],
     [1.0, 1.0, 1.0, 1.0],
     [1.0, 1.0, 1.0, 1.0],
     [1.0, 1.0, 1.0, 1.0],
-]  # → weights = [0.25, 0.25, 0.25, 0.25]; CR = 0.00
+]
+# → weights = [0.25, 0.25, 0.25, 0.25]; CR = 0.00
 ```
 
-> **Note on "Default used" vs. "Normalized" weights:** The normalized values come directly from the geometric mean of the pairwise matrix. The "default used" values are the production defaults embedded in the framework — they are empirically smoothed from the AHP result toward more balanced weighting to reduce sensitivity to outlier matrix entries. All defaults satisfy CR < 0.10 when checked against their respective matrices.
+**Domain-specific weight examples** (custom `--use-ahp` configurations):
+
+| System Type | Priority | w\_R | w\_M | w\_A | w\_V |
+|-------------|----------|:----:|:----:|:----:|:----:|
+| High-availability (medical, aerospace) | A > R > M > V | 0.30 | 0.20 | 0.40 | 0.10 |
+| Security-critical (financial, government) | V > A > R > M | 0.20 | 0.10 | 0.30 | 0.40 |
+| Actively developed (fast iteration) | M > R > A > V | 0.30 | 0.40 | 0.20 | 0.10 |
+| General-purpose | Equal | 0.25 | 0.25 | 0.25 | 0.25 |
 
 ### Appendix C: Error Handling Strategy
 
-| Error Type | Strategy |
-|------------|----------|
-| Neo4j connection failure | Retry with exponential backoff (3 attempts, 1/2/4 s delay), then raise with descriptive message including URI and credentials hint |
-| Invalid input topology | Validate early at import; return specific error identifying missing ID, dangling edge, or duplicate component |
-| Empty graph / layer | Return empty result with WARNING log; do not raise exception |
-| Algorithm non-convergence (EV) | Fall back to in-degree centrality; log WARNING with component count |
-| AHP matrix inconsistency (CR > 0.10) | **ABORT** with diagnostic message showing CR value and which dimension's matrix failed (REQ-QS-08). Do not proceed with inconsistent weights. |
+| Error Condition | Handling Strategy |
+|----------------|------------------|
+| Neo4j connection failure | Retry up to 3 times with exponential backoff (1s, 2s, 4s); raise `ConnectionError` with URI in message after all retries exhausted |
+| Invalid topology (missing required field) | Raise `TopologyValidationError` with field name and constraint; do not partially import |
+| Dangling edge reference (endpoint ID not found) | Raise `TopologyValidationError` with edge ID and missing component ID |
+| Duplicate component ID | Raise `TopologyValidationError` with duplicate ID |
+| Disconnected graph (weakly) | Log WARNING; proceed with analysis per weakly connected component |
+| Eigenvector centrality non-convergence | Fall back to in-degree; log WARNING with component count |
+| AHP consistency failure (CR > 0.10) | Abort with `AHPConsistencyError` including CR value and matrix. Do not proceed with inconsistent weights |
 | Memory exhaustion | Stream large graphs in batches; log memory usage at DEBUG level at large scale |
 | GraphML parse error | Return specific line/element in error message; do not partially import |
 
-> **AHP handling rationale:** Earlier versions warned but continued on AHP inconsistency. SRS REQ-QS-08 (v2.1) requires aborting, because proceeding with an inconsistent matrix would silently produce unreliable weights, invalidating the entire RMAV score. The analyst must revise pairwise judgments before proceeding.
+> **AHP handling rationale:** Earlier versions warned but continued on AHP inconsistency. SRS REQ-QS-08 (v2.2) requires aborting, because proceeding with an inconsistent matrix would silently produce unreliable weights, invalidating the entire RMAV score. The analyst must revise pairwise judgments before proceeding.
 
 ### Appendix D: SRS-to-Design Traceability
 
@@ -1187,32 +1447,61 @@ criteria_overall = [
 | REQ-GM-01 | §5.1 Import Pipeline (JSON parser), §8.3 input topology JSON schema |
 | REQ-GM-02 | §5.1 Import Pipeline (GraphML parser), §2.1 system context diagram |
 | REQ-GM-03–05 | §5.1 Phase 1–3; §7.1 relationship types; §7.2 dependency derivation Cypher |
-| REQ-GM-07, REQ-ML-01–04 | §5.2 Step 1 (layer export); Appendix A layer definitions |
+| REQ-GM-06 | §5.1 Phase 3 (QoS weight computation); §8.3 QoS field in input schema |
+| REQ-GM-07 | §5.1 Phase 4 (DEPENDS\_ON weight propagation from Topics) |
+| REQ-GM-08, REQ-ML-01–04 | §5.2 Step 1 (layer export); Appendix A layer definitions |
 | REQ-SA-01–02 | §6.1 PageRank / Reverse PageRank |
 | REQ-SA-03 | §6.2 Betweenness Centrality (Brandes) |
 | REQ-SA-04 | §6.3 Closeness Centrality (Wasserman-Faust) |
 | REQ-SA-05 | §6.4 Eigenvector Centrality (power iteration + fallback) |
 | REQ-SA-06 | §4.2 StructuralMetrics: in\_degree / out\_degree fields |
-| REQ-SA-08 | §6.5 Articulation Point Detection (binary + continuous AP\_c) |
+| REQ-SA-07 | §4.2 StructuralMetrics: clustering\_coefficient field |
+| REQ-SA-08 | §6.5 Articulation Point Detection (binary + AP\_c); §6.16 AP\_c\_directed |
 | REQ-SA-09 | §6.6 Bridge Detection and Bridge Ratio |
-| REQ-SA-10, REQ-SA-11 | §4.2 StructuralMetrics weight fields; §6.8 min-max normalization |
-| REQ-QS-01–05 | §5.2 Step 3 (QualityAnalyzer), Appendix B default AHP matrices |
+| REQ-SA-10 | §4.2 StructuralMetrics weight fields (w, w\_in, w\_out) |
+| REQ-SA-11 | §6.8 Min-Max Normalization |
+| REQ-SA-12 | §5.2 StructuralAnalyzer: graph-level summary statistics |
+| REQ-QS-01 | §6.19 Reliability Score R(v) |
+| REQ-QS-02 | §6.20 Maintainability Score M(v) |
+| REQ-QS-03 | §6.21 Availability Score A(v) |
+| REQ-QS-04 | §6.22 Vulnerability Score V(v) |
+| REQ-QS-05 | §6.23 Composite Quality Score Q(v) |
+| REQ-QS-06 | §6.9 Box-Plot Classification |
 | REQ-QS-07–08 | §6.7 AHP Weight Calculation; Appendix C AHP error handling |
-| REQ-QS-09–10 | §6.9 Box-Plot Classification (normal path and fallback) |
-| REQ-FS-01–07 | §5.3 Simulation Pipeline; §6.10 Cascade Propagation |
-| REQ-VA-01 | §6.11 Spearman Rank Correlation |
-| REQ-VA-02–06 | §5.4 Validation Pipeline (classification, ranking, error metrics) |
-| REQ-VA-04, NDCG | §6.12 NDCG@K |
+| REQ-QS-09 | §6.9 Box-Plot Classification (normal path and fallback) |
+| REQ-QS-10 | §5.6 Anti-Pattern Detection Pipeline |
+| REQ-FS-01–05 | §5.3 Simulation Pipeline; §6.10 Cascade Propagation |
+| REQ-VL-01 | §6.11 Spearman Rank Correlation |
+| REQ-VL-02–10 | §5.4 Validation Pipeline (classification, ranking, error metrics, min-n check) |
+| REQ-VL-07 | §6.12 NDCG@K |
 | REQ-VZ-01–08 | §5.5 Visualization Pipeline; §9.1 Static Dashboard |
 | REQ-CLI-01–04 | §8.1 CLI Interface |
+| REQ-CLI-05 | §8.1 CLI Interface (`--generate` flag via `bin/run.py`) |
+| REQ-CLI-06 | §8.1 CLI Interface (`--scale` flag) |
+| REQ-CLI-07 | §8.1 CLI Interface (`--verbose` / `--quiet` flags) |
+| REQ-CLI-08 | §8.1 CLI Interface (`--open` flag) |
+| REQ-API-01 | §8.2 REST API: `GET /health` |
+| REQ-API-02 | §8.2 REST API: `GET /api/v1/graph/summary` |
+| REQ-API-03 | §8.2 REST API: `POST /api/v1/graph/import` |
+| REQ-API-04 | §8.2 REST API: `GET /api/v1/graph/search-nodes` |
+| REQ-API-05 | §8.2 REST API: `POST /api/v1/analysis/layer/{layer}` |
+| REQ-API-06 | §8.2 REST API: `POST /api/v1/simulation/failure` |
+| REQ-API-07 | §8.2 REST API: `POST /api/v1/validation/run-pipeline` |
+| REQ-API-08 | §8.2 REST API: `GET /api/v1/validation/layers` |
+| REQ-API-09 | §8.2 REST API: `GET /api/v1/components` |
+| REQ-API-10 | §8.2 HTTP 422 error handling; Appendix C error strategy |
+| REQ-API-11 | §8.2 Swagger UI at `/docs` |
+| REQ-WEB-01–10 | §9.2 Genieus Web Application design |
 | REQ-SEC-01–03 | §2.2 Design Constraints; Appendix C (Neo4j connection error handling) |
 | REQ-LOG-01–03 | Appendix C (logging strategy per error type) |
-| REQ-PERF-01–04 | §3.5 Deployment Architecture (uvicorn 2 workers); §6.1–§6.11 complexity annotations |
-| REQ-SCAL-01–02 | §2.2 Design Constraints (memory-bound) |
+| REQ-PERF-01–04 | §3.5 Deployment Architecture (uvicorn 2 workers); §6.1–§6.12 complexity annotations |
+| REQ-PERF-05 | §3.5 Deployment Architecture (uvicorn 2 workers, async endpoints) |
+| REQ-SCAL-01–02 | §2.2 Design Constraints (memory-bound); §6.17 CDI sampled APSP for enterprise scale |
 | REQ-PORT-01–02 | §3.5 Docker deployment (platform-agnostic container) |
+| REQ-PORT-03 | §3.5 Deployment Architecture (multi-stage Docker build) |
 | REQ-MAINT-01–03 | §3.3 Design Patterns (composition, strategy, repository) |
 
 ---
 
-*Software-as-a-Graph Framework v2.1 · February 2026*
+*Software-as-a-Graph Framework v2.2 · February 2026*
 *Istanbul Technical University, Computer Engineering Department*

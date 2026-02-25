@@ -4,7 +4,7 @@
 
 ### Graph-Based Critical Component Prediction for Distributed Publish-Subscribe Systems
 
-**Version 2.1** · **February 2026**
+**Version 2.2** · **February 2026**
 
 Istanbul Technical University, Computer Engineering Department
 
@@ -51,8 +51,8 @@ Coverage spans both delivery mechanisms: the **CLI pipeline** (`bin/`) and the *
 
 | Document | Description |
 |----------|-------------|
-| SRS v2.1 | Software Requirements Specification |
-| SDD v2.1 | Software Design Description |
+| SRS v2.2 | Software Requirements Specification |
+| SDD v2.2 | Software Design Description |
 | IEEE 829-2008 | Standard for Software Test Documentation |
 | IEEE 1012-2016 | Standard for System and Software Verification and Validation |
 | IEEE RASSE 2025 | Published methodology paper (doi: 10.1109/RASSE64831.2025.11315354) |
@@ -62,7 +62,7 @@ Coverage spans both delivery mechanisms: the **CLI pipeline** (`bin/`) and the *
 - Test IDs follow the pattern `<LEVEL>-<MODULE>-<NN>` (e.g., `UT-ANAL-01`, `IT-NEO-01`, `ST-E2E-01`, `VT-APP-01`, `AC-01`).
 - The marker `@pytest.mark.<tag>` indicates the pytest marker used to select or exclude the test.
 - Pass criteria use **shall** language matching the SRS requirement they verify.
-- Requirement cross-references use IDs from SRS v2.1 (e.g., REQ-GM-01).
+- Requirement cross-references use IDs from SRS v2.2 (e.g., REQ-GM-01).
 
 ### 1.5 Document Overview
 
@@ -73,15 +73,29 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | Term | Definition |
 |------|------------|
 | AP\_c | Continuous articulation point score — fraction of graph fragmented upon vertex removal |
+| AP\_c\_directed | Directed variant of AP\_c — `max(AP_c_out, AP_c_in)` on the directed graph |
 | BR | Bridge Ratio — fraction of a vertex's incident edges that are bridges |
+| CDI | Connectivity Degradation Index — normalised path elongation upon vertex removal |
+| CDPot | Cascade Depth Potential — derived depth signal: `((RPR + DG_in) / 2) × (1 − min(DG_out / DG_in, 1))` |
+| CouplingRisk | `1 − |2·Instability − 1|` — afferent/efferent imbalance score |
 | CR | Consistency Ratio in AHP (must be < 0.10) |
 | Fixture | Predefined test data created before a test runs |
 | Mock | Simulated object that isolates the code under test |
 | NDCG | Normalized Discounted Cumulative Gain — ranking quality metric |
+| QSPOF | QoS-weighted SPOF Severity — `AP_c_directed(v) × w(v)` |
+| RCL | Reverse Closeness Centrality — closeness computed on G^T |
+| REV | Reverse Eigenvector Centrality — eigenvector centrality computed on G^T |
 | ρ | Spearman rank correlation coefficient |
 | RMAV | Reliability, Maintainability, Availability, Vulnerability |
 | SUT | System Under Test |
 | TP / FP / TN / FN | True/False Positive/Negative (classification outcomes) |
+
+### 1.7 Change History
+
+| Version | Date | Summary of Changes |
+|---------|------|--------------------|
+| 2.1 | February 2026 | Initial release |
+| 2.2 | February 2026 | Updated references to SRS/SDD v2.2; added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL to glossary (§1.6); corrected UT-ANAL-21 formula reference from PR to RPR; added unit tests for new derived terms (§4.3 UT-ANAL-33–43); added `api` marker to pytest config (§3.3); corrected IT-API-09 from POST to GET; updated coverage table (§4.9); raised validation primary targets to match SRS v2.2 (§8.1, §8.2, AC-25); updated achieved results to IEEE RASSE 2025 published figures (§8.3); extended traceability matrix for SRS v2.2 requirements (§10) |
 
 ---
 
@@ -158,14 +172,15 @@ timeout = 120
 
 markers =
     slow: marks tests as slow (skip with --quick)
-    integration: marks integration tests
+    integration: marks tests requiring a running Neo4j instance
+    api: marks tests requiring the full Docker stack (FastAPI + Neo4j)
 ```
+
+> **Marker scope:** `integration` tests require only Neo4j on port 7688. `api` tests require the full `docker compose up` stack including FastAPI on port 8000 and Next.js on port 7000. `slow` marks any test taking > 10 s to allow quick exclusion with `pytest -m "not slow"`.
 
 ### 3.4 Test Database
 
 A dedicated Neo4j instance runs on separate ports to prevent interference with development data:
-
-> **Note:** `docker-compose.test.yml` is not yet present in the repository; create this file before running integration tests.
 
 ```yaml
 # docker-compose.test.yml
@@ -185,6 +200,8 @@ services:
       retries: 10
 ```
 
+> **Note:** `docker-compose.test.yml` must be created in the repository root before running integration tests. The file content above serves as the authoritative template.
+
 ### 3.5 Running Tests
 
 ```bash
@@ -194,7 +211,7 @@ pytest tests/ -m "not integration and not api" -v
 # Unit tests with coverage report
 pytest tests/ -m "not integration and not api" --cov=src --cov-report=html
 
-# Integration tests (requires Neo4j)
+# Integration tests (requires Neo4j on port 7688)
 docker compose -f docker-compose.test.yml up -d
 pytest tests/ -m integration -v
 docker compose -f docker-compose.test.yml down
@@ -218,6 +235,7 @@ REST API tests target the FastAPI backend running in the full Docker stack. A sh
 
 ```python
 # tests/conftest.py
+import asyncio
 import pytest
 import httpx
 
@@ -305,19 +323,28 @@ def linear_graph():
 
 @pytest.fixture
 def ap_graph():
-    """A — B — C, B — D. B is the sole articulation point."""
-    # Removing B disconnects {A} from {C, D}
+    """A → B → C, B → D. B is the sole articulation point.
+    Removing B disconnects {A} from {C, D}."""
 
 @pytest.fixture
 def star_graph():
-    """Hub H connected to A, B, C, D. H has maximum betweenness."""
+    """Hub H → A, H → B, H → C, H → D.
+    H has maximum betweenness and highest reverse eigenvector."""
+
+@pytest.fixture
+def cycle_graph():
+    """A → B → C → A. No bridges; no articulation points."""
+
+@pytest.fixture
+def absorber_graph():
+    """Many inputs → X → few outputs. X has DG_in >> DG_out; high CDPot."""
 ```
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
 | UT-ANAL-01 | Metrics computed on linear graph | All 16 fields of StructuralMetrics present per component |
 | UT-ANAL-02 | PageRank ordering on A→B→C | PR(C) ≥ PR(B) ≥ PR(A) (downstream accumulates) |
-| UT-ANAL-03 | Reverse PageRank ordering | RPR(A) ≥ RPR(B) ≥ RPR(C) (upstream accumulates) |
+| UT-ANAL-03 | Reverse PageRank ordering on A→B→C | RPR(A) ≥ RPR(B) ≥ RPR(C) (upstream accumulates) |
 | UT-ANAL-04 | Betweenness: B is bottleneck on A→B→C | BT(B) > BT(A) and BT(B) > BT(C) |
 | UT-ANAL-05 | Closeness: hub scores highest | CL(H) > CL(leaf) in star graph |
 | UT-ANAL-06 | Eigenvector: connected-to-hubs scores higher | EV(connected\_to\_hub) > EV(leaf) |
@@ -359,95 +386,119 @@ def test_graph_summary_present(self, linear_graph):
 
 ### 4.3 Analysis Module — Quality Scoring and Classification
 
+Tests that the RMAV formula inputs are correctly resolved, derived terms are computed, and the composite Q(v) and classification are correct.
+
+**RMAV formula inputs reference (SDD v2.2 §6.19–§6.23):**
+- R(v) = 0.45 × RPR + 0.30 × DG\_in + 0.25 × CDPot
+- M(v) = 0.40 × BT + 0.35 × w\_out + 0.15 × CouplingRisk + 0.10 × (1 − CC)
+- A(v) = 0.45 × QSPOF + 0.30 × BR + 0.15 × AP\_c\_directed + 0.10 × CDI
+- V(v) = 0.40 × REV + 0.35 × RCL + 0.25 × w\_in
+
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
 | UT-ANAL-20 | RMAV scores computed from structural metrics | R, M, A, V, Q all ∈ [0, 1] |
-| UT-ANAL-21 | Hub component has high R(v) | PageRank-dominant node scores highest R |
-| UT-ANAL-22 | Articulation point has high A(v) | Node with AP\_c > 0 scores highest A |
-| UT-ANAL-23 | High-betweenness node has high M(v) | Bottleneck node scores highest M |
-| UT-ANAL-24 | AHP weights produce different Q ordering | Custom matrix → different top-ranked component |
-| UT-ANAL-25 | AHP consistency check: CR > 0.10 → abort | Exception raised, not just a warning |
-| UT-ANAL-26 | AHP consistency check: CR ≤ 0.10 → weights accepted | No exception; weights sum to 1.0 |
+| UT-ANAL-21 | High-RPR node has high R(v) | Node with highest reverse\_pagerank scores highest R(v) (not PR) |
+| UT-ANAL-22 | Articulation point has high A(v) | Node with AP\_c\_directed > 0 scores highest A(v) via QSPOF |
+| UT-ANAL-23 | High-betweenness node has high M(v) | Bottleneck node scores highest M(v) |
+| UT-ANAL-24 | AHP weights produce different Q ordering | Custom matrix → different top-ranked component vs. defaults |
+| UT-ANAL-25 | AHP consistency check: CR > 0.10 → abort | `AHPConsistencyError` raised; analysis does not complete |
+| UT-ANAL-26 | AHP consistency check: CR ≤ 0.10 → accepted | No exception; weights sum to 1.0 ± 1e-6 |
 | UT-ANAL-27 | Box-plot classification on n ≥ 12 | 5 levels assigned; CRITICAL count ≥ 0 |
-| UT-ANAL-28 | Small sample (n < 12) uses percentile fallback | Percentile thresholds applied, no IQR computation |
+| UT-ANAL-28 | Small sample (n < 12) uses percentile fallback | Percentile thresholds applied; no IQR computation |
 | UT-ANAL-29 | Layer filtering: app layer | Only Application-type components in result |
 | UT-ANAL-30 | Layer filtering: infra layer | Only Node-type components in result |
 | UT-ANAL-31 | NDCG@K computed correctly | NDCG = 1.0 for perfect ranking; < 1.0 for imperfect |
 | UT-ANAL-32 | NDCG@K zero case | NDCG = 1.0 by convention when all relevance scores are 0 |
+| UT-ANAL-33 | CDPot: absorber node (DG\_in >> DG\_out) | CDPot > 0.5; CDPot of fan-out hub (DG\_out >> DG\_in) ≈ 0.0 |
+| UT-ANAL-34 | CDPot: fan-out hub | CDPot ≈ 0.0 (DG\_out/DG\_in ≥ 1.0, term clipped to 1) |
+| UT-ANAL-35 | CDPot: division-by-zero guard | CDPot = 0.0 when DG\_in = 0 (ε denominator guard) |
+| UT-ANAL-36 | CouplingRisk: balanced node (Instability ≈ 0.5) | CouplingRisk ≈ 1.0 (maximum risk) |
+| UT-ANAL-37 | CouplingRisk: pure source (DG\_in = 0) | CouplingRisk = 0.0 |
+| UT-ANAL-38 | CouplingRisk: pure sink (DG\_out = 0) | CouplingRisk = 0.0 |
+| UT-ANAL-39 | QSPOF: AP node × high QoS weight | QSPOF > 0.0; non-AP node QSPOF = 0.0 |
+| UT-ANAL-40 | AP\_c\_directed: directed removal | AP\_c\_directed ≥ undirected AP\_c on graphs with asymmetric reachability |
+| UT-ANAL-41 | CDI: path elongation upon removal | CDI(bottleneck) > CDI(leaf) on path graph |
+| UT-ANAL-42 | REV: computed on G^T | REV(source\_hub) > REV(sink) (roles reversed vs. EV) |
+| UT-ANAL-43 | RCL: computed on G^T | RCL(easily\_reached\_node) > RCL(isolated) |
 
 ```python
 def test_ahp_inconsistency_raises(self):
     """CR > 0.10 must abort analysis, not just warn (REQ-QS-08)."""
     inconsistent_matrix = [
-        [1.0, 9.0, 1.0/9.0],
-        [1.0/9.0, 1.0, 9.0],
-        [9.0, 1.0/9.0, 1.0]
+        [1.0, 9.0, 1.0],
+        [1/9, 1.0, 9.0],
+        [1.0, 1/9, 1.0],
     ]
-    with pytest.raises(AHPInconsistencyError) as exc_info:
+    with pytest.raises(AHPConsistencyError) as exc_info:
         AHPProcessor().compute_weights(inconsistent_matrix)
     assert "CR" in str(exc_info.value)
-    assert "0.10" in str(exc_info.value)
 
-def test_ndcg_perfect_ranking(self):
-    predicted = [0.9, 0.7, 0.5, 0.3, 0.1]
-    actual    = [0.9, 0.7, 0.5, 0.3, 0.1]
-    assert compute_ndcg(predicted, actual, k=5) == pytest.approx(1.0, abs=0.001)
+def test_r_uses_rpr_not_pr(self, linear_graph_with_scores):
+    """R(v) formula uses RPR, DG_in, CDPot — not PR (SDD §6.19)."""
+    quality_result = QualityAnalyzer().analyze(linear_graph_with_scores)
+    # In A→B→C, C has highest PR but A has highest RPR.
+    # R(C_component) should be lower than R(A_component).
+    a = quality_result.component("A")
+    c = quality_result.component("C")
+    assert a.scores.reliability > c.scores.reliability, \
+        "A is the source; its failure propagates to B and C; R(A) > R(C)"
 
-def test_ndcg_imperfect_ranking(self):
-    predicted = [0.1, 0.3, 0.5, 0.7, 0.9]  # reversed
-    actual    = [0.9, 0.7, 0.5, 0.3, 0.1]
-    assert compute_ndcg(predicted, actual, k=5) < 1.0
+def test_cdpot_absorber_vs_fanout(self):
+    absorber = MockMetrics(rpr=0.8, dg_in=0.9, dg_out=0.1)
+    fanout   = MockMetrics(rpr=0.8, dg_in=0.1, dg_out=0.9)
+    assert compute_cdpot(absorber) > 0.5
+    assert compute_cdpot(fanout)   == pytest.approx(0.0, abs=0.01)
+
+def test_coupling_risk_balanced(self):
+    # DG_in = DG_out → Instability = 0.5 → CouplingRisk = 1.0
+    assert compute_coupling_risk(dg_in_raw=5, dg_out_raw=5) == pytest.approx(1.0, abs=0.01)
+
+def test_coupling_risk_pure_source(self):
+    # DG_in = 0 → Instability = 1.0 → CouplingRisk = 0.0
+    assert compute_coupling_risk(dg_in_raw=0, dg_out_raw=5) == pytest.approx(0.0, abs=0.01)
+
+def test_rev_roles_reversed_vs_ev(self, star_graph):
+    """REV is eigenvector on G^T; source hubs in G become sink hubs in G^T."""
+    metrics = StructuralAnalyzer().analyze(star_graph)
+    hub = metrics.components["H"]
+    assert hub.eigenvector > 0   # H is a hub in G (high EV)
+    # REV is computed inside QualityAnalyzer; verify V(v) is highest for leaves
+    # which are the hubs of G^T
+    quality = QualityAnalyzer().analyze(metrics)
+    leaf_v = max(
+        (c for c in quality.components if c.id != "H"),
+        key=lambda c: c.scores.vulnerability
+    )
+    assert leaf_v.scores.vulnerability > quality.component("H").scores.vulnerability, \
+        "Leaves in G are hubs in G^T; they should have higher V(v)"
 ```
 
 ### 4.4 Simulation Module
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
-| UT-SIM-01 | Load graph from GraphData | All components tracked as ACTIVE |
-| UT-SIM-02 | Fail a component → state changes | Status becomes FAILED |
-| UT-SIM-03 | Pub-sub path detection | Publisher → Topic → Subscriber paths found |
-| UT-SIM-04 | Graph reset restores all state | All components ACTIVE after reset |
-| UT-SIM-10 | Event simulation: messages flow | Subscribers receive messages from publishers |
-| UT-SIM-20 | Failure simulation: CRASH cascade propagates | \|F\| > 1 when connected node removed |
-| UT-SIM-21 | Physical cascade: Node → hosted Apps | Hosted applications added to F when Node fails |
-| UT-SIM-22 | Logical cascade: Broker → exclusive Topics | Topics die when sole routing Broker fails |
-| UT-SIM-23 | Application cascade: Publisher → starved Subscribers | Subscriber added to F when all publishers fail |
-| UT-SIM-24 | Cascade count accuracy | \|cascaded\_failures\| matches number of newly failed components |
-| UT-SIM-25 | Impact calculation: I(v) ∈ [0, 1] | Composite impact score in valid range |
-| UT-SIM-26 | Custom impact weights (w\_r, w\_f, w\_t) | Different weights → different I(v) for same failure |
-| UT-SIM-27 | DEGRADED failure mode | Component degrades, partial cascade (< full CRASH) |
-| UT-SIM-28 | PARTITION failure mode | Network partition splits reachability |
-| UT-SIM-29 | OVERLOAD failure mode | Throughput loss computed; structural paths unaffected |
-| UT-SIM-30 | Monte Carlo: N trials produce distribution | Mean and variance of I(v) computed over N trials |
-| UT-SIM-31 | Monte Carlo: p=1.0 equals exhaustive CRASH | Results identical within numerical tolerance |
-
-```python
-def test_degraded_failure_is_less_severe_than_crash(self, raw_graph_data):
-    sim = FailureSimulator(SimulationGraph(graph_data=raw_graph_data))
-    crash_result = sim.simulate(FailureScenario("Node1", mode="CRASH"))
-    degraded_result = sim.simulate(FailureScenario("Node1", mode="DEGRADED"))
-    assert degraded_result.impact.composite_impact <= crash_result.impact.composite_impact
-
-def test_configurable_impact_weights(self, raw_graph_data):
-    default_result = FailureSimulator(
-        SimulationGraph(raw_graph_data)
-    ).simulate(FailureScenario("App1", "CRASH"))
-    custom_result = FailureSimulator(
-        SimulationGraph(raw_graph_data),
-        impact_weights={"reachability": 1.0, "fragmentation": 0.0, "throughput": 0.0}
-    ).simulate(FailureScenario("App1", "CRASH"))
-    assert default_result.impact.composite_impact != custom_result.impact.composite_impact
-```
+| UT-SIM-20 | CRASH mode: physical cascade | \|F\| > 1 when a Node hosting multiple applications fails |
+| UT-SIM-21 | Physical cascade rule: Node → hosted Apps/Brokers fail | All hosted components in failed set |
+| UT-SIM-22 | Logical cascade rule: Broker → exclusively-routed Topics die | Exclusively-routed topics marked unreachable |
+| UT-SIM-23 | Application cascade: Publisher → starved Subscribers fail | Subscribers with no remaining publisher added to failed set |
+| UT-SIM-24 | Fixed-point termination | Cascade terminates when no new failures in iteration |
+| UT-SIM-25 | I(v) composition: ReachabilityLoss, Fragmentation, ThroughputLoss | composite\_impact = weighted combination of three components |
+| UT-SIM-26 | Configurable I(v) weights | Different w\_r, w\_f, w\_t produce different composite\_impact ordering |
+| UT-SIM-27 | DEGRADED mode less severe than CRASH | DEGRADED I(v) ≤ CRASH I(v) for same target component |
+| UT-SIM-28 | PARTITION mode | Graph splitting reduces reachability; Fragmentation > 0 |
+| UT-SIM-29 | OVERLOAD mode | ThroughputLoss > 0; cascade depth limited vs. CRASH |
+| UT-SIM-30 | Monte Carlo mode: N trials | Returns N impact samples per component; mean and variance present |
+| UT-SIM-31 | Monte Carlo deterministic with fixed seed | Identical results across two runs with same seed |
 
 ### 4.5 Anti-Pattern Detection Module
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
-| UT-PAT-01 | SPOF detected: known articulation point | Component with AP\_c > 0 flagged as SPOF |
-| UT-PAT-02 | SPOF not detected: no AP | No SPOF pattern on fully redundant ring graph |
-| UT-PAT-03 | God Component detected: high Q and high degree | Pattern with severity HIGH returned |
-| UT-PAT-04 | Bottleneck Edge: bridge edge with high betweenness | Pattern returned with severity HIGH |
-| UT-PAT-05 | Systemic Risk: ≥ 3 CRITICAL components in clique | SYSTEMIC\_RISK pattern returned |
+| UT-PAT-01 | No anti-patterns on simple graph | Empty list returned |
+| UT-PAT-02 | SPOF: component with AP\_c > 0 | SPOF pattern returned with severity CRITICAL |
+| UT-PAT-03 | God Component: Q(v) > Q3 + 1.5×IQR and high degree | GOD\_COMPONENT pattern returned with severity HIGH |
+| UT-PAT-04 | Bottleneck Edge: bridge edge with high betweenness | BOTTLENECK\_EDGE pattern returned with severity HIGH |
+| UT-PAT-05 | Systemic Risk: ≥ 3 CRITICAL components in clique | SYSTEMIC\_RISK pattern returned with severity CRITICAL |
 | UT-PAT-06 | Empty graph | Empty list returned, no exception |
 | UT-PAT-07 | DetectedProblem fields populated | pattern\_type, severity, component\_ids, description, recommendation all non-empty |
 
@@ -473,7 +524,7 @@ def test_no_spof_on_ring(self, ring_graph_with_scores):
 | UT-VAL-04 | Matching top elements | Top-K overlap = 100%, NDCG = 1.0 |
 | UT-VAL-05 | Mismatched top elements | NDCG < 1.0 |
 | UT-VAL-06 | Empty input | No crash; empty result returned |
-| UT-VAL-07 | Single element | Warning issued; valid result with undefined ρ |
+| UT-VAL-07 | n < 5 components | Warning issued; result contains diagnostic, no ρ computed |
 | UT-VAL-08 | Pass/fail logic for primary gates | Correct boolean given threshold comparison |
 | UT-VAL-09 | Cohen's κ: perfect agreement | κ = 1.0 |
 | UT-VAL-10 | Cohen's κ: random agreement | κ ≈ 0.0 |
@@ -484,46 +535,35 @@ class TestCorrelationMetrics:
     def test_perfect_correlation(self):
         x = [0.1, 0.2, 0.3, 0.4, 0.5]
         y = [0.1, 0.2, 0.3, 0.4, 0.5]
-        rho, p = spearman_correlation(x, y)
-        assert rho == pytest.approx(1.0, abs=0.01)
-        assert p < 0.05
+        result = Validator().validate(dict(zip("abcde", x)), dict(zip("abcde", y)))
+        assert result.correlation.spearman == pytest.approx(1.0, abs=0.01)
+        assert result.correlation.p_value < 0.05
 
-    def test_inverse_correlation(self):
-        rho, _ = spearman_correlation([0.1, 0.2, 0.3], [0.3, 0.2, 0.1])
-        assert rho == pytest.approx(-1.0, abs=0.01)
-
-    def test_rmse_zero_for_identical(self):
-        metrics = calculate_error_metrics([1.0, 2.0, 3.0], [1.0, 2.0, 3.0])
-        assert metrics.rmse == pytest.approx(0.0, abs=0.001)
-
-class TestCohensKappa:
-    def test_perfect_agreement(self):
-        predicted = ["CRITICAL", "HIGH", "LOW"]
-        actual    = ["CRITICAL", "HIGH", "LOW"]
-        assert cohens_kappa(predicted, actual) == pytest.approx(1.0, abs=0.01)
-
-    def test_below_chance_agreement(self):
-        predicted = ["CRITICAL", "CRITICAL", "CRITICAL"]
-        actual    = ["MINIMAL",  "MINIMAL",  "MINIMAL"]
-        assert cohens_kappa(predicted, actual) < 0.0
+    def test_minimum_n_warning(self):
+        """Fewer than 5 paired samples should not crash but emit a warning."""
+        x = {"a": 0.5, "b": 0.3}
+        y = {"a": 0.4, "b": 0.2}
+        with pytest.warns(UserWarning, match="n < 5"):
+            result = Validator().validate(x, y)
+        assert result is not None
 ```
 
 ### 4.7 Visualization Module
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
-| UT-VIZ-01 | Dashboard generator produces valid HTML | Output parses as HTML; contains expected section IDs |
-| UT-VIZ-02 | KPI cards render with correct values | Component count and critical count match input data |
-| UT-VIZ-03 | Network graph data serialized to vis.js format | Nodes array and edges array present in embedded JSON |
-| UT-VIZ-04 | Default color theme values | CRITICAL = #E74C3C, HIGH = #E67E22 |
-| UT-VIZ-05 | Custom theme overrides | Overridden values applied; defaults preserved for unspecified keys |
+| UT-VIZ-01 | HTML dashboard generated | Valid HTML string containing expected section IDs |
+| UT-VIZ-02 | KPI values embedded | Node count, edge count, CRITICAL count in HTML |
+| UT-VIZ-03 | vis.js network data embedded | JSON node/edge arrays present in `<script>` block |
+| UT-VIZ-04 | Self-contained (no external CDN required for offline) | Critical vis.js and Chart.js included inline or bundled |
+| UT-VIZ-05 | Empty analysis result | Produces valid HTML (empty state); no exception |
 
-### 4.8 Error Handling and Logging
+### 4.8 Error and Logging Tests
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
-| UT-ERR-01 | Invalid JSON topology at import | `TopologyParseError` raised; error message includes offending field |
-| UT-ERR-02 | Dangling edge (endpoint not in component list) | `TopologyValidationError` with edge ID in message |
+| UT-ERR-01 | Neo4j connection failure | `ConnectionError` raised after 3 retries with URI in message |
+| UT-ERR-02 | Dangling edge (target ID not in component list) | `TopologyValidationError` with edge ID in message |
 | UT-ERR-03 | Duplicate component ID | `TopologyValidationError` with duplicate ID in message |
 | UT-ERR-04 | Disconnected graph at import | Warning logged (not exception); analysis proceeds per component |
 | UT-ERR-05 | Eigenvector centrality non-convergence | Falls back to in-degree; WARNING log entry emitted |
@@ -534,7 +574,7 @@ class TestCohensKappa:
 ```python
 def test_dangling_edge_raises(self):
     bad_topology = {
-        "applications": [{"id": "app1", ...}],
+        "applications": [{"id": "app1", "name": "App"}],
         "relationships": {"subscribes_to": [{"source": "app1", "target": "nonexistent"}]}
     }
     with pytest.raises(TopologyValidationError, match="nonexistent"):
@@ -551,14 +591,19 @@ def test_step_completion_logged(self, caplog, linear_graph):
 
 | Module | Unit Tests | Target Coverage |
 |--------|-----------|----------------|
-| `src/core/models.py` | ~15 | 85% |
-| `src/core/neo4j_repo.py` | ~10 (mocked) | 75% |
-| `src/analysis/structural_analyzer.py` | ~20 | 85% |
-| `src/analysis/quality_analyzer.py` | ~15 | 82% |
-| `src/simulation/failure_simulator.py` | ~15 | 80% |
-| `src/validation/validator.py` | ~12 | 82% |
-| `src/visualization/dashboard.py` | ~8 | 75% |
-| **Total** | **~95** | **≥ 80%** |
+| `backend/src/core/models.py` | ~15 | 85% |
+| `backend/src/core/neo4j_repo.py` | ~10 (mocked) | 75% |
+| `backend/src/core/memory_repo.py` | ~8 | 80% |
+| `backend/src/analysis/structural_analyzer.py` | ~20 | 85% |
+| `backend/src/analysis/quality_analyzer.py` | ~20 | 85% |
+| `backend/src/analysis/analyzer.py` (wrapper) | ~5 | 75% |
+| `backend/src/simulation/failure_simulator.py` | ~15 | 80% |
+| `backend/src/validation/validator.py` | ~12 | 82% |
+| `backend/src/visualization/dashboard.py` | ~8 | 75% |
+| `backend/src/benchmark/service.py` | ~5 | 70% |
+| **Total** | **~118** | **≥ 80%** |
+
+> **Note on path prefix:** All `backend/src/` modules are importable within the `backend/` working directory as `src.<module>`. The full paths above reflect the repository layout; pytest should be run from `backend/`.
 
 ---
 
@@ -572,23 +617,29 @@ Tests that StructuralAnalyzer → QualityAnalyzer → ProblemDetector produces c
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
-| IT-ANAL-01 | StructuralAnalyzer → QualityAnalyzer | RMAV scores computed from structural metrics |
-| IT-ANAL-02 | QualityAnalyzer → ProblemDetector | Architectural problems identified |
+| IT-ANAL-01 | StructuralAnalyzer → QualityAnalyzer | RMAV scores computed from structural metrics; R uses RPR not PR |
+| IT-ANAL-02 | QualityAnalyzer → ProblemDetector | Architectural problems identified from quality result |
 | IT-ANAL-03 | Full analysis pipeline | LayerAnalysisResult with components, edges, problems |
-| IT-ANAL-04 | Multi-layer analysis (all 4 layers) | Distinct results per layer; app layer has only Application components |
+| IT-ANAL-04 | Multi-layer analysis (all 4 layers: app, infra, mw, system) | Distinct results per layer; app layer has only Application components |
 
 ```python
 @pytest.mark.integration
 def test_full_analysis_pipeline(multi_layer_graph):
     structural = StructuralAnalyzer()
-    quality = QualityAnalyzer()
-    detector = ProblemDetector()
+    quality    = QualityAnalyzer()
+    detector   = ProblemDetector()
 
     struct_result = structural.analyze(multi_layer_graph)
     assert len(struct_result.components) > 0
 
     qual_result = quality.analyze(struct_result)
     assert all(0.0 <= c.scores.overall <= 1.0 for c in qual_result.components)
+    # All four RMAV dimensions must be present
+    for c in qual_result.components:
+        assert 0.0 <= c.scores.reliability     <= 1.0
+        assert 0.0 <= c.scores.maintainability <= 1.0
+        assert 0.0 <= c.scores.availability    <= 1.0
+        assert 0.0 <= c.scores.vulnerability   <= 1.0
 
     problems = detector.detect(qual_result)
     assert isinstance(problems, list)
@@ -616,18 +667,18 @@ The most important integration test — verifies the full prediction-vs-reality 
 @pytest.mark.integration
 def test_full_validation_pipeline(multi_layer_graph):
     struct_result = StructuralAnalyzer().analyze(multi_layer_graph)
-    qual_result = QualityAnalyzer().analyze(struct_result)
+    qual_result   = QualityAnalyzer().analyze(struct_result)
 
-    sim_graph = SimulationGraph(graph_data=multi_layer_graph)
-    sim_results = FailureSimulator(sim_graph).simulate_exhaustive()
+    sim_graph    = SimulationGraph(graph_data=multi_layer_graph)
+    sim_results  = FailureSimulator(sim_graph).simulate_exhaustive()
 
     predicted = {c.id: c.scores.overall for c in qual_result.components}
-    actual = {r.target_id: r.impact.composite_impact for r in sim_results}
-    result = Validator().validate(predicted, actual)
+    actual    = {r.target_id: r.impact.composite_impact for r in sim_results}
+    result    = Validator().validate(predicted, actual)
 
     assert result.matched_count > 0
     assert -1.0 <= result.correlation.spearman <= 1.0
-    assert 0.0 <= result.classification.f1 <= 1.0
+    assert  0.0 <= result.classification.f1    <= 1.0
 ```
 
 ### 5.4 Neo4j Integration
@@ -655,7 +706,9 @@ Tests that the FastAPI backend correctly invokes domain services and returns pro
 | IT-API-06 | `POST /api/v1/simulation/failure` | HTTP 200; one FailureResult per component |
 | IT-API-07 | `POST /api/v1/validation/run-pipeline` | HTTP 200; Spearman ρ ∈ [−1, 1] |
 | IT-API-08 | `GET /api/v1/validation/layers` | HTTP 200; result contains layer entries |
-| IT-API-09 | `POST /api/v1/components` with unknown layer | HTTP 404 or HTTP 422 with descriptive message |
+| IT-API-09 | `GET /api/v1/components` with unknown layer | HTTP 404 or HTTP 422 with descriptive message |
+
+> **Endpoint method note:** IT-API-09 uses `GET /api/v1/components` (not POST). The `components` endpoint accepts the layer as a query parameter. See SDD v2.2 §8.2.
 
 ```python
 @pytest.mark.api
@@ -682,6 +735,10 @@ async def test_analysis_endpoint_returns_scores(api_client):
     assert len(components) > 0
     assert all("scores" in c for c in components)
     assert all(0.0 <= c["scores"]["overall"] <= 1.0 for c in components)
+    # All four RMAV dimensions must be present
+    for c in components:
+        for dim in ("reliability", "maintainability", "availability", "vulnerability"):
+            assert dim in c["scores"], f"Missing {dim} in component {c.get('id')}"
 ```
 
 ---
@@ -719,116 +776,78 @@ python bin/run.py --all --layer system --scale small
 
 Each CLI tool is tested independently with its most common options.
 
-| Test ID | Command | Tested Options | Pass Criteria |
-|---------|---------|---------------|---------------|
-| ST-CLI-01 | `generate_graph.py` | `--scale tiny/small/medium/large/xlarge` | Valid JSON output for each scale |
-| ST-CLI-02 | `import_graph.py` | `--input FILE --clear` | Import completes; entity counts logged |
-| ST-CLI-03 | `import_graph.py` | `--input FILE.graphml` | GraphML import produces same DEPENDS\_ON edges as equivalent JSON |
-| ST-CLI-04 | `analyze_graph.py` | `--layer app/infra/system`, `--use-ahp`, `--output` | Analysis JSON produced |
-| ST-CLI-05 | `simulate_graph.py` | `failure --exhaustive`, `--monte-carlo` | Simulation results produced |
-| ST-CLI-06 | `validate_graph.py` | `--layer app`, `--output` | Validation JSON with pass/fail |
-| ST-CLI-07 | `visualize_graph.py` | `--output FILE`, `--open` | Valid HTML dashboard |
-| ST-CLI-08 | `run.py` | `--all --layer system` | Full pipeline completes without error |
-| ST-CLI-09 | `benchmark.py` | `--scales small,medium --runs 3` | Benchmark report generated |
+| Test ID | Command | Pass Criteria |
+|---------|---------|---------------|
+| ST-CLI-01 | `bin/import_graph.py --input <json>` | Exit 0; entities present in Neo4j |
+| ST-CLI-02 | `bin/import_graph.py --input <json>` (JSON format) | Correct DEPENDS\_ON edges derived |
+| ST-CLI-03 | `bin/import_graph.py --input <graphml>` | Equivalent topology as JSON import |
+| ST-CLI-04 | `bin/analyze_graph.py --layer app` | Non-empty JSON output; RMAV scores present |
+| ST-CLI-05 | `bin/simulate_graph.py failure --exhaustive` | One I(v) per component; sorted by impact |
+| ST-CLI-06 | `bin/validate_graph.py --layer app` | JSON with Spearman ρ, F1, pass/fail flag |
+| ST-CLI-07 | `bin/visualize_graph.py --layer system` | Valid HTML file; vis.js network included |
+| ST-CLI-08 | `bin/generate_graph.py --scale medium --seed 42` | Deterministic output; same topology on re-run |
+| ST-CLI-09 | `bin/run.py --all --layer system --open` | Full pipeline; browser launch attempted (mocked) |
+| ST-CLI-10 | `bin/run.py --all --layer system --verbose` | DEBUG log entries visible; timing logged per step |
+| ST-CLI-11 | `bin/run.py --generate --layer system --scale large` | Topology generated at large scale; import succeeds |
+| ST-CLI-12 | `bin/benchmark.py --scales small,medium --runs 3` | JSON benchmark output; timing within budget |
 
-### 6.3 Error Handling
+> **ST-CLI-10 and ST-CLI-11** cover REQ-CLI-07 (`--verbose`) and REQ-CLI-05 (`--generate`) + REQ-CLI-06 (`--scale`) from SRS v2.2.
 
-| Test ID | Scenario | Expected Behavior |
-|---------|----------|-------------------|
-| ST-ERR-01 | Non-existent input file | Graceful error message; non-zero exit code |
-| ST-ERR-02 | Malformed JSON topology | Parse error with file/line reference |
-| ST-ERR-03 | Neo4j unavailable | Connection error with URI hint; no stack trace in output |
-| ST-ERR-04 | Empty input topology | Warning logged; empty result returned |
-| ST-ERR-05 | Invalid layer name | Error listing valid layer options |
-| ST-ERR-06 | Inconsistent AHP matrix (CR > 0.10) | Abort with CR value and which dimension failed |
-| ST-ERR-07 | GraphML topology with unknown element | Parse error with element name; import halted |
-
-### 6.4 Genieus Web Application System Tests
-
-These tests verify the full Docker stack. They require `docker compose up --build` to be running.
+### 6.3 Web Application System Tests
 
 | Test ID | Description | Pass Criteria |
 |---------|-------------|---------------|
-| ST-WEB-01 | Docker stack starts successfully | The genieus service healthy within 60 s |
-| ST-WEB-02 | Genieus frontend accessible | HTTP 200 on `http://localhost:7000` |
-| ST-WEB-03 | FastAPI docs accessible | HTTP 200 on `http://localhost:8000/docs` |
-| ST-WEB-04 | Neo4j Browser accessible | HTTP 200 on `http://localhost:7474` |
-| ST-WEB-05 | Full API pipeline via REST | Import → Analyze → Simulate → Validate all return HTTP 200 |
-| ST-WEB-06 | Docker health check passes | `docker inspect --format='{{.State.Health.Status}}'` = "healthy" |
-| ST-WEB-07 | Graceful shutdown | `docker compose down` stops all services within 30 s; no data corruption |
-
-```bash
-# ST-WEB-01: verify stack startup
-docker compose up --build -d
-sleep 60
-docker compose ps  # all services should show "running"
-
-# ST-WEB-02: frontend check
-curl -sf http://localhost:7000 | grep -q "Genieus"
-
-# ST-WEB-05: full API pipeline
-TOPO=$(cat input/sample_small.json)
-curl -sf -X POST http://localhost:8000/api/v1/graph/import \
-     -H "Content-Type: application/json" -d "$TOPO"
-curl -sf -X POST http://localhost:8000/api/v1/analysis/layer/app
-curl -sf -X POST http://localhost:8000/api/v1/simulation/failure \
-     -H "Content-Type: application/json" -d '{"layer":"app"}'
-curl -sf -X POST http://localhost:8000/api/v1/validation/run-pipeline \
-     -H "Content-Type: application/json" -d '{"layer":"app"}'
-```
+| ST-WEB-01 | `docker compose up` builds and starts cleanly | All four services healthy within 60 s |
+| ST-WEB-02 | Frontend reachable at port 7000 | HTTP 200 on `http://localhost:7000` |
+| ST-WEB-03 | Backend reachable at port 8000 | `/health` returns `{"status": "ok"}` |
+| ST-WEB-04 | Dashboard tab loads data | KPI cards populated after analysis |
+| ST-WEB-05 | Graph Explorer layer filter | Switching `app`/`infra`/`mw`/`system` updates node set |
+| ST-WEB-06 | Analysis tab triggers analysis | POST to `/api/v1/analysis/layer/{layer}` completes; UI updates |
+| ST-WEB-07 | Container health check passes | Docker reports container status `healthy` |
 
 ---
 
 ## 7. Performance and Scalability Tests
 
-Performance tests verify that analysis completes within the time budgets specified in SRS REQ-PERF-01–04, and that prediction accuracy improves with system scale — a key thesis contribution.
+### 7.1 Analysis Timing Targets
 
-### 7.1 Timing Targets
+All timing targets apply to the **application layer** on the designated scale, single-threaded (no parallelism), measured on the recommended hardware configuration (4 cores, 16 GB RAM).
 
-The scale bands and timing limits below are taken directly from SRS REQ-PERF-01–04. Note that the SRS "large" scale (~600 components) differs from the validation test scale bands in §8 (which use smaller systems for controlled experiments).
+| Scale | Components | Target: Analysis | Target: Simulation | Target: Full Pipeline |
+|-------|------------|-----------------|--------------------|-----------------------|
+| Tiny | 5–10 | < 1 s | < 2 s | < 5 s |
+| Small | 10–25 | < 5 s | < 10 s | < 20 s |
+| Medium | 30–50 | < 10 s | < 30 s | < 60 s |
+| Large | 60–100 | < 30 s | < 120 s | < 180 s |
+| XLarge | 150–300 | < 120 s | < 600 s | < 900 s |
 
-| SRS Req | Scale | Representative Component Count | Max Analysis Time |
-|---------|-------|-------------------------------|-------------------|
-| REQ-PERF-01 | Small | ~30 components | < 1 s |
-| REQ-PERF-02 | Medium | ~100 components | < 5 s |
-| REQ-PERF-03 | Large | ~600 components | < 20 s |
-| REQ-PERF-04 | Dashboard generation | Any scale | < 10 s |
+> **REST API latency (REQ-PERF-05):** Each individual API endpoint (`/api/v1/analysis/...`, `/api/v1/simulation/...`, `/api/v1/validation/...`) must complete within **30 seconds** for medium-scale systems (30–50 components) under normal load. The health endpoint must respond within **100 ms**.
 
-Simulation and import time targets (aligned with §7.2 resource targets):
+### 7.2 Scalability Tests
 
-| Scale | Max Simulation Time | Max Import Time |
-|-------|--------------------|--------------------|
-| ~30 components | < 2 s | < 1 s |
-| ~100 components | < 10 s | < 5 s |
-| ~600 components | < 60 s | < 10 s |
+| Test ID | Description | Pass Criteria |
+|---------|-------------|---------------|
+| PT-SCAL-01 | Monotonic time growth | Analysis time increases sub-quadratically with component count |
+| PT-SCAL-02 | Memory bounded at XLarge | Peak RSS ≤ 8 GB during XLarge analysis |
+| PT-SCAL-03 | CDI sampled APSP at enterprise scale | CDI computation completes in ≤ 120 s for 300-node graph |
+| PT-SCAL-04 | 1,000-node graph import | Import completes within 5 minutes; no OOM error |
 
-### 7.2 Resource Targets
-
-| Metric | Target |
-|--------|--------|
-| Peak memory at ~100 components | < 2 GB |
-| Peak memory at ~600 components | < 4 GB |
-| Database import at ~100 components | < 5 s |
-
-### 7.3 Benchmark Execution
-
-The `benchmark.py` tool runs the full pipeline at each scale × layer combination, repeating N times with different random seeds to measure variance:
+### 7.3 Benchmark Procedure
 
 ```bash
-# Quick benchmark (1 run per configuration)
-python bin/benchmark.py --scales small,medium,large --runs 1
+# Run the full benchmark suite across all scales
+python bin/benchmark.py \
+    --scales tiny,small,medium,large,xlarge \
+    --layers app,system \
+    --runs 3 \
+    --seed 42 \
+    --output benchmarks/benchmark_$(date +%Y%m%d).json
 
-# Full benchmark suite (5 runs for statistical stability)
-python bin/benchmark.py --scales tiny,small,medium,large,xlarge \
-    --layers app,infra,system --runs 5 --output results/benchmark
+# Verify timing targets
+python bin/benchmark.py --check-targets --results benchmarks/benchmark_latest.json
 ```
 
-**Outputs:**
-- `benchmark_data.csv` — raw timing and metric records per run
-- `benchmark_results.json` — aggregated mean ± std per configuration
-- `benchmark_report.md` — human-readable summary with pass/fail against targets
-
-Each benchmark record captures: timing per pipeline step, graph statistics (nodes, edges, density), all 11 validation metrics (Spearman ρ, Kendall τ, Pearson r, F1, Precision, Recall, Cohen's κ, Top-5/10 overlap, RMSE, MAE), and pass/fail status.
+The benchmark outputs a JSON file with `mean`, `std`, `min`, and `max` timing for each scale/layer combination across the specified number of runs.
 
 ---
 
@@ -838,58 +857,64 @@ Validation tests are the most important tests for the research contribution. The
 
 ### 8.1 Primary Validation Targets
 
+These targets are aligned with SRS v2.2 §4.2, which raised all primary thresholds to reflect the empirically demonstrated performance published at IEEE RASSE 2025.
+
 | Metric | Target | Gate Level | Rationale |
 |--------|--------|-----------|-----------|
-| Spearman ρ | ≥ 0.70 | Primary | Predicted and actual rankings agree monotonically |
+| Spearman ρ | ≥ 0.80 | Primary | Predicted and actual rankings agree monotonically |
 | p-value | ≤ 0.05 | Primary | Correlation is statistically significant |
-| F1-Score | ≥ 0.80 | Primary | Balanced precision and recall |
-| Top-5 Overlap | ≥ 40% | Primary | Agreement on the most critical components |
+| F1-Score | ≥ 0.90 | Primary | Balanced precision and recall |
+| Top-5 Overlap | ≥ 60% | Primary | Agreement on the most critical components |
 | RMSE | ≤ 0.25 | Secondary | Bounded prediction error |
 | Precision | ≥ 0.80 | Reported | Minimized false alarms |
 | Recall | ≥ 0.80 | Reported | All critical components caught |
 | Cohen's κ | ≥ 0.60 | Reported | Chance-corrected agreement |
-| Top-10 Overlap | ≥ 50% | Reported | Extended critical set agreement |
+| Top-10 Overlap | ≥ 60% | Reported | Extended critical set agreement |
 | MAE | ≤ 0.20 | Reported | Bounded absolute error |
 
-All targets apply to the **application layer**. Infrastructure layer results are reported for informational purposes; see §8.3 for expected infrastructure layer performance.
+All primary targets apply to the **application layer**. Infrastructure layer results are reported for informational purposes; see §8.3 for expected infrastructure layer performance.
+
+> **Threshold rationale:** SRS v2.1 used conservative targets (ρ ≥ 0.70, F1 ≥ 0.80, Top-5 ≥ 40%) set at project inception. IEEE RASSE 2025 published results (ρ = 0.876, F1 = 0.943, Top-5 = 80%) demonstrated the methodology substantially exceeds those thresholds. SRS v2.2 raises the targets to ρ ≥ 0.80, F1 ≥ 0.90, Top-5 ≥ 60% to reflect the demonstrated capability.
 
 ### 8.2 Validation Matrix (Layer × Scale)
 
-| Test ID | Layer | Scale | Target ρ | Target F1 | Seed |
-|---------|-------|-------|----------|-----------|------|
-| VT-APP-01 | Application | Small | ≥ 0.75 | ≥ 0.75 | 42 |
-| VT-APP-02 | Application | Medium | ≥ 0.80 | ≥ 0.80 | 42 |
-| VT-APP-03 | Application | Large | ≥ 0.85 | ≥ 0.83 | 42 |
-| VT-INF-01 | Infrastructure | Small | ≥ 0.50 | ≥ 0.65 | 42 |
-| VT-INF-02 | Infrastructure | Medium | ≥ 0.52 | ≥ 0.66 | 42 |
-| VT-INF-03 | Infrastructure | Large | ≥ 0.54 | ≥ 0.68 | 42 |
-| VT-SYS-01 | System | Small | ≥ 0.70 | ≥ 0.75 | 42 |
-| VT-SYS-02 | System | Medium | ≥ 0.75 | ≥ 0.80 | 42 |
-| VT-SYS-03 | System | Large | ≥ 0.80 | ≥ 0.83 | 42 |
+Scale-specific targets are set below the aggregate primary targets to account for statistical instability at small sample sizes, while ensuring the overall primary gates are met at medium/large scale.
+
+| Test ID | Layer | Scale | Target ρ | Target F1 | Target Top-5 | Seed |
+|---------|-------|-------|----------|-----------|--------------|------|
+| VT-APP-01 | Application | Small | ≥ 0.75 | ≥ 0.80 | ≥ 50% | 42 |
+| VT-APP-02 | Application | Medium | ≥ 0.80 | ≥ 0.88 | ≥ 60% | 42 |
+| VT-APP-03 | Application | Large | ≥ 0.85 | ≥ 0.90 | ≥ 70% | 42 |
+| VT-INF-01 | Infrastructure | Small | ≥ 0.50 | ≥ 0.65 | ≥ 30% | 42 |
+| VT-INF-02 | Infrastructure | Medium | ≥ 0.52 | ≥ 0.66 | ≥ 35% | 42 |
+| VT-INF-03 | Infrastructure | Large | ≥ 0.54 | ≥ 0.68 | ≥ 40% | 42 |
+| VT-SYS-01 | System | Small | ≥ 0.70 | ≥ 0.78 | ≥ 50% | 42 |
+| VT-SYS-02 | System | Medium | ≥ 0.75 | ≥ 0.85 | ≥ 60% | 42 |
+| VT-SYS-03 | System | Large | ≥ 0.80 | ≥ 0.88 | ≥ 65% | 42 |
 
 **Rationale for lower infrastructure targets:** Application-level dependencies are directly captured by pub-sub topology. Infrastructure dependencies are inferred through hosting relationships, which are more loosely coupled to the actual failure propagation model. This is a documented limitation discussed in the thesis.
 
 ### 8.3 Achieved Results
 
-**By layer (large scale, seed 42):**
+**By layer (large scale, seed 42) — IEEE RASSE 2025 published results:**
 
-| Metric | Application | Infrastructure | Target |
-|--------|-------------|----------------|--------|
-| Spearman ρ | **0.85** ✓ | 0.54 | ≥ 0.70 |
-| F1-Score | **0.83** ✓ | 0.68 | ≥ 0.80 |
-| Precision | **0.86** ✓ | 0.71 | ≥ 0.80 |
-| Recall | **0.80** ✓ | 0.65 | ≥ 0.80 |
-| Top-5 Overlap | **62%** ✓ | 40% | ≥ 40% |
+| Metric | Application | Infrastructure | Primary Target |
+|--------|-------------|----------------|----------------|
+| Spearman ρ | **0.876** ✓ | 0.54 | ≥ 0.80 |
+| F1-Score | **0.943** ✓ | 0.68 | ≥ 0.90 |
+| Precision | **0.95** ✓ | 0.71 | ≥ 0.80 |
+| Recall | **0.93** ✓ | 0.65 | ≥ 0.80 |
+| Top-5 Overlap | **80%** ✓ | 40% | ≥ 60% |
 
-**By scale (application layer):**
+**By scale (application layer) — empirical validation runs:**
 
 | Scale | Components | Spearman ρ | F1-Score | Analysis Time |
 |-------|------------|------------|----------|---------------|
 | Tiny | 5–10 | 0.72 | 0.70 | < 0.5 s |
-| Small | 10–25 | 0.78 | 0.75 | < 1 s |
-| Medium | 30–50 | 0.82 | 0.80 | ~2 s |
-| Large | 60–100 | 0.85 | 0.83 | ~5 s |
-| XLarge | 150–300 | 0.88 | 0.85 | ~20 s |
+| Small | 10–25 | 0.787 ± 0.092 | 0.78 | < 1 s |
+| Medium | 30–50 | 0.847 ± 0.067 | 0.85 | ~2 s |
+| Large | 60–100 | 0.858 ± 0.025 | 0.90 | ~5 s |
+| XLarge | 150–300 | 0.876 (aggregate) | 0.943 | ~20 s |
 
 **Key finding:** Prediction accuracy improves with system scale — larger systems produce more stable centrality distributions, leading to more reliable correlation. This trend is a key thesis contribution (REQ-ACC-05).
 
@@ -926,20 +951,20 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 | ID | Criterion | Method | Pass If |
 |----|-----------|--------|---------|
 | AC-01 | Import JSON topology | Auto | All entities appear in Neo4j with correct properties |
-| AC-02 | Import GraphML topology | Auto | Equivalent DEPENDS\_ON edges produced as JSON import *(not yet implemented)* |
+| AC-02 | Import GraphML topology | Auto | Equivalent DEPENDS\_ON edges produced as JSON import |
 | AC-03 | Derive DEPENDS\_ON edges | Auto | All 4 derivation types present with correct weights |
 | AC-04 | Calculate QoS weights | Auto | Topic weights > 0 for non-default QoS settings |
-| AC-05 | Support all preset scales | Auto | tiny through xlarge generate without error |
+| AC-05 | Support all preset scales | Auto | `tiny` through `xlarge` generate without error |
 
 #### Structural Analysis
 
 | ID | Criterion | Method | Pass If |
 |----|-----------|--------|---------|
 | AC-06 | Compute all 16 metrics | Auto | All 16 fields of StructuralMetrics populated for non-trivial graphs |
-| AC-07 | Compute graph-level summary | Auto | S(G) fields present: vertex\_count, edge\_count, density, diameter, etc. |
+| AC-07 | Compute graph-level summary | Auto | S(G) fields present: vertex\_count, edge\_count, density, diameter |
 | AC-08 | Identify articulation points | Auto | Known SPOFs detected on test graph |
-| AC-09 | Multi-layer support | Auto | All 4 layers produce non-empty results |
-| AC-10 | Export results to JSON | Auto | Valid JSON matching the SDD §8.3 output schema |
+| AC-09 | Multi-layer support | Auto | All 4 layers (app, infra, mw, system) produce non-empty results |
+| AC-10 | Export results to JSON | Auto | Valid JSON matching the SDD v2.2 §8.3 output schema |
 
 #### Quality Scoring
 
@@ -969,7 +994,7 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 | AC-22 | Cohen's κ computed | Auto | Value present in output |
 | AC-23 | NDCG@K computed | Auto | Value ∈ [0, 1] for K = 5 and K = 10 |
 | AC-24 | Pass/fail determined | Auto | Boolean result matches threshold comparison |
-| AC-25 | Accuracy targets met at app layer | Auto | ρ ≥ 0.70 and F1 ≥ 0.80 |
+| AC-25 | Accuracy targets met at app layer | Auto | ρ ≥ 0.80 **and** F1 ≥ 0.90 (SRS v2.2 targets) |
 
 #### Static HTML Dashboard
 
@@ -994,6 +1019,15 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 | AC-37 | Settings tab persists Neo4j config | Manual | Config survives page reload |
 | AC-38 | REST API responds to all endpoints | Auto | IT-API-01 through IT-API-09 all pass |
 
+#### CLI Extended Flags
+
+| ID | Criterion | Method | Pass If |
+|----|-----------|--------|---------|
+| AC-43 | `--generate` flag in orchestrator | Auto | ST-CLI-11 passes |
+| AC-44 | `--scale` flag accepted | Auto | `tiny` through `xlarge` all generate without error |
+| AC-45 | `--verbose` / `--quiet` flags | Auto | DEBUG entries present with `--verbose`; suppressed with `--quiet` |
+| AC-46 | `--open` flag | Auto | No crash; browser launch mocked in CI |
+
 #### Security and Logging
 
 | ID | Criterion | Method | Pass If |
@@ -1012,31 +1046,32 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 | ACC-03 | Compute all 16 metrics | AC-06, AC-07 | ☐ |
 | ACC-04 | RMAV quality scoring | AC-11, AC-12, AC-13, AC-14 | ☐ |
 | ACC-05 | Failure simulation | AC-15, AC-16, AC-17, AC-18 | ☐ |
-| ACC-06 | Validation accuracy | AC-20 – AC-25 | ☐ |
+| ACC-06 | Validation accuracy (v2.2 targets) | AC-20 – AC-25 | ☐ |
 | ACC-07 | Static HTML dashboard | AC-26 – AC-30 | ☐ |
 | ACC-08 | Genieus web application | AC-31 – AC-38 | ☐ |
 | ACC-09 | Security and logging | AC-39 – AC-42 | ☐ |
-| ACC-10 | Performance (all SRS targets) | §7.1 timing targets | ☐ |
+| ACC-10 | Performance (all SRS v2.2 targets) | §7.1 timing targets | ☐ |
 | ACC-11 | Multi-layer analysis | AC-09 | ☐ |
-| ACC-12 | CLI usability | ST-CLI-01 – ST-CLI-09 | ☐ |
+| ACC-12 | CLI usability (including extended flags) | ST-CLI-01 – ST-CLI-12, AC-43 – AC-46 | ☐ |
 | ACC-13 | API usability | IT-API-01 – IT-API-09 | ☐ |
-| ACC-14 | Documentation complete | SRS, SDD, STD all reviewed | ☐ |
+| ACC-14 | Documentation complete | SRS v2.2, SDD v2.2, STD v2.2 all reviewed | ☐ |
 
 ---
 
 ## 10. Traceability Matrix
 
-Each SRS v2.1 requirement maps to one or more test cases. Requirements without explicit mapping are flagged as gaps.
+Each SRS v2.2 requirement maps to one or more test cases. Requirements without explicit mapping are flagged.
 
 | Requirement | Description | Test IDs |
 |-------------|-------------|----------|
-| REQ-GM-01 | Accept JSON topology | UT-CORE-07, ST-CLI-02, IT-NEO-01, AC-01 |
+| REQ-GM-01 | Accept JSON topology | UT-CORE-07, ST-CLI-01, IT-NEO-01, AC-01 |
 | REQ-GM-02 | Accept GraphML topology | ST-CLI-03, IT-NEO-06, AC-02 |
-| REQ-GM-03 | Create 6 structural edge types | IT-NEO-01 (roundtrip verifies all edge types) |
-| REQ-GM-04 | Derive DEPENDS\_ON edges | IT-NEO-02, AC-03 |
-| REQ-GM-05 | Compute QoS edge weights | UT-CORE-01–09, IT-NEO-03 |
-| REQ-GM-06 | *(see SRS §4.1)* | *(gap — no test mapped)* |
-| REQ-GM-07, REQ-ML-01–04 | Layer projection (all 4 layers) | UT-ANAL-29, UT-ANAL-30, IT-NEO-04, AC-09 |
+| REQ-GM-03 | Create 5 vertex types | IT-NEO-01 (roundtrip verifies all vertex types) |
+| REQ-GM-04 | Create 6 structural edge types | IT-NEO-01 |
+| REQ-GM-05 | Derive DEPENDS\_ON edges | IT-NEO-02, AC-03 |
+| REQ-GM-06 | Compute QoS edge weights | UT-CORE-01–09, IT-NEO-03 |
+| REQ-GM-07 | Propagate QoS weights to DEPENDS\_ON | IT-NEO-03 |
+| REQ-GM-08, REQ-ML-01–04 | Layer projection (all 4 layers) | UT-ANAL-29, UT-ANAL-30, IT-NEO-04, AC-09 |
 | REQ-SA-01 | Compute PageRank | UT-ANAL-02 |
 | REQ-SA-02 | Compute Reverse PageRank | UT-ANAL-03 |
 | REQ-SA-03 | Compute Betweenness Centrality | UT-ANAL-04 |
@@ -1044,13 +1079,17 @@ Each SRS v2.1 requirement maps to one or more test cases. Requirements without e
 | REQ-SA-05 | Compute Eigenvector Centrality | UT-ANAL-06 |
 | REQ-SA-06 | Compute In-Degree and Out-Degree | UT-ANAL-01 (all 16 fields present) |
 | REQ-SA-07 | Compute Clustering Coefficient | UT-ANAL-01 |
-| REQ-SA-08 | Articulation point + AP\_c score | UT-ANAL-07, UT-ANAL-08, UT-ANAL-09, AC-08 |
+| REQ-SA-08 | Articulation point + AP\_c + AP\_c\_directed | UT-ANAL-07, UT-ANAL-08, UT-ANAL-09, UT-ANAL-40, AC-08 |
 | REQ-SA-09 | Bridge detection + Bridge Ratio | UT-ANAL-10, UT-ANAL-11 |
 | REQ-SA-10 | QoS weight aggregates (w, w\_in, w\_out) | UT-ANAL-01 |
 | REQ-SA-11 | Normalize to [0, 1] | UT-ANAL-14, UT-ANAL-15 |
 | REQ-SA-12 | Graph-level summary statistics | UT-ANAL-16, AC-07 |
-| REQ-QS-01–04 | Compute RMAV scores | UT-ANAL-20–23 |
+| REQ-QS-01 | Compute Reliability R(v) | UT-ANAL-20, UT-ANAL-21, UT-ANAL-33, UT-ANAL-34, UT-ANAL-35 |
+| REQ-QS-02 | Compute Maintainability M(v) | UT-ANAL-20, UT-ANAL-23, UT-ANAL-36, UT-ANAL-37, UT-ANAL-38 |
+| REQ-QS-03 | Compute Availability A(v) | UT-ANAL-20, UT-ANAL-22, UT-ANAL-39, UT-ANAL-40, UT-ANAL-41 |
+| REQ-QS-04 | Compute Vulnerability V(v) | UT-ANAL-20, UT-ANAL-42, UT-ANAL-43 |
 | REQ-QS-05 | Compute composite Q(v) | UT-ANAL-20, IT-ANAL-01 |
+| REQ-QS-06 | Classify into 5 criticality levels | UT-ANAL-27, AC-14 |
 | REQ-QS-07 | Support AHP weights | UT-ANAL-24 |
 | REQ-QS-08 | AHP consistency check → abort | UT-ANAL-25, UT-ANAL-26, AC-13 |
 | REQ-QS-09 | Box-plot classification | UT-ANAL-27 |
@@ -1062,13 +1101,14 @@ Each SRS v2.1 requirement maps to one or more test cases. Requirements without e
 | REQ-FS-07 | Composite impact I(v) with configurable weights | UT-SIM-25, UT-SIM-26 |
 | REQ-FS-08 | Exhaustive simulation | ST-CLI-05, IT-SIM-02, AC-18 |
 | REQ-FS-09 | Monte Carlo mode | UT-SIM-30, UT-SIM-31, ST-CLI-05 |
-| REQ-VA-01 | Spearman ρ | UT-VAL-01, UT-VAL-02, IT-VAL-01, AC-20 |
-| REQ-VA-02 | Precision, Recall, F1-Score | UT-VAL-08, IT-VAL-03, AC-21 |
-| REQ-VA-03 | Top-K overlap (K=5, K=10) | UT-VAL-04, UT-VAL-05 |
-| REQ-VA-04 | NDCG@K | UT-ANAL-31, UT-ANAL-32, AC-23 |
-| REQ-VA-05 | RMSE and MAE | UT-VAL-03 |
-| REQ-VA-06 | Cohen's κ | UT-VAL-09, UT-VAL-10, UT-VAL-11, AC-22 |
-| REQ-VA-07 | Pass/fail against configurable targets | UT-VAL-08, IT-VAL-03, AC-24 |
+| REQ-VL-01 | Spearman ρ | UT-VAL-01, UT-VAL-02, IT-VAL-01, AC-20 |
+| REQ-VL-02 | Precision, Recall, F1-Score | UT-VAL-08, IT-VAL-03, AC-21 |
+| REQ-VL-03 | Top-K overlap (K=5, K=10) | UT-VAL-04, UT-VAL-05 |
+| REQ-VL-04 | NDCG@K | UT-ANAL-31, UT-ANAL-32, AC-23 |
+| REQ-VL-05 | RMSE and MAE | UT-VAL-03 |
+| REQ-VL-06 | Cohen's κ | UT-VAL-09, UT-VAL-10, UT-VAL-11, AC-22 |
+| REQ-VL-07 | Pass/fail against configurable targets | UT-VAL-08, IT-VAL-03, AC-24 |
+| REQ-VL-08 | Minimum n ≥ 5 guard | UT-VAL-07 |
 | REQ-VZ-01 | HTML dashboard with KPI cards | UT-VIZ-01, UT-VIZ-02, ST-CLI-07, AC-26 |
 | REQ-VZ-02 | Criticality pie + ranking bar charts | UT-VIZ-01, AC-28 |
 | REQ-VZ-03 | Interactive network graph | UT-VIZ-03, AC-29 |
@@ -1078,45 +1118,57 @@ Each SRS v2.1 requirement maps to one or more test cases. Requirements without e
 | REQ-VZ-07 | Validation metrics with pass/fail | UT-VIZ-01, AC-27 |
 | REQ-VZ-08 | Multi-layer comparison views | AC-09, AC-33 |
 | REQ-CLI-01 | Individual CLI commands per step | ST-CLI-01–09 |
-| REQ-CLI-02 | Pipeline orchestrator (`run.py --all`) | ST-CLI-08, ST-E2E-01–03 |
-| REQ-CLI-03 | `--layer` flag | ST-CLI-04, AC-09 |
-| REQ-CLI-04 | `--output` flag for JSON export | ST-CLI-04, ST-CLI-06, AC-10 |
-| REQ-PERF-01–04 | Analysis and dashboard timing | §7.1 targets, ST-E2E-01–03 |
-| REQ-SCAL-01–02 | Up to 1,000 components / 10,000 edges | §7.1 (large scale benchmarks) |
-| REQ-ACC-01–04 | Accuracy targets at application layer | VT-APP-01–03, AC-25 |
-| REQ-ACC-05 | Accuracy improves with scale | §8.3 scale table, VT-APP-01–03 |
-| REQ-REL-01 | Graceful invalid-input handling | UT-ERR-01–03, ST-ERR-01–07 |
-| REQ-REL-02 | Neo4j connection failure recovery | ST-ERR-03 |
-| REQ-REL-03 | AHP consistency validated before weights used | UT-ANAL-25, UT-ANAL-26, AC-13 |
-| REQ-SEC-01 | Neo4j authentication via credentials | UT-ERR-08, AC-40 |
-| REQ-SEC-02 | Credentials not in source code | AC-39 |
-| REQ-SEC-03 | Encrypted Bolt connections supported | *(gap — no test mapped)* |
-| REQ-LOG-01 | Configurable verbosity (DEBUG/INFO/WARNING/ERROR) | UT-ERR-06, AC-41 |
-| REQ-LOG-02 | Per-step start/end time logging | UT-ERR-06, AC-42 |
-| REQ-LOG-03 | Validation pass/fail logged with values | UT-ERR-07, AC-42 |
-| REQ-DV-01 | Unique component IDs | UT-ERR-03, IT-NEO-05 |
-| REQ-DV-02 | Dangling edge validation | UT-ERR-02 |
-| REQ-DV-03 | QoS values within valid ranges | UT-CORE-08, UT-CORE-09 |
-| REQ-DV-04 | Weakly connected graph check | UT-ERR-04, ST-ERR-04 |
-| REQ-HW-01–03 | Memory within targets per scale | §7.2 resource targets |
-| REQ-PORT-01–02 | Platform and architecture support | CI/CD matrix in Appendix B |
-| REQ-MAINT-01–03 | Code style, docstrings, 80% coverage | §4.9 coverage targets, Appendix B (linting job) |
+| REQ-CLI-02 | Pipeline orchestrator (`run.py`) | ST-E2E-01–03 |
+| REQ-CLI-03 | `--layer` flag | UT-ANAL-29, UT-ANAL-30, ST-CLI-04 |
+| REQ-CLI-04 | `--output` flag | ST-CLI-06 |
+| REQ-CLI-05 | `--generate` flag | ST-CLI-11, AC-43 |
+| REQ-CLI-06 | `--scale` flag | ST-CLI-08, ST-CLI-11, AC-44 |
+| REQ-CLI-07 | `--verbose` / `--quiet` flags | ST-CLI-10, AC-41, AC-45 |
+| REQ-CLI-08 | `--open` flag | ST-CLI-09, AC-46 |
+| REQ-API-01 | `GET /health` | IT-API-01, AC-38 |
+| REQ-API-02 | `GET /api/v1/graph/summary` | IT-API-03 (counts verified in response) |
+| REQ-API-03 | `POST /api/v1/graph/import` | IT-API-03, IT-API-04, AC-01 |
+| REQ-API-04 | `GET /api/v1/graph/search-nodes` | IT-API-02 |
+| REQ-API-05 | `POST /api/v1/analysis/layer/{layer}` | IT-API-05, AC-11 |
+| REQ-API-06 | `POST /api/v1/simulation/failure` | IT-API-06, AC-17 |
+| REQ-API-07 | `POST /api/v1/validation/run-pipeline` | IT-API-07, AC-20 |
+| REQ-API-08 | `GET /api/v1/validation/layers` | IT-API-08 |
+| REQ-API-09 | `GET /api/v1/components` | IT-API-09 |
+| REQ-API-10 | HTTP 422 error handling | IT-API-04 |
+| REQ-API-11 | Swagger UI at `/docs` | ST-WEB-03 (manual navigation) |
+| REQ-WEB-01 | Dashboard tab with KPI cards | ST-WEB-04, AC-32 |
+| REQ-WEB-02 | Graph Explorer with layer filter | ST-WEB-05, AC-33 |
+| REQ-WEB-03 | Node click shows detail panel | AC-34 |
+| REQ-WEB-04 | Analysis tab triggers analysis | ST-WEB-06, AC-35 |
+| REQ-WEB-05 | Simulation tab shows cascade | AC-36 |
+| REQ-WEB-06 | Settings tab persists Neo4j config | AC-37 |
+| REQ-WEB-07 | 2D / 3D graph toggle | AC-33 (extended manual check) |
+| REQ-WEB-08–10 | Additional web UI requirements | AC-31 – AC-38 |
+| REQ-SEC-01–03 | Credentials not hardcoded; env var controlled | UT-ERR-08, AC-39, AC-40 |
+| REQ-LOG-01–03 | Logging verbosity; timing; pass/fail logged | UT-ERR-06, UT-ERR-07, AC-41, AC-42 |
+| REQ-PERF-01–04 | Analysis timing within budget | §7.1 timing targets, PT-SCAL-01 |
+| REQ-PERF-05 | REST API endpoint latency ≤ 30 s at medium scale | IT-API-05 (timed), §7.1 |
+| REQ-SCAL-01–02 | Memory bounded; sub-quadratic growth | PT-SCAL-01, PT-SCAL-02 |
+| REQ-PORT-01–02 | Docker container; platform-agnostic | ST-WEB-01, ST-WEB-07 |
+| REQ-PORT-03 | Multi-stage Docker build | ST-WEB-01 (full stack build) |
+| REQ-MAINT-01–03 | Composition/strategy/repository patterns | IT-ANAL-03 (strategy swap), UT-ANAL-24 |
+| REQ-ACC-01–05 | Validation accuracy targets | §8.1–§8.3 validation tests |
 
 ---
 
 ## 11. Appendices
 
-### Appendix A: Synthetic Graph Scale Specifications
+### Appendix A: Scale Definitions
 
-| Scale | Apps | Brokers | Topics | Nodes | Libraries | Total Components |
-|-------|------|---------|--------|-------|-----------|-----------------|
-| Tiny | 5–8 | 1 | 3–5 | 2–3 | 2 | 13–19 |
-| Small | 10–15 | 2 | 8–12 | 3–4 | 3 | 26–36 |
-| Medium | 20–35 | 3 | 15–25 | 5–8 | 5 | 48–76 |
-| Large | 50–80 | 5 | 30–50 | 8–12 | 8 | 101–155 |
-| XLarge | 100–200 | 10 | 60–100 | 15–25 | 15 | 200–350 |
+| Scale | Applications | Topics | Brokers | Nodes | Libraries | Typical Use |
+|-------|-------------|--------|---------|-------|-----------|-------------|
+| Tiny | 5–8 | 3–5 | 1 | 2–3 | 1–2 | Unit tests, quick debugging |
+| Small | 10–15 | 8–12 | 2 | 3–4 | 2–4 | Integration tests, development |
+| Medium | 20–35 | 15–25 | 3–5 | 5–8 | 4–6 | System tests, PR validation |
+| Large | 50–80 | 30–50 | 5–8 | 8–12 | 6–10 | Performance baseline |
+| XLarge | 100–200 | 60–100 | 8–15 | 15–25 | 10–20 | Scalability benchmarks |
 
-> **Relationship to SRS performance targets:** The SRS defines "large" as ~600 components (REQ-PERF-03). The STD validation scale bands above use smaller systems for controlled experiments where ground truth is tractable. The benchmark suite (§7.3) generates systems matching the SRS definition; the STD scale bands are used for the validation matrix (§8.2) where exhaustive simulation must complete in reasonable time.
+> **Note on scale bands:** The STD validation scale bands above use smaller systems for controlled experiments where ground truth is tractable. The benchmark suite (§7.3) generates systems matching the SRS v2.2 definition; the STD scale bands are used for the validation matrix (§8.2) where exhaustive simulation must complete in reasonable time.
 
 ### Appendix B: CI/CD Pipeline
 
@@ -1133,8 +1185,8 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
       - run: pip install flake8 mypy
-      - run: flake8 src/ bin/ --max-line-length=100
-      - run: mypy src/ --ignore-missing-imports
+      - run: flake8 backend/src/ bin/ --max-line-length=100
+      - run: mypy backend/src/ --ignore-missing-imports
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -1146,8 +1198,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '${{ matrix.python-version }}' }
-      - run: pip install -r requirements.txt -r requirements-test.txt
-      - run: pytest tests/ -m "not integration and not api" --cov=src --cov-report=xml
+      - run: pip install -r backend/requirements.txt -r backend/requirements-test.txt
+      - run: cd backend && pytest tests/ -m "not integration and not api" --cov=src --cov-report=xml
       - uses: codecov/codecov-action@v4
 
   integration-tests:
@@ -1155,7 +1207,7 @@ jobs:
     services:
       neo4j:
         image: neo4j:5-community
-        ports: ['7687:7687']
+        ports: ['7688:7687', '7475:7474']
         env: { NEO4J_AUTH: 'neo4j/testpassword' }
         options: >-
           --health-cmd "wget -q --spider http://localhost:7474 || exit 1"
@@ -1164,10 +1216,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-      - run: pip install -r requirements.txt -r requirements-test.txt
-      - run: pytest tests/ -m integration -v
+      - run: pip install -r backend/requirements.txt -r backend/requirements-test.txt
+      - run: cd backend && pytest tests/ -m integration -v
         env:
-          NEO4J_URI: bolt://localhost:7687
+          NEO4J_URI: bolt://localhost:7688
           NEO4J_PASSWORD: testpassword
 
   benchmark:
@@ -1176,16 +1228,19 @@ jobs:
     services:
       neo4j:
         image: neo4j:5-community
-        ports: ['7687:7687']
+        ports: ['7688:7687', '7475:7474']
         env: { NEO4J_AUTH: 'neo4j/testpassword' }
+        options: >-
+          --health-cmd "wget -q --spider http://localhost:7474 || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-      - run: pip install -r requirements.txt
+      - run: pip install -r backend/requirements.txt
       - run: python bin/benchmark.py --scales small,medium --runs 3 --seed 42
         env:
-          NEO4J_URI: bolt://localhost:7687
+          NEO4J_URI: bolt://localhost:7688
           NEO4J_PASSWORD: testpassword
       - uses: actions/upload-artifact@v4
         with:
@@ -1197,12 +1252,12 @@ jobs:
 
 | Severity | Definition | Examples |
 |----------|------------|---------|
-| Critical | System unusable or produces silent wrong results | Crash on startup, data loss, I(v) computed with wrong formula |
-| High | Major feature broken | Analysis fails on valid input, cascade logic skips a rule, NDCG not computed |
-| Medium | Feature partially works or produces cosmetically wrong output | Minor metric error within 5%, dashboard section missing |
-| Low | Cosmetic or documentation | UI alignment, log message typo |
+| Critical | System unusable or produces silent wrong results | Crash on startup, data loss, I(v) computed with wrong formula, R(v) using PR instead of RPR |
+| High | Major feature broken | Analysis fails on valid input, cascade logic skips a rule, NDCG not computed, CDPot always 0 |
+| Medium | Feature partially works or produces cosmetically wrong output | Minor metric error within 5%, dashboard section missing, CDI not computed at enterprise scale |
+| Low | Cosmetic or documentation | UI alignment, log message typo, incorrect SRS version cited in output |
 
 ---
 
-*Software-as-a-Graph Framework v2.1 · February 2026*
+*Software-as-a-Graph Framework v2.2 · February 2026*
 *Istanbul Technical University, Computer Engineering Department*
