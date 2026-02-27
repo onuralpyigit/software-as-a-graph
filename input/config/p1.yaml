@@ -30,10 +30,123 @@ graph:
   # =============================================================================
   # APPLICATION STATISTICS
   # =============================================================================
+  application_stats:
+    direct_publish_count:
+      mean: 6.7809
+      median: 1.0
+      std: 18.7936
+      min: 0
+      max: 207
+      q1: 1.0
+      q3: 6.0
+      iqr: 5.0
+
+    direct_subscribe_count:
+      mean: 9.6011
+      median: 3.0
+      std: 21.0456
+      min: 0
+      max: 198
+      q1: 1.0
+      q3: 9.75
+      iqr: 8.75
+
+    total_publish_count_including_libraries:
+      mean: 129.8258
+      median: 122.0
+      std: 105.1211
+      min: 0
+      max: 585
+      q1: 65.2500
+      q3: 133.5000
+      iqr: 68.2500
+
+    total_subscribe_count_including_libraries:
+      mean: 163.2360
+      median: 161.0
+      std: 111.6347
+      min: 0
+      max: 615
+      q1: 97.0
+      q3: 174.0
+      iqr: 77.0
+
+    # Application role distribution (Categorical)
+    # Values: pub, sub, pubsub
+    app_role_distribution:
+      total_count: 178
+      category_counts:
+        pub: 23              # Number of publisher-only apps
+        sub: 12              # Number of subscriber-only apps
+        pubsub: 143            # Number of apps that both publish and subscribe
+      mode: pubsub              # Most frequent category
+      mode_count: 143         # Count of the mode
+      mode_percentage: 80.34  # Percentage of the mode
+
+    # Application criticality distribution (Categorical)
+    # Values: critical, non_critical
+    app_criticality_distribution:
+      total_count: 178
+      category_counts:
+        critical: 9           # Number of critical applications
+        non_critical: 169     # Number of non-critical applications
+      mode: non_critical      # Most frequent category
+      mode_count: 169         # Count of the mode
+      mode_percentage: 94.94  # Percentage of the mode
 
   # =============================================================================
   # LIBRARY STATISTICS
   # =============================================================================
+  library_stats:
+    applications_using_this_library:
+      mean: 22.9652
+      median: 4.0
+      std: 44.7033
+      min: 0
+      max: 196
+      q1: 1.0
+      q3: 17.0
+      iqr: 16.0
+
+    direct_publish_count:
+      mean: 11.4174
+      median: 0.0
+      std: 79.6155
+      min: 0
+      max: 817
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 16.8609
+      median: 0.0
+      std: 79.7203
+      min: 0
+      max: 817
+      q1: 0.0
+      q3: 1.0
+      iqr: 1.0
+
+    total_publish_count_including_libraries:
+      mean: 85.3739
+      median: 0.0
+      std: 155.5448
+      min: 0
+      max: 885
+      q1: 0.0
+      q3: 69.5
+      iqr: 69.5
+
+    total_subscribe_count_including_libraries:
+      mean: 97.9478
+      median: 0.0
+      std: 167.6395
+      min: 0
+      max: 912
+      q1: 0.0
+      q3: 98.5
+      iqr: 98.5
 
   # =============================================================================
   # TOPIC STATISTICS
@@ -70,5 +183,42 @@ graph:
       iqr: 1.0
 
   # =============================================================================
-  # QOS STATISTICS
+  # QOS STATISTICS (Categorical)
   # =============================================================================
+  qos_stats:
+    # QoS Durability distribution
+    # Values: volatile, transient_local, transient, persistent
+    qos_durability_distribution:
+      total_count: 1855
+      category_counts:
+        volatile: 659
+        transient_local: 0
+        transient: 1109
+        persistent: 87
+      mode: transient
+      mode_count: 1109
+      mode_percentage: 59.78
+
+    # QoS Reliability distribution
+    # Values: best_effort, reliable
+    qos_reliability_distribution:
+      total_count: 1855
+      category_counts:
+        best_effort: 41
+        reliable: 1814
+      mode: reliable
+      mode_count: 1814
+      mode_percentage: 97.79
+
+    # QoS Transport Priority distribution
+    # Values: low, medium, high, critical
+    qos_transport_priority_distribution:
+      total_count: 1855
+      category_counts:
+        low: 0
+        medium: 1734
+        high: 116
+        critical: 5
+      mode: medium
+      mode_count: 1734
+      mode_percentage: 93.48
