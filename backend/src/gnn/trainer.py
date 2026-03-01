@@ -49,6 +49,11 @@ class EvalMetrics:
             "ndcg_10": round(self.ndcg_10, 4),
         }
 
+    @property
+    def spearman(self) -> float:
+        """Alias for spearman_rho (backward compatibility)."""
+        return self.spearman_rho
+
     def __str__(self) -> str:
         return (
             f"  Spearman ρ: {self.spearman_rho:.4f}\n"
@@ -99,6 +104,15 @@ class GNNTrainer:
         )
 
         data = data.to(self.device)
+        
+        # Logging split sizes
+        for nt in data.node_types:
+            if hasattr(data[nt], "train_mask"):
+                n_train = data[nt].train_mask.sum().item()
+                n_val = data[nt].val_mask.sum().item()
+                if n_train > 0 or n_val > 0:
+                    logger.info("  [%s] Train: %d | Val: %d", nt, n_train, n_val)
+
         best_val_rho = -1.0
         epochs_without_improvement = 0
         history = {"train_loss": [], "val_loss": [], "val_rho": []}
@@ -234,9 +248,13 @@ def evaluate(
     t_comp = y_true[:, 0]
 
     # Spearman rho
-    rho, _ = spearmanr(p_comp, t_comp)
-    if np.isnan(rho):
+    # Silencing ConstantInputWarning if predictions or targets are constant
+    if len(p_comp) > 1 and (np.all(p_comp == p_comp[0]) or np.all(t_comp == t_comp[0])):
         rho = 0.0
+    else:
+        rho, _ = spearmanr(p_comp, t_comp)
+        if np.isnan(rho):
+            rho = 0.0
 
     # F1 (threshold at 0.5)
     f1 = f1_score(t_comp >= 0.5, p_comp >= 0.5, zero_division=0)

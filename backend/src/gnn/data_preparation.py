@@ -185,7 +185,10 @@ def networkx_to_hetero_data(
     type_to_nodes: Dict[str, List[str]] = {t: [] for t in NODE_TYPES}
 
     for node, attrs in graph.nodes(data=True):
-        node_type = attrs.get("type", "Application")
+        # Support both 'type' (used in fallback/simple graphs) 
+        # and 'component_type' (used by StructuralAnalyzer/AnalysisService)
+        node_type = attrs.get("type") or attrs.get("component_type") or "Application"
+        
         if node_type not in type_to_nodes:
             logger.warning(
                 "Unknown node type '%s' for node '%s'; treating as Application.",
@@ -315,6 +318,12 @@ def networkx_to_hetero_data(
         len(rel_edges),
         result.num_labelled_nodes,
     )
+    if result.num_labelled_nodes == 0 and simulation_results:
+        logger.warning(
+            "ZERO labelled nodes found! Check if component IDs in simulation results "
+            "match those in the graph. Sample graph nodes: %s, Sample sim keys: %s",
+            list(graph.nodes())[:5], list(simulation_results.keys())[:5]
+        )
     return result
 
 

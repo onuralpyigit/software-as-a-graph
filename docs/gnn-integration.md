@@ -348,35 +348,35 @@ The GNN does **not** replace any existing step. It is an additional analysis pat
 
 ```bash
 # ── Train GNN on a system graph ──────────────────────────────────────────────
-python bin/gnn_train.py --layer app
+python bin/train_graph.py --layer app
 
 # Train with custom hyperparameters
-python bin/gnn_train.py --layer system \\
+python bin/train_graph.py --layer system \\
     --hidden 128 --heads 8 --layers 4 \\
     --epochs 500 --patience 50
 
 # Train from pre-computed results (skip Neo4j)
-python bin/gnn_train.py \\
+python bin/train_graph.py \\
     --structural results/metrics.json \\
     --simulated  results/impact.json \\
     --rmav       results/quality.json \\
     --checkpoint output/gnn_checkpoints/
 
 # Export training results
-python bin/gnn_train.py --layer app --output results/gnn_train_result.json
+python bin/train_graph.py --layer app --output results/gnn_train_result.json
 
 # ── Inference on new graph ────────────────────────────────────────────────────
-python bin/gnn_predict.py --layer app --checkpoint output/gnn_checkpoints/
+python bin/predict_graph.py --layer app --checkpoint output/gnn_checkpoints/
 
 # With RMAV comparison and edge scores
-python bin/gnn_predict.py --layer system \\
+python bin/predict_graph.py --layer system \\
     --checkpoint output/gnn_checkpoints/ \\
     --compare-rmav \\
     --show-edges \\
     --top-n 20
 
 # Validate against simulation ground truth
-python bin/gnn_predict.py --layer app \\
+python bin/predict_graph.py --layer app \\
     --checkpoint output/gnn_checkpoints/ \\
     --simulated results/impact.json
 

@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""
+bin/train_graph.py — Train GNN criticality models
+=================================================
+Trains a Heterogeneous Graph Attention Network (HeteroGAT) to predict
+component and relationship criticality using simulation ground-truth labels.
+
+Usage
+-----
+  python bin/train_graph.py --layer app
+  python bin/train_graph.py --layer system --epochs 500 --hidden 128 --heads 8
+  python bin/train_graph.py --layer app --checkpoint output/gnn_checkpoints/
+
+  # Load existing structural/simulation results instead of re-running
+  python bin/train_graph.py --layer app \
+      --structural results/metrics.json \
+      --simulated  results/impact.json
+"""
+
+import argparse
+import json
+import logging
+import sys
+from pathlib import Path
+from typing import Optional
+
+# Ensure repo root is on the path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+
+from src.cli.console import ConsoleDisplay
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger("train_graph")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Train GNN criticality models on pub-sub system graph.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--layer", default="app",
+        choices=["app", "infra", "mw", "system"],
+        help="System layer to analyse (default: app)",
+    )
+
+    # Neo4j connection
+    neo4j = parser.add_argument_group("Neo4j connection")
+    neo4j.add_argument("--uri", default=None, help="Neo4j URI")
+    neo4j.add_argument("--user", default=None, help="Neo4j username")
+    neo4j.add_argument("--password", default=None, help="Neo4j password")
+
+    # Pre-computed inputs
+    inputs = parser.add_argument_group("Pre-computed inputs (skip pipeline steps)")
+    inputs.add_argument("--structural", type=str, default=None,
+                        help="Path to structural metrics JSON (skips Step 2)")
+    inputs.add_argument("--simulated", type=str, default=None,
+                        help="Path to simulation results JSON (skips Step 4)")
+    inputs.add_argument("--rmav", type=str, default=None,
+                        help="Path to RMAV scores JSON (skips Step 3)")
+
+    # GNN hyperparameters
+    gnn = parser.add_argument_group("GNN hyperparameters")
+    gnn.add_argument("--hidden", type=int, default=64, help="Hidden dimension")
+    gnn.add_argument("--heads", type=int, default=4, help="Attention heads")
+    gnn.add_argument("--layers", type=int, default=3, help="GNN layers")
+    gnn.add_argument("--dropout", type=float, default=0.2, help="Dropout rate")
+    gnn.add_argument("--epochs", type=int, default=300, help="Max epochs")
+    gnn.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
+    gnn.add_argument("--patience", type=int, default=30, help="Early stopping patience")
+    gnn.add_argument("--train-ratio", type=float, default=0.6, help="Train split")
+    gnn.add_argument("--val-ratio", type=float, default=0.2, help="Val split")
+    gnn.add_argument("--no-edge-model", action="store_true", help="Skip edge model")
+
+    # Output
+    output = parser.add_argument_group("Output")
+    output.add_argument("--checkpoint", default="output/gnn_checkpoints",
+                        help="Checkpoint directory")
+    output.add_argument("--output", default=None, help="Save result JSON")
+    output.add_argument("--use-ahp", action="store_true", help="Use AHP weights for RMAV")
+
+    return parser.parse_args()
+
+
+def load_json(path: Optional[str]) -> Optional[dict]:
+    if not path:
+        return None
+    p = Path(path)
+    if not p.exists():
+        logger.error(f"File not found: {path}")
+        sys.exit(1)
+    with open(p) as f:
+        return json.load(f)
+
+
+def main() -> None:
+    args = parse_args()
+    display = ConsoleDisplay()
+    display.print_header(f"GNN Training: {args.layer.upper()} Layer")
+
+    # ── Imports ─────────────────────────────────────────────────────────────
+    try:
+        from src.gnn import GNNService, extract_structural_metrics_dict, \
+            extract_rmav_scores_dict, extract_simulation_dict
+    except ImportError as e:
+        logger.error(f"GNN module not available: {e}")
+        sys.exit(1)
+
+    # ── Data Loading ────────────────────────────────────────────────────────
+    structural_dict = load_json(args.structural)
+    simulation_dict = load_json(args.simulated)
+    rmav_dict = load_json(args.rmav)
+    nx_graph = None
+
+    if any(x is None for x in [structural_dict, simulation_dict]):
+        logger.info("Connecting to Neo4j to retrieve graph data...")
+        try:
+            from src.core import create_repository
+            from src.analysis import AnalysisService
+            from src.simulation import SimulationService
+        except ImportError as e:
+            logger.error(f"Pipeline modules not available: {e}")
+            sys.exit(1)
+
+        conn_kwargs = {k: v for k, v in [("uri", args.uri), ("username", args.user), 
+                                        ("password", args.password)] if v}
+        repo = create_repository(**conn_kwargs)
+
+        try:
+            if structural_dict is None or rmav_dict is None:
+                logger.info("[Step 2+3] Running analysis and quality scoring...")
+                analysis_svc = AnalysisService(repo, use_ahp=args.use_ahp)
+                layer_result = analysis_svc.analyze_layer(args.layer)
+                nx_graph = layer_result.graph
+                if structural_dict is None:
+                    structural_dict = extract_structural_metrics_dict(layer_result.structural)
+                if rmav_dict is None:
+                    rmav_dict = extract_rmav_scores_dict(layer_result.quality)
+
+            if simulation_dict is None:
+                logger.info("[Step 4] Running failure simulation ground truth...")
+                sim_svc = SimulationService(repo)
+                sim_results = sim_svc.run_failure_simulation_exhaustive(layer=args.layer)
+                simulation_dict = extract_simulation_dict(sim_results)
+        finally:
+            repo.close()
+
+    if nx_graph is None:
+        import networkx as nx
+        nx_graph = nx.DiGraph()
+        for name in (structural_dict or {}).keys():
+            nx_graph.add_node(name, type="Application")
+
+    # ── Training ────────────────────────────────────────────────────────────
+    service = GNNService(
+        hidden_channels=args.hidden,
+        num_heads=args.heads,
+        num_layers=args.layers,
+        dropout=args.dropout,
+        predict_edges=not args.no_edge_model,
+        checkpoint_dir=args.checkpoint,
+    )
+
+    logger.info("Starting GNN training session...")
+    result = service.train(
+        graph=nx_graph,
+        structural_metrics=structural_dict,
+        simulation_results=simulation_dict,
+        rmav_scores=rmav_dict,
+        train_ratio=args.train_ratio,
+        val_ratio=args.val_ratio,
+        num_epochs=args.epochs,
+        lr=args.lr,
+        patience=args.patience,
+    )
+
+    # ── Results ─────────────────────────────────────────────────────────────
+    service.save()
+    
+    summary = result.summary()
+    display.print_subheader(f"Training Results ({summary['total_components']} components)")
+    
+    for lvl in ["critical", "high", "medium", "low", "minimal"]:
+        count = summary[lvl]
+        bar = "█" * min(count * 2, 40)
+        color = display.level_color(lvl)
+        print(f"  {lvl.upper():<9} {count:>3}  {display.colored(bar, color)}")
+    
+    if result.gnn_metrics:
+        print(f"\n  {display.colored('Validation Metrics (Test Set):', display.Colors.CYAN)}")
+        print(result.gnn_metrics)
+
+    display.print_subheader("Top 10 Critical Components (Ensemble)")
+    header = f"  {'Rank':<5} {'Component':<30} {'Score':>7} {'Level':<10} {'R':>6} {'M':>6} {'A':>6} {'V':>6}"
+    print(display.colored(header, display.Colors.WHITE, bold=True))
+    print("  " + "-" * 79)
+    for i, s in enumerate(result.top_critical_nodes(10), 1):
+        color = display.level_color(s.criticality_level)
+        print(
+            f"  {i:<5} {s.component[:29]:<30} "
+            f"{display.colored(f'{s.composite_score:>7.4f}', color)} {display.colored(s.criticality_level[:10], color):<10} "
+            f"{s.reliability_score:>6.3f} {s.maintainability_score:>6.3f} "
+            f"{s.availability_score:>6.3f} {s.vulnerability_score:>6.3f}"
+        )
+
+    if args.output:
+        out_path = Path(args.output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w") as f:
+            json.dump(result.to_dict(), f, indent=2)
+        print(f"\n  {display.colored('Results exported to:', display.Colors.GREEN)} {out_path}")
+
+    print(f"\n  {display.colored('Done.', display.Colors.GREEN)} Models saved to {args.checkpoint}")
+
+
+if __name__ == "__main__":
+    main()
