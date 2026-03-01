@@ -310,6 +310,7 @@ class StructuralAnalyzer:
             components=components,
             edges=edge_metrics,
             graph_summary=summary,
+            graph=G,
             qos_profile=qos_profile,
             rcm_order=rcm_order,
         )

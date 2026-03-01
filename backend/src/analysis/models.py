@@ -8,7 +8,10 @@ quality, and problem detection models.
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple, Set
+from typing import Dict, List, Any, Optional, Tuple, Set, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import networkx as nx
 
 from src.core.layers import AnalysisLayer
 from src.core.metrics import StructuralMetrics, EdgeMetrics, GraphSummary, QualityScores, QualityLevels, ComponentQuality, EdgeQuality
@@ -25,6 +28,7 @@ class StructuralAnalysisResult:
     components: Dict[str, StructuralMetrics]
     edges: Dict[Tuple[str, str], EdgeMetrics]
     graph_summary: GraphSummary
+    graph: Optional[nx.DiGraph] = None
     qos_profile: Dict[str, Any] = field(default_factory=dict)
     rcm_order: List[str] = field(default_factory=list)
 
@@ -157,6 +161,11 @@ class LayerAnalysisResult:
     library_usage: Dict[str, List[str]] = field(default_factory=dict)
     node_allocations: Dict[str, List[str]] = field(default_factory=dict)
     broker_routing: Dict[str, List[str]] = field(default_factory=dict)
+    
+    @property
+    def graph(self) -> Optional[nx.DiGraph]:
+        """Proxy to the underlying NetworkX graph stored in structural results."""
+        return self.structural.graph
 
     def to_dict(self) -> Dict[str, Any]:
         return {
