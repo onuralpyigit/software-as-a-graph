@@ -168,12 +168,12 @@ Architecture → Graph → Metrics → Scores → Simulation → Validation → 
 
 1. **Graph Model** — Converts topology JSON to a weighted directed graph in Neo4j
 2. **Structural Analysis** — Computes centrality metrics (Reverse PageRank, Betweenness, Closeness, Eigenvector, Reverse variants, Bridge Ratio, Clustering, etc.)
-3. **Quality Scoring** — Maps metrics to RMAV dimensions using AHP-derived weights (see below)
+3. **Prediction** — Maps metrics to RMAV dimensions using AHP-derived weights (see below)
 4. **Failure Simulation** — Injects faults; runs four parallel ground-truth simulators; exhaustive or Monte Carlo modes
 5. **Validation** — Per-dimension statistical comparison: overall Q(v) vs I(v) plus per-RMAV-dimension comparators
 6. **Visualization** — Generates interactive dashboards (web or static HTML)
 
-## RMAV Quality Scoring Formulas
+## RMAV Prediction Formulas
 
 Quality scores are computed per component v. Weights are derived via AHP with shrinkage factor λ=0.7 (blends with uniform prior).
 
@@ -279,7 +279,7 @@ Validation also reports statistical power tables and Spearman–Kendall gap diag
 ## Documentation
 
 - `docs/` contains detailed documentation for each pipeline step:
-  - `graph-model.md`, `structural-analysis.md`, `quality-scoring.md`, `failure-simulation.md`, `validation.md`, `visualization.md`
+  - `graph-model.md`, `structural-analysis.md`, `prediction.md`, `failure-simulation.md`, `validation.md`, `visualization.md`
   - `SDD.md` (Software Design Description), `SRS.md` (Requirements), `STD.md` (Test Description)
 - `examples/` contains runnable example scripts for programmatic API usage
 - `output/` — pipeline output artefacts (dashboards, reports, exported graphs)

@@ -384,7 +384,7 @@ def test_graph_summary_present(self, linear_graph):
     assert 0.0 <= s.density <= 1.0
 ```
 
-### 4.3 Analysis Module — Quality Scoring and Classification
+### 4.3 Analysis Module — Prediction and Classification
 
 Tests that the RMAV formula inputs are correctly resolved, derived terms are computed, and the composite Q(v) and classification are correct.
 
@@ -966,7 +966,7 @@ Each user-facing capability has specific acceptance criteria. Automated criteria
 | AC-09 | Multi-layer support | Auto | All 4 layers (app, infra, mw, system) produce non-empty results |
 | AC-10 | Export results to JSON | Auto | Valid JSON matching the SDD v2.2 §8.3 output schema |
 
-#### Quality Scoring
+#### Prediction
 
 | ID | Criterion | Method | Pass If |
 |----|-----------|--------|---------|

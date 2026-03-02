@@ -2,7 +2,7 @@
 
 **Measure each component's structural importance using graph-theoretic metrics.**
 
-← [Step 1: Graph Model](graph-model.md) | → [Step 3: Quality Scoring](quality-scoring.md)
+← [Step 1: Graph Model](graph-model.md) | → [Step 3: Prediction](prediction.md)
 
 ---
 
@@ -480,4 +480,4 @@ Step 3 maps these raw metrics into four interpretable quality dimensions (Reliab
 
 ---
 
-← [Step 1: Graph Model](graph-model.md) | → [Step 3: Quality Scoring](quality-scoring.md)
+← [Step 1: Graph Model](graph-model.md) | → [Step 3: Prediction](prediction.md)

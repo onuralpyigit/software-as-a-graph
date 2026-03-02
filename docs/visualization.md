@@ -512,7 +512,7 @@ Step 6 closes the methodology loop by making all six steps' outputs accessible t
 |------|--------|---------|
 | 1. Graph Model | G(V, E, w) | What does the system look like as a graph? |
 | 2. Structural Analysis | M(v) — 13 metrics per component | Where is each component positioned topologically? |
-| 3. Quality Scoring | Q(v), RMAV, criticality level | Which components are structurally at-risk, and why? |
+| 3. Prediction | Q(v), RMAV, criticality level | Which components are structurally at-risk, and why? |
 | 4. Failure Simulation | I(v) — empirical impact per component | Which components actually cause the most damage when they fail? |
 | 5. Validation | Spearman ρ, F1, pass/fail | Can we trust the topology-based predictions? |
 | **6. Visualization** | **Dashboard** | **Where should we act, and what should we do?** |

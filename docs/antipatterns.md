@@ -154,7 +154,7 @@ Anti-pattern detection is the third step of a six-step pipeline. Steps 1 and 2 p
 ```
 Step 1: Graph Model Construction       G(V, E, w) from system topology
 Step 2: Structural Analysis            M(v) — 13 topological metrics per component
-Step 3: Quality Scoring (RMAV)         Q(v) — composite criticality scores
+Step 3: Prediction (RMAV)         Q(v) — composite criticality scores
         └── Anti-Pattern Detection     Pattern(v) — smell classification  ← this document
 Step 4: Failure Simulation             I(v) — ground-truth impact scores
 Step 5: Statistical Validation         ρ(Q, I), F1 — empirical verification

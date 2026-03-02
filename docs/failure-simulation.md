@@ -2,7 +2,7 @@
 
 **Inject actual faults into the system graph to generate proxy ground-truth impact scores for validating the topology-based predictions from Step 3.**
 
-← [Step 3: Quality Scoring](quality-scoring.md) | → [Step 5: Validation](validation.md)
+← [Step 3: Prediction](prediction.md) | → [Step 5: Validation](validation.md)
 
 ---
 
@@ -802,4 +802,4 @@ Step 5 computes:
 
 ---
 
-← [Step 3: Quality Scoring](quality-scoring.md) | → [Step 5: Validation](validation.md)
+← [Step 3: Prediction](prediction.md) | → [Step 5: Validation](validation.md)

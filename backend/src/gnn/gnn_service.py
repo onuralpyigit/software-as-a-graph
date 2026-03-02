@@ -7,7 +7,7 @@ Software-as-a-Graph pipeline.
 This service mirrors the interface of ``AnalysisService`` and
 ``SimulationService`` so it can be dropped into the existing six-step
 pipeline without structural changes.  It adds a **Step 3.5** between
-Quality Scoring (Step 3) and Failure Simulation (Step 4):
+Prediction (Step 3) and Failure Simulation (Step 4):
 
     Step 3  →  RMAV Q*(v)
     Step 3.5 → GNN  Q_GNN(v)   ← NEW

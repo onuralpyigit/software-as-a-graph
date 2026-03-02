@@ -41,7 +41,7 @@ The framework implements a six-step methodology:
 |------|----------|--------|
 | 1. Graph Model Construction | Convert system topology into a weighted directed graph | G(V, E, w) |
 | 2. Structural Analysis | Compute centrality and resilience metrics per component | Metric vectors M(v) |
-| 3. Quality Scoring | Map metrics to RMAV quality dimensions using AHP weights | Quality scores Q(v) |
+| 3. Prediction | Map metrics to RMAV quality dimensions using AHP weights | Quality scores Q(v) |
 | 4. Failure Simulation | Inject faults and measure cascading impact | Impact scores I(v) |
 | 5. Validation | Statistically compare Q(v) against I(v) | Spearman ρ, F1, etc. |
 | 6. Visualization | Generate interactive dashboards | HTML dashboard |
@@ -204,7 +204,7 @@ The following capabilities are planned for future versions and inform current de
 
 > **Note on metric count:** Steps 2 computes 16 metric fields per component: PR, RPR, BT, CL, EV, DG_in, DG_out, CC, AP (bool), AP_c, BR, w, w_in, w_out, plus the two graph-level derived values IMP and SP (structural prominence). The figure "13 topological centrality metrics" used in research summaries refers to the pure graph-theoretic subset excluding the QoS-derived fields.
 
-### 3.3 Quality Scoring (Step 3)
+### 3.3 Prediction (Step 3)
 
 | ID | Requirement |
 |----|-------------|

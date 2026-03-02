@@ -3,7 +3,7 @@
 **Graph-Based Modeling and Analysis of Distributed Publish-Subscribe Systems**
 Istanbul Technical University, Computer Engineering Department
 
-← [Step 3: Quality Scoring](quality-scoring.md) | → [Step 5: Validation](validation.md)
+← [Step 3: Prediction](prediction.md) | → [Step 5: Validation](validation.md)
 
 ---
 
@@ -36,12 +36,12 @@ GNN integration extends this in two ways that handcrafted metrics cannot easily 
 
 **Relationship (edge) criticality.** The existing pipeline scores nodes; edges are analysed only via structural proxies (bridge ratio, betweenness of endpoints). The `EdgeCriticalityGNN` directly scores each pub-sub relationship — identifying which data flows are most dangerous to lose — enabling a new class of architectural recommendation.
 
-The GNN is inserted as **Step 3.5** between Quality Scoring and Failure Simulation, and its predictions are validated against the same `I(v)` ground truth as RMAV, ensuring results are directly comparable.
+The GNN is inserted as **Step 3.5** between Prediction and Failure Simulation, and its predictions are validated against the same `I(v)` ground truth as RMAV, ensuring results are directly comparable.
 
 ```
 Step 1: Graph Model Construction       G(V, E, w)
 Step 2: Structural Analysis            M(v) — 13 metrics
-Step 3: Quality Scoring (RMAV)         Q*(v) — AHP-weighted
+Step 3: Prediction (RMAV)         Q*(v) — AHP-weighted
 Step 3.5: GNN Criticality Scoring  ←  Q_GNN(v) — LEARNED       [NEW]
           Ensemble                 ←  Q_ens(v) = α·Q_GNN + (1−α)·Q_RMAV  [NEW]
 Step 4: Failure Simulation             I*(v) — ground truth
@@ -457,7 +457,7 @@ An α > 0.5 for a dimension means the GNN learned a stronger signal than RMAV fo
 
 ---
 
-← [Step 3: Quality Scoring](quality-scoring.md) | → [Step 5: Validation](validation.md)
+← [Step 3: Prediction](prediction.md) | → [Step 5: Validation](validation.md)
 
 ---
 
