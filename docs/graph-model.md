@@ -1,8 +1,8 @@
-# Step 1: Graph Model Construction
+# Step 1: Modeling
 
 **Turn your system architecture into a graph that captures who depends on whom and how strongly.**
 
-[README](../README.md) | → [Step 2: Structural Analysis](structural-analysis.md)
+[README](../README.md) | → [Step 2: Analysis](structural-analysis.md)
 
 ---
 
@@ -29,7 +29,7 @@
 
 ## What This Step Does
 
-Graph Model Construction takes a distributed publish-subscribe system — its applications, topics, brokers, and infrastructure nodes — and converts it into a formal weighted directed graph. This graph becomes the foundation for all subsequent analysis.
+Modeling takes a distributed publish-subscribe system — its applications, topics, brokers, and infrastructure nodes — and converts it into a formal weighted directed graph. This graph becomes the foundation for all subsequent steps.
 
 The process has four phases:
 
@@ -57,33 +57,24 @@ In a pub-sub system, applications don't call each other directly — they commun
 - If two applications share a broker, they have an **infrastructure dependency**. If the broker fails, both are affected.
 - If two brokers share a host node, they have a **colocation dependency**. A node failure takes both down.
 
-These derived dependencies are what make the graph useful for predicting failure impact. A component's position in this dependency graph — how many things depend on it, whether removing it splits the graph, how many shortest paths flow through it — reliably predicts the real-world blast radius of its failure.
+These derived dependencies are what make the graph useful for predicting failure impact.
 
 ---
 
 ## Formal Graph Definition
 
-A pub-sub system is modeled as a directed weighted graph:
-
 ```
-G = (V, E, w)
+G(V, E, w) where:
+
+V = V_app ∪ V_broker ∪ V_topic ∪ V_node ∪ V_lib
+    (Applications, Brokers, Topics, Infrastructure Nodes, Libraries)
+
+E_structural ⊆ V × V     (6 structural edge types — imported from topology JSON)
+E_dependency ⊆ V × V     (DEPENDS_ON edges — derived by 4 derivation rules)
+
+w: E → [0, 1]             (QoS-derived edge weight)
+w: V → [0, 1]             (QoS-derived vertex weight, propagated from incident edges)
 ```
-
-where:
-
-- **V** is a finite set of typed vertices partitioned into five disjoint types:
-
-  ```
-  V = V_app ∪ V_topic ∪ V_broker ∪ V_node ∪ V_lib
-  ```
-
-- **E ⊆ V × V** is a set of typed directed edges, partitioned into structural edges E_s and derived edges E_d:
-
-  ```
-  E = E_s ∪ E_d,   E_s ∩ E_d = ∅
-  ```
-
-- **w: E → [0, 1]** is a weight function assigning each edge a normalized strength, derived from the QoS policies of the topics involved.
 
 ---
 
@@ -91,17 +82,17 @@ where:
 
 ### Phase 1 — Entity Modeling
 
-Each component in the system topology becomes a vertex with a type label and a unique identifier.
+Each entity in the system topology JSON becomes a vertex in G. Five vertex types are created:
 
-| Vertex Type | Symbol | What It Represents | Examples |
-|-------------|--------|--------------------|----------|
-| **Application** | V_app | Software component that publishes or subscribes to topics | ROS node, Kafka consumer/producer, MQTT client |
-| **Topic** | V_topic | Named message channel with associated QoS settings | `/sensor/lidar`, `orders.created` |
-| **Broker** | V_broker | Message routing middleware | DDS participant, Kafka broker, MQTT broker |
-| **Node** | V_node | Physical or virtual infrastructure host | Container, VM, bare-metal server |
-| **Library** | V_lib | Shared code dependency | ROS package, shared module |
+| Vertex Type | Source | Properties |
+|-------------|--------|------------|
+| **Application** | `applications[]` | id, name, role (pub/sub/pubsub), app_type |
+| **Broker** | `brokers[]` | id, name |
+| **Topic** | `topics[]` | id, name, size, QoS policy |
+| **Node** | `nodes[]` | id, name |
+| **Library** | `libraries[]` | id, name, version |
 
-Library vertices represent shared code that multiple applications depend on. Their failure (e.g., a shared library crash or incompatible update) can trigger simultaneous failures across many applications — a pattern this model makes visible.
+Library vertices model shared code dependencies. Their failure (e.g., a shared library crash or incompatible update) can trigger simultaneous failures across many applications — a pattern this model makes visible.
 
 ### Phase 2 — Structural Graph
 
@@ -116,7 +107,7 @@ Six structural edge types are imported directly from the topology JSON. Each edg
 | `CONNECTS_TO` | Node → Node | Direct network connectivity between hosts |
 | `USES` | Application → Library | App depends on this shared code module |
 
-Together, these six types capture the full physical topology of the system. They form **G_structural**, which is used directly by Step 4 (Failure Simulation) for cascade propagation.
+Together, these six types capture the full physical topology of the system. They form **G_structural**, which is used directly by Step 4 (Simulation) for cascade propagation.
 
 ### Phase 3 — Dependency Derivation
 
@@ -153,8 +144,6 @@ Weights encode dependency strength. A `DEPENDS_ON` edge with weight 1.0 represen
 
 #### Topic Weight Formula
 
-Each topic receives an intrinsic weight composed of a **QoS score** and a **size penalty**:
-
 ```
 w(topic) = max(MIN_WEIGHT, QoS_score + size_weight)
 
@@ -162,8 +151,6 @@ QoS_score  = 0.30 × reliability_score + 0.40 × durability_score + 0.30 × prio
 size_weight = min(log₂(1 + size_kb) / 50, 0.20)     where size_kb = size_bytes / 1024
 MIN_WEIGHT  = 0.01
 ```
-
-The component scores are mapped from symbolic QoS values:
 
 | Component | Symbolic Value | Score |
 |-----------|----------------|-------|
@@ -180,16 +167,6 @@ The component scores are mapped from symbolic QoS values:
 
 **AHP justification for QoS weights:** Durability (0.40) outweighs Reliability and Priority (0.30 each) because durability defines message state survival — fundamental for resilience — while reliability and priority govern transient delivery quality.
 
-**Size weight design notes:** The logarithmic scaling prevents large message sizes from dominating the score. The cap at 0.20 ensures that even a 1 MB payload contributes at most 20% of the total weight, preserving the primacy of QoS semantics. The divisor of 50 means the size bonus is only meaningful for payloads larger than ~100 KB (typical DDS control-plane packets are measured in bytes).
-
-Some worked examples:
-
-| Topic Description | QoS_score | size_weight | w(topic) |
-|-------------------|-----------|-------------|---------|
-| RELIABLE, PERSISTENT, URGENT, 1 MB | 0.30·1.0 + 0.40·1.0 + 0.30·1.0 = **1.0** | min(log₂(977)/50, 0.20) ≈ 0.20 | **1.0** (capped) |
-| RELIABLE, VOLATILE, HIGH, 256 B | 0.30·1.0 + 0.40·0.0 + 0.30·0.66 = **0.50** | ≈ 0.004 | **0.50** |
-| BEST_EFFORT, VOLATILE, LOW, 256 B | 0.0 + 0.0 + 0.0 = **0.0** | ≈ 0.004 | **0.01** (floor) |
-
 #### Weight Propagation
 
 Once topics have weights, those weights propagate to the vertices that depend on them:
@@ -198,11 +175,9 @@ Once topics have weights, those weights propagate to the vertices that depend on
 - **Broker weight** = `max(w(t))` over all topics t the broker routes
 - **Node weight** = `max(w(v))` over all applications and brokers hosted on the node
 
-The `max` aggregation reflects a conservative risk model: a component's criticality is bounded by the most critical data stream it handles. This weight then augments the centrality-based quality score in Step 3.
+The `max` aggregation reflects a conservative risk model: a component's criticality is bounded by the most critical data stream it handles. This weight then augments the centrality-based prediction score in Step 3.
 
 #### DEPENDS_ON Edge Weight
-
-The weight of a derived DEPENDS_ON edge is set to the weight of the topic through which the dependency is established:
 
 ```
 w(App_sub → App_pub) = w(topic T through which the dependency flows)
@@ -214,7 +189,7 @@ If multiple topics connect two components, the edge weight is the maximum over t
 
 ## Layer Projections
 
-The graph supports four layer projections, each filtering vertices and edges to a specific architectural concern. Analysis in Step 2 can be performed on any single layer or on all layers combined (`system`).
+The graph supports four layer projections, each filtering vertices and edges to a specific architectural concern.
 
 | Layer | Analysed Component Types | DEPENDS_ON Subtypes Included | Quality Focus | What It Reveals |
 |-------|--------------------------|------------------------------|---------------|-----------------|
@@ -235,8 +210,8 @@ Construction produces two complementary graphs that are used by different downst
 
 | Graph | Contains | Purpose |
 |-------|----------|---------| 
-| **G_structural** | All 5 vertex types + all 6 structural edge types | Step 4: Failure Simulation — cascade propagation needs physical topology |
-| **G_analysis(l)** | Layer-filtered vertices + derived DEPENDS_ON edges only | Steps 2–3: Centrality analysis and quality scoring |
+| **G_structural** | All 5 vertex types + all 6 structural edge types | Step 4: Simulation — cascade propagation needs physical topology |
+| **G_analysis(l)** | Layer-filtered vertices + derived DEPENDS_ON edges only | Steps 2–3: Centrality analysis and prediction |
 
 The separation is methodologically important. Using raw structural edges for centrality analysis would mix physical and logical relationships in ways that distort metric interpretation. Using derived edges for simulation would miss physical cascade paths (e.g., a node failure taking down all hosted apps simultaneously).
 
@@ -249,49 +224,29 @@ System topology is supplied as a JSON file with six top-level sections:
 ```json
 {
   "nodes": [
-    {
-      "id": "N0",         // Unique identifier (required)
-      "name": "Server-1"  // Human-readable name (required)
-    }
+    { "id": "N0", "name": "Server-1" }
   ],
   "brokers": [
-    {
-      "id": "B0",
-      "name": "MainBroker"
-    }
+    { "id": "B0", "name": "MainBroker" }
   ],
   "topics": [
     {
       "id": "T0",
       "name": "/sensors/temperature",
-      "size": 256,          // Message payload size in bytes (used for size_weight)
+      "size": 256,
       "qos": {
-        "durability":        "PERSISTENT",    // PERSISTENT | TRANSIENT | TRANSIENT_LOCAL | VOLATILE
-        "reliability":       "RELIABLE",      // RELIABLE | BEST_EFFORT
-        "transport_priority": "HIGH"          // URGENT | HIGH | MEDIUM | LOW
+        "durability":         "PERSISTENT",
+        "reliability":        "RELIABLE",
+        "transport_priority": "HIGH"
       }
     }
   ],
   "libraries": [
-    {
-      "id": "L0",
-      "name": "ros2_common",
-      "version": "1.2.0"  // Optional
-    }
+    { "id": "L0", "name": "ros2_common", "version": "1.2.0" }
   ],
   "applications": [
-    {
-      "id": "A0",
-      "name": "TempSensor",
-      "role": "pub",       // pub | sub | pubsub
-      "app_type": "sensor" // sensor | service | controller | monitor | ...
-    },
-    {
-      "id": "A1",
-      "name": "TempController",
-      "role": "sub",
-      "app_type": "controller"
-    }
+    { "id": "A0", "name": "TempSensor",     "role": "pub", "app_type": "sensor" },
+    { "id": "A1", "name": "TempController", "role": "sub", "app_type": "controller" }
   ],
   "relationships": {
     "runs_on":      [{"from": "A0", "to": "N0"}, {"from": "A1", "to": "N0"}, {"from": "B0", "to": "N0"}],
@@ -308,96 +263,45 @@ System topology is supplied as a JSON file with six top-level sections:
 
 ---
 
-## Worked Example: Distributed Intelligent Factory (DIF)
+## Worked Example
 
-This section traces a simplified industrial factory system through all four construction phases. The system includes two local sensor clusters, a central PLC controller, and a remote HMI monitor, connected across two middleware segments.
-
-### System Topology (JSON input)
-
-```json
-{
-  "nodes":    [{"id": "N1", "name": "EdgeNode-1"}, {"id": "N2", "name": "EdgeNode-2"}],
-  "brokers":  [{"id": "B1", "name": "IO_Broker"}, {"id": "B2", "name": "Display_Broker"}],
-  "topics":   [
-    {"id": "T1", "name": "/factory/sensor",  "size": 256, "qos": {"durability": "VOLATILE",   "reliability": "RELIABLE",    "transport_priority": "HIGH"}},
-    {"id": "T2", "name": "/factory/command", "size": 64,  "qos": {"durability": "PERSISTENT", "reliability": "RELIABLE",    "transport_priority": "URGENT"}},
-    {"id": "T3", "name": "/factory/alarm",   "size": 32,  "qos": {"durability": "VOLATILE",   "reliability": "BEST_EFFORT", "transport_priority": "LOW"}}
-  ],
-  "applications": [
-    {"id": "A1", "name": "PressureSensor", "role": "pub"},
-    {"id": "A2", "name": "TempSensor",     "role": "pub"},
-    {"id": "A3", "name": "PLC_Controller", "role": "pubsub"},
-    {"id": "A4", "name": "HMI_Display",    "role": "sub"},
-    {"id": "A5", "name": "Local_Log",      "role": "sub"},
-    {"id": "A6", "name": "Emergency_Stop", "role": "pub"}
-  ],
-  "relationships": {
-    "runs_on":       [
-      {"from": "A1", "to": "N1"}, {"from": "A2", "to": "N1"}, {"from": "B1", "to": "N1"}, {"from": "A3", "to": "N1"},
-      {"from": "A4", "to": "N2"}, {"from": "A5", "to": "N2"}, {"from": "B2", "to": "N2"}, {"from": "A6", "to": "N2"}
-    ],
-    "routes":        [{"from": "B1", "to": "T1"}, {"from": "B2", "to": "T2"}, {"from": "B2", "to": "T3"}],
-    "publishes_to":  [{"from": "A1", "to": "T1"}, {"from": "A2", "to": "T1"}, {"from": "A3", "to": "T2"}, {"from": "A6", "to": "T3"}],
-    "subscribes_to": [{"from": "A3", "to": "T1"}, {"from": "A4", "to": "T2"}, {"from": "A5", "to": "T2"}, {"from": "A4", "to": "T3"}]
-  }
-}
-```
-
-### Phase 1 — Vertices created
+**Distributed Intelligent Factory (DIF) — minimal excerpt:**
 
 ```
-V = { N1, N2 : Node
-      B1, B2 : Broker
-      T1, T2, T3 : Topic
-      A1, A2, A3, A4, A5, A6 : Application }
+Entities:
+  PLC_Controller (A3)  — publishes to /control_commands (RELIABLE, PERSISTENT, URGENT, 512 B)
+  HMI_Display    (A5)  — subscribes to /control_commands
+  Local_Log      (A7)  — subscribes to /control_commands
+  MainBroker     (B0)  — routes /control_commands
+  Server_A       (N0)  — hosts A3, A5, A7, B0
+
+Structural edges:
+  A3 --[PUBLISHES_TO]--> /control_commands
+  A5 --[SUBSCRIBES_TO]--> /control_commands
+  A7 --[SUBSCRIBES_TO]--> /control_commands
+  B0 --[ROUTES]--> /control_commands
+  A3, A5, A7, B0 --[RUNS_ON]--> N0
+
+Topic weight for /control_commands:
+  QoS_score  = 0.30×1.0 + 0.40×1.0 + 0.30×1.0 = 1.0
+  size_weight = min(log₂(1 + 0.5) / 50, 0.20)  ≈ 0.012
+  w(T)       = 1.0   (capped at 1.0)
+
+Derived DEPENDS_ON edges (all weight = 1.0):
+  A5 → A3   (A5 depends on A3 via /control_commands)
+  A7 → A3   (A7 depends on A3 via /control_commands)
+  A5 → B0   (A5 depends on B0 for routing)
+  A7 → B0   (A7 depends on B0 for routing)
+  A3 → B0   (A3 depends on B0 for routing)
 ```
 
-### Phase 2 — Structural edges created (G_structural)
-
-The physical topology consists of two host nodes (N1, N2), each running a broker and a set of apps. The factory relies on B1 for sensor ingestion and B2 for control/display data.
-
-### Phase 3 — Dependency derivation (G_analysis)
-
-Applying the derivation rules (A_sub depends on A_pub and Broker):
-
-- **A3 (PLC)** depends on **A1, A2** (data sources via T1) and **B1** (routing T1).
-- **A4 (HMI)** depends on **A3** (command source via T2), **A6** (alarm source via T3), and **B2** (routing T2 and T3).
-- **A5 (Local_Log)** depends on **A3** (command source via T2) and **B2**.
-- **A1, A2** depend on **B1** (routing dependency).
-- **A6** depends on **B2** (routing dependency).
-
-Result: A 13-vertex dependency graph where **A3 (PLC_Controller)** sits at the functional centre — it both aggregates sensor data and distributes control commands.
-
-### Phase 4 — Weight calculation
-
-**Topic weights** (applying `QoS_score + size_weight`):
-
-| Topic | QoS_score | size_weight | w(topic) |
-|-------|-----------|-------------|---------|
-| T1 `/factory/sensor` — VOLATILE, RELIABLE, HIGH, 256 B | 0.30·1.0 + 0.40·0.0 + 0.30·0.66 = **0.50** | log₂(1.25)/50 ≈ 0.006 | **≈ 0.51** |
-| T2 `/factory/command` — PERSISTENT, RELIABLE, URGENT, 64 B | 0.30·1.0 + 0.40·1.0 + 0.30·1.0 = **1.0** | ≈ 0.001 | **1.0** (floor at 1.0) |
-| T3 `/factory/alarm` — VOLATILE, BEST_EFFORT, LOW, 32 B | 0.0 + 0.0 + 0.0 = **0.0** | ≈ 0.001 | **0.01** (floor) |
-
-**Component weights** (max over topics produced/consumed):
-
-| Component | Topics | w(component) |
-|-----------|--------|-------------|
-| PLC_Controller (A3) | produces T2, consumes T1 | max(1.0, 0.51) = **1.0** |
-| PressureSensor (A1) | produces T1 | **0.51** |
-| TempSensor (A2) | produces T1 | **0.51** |
-| HMI_Display (A4) | consumes T2, T3 | max(1.0, 0.01) = **1.0** |
-| Local_Log (A5) | consumes T2 | **1.0** |
-| Emergency_Stop (A6) | produces T3 | **0.01** |
-| IO_Broker (B1) | routes T1 | **0.51** |
-| Display_Broker (B2) | routes T2, T3 | max(1.0, 0.01) = **1.0** |
-
-**Interpretation:** The control feedback loop (T2: PERSISTENT + RELIABLE + URGENT) is the most critical path in the system. The PLC, HMI, Local_Log, and Display_Broker all inherit this maximum weight. The Emergency_Stop produces only a low-priority, best-effort alarm and receives the minimum weight — consistent with its role as an edge-case notification path rather than a control-critical component.
+The PLC_Controller (A3) has high in-degree (A5 and A7 depend on it) and is connected to a maximum-weight topic. These are the inputs that will drive high R(v) and V(v) scores in Step 3 Prediction.
 
 ---
 
 ## Domain Mapping
 
-The model is designed for pub-sub systems but maps naturally to different middleware technologies:
+The model maps naturally to different pub-sub middleware technologies:
 
 | Graph Concept | ROS 2 / DDS | Apache Kafka | MQTT |
 |---------------|-------------|--------------|------|
@@ -421,8 +325,6 @@ The model is designed for pub-sub systems but maps naturally to different middle
 
 The dominant cost is Phase 3 (dependency derivation). In practice, topic fan-out is bounded (typically 1–12 subscribers), so the effective cost is much lower than the worst case. Critically, this cost is incurred **once at design time**, in contrast to continuous runtime monitoring overhead.
 
-For a system with 100 applications and 50 topics, the worst case is 100² × 50 = 500,000 pairs. With average fan-out of 5 subscribers, the practical count is closer to 5 × 50 = 250 DEPENDS_ON edges derived.
-
 ---
 
 ## Commands
@@ -434,11 +336,10 @@ python bin/generate_graph.py --scale medium --output input/system.json
 # Or from a custom YAML config
 python bin/generate_graph.py --config input/config/medium_scale.yaml --output input/system.json
 
-# Import into Neo4j — runs all four phases automatically
+# Import into Neo4j — runs all four construction phases automatically
 python bin/import_graph.py --input input/system.json --clear
 
-# Verify the result in Neo4j
-# (run these in Neo4j Browser at http://localhost:7474)
+# Verify the result in Neo4j Browser (http://localhost:7474)
 ```
 
 ```cypher
@@ -472,10 +373,10 @@ MATCH (t:Topic) RETURN t.name, t.weight ORDER BY t.weight DESC LIMIT 10;
 
 ## What Comes Next
 
-Step 1 produces the weighted dependency graph G_analysis(l). Step 2 applies graph centrality algorithms to this graph — Reverse PageRank, betweenness centrality, bridge detection, articulation point analysis, and eight more metrics — to build a complete structural profile of each component.
+Step 1 produces the weighted dependency graph G_analysis(l). Step 2 (Analysis) applies graph centrality algorithms to this graph — Reverse PageRank, betweenness centrality, bridge detection, articulation point analysis, and eight more metrics — to build a complete structural profile of each component.
 
 The key insight is that these purely topological metrics, computed without any runtime data, are strong predictors of real-world failure impact. The remainder of the pipeline quantifies exactly how strong.
 
 ---
 
-[README](../README.md) | → [Step 2: Structural Analysis](structural-analysis.md)
+[README](../README.md) | → [Step 2: Analysis](structural-analysis.md)

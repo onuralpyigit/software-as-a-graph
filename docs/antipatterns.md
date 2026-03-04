@@ -27,7 +27,7 @@ Istanbul Technical University, Department of Computer Engineering
    - 5.11 [ORPHANED_TOPIC — Orphaned Topic](#511-orphaned_topic--orphaned-topic)
    - 5.12 [UNSTABLE_INTERFACE — Unstable Interface](#512-unstable_interface--unstable-interface)
 6. [Empirical Validation](#6-empirical-validation)
-7. [Relationship to the RMAV Quality Framework](#7-relationship-to-the-rmav-quality-framework)
+7. [Relationship to the RMAV Prediction Framework](#7-relationship-to-the-rmav-prediction-framework)
 8. [Comparison with Existing Work](#8-comparison-with-existing-work)
 9. [Implications for Architecture Practice](#9-implications-for-architecture-practice)
 10. [Conclusion](#10-conclusion)
@@ -154,7 +154,7 @@ Anti-pattern detection is the third step of a six-step pipeline. Steps 1 and 2 p
 ```
 Step 1: Graph Model Construction       G(V, E, w) from system topology
 Step 2: Structural Analysis            M(v) — 13 topological metrics per component
-Step 3: Prediction (RMAV)         Q(v) — composite criticality scores
+Step 3: Prediction                Q(v) — RMAV + optional GNN criticality scores
         └── Anti-Pattern Detection     Pattern(v) — smell classification  ← this document
 Step 4: Failure Simulation             I(v) — ground-truth impact scores
 Step 5: Statistical Validation         ρ(Q, I), F1 — empirical verification
@@ -199,7 +199,7 @@ where `Q3` is the 75th percentile and `IQR = Q3 − Q1`. A component is flagged 
 
 **Theoretical grounding**: The 1.5×IQR rule identifies statistical outliers in the system's own metric distribution. An anti-pattern is, by definition, a component that is structurally anomalous relative to its peers.
 
-### 4.4 The RMAV Quality Framework
+### 4.4 The RMAV Prediction Framework
 
 The RMAV framework maps structural metrics to four quality dimensions. These dimensions provide the explanatory bridge between raw topological metrics and named anti-patterns, and they determine which anti-patterns a component is susceptible to:
 
@@ -772,9 +772,9 @@ Scenario 06 is the most important precision test: a well-designed microservices 
 
 ---
 
-## 7. Relationship to the RMAV Quality Framework
+## 7. Relationship to the RMAV Prediction Framework
 
-The twelve anti-patterns are not independent of the RMAV quality framework — they are its **diagnostic decomposition**. Where the RMAV framework produces a composite criticality score `Q(v)` that summarizes total risk, anti-pattern detection identifies the specific architectural root cause of that risk and prescribes targeted remediation.
+The twelve anti-patterns are not independent of the RMAV prediction framework — they are its **diagnostic decomposition**. Where the RMAV framework produces a composite criticality score `Q(v)` that summarizes total risk, anti-pattern detection identifies the specific architectural root cause of that risk and prescribes targeted remediation.
 
 The mapping between anti-patterns and RMAV dimensions is deliberately asymmetric: most patterns degrade a primary RMAV dimension, but some affect multiple dimensions simultaneously. A God Component, for example, has high `M(v)` (coupling complexity) but also high `R(v)` (reliability, because many depend on it), making it both a maintainability problem and a reliability problem.
 

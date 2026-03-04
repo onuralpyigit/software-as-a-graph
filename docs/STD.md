@@ -95,6 +95,7 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | Version | Date | Summary of Changes |
 |---------|------|--------------------|
 | 2.1 | February 2026 | Initial release |
+| 2.3 | March 2026 | Renamed §4.3 from 'Quality Scoring' to 'Prediction (RMAV)'; updated IT-ANAL-01/02 class references |
 | 2.2 | February 2026 | Updated references to SRS/SDD v2.2; added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL to glossary (§1.6); corrected UT-ANAL-21 formula reference from PR to RPR; added unit tests for new derived terms (§4.3 UT-ANAL-33–43); added `api` marker to pytest config (§3.3); corrected IT-API-09 from POST to GET; updated coverage table (§4.9); raised validation primary targets to match SRS v2.2 (§8.1, §8.2, AC-25); updated achieved results to IEEE RASSE 2025 published figures (§8.3); extended traceability matrix for SRS v2.2 requirements (§10) |
 
 ---
@@ -617,8 +618,8 @@ Tests that StructuralAnalyzer → QualityAnalyzer → ProblemDetector produces c
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|
-| IT-ANAL-01 | StructuralAnalyzer → QualityAnalyzer | RMAV scores computed from structural metrics; R uses RPR not PR |
-| IT-ANAL-02 | QualityAnalyzer → ProblemDetector | Architectural problems identified from quality result |
+| IT-ANAL-01 | StructuralAnalyzer → PredictionEngine | RMAV scores computed from structural metrics; R uses RPR not PR |
+| IT-ANAL-02 | PredictionEngine → ProblemDetector | Architectural problems identified from prediction result |
 | IT-ANAL-03 | Full analysis pipeline | LayerAnalysisResult with components, edges, problems |
 | IT-ANAL-04 | Multi-layer analysis (all 4 layers: app, infra, mw, system) | Distinct results per layer; app layer has only Application components |
 

@@ -41,7 +41,7 @@ The framework implements a six-step methodology:
 |------|----------|--------|
 | 1. Graph Model Construction | Convert system topology into a weighted directed graph | G(V, E, w) |
 | 2. Structural Analysis | Compute centrality and resilience metrics per component | Metric vectors M(v) |
-| 3. Prediction | Map metrics to RMAV quality dimensions using AHP weights | Quality scores Q(v) |
+| 3. Prediction | Map M(v) to RMAV dimensions via rule-based (RMAV) and learning-based (GNN) paths | Prediction scores Q(v) |
 | 4. Failure Simulation | Inject faults and measure cascading impact | Impact scores I(v) |
 | 5. Validation | Statistically compare Q(v) against I(v) | Spearman ρ, F1, etc. |
 | 6. Visualization | Generate interactive dashboards | HTML dashboard |
@@ -520,7 +520,7 @@ Prediction accuracy improves with scale — larger systems produce more stable c
 
 ---
 
-## Appendix A: Quality Formula Reference
+## Appendix A: Prediction Formula Reference
 
 ### A.1 Edge Weight Formula
 

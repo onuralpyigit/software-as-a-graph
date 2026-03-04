@@ -1,8 +1,8 @@
-# Step 2: Structural Analysis
+# Step 2: Analysis
 
 **Measure each component's structural importance using graph-theoretic metrics.**
 
-← [Step 1: Graph Model](graph-model.md) | → [Step 3: Prediction](prediction.md)
+← [Step 1: Modeling](graph-model.md) | → [Step 3: Prediction](prediction.md)
 
 ---
 
@@ -33,7 +33,7 @@
 
 ## What This Step Does
 
-Structural Analysis takes the layer-projected dependency graph **G_analysis(l)** produced by Step 1 and computes 13 topological metrics for every component. Each metric captures a different dimension of structural importance — how central a component is, how many dependency paths flow through it, whether removing it would partition the graph.
+Analysis takes the layer-projected dependency graph **G_analysis(l)** produced by Step 1 and computes 13 topological metrics for every component. Each metric captures a different dimension of structural importance — how central a component is, how many dependency paths flow through it, whether removing it would partition the graph.
 
 ```
 G_analysis(l)       StructuralAnalyzer      Metric Vectors
@@ -45,7 +45,7 @@ G_analysis(l)       StructuralAnalyzer      Metric Vectors
                    Eigenvector, Tarjan, ...)
 ```
 
-The 13 raw metrics are not criticality scores in themselves — they are structural observations. Step 3 combines them into the RMAV quality dimensions using AHP-derived weights to produce the final criticality prediction Q(v).
+The 13 raw metrics are not criticality scores in themselves — they are structural observations. Step 3 (Prediction) combines them into the RMAV quality dimensions using AHP-derived weights to produce the final criticality prediction Q(v).
 
 ---
 
@@ -56,186 +56,155 @@ No single metric captures all aspects of structural criticality. Consider two co
 - **Component A**: Many applications depend on it transitively (high PageRank), but it is well-connected in a redundant subgraph (low Betweenness, not an articulation point). It is broadly depended upon but not a bottleneck — a reliability concern, not a SPOF.
 - **Component B**: Few components depend on it directly (low PageRank), but it is the only bridge between two clusters of the dependency graph (binary articulation point, Bridge Ratio = 1.0). It is structurally irreplaceable — an availability concern despite low PageRank.
 
-Relying on a single metric would misclassify both. Thirteen independent metrics, each from a different theoretical family (random walk, shortest path, spectral, local topology, resilience), together provide a complete structural fingerprint. The metric-to-RMAV mapping in Step 3 then interprets each metric through the lens of the quality dimension it most directly predicts.
+Relying on a single metric would misclassify both. Thirteen independent metrics, each from a different theoretical family (random walk, shortest path, spectral, local topology, resilience), together provide a complete structural fingerprint.
 
 ---
 
 ## Formal Definitions
 
-All metrics are computed on the **G_analysis(l)** directed graph of DEPENDS_ON edges. For resilience metrics (articulation point, bridge ratio), the undirected version of the graph is used, since connectivity loss is symmetric. All continuous metrics are normalized to [0, 1] after computation using [min-max scaling](#normalization).
-
 ### Normalization
 
-All continuous metrics use min-max normalization across the component set:
+All raw metric values are normalized to [0, 1] before being consumed by Step 3.
 
 ```
-metric_norm(v) = (metric(v) − min_u metric(u)) / (max_u metric(u) − min_u metric(u))
+x_norm(v) = (x(v) − min(x)) / (max(x) − min(x))
+
+Edge case: If max(x) = min(x) → x_norm(v) = 0 for all v (no discriminating power)
 ```
 
-When all values are equal (max = min), all normalized values are set to 0. Integer degree metrics (in-degree, out-degree) are also normalized in this way before entering RMAV formulas.
+Normalization is applied independently per metric and per layer, so scores are relative within each analysis context.
 
 ### PageRank
 
-PageRank measures transitive importance via incoming DEPENDS_ON edges. A component with high PageRank is one that many other components depend upon — directly or through chains of dependencies.
+Captures *transitive importance* — how broadly a component is depended upon, accounting for the importance of its dependents.
 
 ```
-PR(v) = (1−d)/|V| + d × Σ  PR(u) / out_degree(u)
-                       u ∈ N⁻(v)
+PR(v) = (1 − d) / |V| + d × Σ_{u: (u,v)∈E} PR(u) / out_degree(u)
+
+d = 0.85 (damping factor),  max iterations = 100,  tolerance = 1e-6
 ```
 
-where `d = 0.85` (damping factor), `N⁻(v)` is the set of in-neighbors of v, and the equation is iterated to convergence (tolerance 1×10⁻⁶, max 100 iterations). The damping factor models the probability that a random walker following dependency edges continues rather than jumping to a random node.
-
-**High PR(v) means:** Many components depend on v, directly or transitively. If v fails, the failure propagates widely through downstream dependents.
-
-Delegated to `networkx.pagerank(G, alpha=0.85)`.
+**High PR(v) means:** v is a highly depended-upon hub, either directly or transitively. Its failure starves a large fraction of the downstream dependency graph.
 
 ### Reverse PageRank
 
-Reverse PageRank (RPR) is PageRank computed on the **transposed** graph G^T (all edges reversed). In G^T, an edge A→B from G becomes B→A, so RPR accumulates score from *outgoing* dependency paths in the original graph.
+Computes PageRank on the **transposed graph G^T** (all edge directions reversed). Captures *cascade reach* — how far a failure at v propagates in the direction of its dependents.
 
 ```
-RPR(v) = PageRank(v, graph=G^T)
+RPR(v) = PageRank on G^T
 ```
 
-**High RPR(v) means:** v sits at the head of long dependency chains — it is a *source* from which failures can propagate downstream. While PageRank identifies components that are *depended upon*, Reverse PageRank identifies components from which *failure propagates outward*.
-
-The distinction matters for failure propagation direction. In the RMAV framework, both PR and RPR contribute to Reliability R(v) because fault propagation depends on both how much depends on v (PR) and how many things v's failure can cascade to (RPR).
+**High RPR(v) means:** If v fails, the failure propagates broadly through the components that depend on it. RPR is the primary input to the Reliability dimension R(v) in Step 3.
 
 ### Betweenness Centrality
 
-Betweenness centrality measures how often a component lies on the shortest dependency path between other pairs of components. A high-betweenness component is a structural **bottleneck**: removing it forces many dependency paths to take longer routes or break entirely.
+Measures what fraction of all shortest dependency paths pass through v. A component with high betweenness sits at the intersection of many communication paths — a structural bottleneck.
 
 ```
-BT(v) = Σ  σ(s,t | v) / σ(s,t)
-       s≠v≠t
+BT(v) = Σ_{s≠v≠t} σ(s, t | v) / σ(s, t)
+
+σ(s, t)       = number of shortest paths from s to t
+σ(s, t | v)   = number of those paths that pass through v
 ```
 
-where σ(s,t) is the total number of shortest paths from s to t, and σ(s,t | v) is the number of those paths that pass through v. Normalized by dividing by (|V|−1)(|V|−2) for directed graphs.
+Computed using Brandes' algorithm: O(|V| × |E|). Normalized to [0, 1] by dividing by (|V|−1)(|V|−2).
 
-Computed using Brandes' algorithm (O(|V|×|E|)). Delegated to `networkx.betweenness_centrality(G)`.
-
-**High BT(v) means:** v is a structural bottleneck. Removing it disrupts many dependency paths and degrades system connectivity.
+**High BT(v) means:** v is a structural bottleneck — many dependency chains pass through it. Changes to v risk disrupting many other components. Primary input to the Maintainability dimension M(v).
 
 ### Closeness Centrality
 
-Closeness centrality measures how quickly a component can reach — or be reached by — all others. A component with high closeness occupies a central position in the dependency topology.
-
-For directed graphs with potentially unreachable vertex pairs, the **Wasserman-Faust** normalization is used:
+Measures how quickly a component can "reach" all others in the dependency graph — a proxy for how fast information or failures propagate *from* v.
 
 ```
-CL(v) = (|R(v)| / (|V| − 1)) × (|R(v)| / Σ dist(v, u))
-                                              u ∈ R(v)
+CL(v) = (|V| − 1) / Σ_{u≠v} d(v, u)     (Wasserman-Faust normalization for disconnected graphs)
+
+d(v, u) = shortest path distance from v to u
 ```
 
-where `R(v)` is the set of vertices reachable from v, and `dist(v, u)` is the shortest path length. The leading factor (|R(v)|/(|V|−1)) penalizes components that can reach only a small fraction of the graph.
-
-Delegated to `networkx.closeness_centrality(G)`.
-
-**High CL(v) means:** v can reach most of the graph quickly. Compromise of v (e.g., by injection of malicious messages) could propagate to many components with few hops.
+**High CL(v) means:** v is topologically close to many others — faults or information originating at v spread quickly.
 
 ### Eigenvector Centrality
 
-Eigenvector centrality measures a component's connection to other highly-connected components — not just the count of neighbors, but the *quality* of those connections.
+Measures whether a component is connected to *other important* hubs. A component scores high if its neighbours themselves have high importance.
 
 ```
-EV(v) = (1/λ) × Σ  EV(u)
-                u ∈ N⁻(v)
+EV(v) = (1/λ) Σ_{u ∈ N(v)} EV(u)     (power iteration, max 100 iterations)
+
+λ = largest eigenvalue of the adjacency matrix
+Fallback: in-degree if power iteration fails to converge
 ```
 
-where λ is the largest eigenvalue of the adjacency matrix. This means being connected to one high-EV hub contributes more than being connected to many low-EV periphery nodes.
-
-Delegated to `networkx.eigenvector_centrality(G, max_iter=1000)`. If the algorithm does not converge (possible for certain directed graph structures), the result falls back to in-degree centrality with a warning.
-
-**High EV(v) means:** v is connected to strategically important hubs. It is embedded in the most influential part of the dependency network — a high-value target.
+**High EV(v) means:** v is embedded in a high-value neighbourhood. Its compromise exposes a cluster of important components. Primary input to the Vulnerability dimension V(v).
 
 ### Degree Metrics
 
-Raw degree counts, normalized to [0, 1] using min-max scaling.
-
 ```
-DG_in(v)  = |{u : u → v  ∈ E}|   (number of incoming DEPENDS_ON edges)
-DG_out(v) = |{u : v → u  ∈ E}|   (number of outgoing DEPENDS_ON edges)
+DG_in(v)  = in_degree(v)  / (|V| − 1)     (normalized)
+DG_out(v) = out_degree(v) / (|V| − 1)     (normalized)
 ```
 
-**High DG_in(v) means:** Many components directly depend on v. Equivalent to immediate fan-out of v's failure.
-
-**High DG_out(v) means:** v depends on many other components (high efferent coupling). In quality scoring, this indicates both maintainability risk (harder to change without breaking dependencies) and vulnerability (more outbound paths for an attacker to exploit).
+- **High DG_in(v):** Many components depend directly on v — immediate blast radius.
+- **High DG_out(v):** v depends directly on many others — high efferent coupling, change fragility.
 
 ### Clustering Coefficient
 
-The clustering coefficient measures how interconnected a component's neighbors are. For a directed graph, the local clustering coefficient is computed as:
+Measures the density of connections among v's immediate neighbours. High clustering indicates local redundancy; low clustering indicates that each of v's connections is a unique, non-redundant path.
 
 ```
-CC(v) = |{(u,w) : u→w ∈ E, u ∈ N(v), w ∈ N(v)}| / (k(v) × (k(v) − 1))
+CC(v) = |{(u,w) ∈ E : u,w ∈ N(v)}| / (deg(v) × (deg(v) − 1))
+
+Computed on undirected projection of G. If deg(v) < 2: CC(v) = 0.
 ```
 
-where `N(v)` is the union of in- and out-neighbors of v, and `k(v) = |N(v)|`. The numerator counts actual directed edges among v's neighbors; the denominator counts maximum possible directed edges.
-
-Delegated to `networkx.clustering(G.to_undirected())` (undirected, as is standard for topological analysis).
-
-**High CC(v) means:** v's neighbors are densely interconnected. This suggests a well-connected local cluster with redundant paths — *lower* structural risk in isolation. In Maintainability scoring, (1 − CC(v)) is used: a component embedded in a sparse neighborhood (low clustering) has less redundancy and is harder to safely refactor.
-
-**CC(v) = 0** when v has fewer than 2 neighbors or when no edges exist between neighbors.
+**High CC(v) means:** v's neighbours are well-connected among themselves — the local topology is redundant, making v less of a bottleneck. Low CC contributes positively to the Maintainability dimension M(v) (via the `1 − CC` term), indicating that each coupling is a unique structural dependency.
 
 ### Articulation Point Score
 
-A traditional articulation point (AP) detection returns a binary result: v is or is not an articulation point of the undirected graph. This binary classification creates a sharp discontinuity — a component that would only disconnect a single leaf node upon removal gets the same score as one that would split the graph in half.
-
-To address this, we use a **continuous fragmentation score**:
+Binary articulation point detection identifies whether removing v disconnects the graph. The **continuous score AP_c(v)** extends this to measure *how badly* the graph fragments.
 
 ```
-AP_c(v) = 1 − |largest connected component of G \ {v}| / (|V| − 1)
+Binary AP detection (Tarjan's DFS, O(|V| + |E|)):
+  v is an articulation point if removing v increases the number of connected components
+
+Continuous AP_c(v):
+  Remove v from G; compute connected components C₁, C₂, ..., Cₖ
+  AP_c(v) = 1 − max(|Cᵢ|) / (|V| − 1)
+
+  AP_c(v) = 0    → v's removal does not fragment the graph
+  AP_c(v) = 1    → v's removal isolates every other component
 ```
 
-where `G \ {v}` is the graph with vertex v and all its edges removed.
-
-Interpretation:
-- v is **not** an articulation point → AP_c(v) = 0 (graph remains connected)
-- v's removal disconnects one small leaf (2 nodes, rest connected) → AP_c(v) ≈ 1/(|V|−1) ≈ 0
-- v's removal splits the graph roughly in half → AP_c(v) ≈ 0.5
-- v's removal isolates all but one remaining vertex → AP_c(v) → 1.0
-
-This requires running a connected-component check for each vertex: **O(|V| × (|V| + |E|))**. The binary articulation point set (used for reporting) is computed once via Tarjan's DFS algorithm in O(|V| + |E|).
-
-**High AP_c(v) means:** Removing v would cause severe graph fragmentation — v is a structural single point of failure (SPOF). This is the strongest individual predictor of availability risk.
+**High AP_c(v) means:** v is a structural single point of failure — its removal splits the dependency graph into fragments that can no longer communicate.
 
 ### Bridge Ratio
 
-A **bridge** is an edge whose removal disconnects the graph (the edge equivalent of an articulation point). The Bridge Ratio measures what fraction of a component's incident edges are bridges:
+Measures what fraction of v's incident edges are **bridges** — edges whose removal disconnects the graph.
 
 ```
-BR(v) = |{e ∈ E : e is a bridge, v ∈ e}| / degree(v)
+BR(v) = |{e ∈ bridges(G) : v ∈ e}| / degree_undirected(v)
+
+If degree_undirected(v) = 0: BR(v) = 0
 ```
 
-where `degree(v)` is the total undirected degree of v. If `degree(v) = 0`, then `BR(v) = 0`.
+Bridge detection: `networkx.bridges()` — O(|V| + |E|).
 
-Bridge detection uses DFS-based identification in O(|V| + |E|), computed on the undirected graph. Delegated to `networkx.bridges()`.
-
-**High BR(v) means:** Most of v's connections are irreplaceable — they are bridges whose removal would partition the graph. Even if v itself is not an articulation point, its edges may be critical load-bearing connections in the dependency topology.
-
-**BR(v) = 1.0** means every edge incident to v is a bridge — v is connected to the rest of the graph through a "spine" of single-point connections.
+**High BR(v) means:** Most of v's connections are non-redundant — there is no alternative path if any of these edges is severed. Combined with AP_c, this is the primary signal for Availability A(v).
 
 ### Weight Metrics
 
-Weight metrics incorporate the QoS-derived edge weights from Step 1:
+QoS-derived weight aggregates propagated from Step 1.
 
 ```
-w(v)     = intrinsic component weight (from QoS of handled topics)
-w_in(v)  = Σ  w(u → v)    (sum of weights of incoming DEPENDS_ON edges)
-           u
-w_out(v) = Σ  w(v → u)    (sum of weights of outgoing DEPENDS_ON edges)
-           u
+w(v)     = component's own QoS-derived importance weight (from Step 1)
+w_in(v)  = Σ w(e) for incoming DEPENDS_ON edges  (normalized)
+w_out(v) = Σ w(e) for outgoing DEPENDS_ON edges  (normalized)
 ```
 
-All three are normalized to [0, 1] using min-max scaling across the component set.
+- **High w(v):** v handles high-priority, reliable, or large-payload topics — intrinsically important regardless of structural position.
+- **High w_in(v):** v's incoming dependencies carry high-criticality data streams.
+- **High w_out(v):** v's outgoing dependencies are high-stakes data sources.
 
-**High w(v) means:** v handles high-priority, reliable, or large-payload topics. It is intrinsically important regardless of its structural position.
-
-**High w_in(v) means:** v's incoming dependencies carry high-criticality data streams — the components that depend on v do so for mission-critical communication.
-
-**High w_out(v) means:** v's outgoing dependencies are high-stakes — the components v depends on are mission-critical data sources.
-
-These weight metrics are not currently included in the RMAV formulas (which use purely topological metrics), but they are reported in the output for analyst inspection and inform the component-level weight stored in Step 1.
+These weight metrics feed directly into Step 3's Prediction formulas (w_out → M(v), w(v) × AP_c → A(v) via QSPOF, w_in → V(v)).
 
 ---
 
@@ -245,21 +214,21 @@ All 13 metrics at a glance, with their formal symbols, the quality dimension the
 
 | # | Metric | Symbol | Category | RMAV Dimension | Implementation |
 |---|--------|--------|----------|---------------|----------------|
-| 1 | PageRank | PR(v) | Centrality | R — Reliability | `networkx.pagerank` |
+| 1 | PageRank | PR(v) | Centrality | Reported only | `networkx.pagerank` |
 | 2 | Reverse PageRank | RPR(v) | Centrality | R — Reliability | `networkx.pagerank(G^T)` |
 | 3 | Betweenness Centrality | BT(v) | Centrality | M — Maintainability | `networkx.betweenness_centrality` |
-| 4 | Closeness Centrality | CL(v) | Centrality | V — Vulnerability | `networkx.closeness_centrality` |
-| 5 | Eigenvector Centrality | EV(v) | Centrality | V — Vulnerability | `networkx.eigenvector_centrality` |
+| 4 | Closeness Centrality | CL(v) | Centrality | Reported only | `networkx.closeness_centrality` |
+| 5 | Eigenvector Centrality | EV(v) | Centrality | Reported only | `networkx.eigenvector_centrality` |
 | 6 | In-Degree | DG_in(v) | Degree | R — Reliability | `G.in_degree` |
-| 7 | Out-Degree | DG_out(v) | Degree | M, V | `G.out_degree` |
+| 7 | Out-Degree | DG_out(v) | Degree | M — Maintainability | `G.out_degree` |
 | 8 | Clustering Coefficient | CC(v) | Local topology | M — Maintainability | `networkx.clustering` |
 | 9 | Articulation Point Score | AP_c(v) | Resilience | A — Availability | Tarjan DFS + reachability |
 | 10 | Bridge Ratio | BR(v) | Resilience | A — Availability | `networkx.bridges` |
-| 11 | Component Weight | w(v) | QoS | (reported only) | From Step 1 QoS |
-| 12 | Weighted In-Degree | w_in(v) | QoS | (reported only) | Σ incident edge weights |
-| 13 | Weighted Out-Degree | w_out(v) | QoS | (reported only) | Σ incident edge weights |
+| 11 | Component Weight | w(v) | QoS | A — Availability | From Step 1 QoS |
+| 12 | Weighted In-Degree | w_in(v) | QoS | V — Vulnerability | Σ incident edge weights |
+| 13 | Weighted Out-Degree | w_out(v) | QoS | M — Maintainability | Σ incident edge weights |
 
-Note that Out-Degree (DG_out) contributes to both Maintainability M(v) and Vulnerability V(v) with distinct semantic rationale: efferent coupling in the context of change risk (M), and attack surface in the context of security exposure (V). It is the only metric shared between two RMAV dimensions.
+> **Note on DG_out:** Out-degree contributes to Maintainability (efferent coupling in change risk context) only. The CL and EV metrics feed the GNN node features but are not used directly in RMAV formulas; REV and RCL (computed on G^T in Step 3) are the active Vulnerability signals.
 
 ---
 
@@ -267,7 +236,7 @@ Note that Out-Degree (DG_out) contributes to both Maintainability M(v) and Vulne
 
 ### Per-Component Metric Vector
 
-For each component v in the selected layer, the analysis produces a 13-element metric vector:
+For each component v in the selected layer:
 
 ```
 M(v) = (PR(v), RPR(v), BT(v), CL(v), EV(v),
@@ -275,60 +244,45 @@ M(v) = (PR(v), RPR(v), BT(v), CL(v), EV(v),
         w(v), w_in(v), w_out(v))
 ```
 
-All values are in [0, 1]. The `is_articulation_point` boolean flag is additionally reported alongside AP_c(v) for binary filtering.
+All values are in [0, 1]. The `is_articulation_point` boolean flag is additionally reported alongside AP_c(v) for binary filtering (e.g., instant SPOF detection).
 
-### Graph-Level Summary
-
-In addition to per-component metrics, the analysis reports a summary **S(G)** for the entire layer graph:
-
-| Field | Description |
-|-------|-------------|
-| `vertex_count` | Total number of vertices in G_analysis(l) |
-| `edge_count` | Total number of DEPENDS_ON edges |
-| `density` | Edge count / (|V| × (|V|−1)) — fraction of possible directed edges present |
-| `avg_clustering` | Mean clustering coefficient across all vertices |
-| `weakly_connected_components` | Number of weakly connected components |
-| `strongly_connected_components` | Number of strongly connected components |
-| `diameter` | Longest shortest path (−1 if graph is not strongly connected) |
-| `articulation_point_count` | Number of vertices identified as binary articulation points |
-| `bridge_count` | Number of edges identified as bridges |
-| `avg_in_degree` | Mean number of incoming DEPENDS_ON edges per vertex |
-| `avg_out_degree` | Mean number of outgoing DEPENDS_ON edges per vertex |
-
-### JSON Output Schema
+### Graph-Level Summary S(G)
 
 ```json
 {
   "layer": "app",
-  "graph_summary": {
-    "vertex_count": 35,
-    "edge_count": 87,
-    "density": 0.073,
-    "avg_clustering": 0.21,
-    "weakly_connected_components": 1,
-    "strongly_connected_components": 8,
-    "diameter": -1,
-    "articulation_point_count": 3,
-    "bridge_count": 11,
-    "avg_in_degree": 2.49,
-    "avg_out_degree": 2.49
-  },
+  "component_count": 35,
+  "edge_count": 87,
+  "density": 0.073,
+  "avg_clustering": 0.21,
+  "articulation_point_count": 3,
+  "bridge_count": 11,
+  "spof_count": 3
+}
+```
+
+### JSON Output Structure
+
+```json
+{
+  "layer": "app",
+  "summary": { "total": 35, "articulation_points": 3, "bridges": 11 },
   "components": {
-    "SensorApp": {
-      "pagerank": 0.82,
-      "reverse_pagerank": 0.41,
-      "betweenness": 0.67,
-      "closeness": 0.55,
-      "eigenvector": 0.73,
-      "in_degree": 0.60,
-      "out_degree": 0.20,
-      "clustering_coefficient": 0.15,
-      "ap_score": 0.50,
+    "DataRouter": {
+      "pagerank":              0.88,
+      "reverse_pagerank":      0.76,
+      "betweenness":           0.79,
+      "closeness":             0.65,
+      "eigenvector":           0.72,
+      "in_degree":             0.75,
+      "out_degree":            0.23,
+      "clustering_coefficient":0.15,
+      "ap_score":              0.62,
       "is_articulation_point": true,
-      "bridge_ratio": 0.75,
-      "weight": 1.00,
-      "weighted_in_degree": 0.88,
-      "weighted_out_degree": 0.22
+      "bridge_ratio":          0.83,
+      "weight":                0.92,
+      "weighted_in_degree":    0.80,
+      "weighted_out_degree":   0.31
     }
   }
 }
@@ -338,75 +292,30 @@ In addition to per-component metrics, the analysis reports a summary **S(G)** fo
 
 ## Worked Example
 
-This section traces the 6-component system from the Step 1 worked example through structural analysis to show which metrics fire for which components.
-
-**Graph** (application layer only, DEPENDS_ON edges):
+**PLC_Controller (A3)** from the Distributed Intelligent Factory (DIF) scenario — application layer, 32 components:
 
 ```
-SensorApp ←── MonitorApp
-    ↑               ↑
-MainBroker ─────────┘
+Raw values (before normalization):
+  PageRank:              0.045  (mid-range — not the top PageRank hub)
+  Reverse PageRank:      0.082  (high — failure propagates to many downstream)
+  Betweenness:           0.310  (very high — lies on many critical paths)
+  Closeness:             0.610  (high — central in the dependency graph)
+  Eigenvector:           0.540  (high — connected to important neighbours)
+  In-Degree:             6      (6 components directly depend on A3)
+  Out-Degree:            5      (A3 depends on 5 components)
+  Clustering Coeff.:     0.18   (low — connections are not well-interconnected)
+  AP_c (undirected):     0.43   (43% of the graph fragments without A3)
+  Bridge Ratio:          0.67   (2/3 of A3's connections are bridges)
+  w(v):                  0.92   (routes a PERSISTENT+URGENT+RELIABLE topic)
+  w_in:                  0.88   (dependents carry high-priority data streams)
+  w_out:                 0.74   (dependencies are high-priority sources)
+
+After min-max normalization across all 32 components:
+  RPR = 0.60,  BT = 0.95,  DG_in = 0.75,  AP_c = 0.43,  BR = 1.00
+  w   = 0.92,  w_in = 0.88, w_out = 0.68
 ```
 
-In DEPENDS_ON notation:
-- MonitorApp → SensorApp  (app_to_app: subscriber depends on publisher)
-- MonitorApp → MainBroker (app_to_broker: subscriber depends on routing broker)
-- SensorApp  → MainBroker (app_to_broker: publisher depends on routing broker)
-
-This is a simple 3-vertex, 3-edge directed graph. Let G = {S=SensorApp, M=MonitorApp, B=MainBroker}.
-
-### PageRank
-
-Following the random walk on DEPENDS_ON edges (direction: edges point toward dependencies):
-
-- **MainBroker (B)** receives score from both S and M → highest PR
-- **SensorApp (S)** receives score from M → medium PR
-- **MonitorApp (M)** receives no incoming edges → lowest PR
-
-PR order: B > S > M (B most depended upon, M depends on others but nothing depends on it)
-
-### Reverse PageRank
-
-On the transposed graph (edges reversed — pointing from dependency back to dependent):
-
-- **MonitorApp (M)** has incoming edges from both B and S in G^T → highest RPR
-- S and B have one incoming edge each → lower RPR
-
-RPR order: M > S ≈ B (M's failure propagates to nobody — it's a sink; but M *depends on* both S and B, so in G^T, M accumulates score)
-
-> Note: High RPR means "this component depends on many things, and its failure affects it widely" — not a source of cascades but a component whose own operation is most exposed to upstream failures.
-
-### Betweenness
-
-The only path between M and B passes through... itself (M → B is direct). S to M: no path in G. No vertex acts as a bridge between disconnected pairs, so **BT is low for all vertices** in this tiny example. In larger systems, a broker that sits between multiple isolated application clusters would have very high BT.
-
-### Articulation Point Score
-
-Removing MainBroker (B) from the 3-vertex graph leaves {S, M} with the edge M→S — still connected (weakly). AP_c(B) = 1 − 2/2 = 0. No vertex is a true articulation point in this small example.
-
-In a more realistic system: a broker that is the sole middleware between two application clusters scores AP_c ≈ 0.5 or higher.
-
-### Bridge Ratio
-
-The edge M→B is a bridge (removing it disconnects M from B; no alternative path exists). The edge S→B is also a bridge. M→S is a bridge too.
-
-- SensorApp (S): 2 incident edges (M→S incoming, S→B outgoing), both bridges → BR(S) = 1.0
-- MainBroker (B): 2 incident edges (S→B, M→B), both bridges → BR(B) = 1.0
-- MonitorApp (M): 2 incident edges (M→S, M→B), both bridges → BR(M) = 1.0
-
-All edges are bridges in a tree-like topology. In larger systems with cycles, components embedded in cycles have BR < 1.0 because the cycle provides an alternative path.
-
-### Summary Table for This Example
-
-| Metric | SensorApp | MonitorApp | MainBroker |
-|--------|-----------|------------|------------|
-| PR (norm) | 0.50 | 0.00 | 1.00 |
-| RPR (norm) | 0.50 | 1.00 | 0.00 |
-| BT (norm) | 0.00 | 0.00 | 0.00 |
-| AP_c | 0.00 | 0.00 | 0.00 |
-| BR | 1.00 | 1.00 | 1.00 |
-
-**Interpretation:** MainBroker is the most depended-upon component (highest PR). MonitorApp is the most exposed to upstream failure (highest RPR). All Bridge Ratios are 1.0 — this chain-topology system has no redundant connections. In Step 3, these metrics will classify MainBroker as having the highest Reliability risk and all components as high Availability risk (high BR).
+A3's normalized betweenness of 0.95 immediately identifies it as the structural bottleneck of the application layer. The combination of high AP_c (0.43) and Bridge Ratio = 1.0 further marks it as a structural SPOF. These three signals together will drive CRITICAL-level predictions across the M(v) and A(v) RMAV dimensions in Step 3.
 
 ---
 
@@ -414,20 +323,16 @@ All edges are bridges in a tree-like topology. In larger systems with cycles, co
 
 | Algorithm | Complexity | Notes |
 |-----------|------------|-------|
-| PageRank | O((|V|+|E|) × iterations) | ~20–50 iterations typical; max 100 |
-| Reverse PageRank | O((|V|+|E|) × iterations) | Same, on transposed graph |
-| Betweenness Centrality | O(|V| × |E|) | Brandes algorithm; dominant cost for dense graphs |
-| Closeness Centrality | O(|V| × (|V|+|E|)) | BFS from each vertex |
-| Eigenvector Centrality | O((|V|+|E|) × iterations) | ~100 iterations; fallback if no convergence |
-| In/Out-Degree | O(|V|+|E|) | Single pass |
-| Clustering Coefficient | O(|V| × d²) | d = average degree |
-| Articulation Point Detection | O(|V|+|E|) | Tarjan DFS (binary) |
-| AP_c Score | O(|V| × (|V|+|E|)) | Connected-component check per vertex |
-| Bridge Detection | O(|V|+|E|) | DFS-based |
-| Bridge Ratio | O(|V|+|E|) | Per vertex from bridge set |
-| **Total (full system layer)** | **O(|V| × |E|)** | Dominated by Betweenness and AP_c |
+| PageRank / RPR | O(I × \|E\|) | I = iterations (≤100); sparse power iteration |
+| Betweenness Centrality | O(\|V\| × \|E\|) | Brandes' algorithm |
+| Closeness Centrality | O(\|V\| × (\|V\| + \|E\|)) | BFS from each vertex |
+| Eigenvector Centrality | O(I × \|E\|) | Power iteration; falls back to in-degree |
+| Articulation Points | O(\|V\| + \|E\|) | Tarjan's DFS |
+| AP_c (continuous) | O(\|V\| × (\|V\| + \|E\|)) | Repeated reachability computation |
+| Bridge Detection | O(\|V\| + \|E\|) | DFS-based |
+| Min-Max Normalization | O(\|V\|) | Per metric |
 
-For reference: a `medium` scale system (35 apps, 87 edges) completes full structural analysis in approximately 2 seconds on a standard laptop. An `xlarge` system (200 components, ~600 edges) takes approximately 20 seconds.
+**Overall:** O(|V|² + |V|×|E|) dominated by AP_c and Closeness. An `xlarge` system (200 components, ~600 edges) takes approximately 20 seconds.
 
 ---
 
@@ -443,7 +348,7 @@ python bin/analyze_graph.py --layer system
 # Export metric vectors to JSON for inspection or post-processing
 python bin/analyze_graph.py --layer system --output results/metrics.json
 
-# Run with AHP-derived weights (affects quality scoring in Step 3, not metric computation)
+# Run with AHP-derived weights (affects prediction scoring in Step 3, not metric computation here)
 python bin/analyze_graph.py --layer system --use-ahp
 
 # Run sensitivity analysis on AHP weights (requires --use-ahp)
@@ -461,9 +366,9 @@ Layer: app | 35 components | 87 edges | density: 0.073
 Articulation points: 3  |  Bridges: 11  |  SPOFs detected: 3
 
 Top Critical Components (by Q(v)):
-  1. DataRouter      [CRITICAL]  Q=0.91  PR=0.88  AP_c=0.62  BT=0.79
-  2. SensorHub       [CRITICAL]  Q=0.87  PR=0.82  AP_c=0.50  BT=0.71
-  3. CommandGateway  [HIGH]      Q=0.74  PR=0.51  AP_c=0.00  BT=0.83
+  1. DataRouter      [CRITICAL]  Q=0.91  RPR=0.76  AP_c=0.62  BT=0.79
+  2. SensorHub       [CRITICAL]  Q=0.87  RPR=0.71  AP_c=0.50  BT=0.71
+  3. CommandGateway  [HIGH]      Q=0.74  RPR=0.48  AP_c=0.00  BT=0.83
 ```
 
 - **CRITICAL** components with non-zero AP_c are structural SPOFs — top priority for redundancy.
@@ -474,10 +379,10 @@ Top Critical Components (by Q(v)):
 
 ## What Comes Next
 
-Step 2 produces a metric vector M(v) for every component — 13 numbers per component, each capturing a different structural property. These numbers are precise but not directly actionable: "betweenness = 0.79" doesn't tell an architect what to do.
+Step 2 produces a metric vector M(v) for every component — 13 numbers per component, each capturing a different structural property. These numbers are precise but not directly actionable: "betweenness = 0.79" does not tell an architect what to do.
 
-Step 3 maps these raw metrics into four interpretable quality dimensions (Reliability, Maintainability, Availability, Vulnerability) using AHP-derived weights. The output is a single criticality classification per component — CRITICAL, HIGH, MEDIUM, LOW, or MINIMAL — backed by a quantitative score and decomposable by dimension to explain *why* a component is critical.
+Step 3 (Prediction) maps these raw metrics into four interpretable quality dimensions — Reliability, Maintainability, Availability, Vulnerability — using AHP-derived weights. The output is a single criticality classification per component (CRITICAL, HIGH, MEDIUM, LOW, or MINIMAL), backed by a quantitative score and decomposable by dimension to explain *why* a component is critical. For systems where labelled training data exists, a Graph Neural Network predictor can learn improved metric combinations alongside the rule-based RMAV scorer.
 
 ---
 
-← [Step 1: Graph Model](graph-model.md) | → [Step 3: Prediction](prediction.md)
+← [Step 1: Modeling](graph-model.md) | → [Step 3: Prediction](prediction.md)

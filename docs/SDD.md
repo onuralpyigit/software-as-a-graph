@@ -33,7 +33,7 @@ This document describes the technical design of the Software-as-a-Graph framewor
 
 ### 1.2 Scope
 
-The design covers the full six-step methodology pipeline: graph model construction, structural analysis, quality scoring, failure simulation, statistical validation, and interactive visualization. The system follows a **four-layer architecture** (Presentation, Web Application, Pipeline Components, Core) with dependency inversion at the repository boundary: the Core layer defines the `IGraphRepository` interface, and the Neo4j adapter implements it, keeping domain logic free of infrastructure dependencies.
+The design covers the full six-step methodology pipeline: graph model construction, structural analysis, prediction, failure simulation, statistical validation, and interactive visualization. The system follows a **four-layer architecture** (Presentation, Web Application, Pipeline Components, Core) with dependency inversion at the repository boundary: the Core layer defines the `IGraphRepository` interface, and the Neo4j adapter implements it, keeping domain logic free of infrastructure dependencies.
 
 The system is delivered through two mechanisms — a **CLI pipeline** (`bin/`) and a **Genieus web application** (FastAPI backend + Next.js frontend) — both of which invoke the same underlying domain packages.
 
@@ -541,7 +541,7 @@ src.analysis.service.AnalysisService.analyze_layer(layer)
          │  → Compute continuous AP_c scores via iterated removal (§6.5)
          │  → Detect bridge edges (§6.6)
          │  → Return StructuralAnalysisResult
-    3. QualityAnalyzer.analyze(structural_result)
+    3. PredictionEngine.analyze(structural_result)       ← RMAV + optional GNN
          │  → Normalize metrics to [0, 1] via min-max (§6.8)
          │  → Compute derived terms: CDPot (§6.13), CouplingRisk (§6.14),
          │    QSPOF (§6.15), AP_c_directed (§6.16), CDI (§6.17)
@@ -1461,7 +1461,7 @@ criteria_overall = [
 | REQ-SA-10 | §4.2 StructuralMetrics weight fields (w, w\_in, w\_out) |
 | REQ-SA-11 | §6.8 Min-Max Normalization |
 | REQ-SA-12 | §5.2 StructuralAnalyzer: graph-level summary statistics |
-| REQ-QS-01 | §6.19 Reliability Score R(v) |
+| REQ-QS-01 | §6.19 Reliability Score R(v)  [Prediction — RMAV] |
 | REQ-QS-02 | §6.20 Maintainability Score M(v) |
 | REQ-QS-03 | §6.21 Availability Score A(v) |
 | REQ-QS-04 | §6.22 Vulnerability Score V(v) |
