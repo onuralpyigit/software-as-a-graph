@@ -245,10 +245,21 @@ class Neo4jRepository:
                 "id": l["id"],
                 "name": l.get("name", l["id"]),
                 "version": l.get("version"),
+                # Code-quality attributes (optional; default 0 when absent)
+                "loc": l.get("loc", 0),
+                "cyclomatic_complexity": float(l.get("cyclomatic_complexity", 0.0)),
+                "coupling_afferent": l.get("coupling_afferent", 0),
+                "coupling_efferent": l.get("coupling_efferent", 0),
+                "lcom": float(l.get("lcom", 0.0)),
             })
         self._import_batch(libs, """
             MERGE (l:Library {id: row.id})
-            SET l.name = row.name, l.version = row.version
+            SET l.name = row.name, l.version = row.version,
+                l.loc = row.loc,
+                l.cyclomatic_complexity = row.cyclomatic_complexity,
+                l.coupling_afferent = row.coupling_afferent,
+                l.coupling_efferent = row.coupling_efferent,
+                l.lcom = row.lcom
         """)
 
     def _import_relationships(self, data: Dict[str, Any]) -> None:

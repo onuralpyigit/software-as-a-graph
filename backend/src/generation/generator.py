@@ -36,6 +36,20 @@ _CODE_QUALITY_PARAMS: Dict[str, Tuple[int, int, float, float, float, float]] = {
     "service":    (400, 2000,  4.0, 20.0,  0.30, 0.70),
 }
 
+# --- Code-quality generation parameters by library archetype ---
+# Libraries tend to be more stable and focused than applications but vary widely.
+# Archetypes: utility (small, simple), framework (large, complex),
+#             driver (HW interface), middleware (message/transport), protocol (standards)
+_LIB_CODE_QUALITY_PARAMS: Dict[str, Tuple[int, int, float, float, float, float]] = {
+    "utility":    (50,   500,  1.0,  5.0,  0.05, 0.25),
+    "framework":  (500, 6000,  5.0, 32.0,  0.30, 0.75),
+    "driver":     (100,  900,  2.0, 10.0,  0.10, 0.40),
+    "middleware": (200, 2500,  3.0, 20.0,  0.20, 0.60),
+    "protocol":   (150, 1200,  2.0, 12.0,  0.10, 0.45),
+}
+# Weighted random selection of lib archetype (utility and driver are most common)
+_LIB_ARCHETYPE_WEIGHTS = ["utility"] * 4 + ["framework"] * 2 + ["driver"] * 3 + ["middleware"] * 2 + ["protocol"] * 2
+
 
 class StatisticalGraphGenerator:
     """Generates graphs using statistical distributions from config."""
@@ -103,6 +117,51 @@ class StatisticalGraphGenerator:
         cc   = round(self.rng.uniform(cc_lo, cc_hi), 2)
         lcom = round(self.rng.uniform(lcom_lo, lcom_hi), 3)
         return loc, cc, lcom
+
+    def _generate_lib_code_quality(self) -> Tuple[int, float, float]:
+        """Return (loc, cyclomatic_complexity, lcom) sampled for a Library node.
+
+        Picks a random library archetype weighted toward utility/driver (most common),
+        then samples within the archetype's parameter ranges.
+        """
+        archetype = self.rng.choice(_LIB_ARCHETYPE_WEIGHTS)
+        params = _LIB_CODE_QUALITY_PARAMS[archetype]
+        loc_lo, loc_hi, cc_lo, cc_hi, lcom_lo, lcom_hi = params
+        loc  = self.rng.randint(loc_lo, loc_hi)
+        cc   = round(self.rng.uniform(cc_lo, cc_hi), 2)
+        lcom = round(self.rng.uniform(lcom_lo, lcom_hi), 3)
+        return loc, cc, lcom
+
+    def _assign_lib_coupling(
+        self,
+        libs: List[Library],
+        apps: List[Application],
+        uses: List[Dict[str, str]],
+    ) -> None:
+        """Derive Ca/Ce for each Library from USES topology.
+
+        Rules:
+          Ce (efferent / out-coupling) = number of other Libraries this lib depends on
+                                         (lib→lib USES edges where this lib is the source)
+          Ca (afferent / in-coupling)  = number of Applications + Libraries that depend
+                                         on this lib (USES edges where this lib is target)
+        """
+        lib_ids = {lib.id for lib in libs}
+        # Count outgoing lib→lib deps (Ce)
+        ce_count: Dict[str, int] = {}
+        for edge in uses:
+            src, tgt = edge["from"], edge["to"]
+            if src in lib_ids and tgt in lib_ids:
+                ce_count[src] = ce_count.get(src, 0) + 1
+        # Count incoming anything→lib deps (Ca)
+        ca_count: Dict[str, int] = {}
+        for edge in uses:
+            tgt = edge["to"]
+            if tgt in lib_ids:
+                ca_count[tgt] = ca_count.get(tgt, 0) + 1
+        for lib in libs:
+            lib.coupling_efferent = ce_count.get(lib.id, 0)
+            lib.coupling_afferent = ca_count.get(lib.id, 0)
 
     def _assign_coupling(
         self,
@@ -231,14 +290,17 @@ class StatisticalGraphGenerator:
                 lcom=lcom,
             ))
 
-        libs = [
-            Library(
+        libs: List[Library] = []
+        for i in range(c.libs):
+            loc_l, cc_l, lcom_l = self._generate_lib_code_quality()
+            libs.append(Library(
                 id=f"L{i}",
                 name=f"Lib-{i}",
                 version=f"{self.rng.randint(0, 2)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
-            )
-            for i in range(c.libs)
-        ]
+                loc=loc_l,
+                cyclomatic_complexity=cc_l,
+                lcom=lcom_l,
+            ))
 
         # 2. Relationships
         runs_on = []
@@ -424,6 +486,7 @@ class StatisticalGraphGenerator:
 
         # Assign coupling counts (Ca / Ce) after topology is finalised
         self._assign_coupling(apps, publishes, subscribes)
+        self._assign_lib_coupling(libs, apps, uses)
 
         return {
             "metadata": {

@@ -208,7 +208,9 @@ These weight metrics feed directly into Step 3's Prediction formulas (w_out → 
 
 ### Code-Quality Metrics
 
-Optional code-level attributes supplied on **Application nodes** in the topology JSON. All default to `0`/`0.0` when absent; non-Application nodes always receive `0.0`.
+Optional code-level attributes supplied on **Application and Library nodes** in the topology JSON. All default to `0`/`0.0` when absent; all other node types (Broker, Node, Topic) always receive `0.0`.
+
+Application and Library nodes are normalised **independently** (separate population min-max passes), because their typical LOC and cyclomatic-complexity ranges differ significantly.
 
 | Field | Symbol | Range | Definition |
 |-------|--------|-------|-----------|

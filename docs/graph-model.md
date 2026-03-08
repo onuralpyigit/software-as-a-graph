@@ -90,7 +90,7 @@ Each entity in the system topology JSON becomes a vertex in G. Five vertex types
 | **Broker** | `brokers[]` | id, name |
 | **Topic** | `topics[]` | id, name, size, QoS policy |
 | **Node** | `nodes[]` | id, name |
-| **Library** | `libraries[]` | id, name, version |
+| **Library** | `libraries[]` | id, name, version, loc *(opt)*, cyclomatic_complexity *(opt)*, coupling_afferent *(opt)*, coupling_efferent *(opt)*, lcom *(opt)* |
 
 **Code-level quality attributes** (all optional, all default to `0`/`0.0`):
 
@@ -102,7 +102,7 @@ Each entity in the system topology JSON becomes a vertex in G. Five vertex types
 | `coupling_efferent` | `int` | Ce — modules this one *depends on* (fan-out) |
 | `lcom` | `float ∈ [0,1]` | Lack of Cohesion of Methods (0 = fully cohesive) |
 
-These attributes feed the **Code Quality Penalty (CQP)** composite metric used in Step 3 (Prediction) to improve the Maintainability M(v) signal for Application nodes. When absent or zero, M(v) falls back to the topology-only formula (fully backward-compatible).
+These attributes feed the **Code Quality Penalty (CQP)** composite metric used in Step 3 (Prediction) to improve the Maintainability M(v) signal for **Application and Library** nodes. Library nodes are normalised independently from Application nodes (separate population min-max) because their typical LOC/CC scales differ significantly. When absent or zero, M(v) falls back to the topology-only formula (fully backward-compatible).
 
 Library vertices model shared code dependencies. Their failure (e.g., a shared library crash or incompatible update) can trigger simultaneous failures across many applications — a pattern this model makes visible.
 
