@@ -6,11 +6,19 @@
  Box-Plot method (adaptive, data-driven thresholds).
 
  Formulas (per component v):
-     R*(v) = 0.45×RPR + 0.30×DG_in + 0.25×CDPot          (Reliability v5)
-     M*(v) = 0.40×BT  + 0.35×w_out + 0.15×CR + 0.10×(1–CC) (Maintainability v5)
-     A*(v) = 0.45×QSPOF + 0.30×BR + 0.15×AP_c + 0.10×CDI  (Availability v2)
+     R*(v) = 0.45×RPR + 0.30×DG_in + 0.25×CDPot             (Reliability v5)
+     M*(v) = 0.35×BT  + 0.30×w_out + 0.15×CQP + 0.12×CR + 0.08×(1–CC) (Maintainability v6)
+     A*(v) = 0.45×QSPOF + 0.30×BR + 0.15×AP_c + 0.10×CDI   (Availability v2)
      V*(v) = 0.40×REV  + 0.35×RCL  + 0.25×QADS              (Vulnerability v2)
-     Q*(v) = w_R×R*(v) + w_M×M*(v) + w_A×A*(v) + w_V×V*(v)  (Overall)
+     Q*(v) = w_R×R*(v) + w_M×M*(v) + w_A×A*(v) + w_V×V*(v) (Overall)
+
+ M*(v) v6 change (from v5):
+     CQP (Code Quality Penalty) added as 5th Maintainability criterion.
+     CQP = 0.40·complexity_norm + 0.35·instability_code + 0.25·lcom_norm
+     CQP is sourced from optional Application node attributes (loc, cyclomatic_complexity,
+     coupling_afferent, coupling_efferent, lcom). When absent/zero, CQP = 0 and M*(v)
+     collapses to v5 behaviour (fully backward-compatible).
+     BT weight: 0.40 → 0.35; w_out weight: 0.35 → 0.30.
 
  R*(v) v5 change:
      w_in (QoS-weighted in-degree) removed from R*(v).
@@ -486,15 +494,18 @@ class QualityAnalyzer:
             + getattr(w, 'r_cdpot', 0.25) * cdpot
         )
 
-        # Maintainability: M(v) v5 — coupling complexity
+        # Maintainability: M(v) v6 — adds CQP as 5th signal
+        # CQP = 0 for non-Application nodes → formula degrades gracefully to v5
         w_out_n = _n(m.dependency_weight_out, "w_out")
+        cqp = m.code_quality_penalty  # already in [0,1] from the normalization pass
         _eps = 1e-9
         _instability = od_n / (id_n + od_n + _eps)
         coupling_risk = 1.0 - abs(2.0 * _instability - 1.0)
         M = (
             w.m_betweenness * bt
-            + getattr(w, 'm_w_out', 0.35) * w_out_n
-            + getattr(w, 'm_coupling_risk', 0.15) * coupling_risk
+            + getattr(w, 'm_w_out', 0.30) * w_out_n
+            + getattr(w, 'm_code_quality_penalty', 0.15) * cqp
+            + getattr(w, 'm_coupling_risk', 0.12) * coupling_risk
             + w.m_clustering * (1.0 - cc)
         )
 
@@ -748,8 +759,9 @@ class QualityAnalyzer:
         )
         m_weights = _perturb_group(
             w.m_betweenness,
-            getattr(w, 'm_w_out', 0.35),
-            getattr(w, 'm_coupling_risk', 0.15),
+            getattr(w, 'm_w_out', 0.30),
+            getattr(w, 'm_code_quality_penalty', 0.15),
+            getattr(w, 'm_coupling_risk', 0.12),
             w.m_clustering,
         )
         a_weights = _perturb_group(
@@ -771,7 +783,8 @@ class QualityAnalyzer:
             r_pagerank=0.0, r_reverse_pagerank=r_weights[0], r_in_degree=r_weights[1],
             r_w_in=0.0, r_cdpot=r_weights[2],
             m_betweenness=m_weights[0], m_w_out=m_weights[1],
-            m_coupling_risk=m_weights[2], m_clustering=m_weights[3],
+            m_code_quality_penalty=m_weights[2],
+            m_coupling_risk=m_weights[3], m_clustering=m_weights[4],
             m_out_degree=0.0,
             a_qspof=a_weights[0], a_bridge_ratio=a_weights[1],
             a_ap_c_directed=a_weights[2], a_cdi=a_weights[3],

@@ -59,6 +59,15 @@ class StructuralMetrics:
     pubsub_betweenness: float = 0.0    # Betweenness in the pub-sub bipartite graph
     broker_exposure: float = 0.0       # Distinct brokers routing touched topics
 
+    # === Code Quality Metrics (Application nodes only; 0.0 for all other types) ===
+    # Populated from optional JSON fields (loc, cyclomatic_complexity, coupling_*, lcom).
+    # When fields are absent or zero, these remain 0.0 and contribute nothing to M(v).
+    loc_norm: float = 0.0              # Normalised Lines-of-Code (population min-max) ∈ [0,1]
+    complexity_norm: float = 0.0       # Normalised cyclomatic complexity ∈ [0,1]
+    instability_code: float = 0.0      # Martin instability Ce/(Ca+Ce) ∈ [0,1] (raw, not normalised)
+    lcom_norm: float = 0.0             # Normalised Lack of Cohesion of Methods ∈ [0,1]
+    code_quality_penalty: float = 0.0  # CQP = 0.40·complexity_norm + 0.35·instability_code + 0.25·lcom_norm
+
     # === Weights ===
     weight: float = 1.0                  # Intrinsic component weight
     dependency_weight_in: float = 0.0    # Sum of incoming dependency weights

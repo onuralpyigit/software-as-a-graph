@@ -86,11 +86,23 @@ Each entity in the system topology JSON becomes a vertex in G. Five vertex types
 
 | Vertex Type | Source | Properties |
 |-------------|--------|------------|
-| **Application** | `applications[]` | id, name, role (pub/sub/pubsub), app_type |
+| **Application** | `applications[]` | id, name, role (pub/sub/pubsub), app_type, loc *(opt)*, cyclomatic_complexity *(opt)*, coupling_afferent *(opt)*, coupling_efferent *(opt)*, lcom *(opt)* |
 | **Broker** | `brokers[]` | id, name |
 | **Topic** | `topics[]` | id, name, size, QoS policy |
 | **Node** | `nodes[]` | id, name |
 | **Library** | `libraries[]` | id, name, version |
+
+**Code-level quality attributes** (all optional, all default to `0`/`0.0`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `loc` | `int` | Lines of code — raw size proxy |
+| `cyclomatic_complexity` | `float` | Average cyclomatic complexity per method |
+| `coupling_afferent` | `int` | Ca — modules that *depend on* this one (fan-in) |
+| `coupling_efferent` | `int` | Ce — modules this one *depends on* (fan-out) |
+| `lcom` | `float ∈ [0,1]` | Lack of Cohesion of Methods (0 = fully cohesive) |
+
+These attributes feed the **Code Quality Penalty (CQP)** composite metric used in Step 3 (Prediction) to improve the Maintainability M(v) signal for Application nodes. When absent or zero, M(v) falls back to the topology-only formula (fully backward-compatible).
 
 Library vertices model shared code dependencies. Their failure (e.g., a shared library crash or incompatible update) can trigger simultaneous failures across many applications — a pattern this model makes visible.
 
@@ -245,7 +257,11 @@ System topology is supplied as a JSON file with six top-level sections:
     { "id": "L0", "name": "ros2_common", "version": "1.2.0" }
   ],
   "applications": [
-    { "id": "A0", "name": "TempSensor",     "role": "pub", "app_type": "sensor" },
+    {
+      "id": "A0", "name": "TempSensor", "role": "pub", "app_type": "sensor",
+      "loc": 256, "cyclomatic_complexity": 3.2,
+      "coupling_afferent": 0, "coupling_efferent": 2, "lcom": 0.12
+    },
     { "id": "A1", "name": "TempController", "role": "sub", "app_type": "controller" }
   ],
   "relationships": {

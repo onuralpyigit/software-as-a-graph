@@ -50,12 +50,13 @@ class QualityWeights:
     r_w_in: float = 0.0             # Deprecated (v5): reassigned to V*(v) as QADS; kept for compat
     r_cdpot: float = 0.25            # Cascade Depth Potential (derived, depth signal)
     
-    # Maintainability weights (coupling complexity) — M(v) v5
-    # Formula: 0.40*BT + 0.35*w_out + 0.15*CouplingRisk + 0.10*(1-CC)
-    m_betweenness: float = 0.40      # AHP primary: structural bottleneck position
-    m_w_out: float = 0.35            # QoS-weighted efferent coupling (promoted from 'Reported only')
-    m_coupling_risk: float = 0.15    # CouplingRisk: afferent/efferent imbalance signal
-    m_clustering: float = 0.10       # (1-CC): direction-agnostic proxy; reduced weight
+    # Maintainability weights (coupling complexity) — M(v) v6
+    # Formula: 0.35*BT + 0.30*w_out + 0.15*CQP + 0.12*CouplingRisk + 0.08*(1-CC)
+    m_betweenness: float = 0.35      # AHP primary: structural bottleneck position
+    m_w_out: float = 0.30            # QoS-weighted efferent coupling (promoted from 'Reported only')
+    m_code_quality_penalty: float = 0.15  # Code Quality Penalty (CQP): complexity + instability + LCOM composite
+    m_coupling_risk: float = 0.12    # CouplingRisk: afferent/efferent imbalance signal
+    m_clustering: float = 0.08       # (1-CC): direction-agnostic proxy; reduced weight
     # Deprecated in v5 — subsumed by m_w_out (QoS-aware). Kept for backward-compat serialisation.
     m_out_degree: float = 0.0
     
@@ -167,15 +168,15 @@ class AHPMatrices:
             
         if self.criteria_maintainability is None:
             self.criteria_maintainability = [
-                # BT    w_out   CR    (1-CC)
-                [1.0,  1.14,  2.67,  4.0],  # BT: bottleneck position (primary)
-                [0.88, 1.0,   2.33,  3.5],  # w_out: QoS-weighted efferent coupling
-                [0.375, 0.43, 1.0,   1.5],  # CouplingRisk: afferent/efferent imbalance
-                [0.25, 0.286, 0.667, 1.0],  # (1-CC): direction-agnostic proxy (secondary)
+                # BT    w_out   CQP    CR    (1-CC)
+                [1.0,  1.17,  2.33,  2.92,  4.38],  # BT: structural bottleneck (primary)
+                [0.86, 1.0,   2.0,   2.5,   3.75],  # w_out: QoS-weighted efferent coupling
+                [0.43, 0.5,   1.0,   1.25,  1.88],  # CQP: code-level maintainability penalty
+                [0.34, 0.4,   0.8,   1.0,   1.5],   # CouplingRisk: afferent/efferent imbalance
+                [0.23, 0.267, 0.533, 0.667, 1.0],   # (1-CC): direction-agnostic proxy
             ]
-            # Geometric mean → approx [0.40, 0.35, 0.15, 0.10] before shrinkage
-            # After λ=0.7 shrinkage: [0.405, 0.370, 0.180, 0.145] (sum ~1.0; CC further diluted)
-            # CR < 0.13 to avoid over-shrinkage in 4-term uniform prior
+            # AHP-derived geometric means ≈ [0.35, 0.30, 0.15, 0.12, 0.08] before shrinkage
+            # After λ=0.7: ≈ [0.345, 0.31, 0.155, 0.134, 0.096] (close to design weights)
             
         if self.criteria_availability is None:
             self.criteria_availability = [
@@ -312,7 +313,7 @@ class AHPProcessor:
         w_rel = self._calculate_priority_vector(self.matrices.criteria_reliability)
         w_rel = self._shrink_weights(w_rel)
         
-        # 2. Maintainability Weights v5 (BT, w_out, CouplingRisk, (1-CC))
+        # 2. Maintainability Weights v6 (BT, w_out, CQP, CouplingRisk, (1-CC))
         w_main = self._calculate_priority_vector(self.matrices.criteria_maintainability)
         w_main = self._shrink_weights(w_main)
         
@@ -340,12 +341,13 @@ class AHPProcessor:
             r_w_in=0.0,                   # Deprecated in v5; reassigned to V*(v) as QADS
             r_cdpot=w_rel[2],             # Cascade Depth Potential (0.25)
             
-            # Maintainability v5: (BT, w_out, CouplingRisk, (1-CC))
+            # Maintainability v6: (BT, w_out, CQP, CouplingRisk, (1-CC))
             m_betweenness=w_main[0],
             m_w_out=w_main[1],
-            m_coupling_risk=w_main[2],
-            m_clustering=w_main[3],
-            m_out_degree=0.0,               # Deprecated in v5
+            m_code_quality_penalty=w_main[2],
+            m_coupling_risk=w_main[3],
+            m_clustering=w_main[4],
+            m_out_degree=0.0,               # Deprecated in v5+
             
             # Availability v2: (QSPOF, BR, AP_c_directed, CDI)
             a_qspof=w_avail[0],

@@ -152,12 +152,38 @@ class GraphEntity:
 
 @dataclass
 class Application(GraphEntity):
-    """A software service that publishes and/or subscribes to topics."""
+    """A software service that publishes and/or subscribes to topics.
+
+    Code-level quality attributes (optional — default to 0/0.0 when not provided):
+        loc                  : Lines of code (raw size proxy)
+        cyclomatic_complexity: Average cyclomatic complexity per method
+        coupling_afferent    : Ca — number of external modules that depend on this one
+        coupling_efferent    : Ce — number of external modules this one depends on
+        lcom                 : Lack of Cohesion of Methods ∈ [0, 1] (0 = perfectly cohesive)
+    """
     role: str = "pubsub"  # pub, sub, pubsub
     app_type: str = "service"
     criticality: bool = False
     version: Optional[str] = None
-    
+
+    # Code-level quality attributes (all optional; 0 → not provided / unknown)
+    loc: int = 0
+    cyclomatic_complexity: float = 0.0
+    coupling_afferent: int = 0
+    coupling_efferent: int = 0
+    lcom: float = 0.0
+
+    @property
+    def instability(self) -> float:
+        """Martin Instability I = Ce / (Ca + Ce) ∈ [0, 1].
+
+        0 = maximally stable (nothing depends on external code),
+        1 = maximally unstable (depends on everything, nothing depends on it).
+        Returns 0.0 when both coupling counts are zero (unknown / not provided).
+        """
+        total = self.coupling_afferent + self.coupling_efferent
+        return self.coupling_efferent / total if total > 0 else 0.0
+
     def to_dict(self) -> Dict[str, Any]:
         result = {
             "id": self.id,
@@ -168,6 +194,17 @@ class Application(GraphEntity):
         }
         if self.version:
             result["version"] = self.version
+        # Include code-quality fields only when non-zero to keep JSON compact
+        if self.loc:
+            result["loc"] = self.loc
+        if self.cyclomatic_complexity:
+            result["cyclomatic_complexity"] = self.cyclomatic_complexity
+        if self.coupling_afferent:
+            result["coupling_afferent"] = self.coupling_afferent
+        if self.coupling_efferent:
+            result["coupling_efferent"] = self.coupling_efferent
+        if self.lcom:
+            result["lcom"] = self.lcom
         return result
 
 @dataclass

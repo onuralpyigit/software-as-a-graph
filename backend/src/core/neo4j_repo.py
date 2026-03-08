@@ -220,11 +220,22 @@ class Neo4jRepository:
                 "app_type": a.get("app_type", "service"),
                 "criticality": a.get("criticality", False),
                 "version": a.get("version"),
+                # Code-quality attributes (optional; default 0 when absent)
+                "loc": a.get("loc", 0),
+                "cyclomatic_complexity": float(a.get("cyclomatic_complexity", 0.0)),
+                "coupling_afferent": a.get("coupling_afferent", 0),
+                "coupling_efferent": a.get("coupling_efferent", 0),
+                "lcom": float(a.get("lcom", 0.0)),
             })
         self._import_batch(apps, """
             MERGE (a:Application {id: row.id})
             SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
-                a.criticality = row.criticality, a.version = row.version
+                a.criticality = row.criticality, a.version = row.version,
+                a.loc = row.loc,
+                a.cyclomatic_complexity = row.cyclomatic_complexity,
+                a.coupling_afferent = row.coupling_afferent,
+                a.coupling_efferent = row.coupling_efferent,
+                a.lcom = row.lcom
         """)
         
         # Libraries

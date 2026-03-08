@@ -90,11 +90,20 @@ def extract_layer_subgraph(
             props = getattr(comp, "properties", {}).copy()
             # Extract name from properties (fallback to id if not present)
             name = props.pop("name", comp.id)
+            # Extract code-quality fields from props (written there by get_graph_data)
+            code_qual = {
+                "loc": props.pop("loc", 0),
+                "cyclomatic_complexity": props.pop("cyclomatic_complexity", 0.0),
+                "coupling_afferent": props.pop("coupling_afferent", 0),
+                "coupling_efferent": props.pop("coupling_efferent", 0),
+                "lcom": props.pop("lcom", 0.0),
+            }
             G.add_node(
                 comp.id,
                 component_type=comp.component_type,
                 name=name,
                 weight=getattr(comp, "weight", 1.0),
+                **code_qual,
                 **props,
             )
 
@@ -238,6 +247,17 @@ class StructuralAnalyzer:
             bc = node_bridge_count.get(nid, 0)
             ps = pubsub_metrics.get(nid, {})
 
+            # Raw code-quality values (0.0 for non-Application nodes)
+            # loc_norm / complexity_norm / lcom_norm store the RAW values here;
+            # the post-loop normalization pass will overwrite them with [0,1] values.
+            is_app = ntype == "Application"
+            raw_loc = G.nodes[nid].get("loc", 0) if is_app else 0
+            raw_cc = G.nodes[nid].get("cyclomatic_complexity", 0.0) if is_app else 0.0
+            raw_lcom = G.nodes[nid].get("lcom", 0.0) if is_app else 0.0
+            raw_ca = G.nodes[nid].get("coupling_afferent", 0)
+            raw_ce = G.nodes[nid].get("coupling_efferent", 0)
+            instability_val = raw_ce / max(raw_ca + raw_ce, 1) if is_app else 0.0
+
             components[nid] = StructuralMetrics(
                 id=nid,
                 name=G.nodes[nid].get("name", nid),
@@ -267,11 +287,23 @@ class StructuralAnalyzer:
                 pubsub_degree=ps.get("pubsub_degree", 0.0),
                 pubsub_betweenness=ps.get("pubsub_betweenness", 0.0),
                 broker_exposure=ps.get("broker_exposure", 0.0),
+                # Code quality — raw stored temporarily; post-loop normalisation fills them
+                # loc_norm / complexity_norm / lcom_norm hold RAW values until the pass
+                loc_norm=float(raw_loc),
+                complexity_norm=raw_cc,
+                lcom_norm=raw_lcom,
+                instability_code=instability_val,
+                code_quality_penalty=0.0,  # filled by _compute_code_quality_metrics
                 # Weights
                 weight=G.nodes[nid].get("weight", 1.0),
                 dependency_weight_in=dep_weight_in.get(nid, 0.0),
                 dependency_weight_out=dep_weight_out.get(nid, 0.0),
             )
+
+        # --- Code-quality normalization (Application nodes only) ---
+        # Min-max scales loc_norm, complexity_norm, lcom_norm across the population,
+        # then computes code_quality_penalty = 0.40·CC + 0.35·instability + 0.25·LCOM
+        self._compute_code_quality_metrics(components)
 
         # --- Assemble edge metrics ---
         edge_metrics: Dict[Tuple[str, str], EdgeMetrics] = {}
@@ -318,6 +350,70 @@ class StructuralAnalyzer:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _compute_code_quality_metrics(
+        components: Dict[str, "StructuralMetrics"],
+    ) -> None:
+        """
+        Normalise code-quality fields in-place across all Application nodes.
+
+        The method performs two passes:
+          Pass 1: collect min/max for loc, cyclomatic_complexity (stored as
+                  loc_norm / complexity_norm raw values from the assembly loop),
+                  and lcom (stored as lcom_norm raw value).
+          Pass 2: replace raw values with min-max normalised [0,1] values,
+                  then compute:
+                    CQP = 0.40 * complexity_norm + 0.35 * instability_code
+                        + 0.25 * lcom_norm
+                  instability_code is already in [0,1] (Ce/(Ca+Ce)) — not re-normalised.
+
+        Non-Application components (loc_norm = complexity_norm = lcom_norm = 0.0)
+        are skipped entirely; their code_quality_penalty stays 0.0.
+        """
+        # Weights for CQP composite
+        W_CC   = 0.40
+        W_INS  = 0.35
+        W_LCOM = 0.25
+
+        # --- Pass 1: gather raw values from Application nodes ---
+        app_ids   = []
+        app_locs  = []
+        app_ccs   = []
+        app_lcoms = []
+
+        for nid, m in components.items():
+            if m.type != "Application":
+                continue
+            app_ids.append(nid)
+            app_locs.append(m.loc_norm)        # holds raw LOC float at this point
+            app_ccs.append(m.complexity_norm)  # holds raw CC float
+            app_lcoms.append(m.lcom_norm)      # holds raw LCOM float
+
+        if not app_ids:
+            return  # no Applications in this layer; nothing to do
+
+        def _mm(values: list, lo: float, hi: float) -> list:
+            span = hi - lo
+            if span == 0:
+                return [0.0] * len(values)
+            return [(v - lo) / span for v in values]
+
+        norm_locs  = _mm(app_locs,  min(app_locs),  max(app_locs))
+        norm_ccs   = _mm(app_ccs,   min(app_ccs),   max(app_ccs))
+        norm_lcoms = _mm(app_lcoms, min(app_lcoms), max(app_lcoms))
+
+        # --- Pass 2: write normalised values and compute CQP ---
+        for idx, nid in enumerate(app_ids):
+            m = components[nid]
+            m.loc_norm        = norm_locs[idx]
+            m.complexity_norm = norm_ccs[idx]
+            m.lcom_norm       = norm_lcoms[idx]
+            m.code_quality_penalty = (
+                W_CC   * m.complexity_norm
+                + W_INS  * m.instability_code
+                + W_LCOM * m.lcom_norm
+            )
 
     @staticmethod
     def _compute_pubsub_metrics(

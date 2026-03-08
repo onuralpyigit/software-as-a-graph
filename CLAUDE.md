@@ -185,12 +185,17 @@ R(v) = 0.40·RPR + 0.35·w_in + 0.25·CDPot
 - **w_in**: QoS-weighted in-degree (dependent count weighted by topic priority/QoS)
 - **CDPot**: Cascade Depth Potential = `((RPR + w_in) / 2) * (1 - min(w_out / w_in, 1))`
 
-### Maintainability — M(v) v5
+### Maintainability — M(v) v6
 ```
-M(v) = 0.40·BT + 0.35·w_out + 0.15·CouplingRisk + 0.10·(1 − CC)
+M(v) = 0.35·BT + 0.30·w_out + 0.15·CQP + 0.12·CouplingRisk + 0.08·(1 − CC)
 ```
 - **BT**: Betweenness centrality (structural bottleneck position)
 - **w_out**: QoS-weighted efferent coupling (outgoing dependency weight)
+- **CQP**: Code Quality Penalty = `0.40·complexity_norm + 0.35·instability_code + 0.25·lcom_norm`
+  - `complexity_norm`: normalised cyclomatic complexity (population min-max)
+  - `instability_code`: Martin instability I = Ce/(Ca+Ce) ∈ [0,1]
+  - `lcom_norm`: normalised Lack of Cohesion of Methods (population min-max)
+  - All inputs sourced from optional Application node attributes; CQP = 0 when absent (backward-compatible)
 - **CouplingRisk**: `1 − |2·Instability − 1|` where `Instability = DG_out / (DG_in + DG_out)` — maximised at 0.5 (deeply embedded on both sides)
 - **(1−CC)**: Inverse clustering coefficient (direction-agnostic proxy, reduced weight)
 

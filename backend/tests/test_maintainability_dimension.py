@@ -1,10 +1,10 @@
 """
-Unit tests for the Maintainability dimension improvements (v5).
+Unit tests for the Maintainability dimension improvements (v6).
 
 Covers:
   - CouplingRisk(v) formula correctness at boundaries and in range
-  - M(v) v5 QualityWeights: new fields present, m_out_degree deprecated
-  - AHP 4×4 matrix for Maintainability: weights sum to 1.0 and positive
+  - M(v) v6 QualityWeights: new fields present, m_out_degree deprecated, CQP added
+  - AHP 5×5 matrix for Maintainability: weights sum to 1.0 and positive
   - ImpactMetrics: IM(v) default fields, maintainability_impact property arithmetic
   - calculate_cocr_at_k: mirrors CCR@K semantics for change propagation
   - calculate_weighted_kappa_cta: 3-tier weighted κ
@@ -41,27 +41,28 @@ class TestQualityWeightsV5:
         assert w.m_out_degree == 0.0, "m_out_degree should be deprecated (0.0) in v5"
 
     def test_ahp_computed_m_weights_are_positive_and_sum_near_one(self):
-        """AHP-computed Maintainability weights should be positive and sum ~1.0."""
+        """AHP-computed Maintainability weights should be positive and sum ~1.0 (v6 = 5 terms)."""
         proc = AHPProcessor()
         w = proc.compute_weights()
-        active = w.m_betweenness + w.m_w_out + w.m_coupling_risk + w.m_clustering
+        active = w.m_betweenness + w.m_w_out + getattr(w, 'm_code_quality_penalty', 0.0) + w.m_coupling_risk + w.m_clustering
         assert active == pytest.approx(1.0, abs=0.05), (
-            f"Active M(v) weights should sum ~1.0, got {active:.4f}"
+            f"Active M(v) v6 weights should sum ~1.0, got {active:.4f}"
         )
         assert w.m_betweenness > 0.0
         assert w.m_w_out > 0.0
         assert w.m_coupling_risk > 0.0
         assert w.m_clustering > 0.0
         assert w.m_out_degree == 0.0
+        assert getattr(w, 'm_code_quality_penalty', -1) > 0.0, "m_code_quality_penalty should be positive in v6"
 
-    def test_ahp_maintainability_matrix_is_4x4(self):
-        """Maintainability AHP matrix should be 4×4 (BT, w_out, CouplingRisk, (1-CC))."""
+    def test_ahp_maintainability_matrix_is_5x5(self):
+        """Maintainability AHP matrix should be 5×5 (BT, w_out, CQP, CouplingRisk, (1-CC)) in v6."""
         m = AHPMatrices()
-        assert len(m.criteria_maintainability) == 4, (
-            f"Expected 4×4 matrix, got {len(m.criteria_maintainability)} rows"
+        assert len(m.criteria_maintainability) == 5, (
+            f"Expected 5×5 matrix, got {len(m.criteria_maintainability)} rows"
         )
-        assert all(len(row) == 4 for row in m.criteria_maintainability), (
-            "All rows in criteria_maintainability must have 4 columns"
+        assert all(len(row) == 5 for row in m.criteria_maintainability), (
+            "All rows in criteria_maintainability must have 5 columns"
         )
 
     def test_ahp_m_weights_order_bt_gt_w_out_gt_cr_gt_cc(self):

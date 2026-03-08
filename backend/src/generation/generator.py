@@ -23,6 +23,20 @@ from .models import (
 )
 
 
+# --- Code-quality generation parameters by app_type ---
+# Each entry: (loc_lo, loc_hi, cc_lo, cc_hi, lcom_lo, lcom_hi)
+# Values are design-level approximations of typical software metrics per component archetype
+_CODE_QUALITY_PARAMS: Dict[str, Tuple[int, int, float, float, float, float]] = {
+    "sensor":     (100,  500,  1.0,  8.0,  0.10, 0.40),
+    "actuator":   (100,  400,  1.0,  6.0,  0.10, 0.35),
+    "monitor":    (300, 1000,  3.0, 12.0,  0.20, 0.55),
+    "controller": (400, 1500,  4.0, 18.0,  0.30, 0.70),
+    "gateway":    (800, 3000,  5.0, 25.0,  0.40, 0.80),
+    "processor":  (600, 2500,  6.0, 22.0,  0.35, 0.75),
+    "service":    (400, 2000,  4.0, 20.0,  0.30, 0.70),
+}
+
+
 class StatisticalGraphGenerator:
     """Generates graphs using statistical distributions from config."""
     
@@ -80,6 +94,40 @@ class StatisticalGraphGenerator:
         """Get total sub count from all recursively used libraries."""
         used_libs = self._get_all_used_libs_recursive(entity_id)
         return sum(self._direct_sub_counts.get(lib_id, 0) for lib_id in used_libs)
+
+    def _generate_code_quality(self, app_type: str) -> Tuple[int, float, float]:
+        """Return (loc, cyclomatic_complexity, lcom) sampled for the given app_type."""
+        params = _CODE_QUALITY_PARAMS.get(app_type, _CODE_QUALITY_PARAMS["service"])
+        loc_lo, loc_hi, cc_lo, cc_hi, lcom_lo, lcom_hi = params
+        loc  = self.rng.randint(loc_lo, loc_hi)
+        cc   = round(self.rng.uniform(cc_lo, cc_hi), 2)
+        lcom = round(self.rng.uniform(lcom_lo, lcom_hi), 3)
+        return loc, cc, lcom
+
+    def _assign_coupling(
+        self,
+        apps: List[Application],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+    ) -> None:
+        """Derive Ca/Ce for each Application from pub-sub topology.
+
+        Rule (approximation from structural topology):
+          Ce (efferent / out-coupling) ≈ number of distinct topics this app publishes to
+          Ca (afferent / in-coupling)  ≈ number of distinct topics this app subscribes to
+
+        This leverages the generated pub/sub relationships to set coupling counts
+        without requiring a full dependency graph traversal.
+        """
+        pub_count: Dict[str, int] = {}
+        sub_count: Dict[str, int] = {}
+        for edge in publishes:
+            pub_count[edge["from"]] = pub_count.get(edge["from"], 0) + 1
+        for edge in subscribes:
+            sub_count[edge["from"]] = sub_count.get(edge["from"], 0) + 1
+        for app in apps:
+            app.coupling_efferent = pub_count.get(app.id, 0)
+            app.coupling_afferent = sub_count.get(app.id, 0)
 
     def generate(self) -> Dict[str, Any]:
         c = self.config
@@ -169,13 +217,18 @@ class StatisticalGraphGenerator:
             else:
                 criticality = self.rng.choice([True, False])
             
+            app_type = self.rng.choice(APP_TYPE_OPTIONS)
+            loc, cc, lcom = self._generate_code_quality(app_type)
             apps.append(Application(
                 id=f"A{i}",
                 name=f"App-{i}",
                 role=role,
-                app_type=self.rng.choice(APP_TYPE_OPTIONS),
+                app_type=app_type,
                 criticality=criticality,
                 version=f"{self.rng.randint(1, 3)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
+                loc=loc,
+                cyclomatic_complexity=cc,
+                lcom=lcom,
             ))
 
         libs = [
@@ -368,6 +421,9 @@ class StatisticalGraphGenerator:
             for j in range(i + 1, len(nodes)):
                 if self.rng.random() < 0.3:
                     connects.append(self._make_edge(nodes[i], nodes[j]))
+
+        # Assign coupling counts (Ca / Ce) after topology is finalised
+        self._assign_coupling(apps, publishes, subscribes)
 
         return {
             "metadata": {

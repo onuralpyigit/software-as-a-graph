@@ -33,7 +33,7 @@
 
 ## What This Step Does
 
-Analysis takes the layer-projected dependency graph **G_analysis(l)** produced by Step 1 and computes 13 topological metrics for every component. Each metric captures a different dimension of structural importance — how central a component is, how many dependency paths flow through it, whether removing it would partition the graph.
+Analysis takes the layer-projected dependency graph **G_analysis(l)** produced by Step 1 and computes **18 metrics** for every component — 13 topological metrics plus 5 code-quality attributes for Application nodes. Each metric captures a different dimension of structural importance — how central a component is, how many dependency paths flow through it, whether removing it would partition the graph, and how maintainable its internal structure is.
 
 ```
 G_analysis(l)       StructuralAnalyzer      Metric Vectors
@@ -206,11 +206,25 @@ w_out(v) = Σ w(e) for outgoing DEPENDS_ON edges  (normalized)
 
 These weight metrics feed directly into Step 3's Prediction formulas (w_out → M(v), w(v) × AP_c → A(v) via QSPOF, w_in → V(v)).
 
+### Code-Quality Metrics
+
+Optional code-level attributes supplied on **Application nodes** in the topology JSON. All default to `0`/`0.0` when absent; non-Application nodes always receive `0.0`.
+
+| Field | Symbol | Range | Definition |
+|-------|--------|-------|-----------|
+| Lines of Code (normalised) | `loc_norm` | [0,1] | Population min-max of `loc` across all Application nodes in the layer |
+| Cyclomatic Complexity (normalised) | `complexity_norm` | [0,1] | Population min-max of `cyclomatic_complexity` |
+| Martin Instability | `instability_code` | [0,1] | `Ce / (Ca + Ce)` where Ca = coupling_afferent, Ce = coupling_efferent |
+| LCOM (normalised) | `lcom_norm` | [0,1] | Population min-max of `lcom` |
+| **Code Quality Penalty** | **CQP** | [0,1] | `0.40·complexity_norm + 0.35·instability_code + 0.25·lcom_norm` |
+
+CQP feeds the Maintainability dimension M(v) in Step 3 as a 5th criterion. Because `loc_norm` captures size risk separately from CQP, LOC is available for reporting/GNN features but is not included in CQP to avoid double-counting with complexity.
+
 ---
 
 ## Metric Catalogue Reference
 
-All 13 metrics at a glance, with their formal symbols, the quality dimension they primarily contribute to in Step 3, and their computational source.
+All 18 metrics at a glance, with their formal symbols, the quality dimension they primarily contribute to in Step 3, and their computational source.
 
 | # | Metric | Symbol | Category | RMAV Dimension | Implementation |
 |---|--------|--------|----------|---------------|----------------|
@@ -227,8 +241,13 @@ All 13 metrics at a glance, with their formal symbols, the quality dimension the
 | 11 | Component Weight | w(v) | QoS | A — Availability | From Step 1 QoS |
 | 12 | Weighted In-Degree | w_in(v) | QoS | V — Vulnerability | Σ incident edge weights |
 | 13 | Weighted Out-Degree | w_out(v) | QoS | M — Maintainability | Σ incident edge weights |
+| 14 | LOC (normalised) | loc_norm | Code Quality | GNN features | Population min-max |
+| 15 | Cyclomatic Complexity | complexity_norm | Code Quality | M — Maintainability (via CQP) | Population min-max |
+| 16 | Martin Instability | instability_code | Code Quality | M — Maintainability (via CQP) | Ce/(Ca+Ce) |
+| 17 | LCOM (normalised) | lcom_norm | Code Quality | M — Maintainability (via CQP) | Population min-max |
+| 18 | Code Quality Penalty | CQP | Code Quality | M — Maintainability | 0.40·CC + 0.35·I + 0.25·LCOM |
 
-> **Note on DG_out:** Out-degree contributes to Maintainability (efferent coupling in change risk context) only. The CL and EV metrics feed the GNN node features but are not used directly in RMAV formulas; REV and RCL (computed on G^T in Step 3) are the active Vulnerability signals.
+> **Note on DG_out:** Out-degree contributes to Maintainability (efferent coupling in change risk context) only. The CL and EV metrics feed the GNN node features but are not used directly in RMAV formulas; REV and RCL (computed on G^T in Step 3) are the active Vulnerability signals. Metrics 14–18 are 0.0 for all non-Application node types.
 
 ---
 
@@ -241,10 +260,11 @@ For each component v in the selected layer:
 ```
 M(v) = (PR(v), RPR(v), BT(v), CL(v), EV(v),
         DG_in(v), DG_out(v), CC(v), AP_c(v), BR(v),
-        w(v), w_in(v), w_out(v))
+        w(v), w_in(v), w_out(v),
+        loc_norm(v), complexity_norm(v), instability_code(v), lcom_norm(v), CQP(v))
 ```
 
-All values are in [0, 1]. The `is_articulation_point` boolean flag is additionally reported alongside AP_c(v) for binary filtering (e.g., instant SPOF detection).
+All values are in [0, 1]. Metrics 14–18 are 0.0 for non-Application component types. The `is_articulation_point` boolean flag is additionally reported alongside AP_c(v) for binary filtering (e.g., instant SPOF detection).
 
 ### Graph-Level Summary S(G)
 
