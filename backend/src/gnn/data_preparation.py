@@ -23,7 +23,7 @@ Design principles
   composite impact scores (max pooling), enabling link-level criticality
   prediction as a companion task.
 
-Node feature vector (dim = 18)
+Node feature vector (dim = 23)
 -------------------------------
 Index  Metric
   0    PageRank (PR)
@@ -39,7 +39,12 @@ Index  Metric
  10    QoS aggregate weight (w)
  11    QoS weighted in-degree (w_in)
  12    QoS weighted out-degree (w_out)
- 13-17 Node-type one-hot (Application, Broker, Topic, Node, Library)
+ 13    Normalised LOC (loc_norm)
+ 14    Normalised Complexity (complexity_norm)
+ 15    Instability I = Ce/(Ca+Ce) (instability_code)
+ 16    Normalised LCOM (lcom_norm)
+ 17    Code Quality Penalty (CQP)
+ 18-22 Node-type one-hot (Application, Broker, Topic, Node, Library)
 
 Edge feature vector (dim = 8)
 ------------------------------
@@ -93,9 +98,14 @@ TOPOLOGICAL_METRIC_KEYS: List[str] = [
     "qos_weight",
     "qos_weight_in",
     "qos_weight_out",
+    "loc_norm",
+    "complexity_norm",
+    "instability_code",
+    "lcom_norm",
+    "code_quality_penalty",
 ]
 
-NODE_FEATURE_DIM = len(TOPOLOGICAL_METRIC_KEYS) + len(NODE_TYPES)  # 18
+NODE_FEATURE_DIM = len(TOPOLOGICAL_METRIC_KEYS) + len(NODE_TYPES)  # 23
 EDGE_FEATURE_DIM = 1 + len(EDGE_TYPES)                              # 8
 
 # Label column indices in the (N, 5) label matrix
@@ -219,8 +229,8 @@ def networkx_to_hetero_data(
                 for col, key in enumerate(TOPOLOGICAL_METRIC_KEYS):
                     feat_matrix[local_idx, col] = float(metrics.get(key, 0.0))
 
-            # Node type one-hot (indices 13-17)
-            type_col = 13 + NODE_TYPE_INDEX.get(node_type, 0)
+            # Node type one-hot (indices 18-22)
+            type_col = len(TOPOLOGICAL_METRIC_KEYS) + NODE_TYPE_INDEX.get(node_type, 0)
             feat_matrix[local_idx, type_col] = 1.0
 
         data[node_type].x = torch.from_numpy(feat_matrix)
@@ -434,6 +444,11 @@ def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, fl
             "qos_weight": float(getattr(comp, "qos_weight", 1.0)),
             "qos_weight_in": float(getattr(comp, "qos_weight_in", 0.0)),
             "qos_weight_out": float(getattr(comp, "qos_weight_out", 0.0)),
+            "loc_norm": float(getattr(comp, "loc_norm", 0.0)),
+            "complexity_norm": float(getattr(comp, "complexity_norm", 0.0)),
+            "instability_code": float(getattr(comp, "instability_code", 0.0)),
+            "lcom_norm": float(getattr(comp, "lcom_norm", 0.0)),
+            "code_quality_penalty": float(getattr(comp, "code_quality_penalty", 0.0)),
         }
 
     # Handle StructuralAnalysisResult with .components list
