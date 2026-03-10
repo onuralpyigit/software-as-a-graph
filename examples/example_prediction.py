@@ -28,7 +28,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 from src.core import create_repository
 from src.analysis import AnalysisService
 from src.simulation import SimulationService
-from src.gnn import (
+from src.prediction import (
     GNNService,
     extract_structural_metrics_dict,
     extract_rmav_scores_dict,

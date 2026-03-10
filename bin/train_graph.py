@@ -104,7 +104,7 @@ def main() -> None:
 
     # ── Imports ─────────────────────────────────────────────────────────────
     try:
-        from src.gnn import GNNService, extract_structural_metrics_dict, \
+        from src.prediction import GNNService, extract_structural_metrics_dict, \
             extract_rmav_scores_dict, extract_simulation_dict
     except ImportError as e:
         logger.error(f"GNN module not available: {e}")

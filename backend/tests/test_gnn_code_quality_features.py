@@ -14,7 +14,7 @@ import networkx as nx
 import torch
 import numpy as np
 
-from src.gnn.data_preparation import (
+from src.prediction.data_preparation import (
     networkx_to_hetero_data,
     extract_structural_metrics_dict,
     TOPOLOGICAL_METRIC_KEYS,

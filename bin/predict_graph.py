@@ -79,7 +79,7 @@ def main() -> None:
     display = ConsoleDisplay()
     display.print_header(f"GNN Prediction: {args.layer.upper()} Layer")
 
-    from src.gnn import GNNService, extract_structural_metrics_dict, \
+    from src.prediction import GNNService, extract_structural_metrics_dict, \
         extract_rmav_scores_dict
 
     # ── Data Loading ────────────────────────────────────────────────────────

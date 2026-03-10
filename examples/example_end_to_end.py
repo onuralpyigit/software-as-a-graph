@@ -37,7 +37,7 @@ from src.analysis import AnalysisService
 from src.simulation import SimulationService
 from src.validation import ValidationService
 from src.visualization import VisualizationService
-from src.gnn import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict, extract_simulation_dict
+from src.prediction import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict, extract_simulation_dict
 
 
 # ──────────────────────────────────────────────

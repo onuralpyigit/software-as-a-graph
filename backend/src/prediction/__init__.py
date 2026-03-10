@@ -14,7 +14,7 @@ Quick start
 -----------
 Training on a labelled graph::
 
-    from src.gnn import GNNService
+    from src.prediction import GNNService
 
     service = GNNService()
     result  = service.train(
