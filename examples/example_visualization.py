@@ -1,5 +1,5 @@
 """
-Step 6 — Dashboard Visualization
+Step 7 — Dashboard Visualization
 ==================================
 Demonstrates how to generate the static HTML dashboard programmatically.
 

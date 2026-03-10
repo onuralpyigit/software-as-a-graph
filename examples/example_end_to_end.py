@@ -8,7 +8,8 @@ Runs the complete 6-step analysis pipeline in a single script:
   Step 3  Analyze    — RMAV quality scoring (R, M, A, V, Q) per component
   Step 4  Simulate   — Exhaustive failure simulation → I(v), IR(v), IM(v), IA(v), IV(v)
   Step 5  Validate   — Statistical comparison (Spearman, F1, per-dimension metrics)
-  Step 6  Visualize  — Static HTML dashboard (self-contained research artefact)
+  Step 6  Predict    — Train GNN criticality prediction model
+  Step 7  Visualize  — Static HTML dashboard (self-contained research artefact)
 
 Prerequisites:
   • Python 3.9+ virtual environment with requirements.txt installed
@@ -36,6 +37,7 @@ from src.analysis import AnalysisService
 from src.simulation import SimulationService
 from src.validation import ValidationService
 from src.visualization import VisualizationService
+from src.gnn import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict, extract_simulation_dict
 
 
 # ──────────────────────────────────────────────
@@ -281,9 +283,51 @@ def step5_validate(repo, layer: str) -> dict:
     }
 
 
-def step6_visualize(repo, output_dir: Path, layer: str) -> Optional[str]:
+def step6_predict(repo, output_dir: Path, layer: str, analysis_summary: dict, sim_results: list) -> dict:
+    """Train GNN and predict component criticality."""
+    step_header(6, "GNN Criticality Prediction")
+
+    result_analysis = analysis_summary.get("analysis_result")
+    if not result_analysis:
+        print("  [ERROR] Missing analysis results; skipping GNN prediction.")
+        return {}
+
+    structural_dict = extract_structural_metrics_dict(result_analysis.structural)
+    rmav_dict       = extract_rmav_scores_dict(result_analysis.quality)
+    simulation_dict = extract_simulation_dict(sim_results)
+
+    gnn_service = GNNService(
+        hidden_channels=32,
+        num_heads=2,
+        num_layers=2,
+        dropout=0.1,
+        predict_edges=True,
+        checkpoint_dir=str(output_dir / "gnn_checkpoint"),
+    )
+
+    print(f"  Training GNN for layer='{layer}'...")
+    train_result = gnn_service.train(
+        graph=result_analysis.graph,
+        structural_metrics=structural_dict,
+        simulation_results=simulation_dict,
+        rmav_scores=rmav_dict,
+        num_epochs=15,
+        lr=1e-3,
+    )
+    
+    gnn_service.save()
+
+    print_kv("\nTop Critical Components", min(5, len(train_result.top_critical_nodes(5))))
+    for node in train_result.top_critical_nodes(3):
+        print(f"    {node.component[:30]:<32} Score: {node.composite_score:.4f}  [{node.criticality_level}]")
+        
+    step_done(6)
+    return {"trained": True}
+
+
+def step7_visualize(repo, output_dir: Path, layer: str) -> Optional[str]:
     """Generate static HTML dashboard."""
-    step_header(6, "Dashboard Visualization")
+    step_header(7, "Dashboard Visualization")
 
     analysis   = AnalysisService(repo)
     simulation = SimulationService(repo)
@@ -350,11 +394,14 @@ def main() -> None:
         _sim_results      = step4_simulate(repo, args.layer)
         validation_summary = step5_validate(repo, args.layer)
 
-        # ── Step 6 (optional) ─────────────────────────────────────────
+        # ── Step 6 (Predict) ──────────────────────────────────────────
+        _predict_summary  = step6_predict(repo, output_dir, args.layer, analysis_summary, _sim_results)
+
+        # ── Step 7 (optional) ─────────────────────────────────────────
         if not args.skip_viz:
-            step6_visualize(repo, output_dir, args.layer)
+            step7_visualize(repo, output_dir, args.layer)
         else:
-            print("\n  [Step 6 skipped — use --skip-viz=False to generate dashboard]")
+            print("\n  [Step 7 skipped — use --skip-viz=False to generate dashboard]")
 
     except KeyboardInterrupt:
         print("\n\n[Interrupted by user]")

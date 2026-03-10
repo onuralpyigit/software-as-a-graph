@@ -157,8 +157,7 @@ def main():
 
     print()
     print_section("Done")
-    print("  Next step: run  examples/example_visualization.py")
-
+    print("  Next step: run  examples/example_prediction.py")
 
 if __name__ == "__main__":
     main()
