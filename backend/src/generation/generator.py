@@ -21,7 +21,7 @@ from .models import (
     ROLE_OPTIONS,
     APP_TYPE_OPTIONS,
 )
-from .datasets import DomainDataset, get_qos_for_topic
+from .datasets import DomainDataset, get_qos_for_topic, get_app_type_for_name, get_lib_archetype_for_name
 
 
 # --- Code-quality generation parameters by app_type ---
@@ -119,13 +119,14 @@ class StatisticalGraphGenerator:
         lcom = round(self.rng.uniform(lcom_lo, lcom_hi), 3)
         return loc, cc, lcom
 
-    def _generate_lib_code_quality(self) -> Tuple[int, float, float]:
+    def _generate_lib_code_quality(self, archetype: Optional[str] = None) -> Tuple[int, float, float]:
         """Return (loc, cyclomatic_complexity, lcom) sampled for a Library node.
 
         Picks a random library archetype weighted toward utility/driver (most common),
-        then samples within the archetype's parameter ranges.
+        then samples within the archetype's parameter ranges, unless archetype is specified.
         """
-        archetype = self.rng.choice(_LIB_ARCHETYPE_WEIGHTS)
+        if not archetype or archetype not in _LIB_CODE_QUALITY_PARAMS:
+            archetype = self.rng.choice(_LIB_ARCHETYPE_WEIGHTS)
         params = _LIB_CODE_QUALITY_PARAMS[archetype]
         loc_lo, loc_hi, cc_lo, cc_hi, lcom_lo, lcom_hi = params
         loc  = self.rng.randint(loc_lo, loc_hi)
@@ -294,11 +295,16 @@ class StatisticalGraphGenerator:
             else:
                 criticality = self.rng.choice([True, False])
             
-            app_type = self.rng.choice(APP_TYPE_OPTIONS)
+            app_name = domain_ds.get_app_name() if domain_ds else f"App-{i}"
+            if domain_ds:
+                app_type = get_app_type_for_name(app_name)
+            else:
+                app_type = self.rng.choice(APP_TYPE_OPTIONS)
+                
             loc, cc, lcom = self._generate_code_quality(app_type)
             apps.append(Application(
                 id=f"A{i}",
-                name=domain_ds.get_app_name() if domain_ds else f"App-{i}",
+                name=app_name,
                 role=role,
                 app_type=app_type,
                 criticality=criticality,
@@ -310,10 +316,16 @@ class StatisticalGraphGenerator:
 
         libs: List[Library] = []
         for i in range(c.libs):
-            loc_l, cc_l, lcom_l = self._generate_lib_code_quality()
+            lib_name = domain_ds.get_library_name() if domain_ds else f"Lib-{i}"
+            if domain_ds:
+                archetype = get_lib_archetype_for_name(lib_name)
+                loc_l, cc_l, lcom_l = self._generate_lib_code_quality(archetype)
+            else:
+                loc_l, cc_l, lcom_l = self._generate_lib_code_quality()
+                
             libs.append(Library(
                 id=f"L{i}",
-                name=domain_ds.get_library_name() if domain_ds else f"Lib-{i}",
+                name=lib_name,
                 version=f"{self.rng.randint(0, 2)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
                 loc=loc_l,
                 cyclomatic_complexity=cc_l,

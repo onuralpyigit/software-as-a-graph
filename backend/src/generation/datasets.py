@@ -171,3 +171,41 @@ class DomainDataset:
         
     def get_library_name(self) -> str:
         return self._get_name("libraries", "lib")
+
+def get_app_type_for_name(app_name: str) -> str:
+    """Infer the application archetype based on its name for code quality metrics."""
+    # Match against the _CODE_QUALITY_PARAMS keys from generator.py
+    # "sensor", "actuator", "monitor", "controller", "gateway", "processor", "service"
+    name_lower = app_name.lower()
+    
+    if any(x in name_lower for x in ["gateway", "router", "bridge", "hub"]):
+        return "gateway"
+    if any(x in name_lower for x in ["sensor", "detector", "vitals", "meter"]):
+        return "sensor"
+    if any(x in name_lower for x in ["monitor", "tracker", "evaluator", "viewer"]):
+        return "monitor"
+    if any(x in name_lower for x in ["controller", "manager", "scheduler"]):
+        return "controller"
+    if any(x in name_lower for x in ["driver", "actuator", "writer"]):
+        return "actuator"
+    if any(x in name_lower for x in ["processor", "engine", "sync", "aggregator", "planner", "solver", "brain"]):
+        return "processor"
+        
+    return "service"
+
+def get_lib_archetype_for_name(lib_name: str) -> str:
+    """Infer the library archetype based on its name for code quality metrics."""
+    # Match against _LIB_CODE_QUALITY_PARAMS keys from generator.py
+    # "utility", "framework", "driver", "middleware", "protocol"
+    name_lower = lib_name.lower()
+    
+    if any(x in name_lower for x in ["driver", "bridge", "client"]):
+        return "driver"
+    if any(x in name_lower for x in ["proxy", "mesh", "middleware"]):
+        return "middleware"
+    if any(x in name_lower for x in ["protocol", "parser", "format", "fix", "dicom", "hl7"]):
+        return "protocol"
+    if any(x in name_lower for x in ["core", "framework", "sdk", "toolkit", "engine"]):
+        return "framework"
+        
+    return "utility"
