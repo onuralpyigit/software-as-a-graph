@@ -21,6 +21,7 @@ from .models import (
     ROLE_OPTIONS,
     APP_TYPE_OPTIONS,
 )
+from .datasets import DomainDataset, get_qos_for_topic
 
 
 # --- Code-quality generation parameters by app_type ---
@@ -192,8 +193,18 @@ class StatisticalGraphGenerator:
         c = self.config
         
         # 1. Generate base entities using Core Models
-        nodes = [Node(id=f"N{i}", name=f"Node-{i}") for i in range(c.nodes)]
-        brokers = [Broker(id=f"B{i}", name=f"Broker-{i}") for i in range(c.brokers)]
+        domain_ds = None
+        if c.domain:
+            domain_ds = DomainDataset(c.domain, self.rng)
+            
+        nodes = [
+            Node(id=f"N{i}", name=domain_ds.get_node_name() if domain_ds else f"Node-{i}") 
+            for i in range(c.nodes)
+        ]
+        brokers = [
+            Broker(id=f"B{i}", name=domain_ds.get_broker_name() if domain_ds else f"Broker-{i}") 
+            for i in range(c.brokers)
+        ]
         
         topics: List[Topic] = []
         durability_pool = None
@@ -217,30 +228,37 @@ class StatisticalGraphGenerator:
             else:
                 size = self.rng.randint(64, 65536)
             
-            if durability_pool and i < len(durability_pool):
-                durability = durability_pool[i]
-            elif durability_pool:
-                durability = self.rng.choice(durability_pool)
-            else:
-                durability = self.rng.choice(DURABILITY_OPTIONS)
+            topic_name = domain_ds.get_topic_name() if domain_ds else f"Topic-{i}"
             
-            if reliability_pool and i < len(reliability_pool):
-                reliability = reliability_pool[i]
-            elif reliability_pool:
-                reliability = self.rng.choice(reliability_pool)
+            if domain_ds:
+                durability, reliability, transport_priority = get_qos_for_topic(
+                    topic_name, c.domain, c.scenario
+                )
             else:
-                reliability = self.rng.choice(RELIABILITY_OPTIONS)
-            
-            if priority_pool and i < len(priority_pool):
-                transport_priority = priority_pool[i]
-            elif priority_pool:
-                transport_priority = self.rng.choice(priority_pool)
-            else:
-                transport_priority = self.rng.choice(PRIORITY_OPTIONS)
+                if durability_pool and i < len(durability_pool):
+                    durability = durability_pool[i]
+                elif durability_pool:
+                    durability = self.rng.choice(durability_pool)
+                else:
+                    durability = self.rng.choice(DURABILITY_OPTIONS)
+                
+                if reliability_pool and i < len(reliability_pool):
+                    reliability = reliability_pool[i]
+                elif reliability_pool:
+                    reliability = self.rng.choice(reliability_pool)
+                else:
+                    reliability = self.rng.choice(RELIABILITY_OPTIONS)
+                
+                if priority_pool and i < len(priority_pool):
+                    transport_priority = priority_pool[i]
+                elif priority_pool:
+                    transport_priority = self.rng.choice(priority_pool)
+                else:
+                    transport_priority = self.rng.choice(PRIORITY_OPTIONS)
             
             topics.append(Topic(
                 id=f"T{i}",
-                name=f"Topic-{i}",
+                name=topic_name,
                 size=size,
                 qos=QoSPolicy(
                     durability=durability,
@@ -280,7 +298,7 @@ class StatisticalGraphGenerator:
             loc, cc, lcom = self._generate_code_quality(app_type)
             apps.append(Application(
                 id=f"A{i}",
-                name=f"App-{i}",
+                name=domain_ds.get_app_name() if domain_ds else f"App-{i}",
                 role=role,
                 app_type=app_type,
                 criticality=criticality,
@@ -295,7 +313,7 @@ class StatisticalGraphGenerator:
             loc_l, cc_l, lcom_l = self._generate_lib_code_quality()
             libs.append(Library(
                 id=f"L{i}",
-                name=f"Lib-{i}",
+                name=domain_ds.get_library_name() if domain_ds else f"Lib-{i}",
                 version=f"{self.rng.randint(0, 2)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
                 loc=loc_l,
                 cyclomatic_complexity=cc_l,
@@ -493,6 +511,8 @@ class StatisticalGraphGenerator:
                 "scale": c.to_scale_dict(),
                 "seed": c.seed,
                 "generation_mode": "statistical" if c.use_statistics else "random",
+                "domain": c.domain,
+                "scenario": c.scenario,
             },
             "nodes": [n.to_dict() for n in nodes],
             "brokers": [b.to_dict() for b in brokers],

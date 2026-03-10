@@ -17,11 +17,18 @@ class GenerationService:
         scale: str = "medium",
         seed: int = 42,
         config: Optional[GraphConfig] = None,
+        domain: Optional[str] = None,
+        scenario: Optional[str] = None,
     ) -> None:
         if config is not None:
             self.config = config
         else:
             self.config = GraphConfig.from_scale(scale, seed)
+            
+        if domain is not None:
+            self.config.domain = domain
+        if scenario is not None:
+            self.config.scenario = scenario
             
         self.generator = StatisticalGraphGenerator(self.config)
 
@@ -41,6 +48,8 @@ def generate_graph(scale: str = "medium", **kwargs: Any) -> Dict[str, Any]:
     """Convenience function to generate a graph."""
     config = kwargs.get('config')
     seed = kwargs.get('seed', 42)
+    domain = kwargs.get('domain')
+    scenario = kwargs.get('scenario')
         
-    service = GenerationService(scale=scale, seed=seed, config=config)
+    service = GenerationService(scale=scale, seed=seed, config=config, domain=domain, scenario=scenario)
     return service.generate()

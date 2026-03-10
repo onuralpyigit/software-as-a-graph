@@ -29,8 +29,8 @@ async def generate_graph(request: GenerateGraphRequest):
             large (150 apps), xlarge (500 apps)
     """
     try:
-        logger.info(f"Generating graph: scale={request.scale}, seed={request.seed}")
-        service = GenerationService(scale=request.scale, seed=request.seed)
+        logger.info(f"Generating graph: scale={request.scale}, seed={request.seed}, domain={request.domain}, scenario={request.scenario}")
+        service = GenerationService(scale=request.scale, seed=request.seed, domain=request.domain, scenario=request.scenario)
         graph_data = service.generate()
         
         return {
@@ -60,8 +60,8 @@ async def generate_graph_file(request: GenerateGraphFileRequest):
             large (150 apps), xlarge (500 apps)
     """
     try:
-        logger.info(f"Generating graph file: scale={request.scale}, seed={request.seed}")
-        service = GenerationService(scale=request.scale, seed=request.seed)
+        logger.info(f"Generating graph file: scale={request.scale}, seed={request.seed}, domain={request.domain}, scenario={request.scenario}")
+        service = GenerationService(scale=request.scale, seed=request.seed, domain=request.domain, scenario=request.scenario)
         graph_data = service.generate()
         
         # Return the graph data directly as JSON
@@ -118,6 +118,8 @@ async def generate_and_import_graph(
     credentials: Neo4jCredentials,
     scale: str = Query(default="medium", description="Graph scale"),
     seed: int = Query(default=42, description="Random seed"),
+    domain: Optional[str] = Query(default=None, description="Domain dataset (e.g. e-commerce)"),
+    scenario: Optional[str] = Query(default=None, description="Topic QoS Scenario (e.g. transactions)"),
     clear_database: bool = Query(default=False, description="Clear database before import")
 ):
     """
@@ -126,8 +128,8 @@ async def generate_and_import_graph(
     repo = create_repository(credentials.uri, credentials.user, credentials.password)
     try:
         # Generate
-        logger.info(f"Generating graph: scale={scale}, seed={seed}")
-        gen_service = GenerationService(scale=scale, seed=seed)
+        logger.info(f"Generating graph: scale={scale}, seed={seed}, domain={domain}, scenario={scenario}")
+        gen_service = GenerationService(scale=scale, seed=seed, domain=domain, scenario=scenario)
         graph_data = gen_service.generate()
         
         # Import

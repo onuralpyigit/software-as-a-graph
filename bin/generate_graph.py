@@ -53,6 +53,20 @@ def main() -> None:
         help="Random seed for reproducibility",
     )
     
+    parser.add_argument(
+        "--domain",
+        type=str,
+        default=None,
+        help="Domain for realistic naming (e.g. e-commerce, robotics)",
+    )
+    
+    parser.add_argument(
+        "--scenario",
+        type=str,
+        default=None,
+        help="Scenario mapping for QoS generation (e.g. sensor_telemetry, events)",
+    )
+    
     args = parser.parse_args()
     
     try:
@@ -69,7 +83,14 @@ def main() -> None:
         else:
             scale = args.scale or "medium"
             print(f"Generating {scale} graph with seed {args.seed}...")
-            graph_data = generate_graph(scale=scale, seed=args.seed)
+            if args.domain:
+                print(f"Using domain dataset: {args.domain}" + (f" (scenario: {args.scenario})" if args.scenario else ""))
+            graph_data = generate_graph(
+                scale=scale, 
+                seed=args.seed,
+                domain=args.domain,
+                scenario=args.scenario
+            )
             
         # Ensure output directory exists
         args.output.parent.mkdir(parents=True, exist_ok=True)

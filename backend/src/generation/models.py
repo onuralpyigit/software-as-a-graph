@@ -301,6 +301,10 @@ class GraphConfig:
     qos_stats: Optional[QosStats] = None
     use_statistics: bool = False
     
+    # Realistic generation fields
+    domain: Optional[str] = None
+    scenario: Optional[str] = None
+    
     @classmethod
     def from_scale(cls, scale: str, seed: int = 42) -> "GraphConfig":
         preset = SCALE_PRESETS.get(scale, SCALE_PRESETS["medium"])
@@ -312,6 +316,8 @@ class GraphConfig:
             libs=preset["libs"],
             seed=seed,
             use_statistics=False,
+            domain=None,
+            scenario=None,
         )
     
     @classmethod
@@ -334,6 +340,8 @@ class GraphConfig:
                 topic_stats=TopicStats.from_dict(graph_data.get("topic_stats", {})) if "topic_stats" in graph_data else None,
                 qos_stats=QosStats.from_dict(graph_data.get("qos_stats", {})) if "qos_stats" in graph_data else None,
                 use_statistics=True,
+                domain=graph_data.get("domain"),
+                scenario=graph_data.get("scenario"),
             )
         else:
             return cls(
@@ -344,6 +352,8 @@ class GraphConfig:
                 libs=counts.get("libraries", graph_data.get("libs", 10)),
                 seed=graph_data.get("seed", 42),
                 use_statistics=False,
+                domain=graph_data.get("domain"),
+                scenario=graph_data.get("scenario"),
             )
     
     def to_scale_dict(self) -> Dict[str, int]:
@@ -355,3 +365,14 @@ class GraphConfig:
             "nodes": self.nodes,
             "libs": self.libs,
         }
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert full config to dict."""
+        base = self.to_scale_dict()
+        base.update({
+            "seed": self.seed,
+            "use_statistics": self.use_statistics,
+            "domain": self.domain,
+            "scenario": self.scenario,
+        })
+        return base

@@ -52,12 +52,16 @@ class GraphRequestWithCredentials(BaseModel):
 class GenerateGraphRequest(GraphRequestWithCredentials):
     scale: str = Field(default="medium", description="Graph scale: tiny, small, medium, large, xlarge")
     seed: int = Field(default=42, description="Random seed for reproducibility")
+    domain: Optional[str] = Field(default=None, description="Domain dataset (e.g. e-commerce)")
+    scenario: Optional[str] = Field(default=None, description="Topic QoS Scenario (e.g. transactions)")
 
 
 class GenerateGraphFileRequest(BaseModel):
     """Request for generating a graph file without database credentials"""
     scale: str = Field(default="medium", description="Graph scale: tiny, small, medium, large, xlarge")
     seed: int = Field(default=42, description="Random seed for reproducibility")
+    domain: Optional[str] = Field(default=None, description="Domain dataset (e.g. e-commerce)")
+    scenario: Optional[str] = Field(default=None, description="Topic QoS Scenario (e.g. transactions)")
 
 
 class ImportGraphRequest(GraphRequestWithCredentials):
