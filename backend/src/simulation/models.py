@@ -187,6 +187,10 @@ class EventScenario:
     drop_probability: float = 0.0
     broker_failure_prob: float = 0.0
     delivery_timeout: float = 1.0
+    failure_rate: float = 0.0
+    failure_targets: Optional[List[str]] = None
+    mean_recovery_time: float = 0.0
+    poisson_arrivals: bool = False
 
 
 @dataclass
@@ -262,6 +266,7 @@ class EventResult:
     drop_reasons: Dict[str, int] = field(default_factory=dict)
     component_names: Dict[str, str] = field(default_factory=dict)
     related_components: List[str] = field(default_factory=list)
+    poisson_failure_log: List[Dict[str, Any]] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
         return {

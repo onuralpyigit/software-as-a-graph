@@ -33,28 +33,77 @@ class SimulationService:
         graph_data = self.repository.get_graph_data(include_raw=True)
         return SimulationGraph(graph_data)
 
-    def run_event_simulation(self, source_app: str, num_messages: int = 100, duration: float = 10.0, **kwargs) -> Any:
-        """Run event simulation from a source application."""
+    def run_event_simulation(
+        self,
+        source_app: str,
+        num_messages: int = 100,
+        duration: float = 10.0,
+        # [POISSON] Poisson failure-injection parameters
+        failure_rate: float = 0.0,
+        failure_targets: list = None,
+        mean_recovery_time: float = 0.0,
+        poisson_arrivals: bool = False,
+        **kwargs,
+    ) -> Any:
+        """Run event simulation from a source application.
+
+        Args:
+            source_app: Publisher application ID.
+            num_messages: Number of messages to publish.
+            duration: Simulation wall-clock duration (sim-seconds).
+            failure_rate: Poisson failure rate λ (failures/sim-second).
+                0.0 disables Poisson injection (default).
+                MTTF = 1 / failure_rate when > 0.
+            failure_targets: Component IDs eligible for Poisson injection.
+                None (default) = all components.
+            mean_recovery_time: Mean sim-seconds before a Poisson-failed
+                component recovers.  0.0 = no recovery (default).
+            poisson_arrivals: If True, replace fixed-interval message
+                scheduling with Poisson inter-arrivals (M/G/1 model).
+        """
         graph = self._get_graph()
         simulator = EventSimulator(graph)
-        
+
         scenario = EventScenario(
             source_app=source_app,
             num_messages=num_messages,
-            duration=duration
+            duration=duration,
+            failure_rate=failure_rate,
+            failure_targets=failure_targets,
+            mean_recovery_time=mean_recovery_time,
+            poisson_arrivals=poisson_arrivals,
         )
-        
+
         result = simulator.simulate(scenario)
         return result
 
-    def run_event_simulation_all(self, num_messages: int = 100, duration: float = 10.0, layer: str = "system", **kwargs) -> Dict[str, Any]:
+    def run_event_simulation_all(
+        self,
+        num_messages: int = 100,
+        duration: float = 10.0,
+        layer: str = "system",
+        # [POISSON] forwarded to each per-publisher scenario
+        failure_rate: float = 0.0,
+        failure_targets: list = None,
+        mean_recovery_time: float = 0.0,
+        poisson_arrivals: bool = False,
+        **kwargs,
+    ) -> Dict[str, Any]:
         """Run event simulation for all publishers."""
         graph = self._get_graph()
         simulator = EventSimulator(graph)
-        
-        results = simulator.simulate_all_publishers(
-            EventScenario(source_app="all", num_messages=num_messages, duration=duration)
+
+        template = EventScenario(
+            source_app="all",
+            num_messages=num_messages,
+            duration=duration,
+            failure_rate=failure_rate,
+            failure_targets=failure_targets,
+            mean_recovery_time=mean_recovery_time,
+            poisson_arrivals=poisson_arrivals,
         )
+
+        results = simulator.simulate_all_publishers(template)
         return results
 
     def run_failure_simulation(self, target_id: str, layer: str = "system", cascade_probability: float = 1.0, **kwargs) -> Any:
