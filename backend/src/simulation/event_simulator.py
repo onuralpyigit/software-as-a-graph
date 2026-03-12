@@ -162,6 +162,11 @@ class EventSimulator:
 
         self.logger.info(f"Starting event simulation: {scenario.source_app} -> {publishes_to}")
 
+        # Run enriching processor
+        from .processor import ComplexityProcessor
+        processor = ComplexityProcessor(self.graph, scenario)
+        processor.process()
+
         # ── Schedule message publications ──────────────────────────────────
         if scenario.poisson_arrivals:
             # [POISSON] Poisson arrival process: inter-arrival ~ Exp(1/message_interval)
@@ -618,7 +623,10 @@ class EventSimulator:
 
         # Successful delivery
         msg.delivered_to.add(subscriber_id)
-        msg.delivered_at = self._sim_time + scenario.subscribe_latency
+        
+        sub_comp = self.graph.components.get(subscriber_id)
+        proc_latency = sub_comp.properties.get("processing_latency", scenario.base_processing_latency) if sub_comp else scenario.base_processing_latency
+        msg.delivered_at = self._sim_time + proc_latency
 
         self._metrics.messages_delivered += 1
         self._reached_subscribers.add(subscriber_id)

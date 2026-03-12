@@ -183,7 +183,10 @@ class EventScenario:
     publish_latency: float = 0.001
     broker_latency: float = 0.002
     network_latency: float = 0.005
-    subscribe_latency: float = 0.001
+    base_processing_latency: float = 0.001
+    complexity_scale_factor: float = 1.0
+    library_complexity_weight: float = 0.3
+    enrich_processing_time: bool = True
     drop_probability: float = 0.0
     broker_failure_prob: float = 0.0
     delivery_timeout: float = 1.0
