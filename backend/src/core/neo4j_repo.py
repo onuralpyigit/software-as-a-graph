@@ -285,6 +285,17 @@ class Neo4jRepository:
                     MERGE (a)-[:{rel_type}]->(b)
                 """)
 
+        # Phase 2 post-step: Fan-out augmentation for Topic
+        self._run_query("""
+            MATCH (t:Topic)
+            OPTIONAL MATCH (sub:Application)-[:SUBSCRIBES_TO]->(t)
+            WITH t, count(DISTINCT sub) as sub_count
+            OPTIONAL MATCH (pub:Application)-[:PUBLISHES_TO]->(t)
+            WITH t, sub_count, count(DISTINCT pub) as pub_count
+            SET t.subscriber_count = sub_count,
+                t.publisher_count = pub_count
+        """)
+
     def _get_qos_weight_cypher(self, topic_var: str) -> str:
         """
         Generate Cypher expression for QoS weight calculation.
@@ -345,58 +356,52 @@ class Neo4jRepository:
         Propagate weights from topics up through the component hierarchy.
         
         Implements §1.5 Weight Propagation:
-            Library:     w(l) = Σ w(t) for topics l pub/sub to
-            Application: w(a) = Σ w(t) + Σ w(l) for direct topics + used libraries
-            Broker:      w(b) = Σ w(t) for routed topics
-            Node:        w(n) = Σ w(c) for hosted components
-            USES edges:  w(e) = w(target_library)
+            Application: w(a) = max w(t) for direct topics
+            Library:     w(l) = max w(app) for consuming apps (and max w(t) for direct topics if any)
+            Broker:      w(b) = 0.70 * max(w(t)) + 0.30 * mean(w(t))
+            Node:        w(n) = max w(c) for hosted components
+            app_to_lib:  w(e) = w(App)
         """
-        # 1. Library Weight
-        self._run_query("""
-            MATCH (l:Library)
-            OPTIONAL MATCH (l)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
-            WITH l, coalesce(sum(t.weight), 0.0) as load_weight
-            SET l.weight = load_weight
-        """)
-
-        # 2. USES Edge Weights
-        self._run_query("MATCH ()-[r:USES]->(l:Library) SET r.weight = l.weight")
-
-        # 3. Application Weight
+        # 1. Application Weight (max topic weight)
         self._run_query("""
             MATCH (a:Application)
             OPTIONAL MATCH (a)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
-            OPTIONAL MATCH (a)-[:USES]->(l:Library)
-            WITH a, coalesce(sum(DISTINCT t.weight), 0.0) as topic_weight, 
-                 coalesce(sum(DISTINCT l.weight), 0.0) as lib_weight
-            SET a.weight = topic_weight + lib_weight
+            WITH a, max(t.weight) as topic_max
+            SET a.weight = coalesce(topic_max, 0.01)
         """)
 
-        # 4. Broker Weight
+        # 2. Library Weight (propagated from consuming apps or direct topics)
+        self._run_query("""
+            MATCH (l:Library)
+            OPTIONAL MATCH (l)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
+            WITH l, max(t.weight) as topic_max
+            OPTIONAL MATCH (app:Application)-[:USES]->(l)
+            WITH l, coalesce(topic_max, 0.0) as t_max, coalesce(max(app.weight), 0.0) as a_max
+            SET l.weight = CASE WHEN t_max > a_max THEN coalesce(t_max, 0.01) 
+                                WHEN a_max > 0 THEN a_max 
+                                ELSE 0.01 END
+        """)
+
+        # 3. Broker Weight (hybrid: 0.70 * max + 0.30 * mean)
         self._run_query("""
             MATCH (b:Broker)
             OPTIONAL MATCH (b)-[:ROUTES]->(t:Topic)
-            WITH b, coalesce(sum(t.weight), 0.0) as routed_weight
-            SET b.weight = routed_weight
+            WITH b, max(t.weight) as max_w, avg(t.weight) as mean_w
+            SET b.weight = coalesce(0.70 * max_w + 0.30 * mean_w, 0.01)
         """)
 
-        # 5. Node Weight
+        # 4. Node Weight (max hosted component weight)
         self._run_query("""
             MATCH (n:Node)
             OPTIONAL MATCH (c)-[:RUNS_ON]->(n) WHERE c:Application OR c:Broker
-            WITH n, coalesce(sum(c.weight), 0.0) as hosted_weight
-            SET n.weight = hosted_weight
+            WITH n, max(c.weight) as hosted_max
+            SET n.weight = coalesce(hosted_max, 0.01)
         """)
-
-        # 6. DEPENDS_ON Edge Weights: |shared_topics| × avg(topic_weight)
+        
+        # 5. app_to_lib Edge Weights (inherits from App)
         self._run_query("""
-            MATCH (a)-[d:DEPENDS_ON]->(b)
-            WHERE d.dependency_type = 'app_to_app'
-            OPTIONAL MATCH (a)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(b)
-            WITH a, b, d, collect(t.weight) as weights
-            SET d.weight = CASE WHEN size(weights) > 0
-                THEN size(weights) * reduce(s = 0.0, w IN weights | s + w) / size(weights)
-                ELSE 1.0 END
+            MATCH (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib:Library)
+            SET d.weight = coalesce(app.weight, 0.01)
         """)
 
     def _derive_dependencies(self) -> None:
@@ -413,10 +418,10 @@ class Neo4jRepository:
             WHERE subscriber <> publisher
               AND (subscriber:Application OR subscriber:Library)
               AND (publisher:Application OR publisher:Library)
-            WITH subscriber, publisher, count(t) as shared_count, avg(t.weight) as avg_weight
+            WITH subscriber, publisher, count(t) as path_count, max(t.weight) as max_weight
             MERGE (subscriber)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(publisher)
-            SET d.weight = shared_count * avg_weight,
-                d.shared_topics = shared_count
+            SET d.weight = coalesce(max_weight, 0.01),
+                d.path_count = path_count
         """)
         
         # Rule 1 (transitive): app depends on publisher via library chain
@@ -425,13 +430,13 @@ class Neo4jRepository:
             MATCH (app:Application)-[:USES*1..]->(lib)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(publisher)
             WHERE app <> publisher
               AND (publisher:Application OR publisher:Library)
-            WITH app, publisher, count(DISTINCT t) as shared_count, avg(t.weight) as avg_weight
+            WITH app, publisher, count(DISTINCT t) as path_count, max(t.weight) as max_weight
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(publisher)
-            ON CREATE SET d.weight = shared_count * avg_weight, d.shared_topics = shared_count
-            ON MATCH SET d.weight = CASE WHEN shared_count * avg_weight > d.weight 
-                                         THEN shared_count * avg_weight ELSE d.weight END,
-                         d.shared_topics = CASE WHEN shared_count > d.shared_topics 
-                                                THEN shared_count ELSE d.shared_topics END
+            ON CREATE SET d.weight = coalesce(max_weight, 0.01), d.path_count = path_count
+            ON MATCH SET d.weight = CASE WHEN coalesce(max_weight, 0.01) > coalesce(d.weight, 0.0) 
+                                         THEN max_weight ELSE d.weight END,
+                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0) 
+                                             THEN path_count ELSE d.path_count END
         """)
         
         # Rule 1 (transitive, reverse): app publishes via library chain
@@ -440,13 +445,13 @@ class Neo4jRepository:
             MATCH (subscriber)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(lib)<-[:USES*1..]-(app:Application)
             WHERE subscriber <> app
               AND (subscriber:Application OR subscriber:Library)
-            WITH subscriber, app, count(DISTINCT t) as shared_count, avg(t.weight) as avg_weight
+            WITH subscriber, app, count(DISTINCT t) as path_count, max(t.weight) as max_weight
             MERGE (subscriber)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(app)
-            ON CREATE SET d.weight = shared_count * avg_weight, d.shared_topics = shared_count
-            ON MATCH SET d.weight = CASE WHEN shared_count * avg_weight > d.weight 
-                                         THEN shared_count * avg_weight ELSE d.weight END,
-                         d.shared_topics = CASE WHEN shared_count > d.shared_topics 
-                                                THEN shared_count ELSE d.shared_topics END
+            ON CREATE SET d.weight = coalesce(max_weight, 0.01), d.path_count = path_count
+            ON MATCH SET d.weight = CASE WHEN coalesce(max_weight, 0.01) > coalesce(d.weight, 0.0) 
+                                         THEN max_weight ELSE d.weight END,
+                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0) 
+                                             THEN path_count ELSE d.path_count END
         """)
         
         # Rule 2: app_to_broker — app depends on broker that routes its topics
@@ -464,7 +469,7 @@ class Neo4jRepository:
             WITH app, broker, count(DISTINCT t) as topic_count
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
             ON CREATE SET d.weight = topic_count
-            ON MATCH SET d.weight = CASE WHEN topic_count > d.weight THEN topic_count ELSE d.weight END
+            ON MATCH SET d.weight = CASE WHEN topic_count > coalesce(d.weight, 0) THEN topic_count ELSE d.weight END
         """)
         
         # Rule 3: node_to_node — lifted from component dependencies
@@ -485,6 +490,14 @@ class Neo4jRepository:
             WITH n, broker, count(*) as dep_count
             MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(broker)
             SET d.weight = dep_count
+        """)
+
+        # Rule 5: app_to_lib — app depends on shared library
+        self._run_query("""
+            MATCH (app)-[:USES]->(lib:Library)
+            WHERE app:Application OR app:Library
+            MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib)
+            // Weight is populated later during aggregate weights phase
         """)
 
     # ==========================================
