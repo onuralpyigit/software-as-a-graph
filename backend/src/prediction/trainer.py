@@ -19,6 +19,9 @@ from scipy.stats import spearmanr
 from sklearn.metrics import f1_score
 from torch import Tensor
 
+from torch_geometric.data import HeteroData
+from torch_geometric.loader import DataLoader
+
 from .models import CriticalityLoss
 
 logger = logging.getLogger(__name__)
@@ -89,8 +92,6 @@ class GNNTrainer:
 
     def train(self, data: 'HeteroData') -> Dict[str, List[float]]:
         """Run the full training loop with early stopping."""
-        from torch_geometric.data import HeteroData
-
         logger.info(
             "Starting training | epochs=%d | lr=%.2e | device=%s",
             self.num_epochs, self.lr, self.device
@@ -103,13 +104,19 @@ class GNNTrainer:
             optimizer, T_max=self.num_epochs
         )
 
-        data = data.to(self.device)
-        
-        # Logging split sizes
-        for nt in data.node_types:
-            if hasattr(data[nt], "train_mask"):
-                n_train = data[nt].train_mask.sum().item()
-                n_val = data[nt].val_mask.sum().item()
+        # Handle single HeteroData vs DataLoader
+        if isinstance(data, HeteroData):
+            loader = DataLoader([data], batch_size=1)
+        else:
+            loader = data
+
+        # Initial logging of split sizes (first batch only)
+        first_batch = next(iter(loader))
+        first_batch = first_batch.to(self.device)
+        for nt in first_batch.node_types:
+            if hasattr(first_batch[nt], "train_mask"):
+                n_train = first_batch[nt].train_mask.sum().item()
+                n_val = first_batch[nt].val_mask.sum().item()
                 if n_train > 0 or n_val > 0:
                     logger.info("  [%s] Train: %d | Val: %d", nt, n_train, n_val)
 
@@ -120,44 +127,57 @@ class GNNTrainer:
         for epoch in range(1, self.num_epochs + 1):
             # ── Train ────────────────────────────────────────────────────────
             self.model.train()
-            optimizer.zero_grad()
+            epoch_loss = 0.0
+            num_batches = 0
 
-            # Forward pass
-            x_dict = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
-            ei_dict = {rel: data[rel].edge_index for rel in data.edge_types}
-            ea_dict = {rel: data[rel].edge_attr for rel in data.edge_types if hasattr(data[rel], "edge_attr")}
+            for batch in loader:
+                batch = batch.to(self.device)
+                optimizer.zero_grad()
 
-            # Handle both NodeCriticalityGNN and EdgeCriticalityGNN
-            output = self.model(x_dict, ei_dict, ea_dict)
-            if isinstance(output, tuple):
-                node_preds, _ = output
-            else:
-                node_preds = output
+                # Forward pass
+                x_dict = {nt: batch[nt].x for nt in batch.node_types if hasattr(batch[nt], "x")}
+                ei_dict = {rel: batch[rel].edge_index for rel in batch.edge_types}
+                ea_dict = {rel: batch[rel].edge_attr for rel in batch.edge_types if hasattr(batch[rel], "edge_attr")}
 
-            # Compute loss over training nodes of all types
-            total_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
-            for nt, preds in node_preds.items():
-                store = data[nt]
-                if not (hasattr(store, "y") and hasattr(store, "train_mask")):
-                    continue
-                mask = store.train_mask
-                if mask.sum() == 0:
-                    continue
+                # Handle both NodeCriticalityGNN and EdgeCriticalityGNN
+                output = self.model(x_dict, ei_dict, ea_dict)
+                if isinstance(output, tuple):
+                    node_preds, _ = output
+                else:
+                    node_preds = output
 
-                loss, _ = self.loss_fn(preds, store.y, mask)
-                total_loss = total_loss + loss
+                # Compute loss over training nodes of all types
+                batch_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
+                for nt, preds in node_preds.items():
+                    store = batch[nt]
+                    if not (hasattr(store, "y") and hasattr(store, "train_mask")):
+                        continue
+                    mask = store.train_mask
+                    if mask.sum() == 0:
+                        continue
 
-            total_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            optimizer.step()
+                    loss, _ = self.loss_fn(preds, store.y, mask)
+                    batch_loss = batch_loss + loss
+
+                batch_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                optimizer.step()
+                
+                epoch_loss += batch_loss.item()
+                num_batches += 1
+
             scheduler.step()
+            avg_epoch_loss = epoch_loss / max(num_batches, 1)
 
             # ── Validation ───────────────────────────────────────────────────
             self.model.eval()
-            val_metrics = evaluate(self.model, data, "val_mask", self.device)
+            # If DataLoader, evaluate on all validation sets or just the first one?
+            # Standard multi-graph behavior: evaluate on the loader but validation usually needs consistent set.
+            # For simplicity, we evaluate on the first batch (often the primary graph) or the full loader if small.
+            val_metrics = evaluate(self.model, first_batch, "val_mask", self.device)
             val_rho = val_metrics.spearman_rho
 
-            history["train_loss"].append(total_loss.item())
+            history["train_loss"].append(avg_epoch_loss)
             history["val_rho"].append(val_rho)
 
             if val_rho > best_val_rho:
@@ -170,7 +190,7 @@ class GNNTrainer:
             if epoch % 20 == 0 or epoch == 1:
                 logger.info(
                     "Epoch %3d | Loss: %.4f | Val ρ: %.4f | Heads: %s",
-                    epoch, total_loss.item(), val_rho,
+                    epoch, avg_epoch_loss, val_rho,
                     "↑" if epochs_without_improvement == 0 else " "
                 )
 

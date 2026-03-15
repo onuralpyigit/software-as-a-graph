@@ -132,6 +132,16 @@ examples:
         default=0.05,
         help="Standard deviation of noise for perturbations (default: 0.05)",
     )
+    analysis.add_argument(
+        "--gnn-model",
+        metavar="PATH",
+        help="Path to pre-trained GNN model/checkpoint",
+    )
+    analysis.add_argument(
+        "--ensemble",
+        action="store_true",
+        help="Run ensemble prediction blending GNN and RMAV",
+    )
 
     # --- Output ---
     output = parser.add_argument_group("Output")
@@ -169,6 +179,27 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
 
         # Single-layer analysis
         layer_result = analyzer.analyze_layer(args.layer)
+
+        # Optional GNN Inference
+        if args.gnn_model:
+            from src.prediction import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict
+            try:
+                logging.info(f"Loading GNN model from {args.gnn_model}...")
+                gnn_svc = GNNService.from_checkpoint(args.gnn_model, graph=layer_result.graph)
+                
+                s_dict = extract_structural_metrics_dict(layer_result.structural)
+                r_dict = extract_rmav_scores_dict(layer_result.quality)
+                
+                prediction_result = gnn_svc.predict(
+                    graph=layer_result.graph,
+                    structural_metrics=s_dict,
+                    rmav_scores=r_dict
+                )
+                layer_result.prediction = prediction_result.to_dict()
+                logging.info("GNN prediction complete.")
+            except Exception as e:
+                logging.error(f"GNN prediction failed: {e}")
+
         return MultiLayerAnalysisResult(
             timestamp=datetime.now().isoformat(),
             layers={layer_result.layer: layer_result},

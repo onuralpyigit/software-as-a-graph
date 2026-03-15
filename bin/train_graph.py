@@ -75,6 +75,8 @@ def parse_args() -> argparse.Namespace:
     gnn.add_argument("--train-ratio", type=float, default=0.6, help="Train split")
     gnn.add_argument("--val-ratio", type=float, default=0.2, help="Val split")
     gnn.add_argument("--no-edge-model", action="store_true", help="Skip edge model")
+    gnn.add_argument("--seeds", type=int, nargs="+", help="Seed list for stability validation")
+    gnn.add_argument("--multi-scenario", action="store_true", help="Inductive training on all domain scenarios")
 
     # Output
     output = parser.add_argument_group("Output")
@@ -155,6 +157,38 @@ def main() -> None:
         for name in (structural_dict or {}).keys():
             nx_graph.add_node(name, type="Application")
 
+    # ── Inductive Data Discovery ────────────────────────────────────────────
+    inductive_graphs = []
+    if args.multi_scenario:
+        logger.info("Discovering additional scenarios for inductive training...")
+        output_root = Path("output")
+        for scenario_dir in output_root.glob("*_results"):
+            if scenario_dir.is_dir() and args.layer in scenario_dir.name:
+                # This is a heuristic; better would be to check config inside
+                pass
+            
+            # Look for pre-computed files in the output directory
+            # For simplicity, we search for standard results files
+            s_path = scenario_dir / "structural_metrics.json"
+            q_path = scenario_dir / "quality_scores.json" 
+            i_path = scenario_dir / "failure_impact.json"
+            
+            if s_path.exists() and i_path.exists():
+                logger.info(f"  Found scenario: {scenario_dir.name}")
+                s_dict = load_json(str(s_path))
+                i_dict = load_json(str(i_path))
+                r_dict = load_json(str(q_path)) if q_path.exists() else None
+                
+                # Create a minimal graph for conversion
+                tmp_graph = nx.DiGraph()
+                for n_id in s_dict.keys():
+                    tmp_graph.add_node(n_id, type="Application")
+                
+                # Convert to HeteroData
+                from src.prediction.data_preparation import networkx_to_hetero_data
+                h_conv = networkx_to_hetero_data(tmp_graph, s_dict, i_dict, r_dict)
+                inductive_graphs.append(h_conv.hetero_data)
+
     # ── Training ────────────────────────────────────────────────────────────
     service = GNNService(
         hidden_channels=args.hidden,
@@ -176,6 +210,8 @@ def main() -> None:
         num_epochs=args.epochs,
         lr=args.lr,
         patience=args.patience,
+        inductive_graphs=inductive_graphs if inductive_graphs else None,
+        seeds=args.seeds,
     )
 
     # ── Results ─────────────────────────────────────────────────────────────

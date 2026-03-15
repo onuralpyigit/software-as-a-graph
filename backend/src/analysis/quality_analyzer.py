@@ -351,24 +351,29 @@ class QualityAnalyzer:
         mpci = m.mpci
         foc = m.fan_out_criticality
 
-        # --- Reliability: R*(v) v5 = RPR + DG_in + CDPot ---
-        # For Topic nodes, in-degree is 0, so we use FOC instead.
-        actual_in_degree = foc if m.type == "Topic" else id_n
-        
-        _denom = max(id_n, 1e-9)
-        _cdpot_reach = (rpr + actual_in_degree) / 2.0
-        _cdpot_depth = 1.0 - min(od_n / _denom, 1.0)
-        
-        # Amplify CDPot depth estimate via MPCI
-        _cdpot_depth = min(1.0, _cdpot_depth * (1.0 + mpci))
-        
-        cdpot = _cdpot_reach * _cdpot_depth
+        # --- Reliability: R*(v) v6 = RPR + DG_in + CDPot_enh ---
+        if m.type == "Topic":
+            # R_topic(v) = 0.50 × FOC(v) + 0.50 × CDPot_topic(v)
+            # CDPot_topic(v) = FOC(v) × (1 − min(publisher_count_norm(v), 1))
+            # Note: StructuralAnalyzer/Neo4jRepo stores publisher count norm in dependency_weight_in
+            publisher_norm = _n(m.dependency_weight_in, "w_in")
+            cdpot_topic = foc * (1.0 - min(publisher_norm, 1.0))
+            R = 0.50 * foc + 0.50 * cdpot_topic
+        else:
+            # Standard Reliability formula (Application, Broker, Node, Library)
+            _denom = max(id_n, 1e-9)
+            _cdpot_reach = (rpr + id_n) / 2.0
+            _cdpot_depth = 1.0 - min(od_n / _denom, 1.0)
+            
+            # Amplify CDPot depth estimate via MPCI (CDPot_enh)
+            _cdpot_depth = min(1.0, _cdpot_depth * (1.0 + mpci))
+            cdpot_enh = _cdpot_reach * _cdpot_depth
 
-        R = (
-            w.r_reverse_pagerank * rpr
-            + getattr(w, 'r_in_degree', 0.30) * actual_in_degree
-            + getattr(w, 'r_cdpot', 0.25) * cdpot
-        )
+            R = (
+                w.r_reverse_pagerank * rpr
+                + getattr(w, 'r_in_degree', 0.30) * id_n
+                + getattr(w, 'r_cdpot', 0.25) * cdpot_enh
+            )
 
         # Maintainability: M(v) v6 — adds CQP as 5th signal
         w_out_n = _n(m.dependency_weight_out, "w_out")

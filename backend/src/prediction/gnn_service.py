@@ -44,12 +44,15 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
+
+from src.analysis.classifier import BoxPlotClassifier
 
 from .data_preparation import (
     GraphConversionResult,
@@ -89,17 +92,7 @@ class GNNCriticalityScore:
     vulnerability_score: float
     source: str = "GNN"           # "GNN", "RMAV", or "Ensemble"
 
-    @property
-    def criticality_level(self) -> str:
-        if self.composite_score >= 0.75:
-            return "CRITICAL"
-        elif self.composite_score >= 0.55:
-            return "HIGH"
-        elif self.composite_score >= 0.35:
-            return "MEDIUM"
-        elif self.composite_score >= 0.15:
-            return "LOW"
-        return "MINIMAL"
+    criticality_level: str = "MINIMAL"    # Calculated via adaptive thresholds
 
     def to_dict(self) -> dict:
         return {
@@ -169,6 +162,8 @@ class GNNAnalysisResult:
     ensemble_metrics: Optional[EvalMetrics] = None
     # Learned ensemble alpha (per RMAV dimension)
     ensemble_alpha: Optional[List[float]] = None
+    # Adaptive classification stats
+    stats: Dict[str, Any] = field(default_factory=dict)
 
     def top_critical_nodes(self, n: int = 10, use_ensemble: bool = True) -> List[GNNCriticalityScore]:
         scores = self.ensemble_scores if use_ensemble and self.ensemble_scores else self.node_scores
@@ -291,6 +286,7 @@ class GNNService:
         lr: float = 3e-4,
         patience: int = 30,
         inductive_graphs: Optional[List] = None,
+        seeds: Optional[List[int]] = None,
     ) -> GNNAnalysisResult:
         """Train GNN models on a labelled graph.
 
@@ -335,21 +331,57 @@ class GNNService:
         data = conv.hetero_data
         create_node_splits(data, train_ratio, val_ratio)
 
-        # Initialise models
-        self._init_models(data.metadata())
+        # Prepare DataLoader for training
+        if inductive_graphs:
+            logger.info("Multi-graph inductive training with %d additional graphs.", len(inductive_graphs))
+            all_graphs = [data] + inductive_graphs
+            from torch_geometric.loader import DataLoader
+            train_loader = DataLoader(all_graphs, batch_size=1, shuffle=True)
+            training_input = train_loader
+        else:
+            training_input = data
 
-        # Train node model
-        model_to_train = self._edge_model if self.predict_edges else self._node_model
-        trainer = GNNTrainer(
-            model=model_to_train,
-            checkpoint_dir=str(self.checkpoint_dir),
-            lr=lr,
-            num_epochs=num_epochs,
-            patience=patience,
-        )
-        trainer.train(data)
+        # Handle multi-seed training
+        training_seeds = seeds if seeds else [42]
+        all_metrics = []
+        
+        for seed in training_seeds:
+            if len(training_seeds) > 1:
+                logger.info("── Training seed %d ────────────────────────────────", seed)
+            
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+            random.seed(seed)
+            
+            # Initialise models for this seed
+            self._init_models(data.metadata())
 
-        # Train ensemble (fine-tune α)
+            # Train node model
+            model_to_train = self._edge_model if self.predict_edges else self._node_model
+            trainer = GNNTrainer(
+                model=model_to_train,
+                checkpoint_dir=str(self.checkpoint_dir),
+                lr=lr,
+                num_epochs=num_epochs,
+                patience=patience,
+            )
+            trainer.train(training_input)
+
+            # Evaluate on primary graph test set
+            test_metrics = evaluate(model_to_train, data, "test_mask", self.device)
+            all_metrics.append(test_metrics)
+
+        # Average metrics across seeds if multiple
+        if len(all_metrics) > 1:
+            avg_rho = sum(m.spearman_rho for m in all_metrics) / len(all_metrics)
+            avg_f1 = sum(m.f1_score for m in all_metrics) / len(all_metrics)
+            avg_rmse = sum(m.rmse for m in all_metrics) / len(all_metrics)
+            avg_mae = sum(m.mae for m in all_metrics) / len(all_metrics)
+            avg_ndcg = sum(m.ndcg_10 for m in all_metrics) / len(all_metrics)
+            logger.info("Average metrics over %d seeds: rho=%.4f, f1=%.4f, ndcg=%.4f", 
+                        len(all_metrics), avg_rho, avg_f1, avg_ndcg)
+
+        # Train ensemble (fine-tune α) - using the best model from the last seed
         if simulation_results and rmav_scores:
             self._train_ensemble(data)
 
@@ -469,12 +501,47 @@ class GNNService:
             result.ensemble_scores = {k: v for k, v in result.node_scores.items()}
 
         # ── Validation metrics ────────────────────────────────────────────────
+        # ── Validation metrics ────────────────────────────────────────────────
         if simulation_results:
             create_node_splits(data_dev, seed=42)
             result.gnn_metrics = evaluate(
                 self._node_model, data_dev, "test_mask", self.device
             )
             logger.info("GNN test metrics:\n%s", result.gnn_metrics)
+
+        # ── Adaptive Classification ───────────────────────────────────────────
+        classifier = BoxPlotClassifier()
+        
+        # 1. Classify Node Scores (GNN)
+        gnn_node_data = [
+            {"id": k, "score": v.composite_score} 
+            for k, v in result.node_scores.items()
+        ]
+        gnn_classification = classifier.classify(gnn_node_data, metric_name="GNN Criticality")
+        for k, item in zip(result.node_scores.keys(), gnn_classification.items):
+             # Ensure we match by ID if sorted order changed (classify returns sorted items)
+             # But it's easier to just lookup
+             pass
+        
+        # Sort-safe update
+        gnn_lookup = {item.id: item.level.value for item in gnn_classification.items}
+        for k, v in result.node_scores.items():
+            v.criticality_level = gnn_lookup.get(k, "MINIMAL")
+            
+        result.stats["gnn_composite"] = gnn_classification.stats.to_dict()
+
+        # 2. Classify Ensemble Scores if they exist
+        if result.ensemble_scores:
+            ens_node_data = [
+                {"id": k, "score": v.composite_score} 
+                for k, v in result.ensemble_scores.items()
+            ]
+            ens_classification = classifier.classify(ens_node_data, metric_name="Ensemble Criticality")
+            ens_lookup = {item.id: item.level.value for item in ens_classification.items}
+            for k, v in result.ensemble_scores.items():
+                v.criticality_level = ens_lookup.get(k, "MINIMAL")
+            
+            result.stats["ensemble_composite"] = ens_classification.stats.to_dict()
 
         return result
 

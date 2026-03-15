@@ -81,7 +81,7 @@ EDGE_TYPES: List[str] = [
     "DEPENDS_ON",
 ]
 
-NODE_FEATURE_DIM = 23   # 18 metrics + 5 type one-hot
+NODE_FEATURE_DIM = 27   # 22 metrics + 5 type one-hot
 EDGE_FEATURE_DIM = 8    # 1 weight + 7 edge-type one-hot
 NUM_LABEL_DIMS   = 5    # composite, reliability, maintainability, availability, vulnerability
 

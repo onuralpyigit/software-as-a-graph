@@ -72,6 +72,7 @@ class AnalysisService:
             normalization_method=self.normalization_method,
             winsorize=self.winsorize,
             winsorize_limit=self.winsorize_limit,
+            use_ahp=self.use_ahp,
         )
         quality_result = quality_analyzer.analyze(
             struct_result,

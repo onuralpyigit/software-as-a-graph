@@ -23,9 +23,9 @@ from src.prediction.data_preparation import (
 from src.core.metrics import StructuralMetrics
 
 
-def test_node_feature_dimension_is_23():
-    """GNN-CQ-001: Verify NODE_FEATURE_DIM is 23."""
-    assert NODE_FEATURE_DIM == 23
+def test_node_feature_dimension_is_27():
+    """GNN-CQ-001: Verify NODE_FEATURE_DIM is 27."""
+    assert NODE_FEATURE_DIM == 27
 
 
 def test_networkx_to_hetero_data_feature_mapping():
@@ -58,29 +58,29 @@ def test_networkx_to_hetero_data_feature_mapping():
     data = conv.hetero_data
 
     # Check widths
-    assert data["Application"].x.shape[1] == 23
-    assert data["Library"].x.shape[1] == 23
-    assert data["Broker"].x.shape[1] == 23
+    assert data["Application"].x.shape[1] == 27
+    assert data["Library"].x.shape[1] == 27
+    assert data["Broker"].x.shape[1] == 27
 
     # Check A1 features
-    # Indices 13-17 should be CQ metrics
+    # Indices 17-21 should be CQ metrics
     a1_x = data["Application"].x[0].numpy()
-    assert a1_x[13] == pytest.approx(0.5)  # loc_norm
-    assert a1_x[14] == pytest.approx(0.6)  # complexity_norm
-    assert a1_x[15] == pytest.approx(0.7)  # instability_code
-    assert a1_x[16] == pytest.approx(0.8)  # lcom_norm
-    assert a1_x[17] == pytest.approx(0.9)  # code_quality_penalty
+    assert a1_x[17] == pytest.approx(0.5)  # loc_norm
+    assert a1_x[18] == pytest.approx(0.6)  # complexity_norm
+    assert a1_x[19] == pytest.approx(0.7)  # instability_code
+    assert a1_x[20] == pytest.approx(0.8)  # lcom_norm
+    assert a1_x[21] == pytest.approx(0.9)  # code_quality_penalty
 
-    # Index 18 should be Application one-hot (Application is index 0 in NODE_TYPES)
-    assert a1_x[18] == 1.0
-    assert np.all(a1_x[19:23] == 0.0)
+    # Index 22 should be Application one-hot (Application is index 0 in NODE_TYPES)
+    assert a1_x[22] == 1.0
+    assert np.all(a1_x[23:27] == 0.0)
 
     # Check B1 features (Broker is index 1 in NODE_TYPES)
     # CQ indices should be 0.0 for Broker
     b1_x = data["Broker"].x[0].numpy()
-    assert np.all(b1_x[13:18] == 0.0)
-    assert b1_x[19] == 1.0  # Broker one-hot index 18 + 1 = 19
-    assert b1_x[18] == 0.0
+    assert np.all(b1_x[17:22] == 0.0)
+    assert b1_x[23] == 1.0  # Broker one-hot index 22 + 1 = 23
+    assert b1_x[22] == 0.0
 
 
 def test_extract_structural_metrics_dict_includes_cq():

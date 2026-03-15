@@ -267,6 +267,64 @@ class ConsoleDisplay:
             for lib in sorted(libs):
                 print(f"    - {lib}")
             print()
+    def display_gnn_prediction(self, prediction: Dict[str, Any], limit: int = 10) -> None:
+        """Display GNN or Ensemble prediction results."""
+        if not prediction:
+            return
+
+        is_ensemble = bool(prediction.get("ensemble_scores"))
+        title = "GNN/Ensemble Criticality Prediction" if is_ensemble else "GNN Criticality Prediction"
+        self.print_subheader(title)
+
+        node_scores = prediction.get("ensemble_scores") or prediction.get("node_scores")
+        if not node_scores:
+            print(f"  {self.colored('No prediction scores available.', Colors.GRAY)}")
+            return
+
+        # Sort by composite score
+        sorted_nodes = sorted(
+            node_scores.values(),
+            key=lambda s: s.get("composite_score", 0),
+            reverse=True
+        )
+
+        header = f"  {'#':<4} {'Component':<30} {'Score':>7} {'Level':<10} {'R':>6} {'M':>6} {'A':>6} {'V':>6}"
+        print(self.colored(header, Colors.WHITE, bold=True))
+        print("  " + "-" * 78)
+
+        for i, s in enumerate(sorted_nodes[:limit], 1):
+            level = s.get("criticality_level", "MINIMAL")
+            color = self.level_color(level)
+            score_val = s.get("composite_score", 0)
+            score_str = f"{score_val:>7.4f}"
+            print(
+                f"  {i:<4} {s.get('component', '')[:29]:<30} "
+                f"{self.colored(score_str, color)} "
+                f"{self.colored(level[:10], color):<10} "
+                f"{s.get('reliability_score', 0):>6.3f} {s.get('maintainability_score', 0):>6.3f} "
+                f"{s.get('availability_score', 0):>6.3f} {s.get('vulnerability_score', 0):>6.3f}"
+            )
+
+        if len(sorted_nodes) > limit:
+            print(f"\n  {self.colored(f'... and {len(sorted_nodes) - limit} more components', Colors.GRAY)}")
+            
+        # Display edge scores if available
+        edge_scores = prediction.get("edge_scores", [])
+        if edge_scores:
+            self.print_subheader("Top Critical Relationships (GNN)")
+            sorted_edges = sorted(edge_scores, key=lambda e: e.get("composite_score", 0), reverse=True)
+            print(f"  {'#':<4} {'Source':<20} {'→':<3} {'Target':<20} {'Type':<15} {'Score':>7}")
+            print("  " + "-" * 74)
+            for i, e in enumerate(sorted_edges[:limit], 1):
+                level = e.get("criticality_level", "MINIMAL")
+                color = self.level_color(level)
+                score_val = e.get("composite_score", 0)
+                score_str = f"{score_val:>7.4f}"
+                print(
+                    f"  {i:<4} {e.get('source', '')[:19]:<20} → {e.get('target', '')[:19]:<20} "
+                    f"{self.colored(e.get('edge_type', '')[:14], Colors.CYAN):<15} "
+                    f"{self.colored(score_str, color)}"
+                )
 
     def display_layer_result(self, result: "LayerAnalysisResult") -> None:
         """Display complete analysis result for a single layer."""
@@ -276,6 +334,8 @@ class ConsoleDisplay:
         self.display_classification_summary(result)
         self.display_critical_components(result)
         self.display_sensitivity(result)
+        if result.prediction:
+            self.display_gnn_prediction(result.prediction)
         self.display_problems(result)
 
     def display_multi_layer_analysis_result(self, results: "MultiLayerAnalysisResult") -> None:

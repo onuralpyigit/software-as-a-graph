@@ -23,7 +23,7 @@ Design principles
   composite impact scores (max pooling), enabling link-level criticality
   prediction as a companion task.
 
-Node feature vector (dim = 23)
+Node feature vector (dim = 27)
 -------------------------------
 Index  Metric
   0    PageRank (PR)
@@ -34,17 +34,21 @@ Index  Metric
   5    In-Degree normalised (DG_in)
   6    Out-Degree normalised (DG_out)
   7    Clustering Coefficient (CC)
-  8    Continuous AP score (AP_c)
+  8    AP_c undirected
   9    Bridge Ratio (BR)
  10    QoS aggregate weight (w)
  11    QoS weighted in-degree (w_in)
  12    QoS weighted out-degree (w_out)
- 13    Normalised LOC (loc_norm)
- 14    Normalised Complexity (complexity_norm)
- 15    Instability I = Ce/(Ca+Ce) (instability_code)
- 16    Normalised LCOM (lcom_norm)
- 17    Code Quality Penalty (CQP)
- 18-22 Node-type one-hot (Application, Broker, Topic, Node, Library)
+ 13    MPCI
+ 14    Fan-Out Criticality (FOC)
+ 15    AP_c directed
+ 16    CDI
+ 17    Normalised LOC (loc_norm)
+ 18    Normalised Complexity (complexity_norm)
+ 19    Instability I = Ce/(Ca+Ce) (instability_code)
+ 20    Normalised LCOM (lcom_norm)
+ 21    Code Quality Penalty (CQP)
+ 22-26 Node-type one-hot (Application, Broker, Topic, Node, Library)
 
 Edge feature vector (dim = 8)
 ------------------------------
@@ -83,30 +87,31 @@ EDGE_TYPES: List[str] = [
 NODE_TYPE_INDEX: Dict[str, int] = {t: i for i, t in enumerate(NODE_TYPES)}
 EDGE_TYPE_INDEX: Dict[str, int] = {t: i for i, t in enumerate(EDGE_TYPES)}
 
-# The 13 topological metrics extracted from the structural analysis result.
+# The 22 topological metrics extracted from the structural analysis result.
+# Order matches Step 3: Prediction doc (indices 0-21)
 TOPOLOGICAL_METRIC_KEYS: List[str] = [
-    "pagerank",
-    "reverse_pagerank",
-    "betweenness_centrality",
-    "closeness_centrality",
-    "eigenvector_centrality",
-    "in_degree_centrality",
-    "out_degree_centrality",
-    "clustering_coefficient",
-    "ap_c_score",
-    "bridge_ratio",
-    "qos_weight",
-    "qos_weight_in",
-    "qos_weight_out",
-    "loc_norm",
-    "complexity_norm",
-    "instability_code",
-    "lcom_norm",
-    "code_quality_penalty",
-    "ap_c_directed",
-    "cdi",
-    "mpci",
-    "fan_out_criticality",
+    "pagerank",              # 0
+    "reverse_pagerank",      # 1
+    "betweenness_centrality", # 2
+    "closeness_centrality",   # 3
+    "eigenvector_centrality", # 4
+    "in_degree_centrality",   # 5
+    "out_degree_centrality",  # 6
+    "clustering_coefficient", # 7
+    "ap_c_score",            # 8: AP_c undirected (proxied in Step 2)
+    "bridge_ratio",          # 9
+    "qos_weight",            # 10
+    "qos_weight_in",         # 11: w_in (QADS)
+    "qos_weight_out",        # 12: w_out
+    "mpci",                  # 13: New Tier 1
+    "fan_out_criticality",   # 14
+    "ap_c_directed",         # 15
+    "cdi",                   # 16
+    "loc_norm",              # 17: Code Quality
+    "complexity_norm",       # 18
+    "instability_code",      # 19
+    "lcom_norm",             # 20
+    "code_quality_penalty",  # 21
 ]
 
 NODE_FEATURE_DIM = len(TOPOLOGICAL_METRIC_KEYS) + len(NODE_TYPES)  # 27

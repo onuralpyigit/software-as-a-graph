@@ -161,6 +161,7 @@ class LayerAnalysisResult:
     library_usage: Dict[str, List[str]] = field(default_factory=dict)
     node_allocations: Dict[str, List[str]] = field(default_factory=dict)
     broker_routing: Dict[str, List[str]] = field(default_factory=dict)
+    prediction: Optional[Dict[str, Any]] = None
     
     @property
     def graph(self) -> Optional[nx.DiGraph]:
@@ -193,6 +194,7 @@ class LayerAnalysisResult:
             "library_usage": self.library_usage,
             "node_allocations": self.node_allocations,
             "broker_routing": self.broker_routing,
+            "prediction": self.prediction,
         }
 
 @dataclass
