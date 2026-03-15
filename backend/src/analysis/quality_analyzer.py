@@ -206,10 +206,8 @@ class QualityAnalyzer:
             raw_components = list(structural_result.components.values())
             norm = self._normalize(raw_components)
 
-            # Compute continuous AP scores from the graph if available
-            ap_scores = self._compute_continuous_ap_scores(structural_result)
-
-            components = self._score_and_classify_components(raw_components, norm, ap_scores)
+            # Continuous AP scores/CDI are now precomputed in StructuralAnalyzer
+            components = self._score_and_classify_components(raw_components, norm)
 
             # --- Edge analysis (with endpoint quality context) --------------
             raw_edges = list(structural_result.edges.values())
@@ -223,7 +221,7 @@ class QualityAnalyzer:
             sensitivity = None
             if run_sensitivity:
                 sensitivity = self._sensitivity_analysis(
-                    raw_components, norm, ap_scores,
+                    raw_components, norm,
                     n_perturbations=sensitivity_perturbations,
                     noise_std=sensitivity_noise,
                 )
@@ -242,129 +240,6 @@ class QualityAnalyzer:
             self.weights = original_weights
 
     # ------------------------------------------------------------------
-    # Continuous AP computation
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _compute_continuous_ap_scores(
-        structural_result: StructuralAnalysisResult,
-    ) -> Dict[str, Dict[str, float]]:
-        """
-        Compute continuous AP scores, directed AP scores, and CDI per component.
-
-        Returns a dict mapping component_id to:
-            {
-                "ap_c_out": float,  # AP_c on undirected G (downstream partition severity)
-                "ap_c_in":  float,  # AP_c on G^T.to_undirected() (upstream partition severity)
-                "ap_c_dir": float,  # max(ap_c_out, ap_c_in) — worst-case directional SPOF
-                "cdi":      float,  # Connectivity Degradation Index (normalized, [0,1])
-            }
-
-        AP_c(v) = 1 - |largest_CC(G \\\\ {v})| / (|V| - 1)
-
-        CDI(v) = (avg_path_length_G\\{v} - avg_path_length_G) / avg_path_length_G
-                 clipped to [0, inf) then min-max normalised across all components.
-        """
-        ap_scores: Dict[str, Dict[str, float]] = {}
-
-        try:
-            # Build undirected graph from structural result
-            G_undir = nx.Graph()
-            G_dir   = nx.DiGraph()  # for transposed variant
-            for comp_id in structural_result.components:
-                G_undir.add_node(comp_id)
-                G_dir.add_node(comp_id)
-            for edge_key in structural_result.edges:
-                if isinstance(edge_key, tuple) and len(edge_key) == 2:
-                    G_undir.add_edge(edge_key[0], edge_key[1])
-                    G_dir.add_edge(edge_key[0], edge_key[1])
-                else:
-                    em = structural_result.edges[edge_key]
-                    G_undir.add_edge(em.source, em.target)
-                    G_dir.add_edge(em.source, em.target)
-
-            # Transposed graph for in-SPOF detection
-            G_T_undir = G_dir.reverse(copy=True).to_undirected()
-
-            n = G_undir.number_of_nodes()
-            if n <= 1:
-                return {cid: {"ap_c_out": 0.0, "ap_c_in": 0.0, "ap_c_dir": 0.0, "cdi": 0.0}
-                        for cid in structural_result.components}
-
-            # Pre-compute baseline avg shortest path length (undirected, largest CC only)
-            largest_cc_nodes = max(nx.connected_components(G_undir), key=len)
-            G_baseline = G_undir.subgraph(largest_cc_nodes).copy()
-            if G_baseline.number_of_nodes() > 1:
-                try:
-                    baseline_avg_path = nx.average_shortest_path_length(G_baseline)
-                except nx.NetworkXError:
-                    baseline_avg_path = 0.0
-            else:
-                baseline_avg_path = 0.0
-
-            cdi_raw: Dict[str, float] = {}
-
-            for comp_id in structural_result.components:
-                # --- AP_c_out (undirected removal) ---
-                G_out = G_undir.copy()
-                G_out.remove_node(comp_id)
-                if G_out.number_of_nodes() == 0:
-                    ap_c_out = 1.0
-                else:
-                    largest_out = max(len(c) for c in nx.connected_components(G_out))
-                    ap_c_out = 1.0 - (largest_out / (n - 1))
-
-                # --- AP_c_in (transposed undirected removal) ---
-                G_in = G_T_undir.copy()
-                G_in.remove_node(comp_id)
-                if G_in.number_of_nodes() == 0:
-                    ap_c_in = 1.0
-                else:
-                    largest_in = max(len(c) for c in nx.connected_components(G_in))
-                    ap_c_in = 1.0 - (largest_in / (n - 1))
-
-                ap_c_dir = max(ap_c_out, ap_c_in)
-
-                # --- CDI: connectivity degradation ---
-                # Use the largest-CC of G_out to measure avg path increase
-                cdi_val = 0.0
-                if baseline_avg_path > 0 and G_out.number_of_nodes() > 1:
-                    try:
-                        G_out_main = G_out.subgraph(
-                            max(nx.connected_components(G_out), key=len)
-                        ).copy()
-                        if G_out_main.number_of_nodes() > 1:
-                            after_avg = nx.average_shortest_path_length(G_out_main)
-                            cdi_val = max(0.0, (after_avg - baseline_avg_path) / baseline_avg_path)
-                    except (nx.NetworkXError, ZeroDivisionError):
-                        cdi_val = 0.0
-
-                ap_scores[comp_id] = {
-                    "ap_c_out": ap_c_out,
-                    "ap_c_in":  ap_c_in,
-                    "ap_c_dir": ap_c_dir,
-                    "cdi":      cdi_val,  # raw, normalized below
-                }
-                cdi_raw[comp_id] = cdi_val
-
-            # Min-max normalize CDI across all components
-            cdi_max = max(cdi_raw.values()) if cdi_raw else 0.0
-            for comp_id in ap_scores:
-                ap_scores[comp_id]["cdi"] = (
-                    cdi_raw[comp_id] / cdi_max if cdi_max > 0 else 0.0
-                )
-
-        except Exception:
-            # Fallback: binary AP flag, zero CDI
-            for comp_id, metrics in structural_result.components.items():
-                val = 1.0 if metrics.is_articulation_point else 0.0
-                ap_scores[comp_id] = {
-                    "ap_c_out": val, "ap_c_in": val, "ap_c_dir": val, "cdi": 0.0
-                }
-
-        return ap_scores
-
-    # ------------------------------------------------------------------
     # Component scoring
     # ------------------------------------------------------------------
 
@@ -372,7 +247,6 @@ class QualityAnalyzer:
         self,
         metrics_list: List[StructuralMetrics],
         norm: Dict[str, float],
-        ap_scores: Optional[Dict[str, Dict[str, float]]] = None,
     ) -> List[ComponentQuality]:
         """Score every component, then classify using box-plot per dimension."""
         if not metrics_list:
@@ -381,13 +255,7 @@ class QualityAnalyzer:
         # Compute raw RMAV scores
         scored: List[ComponentQuality] = []
         for m in metrics_list:
-            ap_entry = (ap_scores or {}).get(m.id, {})
-            # Backward compat: ap_scores may be a flat float dict (old style) or new nested dict
-            if isinstance(ap_entry, dict):
-                ap_c = ap_entry.get("ap_c_dir", ap_entry.get("ap_c_out", 0.0))
-            else:
-                ap_c = float(ap_entry)  # legacy flat value
-            scores = self._compute_rmav(m, norm, ap_c, ap_scores or {})
+            scores = self._compute_rmav(m, norm)
             scored.append(ComponentQuality(
                 id=m.id,
                 type=m.type,
@@ -440,16 +308,15 @@ class QualityAnalyzer:
 
 
     def _compute_rmav(
-        self, m: StructuralMetrics, norm: Dict[str, Any], ap_c: float,
-        ap_scores_all: Optional[Dict[str, Dict[str, float]]] = None,
+        self, m: StructuralMetrics, norm: Dict[str, Any]
     ) -> QualityScores:
         """
         Compute Reliability, Maintainability, Availability, Vulnerability scores.
 
         Design principles:
             - Each raw metric maps to at most one dimension (orthogonality).
-            - AP is continuous (ap_c = ap_c_directed = max(ap_c_out, ap_c_in)).
-            - A(v) v2: QSPOF + directed SPOF + CDI replaces old AP_c + IMP.
+            - AP is continuous (ap_c = ap_c_directed).
+            - A(v) v2: QSPOF + directed SPOF + CDI.
         """
         w = self.weights
 
@@ -477,27 +344,35 @@ class QualityAnalyzer:
         od_n = _n(m.out_degree_raw,   "out_degree")
         cc   = m.clustering_coefficient
         qw   = _n(m.weight,           "weight")
-        psbt = m.pubsub_betweenness  # already in [0,1]
+        
+        # New precomputed Tier 1 signals
+        ap_c = m.ap_c_directed
+        cdi = m.cdi
+        mpci = m.mpci
+        foc = m.fan_out_criticality
 
         # --- Reliability: R*(v) v5 = RPR + DG_in + CDPot ---
-        # w_in removed from R*(v) — exclusively assigned to V*(v) as QADS.
-        # DG_in (id_n) reinstated at weight 0.30 as count-based immediate-dependents.
-        # RPR weight raised 0.40 → 0.45 to compensate.
+        # For Topic nodes, in-degree is 0, so we use FOC instead.
+        actual_in_degree = foc if m.type == "Topic" else id_n
+        
         _denom = max(id_n, 1e-9)
-        _cdpot_reach = (rpr + id_n) / 2.0
+        _cdpot_reach = (rpr + actual_in_degree) / 2.0
         _cdpot_depth = 1.0 - min(od_n / _denom, 1.0)
+        
+        # Amplify CDPot depth estimate via MPCI
+        _cdpot_depth = min(1.0, _cdpot_depth * (1.0 + mpci))
+        
         cdpot = _cdpot_reach * _cdpot_depth
 
         R = (
             w.r_reverse_pagerank * rpr
-            + getattr(w, 'r_in_degree', 0.30) * id_n
+            + getattr(w, 'r_in_degree', 0.30) * actual_in_degree
             + getattr(w, 'r_cdpot', 0.25) * cdpot
         )
 
         # Maintainability: M(v) v6 — adds CQP as 5th signal
-        # CQP = 0 for non-Application nodes → formula degrades gracefully to v5
         w_out_n = _n(m.dependency_weight_out, "w_out")
-        cqp = m.code_quality_penalty  # already in [0,1] from the normalization pass
+        cqp = m.code_quality_penalty
         _eps = 1e-9
         _instability = od_n / (id_n + od_n + _eps)
         coupling_risk = 1.0 - abs(2.0 * _instability - 1.0)
@@ -510,13 +385,7 @@ class QualityAnalyzer:
         )
 
         # Availability: A(v) v2 — SPOF risk (directed, QoS-weighted)
-        # ap_c = AP_c_directed = max(AP_c_out, AP_c_in)
-        ap_entry = (ap_scores_all or {}).get(m.id, {})
-        if isinstance(ap_entry, dict):
-            cdi = ap_entry.get("cdi", 0.0)
-        else:
-            cdi = 0.0
-        qspof = ap_c * qw          # QoS-scaled structural SPOF severity
+        qspof = ap_c * qw
         A = (
             getattr(w, 'a_qspof',        0.45) * qspof
             + w.a_bridge_ratio           * m.bridge_ratio
@@ -679,7 +548,6 @@ class QualityAnalyzer:
         self,
         components: List[StructuralMetrics],
         norm: Dict[str, float],
-        ap_scores: Dict[str, float],
         n_perturbations: int = 200,
         noise_std: float = 0.05,
     ) -> Dict[str, Any]:
@@ -698,12 +566,8 @@ class QualityAnalyzer:
         # Original ranking
         original_scores = {}
         for m in components:
-            ap_entry = ap_scores.get(m.id, {})
-            if isinstance(ap_entry, dict):
-                ap_c = ap_entry.get("ap_c_dir", ap_entry.get("ap_c_out", 0.0))
-            else:
-                ap_c = float(ap_entry)
-            original_scores[m.id] = self._compute_rmav(m, norm, ap_c, ap_scores).overall
+            scores = self._compute_rmav(m, norm).overall
+            original_scores[m.id] = scores
 
         original_ranking = sorted(original_scores, key=original_scores.get, reverse=True)
         original_top5 = set(original_ranking[:5])
@@ -715,13 +579,8 @@ class QualityAnalyzer:
             perturbed_weights = self._perturb_weights(noise_std)
             perturbed_scores = {}
             for m in components:
-                ap_entry = ap_scores.get(m.id, {})
-                if isinstance(ap_entry, dict):
-                    ap_c = ap_entry.get("ap_c_dir", ap_entry.get("ap_c_out", 0.0))
-                else:
-                    ap_c = float(ap_entry)
                 perturbed_scores[m.id] = self._compute_rmav_with_weights(
-                    m, norm, ap_c, perturbed_weights, ap_scores
+                    m, norm, perturbed_weights
                 ).overall
 
             perturbed_ranking = sorted(perturbed_scores, key=perturbed_scores.get, reverse=True)
@@ -796,17 +655,19 @@ class QualityAnalyzer:
         )
 
     def _compute_rmav_with_weights(
-        self, m: StructuralMetrics, norm: Dict[str, float], ap_c: float,
+        self, m: StructuralMetrics, norm: Dict[str, float],
         weights: QualityWeights,
-        ap_scores_all: Optional[Dict[str, Dict[str, float]]] = None,
     ) -> QualityScores:
-        """Compute RMAV with explicit weight override (for sensitivity analysis)."""
-        original_weights = self.weights
+        """
+        Version of _compute_rmav that accepts arbitrary weights (for sensitivity analysis).
+        """
+        # Save real weights, swap in perturbed ones, then swap back
+        old_weights = self.weights
         self.weights = weights
         try:
-            return self._compute_rmav(m, norm, ap_c, ap_scores_all)
+            return self._compute_rmav(m, norm)
         finally:
-            self.weights = original_weights
+            self.weights = old_weights
 
     @staticmethod
     def _kendall_tau(ranking_a: List[str], ranking_b: List[str]) -> float:

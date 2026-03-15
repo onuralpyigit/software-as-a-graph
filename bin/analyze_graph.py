@@ -91,6 +91,47 @@ examples:
         action="store_true",
         help="Use AHP-derived weights instead of default fixed weights",
     )
+    analysis.add_argument(
+        "--norm",
+        choices=["max", "robust"],
+        default="robust",
+        help="Normalization method for quality scores (default: robust)",
+    )
+    analysis.add_argument(
+        "--winsorize",
+        action="store_true",
+        default=True,
+        help="Enable outlier mitigation (winsorization) (default: True)",
+    )
+    analysis.add_argument(
+        "--no-winsorize",
+        dest="winsorize",
+        action="store_false",
+        help="Disable outlier mitigation",
+    )
+    analysis.add_argument(
+        "--winsorize-limit",
+        type=float,
+        default=0.05,
+        help="Percentile limit for winsorization (default: 0.05)",
+    )
+    analysis.add_argument(
+        "--sensitivity", "-s",
+        action="store_true",
+        help="Run ranking sensitivity analysis via weight perturbations",
+    )
+    analysis.add_argument(
+        "--perturbations",
+        type=int,
+        default=200,
+        help="Number of perturbations for sensitivity analysis (default: 200)",
+    )
+    analysis.add_argument(
+        "--noise",
+        type=float,
+        default=0.05,
+        help="Standard deviation of noise for perturbations (default: 0.05)",
+    )
 
     # --- Output ---
     output = parser.add_argument_group("Output")
@@ -111,7 +152,16 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
     Execute analysis based on parsed CLI arguments.
     """
     repo = create_repository(uri=args.uri, user=args.user, password=args.password)
-    analyzer = AnalysisService(repo, use_ahp=args.use_ahp)
+    analyzer = AnalysisService(
+        repo,
+        use_ahp=args.use_ahp,
+        normalization_method=args.norm,
+        winsorize=args.winsorize,
+        winsorize_limit=args.winsorize_limit,
+        run_sensitivity=args.sensitivity,
+        sensitivity_perturbations=args.perturbations,
+        sensitivity_noise=args.noise
+    )
 
     try:
         if args.all:

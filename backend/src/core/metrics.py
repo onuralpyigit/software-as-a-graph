@@ -53,11 +53,15 @@ class StructuralMetrics:
     is_isolated: bool = False            # No connections
     bridge_count: int = 0                # Number of bridges touching this node
     bridge_ratio: float = 0.0            # Fraction of edges that are bridges
+    ap_c_directed: float = 0.0           # Directed SPOF severity
+    cdi: float = 0.0                     # Connectivity Degradation Index
     
     # === Pub-Sub Topology Metrics ===
-    pubsub_degree: float = 0.0         # Topics this app publishes to OR subscribes to
-    pubsub_betweenness: float = 0.0    # Betweenness in the pub-sub bipartite graph
-    broker_exposure: float = 0.0       # Distinct brokers routing touched topics
+    pubsub_degree: float = 0.0           # Topics this app publishes to OR subscribes to
+    pubsub_betweenness: float = 0.0      # Betweenness in the pub-sub bipartite graph
+    broker_exposure: float = 0.0         # Distinct brokers routing touched topics
+    fan_out_criticality: float = 0.0     # Topic fan-out (Topic nodes only)
+    mpci: float = 0.0                    # Multi-path coupling intensity
 
     # === Code Quality Metrics (Application nodes only; 0.0 for all other types) ===
     # Populated from optional JSON fields (loc, cyclomatic_complexity, coupling_*, lcom).

@@ -98,11 +98,17 @@ def extract_layer_subgraph(
                 "coupling_efferent": props.pop("coupling_efferent", 0),
                 "lcom": props.pop("lcom", 0.0),
             }
+            # Extract subscriber_count for Topic nodes
+            subscriber_count = 0
+            if comp.component_type == "Topic":
+                subscriber_count = props.pop("subscriber_count", 0)
+
             G.add_node(
                 comp.id,
                 component_type=comp.component_type,
                 name=name,
                 weight=getattr(comp, "weight", 1.0),
+                subscriber_count=subscriber_count,
                 **code_qual,
                 **props,
             )
@@ -118,6 +124,7 @@ def extract_layer_subgraph(
             edge.target_id,
             dependency_type=edge.dependency_type,
             weight=getattr(edge, "weight", 1.0),
+            path_count=getattr(edge, "path_count", 1),
         )
 
     return G
@@ -203,6 +210,26 @@ class StructuralAnalyzer:
         in_deg = dict(G.in_degree())
         out_deg = dict(G.out_degree())
 
+        # --- MPCI & FOC (Tier 1 New) ---
+        mpci: Dict[str, float] = {}
+        for nid in G.nodes:
+            # MPCI(v) = Σ_{e ∈ InEdges(v)} max(path_count(e) − 1, 0) / (|V| − 1)
+            raw_mpci = 0.0
+            for u, v, data in G.in_edges(nid, data=True):
+                raw_mpci += max(data.get("path_count", 1) - 1, 0)
+            mpci[nid] = raw_mpci / (n_nodes - 1) if n_nodes > 1 else 0.0
+
+        foc: Dict[str, float] = {}
+        topic_nodes = [n for n, d in G.nodes(data=True) if d.get("component_type") == "Topic"]
+        if topic_nodes:
+            max_sub = max((G.nodes[n].get("subscriber_count", 0) for n in topic_nodes), default=0)
+            for n in topic_nodes:
+                foc[n] = G.nodes[n].get("subscriber_count", 0) / max_sub if max_sub > 0 else 0.0
+        # For non-topic nodes, FOC stays 0.0 by default in StructuralMetrics
+
+        # --- AP_c_directed & CDI (Tier 1 New - Migrated from QualityAnalyzer) ---
+        ap_scores = self._compute_continuous_ap_scores(G)
+
         # --- Resilience (on undirected view) ---
         U = G.to_undirected()
         clustering = nx.clustering(U)
@@ -282,6 +309,8 @@ class StructuralAnalyzer:
                 # Resilience
                 clustering_coefficient=clustering.get(nid, 0.0),
                 is_articulation_point=nid in art_points,
+                ap_c_directed=ap_scores.get(nid, {}).get("ap_c_dir", 0.0),
+                cdi=ap_scores.get(nid, {}).get("cdi", 0.0),
                 is_isolated=(raw_in + raw_out) == 0,
                 bridge_count=bc,
                 bridge_ratio=bc / total_raw if total_raw > 0 else 0.0,
@@ -289,6 +318,8 @@ class StructuralAnalyzer:
                 pubsub_degree=ps.get("pubsub_degree", 0.0),
                 pubsub_betweenness=ps.get("pubsub_betweenness", 0.0),
                 broker_exposure=ps.get("broker_exposure", 0.0),
+                fan_out_criticality=foc.get(nid, 0.0),
+                mpci=mpci.get(nid, 0.0),
                 # Code quality — raw stored temporarily; post-loop normalisation fills them
                 # loc_norm / complexity_norm / lcom_norm hold RAW values until the pass
                 loc_norm=float(raw_loc),
@@ -601,6 +632,95 @@ class StructuralAnalyzer:
             if len(sub) >= 2:
                 br.update(nx.bridges(sub))
         return br
+
+    def _compute_continuous_ap_scores(
+        self, G_dir: nx.DiGraph
+    ) -> Dict[str, Dict[str, float]]:
+        """
+        Compute continuous AP scores, directed AP scores, and CDI per component.
+        Migrated from QualityAnalyzer for better performance (one-pass pipeline).
+        """
+        import networkx as nx
+        import random
+        ap_scores: Dict[str, Dict[str, float]] = {}
+        
+        n = G_dir.number_of_nodes()
+        if n <= 1:
+            return {nid: {"ap_c_dir": 0.0, "cdi": 0.0} for nid in G_dir.nodes}
+
+        # Undirected version for standard AP_c
+        G_undir = G_dir.to_undirected()
+        # Transposed version for in-SPOF
+        G_T_undir = G_dir.reverse(copy=True).to_undirected()
+
+        # Optimization: Sample BFS for large graphs
+        use_sampling = n > 300
+        sample_size = 50 if use_sampling else n
+        random_nodes = random.sample(list(G_dir.nodes), sample_size) if use_sampling else list(G_dir.nodes)
+        
+        # Pre-compute baseline average shortest path length (undirected)
+        # Using largest CC to avoid infinity issues
+        cc = list(nx.connected_components(G_undir))
+        largest_cc = max(cc, key=len) if cc else set()
+        baseline_avg_path = 0.0
+        if len(largest_cc) > 1:
+            G_sub = G_undir.subgraph(largest_cc)
+            try:
+                baseline_avg_path = nx.average_shortest_path_length(G_sub)
+            except (nx.NetworkXError, ZeroDivisionError):
+                baseline_avg_path = 0.0
+
+        cdi_raw: Dict[str, float] = {}
+
+        for nid in G_dir.nodes:
+            # --- AP_c_out (undirected removal) ---
+            G_out = G_undir.copy()
+            G_out.remove_node(nid)
+            out_cc = list(nx.connected_components(G_out))
+            largest_out = max(len(c) for c in out_cc) if out_cc else 0
+            ap_c_out = 1.0 - (largest_out / (n - 1)) if n > 1 else 0.0
+
+            # --- AP_c_in (transposed removal) ---
+            G_in = G_T_undir.copy()
+            G_in.remove_node(nid)
+            in_cc = list(nx.connected_components(G_in))
+            largest_in = max(len(c) for c in in_cc) if in_cc else 0
+            ap_c_in = 1.0 - (largest_in / (n - 1)) if n > 1 else 0.0
+
+            ap_c_dir = max(ap_c_out, ap_c_in)
+
+            # --- CDI (Connectivity Degradation Index) ---
+            cdi_val = 0.0
+            if baseline_avg_path > 0 and len(out_cc) > 0:
+                # Removal may have fragmented the graph
+                # If disconnected, CDI = 1.0 (worst case)
+                if len(out_cc) > len(cc):
+                    cdi_val = 1.0
+                else:
+                    try:
+                        G_out_main = G_out.subgraph(max(out_cc, key=len)).copy()
+                        if G_out_main.number_of_nodes() > 1:
+                            # Use sampling if requested
+                            if use_sampling:
+                                # Simple approximation for average path length increase
+                                # BFS from sample of nodes
+                                lengths = []
+                                for s in random_nodes:
+                                    if s == nid or s not in G_out_main: continue
+                                    d = nx.single_source_shortest_path_length(G_out_main, s)
+                                    lengths.extend(d.values())
+                                after_avg = sum(lengths) / len(lengths) if lengths else baseline_avg_path
+                            else:
+                                after_avg = nx.average_shortest_path_length(G_out_main)
+                            
+                            cdi_val = min(max(0.0, (after_avg - baseline_avg_path) / baseline_avg_path), 1.0)
+                    except (nx.NetworkXError, ZeroDivisionError):
+                        cdi_val = 0.0
+            
+            ap_scores[nid] = {"ap_c_dir": ap_c_dir, "cdi": cdi_val}
+            cdi_raw[nid] = cdi_val
+
+        return ap_scores
 
     def _build_summary(
         self,

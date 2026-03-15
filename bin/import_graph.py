@@ -39,6 +39,7 @@ def print_import_stats(stats: Dict[str, int]) -> None:
     print("-" * 30)
     print("Dependencies Derived:")
     print(f"  App->App:    {stats.get('app_to_app_count', 0)}")
+    print(f"  App->Library:{stats.get('app_to_library_count', 0)}")
     print(f"  App->Broker: {stats.get('app_to_broker_count', 0)}")
     print(f"  Node->Node:  {stats.get('node_to_node_count', 0)}")
     print(f"  Node->Broker:{stats.get('node_to_broker_count', 0)}")

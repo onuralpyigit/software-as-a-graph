@@ -227,6 +227,29 @@ class ConsoleDisplay:
             print(f"           Fix: {self.colored(rec_lines[0], Colors.GREEN)}")
             for line in rec_lines[1:]: print(f"                {self.colored(line, Colors.GREEN)}")
 
+    def display_sensitivity(self, result: "LayerAnalysisResult") -> None:
+        """Display weight sensitivity analysis results."""
+        sensitivity = result.quality.sensitivity
+        if not sensitivity:
+            return
+
+        self.print_subheader("Reliability & Sensitivity Analysis")
+        
+        # Stability metrics
+        stability = sensitivity.get("top5_stability", 0.0)
+        mean_tau = sensitivity.get("mean_kendall_tau", 0.0)
+        
+        status = "STABLE" if stability > 0.8 else "MODERATE" if stability > 0.5 else "UNSTABLE"
+        color = Colors.GREEN if status == "STABLE" else Colors.YELLOW if status == "MODERATE" else Colors.RED
+        
+        print(f"  {'Ranking Stability:':<25} {self.colored(status, color, bold=True)} ({stability*100:.1f}% top-5 consistency)")
+        print(f"  {'Mean Kendall Tau:':<25} {mean_tau:.4f} (Ranking similarity under noise)")
+        
+        if stability < 0.5:
+            print(f"\n  {self.colored('⚠ Warning:', Colors.YELLOW)} Ranking is sensitive to weight changes. Results should be interpreted with caution.")
+        else:
+            print(f"\n  {self.colored('✓ Info:', Colors.GREEN)} Ranking is robust to minor weight fluctuations.")
+
     def display_library_usage(self, result: "LayerAnalysisResult") -> None:
         """Display library usage by applications."""
         if not result.library_usage:
@@ -252,6 +275,7 @@ class ConsoleDisplay:
         self.display_graph_summary(result)
         self.display_classification_summary(result)
         self.display_critical_components(result)
+        self.display_sensitivity(result)
         self.display_problems(result)
 
     def display_multi_layer_analysis_result(self, results: "MultiLayerAnalysisResult") -> None:
