@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.core import create_repository, SimulationLayer
 from src.validation import ValidationService, ValidationTargets
 from src.cli.console import ConsoleDisplay
+from types import SimpleNamespace
 
 
 def main() -> int:
@@ -30,7 +31,7 @@ def main() -> int:
     action_group = parser.add_argument_group("Action")
     # Optional arguments for targeted validation
     action_group.add_argument("--layer", "-l", help="Comma-separated layers (e.g., app,infra,system). Defaults to ALL.")
-    action_group.add_argument("--quick", "-q", nargs=2, metavar=("PREDICTED", "ACTUAL"), help="Quick validation from JSON files")
+    action_group.add_argument("--quick", "-q", action="store_true", help="Quick validation from JSON files (uses positional args)")
     
     neo4j_group = parser.add_argument_group("Neo4j Connection")
     neo4j_group.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
@@ -52,6 +53,7 @@ def main() -> int:
     parser.add_argument("--open", "-O", action="store_true", help="Open visualization in browser")
     parser.add_argument("--quiet", action="store_true", help="Minimal output")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    parser.add_argument("--dimensional", action="store_true", help="Display dimension-specific metrics (RMAV)")
     
     # Positional arguments for quick validation (optional)
     parser.add_argument("predicted", nargs="?", help="Predicted criticality JSON file (optional if --quick is used)")
@@ -77,37 +79,106 @@ def main() -> int:
         val_service = ValidationService(analysis_service, simulation_service, targets=targets, ndcg_k=args.ndcg_k)
 
         # Determine inputs for quick validation
-        predicted_file = None
-        actual_file = None
-        
-        if args.quick:
-            predicted_file, actual_file = args.quick
-        elif args.predicted and args.actual:
-            predicted_file = args.predicted
-            actual_file = args.actual
+        predicted_file = args.predicted
+        actual_file = args.actual
 
         if predicted_file and actual_file:
             with open(predicted_file, 'r') as f: predicted_data = json.load(f)
             with open(actual_file, 'r') as f: actual_data = json.load(f)
 
-            predicted = _extract_predicted(predicted_data)
-            actual = _extract_actual(actual_data)
+            predicted_data = _extract_predicted_rich(predicted_data, args.layer)
+            # actual_data is already a list of dicts that looks like FailureResult
+            
+            # Reconstruct model-like objects for ValidationService
+            # We need analysis_result and sim_results
+            analysis_mock = SimpleNamespace(
+                quality=SimpleNamespace(
+                    components=[
+                        SimpleNamespace(
+                            id=cid,
+                            type=cdata.get("type", "Unknown"),
+                            scores=SimpleNamespace(**cdata.get("scores", {})),
+                            structural=SimpleNamespace(
+                                name=cdata.get("name", cid),
+                                betweenness=cdata.get("metrics", {}).get("betweenness", 0),
+                                dependency_weight_out=cdata.get("metrics", {}).get("out_degree", 0),
+                                weight=cdata.get("metrics", {}).get("weight", 1.0),
+                                is_articulation_point=cdata.get("is_articulation_point", False)
+                            )
+                        )
+                        for cid, cdata in predicted_data.items()
+                    ]
+                )
+            )
+            
+            sim_results_mock = []
+            for r in actual_data:
+                if "target_id" not in r or "impact" not in r:
+                    continue
+                
+                imp = r["impact"]
+                # Map nested JSON back to flat attributes for ImpactMetrics mock
+                metrics_mock = SimpleNamespace(
+                    composite_impact=imp.get("composite_impact", 0),
+                    reachability_loss=imp.get("reachability", {}).get("loss_percent", 0) / 100,
+                    fragmentation=imp.get("fragmentation", {}).get("fragmentation_percent", 0) / 100,
+                    throughput_loss=imp.get("throughput", {}).get("loss_percent", 0) / 100,
+                    cascade_count=imp.get("cascade", {}).get("count", 0),
+                    cascade_depth=imp.get("cascade", {}).get("depth", 0),
+                    
+                    # Dimensional ground truths
+                    reliability_impact=imp.get("reliability", {}).get("reliability_impact", 0),
+                    maintainability_impact=imp.get("maintainability", {}).get("maintainability_impact", 0),
+                    availability_impact=imp.get("availability", {}).get("availability_impact", 0),
+                    vulnerability_impact=imp.get("vulnerability", {}).get("vulnerability_impact", 0),
+                    
+                    # Directed availability impact (DASA)
+                    ia_out=imp.get("availability", {}).get("ia_out", 0),
+                    ia_in=imp.get("availability", {}).get("ia_in", 0),
+                    
+                    # Vulnerability detail
+                    attack_reach=imp.get("vulnerability", {}).get("attack_reach", 0),
+                    ahcr_5=imp.get("vulnerability", {}).get("ahcr_5", 0),
+                    ftr=imp.get("vulnerability", {}).get("ftr", 0),
+                    apar=imp.get("vulnerability", {}).get("apar", 0),
+                    critical_paths=imp.get("vulnerability", {}).get("critical_paths", []),
+                    
+                    # Reliability detail
+                    ccr_5=imp.get("reliability", {}).get("ccr_5", 0),
+                    cme=imp.get("reliability", {}).get("cme", 0),
+                    
+                    # Maintainability detail
+                    weighted_kappa_cta=imp.get("maintainability", {}).get("weighted_kappa_cta", 0),
+                    bottleneck_precision=imp.get("maintainability", {}).get("bottleneck_precision", 0),
+                )
+                
+                sim_results_mock.append(SimpleNamespace(
+                    target_id=r["target_id"],
+                    impact=metrics_mock
+                ))
 
-            if not predicted or not actual:
-                print(f"Error: Could not extract scores from {predicted_file} or {actual_file}")
-                return 1
-
-            result = val_service.validate_from_data(predicted, actual)
+            # Use the selected layer or 'app' as default
+            target_layer = args.layer.split(",")[0] if args.layer else "app"
+            
+            result = val_service.validate_single_layer_from_results(
+                analysis_mock, sim_results_mock, target_layer
+            )
 
             if args.json:
                 print(json.dumps(result.to_dict(), indent=2))
             elif not args.quiet:
+                # result here is a LayerValidationResult
                 display.print_header("Quick Validation Result")
                 print(f"\n  Files: {predicted_file} vs {actual_file}")
-                print(f"  Matched: {result.matched_count} components")
+                print(f"  Matched: {result.matched_components} components")
                 print(f"\n  Status: {display.status_text(result.passed)}")
-                print(f"\n  Spearman:  {result.overall.correlation.spearman:.4f}")
-                print(f"  F1 Score:  {result.overall.classification.f1_score:.4f}")
+                print(f"  Spearman:  {result.spearman:.4f}")
+                print(f"  F1 Score:  {result.f1_score:.4f}")
+                
+                display.display_gate_verdicts(result.gates)
+                
+                if args.dimensional:
+                    display.display_dimensional_results(result.dimensional_validation)
 
             if args.output:
                 Path(args.output).parent.mkdir(parents=True, exist_ok=True)
@@ -127,6 +198,19 @@ def main() -> int:
             print(json.dumps(result.to_dict(), indent=2))
         elif not args.quiet:
             display.display_pipeline_validation_result(result)
+            
+            # Additional display for Gates, Stratification and Dimensions
+            for layer_name, layer_res in result.layers.items():
+                if getattr(layer_res, 'gates', None):
+                    display.display_gate_verdicts(layer_res.gates)
+                
+                if args.dimensional and getattr(layer_res, 'dimensional_validation', None):
+                    display.display_dimensional_results(layer_res.dimensional_validation)
+
+                if getattr(layer_res, 'node_type_stratified', None):
+                    print(f"\n    {display.colored('Node-Type Stratified ρ:', display.Colors.WHITE, bold=True)}")
+                    for ntype, data in layer_res.node_type_stratified.items():
+                        print(f"      - {ntype:11}: ρ={data['spearman']:.4f} (n={data['n']})")
 
         if args.output:
             Path(args.output).parent.mkdir(parents=True, exist_ok=True)
@@ -174,26 +258,57 @@ def main() -> int:
     finally:
         repo.close()
 
-def _extract_predicted(data: dict) -> dict:
-    """Extract {id: score} from AnalysisService output."""
+def _extract_predicted_rich(data: dict, filter_layer: Optional[str] = None) -> dict:
+    """Extract {id: {scores: {}, type: ""}} from AnalysisService output."""
     if not isinstance(data, dict):
         return {}
     
+    extracted = {}
+    
+    # Mapping of layer to component types
+    LAYER_MAP = {
+        "app": {"Application"},
+        "infra": {"Node"},
+        "mw": {"Broker"},
+        "system": None
+    }
+    
+    req_types = set()
+    if filter_layer:
+        for l in filter_layer.split(","):
+            l = l.strip().lower()
+            if l in LAYER_MAP and LAYER_MAP[l]:
+                req_types.update(LAYER_MAP[l])
+            elif l == "system":
+                req_types = None
+                break
+
     # Try nested structure: layers -> [layer] -> quality_analysis -> components
     if "layers" in data:
-        scores = {}
         for layer_info in data["layers"].values():
-            # Support both 'quality_analysis' (new) and 'components' (old/flat)
             components = layer_info.get("quality_analysis", {}).get("components")
             if not components:
                 components = layer_info.get("components")
                 
             if components:
                 for comp in components:
-                     scores[comp["id"]] = comp["scores"]["overall"]
-        return scores
+                    ctype = comp.get("type", "Unknown")
+                    if req_types is not None and ctype not in req_types:
+                        continue
+                        
+                    extracted[comp["id"]] = {
+                        "scores": comp["scores"],
+                        "type": ctype,
+                        "name": comp.get("name", comp["id"]),
+                        "metrics": comp.get("metrics", {}),
+                        "is_articulation_point": comp.get("is_articulation_point", False)
+                    }
+        return extracted
     
-    # Try flat dict
+    # Try flat dict (already scores)
+    if isinstance(data, dict) and all(isinstance(v, (int, float)) for v in data.values()):
+        return {k: {"scores": {"overall": v}, "type": "Unknown"} for k, v in data.items()}
+        
     return data
 
 def _extract_actual(data: Any) -> dict:

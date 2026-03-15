@@ -8,50 +8,60 @@ from typing import Dict, List, Any, Optional, Tuple
 
 @dataclass
 class ValidationTargets:
-    """Target thresholds for validation success."""
-    spearman: float = 0.70
+    """Target thresholds for validation success as per unified gate table."""
+    # Tier 1 — Primary Gates (all must pass for HIGH-BAR)
+    spearman: float = 0.70             # G1: ρ ≥ 0.70
+    f1_score: float = 0.75             # G2: F1 ≥ 0.75
+    precision: float = 0.80            # G3: Precision ≥ 0.80
+    top_5_overlap: float = 0.60        # G4: Top-5 ≥ 0.60
+
+    # Tier 2 — Secondary Gates
+    predictive_gain: float = 0.0       # G5: PG > 0
+    weighted_kappa_cta: float = 0.70   # G6: κ_CTA ≥ 0.70
+    cdcc_max: float = 0.30             # G7: CDCC < 0.30
+
+    # Tier 3 — Dimension-Specific Specialist Gates
+    bottleneck_precision_target: float = 0.70  # G8: BP ≥ 0.70
+    ftr_max: float = 0.20                      # G9: FTR ≤ 0.20
+    ahcr_5: float = 0.70                       # AHCR@5 ≥ 0.70
+    spof_f1: float = 0.90                      # SPOF_F1 ≥ 0.90
+    ccr_5: float = 0.80                        # CCR@5 ≥ 0.80
+
+    # Reported only / Legacy compatibility / Additional targets
     spearman_p_max: float = 0.05
+    rmse_max: float = 0.25
+    mae_max: float = 0.20
     pearson: float = 0.65
     kendall: float = 0.50
-    f1_score: float = 0.80
-    precision: float = 0.80
     recall: float = 0.80
     accuracy: float = 0.75
     cohens_kappa: float = 0.60
-    top_5_overlap: float = 0.60
     top_10_overlap: float = 0.50
     ndcg_10: float = 0.70
-    rmse_max: float = 0.25
-    mae_max: float = 0.20
-    # Reliability-specific targets
-    ccr_5: float = 0.80      # Cascade Capture Rate @ 5: CCR@5 ≥ 0.80
-    cme: float = 0.10        # Cascade Magnitude Error: CME ≤ 0.10
-    reliability_spearman: float = 0.75  # ρ(R(v), IR(v)) ≥ 0.75
-    # Maintainability-specific targets
-    maintainability_spearman: float = 0.72   # ρ(M(v), IM(v)) ≥ 0.72
-    cocr_5: float = 0.75                     # Change Obligation Capture Rate @5 ≥ 0.75
-    weighted_kappa_cta: float = 0.55         # 3-tier Coupling Tier Agreement (weighted κ) ≥ 0.55
-    bottleneck_precision: float = 0.70       # BP: BT-dominant ∩ IM(v)>0.5 ≥ 0.70
-    # Availability-specific targets (A(v) v2)
-    availability_spearman: float = 0.82      # ρ(A(v), IA(v)) ≥ 0.82
-    spof_f1: float = 0.90                    # SPOF Precision-Recall F1 ≥ 0.90
-    hsrr: float = 0.65                       # Hidden SPOF Recovery Rate ≥ 0.65
-    dasa: float = 0.70                       # Directed SPOF Asymmetry Accuracy ≥ 0.70
-    rri: float = 0.80                        # Redundancy Robustness Index ≥ 0.80
-    # Vulnerability-specific targets (V(v) v2)
-    vulnerability_spearman: float = 0.70     # ρ(V(v), IV(v)) ≥ 0.70
-    dvs: float = 0.05                        # Direction Validation Score > 0.05
-    ahcr_5: float = 0.70                     # Attack Hub Capture Rate @5 ≥ 0.70
-    ttsa: float = 0.15                       # Trust Threshold Sensitivity Analysis ≤ 0.15
-    ftr: float = 0.25                        # False Target Rate ≤ 0.25
-    apar: float = 0.60                       # Attack Path Agreement Rate ≥ 0.60
-    cdcc: float = 0.40                       # Cross-Dimensional Contamination Check ≤ 0.40
-    # Composite Q*(v) vs I*(v) targets
-    composite_spearman: float = 0.85         # ρ(Q*(v), I*(v)) ≥ 0.85 (exceeds best single-dimension)
-    composite_f1: float = 0.90              # Classification F1 on I*(v) ≥ 0.90
-    composite_top5_overlap: float = 0.80    # Top-5 overlap Q* vs I* ≥ 0.80 (4-signal combination)
-    predictive_gain: float = 0.03           # PG = ρ_composite − max(dim ρ) > 0.03
-    max_interdim_correlation: float = 0.70  # No pairwise dim Spearman above 0.70 (orthogonality)
+    
+    # Reliability-specific
+    cme: float = 0.10
+    reliability_spearman: float = 0.75
+
+    # Maintainability-specific
+    maintainability_spearman: float = 0.70
+    cocr_5: float = 0.75
+
+    # Availability-specific
+    availability_spearman: float = 0.80
+    hsrr: float = 0.65
+    dasa: float = 0.70
+    rri: float = 0.80
+
+    # Vulnerability-specific
+    vulnerability_spearman: float = 0.70
+    apar: float = 0.60
+    cdcc: float = 0.40  # default label
+    cdcc: float = 0.40  # default / general
+
+    # Composite / Orthogonality
+    composite_spearman: float = 0.85         # ρ(Q*(v), I*(v)) ≥ 0.85
+    max_interdim_correlation: float = 0.40  # CDCC target
 
     def to_dict(self) -> Dict[str, float]:
         return {k: v for k, v in asdict(self).items() if isinstance(v, (float, int))}
@@ -199,6 +209,7 @@ class ValidationGroupResult:
     classification: ClassificationMetrics
     ranking: RankingMetrics
     passed: bool
+    gates: Dict[str, bool] = field(default_factory=dict)
     targets: ValidationTargets = field(default_factory=ValidationTargets)
     components: List[ComponentComparison] = field(default_factory=list)
 
@@ -228,6 +239,7 @@ class ValidationResult:
     predicted_count: int = 0
     actual_count: int = 0
     matched_count: int = 0
+    gates: Dict[str, bool] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
 
     @property
@@ -248,6 +260,7 @@ class ValidationResult:
             "targets": self.targets.to_dict(),
             "overall": self.overall.to_dict(),
             "by_type": {k: v.to_dict() for k, v in self.by_type.items()},
+            "gates": self.gates,
             "warnings": self.warnings,
         }
 
@@ -282,6 +295,8 @@ class LayerValidationResult:
     warnings: List[str] = field(default_factory=list)
     component_names: Dict[str, str] = field(default_factory=dict)
     dimensional_validation: Dict[str, Any] = field(default_factory=dict)
+    gates: Dict[str, bool] = field(default_factory=dict)
+    node_type_stratified: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -302,6 +317,8 @@ class LayerValidationResult:
                 "system_health": {k: round(v, 4) for k, v in self.system_health.items()},
             },
             "validation_result": self.validation_result.to_dict() if self.validation_result else None,
+            "gates": self.gates,
+            "node_type_stratified": self.node_type_stratified,
             "warnings": self.warnings,
         }
 

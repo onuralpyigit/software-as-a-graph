@@ -546,14 +546,17 @@ def calculate_weighted_kappa_cta(
 
     def _tier(vals: List[float]) -> List[int]:
         sv = sorted(vals)
-        q1 = sv[max(0, int(n * 0.25) - 1)]
-        q3 = sv[min(n - 1, int(n * 0.75))]
-        return [2 if v > q3 else (1 if v >= q1 else 0) for v in vals]
+        t1 = sv[max(0, int(n * 0.33) - 1)]
+        t2 = sv[min(n - 1, int(n * 0.66))]
+        return [2 if v > t2 else (1 if v >= t1 else 0) for v in vals]
 
     pred_tiers = _tier([predicted[c] for c in common])
     actual_tiers = _tier([actual[c] for c in common])
 
-    W = [[0.0, 0.5, 1.0], [0.5, 0.0, 0.5], [1.0, 0.5, 0.0]]
+    # Weight matrix: w[i][j] = 1 − |i−j| / (n_tiers − 1)
+    # Tiers 0, 1, 2. Max distance = 2.
+    # w[0][0]=1, w[0][1]=0.5, w[0][2]=0
+    W = [[1.0, 0.5, 0.0], [0.5, 1.0, 0.5], [0.0, 0.5, 1.0]]
     conf = [[0] * 3 for _ in range(3)]
     for p_t, a_t in zip(pred_tiers, actual_tiers):
         conf[p_t][a_t] += 1
@@ -564,9 +567,13 @@ def calculate_weighted_kappa_cta(
     obs_w = sum(W[i][j] * conf[i][j] / n for i in range(3) for j in range(3))
     exp_w = sum(W[i][j] * (row_sums[i] / n) * (col_sums[j] / n) for i in range(3) for j in range(3))
 
-    if exp_w == 0.0:
-        return 1.0 if obs_w == 0.0 else 0.0
-    return max(-1.0, min(1.0, 1.0 - obs_w / exp_w))
+    if exp_w == 1.0: # Perfect agreement expected by chance?
+        return 1.0 if obs_w == 1.0 else 0.0
+    
+    # Standard linear weighted kappa: (obs_w - exp_w) / (1 - exp_w)
+    if (1.0 - exp_w) == 0:
+        return 1.0
+    return max(-1.0, min(1.0, (obs_w - exp_w) / (1.0 - exp_w)))
 
 
 def calculate_bottleneck_precision(
@@ -590,7 +597,7 @@ def calculate_bottleneck_precision(
         return 0.0
     bt_dominant = [
         cid for cid in common
-        if predicted_bt[cid] > bt_threshold and predicted_w_out[cid] < w_out_threshold
+        if predicted_bt[cid] > bt_threshold and predicted_w_out[cid] > w_out_threshold
     ]
     if not bt_dominant:
         return 0.0
@@ -647,102 +654,86 @@ def calculate_spof_f1(
 
 
 def calculate_hsrr(
-    hidden_spof_pairs: List[Tuple[str, str]],
-    predicted_availability: Dict[str, float],
-    av_threshold: float = 0.60,
+    predicted_qspof: Dict[str, float],
+    actual_ia: Dict[str, float],
+    ap_c_binary: Dict[str, float],
+    ia_threshold: float = 0.50,
+    qspof_threshold: float = 0.0,
 ) -> float:
     """Hidden SPOF Recovery Rate (HSRR).
 
-    Among pairs (v1, v2) identified as hidden SPOFs via redundancy verification
-    (i.e., {v1, v2} individually score low but jointly cause high IA), the
-    fraction where the A(v) predictor raises at least one member above av_threshold.
+    Fraction of high-availability-impact components that are not binary
+    articulation points but are nevertheless caught by QSPOF or CDI.
 
-    HSRR = |{pair : max(A(v1), A(v2)) > av_threshold}| / |hidden_spof_pairs|
-    Target: HSRR ≥ 0.65. Returns 0.0 if no hidden SPOF pairs exist.
+    HSRR = |{v : AP_c=0 ∧ QSPOF > 0 ∧ IA > ia_threshold}|
+          / |{v : AP_c=0 ∧ IA > ia_threshold}|
     """
-    if not hidden_spof_pairs:
+    common = set(predicted_qspof) & set(actual_ia) & set(ap_c_binary)
+    if not common:
         return 0.0
-    recovered = sum(
-        1 for v1, v2 in hidden_spof_pairs
-        if max(
-            predicted_availability.get(v1, 0.0),
-            predicted_availability.get(v2, 0.0),
-        ) > av_threshold
-    )
-    return recovered / len(hidden_spof_pairs)
+    
+    candidates = [
+        cid for cid in common
+        if ap_c_binary[cid] == 0 and actual_ia[cid] > ia_threshold
+    ]
+    if not candidates:
+        return 0.0
+    
+    recovered = sum(1 for cid in candidates if predicted_qspof[cid] > qspof_threshold)
+    return recovered / len(candidates)
 
 
 def calculate_dasa(
     ap_c_out: Dict[str, float],
     ap_c_in: Dict[str, float],
-    actual_ia: Dict[str, float],
-    asymmetry_threshold: float = 0.20,
-    ia_threshold: float = 0.20,
+    ia_out: Dict[str, float],
+    ia_in: Dict[str, float],
 ) -> float:
     """Directed SPOF Asymmetry Accuracy (DASA).
 
-    For components with meaningful directional asymmetry
-    (|AP_c_out - AP_c_in| > asymmetry_threshold AND IA(v) > ia_threshold),
-    measures how often the direction with the higher AP score is the one
-    confirmed by simulation (IA(v) increases with the dominant direction).
+    Checks that the directionality of the SPOF (whether out-reachability
+    or in-reachability dominates) matches the directionality observed
+    in simulation.
 
-    DASA = |{v : asymmetric ∧ max_dir_confirmed}| / |asymmetric_spofs|
-    Target: DASA ≥ 0.70. Returns 0.0 if no asymmetric SPOFs exist.
+    DASA = |{v : sign(AP_c_out - AP_c_in) = sign(ia_out - ia_in)}| / n
+    Target: DASA ≥ 0.70.
     """
-    common = set(ap_c_out) & set(ap_c_in) & set(actual_ia)
+    common = set(ap_c_out) & set(ap_c_in) & set(ia_out) & set(ia_in)
     if not common:
         return 0.0
+    
+    def _sign(val):
+        return 1 if val > 0 else -1 if val < 0 else 0
 
-    asymmetric = [
-        cid for cid in common
-        if (abs(ap_c_out[cid] - ap_c_in[cid]) > asymmetry_threshold
-            and actual_ia[cid] > ia_threshold)
-    ]
-    if not asymmetric:
-        return 0.0
-
-    # "Confirmed" = IA(v) is above median => IA signal aligns with at least one direction.
-    # This is a structural diagnostic: asymmetric SPOFs that IA confirms are high-impact.
-    confirmed = sum(
-        1 for cid in asymmetric
-        if actual_ia[cid] > ia_threshold * 2.0  # IA clearly elevated = direction confirmed
+    matching = sum(
+        1 for cid in common
+        if _sign(ap_c_out[cid] - ap_c_in[cid]) == _sign(ia_out[cid] - ia_in[cid])
     )
-    return confirmed / len(asymmetric)
+    return matching / len(common)
 
 
 def calculate_rri(
-    predicted_availability: Dict[str, float],
     actual_ia: Dict[str, float],
-    ap_c_scores: Dict[str, float],
+    br_scores: Dict[str, float],
     ia_threshold: float = 0.30,
-    av_threshold: float = 0.40,
 ) -> float:
     """Redundancy Robustness Index (RRI).
 
-    True negative rate for fully redundant components: among components where
-    AP_c(v) == 0.0 (no structural SPOF risk) AND IA(v) < ia_threshold
-    (simulation confirms low impact), the fraction that also have low A(v).
+    Among components with no bridge edges (structurally redundant),
+    what fraction also have low actual availability impact?
 
-    RRI = |{v : AP_c=0 ∧ IA<ia_threshold ∧ A(v)<av_threshold}|
-          / |{v : AP_c=0 ∧ IA<ia_threshold}|
-
-    Target: RRI ≥ 0.80. Returns 0.0 if no redundant components exist.
+    RRI = |{v : BR(v) = 0 AND IA < ia_threshold}| / |{v : BR(v) = 0}|
+    Target: RRI ≥ 0.80.
     """
-    common = set(predicted_availability) & set(actual_ia) & set(ap_c_scores)
+    common = set(actual_ia) & set(br_scores)
     if not common:
         return 0.0
 
-    redundant = [
-        cid for cid in common
-        if ap_c_scores[cid] == 0.0 and actual_ia[cid] < ia_threshold
-    ]
+    redundant = [cid for cid in common if br_scores[cid] == 0.0]
     if not redundant:
         return 0.0
 
-    true_negatives = sum(
-        1 for cid in redundant
-        if predicted_availability[cid] < av_threshold
-    )
+    true_negatives = sum(1 for cid in redundant if actual_ia[cid] < ia_threshold)
     return true_negatives / len(redundant)
 
 # =============================================================================

@@ -438,6 +438,10 @@ class ImpactMetrics:
     weighted_reachability_loss: float = 0.0
     weighted_fragmentation: float = 0.0
     path_breaking_throughput_loss: float = 0.0
+    
+    # Directed impact for Availability (DASA support)
+    ia_out: float = 0.0
+    ia_in: float = 0.0
 
     availability_weights: Dict[str, float] = field(default_factory=lambda: {
         "weighted_reachability": 0.50,
@@ -533,6 +537,8 @@ class ImpactMetrics:
                 "weighted_fragmentation": round(self.weighted_fragmentation, 4),
                 "path_breaking_throughput_loss": round(self.path_breaking_throughput_loss, 4),
                 "availability_impact": round(self.availability_impact, 4),
+                "ia_out": round(self.ia_out, 4),
+                "ia_in": round(self.ia_in, 4),
             },
             "vulnerability": {
                 "attack_reach": round(self.attack_reach, 4),

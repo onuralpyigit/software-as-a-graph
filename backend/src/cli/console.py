@@ -497,3 +497,58 @@ class ConsoleDisplay:
         cm = ov.classification.confusion_matrix
         print(f"\n    Confusion Matrix:\n                            Actual Critical    Actual Non-Critical\n      Pred Critical           {self.colored(str(cm['tp']), Colors.GREEN):>3}                {self.colored(str(cm['fp']), Colors.RED):>3}\n      Pred Non-Critical       {self.colored(str(cm['fn']), Colors.RED):>3}                {self.colored(str(cm['tn']), Colors.GREEN):>3}")
         print(f"\n  {self.colored('Error Metrics:', Colors.CYAN)}\n    RMSE: {ov.error.rmse:.4f} {'≤' if ov.error.rmse <= targets.rmse_max else '>'} {targets.rmse_max}")
+    def display_gate_verdicts(self, gates: Dict[str, bool]) -> None:
+        """Display G1-G8 gate verdicts."""
+        if not gates:
+            return
+            
+        print(f"\n  {self.colored('Gate Verdicts:', Colors.WHITE, bold=True)}")
+        
+        tier1_keys = ["G1_spearman", "G2_pvalue", "G3_f1", "G4_top5"]
+        tier1 = {k: v for k, v in gates.items() if k in tier1_keys}
+        tier2 = {k: v for k, v in gates.items() if k not in tier1_keys}
+        
+        print("    Tier 1 (Critical):", end=" ")
+        for g, passed in tier1.items():
+            status = "✓" if passed else "✗"
+            color = Colors.GREEN if passed else Colors.RED
+            label = g.split('_')[0]
+            print(self.colored(f"{label}:{status}", color), end="  ")
+        
+        print("\n    Tier 2 (Reported):", end=" ")
+        for g, passed in tier2.items():
+            status = "✓" if passed else "✗"
+            # Tier 2 failure is a warning, not a critical error
+            color = Colors.CYAN if passed else Colors.YELLOW
+            label = g.split('_')[0]
+            print(self.colored(f"{label}:{status}", color), end="  ")
+        print()
+
+    def display_dimensional_results(self, dimensional_validation: Dict[str, Any]) -> None:
+        """Display dimension-specific metrics (RMAV)."""
+        if not dimensional_validation:
+            return
+            
+        self.print_subheader("Dimensional Analysis Detail")
+        
+        # Reliability
+        if r := dimensional_validation.get("reliability"):
+            print(f"  {self.colored('Reliability [IR(v)]:', Colors.CYAN):<30} ρ={r['spearman']:.4f}, CCR@5={r['ccr_5']:.3f}, CME={r['cme']:.4f}")
+            
+        # Maintainability
+        if m := dimensional_validation.get("maintainability"):
+            print(f"  {self.colored('Maintainability [IM(v)]:', Colors.CYAN):<30} ρ={m['spearman']:.4f}, κ_CTA={m['weighted_kappa_cta']:.3f}, BP={m['bottleneck_precision']:.3f}")
+            
+        # Availability
+        if a := dimensional_validation.get("availability"):
+            print(f"  {self.colored('Availability [IA(v)]:', Colors.CYAN):<30} ρ={a['spearman']:.4f}, SPOF_F1={a['spof_f1']:.3f}, RRI={a['rri']:.3f}")
+            
+        # Vulnerability
+        if v := dimensional_validation.get("vulnerability"):
+            print(f"  {self.colored('Vulnerability [IV(v)]:', Colors.CYAN):<30} ρ={v['spearman']:.4f}, AHCR@5={v['ahcr_5']:.3f}, FTR={v['ftr']:.3f}")
+
+        # Composite
+        if c := dimensional_validation.get("composite"):
+            pg = c.get("predictive_gain", 0)
+            pg_colored = self.colored(f"{pg:+.3f}", Colors.GREEN if pg > 0 else Colors.RESET)
+            print(f"  {self.colored('Composite [I*(v)]:', Colors.WHITE, bold=True):<30} ρ={c['spearman']:.4f}, Predictive Gain={pg_colored}")

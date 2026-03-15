@@ -175,6 +175,7 @@ class BenchmarkScenario:
     config_path: Optional[Path] = None
     layers: List[str] = field(default_factory=lambda: ["app", "infra", "system"])
     runs: int = 3
+    seed: int = 42
 
     def __post_init__(self):
         if not self.scale and not self.config_path:

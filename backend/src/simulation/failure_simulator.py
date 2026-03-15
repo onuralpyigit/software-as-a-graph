@@ -65,9 +65,7 @@ class FailureSimulator:
         self._rng = random.Random()
         
         # Baseline metrics (computed once per exhaustive run, or per simulate call)
-        self._initial_paths: int = 0
-        self._initial_capacity_sum: float = 0.0
-        self._initial_components: int = 0
+        self._initial_paths_list: List[Tuple[str, str, str, float]] = []
         self._initial_connected_components: int = 1
         self._initial_total_weight: float = 0.0
         self._baseline_flows: Set[Tuple[str, str, str]] = set()
@@ -564,9 +562,9 @@ class FailureSimulator:
     
     def _compute_baseline(self) -> None:
         """Compute and cache baseline metrics from the current (healthy) graph state."""
-        weighted_paths = self.graph.get_weighted_pub_sub_paths(active_only=True)
-        self._initial_paths = len(weighted_paths)
-        self._initial_capacity_sum = sum(p[3] for p in weighted_paths)
+        self._initial_paths_list = self.graph.get_weighted_pub_sub_paths(active_only=True)
+        self._initial_paths = len(self._initial_paths_list)
+        self._initial_capacity_sum = sum(p[3] for p in self._initial_paths_list)
         
         self._initial_components = len([
             c for c in self.graph.components.values()
@@ -816,6 +814,37 @@ class FailureSimulator:
             throughput_loss = lost_weight / total_weight
         else:
             throughput_loss = 0.0
+            
+        # === DASA: Directed IA(v) (ia_out, ia_in) ===
+        ia_out = 0.0
+        ia_in = 0.0
+        if self._initial_capacity_sum > 0:
+            # Check which initial paths are broken by the FAILED SET
+            # A path (p, t, s, cap) is broken if p, t, s, or any routing broker are failed
+            # ia_out: broken paths where target_id is publisher or broker
+            # ia_in: broken paths where target_id is subscriber
+            broken_out_w = 0.0
+            broken_in_w = 0.0
+            
+            for p_id, t_id, s_id, cap in self._initial_paths_list:
+                brokers = [b[0] for b in self.graph._routing.get(t_id, [])]
+                
+                # Is it broken?
+                is_p_failed = p_id in failed_set
+                is_t_failed = t_id in failed_set
+                is_s_failed = s_id in failed_set
+                is_b_failed = any(b in failed_set for b in brokers)
+                
+                if is_p_failed or is_t_failed or is_s_failed or is_b_failed:
+                    # It's broken. Who gets the "blame" for DASA comparison?
+                    # We attribute to the TARGET_ID (the initial failure)
+                    if target_id == p_id or any(target_id == b for b in brokers) or target_id == t_id:
+                        broken_out_w += cap
+                    elif target_id == s_id:
+                        broken_in_w += cap
+            
+            ia_out = broken_out_w / self._initial_capacity_sum
+            ia_in = broken_in_w / self._initial_capacity_sum
         
         # === Infrastructure stats ===
         remaining_active = len([
@@ -889,6 +918,8 @@ class FailureSimulator:
             affected_subscribers=len(affected_subs),
             affected_publishers=len(affected_pubs),
             cascade_by_type=dict(cascade_by_type),
+            ia_out=ia_out,
+            ia_in=ia_in
         )
     
     def _calculate_layer_impacts(self, failed_set: Set[str]) -> Dict[str, float]:

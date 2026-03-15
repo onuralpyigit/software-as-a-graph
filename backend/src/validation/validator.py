@@ -94,6 +94,7 @@ class Validator:
             predicted_count=len(pred_ids),
             actual_count=len(actual_ids),
             matched_count=len(common_ids),
+            gates=overall.gates,
             warnings=warnings,
         )
 
@@ -116,12 +117,21 @@ class Validator:
         if self.winsorize_actuals:
             actual_vals = self._winsorize(actual_vals, limit=0.05)
 
-        # Adaptive thresholding via Box-Plot
-        pred_stats = self.classifier.compute_stats(pred_vals)
-        actual_stats = self.classifier.compute_stats(actual_vals)
-
-        pred_crit = [v > pred_stats.upper_fence for v in pred_vals]
-        actual_crit = [v > actual_stats.upper_fence for v in actual_vals]
+        # Adaptive thresholding via Box-Plot or Percentile Fallback
+        if n >= 20:
+            pred_stats = self.classifier.compute_stats(pred_vals)
+            actual_stats = self.classifier.compute_stats(actual_vals)
+            pred_crit = [v > pred_stats.upper_fence for v in pred_vals]
+            actual_crit = [v > actual_stats.upper_fence for v in actual_vals]
+        else:
+            # Fallback classification for small n (top 10%)
+            def _get_top_10_mask(vals: List[float]) -> List[bool]:
+                if not vals: return []
+                threshold = self._percentile(vals, 90.0)
+                return [v >= threshold for v in vals]
+            
+            pred_crit = _get_top_10_mask(pred_vals)
+            actual_crit = _get_top_10_mask(actual_vals)
         
         classification = calculate_classification(pred_crit, actual_crit)
         classification.auc_pr = calculate_auc_pr(pred_vals, actual_crit)
@@ -143,13 +153,27 @@ class Validator:
             ))
         components.sort(key=lambda x: x.error, reverse=True)
 
-        passed = (
-            correlation.spearman >= self.targets.spearman
-            and correlation.spearman_p <= self.targets.spearman_p_max
-            and classification.f1_score >= self.targets.f1_score
-            and ranking.top_5_overlap >= self.targets.top_5_overlap
-            and error.rmse <= self.targets.rmse_max
-        )
+        # Tier 1 Gates (High-Bar Primary)
+        g1 = correlation.spearman >= self.targets.spearman
+        g2 = classification.f1_score >= self.targets.f1_score
+        g3 = classification.precision >= self.targets.precision
+        g4 = ranking.top_5_overlap >= self.targets.top_5_overlap
+
+        # Tier 2 Gates (reported/secondary)
+        g5 = error.rmse <= self.targets.rmse_max
+        g_p = correlation.spearman_p <= self.targets.spearman_p_max
+        
+        gates = {
+            "G1_spearman": g1,
+            "G2_f1": g2,
+            "G3_precision": g3,
+            "G4_top5": g4,
+            "G5_rmse": g5,
+            "p_value_pass": g_p,
+        }
+
+        # passed if all primary Tier 1 gates pass
+        passed = g1 and g2 and g3 and g4
 
         return ValidationGroupResult(
             group_name=group_name,
@@ -159,6 +183,7 @@ class Validator:
             classification=classification,
             ranking=ranking,
             passed=passed,
+            gates=gates,
             targets=self.targets,
             components=components,
         )

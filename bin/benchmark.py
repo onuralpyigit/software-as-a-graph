@@ -83,6 +83,7 @@ def _build_cli_scenarios(args: argparse.Namespace) -> List[BenchmarkScenario]:
             scale=scale,
             layers=layers,
             runs=args.runs,
+            seed=args.seed,
         )
         for scale in scales
     ]
@@ -99,6 +100,7 @@ def _build_full_suite(args: argparse.Namespace) -> List[BenchmarkScenario]:
             scale=scale,
             layers=layers,
             runs=args.runs,
+            seed=args.seed,
         )
         for scale in scales
     ]
@@ -136,6 +138,7 @@ def _load_yaml_scenarios(config_path: Path) -> List[BenchmarkScenario]:
                 config_path=cfg_path,
                 layers=item.get("layers", ["app", "infra", "mw", "system"]),
                 runs=item.get("runs", 1),
+                seed=item.get("seed", 42),
             )
         )
 
@@ -250,6 +253,10 @@ examples:
         "--ndcg-k", type=int, default=10,
         help="K for NDCG@K calculation (default: 10)",
     )
+    opts.add_argument(
+        "--seed", type=int, default=42,
+        help="Base seed for synthetic generation (default: 42)",
+    )
 
     # --- Neo4j ---
     neo4j = parser.add_argument_group("Neo4j Connection")
@@ -295,6 +302,7 @@ def main() -> int:
                 scale="medium",
                 layers=[l.strip() for l in args.layers.split(",")],
                 runs=args.runs,
+                seed=args.seed,
             )
         ]
 

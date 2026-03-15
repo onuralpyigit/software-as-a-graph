@@ -285,16 +285,17 @@ class BenchmarkRunner:
     # ------------------------------------------------------------------
 
     def run_scenario(
-        self, scenario: BenchmarkScenario, seed_start: int = 42
+        self, scenario: BenchmarkScenario, seed_start: Optional[int] = None
     ) -> List[BenchmarkRecord]:
         """
         Run a full scenario: generate + import once per seed,
         then analyze/simulate/validate for each requested layer.
         """
         scenario_records: List[BenchmarkRecord] = []
-
+        base_seed = seed_start if seed_start is not None else scenario.seed
+ 
         for i in range(scenario.runs):
-            seed = seed_start + i
+            seed = base_seed + i
 
             # 1. Generate
             graph_data, gen_time = self._generate_data(scenario, seed)
