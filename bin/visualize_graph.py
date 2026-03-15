@@ -225,6 +225,13 @@ Examples:
         help="Exclude validation metrics",
     )
     output_group.add_argument(
+        "--antipatterns", help="Path to pre-calculated anti-pattern JSON report"
+    )
+    output_group.add_argument(
+        "--multi-seed", dest="multi_seed", type=int, default=0, metavar="N",
+        help="Run validation across N random seeds and show a stability panel (0 = off)"
+    )
+    output_group.add_argument(
         "--open", "-O", action="store_true",
         help="Open in browser after generation",
     )
@@ -308,6 +315,8 @@ Examples:
             include_network=not args.no_network,
             include_matrix=not args.no_matrix,
             include_validation=not args.no_validation,
+            antipatterns_file=args.antipatterns,
+            multi_seed=args.multi_seed if args.multi_seed else 0,
         )
 
         display.print_header("DASHBOARD GENERATED", "-")

@@ -41,23 +41,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         :root {{
-            --primary: #2c3e50;
-            --secondary: #34495e;
-            --accent: #3498db;
-            --success: #2ecc71;
+            --primary: #1a2a6c;
+            --secondary: #b21f1f;
+            --accent: #fdbb2d;
+            --success: #00b09b;
             --warning: #f39c12;
             --danger: #e74c3c;
-            --bg: #f8f9fa;
+            --bg: #f4f7f6;
             --card-bg: #ffffff;
-            --border: #dee2e6;
+            --border: #e1e8ed;
             --text: #2c3e50;
-            --text-muted: #7f8c8d;
+            --text-muted: #657786;
+            --glass: rgba(255, 255, 255, 0.8);
         }}
         
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         
         body {{
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
@@ -69,205 +70,164 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             left: 0;
             right: 0;
             height: 60px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: rgba(26, 42, 108, 0.95);
+            backdrop-filter: blur(10px);
             color: white;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 30px;
+            padding: 0 40px;
             z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }}
         
-        .navbar-brand {{ font-size: 1.4rem; font-weight: 700; letter-spacing: 0.5px; }}
+        .navbar-brand {{ font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase; }}
         
-        .navbar-nav {{ display: flex; gap: 25px; }}
+        .navbar-nav {{ display: flex; gap: 20px; }}
         
-        .navbar-nav a {{ color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.9rem; transition: color 0.3s; }}
+        .navbar-nav a {{ 
+            color: rgba(255,255,255,0.7); 
+            text-decoration: none; 
+            font-size: 0.85rem; 
+            font-weight: 600;
+            transition: all 0.2s; 
+            padding: 5px 10px;
+            border-radius: 6px;
+        }}
         
-        .navbar-nav a:hover {{ color: white; }}
+        .navbar-nav a:hover {{ color: white; background: rgba(255,255,255,0.1); }}
         
-        .main-content {{ margin-top: 60px; padding: 30px; max-width: 1400px; margin-left: auto; margin-right: auto; }}
+        .main-content {{ margin-top: 80px; padding: 0 40px 40px; max-width: 1600px; margin-left: auto; margin-right: auto; }}
         
-        .page-header {{ text-align: center; margin-bottom: 40px; padding: 30px; background: var(--card-bg); border-radius: 12px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); }}
+        .page-header {{ 
+            margin-bottom: 30px; 
+            padding: 40px; 
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: 16px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            text-align: left;
+        }}
         
-        .page-header h1 {{ font-size: 2rem; color: var(--primary); margin-bottom: 10px; }}
+        .page-header h1 {{ font-size: 2.5rem; font-weight: 900; margin-bottom: 10px; letter-spacing: -1px; }}
         
-        .page-header .meta {{ color: var(--text-muted); font-size: 0.9rem; }}
+        .page-header .meta {{ opacity: 0.8; font-size: 0.95rem; font-weight: 500; }}
         
-        .section {{ background: var(--card-bg); border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); scroll-margin-top: 80px; }}
+        .section {{ background: var(--card-bg); border-radius: 16px; padding: 35px; margin-bottom: 35px; box-shadow: 0 5px 25px rgba(0,0,0,0.03); scroll-margin-top: 100px; border: 1px solid var(--border); }}
         
-        .section-header {{ display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid var(--accent); }}
+        .section-header {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }}
         
-        .section-header h2 {{ font-size: 1.4rem; color: var(--primary); margin: 0; }}
+        .section-header h2 {{ font-size: 1.8rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }}
         
-        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 25px; }}
+        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 25px; margin-bottom: 35px; }}
         
-        .kpi-card {{ background: linear-gradient(135deg, var(--secondary), var(--primary)); color: white; padding: 20px; border-radius: 10px; text-align: center; transition: transform 0.2s; }}
-        
-        .kpi-card:hover {{ transform: translateY(-3px); }}
-        
-        .kpi-value {{ font-size: 2rem; font-weight: 700; margin-bottom: 5px; }}
-        
-        .kpi-label {{ font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; }}
-        
-        .kpi-card.success {{ background: linear-gradient(135deg, #27ae60, #2ecc71); }}
-        .kpi-card.warning {{ background: linear-gradient(135deg, #e67e22, #f39c12); }}
-        .kpi-card.danger {{ background: linear-gradient(135deg, #c0392b, #e74c3c); }}
-        
-        .chart-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 25px; margin-bottom: 25px; }}
-        
-        .chart-card {{ background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; text-align: center; }}
-        
-        .chart-card h4 {{ color: var(--secondary); margin-bottom: 15px; font-size: 1rem; }}
-        
-        .chart-card img {{ max-width: 100%; height: auto; border-radius: 8px; }}
-        
-        .chart-card .description {{ color: var(--text-muted); font-size: 0.8rem; margin-top: 10px; }}
-        
-        .table-container {{ overflow-x: auto; margin-bottom: 20px; }}
-        
-        table {{ width: 100%; border-collapse: collapse; font-size: 0.9rem; }}
-        
-        th, td {{ padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border); }}
-        
-        th {{ background: var(--bg); font-weight: 600; color: var(--secondary); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }}
-        
-        tr:hover {{ background: rgba(52, 152, 219, 0.05); }}
-        
-        .badge {{ display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; color: white; }}
-        
-        .badge-critical {{ background: #e74c3c; }}
-        .badge-high {{ background: #e67e22; }}
-        .badge-medium {{ background: #f1c40f; color: #333; }}
-        .badge-low {{ background: #2ecc71; }}
-        .badge-minimal {{ background: #95a5a6; }}
-        .badge-passed {{ background: #2ecc71; }}
-        .badge-failed {{ background: #e74c3c; }}
-        
-        .metrics-box {{ background: var(--bg); border-radius: 10px; padding: 20px; margin-bottom: 20px; }}
-        
-        .metric-row {{ display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--border); }}
-        
-        .metric-name {{ font-weight: 500; color: var(--text); }}
-        .metric-value {{ font-family: 'Consolas', monospace; font-weight: 600; }}
-        .metric-value.pass {{ color: var(--success); }}
-        .metric-value.fail {{ color: var(--danger); }}
-        
-        /* Cytoscape Network Container */
-        .cytoscape-wrapper {{
-            position: relative;
-            width: 100%;
+        .kpi-card {{ 
+            background: var(--card-bg); 
             border: 1px solid var(--border);
-            border-radius: 10px;
-            margin-bottom: 20px;
-            background: linear-gradient(135deg, #fafbfc 0%, #f0f4f8 100%);
+            padding: 30px; 
+            border-radius: 14px; 
+            text-align: left; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
             overflow: hidden;
         }}
         
-        .cytoscape-container {{
-            width: 100%;
-            height: 600px;
-        }}
-        
-        .cytoscape-controls {{
+        .kpi-card::before {{
+            content: '';
             position: absolute;
-            top: 10px;
-            left: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            z-index: 10;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--primary);
         }}
         
-        .cytoscape-controls button {{
-            padding: 8px 12px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: white;
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
+        .kpi-card:hover {{ transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }}
         
-        .cytoscape-controls button:hover {{
-            background: var(--accent);
-            color: white;
-            border-color: var(--accent);
-        }}
+        .kpi-value {{ font-size: 2.5rem; font-weight: 800; margin-bottom: 8px; color: var(--primary); line-height: 1; }}
         
-        .cytoscape-controls button.active {{
-            background: var(--accent);
-            color: white;
-            border-color: var(--accent);
-        }}
+        .kpi-label {{ font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); }}
         
-        .cytoscape-legend {{
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            background: rgba(255,255,255,0.95);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 0.75rem;
-            z-index: 10;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }}
+        .kpi-card.danger::before {{ background: var(--danger); }}
+        .kpi-card.danger .kpi-value {{ color: var(--danger); }}
         
-        .cytoscape-legend h5 {{
-            margin-bottom: 8px;
-            color: var(--secondary);
-            font-size: 0.8rem;
-        }}
+        .kpi-card.warning::before {{ background: var(--warning); }}
+        .kpi-card.warning .kpi-value {{ color: var(--warning); }}
+
+        .kpi-card.success::before {{ background: var(--success); }}
+        .kpi-card.success .kpi-value {{ color: var(--success); }}
         
-        .legend-item {{
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 4px;
-        }}
+        .chart-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 30px; margin-bottom: 35px; }}
         
-        .legend-shape {{
-            width: 14px;
-            height: 14px;
-            border: 2px solid #666;
-            display: inline-block;
-        }}
+        .chart-card {{ background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 25px; transition: all 0.3s; }}
         
-        .legend-shape.ellipse {{ border-radius: 50%; background: #3498db; }}
-        .legend-shape.diamond {{ transform: rotate(45deg) scale(0.7); background: #9b59b6; }}
-        .legend-shape.hexagon {{ background: #f1c40f; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }}
-        .legend-shape.rectangle {{ border-radius: 2px; background: #2ecc71; }}
-        .legend-shape.octagon {{ background: #1abc9c; clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%); }}
+        .chart-card h4 {{ color: var(--text); margin-bottom: 20px; font-size: 1.1rem; font-weight: 700; text-align: left; }}
         
-        .legend-color {{
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            display: inline-block;
-        }}
+        .table-container {{ overflow-x: auto; margin-bottom: 30px; border-radius: 12px; border: 1px solid var(--border); }}
         
-        .subsection {{ margin-bottom: 25px; }}
+        table {{ width: 100%; border-collapse: collapse; font-size: 0.95rem; background: white; }}
         
-        .subsection h3 {{ font-size: 1.1rem; color: var(--secondary); margin-bottom: 15px; padding-left: 10px; border-left: 3px solid var(--accent); }}
+        th {{ background: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; padding: 16px 20px; border-bottom: 2px solid var(--border); }}
         
-        .footer {{ text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 40px; }}
+        td {{ padding: 14px 20px; border-bottom: 1px solid var(--border); color: #1e293b; }}
         
-        @media (max-width: 768px) {{ .navbar-nav {{ display: none; }} .chart-grid {{ grid-template-columns: 1fr; }} .kpi-grid {{ grid-template-columns: repeat(2, 1fr); }} }}
+        tr:last-child td {{ border-bottom: none; }}
+        
+        tr:hover td {{ background: #f1f5f9; }}
+        
+        .badge {{ display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }}
+        
+        .badge-critical {{ background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }}
+        .badge-high {{ background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }}
+        .badge-medium {{ background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }}
+        .badge-low {{ background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }}
+        .badge-minimal {{ background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }}
+        .badge-passed {{ background: #dcfce7; color: #166534; }}
+        .badge-failed {{ background: #fee2e2; color: #991b1b; }}
+
+        .badge-tag {{ background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; margin-right: 4px; border-radius: 4px; font-size: 0.7rem; }}
+        
+        .metrics-box {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; background: #f8fafc; border-radius: 12px; padding: 25px; border: 1px solid var(--border); }}
+        
+        .metric-item {{ display: flex; flex-direction: column; gap: 5px; }}
+        .metric-name {{ font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }}
+        .metric-value {{ font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 1.2rem; font-weight: 700; color: var(--primary); }}
+        
+        .cytoscape-wrapper {{ border-radius: 16px; border: 1px solid var(--border); background: white; position: relative; overflow: hidden; height: 700px; }}
+        .cytoscape-container {{ height: 100%; width: 100%; }}
+        
+        .antipattern-card {{ border: 1px solid var(--border); border-radius: 12px; padding: 25px; margin-bottom: 20px; border-left: 6px solid var(--primary); transition: transform 0.2s; }}
+        .antipattern-card:hover {{ transform: scale(1.01); }}
+        .antipattern-card.critical {{ border-left-color: var(--danger); }}
+        .antipattern-card.high {{ border-left-color: var(--warning); }}
+        .antipattern-card.medium {{ border-left-color: var(--accent); }}
+        
+        .antipattern-header {{ display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }}
+        .antipattern-name {{ font-size: 1.2rem; font-weight: 800; }}
+        .antipattern-meta {{ display: flex; gap: 10px; font-size: 0.8rem; color: var(--text-muted); }}
+        
+        .antipattern-body {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 0.9rem; }}
+        .antipattern-col h5 {{ font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }}
+        
+        .footer {{ text-align: center; padding: 60px 40px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid var(--border); margin-top: 60px; }}
+
+        @media (max-width: 1024px) {{ .chart-grid {{ grid-template-columns: 1fr; }} .antipattern-body {{ grid-template-columns: 1fr; }} }}
     </style>
 </head>
 <body>
     <nav class="navbar">
-        <div class="navbar-brand">📊 Software-as-a-Graph Dashboard</div>
+        <div class="navbar-brand">Software-as-a-Graph <span>v2.0</span></div>
         <div class="navbar-nav">{nav_links}</div>
     </nav>
     <div class="main-content">
-        <div class="page-header"><h1>{title}</h1><div class="meta">Generated: {timestamp}</div></div>
+        <div class="page-header">
+            <h1>{title}</h1>
+            <div class="meta">Analysis Session • {timestamp} • Step 6: Visualization</div>
+        </div>
         {content}
     </div>
-    <div class="footer">Generated by Software-as-a-Graph Visualization Service • {timestamp}</div>
+    <div class="footer">
+        <p><strong>Software-as-a-Graph Methodology</strong></p>
+        <p>Step 6: Translation of quantitative analysis into interactive Dashboards.</p>
+        <p style="margin-top:10px;">&copy; 2026 Architectural Decision Support Pipeline</p>
+    </div>
     {scripts}
 </body>
 </html>
@@ -476,7 +436,11 @@ class DashboardGenerator:
             f'  <div id="{graph_id}" class="cytoscape-container"></div>',
             f'  <div class="cytoscape-legend" style="font-size:0.75rem;padding:10px;">',
             f'    <div style="display:flex;gap:15px;flex-wrap:wrap;">',
-            f'      <span>🔵 App</span><span>🟣 Broker</span><span>🟢 Node</span>',
+            f'      <span>🔵 Application (Ellipse)</span>',
+            f'      <span>💎 Library (Diamond)</span>',
+            f'      <span>🟣 Broker (Hexagon)</span>',
+            f'      <span>🟩 Node (Box)</span>',
+            f'      <span>⭐ Topic (Star)</span>',
             f'    </div>',
             f'    <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">',
             f'      <span style="color:#e74c3c">● Critical</span>',
@@ -518,10 +482,10 @@ class DashboardGenerator:
             
             const typeShapes = {{
                 'Application': 'ellipse',
-                'Broker': 'diamond',
+                'Library': 'diamond',
+                'Broker': 'hexagon',
                 'Node': 'rectangle',
-                'Topic': 'hexagon',
-                'Library': 'octagon'
+                'Topic': 'star'
             }};
             
             // Initialize Cytoscape
@@ -571,7 +535,12 @@ class DashboardGenerator:
                             'shape': function(ele) {{
                                 return typeShapes[ele.data('nodeType')] || 'ellipse';
                             }},
-                            'border-width': 3,
+                            'border-width': function(ele) {{
+                                return (ele.data('spof') || ele.data('is_spof')) ? 5 : 3;
+                            }},
+                            'border-style': function(ele) {{
+                                return (ele.data('spof') || ele.data('is_spof')) ? 'dashed' : 'solid';
+                            }},
                             'border-color': function(ele) {{
                                 return levelColors[ele.data('level')] || '#95a5a6';
                             }},
@@ -825,6 +794,42 @@ class DashboardGenerator:
         </script>
         """
         self.scripts.append(script)
+    
+    def add_antipattern_catalog(self, smells: List[Dict[str, Any]]) -> None:
+        """
+        Add an anti-pattern catalog section with detailed analysis and recommendations.
+        """
+        if not smells:
+            self.sections.append('<p style="color: var(--text-muted); font-style: italic;">No anti-patterns detected in this layer.</p>')
+            return
+            
+        html = ['<div class="antipattern-list">']
+        for s in smells:
+            severity = s.get("severity", "MEDIUM").lower()
+            html.append(
+                f'<div class="antipattern-card {severity}">'
+                f'  <div class="antipattern-header">'
+                f'    <span class="badge badge-{severity}">{s.get("severity")}</span>'
+                f'    <span class="antipattern-name">{s.get("pattern_name")} [{s.get("pattern_id")}]</span>'
+                f'  </div>'
+                f'  <div class="antipattern-meta">'
+                f'    <span><strong>Dimension:</strong> {s.get("rmav_dimension")}</span> • '
+                f'    <span><strong>Components:</strong> {", ".join(s.get("component_ids", []))}</span>'
+                f'  </div>'
+                f'  <div class="antipattern-body">'
+                f'    <div class="antipattern-col">'
+                f'      <h5>Risk Analysis</h5>'
+                f'      <p>{s.get("risk")}</p>'
+                f'    </div>'
+                f'    <div class="antipattern-col">'
+                f'      <h5>Recommendation</h5>'
+                f'      <p>{s.get("recommendation")}</p>'
+                f'    </div>'
+                f'  </div>'
+                f'</div>'
+            )
+        html.append('</div>')
+        self.sections.append(''.join(html))
     
     def add_matrix_view(
         self,

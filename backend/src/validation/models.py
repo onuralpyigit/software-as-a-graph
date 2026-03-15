@@ -297,6 +297,11 @@ class LayerValidationResult:
     dimensional_validation: Dict[str, Any] = field(default_factory=dict)
     gates: Dict[str, bool] = field(default_factory=dict)
     node_type_stratified: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    # New: Full scatter data per dimension for visualization
+    # Dict mapping dimension name to List of (id, predicted_score, actual_impact, level)
+    dimensional_scatter: Dict[str, List[Tuple[str, float, float, str]]] = field(default_factory=dict)
+    # New: Confidence intervals per dimension
+    confidence_intervals: Dict[str, Tuple[float, float]] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {

@@ -114,6 +114,10 @@ class ComponentDetail:
     level: str = "MINIMAL"
     impact: float = 0.0
     cascade_depth: int = 0
+    anti_patterns: List[str] = field(default_factory=list)
+    mpci: float = 0.0
+    foc: float = 0.0
+    spof: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -127,7 +131,11 @@ class ComponentDetail:
             "overall": self.overall,
             "level": self.level,
             "impact": self.impact,
-            "cascade_depth": self.cascade_depth
+            "cascade_depth": self.cascade_depth,
+            "anti_patterns": self.anti_patterns,
+            "mpci": self.mpci,
+            "foc": self.foc,
+            "spof": self.spof,
         }
 
 @dataclass
@@ -175,6 +183,20 @@ class LayerData:
     network_edges: List[Dict[str, Any]] = field(default_factory=list)
     rcm_order: List[str] = field(default_factory=list)
 
+    # Per-dimension validation rhos
+    reliability_spearman: float = 0.0
+    maintainability_spearman: float = 0.0
+    availability_spearman: float = 0.0
+    vulnerability_spearman: float = 0.0
+    composite_spearman: float = 0.0
+    predictive_gain: float = 0.0
+
+    # Primary Gates G1-G4
+    gates: Dict[str, bool] = field(default_factory=dict)
+
+    # Anti-pattern findings
+    anti_patterns: List[Dict[str, Any]] = field(default_factory=list)
+
     # Name mapping
     component_names: Dict[str, str] = field(default_factory=dict)
 
@@ -183,6 +205,17 @@ class LayerData:
 
     # Scatter plot data: (id, Q(v), I(v), level)
     scatter_data: List[Tuple[str, float, float, str]] = field(default_factory=list)
+    reliability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
+    maintainability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
+    availability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
+    vulnerability_scatter: List[Tuple[str, float, float, str]] = field(default_factory=list)
+
+    # Confidence intervals for rhos
+    reliability_ci: Optional[Tuple[float, float]] = None
+    maintainability_ci: Optional[Tuple[float, float]] = None
+    availability_ci: Optional[Tuple[float, float]] = None
+    vulnerability_ci: Optional[Tuple[float, float]] = None
+    composite_ci: Optional[Tuple[float, float]] = None
 
     # Top-K overlap metrics
     top5_overlap: float = 0.0

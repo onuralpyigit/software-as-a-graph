@@ -99,6 +99,17 @@ class StructuralMetrics:
     def is_source(self) -> bool:
         """Check if this is a source (no incoming edges)."""
         return self.in_degree_raw == 0 and self.out_degree_raw > 0
+    @property
+    def vis_shape(self) -> str:
+        """Map vertex type to shape token for visualization rendering."""
+        mapping = {
+            "Application": "ellipse",
+            "Library": "diamond",
+            "Broker": "hexagon",
+            "Node": "box",
+            "Topic": "star",
+        }
+        return mapping.get(self.type, "ellipse")
 
 
 @dataclass

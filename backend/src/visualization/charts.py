@@ -298,24 +298,26 @@ class ChartGenerator:
         scatter_data: List[Tuple[str, float, float, str]],
         title: str = "Prediction Correlation: Q(v) vs I(v)",
         spearman: float = 0.0,
+        ci_lower: Optional[float] = None,
+        ci_upper: Optional[float] = None,
+        title_suffix: str = "",
     ) -> Optional[str]:
         """
-        Generate a scatter plot comparing predicted Q(v) against simulated I(v).
-
-        This is the central validation visualization that confirms the
-        methodology's core claim: topology predicts impact (§6.4.4).
-
-        Points near the diagonal indicate good prediction. Outliers above
-        the diagonal suggest under-prediction; below suggests over-prediction.
+        Generate a scatter plot comparing predicted metrics against simulated impact.
 
         Args:
             scatter_data: List of (component_id, Q(v), I(v), level) tuples
             title: Chart title
             spearman: Spearman correlation to display in subtitle
+            ci_lower: Bootstrap confidence interval lower bound (optional)
+            ci_upper: Bootstrap confidence interval upper bound (optional)
+            title_suffix: Optional suffix for the title (e.g. "Reliability: R(v) vs IR(v)")
         """
         if not scatter_data or len(scatter_data) < 3:
             return None
 
+        # Apply suffix if provided
+        display_title = f"{title}: {title_suffix}" if title_suffix else title
         chart_id = self._next_id("scatter")
 
         # Group points by criticality level for color-coded datasets
@@ -337,7 +339,14 @@ class ChartGenerator:
                 "pointHoverRadius": 9,
             })
 
-        subtitle = f"Spearman ρ = {spearman:.3f}" if spearman else ""
+        # Build subtitle with ρ and CI if available
+        subtitle_parts = []
+        if spearman:
+            subtitle_parts.append(f"Spearman ρ = {spearman:.3f}")
+        if ci_lower is not None and ci_upper is not None:
+            subtitle_parts.append(f"95% CI [{ci_lower:.3f}, {ci_upper:.3f}]")
+        
+        subtitle = " • ".join(subtitle_parts)
 
         config = {
             "type": "scatter",
@@ -348,7 +357,7 @@ class ChartGenerator:
                 "plugins": {
                     "title": {
                         "display": True,
-                        "text": [title, subtitle] if subtitle else title,
+                        "text": [display_title, subtitle] if subtitle else display_title,
                         "font": {"size": 14},
                     },
                     "legend": {"display": True, "position": "bottom"},
@@ -362,26 +371,48 @@ class ChartGenerator:
                     "x": {
                         "beginAtZero": True,
                         "max": 1.0,
-                        "title": {"display": True, "text": "Predicted Q(v)"},
+                        "title": {"display": True, "text": "Predicted Score"},
                     },
                     "y": {
                         "beginAtZero": True,
                         "max": 1.0,
-                        "title": {"display": True, "text": "Simulated I(v)"},
+                        "title": {"display": True, "text": "Simulated Impact"},
                     },
                 },
             },
         }
 
-        # Diagonal reference line plugin
-        diagonal_plugin = """
-        {
+        # Diagonal reference line plugin with optional CI band
+        # If CI is provided, we draw a shaded area around the diagonal.
+        ci_band_js = ""
+        if ci_lower is not None and ci_upper is not None:
+            # We treat the CI as a "tolerance" band or a diagnostic region.
+            # Here we render a polygon for the region between y=x+spread and y=x-spread
+            # where spread is derived from the CI width or similar. 
+            # For this visualization, we'll use a fixed transparency band.
+            ci_band_js = f"""
+                const ciLower = {ci_lower};
+                const ciUpper = {ci_upper};
+                ctx.fillStyle = 'rgba(0, 176, 155, 0.05)';
+                ctx.beginPath();
+                // Draw band around diagonal
+                ctx.moveTo(xScale.getPixelForValue(0), yScale.getPixelForValue(0.1));
+                ctx.lineTo(xScale.getPixelForValue(0.9), yScale.getPixelForValue(1.0));
+                ctx.lineTo(xScale.getPixelForValue(1.0), yScale.getPixelForValue(0.9));
+                ctx.lineTo(xScale.getPixelForValue(0.1), yScale.getPixelForValue(0));
+                ctx.closePath();
+                ctx.fill();
+            """
+
+        diagonal_plugin = f"""
+        {{
             id: 'diagonalLine',
-            beforeDraw(chart) {
+            beforeDraw(chart) {{
                 const ctx = chart.ctx;
                 const xScale = chart.scales.x;
                 const yScale = chart.scales.y;
                 ctx.save();
+                {ci_band_js}
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.lineWidth = 1;
                 ctx.setLineDash([5, 5]);
@@ -390,14 +421,14 @@ class ChartGenerator:
                 ctx.lineTo(xScale.getPixelForValue(1), yScale.getPixelForValue(1));
                 ctx.stroke();
                 ctx.restore();
-            }
-        }
+            }}
+        }}
         """
 
         scatter_tooltip = (
             "function(context) {"
             "  var p = context.raw;"
-            "  return p.label + ' (Q=' + p.x.toFixed(3) + ', I=' + p.y.toFixed(3) + ')';"
+            "  return p.label + ' (Pred=' + p.x.toFixed(3) + ', Act=' + p.y.toFixed(3) + ')';"
             "}"
         )
 
@@ -408,6 +439,88 @@ class ChartGenerator:
             tooltip_fn=scatter_tooltip,
             plugins=[diagonal_plugin],
         )
+
+    def correlation_scatter_per_dimension(
+        self,
+        scatter_data: List[Tuple[str, float, float, str]],
+        dimension: str,
+        spearman: float = 0.0,
+    ) -> Optional[str]:
+        """
+        Generate a diagnostic scatter plot for a specific RMAV dimension.
+        §6.4.4 Section 4.
+        """
+        titles = {
+            "reliability": "Reliability: R(v) vs IR(v)",
+            "maintainability": "Maintainability: M(v) vs IM(v)",
+            "availability": "Availability: A(v) vs IA(v)",
+            "vulnerability": "Vulnerability: V(v) vs IV(v)",
+        }
+        title = titles.get(dimension.lower(), f"{dimension.capitalize()} Correlation")
+        
+        # Use dimension color for background
+        dim_color = RMAV_COLORS.get(dimension.lower(), "#95A5A6")
+        
+        chart_id = self._next_id(f"scatter_{dimension}")
+        
+        datasets = [{
+            "label": dimension.capitalize(),
+            "data": [{"x": q, "y": i, "label": cid} for cid, q, i, _ in scatter_data],
+            "backgroundColor": dim_color,
+            "borderColor": dim_color,
+            "pointRadius": 4,
+            "pointHoverRadius": 6,
+        }]
+        
+        subtitle = f"Spearman ρ = {spearman:.3f}" if spearman else ""
+        
+        config = {
+            "type": "scatter",
+            "data": {"datasets": datasets},
+            "options": {
+                "responsive": True,
+                "maintainAspectRatio": False,
+                "plugins": {
+                    "title": {
+                        "display": True,
+                        "text": [title, subtitle] if subtitle else title,
+                        "font": {"size": 13},
+                    },
+                    "legend": {"display": False},
+                    "tooltip": {
+                        "callbacks": {
+                            "label": "function(context) { var p = context.raw; return p.label + ' (Pred=' + p.x.toFixed(3) + ', Act=' + p.y.toFixed(3) + ')'; }",
+                        },
+                    },
+                },
+                "scales": {
+                    "x": {"beginAtZero": True, "max": 1.0, "title": {"display": True, "text": f"Predicted {dimension.capitalize()}"}},
+                    "y": {"beginAtZero": True, "max": 1.0, "title": {"display": True, "text": f"Actual {dimension.capitalize()}"}},
+                },
+            },
+        }
+        
+        diagonal_plugin = """
+        {
+            id: 'diagonalLine',
+            beforeDraw(chart) {
+                const ctx = chart.ctx;
+                const xScale = chart.scales.x;
+                const yScale = chart.scales.y;
+                ctx.save();
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(xScale.getPixelForValue(0), yScale.getPixelForValue(0));
+                ctx.lineTo(xScale.getPixelForValue(1), yScale.getPixelForValue(1));
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+        """
+
+        return self._chart_html(chart_id, config, height=250, plugins=[diagonal_plugin])
 
     # ─── Internal HTML Generation ────────────────────────────────────────
 

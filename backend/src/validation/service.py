@@ -160,6 +160,8 @@ class ValidationService:
         # (ρ(R(v), IR(v)) instead of ρ(R(v), reachability_loss))
         self.logger.info("Computing reliability-specific validation (IR(v) ground truth)...")
         dimensional_validation = {}
+        dimensional_scatter = {}
+        confidence_intervals = {}
         from src.validation.metric_calculator import (
             calculate_correlation, calculate_ccr_at_k, calculate_cme,
             calculate_cocr_at_k, calculate_weighted_kappa_cta, calculate_bottleneck_precision,
@@ -193,6 +195,19 @@ class ValidationService:
                     "n": len(common_r),
                     "ground_truth": "IR(v)",
                 }
+                
+                # Full scatter points
+                data_r = []
+                for cid in common_r:
+                    level = "MINIMAL"
+                    # Try to get level from analysis_result components
+                    comp = next((c for c in analysis_result.quality.components if c.id == cid), None)
+                    if comp:
+                        level = getattr(comp.levels.overall, 'name', str(comp.levels.overall))
+                    data_r.append((cid, float(pred_reliability[cid]), float(actual_reliability_impact[cid]), level))
+                
+                dimensional_scatter["reliability"] = data_r
+                confidence_intervals["reliability"] = (r_corr.spearman_ci_lower, r_corr.spearman_ci_upper)
                 self.logger.info(
                     "Reliability dim [%s]: \u03c1(R,IR)=%.3f (n=%d), CCR@5=%.3f, CME=%.4f",
                     sim_layer.value, r_corr.spearman, len(common_r), ccr5, cme,
@@ -268,6 +283,18 @@ class ValidationService:
                     "n": len(common_m),
                     "ground_truth": "IM(v)",
                 }
+                
+                # Full scatter points
+                data_m = []
+                for cid in common_m:
+                    level = "MINIMAL"
+                    comp = next((c for c in analysis_result.quality.components if c.id == cid), None)
+                    if comp:
+                        level = getattr(comp.levels.overall, 'name', str(comp.levels.overall))
+                    data_m.append((cid, float(pred_maintainability[cid]), float(actual_maintainability_impact[cid]), level))
+                
+                dimensional_scatter["maintainability"] = data_m
+                confidence_intervals["maintainability"] = (m_corr.spearman_ci_lower, m_corr.spearman_ci_upper)
                 self.logger.info(
                     "Maintainability dim [%s]: ρ(M,IM)=%.3f (n=%d), "
                     "COCR@5=%.3f, κ_CTA=%.3f, BP=%.3f",
@@ -341,6 +368,18 @@ class ValidationService:
                     "ground_truth": "IV(v)",
                 }
                 
+                # Full scatter points
+                data_v = []
+                for cid in common_v:
+                    level = "MINIMAL"
+                    comp = next((c for c in analysis_result.quality.components if c.id == cid), None)
+                    if comp:
+                        level = getattr(comp.levels.overall, 'name', str(comp.levels.overall))
+                    data_v.append((cid, float(pred_vulnerability[cid]), float(actual_vulnerability_impact[cid]), level))
+                
+                dimensional_scatter["vulnerability"] = data_v
+                confidence_intervals["vulnerability"] = (v_corr.spearman_ci_lower, v_corr.spearman_ci_upper)
+                
                 self.logger.info(
                     "Vulnerability dim [%s]: ρ(V,IV)=%.3f (n=%d), "
                     "AHCR@5=%.3f, FTR=%.3f, APAR=%.3f, CDCC=%.3f",
@@ -408,6 +447,18 @@ class ValidationService:
                     "n":             len(common_a),
                     "ground_truth":  "IA(v)",
                 }
+                
+                # Full scatter points
+                data_a = []
+                for cid in common_a:
+                    level = "MINIMAL"
+                    comp = next((c for c in analysis_result.quality.components if c.id == cid), None)
+                    if comp:
+                        level = getattr(comp.levels.overall, 'name', str(comp.levels.overall))
+                    data_a.append((cid, float(pred_availability[cid]), float(actual_availability_impact[cid]), level))
+                
+                dimensional_scatter["availability"] = data_a
+                confidence_intervals["availability"] = (a_corr.spearman_ci_lower, a_corr.spearman_ci_upper)
                 self.logger.info(
                     "Availability dim [%s]: \u03c1(A,IA)=%.3f (n=%d), SPOF_F1=%.3f, DASA=%.3f",
                     sim_layer.value, a_corr.spearman, len(common_a),
@@ -452,6 +503,18 @@ class ValidationService:
                     [float(composite_i_star[k]) for k in common_comp],
                 )
                 composite_spearman = comp_corr.spearman
+
+                # Full scatter points
+                data_comp = []
+                for cid in common_comp:
+                    level = "MINIMAL"
+                    comp = next((c for c in analysis_result.quality.components if c.id == cid), None)
+                    if comp:
+                        level = getattr(comp.levels.overall, 'name', str(comp.levels.overall))
+                    data_comp.append((cid, float(pred_scores[cid]), float(composite_i_star[cid]), level))
+                
+                dimensional_scatter["composite"] = data_comp
+                confidence_intervals["composite"] = (comp_corr.spearman_ci_lower, comp_corr.spearman_ci_upper)
 
                 dims_map = {
                     "Reliability": reliability_spearman,
@@ -639,6 +702,8 @@ class ValidationService:
             warnings=validation_res.warnings,
             component_names=comp_names,
             dimensional_validation=dimensional_validation,
+            dimensional_scatter=dimensional_scatter,
+            confidence_intervals=confidence_intervals,
         )
 
     def validate_from_data(self, predicted, actual) -> ValidationResult:

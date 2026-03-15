@@ -500,15 +500,10 @@ class TestVisualizationService:
             mock_data.nodes = 48
             mock_data.critical_count = 5
             mock_data.spearman = 0.876
-            mock_data.f1_score = 0.923
-            mock_data.precision = 0.912
-            mock_data.recall = 0.857
-            mock_data.validation_passed = True
             mock_data.component_details = [
                 ComponentDetail("a", "App A", "Application",
                                0.8, 0.7, 0.9, 0.6, 0.75, "CRITICAL"),
             ]
-            mock_data.scatter_data = [("a", 0.75, 0.70, "CRITICAL")]
             mock_collector.collect_layer_data.return_value = mock_data
 
             with patch(
@@ -528,7 +523,7 @@ class TestVisualizationService:
     def test_scalability_auto_disable_network(
         self, mock_analysis_service, mock_simulation_service, mock_validation_service
     ):
-        """Large systems auto-disable network graph (§6.11)."""
+        """Large systems auto-disable network graph (> 500 nodes)."""
         repo = MagicMock()
         service = VisualizationService(
             mock_analysis_service,
@@ -539,13 +534,11 @@ class TestVisualizationService:
 
         with patch.object(service, "collector") as mock_collector:
             mock_data = LayerData(layer="system", name="Complete System")
-            mock_data.nodes = 500  # > 200 threshold
+            mock_data.nodes = 600  # > 500 threshold in service.py
             mock_collector.collect_layer_data.return_value = mock_data
 
-            with patch.object(service, "_add_layer_section") as mock_add:
-                with patch(
-                    "src.visualization.dashboard.DashboardGenerator"
-                ) as MockDash:
+            with patch.object(service, "_add_network_section") as mock_add:
+                with patch("src.visualization.dashboard.DashboardGenerator") as MockDash:
                     dash_instance = MockDash.return_value
                     dash_instance.generate.return_value = "<html></html>"
 
@@ -555,15 +548,13 @@ class TestVisualizationService:
                         include_network=True,
                     )
 
-                    # _add_layer_section should be called with include_network=False
-                    call_args = mock_add.call_args
-                    # effective_network arg (3rd positional) should be False
-                    assert call_args[0][2] is False
+                    # _add_network_section should NOT be called
+                    assert mock_add.called is False
 
     def test_unknown_layer_skipped(
         self, mock_analysis_service, mock_simulation_service, mock_validation_service
     ):
-        """Unknown layers are skipped with a warning."""
+        """Empty layers raise ValueError (at least one valid layer required)."""
         repo = MagicMock()
         service = VisualizationService(
             mock_analysis_service,
@@ -572,17 +563,12 @@ class TestVisualizationService:
             repo,
         )
 
-        with patch(
-            "src.visualization.dashboard.DashboardGenerator"
-        ) as MockDash:
-            dash_instance = MockDash.return_value
-            dash_instance.generate.return_value = "<html></html>"
-
-            # Should not raise
-            service.generate_dashboard(
-                output_file="/tmp/test.html",
-                layers=["nonexistent_layer"],
-            )
+        with patch("src.visualization.dashboard.DashboardGenerator"):
+            with pytest.raises(ValueError, match="No layer data collected"):
+                service.generate_dashboard(
+                    output_file="/tmp/test.html",
+                    layers=["nonexistent_layer"],
+                )
 
 
 # =========================================================================
