@@ -103,9 +103,13 @@ TOPOLOGICAL_METRIC_KEYS: List[str] = [
     "instability_code",
     "lcom_norm",
     "code_quality_penalty",
+    "ap_c_directed",
+    "cdi",
+    "mpci",
+    "fan_out_criticality",
 ]
 
-NODE_FEATURE_DIM = len(TOPOLOGICAL_METRIC_KEYS) + len(NODE_TYPES)  # 23
+NODE_FEATURE_DIM = len(TOPOLOGICAL_METRIC_KEYS) + len(NODE_TYPES)  # 27
 EDGE_FEATURE_DIM = 1 + len(EDGE_TYPES)                              # 8
 
 # Label column indices in the (N, 5) label matrix
@@ -430,39 +434,50 @@ def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, fl
     out: Dict[str, Dict[str, float]] = {}
 
     def _from_component(comp):
+        def _get(obj, attr, default=0.0):
+            if isinstance(obj, dict):
+                return obj.get(attr, default)
+            return getattr(obj, attr, default)
+
         return {
-            "pagerank": float(getattr(comp, "pagerank", 0.0)),
-            "reverse_pagerank": float(getattr(comp, "reverse_pagerank", 0.0)),
-            "betweenness_centrality": float(getattr(comp, "betweenness_centrality", 0.0)),
-            "closeness_centrality": float(getattr(comp, "closeness_centrality", 0.0)),
-            "eigenvector_centrality": float(getattr(comp, "eigenvector_centrality", 0.0)),
-            "in_degree_centrality": float(getattr(comp, "in_degree_centrality", 0.0)),
-            "out_degree_centrality": float(getattr(comp, "out_degree_centrality", 0.0)),
-            "clustering_coefficient": float(getattr(comp, "clustering_coefficient", 0.0)),
-            "ap_c_score": float(getattr(comp, "ap_c_score", 0.0)),
-            "bridge_ratio": float(getattr(comp, "bridge_ratio", 0.0)),
-            "qos_weight": float(getattr(comp, "qos_weight", 1.0)),
-            "qos_weight_in": float(getattr(comp, "qos_weight_in", 0.0)),
-            "qos_weight_out": float(getattr(comp, "qos_weight_out", 0.0)),
-            "loc_norm": float(getattr(comp, "loc_norm", 0.0)),
-            "complexity_norm": float(getattr(comp, "complexity_norm", 0.0)),
-            "instability_code": float(getattr(comp, "instability_code", 0.0)),
-            "lcom_norm": float(getattr(comp, "lcom_norm", 0.0)),
-            "code_quality_penalty": float(getattr(comp, "code_quality_penalty", 0.0)),
+            "pagerank": float(_get(comp, "pagerank")),
+            "reverse_pagerank": float(_get(comp, "reverse_pagerank")),
+            "betweenness_centrality": float(_get(comp, "betweenness")),
+            "closeness_centrality": float(_get(comp, "closeness")),
+            "eigenvector_centrality": float(_get(comp, "eigenvector")),
+            "in_degree_centrality": float(_get(comp, "in_degree")),
+            "out_degree_centrality": float(_get(comp, "out_degree")),
+            "clustering_coefficient": float(_get(comp, "clustering_coefficient")),
+            "ap_c_score": float(_get(comp, "ap_c_directed")),
+            "ap_c_directed": float(_get(comp, "ap_c_directed")),
+            "cdi": float(_get(comp, "cdi")),
+            "mpci": float(_get(comp, "mpci")),
+            "fan_out_criticality": float(_get(comp, "fan_out_criticality")),
+            "bridge_ratio": float(_get(comp, "bridge_ratio")),
+            "qos_weight": float(_get(comp, "weight", 1.0)),
+            "qos_weight_in": float(_get(comp, "dependency_weight_in")),
+            "qos_weight_out": float(_get(comp, "dependency_weight_out")),
+            "loc_norm": float(_get(comp, "loc_norm")),
+            "complexity_norm": float(_get(comp, "complexity_norm")),
+            "instability_code": float(_get(comp, "instability_code")),
+            "lcom_norm": float(_get(comp, "lcom_norm")),
+            "code_quality_penalty": float(_get(comp, "code_quality_penalty")),
         }
 
     # Handle StructuralAnalysisResult with .components list
     if hasattr(structural_result, "components"):
-        for comp in structural_result.components:
-            name = getattr(comp, "component_id", getattr(comp, "name", str(comp)))
+        # Support both components list and dict
+        components = structural_result.components
+        if hasattr(components, "values"):
+            components = components.values()
+        
+        for comp in components:
+            name = getattr(comp, "component_id", getattr(comp, "name", str(getattr(comp, "id", comp))))
             out[name] = _from_component(comp)
     # Handle dict of {name: component_dict}
     elif isinstance(structural_result, dict):
         for name, comp in structural_result.items():
-            if isinstance(comp, dict):
-                out[name] = {k: float(comp.get(k, 0.0)) for k in TOPOLOGICAL_METRIC_KEYS}
-            else:
-                out[name] = _from_component(comp)
+            out[name] = _from_component(comp)
 
     return out
 
