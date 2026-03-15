@@ -6,6 +6,7 @@ Validates the graph modeling and analysis approach by comparing
 predicted criticality scores against actual failure impact.
 """
 import sys
+from typing import List, Optional, Any
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent / "backend"))
 
@@ -52,6 +53,10 @@ def main() -> int:
     parser.add_argument("--quiet", action="store_true", help="Minimal output")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     
+    # Positional arguments for quick validation (optional)
+    parser.add_argument("predicted", nargs="?", help="Predicted criticality JSON file (optional if --quick is used)")
+    parser.add_argument("actual", nargs="?", help="Actual impact JSON file (optional if --quick is used)")
+    
     args = parser.parse_args()
     
     log_level = logging.WARNING if args.quiet else (logging.DEBUG if args.verbose else logging.INFO)
@@ -71,10 +76,26 @@ def main() -> int:
         simulation_service = SimulationService(repo)
         val_service = ValidationService(analysis_service, simulation_service, targets=targets, ndcg_k=args.ndcg_k)
 
+        # Determine inputs for quick validation
+        predicted_file = None
+        actual_file = None
+        
         if args.quick:
             predicted_file, actual_file = args.quick
-            with open(predicted_file, 'r') as f: predicted = json.load(f)
-            with open(actual_file, 'r') as f: actual = json.load(f)
+        elif args.predicted and args.actual:
+            predicted_file = args.predicted
+            actual_file = args.actual
+
+        if predicted_file and actual_file:
+            with open(predicted_file, 'r') as f: predicted_data = json.load(f)
+            with open(actual_file, 'r') as f: actual_data = json.load(f)
+
+            predicted = _extract_predicted(predicted_data)
+            actual = _extract_actual(actual_data)
+
+            if not predicted or not actual:
+                print(f"Error: Could not extract scores from {predicted_file} or {actual_file}")
+                return 1
 
             result = val_service.validate_from_data(predicted, actual)
 
@@ -152,6 +173,43 @@ def main() -> int:
         return 1
     finally:
         repo.close()
+
+def _extract_predicted(data: dict) -> dict:
+    """Extract {id: score} from AnalysisService output."""
+    if not isinstance(data, dict):
+        return {}
+    
+    # Try nested structure: layers -> [layer] -> quality_analysis -> components
+    if "layers" in data:
+        scores = {}
+        for layer_info in data["layers"].values():
+            # Support both 'quality_analysis' (new) and 'components' (old/flat)
+            components = layer_info.get("quality_analysis", {}).get("components")
+            if not components:
+                components = layer_info.get("components")
+                
+            if components:
+                for comp in components:
+                     scores[comp["id"]] = comp["scores"]["overall"]
+        return scores
+    
+    # Try flat dict
+    return data
+
+def _extract_actual(data: Any) -> dict:
+    """Extract {id: score} from FailureSimulator exhaustive output."""
+    if isinstance(data, list):
+        scores = {}
+        for res in data:
+            target_id = res.get("target_id")
+            impact = res.get("impact", {})
+            score = impact.get("composite_impact", 0.0)
+            if target_id:
+                scores[target_id] = score
+        return scores
+    
+    # Try flat dict
+    return data if isinstance(data, dict) else {}
 
 
 if __name__ == "__main__":

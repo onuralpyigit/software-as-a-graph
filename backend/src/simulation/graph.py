@@ -362,6 +362,18 @@ class SimulationGraph:
         """
         return dict(self._uses)
 
+    def get_uses_consumers(self, library_id: str) -> List[str]:
+        """
+        Get components (Applications or Libraries) that use a specific library.
+        
+        Args:
+            library_id: ID of the library
+            
+        Returns:
+            List of component IDs that have a USES relationship to the library
+        """
+        return self._used_by.get(library_id, [])
+
     def get_node_allocations(self) -> Dict[str, List[str]]:
         """
         Get node allocations (Node -> [Apps]).

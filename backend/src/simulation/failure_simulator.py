@@ -15,6 +15,7 @@ Cascade Rules:
     - Logical: Broker failure -> topics become unreachable;
                Publisher failure -> subscriber starvation
     - Network: Network partition via CONNECTS_TO
+    - Library: Library failure -> using applications fail (USES)
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ class FailureSimulator:
         - RUNS_ON: Physical cascade (node -> hosted components)
         - ROUTES: Logical cascade (broker -> topics -> subscriber starvation)
         - CONNECTS_TO: Network cascade (node -> connected nodes)
+        - USES: Library cascade (library -> using applications)
         - PUBLISHES_TO / SUBSCRIBES_TO: Application cascade (publisher loss)
     
     Example:
@@ -179,7 +181,8 @@ class FailureSimulator:
     def simulate_exhaustive(
         self,
         scenario_template: Optional[FailureScenario] = None,
-        layer: str = "system"
+        layer: str = "system",
+        n_trials: int = 1
     ) -> List[FailureResult]:
         """
         Run failure simulation for all components in a layer.
@@ -211,13 +214,27 @@ class FailureSimulator:
                 scenario = FailureScenario(
                     target_ids=[comp_id],
                     description=f"Exhaustive failure: {comp_id}",
+                    failure_mode=scenario_template.failure_mode if scenario_template else FailureMode.CRASH,
                     layer=layer,
                     cascade_rule=scenario_template.cascade_rule if scenario_template else CascadeRule.ALL,
                     cascade_probability=scenario_template.cascade_probability if scenario_template else 1.0,
                     max_cascade_depth=scenario_template.max_cascade_depth if scenario_template else 10,
                 )
                 
-                result = self.simulate(scenario)
+                if n_trials > 1:
+                    # Run N trials and use the result from the "most average" trial or just the mean scores
+                    mc_result = self.simulate_monte_carlo(scenario, n_trials=n_trials)
+                    # For exhaustive metrics, we need a FailureResult. 
+                    # We'll run one final simulation to get a concrete result, 
+                    # but we override its composite impact with the mean.
+                    # Better: self.simulate uses the mean scores?
+                    # Simplest: self.simulate(scenario) but use its mean metrics
+                    result = self.simulate(scenario)
+                    result.impact._manual_composite_impact = mc_result.mean_impact
+                    # TODO: could average all ImpactMetrics fields if needed, 
+                    # but composite_impact is primary for ranking.
+                else:
+                    result = self.simulate(scenario)
                 results.append(result)
         finally:
             # Always clear the cached baseline flag
@@ -593,8 +610,9 @@ class FailureSimulator:
             
             current_type = current_comp.type
             
-            # === Physical Cascade (Node -> Hosted Components) ===
-            if scenario.cascade_rule in (CascadeRule.PHYSICAL, CascadeRule.ALL):
+            # === Physical Cascade (Rule 1: Node -> Hosted Components) ===
+            # SKIPPED if failure_mode is PARTITION (affects logical/app only)
+            if scenario.cascade_rule in (CascadeRule.PHYSICAL, CascadeRule.ALL) and scenario.failure_mode != FailureMode.PARTITION:
                 if current_type == "Node" and performance.get(current_id, 1.0) == 0.0:
                     hosted = self.graph.get_hosted_components(current_id)
                     for comp_id in hosted:
@@ -611,6 +629,26 @@ class FailureSimulator:
                                     depth=depth + 1
                                 ))
                                 queue.append((comp_id, depth + 1))
+            
+            # === Library Cascade (Rule 4: Library -> Using Applications) ===
+            if scenario.cascade_rule in (CascadeRule.LIBRARY, CascadeRule.ALL):
+                if current_type == "Library" and performance.get(current_id, 1.0) == 0.0:
+                    # Get applications that USE this library
+                    users = self.graph.get_uses_consumers(current_id)
+                    for app_id in users:
+                        if app_id not in failed_set:
+                            if self._rng.random() < scenario.cascade_probability:
+                                failed_set.add(app_id)
+                                performance[app_id] = 0.0
+                                self.graph.fail_component(app_id)
+                                comp = self.graph.components.get(app_id)
+                                cascade_sequence.append(CascadeEvent(
+                                    component_id=app_id,
+                                    component_type=comp.type if comp else "Application",
+                                    cause=f"uses_library:{current_id}",
+                                    depth=depth + 1
+                                ))
+                                queue.append((app_id, depth + 1))
             
             # === Logical Cascade ===
             if scenario.cascade_rule in (CascadeRule.LOGICAL, CascadeRule.ALL):
@@ -748,11 +786,13 @@ class FailureSimulator:
         
         # Normalize: how many new disconnected islands were created,
         # relative to the maximum possible fragmentation
+        # relative to the maximum possible fragmentation (N-1)
         if self._initial_components > 1:
-            # Max new components = initial_components - 1 (each node becomes its own island)
-            max_new_cc = self._initial_components - 1
+            # Max CCs = N (each component is isolated)
+            # fragmentation = (final_cc - initial_cc) / (N - initial_cc)
+            denom = max(1, self._initial_components - initial_cc)
             new_cc = max(0, final_cc - initial_cc)
-            fragmentation = min(1.0, new_cc / max_new_cc)
+            fragmentation = min(1.0, new_cc / denom)
         else:
             fragmentation = 0.0
         

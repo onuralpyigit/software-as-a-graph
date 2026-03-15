@@ -45,6 +45,7 @@ import logging
 
 from src.core import create_repository
 from src.simulation import SimulationService
+from src.simulation.models import FailureMode
 from src.cli.console import ConsoleDisplay
 
 
@@ -103,14 +104,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     # failure
     fl = subs.add_parser("failure", help="Component failure and cascade simulation", parents=[common_parser])
-    fl_target = fl.add_mutually_exclusive_group(required=True)
+    fl_target = fl.add_mutually_exclusive_group(required=False)
     fl_target.add_argument("--target", "-t", metavar="COMP_ID", help="Target component to fail")
     fl_target.add_argument("--exhaustive", "-x", action="store_true", help="Fail every component in layer")
     fl_target.add_argument("--pairwise", "-w", action="store_true", help="Fail every component pair in layer (detect hidden coupling)")
     fl.add_argument("--layer", "-l", choices=LAYER_HELP, default="system", help="Simulation layer")
     fl.add_argument("--cascade-prob", type=float, default=1.0, help="Cascade probability (0-1)")
+    fl.add_argument("--failure-mode", choices=["CRASH", "DEGRADED", "PARTITION", "OVERLOAD"], default="CRASH", help="Failure mode for target(s)")
     fl.add_argument("--monte-carlo", action="store_true", help="Run Monte Carlo stochastic simulation")
-    fl.add_argument("--trials", type=int, default=100, help="Number of Monte Carlo trials (default: 100)")
+    fl.add_argument("--trials", "--samples", type=int, default=100, help="Number of Monte Carlo trials/samples (default: 100)")
 
     # report
     rp = subs.add_parser("report", help="Generate comprehensive multi-layer report", parents=[common_parser])
@@ -159,10 +161,20 @@ def handle_event(args, sim, display) -> dict:
 
 def handle_failure(args, sim, display) -> dict:
     """Handle the 'failure' subcommand."""
+    # Logic to default to exhaustive if monte-carlo is specified without a target/mode
+    if not (args.target or args.exhaustive or args.pairwise):
+        if args.monte_carlo:
+            args.exhaustive = True
+        else:
+            print("Error: At least one of --target, --exhaustive, or --pairwise must be specified.")
+            return {}
+
     if args.exhaustive:
         results = sim.run_failure_simulation_exhaustive(
             layer=args.layer,
             cascade_probability=args.cascade_prob,
+            failure_mode=FailureMode[args.failure_mode],
+            n_trials=args.trials
         )
         if not args.quiet:
             display.display_exhaustive_results(results)
@@ -171,6 +183,7 @@ def handle_failure(args, sim, display) -> dict:
         results = sim.run_failure_simulation_pairwise(
             layer=args.layer,
             cascade_probability=args.cascade_prob,
+            failure_mode=FailureMode[args.failure_mode]
         )
         if not args.quiet:
             display.print_header(f"Pairwise Failure Analysis: {args.layer.upper()} layer")
@@ -183,6 +196,7 @@ def handle_failure(args, sim, display) -> dict:
             target_id=args.target,
             layer=args.layer,
             cascade_probability=args.cascade_prob,
+            failure_mode=FailureMode[args.failure_mode],
             n_trials=args.trials,
         )
         if not args.quiet:
@@ -193,6 +207,7 @@ def handle_failure(args, sim, display) -> dict:
             target_id=args.target,
             layer=args.layer,
             cascade_probability=args.cascade_prob,
+            failure_mode=FailureMode[args.failure_mode]
         )
         if not args.quiet:
             display.display_failure_result(result)

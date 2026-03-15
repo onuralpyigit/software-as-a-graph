@@ -14,6 +14,8 @@ from .models import (
     CascadeRule,
     EventScenario,
     FailureScenario,
+    FailureMode,
+    FailureResult,
 )
 from src.core.interfaces import IGraphRepository
 
@@ -106,71 +108,87 @@ class SimulationService:
         results = simulator.simulate_all_publishers(template)
         return results
 
-    def run_failure_simulation(self, target_id: str, layer: str = "system", cascade_probability: float = 1.0, **kwargs) -> Any:
-        """Run failure simulation for a target component."""
+    def run_failure_simulation(self, target_id: str, layer: str = "system", 
+                              cascade_rule: CascadeRule = CascadeRule.ALL,
+                              cascade_probability: float = 1.0,
+                              failure_mode: FailureMode = FailureMode.CRASH) -> FailureResult:
+        """Run a single failure simulation."""
         graph = self._get_graph()
-        simulator = FailureSimulator(graph)
+        sim = FailureSimulator(graph)
         
         scenario = FailureScenario(
             target_ids=[target_id],
-            layer=layer,
+            failure_mode=failure_mode,
+            cascade_rule=cascade_rule,
+            cascade_probability=cascade_probability
+        )
+        return sim.simulate(scenario)
+
+    def run_failure_simulation_monte_carlo(self, target_id: str, layer: str = "system",
+                                          cascade_probability: float = 1.0, 
+                                          failure_mode: FailureMode = FailureMode.CRASH,
+                                          n_trials: int = 100) -> Any:
+        """Run Monte Carlo failure simulation."""
+        graph = self._get_graph()
+        sim = FailureSimulator(graph)
+        
+        scenario = FailureScenario(
+            target_ids=[target_id],
+            failure_mode=failure_mode,
             cascade_probability=cascade_probability,
             cascade_rule=CascadeRule.ALL
         )
-        
-        result = simulator.simulate(scenario)
-        return result
+        return sim.simulate_monte_carlo(scenario, n_trials=n_trials)
 
-    def run_failure_simulation_monte_carlo(self, target_id: str, layer: str = "system", cascade_probability: float = 1.0, n_trials: int = 100, **kwargs) -> Any:
-        """Run Monte Carlo failure simulation."""
-        graph = self._get_graph()
-        simulator = FailureSimulator(graph)
+    def run_failure_simulation_exhaustive(self, layer: str = "system", cascade_probability: float = 1.0, 
+                                         failure_mode: FailureMode = FailureMode.CRASH, **kwargs) -> List[Any]:
+        """Run exhaustive failure analysis for all components in a layer.
         
-        result = simulator.simulate_monte_carlo(
-            scenario=FailureScenario(
-                target_ids=[target_id],
-                layer=layer,
-                cascade_probability=cascade_probability,
-                cascade_rule=CascadeRule.ALL
-            ),
-            n_trials=n_trials
-        )
-        return result
-
-    def run_failure_simulation_exhaustive(self, layer: str = "system", cascade_probability: float = 1.0, **kwargs) -> List[Any]:
-        """Run exhaustive failure analysis for all components in a layer."""
+        Follows the Step 4 architecture:
+        Stage A: Establish baseline flows via event simulation (for FD(v))
+        Stage B: Run exhaustive failure loop (Main Loop)
+        Stage C: Run four post-passes (IR, IM, IA, IV)
+        """
         graph = self._get_graph()
         fail_sim = FailureSimulator(graph)
         
-        # 1. Discover baseline flows using event simulation
+        # --- Stage A: Discrete-event baseline flows ---
         event_sim = EventSimulator(graph)
+        # Run event simulation once for all publishers in the layer
         event_results = event_sim.simulate_all_publishers(
-            EventScenario(source_app="template", num_messages=50, duration=5.0)
+            EventScenario(source_app="all", num_messages=50, duration=5.0)
         )
         all_flows = []
         for res in event_results.values():
             all_flows.extend(res.successful_flows)
         fail_sim.set_baseline_flows(all_flows)
         
-        # 2. Run failure simulation
+        # --- Stage B + C: Main loop and Post-passes ---
+        # FailureSimulator.simulate_exhaustive handles Stage B loop AND 
+        # triggers Stage C post-passes (IR, IM, IA, IV) internally.
+        n_trials = kwargs.get("n_trials", 1)
         results = fail_sim.simulate_exhaustive(
             scenario_template=FailureScenario(
-                target_ids=["template"], # ignored
+                target_ids=["template"], # ignored by simulate_exhaustive
+                failure_mode=failure_mode,
                 cascade_probability=cascade_probability,
                 cascade_rule=CascadeRule.ALL
             ),
-            layer=layer
+            layer=layer,
+            n_trials=n_trials
         )
         return results
 
-    def run_failure_simulation_pairwise(self, layer: str = "app", cascade_probability: float = 1.0, **kwargs) -> List[Any]:
-        """Run pairwise failure analysis for a layer."""
+    def run_failure_simulation_pairwise(self, layer: str = "system", cascade_probability: float = 1.0,
+                                      failure_mode: FailureMode = FailureMode.CRASH) -> List[Any]:
+        """Run pairwise failure analysis for all component pairs in a layer."""
         graph = self._get_graph()
-        simulator = FailureSimulator(graph)
+        sim = FailureSimulator(graph)
         
-        results = simulator.simulate_pairwise(
+        results = sim.simulate_pairwise(
             scenario_template=FailureScenario(
-                target_ids=["template"],
+                target_ids=["template"], # ignored
+                failure_mode=failure_mode,
                 cascade_probability=cascade_probability,
                 cascade_rule=CascadeRule.ALL
             ),

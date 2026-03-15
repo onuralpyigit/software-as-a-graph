@@ -123,6 +123,56 @@ class TestPhysicalCascade:
 
 
 # =============================================================================
+# Library Cascade Tests (Rule 4)
+# =============================================================================
+
+class TestLibraryCascade:
+    """Tests for Rule 4: Library -> using components cascade."""
+
+    def test_library_failure_cascades_to_consumers(self, sim_graph):
+        """
+        Rule 4: When Lib1 fails, App1 (which uses it) should cascade.
+        """
+        sim = FailureSimulator(sim_graph)
+        result = sim.simulate(FailureScenario("Lib1", "test"))
+
+        assert "App1" in result.cascaded_failures
+        assert result.impact.cascade_count >= 1
+        
+        # Verify cause
+        lib_event = next((e for e in result.cascade_sequence if e.component_id == "App1"), None)
+        assert lib_event is not None
+        assert "uses_library" in lib_event.cause
+
+    def test_library_with_multiple_consumers(self, raw_graph_data):
+        """Rule 4: All components using a library should cascade simultaneously."""
+        # Add another consumer for Lib1
+        raw_graph_data.components.append(ComponentData("App4", "Application"))
+        raw_graph_data.edges.append(EdgeData("App4", "Lib1", "Application", "Library", "USES", "USES"))
+        
+        sim_graph = SimulationGraph(graph_data=raw_graph_data)
+        sim = FailureSimulator(sim_graph)
+        
+        result = sim.simulate(FailureScenario("Lib1", "test"))
+        
+        assert "App1" in result.cascaded_failures
+        assert "App4" in result.cascaded_failures
+        assert result.impact.cascade_count >= 2
+
+    def test_unused_library_cascade_count_zero(self, raw_graph_data):
+        """Rule 4: A library with no consumers should have cascade_count = 0."""
+        # Add an orphan library
+        raw_graph_data.components.append(ComponentData("LibOrphan", "Library"))
+        
+        sim_graph = SimulationGraph(graph_data=raw_graph_data)
+        sim = FailureSimulator(sim_graph)
+        
+        result = sim.simulate(FailureScenario("LibOrphan", "test"))
+        assert len(result.cascaded_failures) == 0
+        assert result.impact.cascade_count == 0
+
+
+# =============================================================================
 # Logical Cascade Tests (C1 Fix)
 # =============================================================================
 

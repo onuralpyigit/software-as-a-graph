@@ -50,6 +50,7 @@ class CascadeRule(Enum):
     PHYSICAL = "physical"     # Node failure cascades to hosted components
     LOGICAL = "logical"       # Broker failure affects topic routing
     NETWORK = "network"       # Network partition propagation
+    LIBRARY = "library"       # Library failure cascades to using applications
     ALL = "all"               # All cascade rules applied
 
 
@@ -379,8 +380,14 @@ class ImpactMetrics:
         "normalized_change_depth": 0.20,
     })
     
+    # Optional override for Monte Carlo mean reporting
+    _manual_composite_impact: Optional[float] = None
+
     @property
     def composite_impact(self) -> float:
+        if self._manual_composite_impact is not None:
+            return self._manual_composite_impact
+            
         w = self.impact_weights
         return (
             w.get("reachability", 0.35) * self.reachability_loss +
