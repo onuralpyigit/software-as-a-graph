@@ -355,3 +355,93 @@ class TestConstants:
     def test_min_topic_weight_is_small(self):
         """ε should be small enough not to distort relative rankings."""
         assert MIN_TOPIC_WEIGHT < 0.1
+
+
+# =========================================================================
+# Neo4j Import & Derivation Tests
+# =========================================================================
+
+from src.core.neo4j_repo import Neo4jRepository
+
+@pytest.fixture(scope="module")
+def neo4j_repo():
+    """Connect to local Neo4j for integration tests."""
+    repo = Neo4jRepository(uri="bolt://localhost:7687", user="neo4j", password="password")
+    try:
+        repo._run_query("RETURN 1")
+    except Exception:
+        pytest.skip("Neo4j is not available at bolt://localhost:7687")
+    yield repo
+    repo.close()
+
+class TestNeo4jGraphImport:
+    def test_rule_5_derivation(self, neo4j_repo):
+        """Test Rule 5: app_to_lib DEPENDS_ON edges are created correctly."""
+        graph_data = {
+            "applications": [
+                {"id": "app1", "name": "App 1", "role": "pub", "app_type": "service"},
+                {"id": "app2", "name": "App 2", "role": "sub", "app_type": "service"}
+            ],
+            "libraries": [
+                {"id": "lib1", "name": "SharedLib"}
+            ],
+            "relationships": {
+                "uses": [
+                    {"from": "app1", "to": "lib1"},
+                    {"from": "app2", "to": "lib1"}
+                ]
+            }
+        }
+        neo4j_repo.save_graph(graph_data, clear=True)
+        
+        edges = neo4j_repo.get_graph_data(dependency_types=["app_to_lib"]).edges
+        assert len(edges) == 2
+        sources = {e.source_id for e in edges}
+        assert sources == {"app1", "app2"}
+        assert all(e.target_id == "lib1" for e in edges)
+
+    def test_library_in_degree(self, neo4j_repo):
+        """Test DG_in(Library) = 2 after import."""
+        # Using the same state from test_rule_5_derivation
+        with neo4j_repo.driver.session(database=neo4j_repo.database) as session:
+            result = session.run(
+                "MATCH ()-[d:DEPENDS_ON {dependency_type:'app_to_lib'}]->(l:Library {id: 'lib1'}) "
+                "RETURN count(d) as in_degree"
+            )
+            in_degree = result.single()["in_degree"]
+            assert in_degree == 2
+
+    def test_broker_hybrid_weight(self, neo4j_repo):
+        """Test broker hybrid weight calculation: 0.70 * max + 0.30 * avg."""
+        # Topic 1: RELIABLE + PERSISTENT + URGENT -> weight 1.0 + size weight (0) = 1.0
+        # Topic 2: RELIABLE + TRANSIENT_LOCAL + LOW -> 0.3(Rel) + 0.4*0.5(Dur) + 0.0(Pri) = 0.5 + size weight (0) = 0.5
+        graph_data = {
+            "brokers": [
+                {"id": "b1", "name": "Broker 1"}
+            ],
+            "topics": [
+                {
+                    "id": "t1", 
+                    "size": 0, 
+                    "qos": {"reliability": "RELIABLE", "durability": "PERSISTENT", "transport_priority": "URGENT"}
+                },
+                {
+                    "id": "t2", 
+                    "size": 0, 
+                    "qos": {"reliability": "RELIABLE", "durability": "TRANSIENT_LOCAL", "transport_priority": "LOW"}
+                }
+            ],
+            "relationships": {
+                "routes": [
+                    {"from": "b1", "to": "t1"},
+                    {"from": "b1", "to": "t2"}
+                ]
+            }
+        }
+        neo4j_repo.save_graph(graph_data, clear=True)
+        
+        broker = neo4j_repo.get_graph_data(component_types=["Broker"]).components[0]
+        # max_w = 1.0, mean_w = 0.75
+        # 0.70 * 1.0 + 0.30 * 0.75 = 0.70 + 0.225 = 0.925
+        assert broker.weight == pytest.approx(0.925, abs=0.01)
+

@@ -309,20 +309,20 @@ class Neo4jRepository:
         
         # Build the raw sum expression
         raw_sum = f"""
-        (CASE {topic_var}.qos_reliability WHEN 'RELIABLE' THEN {rel_scores['RELIABLE']} ELSE 0.0 END +
-         CASE {topic_var}.qos_durability 
+        ({QoSPolicy.W_RELIABILITY} * CASE {topic_var}.qos_reliability WHEN 'RELIABLE' THEN {rel_scores['RELIABLE']} ELSE 0.0 END +
+         {QoSPolicy.W_DURABILITY} * CASE {topic_var}.qos_durability 
              WHEN 'PERSISTENT' THEN {dur_scores['PERSISTENT']} 
              WHEN 'TRANSIENT' THEN {dur_scores['TRANSIENT']} 
              WHEN 'TRANSIENT_LOCAL' THEN {dur_scores['TRANSIENT_LOCAL']} 
              ELSE 0.0 END +
-         CASE {topic_var}.qos_transport_priority 
+         {QoSPolicy.W_PRIORITY} * CASE {topic_var}.qos_transport_priority 
              WHEN 'URGENT' THEN {pri_scores['URGENT']} 
              WHEN 'HIGH' THEN {pri_scores['HIGH']} 
              WHEN 'MEDIUM' THEN {pri_scores['MEDIUM']} 
              ELSE 0.0 END +
          CASE WHEN {topic_var}.size <= 0 THEN 0.0
-              WHEN (log(1 + {topic_var}.size / 1024.0) / (log(2) * 10)) > 1.0 THEN 1.0
-              ELSE (log(1 + {topic_var}.size / 1024.0) / (log(2) * 10))
+              WHEN (log(1 + {topic_var}.size / 1024.0) / (log(2) * 50.0)) > 0.20 THEN 0.20
+              ELSE (log(1 + {topic_var}.size / 1024.0) / (log(2) * 50.0))
          END)
         """
         
@@ -497,6 +497,7 @@ class Neo4jRepository:
             MATCH (app)-[:USES]->(lib:Library)
             WHERE app:Application OR app:Library
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib)
+            SET d.path_count = 1
             // Weight is populated later during aggregate weights phase
         """)
 
@@ -608,7 +609,7 @@ class Neo4jRepository:
         """Retrieve counts of components and dependencies by type."""
         all_component_types = ["Application", "Broker", "Node", "Topic", "Library"]
         all_relationship_types = ["RUNS_ON", "ROUTES", "PUBLISHES_TO", "SUBSCRIBES_TO", "CONNECTS_TO", "USES"]
-        all_dependency_types = ["app_to_app", "node_to_node", "app_to_broker", "node_to_broker"]
+        all_dependency_types = ["app_to_app", "node_to_node", "app_to_broker", "node_to_broker", "app_to_lib"]
         
         stats = {}
         with self.driver.session(database=self.database) as session:

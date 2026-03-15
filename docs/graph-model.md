@@ -171,7 +171,7 @@ Structural edges reveal physical relationships but not logical dependencies. Thi
 | **app_to_broker** | App `PUBLISHES_TO` or `SUBSCRIBES_TO` → Topic ← `ROUTES` Broker | App → Broker | Routing dependency |
 | **node_to_node** | Node_a hosts App_pub → Topic ← App_sub hosted on Node_b | Node_b → Node_a | Infrastructure dependency |
 | **node_to_broker** | Node `RUNS_ON` App → Topic ← `ROUTES` Broker | Node → Broker | Cross-layer dependency |
-| **app_to_lib** *(new)* | App `USES` → Library | App → Library | Code dependency |
+| **app_to_lib** | App `USES` → Library | App → Library | Code dependency |
 
 **Reading the edge direction:** DEPENDS_ON points from the *dependent* to the *dependency*. `App_sub → App_pub` means the subscriber depends on the publisher — if the publisher fails, the subscriber loses its data source. `App → Library` means the application depends on the library — if the library fails, the application is immediately affected.
 
