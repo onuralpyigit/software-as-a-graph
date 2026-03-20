@@ -16,7 +16,12 @@ from src.core import create_repository
 from src.core.interfaces import IGraphRepository
 from src.analysis import AnalysisService, StatisticsService
 from src.simulation import SimulationService
-from api.models import Neo4jCredentials
+from src.generation import GenerationService
+from api.models import (
+    Neo4jCredentials,
+    GenerateGraphRequest,
+    GenerateGraphFileRequest
+)
 
 # ── Configuration ────────────────────────────────────────────────────────
 
@@ -87,3 +92,15 @@ def get_statistics_service(repo: IGraphRepository = Depends(get_repository)) -> 
     Automatically uses the request-scoped repository.
     """
     return StatisticsService(repo)
+
+
+def get_generation_service(request: GenerateGraphRequest | GenerateGraphFileRequest) -> GenerationService:
+    """
+    Dependency to provide a configured GenerationService instance.
+    """
+    return GenerationService(
+        scale=request.scale, 
+        seed=request.seed, 
+        domain=request.domain, 
+        scenario=request.scenario
+    )

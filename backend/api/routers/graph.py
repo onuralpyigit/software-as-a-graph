@@ -1,8 +1,4 @@
-"""
-Graph generation, import, export, and query endpoints.
-"""
-
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Dict, Any, List, Optional
 import logging
 
@@ -10,400 +6,232 @@ from api.models import (
     Neo4jCredentials,
     GenerateGraphRequest,
     GenerateGraphFileRequest,
-    ImportGraphRequest
+    ImportGraphRequest,
+    GraphGenerationResponse,
+    GraphImportResponse,
+    GraphGenerateImportResponse,
+    GenericSuccessResponse,
+    GraphExportResponse,
+    LimitedGraphExportResponse,
+    Neo4jExportResponse,
+    SearchNodesResponse,
+    NodeConnectionsResponse,
+    TopologyResponse
 )
-from api.dependencies import DEFAULT_NEO4J_URI, DEFAULT_NEO4J_USER, DEFAULT_NEO4J_PASSWORD
 from src.generation import GenerationService
-from src.core import create_repository
+from src.core.interfaces import IGraphRepository
+from api.dependencies import get_repository, get_generation_service
+from api.presenters import graph_presenter
 
 router = APIRouter(prefix="/api/v1/graph", tags=["graph"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/generate", response_model=Dict[str, Any])
-async def generate_graph(request: GenerateGraphRequest):
+@router.post("/generate", response_model=GraphGenerationResponse)
+async def generate_graph(
+    request: GenerateGraphRequest,
+    service: GenerationService = Depends(get_generation_service)
+):
     """
     Generate a synthetic graph with specified scale and seed.
-    
-    Scales: tiny (5 apps), small (15 apps), medium (50 apps), 
-            large (150 apps), xlarge (500 apps)
     """
     try:
-        logger.info(f"Generating graph: scale={request.scale}, seed={request.seed}, domain={request.domain}, scenario={request.scenario}")
-        service = GenerationService(scale=request.scale, seed=request.seed, domain=request.domain, scenario=request.scenario)
+        logger.info(f"Generating graph: scale={request.scale}, seed={request.seed}")
         graph_data = service.generate()
-        
-        return {
-            "success": True,
-            "message": f"Graph generated successfully with scale '{request.scale}'",
-            "metadata": graph_data.get("metadata", {}),
-            "stats": {
-                "nodes": len(graph_data.get("nodes", [])),
-                "brokers": len(graph_data.get("brokers", [])),
-                "topics": len(graph_data.get("topics", [])),
-                "applications": len(graph_data.get("applications", []))
-            },
-            "graph_data": graph_data
-        }
+        return graph_presenter.format_generation_response(graph_data, request.scale)
     except Exception as e:
-        logger.error(f"Graph generation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Graph generation failed: {str(e)}")
+        logger.error(f"Graph generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Graph generation failed: {e}")
 
 
-@router.post("/generate-file")
-async def generate_graph_file(request: GenerateGraphFileRequest):
+@router.post("/generate-file", response_model=GraphGenerationResponse)
+async def generate_graph_file(
+    request: GenerateGraphFileRequest,
+    service: GenerationService = Depends(get_generation_service)
+):
     """
     Generate a synthetic graph and return it as JSON (for download).
-    This endpoint does not require database credentials.
-    
-    Scales: tiny (5 apps), small (15 apps), medium (50 apps), 
-            large (150 apps), xlarge (500 apps)
     """
     try:
-        logger.info(f"Generating graph file: scale={request.scale}, seed={request.seed}, domain={request.domain}, scenario={request.scenario}")
-        service = GenerationService(scale=request.scale, seed=request.seed, domain=request.domain, scenario=request.scenario)
+        logger.info(f"Generating graph file: scale={request.scale}, seed={request.seed}")
         graph_data = service.generate()
-        
-        # Return the graph data directly as JSON
-        return {
-            "success": True,
-            "message": f"Graph generated successfully with scale '{request.scale}'",
-            "metadata": graph_data.get("metadata", {}),
-            "stats": {
-                "nodes": len(graph_data.get("nodes", [])),
-                "brokers": len(graph_data.get("brokers", [])),
-                "topics": len(graph_data.get("topics", [])),
-                "applications": len(graph_data.get("applications", []))
-            },
-            "graph_data": graph_data
-        }
+        return graph_presenter.format_generation_response(graph_data, request.scale)
     except Exception as e:
-        logger.error(f"Graph file generation failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Graph generation failed: {str(e)}")
+        logger.error(f"Graph file generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Graph generation failed: {e}")
 
 
-@router.post("/import", response_model=Dict[str, Any])
-async def import_graph(request: ImportGraphRequest):
-    """
-    Import graph data into Neo4j database.
-    
-    This will:
-    1. Import nodes, brokers, topics, applications
-    2. Create structural relationships
-    3. Derive DEPENDS_ON relationships
-    4. Calculate component weights
-    """
-    repo = create_repository(request.credentials.uri, request.credentials.user, request.credentials.password)
+@router.post("/import", response_model=GraphImportResponse)
+async def import_graph(
+    request: ImportGraphRequest,
+    repo: IGraphRepository = Depends(get_repository)
+):
+    """Import graph data into Neo4j database."""
     try:
         logger.info(f"Importing graph data (clear={request.clear_database})")
         repo.save_graph(request.graph_data, clear=request.clear_database)
-        
-        # Get statistics after import
         stats = repo.get_statistics()
-        
-        return {
-            "success": True,
-            "message": "Graph imported successfully",
-            "stats": stats
-        }
+        return graph_presenter.format_import_response(stats)
     except Exception as e:
-        logger.error(f"Graph import failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Graph import failed: {str(e)}")
-    finally:
-        repo.close()
+        logger.error(f"Graph import failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Graph import failed: {e}")
 
 
-@router.post("/generate-and-import", response_model=Dict[str, Any])
+@router.post("/generate-and-import", response_model=GraphGenerateImportResponse)
 async def generate_and_import_graph(
     credentials: Neo4jCredentials,
     scale: str = Query(default="medium", description="Graph scale"),
     seed: int = Query(default=42, description="Random seed"),
-    domain: Optional[str] = Query(default=None, description="Domain dataset (e.g. e-commerce)"),
-    scenario: Optional[str] = Query(default=None, description="Topic QoS Scenario (e.g. transactions)"),
-    clear_database: bool = Query(default=False, description="Clear database before import")
+    domain: Optional[str] = Query(default=None, description="Domain dataset"),
+    scenario: Optional[str] = Query(default=None, description="QoS Scenario"),
+    clear_database: bool = Query(default=False, description="Clear database before import"),
+    repo: IGraphRepository = Depends(get_repository)
 ):
-    """
-    Convenience endpoint to generate and immediately import a graph.
-    """
-    repo = create_repository(credentials.uri, credentials.user, credentials.password)
+    """Convenience endpoint to generate and immediately import a graph."""
     try:
-        # Generate
-        logger.info(f"Generating graph: scale={scale}, seed={seed}, domain={domain}, scenario={scenario}")
+        logger.info(f"Generating and importing graph: scale={scale}, seed={seed}")
         gen_service = GenerationService(scale=scale, seed=seed, domain=domain, scenario=scenario)
         graph_data = gen_service.generate()
         
-        # Import
-        logger.info(f"Importing generated graph (clear={clear_database})")
         repo.save_graph(graph_data, clear=clear_database)
-        
-        # Get statistics after import
         stats = repo.get_statistics()
         
-        return {
-            "success": True,
-            "message": f"Graph generated (scale={scale}) and imported successfully",
-            "generation": {
-                "scale": scale,
-                "seed": seed,
-                "metadata": graph_data.get("metadata", {})
-            },
-            "import_stats": stats
-        }
+        return graph_presenter.format_generate_import_response(graph_data, stats, scale, seed)
     except Exception as e:
-        logger.error(f"Generate and import failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Operation failed: {str(e)}")
-    finally:
-        repo.close()
+        logger.error(f"Generate and import failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Operation failed: {e}")
 
 
-@router.delete("/clear", response_model=Dict[str, Any])
-@router.post("/clear", response_model=Dict[str, Any])
-async def clear_database(credentials: Neo4jCredentials):
-    """
-    Clear all data from the Neo4j database.
-    WARNING: This will delete all nodes and relationships!
-    
-    Supports both DELETE and POST methods for compatibility.
-    """
-    repo = create_repository(credentials.uri, credentials.user, credentials.password)
+@router.delete("/clear", response_model=GenericSuccessResponse)
+@router.post("/clear", response_model=GenericSuccessResponse)
+async def clear_database(
+    credentials: Neo4jCredentials,
+    repo: IGraphRepository = Depends(get_repository)
+):
+    """Clear all data from the Neo4j database."""
     try:
-        logger.warning("Clearing Neo4j database - all data will be deleted")
-        # Neo4jRepository.save_graph([], clear=True) clears the database
+        logger.warning("Clearing Neo4j database")
         repo.save_graph({"nodes": [], "brokers": [], "topics": [], "applications": [], "libraries": [], "relationships": {}}, clear=True)
-        
-        logger.info("Database cleared successfully")
-        
-        return {
-            "success": True,
-            "message": "Database cleared successfully"
-        }
+        return {"success": True, "message": "Database cleared successfully"}
     except Exception as e:
-        logger.error(f"Failed to clear database: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to clear database: {str(e)}")
-    finally:
-        repo.close()
+        logger.error(f"Failed to clear database: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to clear database: {e}")
 
 
-@router.post("/export", response_model=Dict[str, Any])
+@router.post("/export", response_model=GraphExportResponse)
 async def export_graph(
     credentials: Neo4jCredentials,
-    include_structural: bool = Query(default=True, description="Include structural relationships (RUNS_ON, PUBLISHES_TO, etc.)")
+    include_structural: bool = Query(default=True, description="Include structural relationships"),
+    repo: IGraphRepository = Depends(get_repository)
 ):
-    """
-    Export the complete graph from Neo4j.
-    Includes both derived DEPENDS_ON edges and structural relationships.
-    """
-    repo = create_repository(credentials.uri, credentials.user, credentials.password)
+    """Export the complete graph from Neo4j."""
     try:
         logger.info(f"Exporting graph data (include_structural={include_structural})")
-        # Neo4jRepository.get_graph_data(include_raw=True) provides similar info
         graph_data = repo.get_graph_data(include_raw=include_structural)
         stats = repo.get_statistics()
-        
-        return {
-            "success": True,
-            "components": [c.to_dict() for c in graph_data.components],
-            "edges": [e.to_dict() for e in graph_data.edges],
-            "stats": stats
-        }
+        return graph_presenter.format_export_response(graph_data, stats)
     except Exception as e:
-        logger.error(f"Graph export failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Graph export failed: {str(e)}")
-    finally:
-        repo.close()
+        logger.error(f"Graph export failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Graph export failed: {e}")
 
 
-@router.post("/export-limited")
+@router.post("/export-limited", response_model=LimitedGraphExportResponse)
 async def export_limited_graph(
     credentials: Neo4jCredentials,
-    node_limit: int = Query(default=1000, description="Max nodes to retrieve (sorted by weight)"),
-    edge_limit: Optional[int] = Query(default=None, description="Max edges to retrieve (None = no limit)"),
-    fetch_structural: bool = Query(default=False, description="Fetch structural relationships vs DEPENDS_ON"),
-    node_types: Optional[List[str]] = Query(default=None, description="Node types to include (None = all types)")
+    node_limit: int = Query(default=1000, description="Max nodes"),
+    edge_limit: Optional[int] = Query(default=None, description="Max edges"),
+    fetch_structural: bool = Query(default=False, description="Fetch structural vs DEPENDS_ON"),
+    node_types: Optional[List[str]] = Query(default=None, description="Node types"),
+    repo: IGraphRepository = Depends(get_repository)
 ):
-    """
-    Export limited graph subset optimized for performance.
-    Fetches top N nodes by weight and edges between them.
-    """
-    repo = create_repository(credentials.uri, credentials.user, credentials.password)
+    """Export limited graph subset optimized for performance."""
     try:
-        logger.info(f"Exporting limited graph: nodes={node_limit}, edges={edge_limit}, structural={fetch_structural}, types={node_types}")
-        # Note: get_limited_graph_data should be in repo or a utility.
-        # For now, use get_graph_data and limit manually if not available.
-        # Actually, let's assume it's in repo as I'm consolidating there.
-        # If not, I'll add it.
+        logger.info(f"Exporting limited graph: nodes={node_limit}")
         if hasattr(repo, 'get_limited_graph_data'):
-            graph_data = repo.get_limited_graph_data(node_limit, fetch_structural, edge_limit, node_types)
+            graph_subset = repo.get_limited_graph_data(node_limit, fetch_structural, edge_limit, node_types)
+            components = graph_subset.components
+            edges = graph_subset.edges
         else:
             graph_data = repo.get_graph_data(component_types=node_types, include_raw=fetch_structural)
-            # manual limit
-            graph_data.components = graph_data.components[:node_limit]
-            comp_ids = {c.id for c in graph_data.components}
-            graph_data.edges = [e for e in graph_data.edges if e.source_id in comp_ids and e.target_id in comp_ids]
+            components = graph_data.components[:node_limit]
+            comp_ids = {c.id for c in components}
+            edges = [e for e in graph_data.edges if e.source_id in comp_ids and e.target_id in comp_ids]
             if edge_limit:
-                 graph_data.edges = graph_data.edges[:edge_limit]
+                 edges = edges[:edge_limit]
         
-        return {
-            "success": True,
-            "components": [c.to_dict() for c in graph_data.components],
-            "edges": [e.to_dict() for e in graph_data.edges],
-            "stats": {
-                "component_count": len(graph_data.components),
-                "edge_count": len(graph_data.edges),
-                "node_limit": node_limit,
-                "edge_limit": edge_limit,
-                "limited": True
-            }
-        }
+        return graph_presenter.format_limited_export_response(components, edges, node_limit, edge_limit)
     except Exception as e:
-        logger.error(f"Limited graph export failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Limited graph export failed: {str(e)}")
-    finally:
-        repo.close()
+        logger.error(f"Limited graph export failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Limited graph export failed: {e}")
 
 
-@router.post("/export-neo4j-data")
-async def export_neo4j_data(credentials: Neo4jCredentials):
-    """
-    Export complete Neo4j graph data in the same format as input files.
-    Returns data compatible with GraphImporter, suitable for re-importing.
-    
-    This endpoint uses the export_graph_data() method from GraphExporter which
-    produces a JSON structure matching the format of input/dataset.json.
-    """
-    repo = create_repository(credentials.uri, credentials.user, credentials.password)
+@router.post("/export-neo4j-data", response_model=Neo4jExportResponse)
+async def export_neo4j_data(
+    credentials: Neo4jCredentials,
+    repo: IGraphRepository = Depends(get_repository)
+):
+    """Export complete Neo4j graph data in input file format."""
     try:
         logger.info("Exporting Neo4j graph data to file format")
         graph_data = repo.export_json()
-        
-        return {
-            "success": True,
-            "message": "Graph data exported successfully",
-            "graph_data": graph_data,
-            "stats": {
-                "nodes": len(graph_data.get("nodes", [])),
-                "brokers": len(graph_data.get("brokers", [])),
-                "topics": len(graph_data.get("topics", [])),
-                "applications": len(graph_data.get("applications", [])),
-                "libraries": len(graph_data.get("libraries", []))
-            }
-        }
+        return graph_presenter.format_neo4j_export_response(graph_data)
     except Exception as e:
-        logger.error(f"Neo4j data export failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Neo4j data export failed: {str(e)}")
-    finally:
-        repo.close()
+        logger.error(f"Neo4j data export failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Neo4j data export failed: {e}")
 
 
-@router.get("/search-nodes")
+@router.get("/search-nodes", response_model=SearchNodesResponse)
 async def search_nodes(
-    query: str = Query(..., description="Search query for node ID or label"),
-    limit: int = Query(default=20, description="Maximum number of results"),
-    uri: str = Query(default=DEFAULT_NEO4J_URI, description="Neo4j URI"),
-    user: str = Query(default=DEFAULT_NEO4J_USER, description="Neo4j username"),
-    password: str = Query(default=DEFAULT_NEO4J_PASSWORD, description="Neo4j password"),
-    database: str = Query(default="neo4j", description="Neo4j database")
+    query: str = Query(..., description="Search query"),
+    limit: int = Query(default=20, description="Max results"),
+    repo: IGraphRepository = Depends(get_repository)
 ):
-    """
-    Search for nodes across the entire database by ID or label.
-    Returns matching nodes without their connections.
-    """
-    repo = create_repository(uri, user, password)
+    """Search for nodes across the entire database."""
     try:
-        logger.info(f"Searching nodes with query: {query}, limit={limit}")
-        
+        logger.info(f"Searching nodes with query: {query}")
         nodes = repo.search_nodes(query, limit)
-                
-        logger.info(f"Found {len(nodes)} nodes matching query: {query}")
         return {
             "success": True,
             "query": query,
             "count": len(nodes),
             "nodes": nodes
         }
-    
     except Exception as e:
-        logger.error(f"Node search failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Node search failed: {str(e)}")
-    finally:
-        repo.close()
+        logger.error(f"Node search failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Node search failed: {e}")
 
 
-@router.post("/node-connections")
+@router.post("/node-connections", response_model=NodeConnectionsResponse)
 async def get_node_connections(
     credentials: Neo4jCredentials,
-    node_id: str = Query(..., description="Node ID to fetch connections for"),
-    fetch_structural: bool = Query(default=False, description="Fetch structural relationships vs DEPENDS_ON"),
-    depth: int = Query(default=1, description="Depth level for fetching connections (1, 2, or 3)")
+    node_id: str = Query(..., description="Node ID"),
+    fetch_structural: bool = Query(default=False, description="Fetch structural"),
+    depth: int = Query(default=1, description="Depth level"),
+    repo: IGraphRepository = Depends(get_repository)
 ):
-    """
-    Fetch all connections (edges and connected nodes) for a specific node at specified depth.
-    Returns nodes and edges that can be merged into existing graph.
-    depth=1: immediate neighbors
-    depth=2: neighbors and their neighbors  
-    depth=3: three levels of connections
-    """
-    repo = create_repository(credentials.uri, credentials.user, credentials.password)
+    """Fetch all connections for a specific node at specified depth."""
     try:
-        logger.info(f"Fetching connections for node: {node_id}, structural={fetch_structural}, depth={depth}")
-        
-        # Clamp depth to valid range
+        logger.info(f"Fetching connections for node: {node_id}, depth={depth}")
         depth = max(1, min(3, depth))
-        
         components, edges = repo.get_node_connections(node_id, fetch_structural, depth)
-        
-        logger.info(f"Fetched {len(components)} connected nodes and {len(edges)} edges for node {node_id} at depth {depth}")
-        
-        return {
-            "success": True,
-            "node_id": node_id,
-            "depth": depth,
-            "components": components,
-            "edges": edges,
-            "stats": {
-                "connected_nodes": len(components),
-                "edges": len(edges)
-            }
-        }
+        return graph_presenter.format_node_connections_response(node_id, depth, components, edges)
     except Exception as e:
-        logger.error(f"Failed to fetch node connections: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch node connections: {str(e)}")
-    finally:
-        repo.close()
+        logger.error(f"Failed to fetch node connections: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch node connections: {e}")
 
 
-@router.post("/topology")
+@router.post("/topology", response_model=TopologyResponse)
 async def get_topology_data(
     credentials: Neo4jCredentials,
-    node_id: Optional[str] = Query(None, description="Optional node ID to filter topology (drill-down)"),
-    node_limit: int = Query(default=1000, description="Maximum number of nodes to retrieve")
+    node_id: Optional[str] = Query(None, description="Optional node ID"),
+    node_limit: int = Query(default=1000, description="Max nodes"),
+    repo: IGraphRepository = Depends(get_repository)
 ):
-    """
-    Fetch topology data with hierarchical drill-down:
-    - No node_id: Show all Node nodes and CONNECTS_TO relationships
-    - Node type clicked: Show Applications and Brokers running on that Node (RUNS_ON)
-    - Application type clicked: Show Topics (PUBLISHES_TO/SUBSCRIBES_TO) and Libraries (USES)
-    """
-    repo = create_repository(credentials.uri, credentials.user, credentials.password)
+    """Fetch topology data with hierarchical drill-down."""
     try:
-        logger.info(f"Fetching topology data, node_id={node_id}, limit={node_limit}")
-        
+        logger.info(f"Fetching topology data, node_id={node_id}")
         components, edges = repo.get_topology_data(node_id, node_limit)
-            
-        logger.info(f"Fetched {len(components)} components and {len(edges)} edges for topology view")
-            
-        return {
-            "success": True,
-            "node_id": node_id,
-            "components": components,
-            "edges": edges,
-            "stats": {
-                "nodes": len(components),
-                "edges": len(edges)
-            }
-        }
+        return graph_presenter.format_topology_response(node_id, components, edges)
     except Exception as e:
-        logger.error(f"Failed to fetch topology data: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch topology data: {str(e)}")
-    finally:
-        repo.close()
+        logger.error(f"Failed to fetch topology data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch topology data: {e}")
