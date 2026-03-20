@@ -14,6 +14,7 @@ from typing import AsyncGenerator
 from fastapi import Depends
 from src.core import create_repository
 from src.core.interfaces import IGraphRepository
+from src.analysis import AnalysisService
 from api.models import Neo4jCredentials
 
 # ── Configuration ────────────────────────────────────────────────────────
@@ -54,3 +55,11 @@ async def get_repository(credentials: Neo4jCredentials) -> AsyncGenerator[IGraph
         yield repo
     finally:
         repo.close()
+
+
+def get_analysis_service(repo: IGraphRepository = Depends(get_repository)) -> AnalysisService:
+    """
+    Dependency to provide a configured AnalysisService instance.
+    Automatically uses the request-scoped repository.
+    """
+    return AnalysisService(repo)

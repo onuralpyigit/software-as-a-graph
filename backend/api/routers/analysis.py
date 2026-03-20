@@ -2,156 +2,33 @@
 Analysis endpoints for system, type, and layer analysis.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List
 import logging
 
-from api.models import Neo4jCredentials
-from src.core import create_repository
+from api.dependencies import get_analysis_service
 from src.analysis import AnalysisService
-from src.analysis.models import LayerAnalysisResult
+from api.presenters import analysis_presenter
+from api.models import AnalysisEnvelope
 
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
 
 
-# ── Serialization helpers ────────────────────────────────────────────────
-
-def _serialize_component(c) -> Dict[str, Any]:
-    """Convert a classified component to API response format."""
-    return {
-        "id": c.id,
-        "name": c.structural.name if c.structural and hasattr(c.structural, 'name') else c.id,
-        "type": c.type,
-        "criticality_level": c.levels.overall.value,
-        "criticality_levels": {
-            "reliability": c.levels.reliability.value,
-            "maintainability": c.levels.maintainability.value,
-            "availability": c.levels.availability.value,
-            "vulnerability": c.levels.vulnerability.value,
-            "overall": c.levels.overall.value,
-        },
-        "scores": {
-            "reliability": c.scores.reliability,
-            "maintainability": c.scores.maintainability,
-            "availability": c.scores.availability,
-            "vulnerability": c.scores.vulnerability,
-            "overall": c.scores.overall,
-        },
-    }
-
-
-def _serialize_edge(e, component_names: Dict[str, str]) -> Dict[str, Any]:
-    """Convert a classified edge to API response format."""
-    return {
-        "source": e.source,
-        "target": e.target,
-        "source_name": component_names.get(e.source, e.source),
-        "target_name": component_names.get(e.target, e.target),
-        "type": e.dependency_type,
-        "criticality_level": e.level.value,
-        "scores": {
-            "reliability": e.scores.reliability,
-            "maintainability": e.scores.maintainability,
-            "availability": e.scores.availability,
-            "vulnerability": e.scores.vulnerability,
-            "overall": e.scores.overall,
-        },
-    }
-
-
-def _serialize_problem(p) -> Dict[str, Any]:
-    """Convert a detected problem to API response format."""
-    return {
-        "entity_id": p.entity_id,
-        "type": p.entity_type,
-        "category": p.category.value if hasattr(p.category, 'value') else str(p.category),
-        "severity": p.severity.value if hasattr(p.severity, 'value') else str(p.severity),
-        "name": p.name,
-        "description": p.description,
-        "recommendation": p.recommendation,
-    }
-
-
-def _build_analysis_response(
-    result: LayerAnalysisResult,
-    components,
-    edges,
-    problems,
-    context: str = "",
-    description: str = "",
-    component_type: str | None = None,
-) -> Dict[str, Any]:
-    """
-    Build a standardised analysis response envelope.
-
-    `components`, `edges`, and `problems` are the (possibly filtered) lists
-    to serialise.  Summary statistics are computed from these lists.
-    """
-    component_names = {
-        c.id: (c.structural.name if c.structural and hasattr(c.structural, 'name') else c.id)
-        for c in components
-    }
-
-    summary = {
-        "total_components": len(components),
-        "critical_count": sum(1 for c in components if c.levels.overall.value == "critical"),
-        "high_count": sum(1 for c in components if c.levels.overall.value == "high"),
-        "total_problems": len(problems),
-        "critical_problems": sum(
-            1 for p in problems
-            if (p.severity == "CRITICAL" or (hasattr(p.severity, 'value') and p.severity.value == "CRITICAL"))
-        ),
-        "components": {
-            level: sum(1 for c in components if c.levels.overall.value == level)
-            for level in ["critical", "high", "medium", "low", "minimal"]
-        },
-        "edges": {
-            level: sum(1 for e in edges if e.level.value == level)
-            for level in ["critical", "high", "medium", "low", "minimal"]
-        },
-    }
-
-    envelope: Dict[str, Any] = {
-        "success": True,
-        "layer": result.layer,
-    }
-    if component_type:
-        envelope["component_type"] = component_type
-
-    envelope["analysis"] = {
-        "context": context or result.layer_name,
-        "description": description or result.description,
-        "summary": summary,
-        "stats": {
-            "nodes": result.structural.graph_summary.nodes if hasattr(result, 'structural') and result.structural else len(components),
-            "edges": result.structural.graph_summary.edges if hasattr(result, 'structural') and result.structural else len(edges),
-            "density": result.structural.graph_summary.density if hasattr(result, 'structural') and result.structural else 0,
-            "avg_degree": result.structural.graph_summary.avg_degree if hasattr(result, 'structural') and result.structural else 0,
-        },
-        "components": [_serialize_component(c) for c in components],
-        "edges": [_serialize_edge(e, component_names) for e in edges],
-        "problems": [_serialize_problem(p) for p in problems],
-    }
-    return envelope
-
-
 # ── Endpoints ────────────────────────────────────────────────────────────
 
-@router.post("/full", response_model=Dict[str, Any])
-async def analyze_full_system(credentials: Neo4jCredentials):
+@router.post("/full", response_model=AnalysisEnvelope)
+async def analyze_full_system(service: AnalysisService = Depends(get_analysis_service)):
     """
     Run complete system analysis including:
     - Structural metrics (centrality, clustering, etc.)
     - Quality scores (reliability, maintainability, availability)
     - Problem detection
     """
-    repo = create_repository(uri=credentials.uri, user=credentials.user, password=credentials.password)
     try:
         logger.info("Running full system analysis")
-        service = AnalysisService(repo)
         result = service.analyze_layer("system")
-        return _build_analysis_response(
+        return analysis_presenter.build_analysis_response(
             result,
             result.quality.components,
             result.quality.edges,
@@ -160,12 +37,10 @@ async def analyze_full_system(credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Full analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-    finally:
-        repo.close()
 
 
-@router.post("/type/{component_type}", response_model=Dict[str, Any])
-async def analyze_by_type(component_type: str, credentials: Neo4jCredentials):
+@router.post("/type/{component_type}", response_model=AnalysisEnvelope)
+async def analyze_by_type(component_type: str, service: AnalysisService = Depends(get_analysis_service)):
     """
     Run analysis filtered by component type.
     Accepts: node, app, broker, Application, Node, Broker
@@ -185,10 +60,8 @@ async def analyze_by_type(component_type: str, credentials: Neo4jCredentials):
             detail=f"Invalid component type: {component_type}. Valid types: node, app, broker, Application, Node, Broker"
         )
 
-    repo = create_repository(uri=credentials.uri, user=credentials.user, password=credentials.password)
     try:
         logger.info(f"Analyzing component type: {component_type} (normalized to {normalized_type})")
-        service = AnalysisService(repo)
         result = service.analyze_layer("system")
 
         # Filter components and edges
@@ -197,7 +70,7 @@ async def analyze_by_type(component_type: str, credentials: Neo4jCredentials):
         filtered_edges = [e for e in result.quality.edges if e.source in filtered_ids or e.target in filtered_ids]
         filtered_problems = [p for p in result.problems if p.entity_id in filtered_ids]
 
-        return _build_analysis_response(
+        return analysis_presenter.build_analysis_response(
             result,
             filtered_components,
             filtered_edges,
@@ -209,12 +82,10 @@ async def analyze_by_type(component_type: str, credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Type analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-    finally:
-        repo.close()
 
 
-@router.post("/layer/{layer}", response_model=Dict[str, Any])
-async def analyze_layer(layer: str, credentials: Neo4jCredentials):
+@router.post("/layer/{layer}", response_model=AnalysisEnvelope)
+async def analyze_layer(layer: str, service: AnalysisService = Depends(get_analysis_service)):
     """
     Analyze a specific architectural layer.
 
@@ -227,12 +98,10 @@ async def analyze_layer(layer: str, credentials: Neo4jCredentials):
             detail=f"Invalid layer. Must be one of: {', '.join(valid_layers)}"
         )
 
-    repo = create_repository(uri=credentials.uri, user=credentials.user, password=credentials.password)
     try:
         logger.info(f"Analyzing layer: {layer}")
-        service = AnalysisService(repo)
         result = service.analyze_layer(layer)
-        return _build_analysis_response(
+        return analysis_presenter.build_analysis_response(
             result,
             result.quality.components,
             result.quality.edges,
@@ -241,5 +110,3 @@ async def analyze_layer(layer: str, credentials: Neo4jCredentials):
     except Exception as e:
         logger.error(f"Layer analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-    finally:
-        repo.close()

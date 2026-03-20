@@ -69,13 +69,83 @@ class ImportGraphRequest(GraphRequestWithCredentials):
     clear_database: bool = Field(default=False, description="Clear database before import")
 
 
-class AnalysisResponse(BaseModel):
-    timestamp: str
-    summary: Dict[str, Any]
-    components: List[Dict[str, Any]]
-    edges: List[Dict[str, Any]]
-    problems: List[Dict[str, Any]]
-    stats: Dict[str, Any]
+class CriticalityLevelsModel(BaseModel):
+    reliability: str
+    maintainability: str
+    availability: str
+    vulnerability: str
+    overall: str
+
+
+class ScoresModel(BaseModel):
+    reliability: float
+    maintainability: float
+    availability: float
+    vulnerability: float
+    overall: float
+
+
+class ComponentResponse(BaseModel):
+    id: str
+    name: str
+    type: str
+    criticality_level: str
+    criticality_levels: CriticalityLevelsModel
+    scores: ScoresModel
+
+
+class EdgeResponse(BaseModel):
+    source: str
+    target: str
+    source_name: str
+    target_name: str
+    type: str
+    criticality_level: str
+    scores: ScoresModel
+
+
+class ProblemResponse(BaseModel):
+    entity_id: str
+    type: str
+    category: str
+    severity: str
+    name: str
+    description: str
+    recommendation: str
+
+
+class AnalysisSummaryModel(BaseModel):
+    total_components: int
+    critical_count: int
+    high_count: int
+    total_problems: int
+    critical_problems: int
+    components: Dict[str, int]
+    edges: Dict[str, int]
+
+
+class AnalysisStatsModel(BaseModel):
+    nodes: int
+    edges: int
+    density: float
+    avg_degree: float
+
+
+class AnalysisDetailModel(BaseModel):
+    context: str
+    description: str
+    summary: AnalysisSummaryModel
+    stats: AnalysisStatsModel
+    components: List[ComponentResponse]
+    edges: List[EdgeResponse]
+    problems: List[ProblemResponse]
+
+
+class AnalysisEnvelope(BaseModel):
+    success: bool
+    layer: str
+    component_type: Optional[str] = None
+    analysis: AnalysisDetailModel
 
 
 class ComponentQueryParams(BaseModel):
