@@ -295,33 +295,35 @@ class TestCalculateSPOFF1:
 
 class TestCalculateHSRR:
 
-    def test_all_pairs_recovered(self):
-        """All hidden SPOF pairs have at least one member above threshold → HSRR = 1.0."""
-        pairs = [("a", "b"), ("c", "d")]
-        av    = {"a": 0.7, "b": 0.3, "c": 0.8, "d": 0.2}
-        assert calculate_hsrr(pairs, av, av_threshold=0.60) == pytest.approx(1.0)
+    def test_all_recovered(self):
+        """All hidden SPOFs (AP_c=0, IA>0.5) have QSPOF > 0 → HSRR = 1.0."""
+        qspof = {"a": 0.7, "b": 0.8}
+        ia    = {"a": 0.9, "b": 0.9}
+        ap_c  = {"a": 0.0, "b": 0.0}
+        assert calculate_hsrr(qspof, ia, ap_c) == pytest.approx(1.0)
 
-    def test_no_pairs_recovered(self):
-        """No member above threshold → HSRR = 0.0."""
-        pairs = [("a", "b"), ("c", "d")]
-        av    = {"a": 0.3, "b": 0.2, "c": 0.4, "d": 0.3}
-        assert calculate_hsrr(pairs, av, av_threshold=0.60) == pytest.approx(0.0)
+    def test_none_recovered(self):
+        """No hidden SPOFs have QSPOF > 0 → HSRR = 0.0."""
+        qspof = {"a": 0.0, "b": 0.0}
+        ia    = {"a": 0.9, "b": 0.9}
+        ap_c  = {"a": 0.0, "b": 0.0}
+        assert calculate_hsrr(qspof, ia, ap_c) == pytest.approx(0.0)
 
-    def test_half_pairs_recovered(self):
-        """Half pairs recovered → HSRR = 0.5."""
-        pairs = [("a", "b"), ("c", "d")]  # a-b recovered, c-d not
-        av    = {"a": 0.7, "b": 0.1, "c": 0.3, "d": 0.2}
-        assert calculate_hsrr(pairs, av, av_threshold=0.60) == pytest.approx(0.5)
+    def test_partial_recovered(self):
+        """Half hidden SPOFs recovered → HSRR = 0.5."""
+        qspof = {"a": 0.7, "b": 0.0}
+        ia    = {"a": 0.9, "b": 0.9}
+        ap_c  = {"a": 0.0, "b": 0.0}
+        assert calculate_hsrr(qspof, ia, ap_c) == pytest.approx(0.5)
 
-    def test_empty_pairs_returns_zero(self):
-        """No hidden SPOF pairs → HSRR = 0.0 (degenerate case)."""
-        assert calculate_hsrr([], {"a": 0.9}, av_threshold=0.60) == 0.0
+    def test_empty_inputs_returns_zero(self):
+        assert calculate_hsrr({}, {}, {}) == 0.0
 
     def test_missing_components_safe(self):
-        """Components not in predicted_availability dict → treated as 0 (not recovered)."""
-        pairs = [("x", "y")]  # neither x nor y in av dict
-        av    = {"a": 0.9}
-        assert calculate_hsrr(pairs, av, av_threshold=0.60) == pytest.approx(0.0)
+        qspof = {"a": 0.9}
+        ia    = {"x": 0.9} # x is hidden SPOF but not in qspof dict
+        ap_c  = {"x": 0.0}
+        assert calculate_hsrr(qspof, ia, ap_c) == pytest.approx(0.0)
 
 
 # ===========================================================================
@@ -331,40 +333,32 @@ class TestCalculateHSRR:
 class TestCalculateRRI:
 
     def test_perfect_rri(self):
-        """All redundant components (AP_c=0, IA<0.30) have low A(v) → RRI = 1.0."""
-        av     = {"r1": 0.1, "r2": 0.2, "spof": 0.8}
-        ia     = {"r1": 0.1, "r2": 0.2, "spof": 0.7}
-        ap_c   = {"r1": 0.0, "r2": 0.0, "spof": 0.8}
-        rri    = calculate_rri(av, ia, ap_c, ia_threshold=0.30, av_threshold=0.40)
-        assert rri == pytest.approx(1.0)
+        """All non-bridge components (BR=0) have IA < 0.30 → RRI = 1.0."""
+        ia     = {"r1": 0.1, "r2": 0.2}
+        br     = {"r1": 0.0, "r2": 0.0}
+        assert calculate_rri(ia, br, ia_threshold=0.30) == pytest.approx(1.0)
 
     def test_zero_rri(self):
-        """All redundant components have high A(v) → RRI = 0.0."""
-        av     = {"r1": 0.9, "r2": 0.8}
-        ia     = {"r1": 0.1, "r2": 0.1}
-        ap_c   = {"r1": 0.0, "r2": 0.0}
-        rri    = calculate_rri(av, ia, ap_c, ia_threshold=0.30, av_threshold=0.40)
-        assert rri == pytest.approx(0.0)
+        """All non-bridge components have high IA → RRI = 0.0."""
+        ia     = {"r1": 0.9, "r2": 0.8}
+        br     = {"r1": 0.0, "r2": 0.0}
+        assert calculate_rri(ia, br, ia_threshold=0.30) == pytest.approx(0.0)
 
     def test_partial_rri(self):
-        """Half redundant components have low A(v) → RRI = 0.5."""
-        av     = {"r1": 0.1, "r2": 0.9}   # r1=low, r2=high
-        ia     = {"r1": 0.1, "r2": 0.1}   # both redundant
-        ap_c   = {"r1": 0.0, "r2": 0.0}
-        rri    = calculate_rri(av, ia, ap_c, ia_threshold=0.30, av_threshold=0.40)
-        assert rri == pytest.approx(0.5)
+        """Half non-bridge components have low IA → RRI = 0.5."""
+        ia     = {"r1": 0.1, "r2": 0.9}
+        br     = {"r1": 0.0, "r2": 0.0}
+        assert calculate_rri(ia, br, ia_threshold=0.30) == pytest.approx(0.5)
 
     def test_no_redundant_components(self):
-        """No components qualify as redundant → RRI = 0.0 (degenerate)."""
-        av     = {"a": 0.9}
-        ia     = {"a": 0.8}     # IA >= threshold → not redundant
-        ap_c   = {"a": 0.0}
-        rri = calculate_rri(av, ia, ap_c, ia_threshold=0.30, av_threshold=0.40)
-        assert rri == pytest.approx(0.0)
+        """No components have BR=0 → RRI = 0.0 (degenerate)."""
+        ia     = {"a": 0.1}
+        br     = {"a": 0.5}
+        assert calculate_rri(ia, br, ia_threshold=0.30) == pytest.approx(0.0)
 
     def test_empty_inputs_safe(self):
         """Empty inputs → RRI = 0.0, no error."""
-        assert calculate_rri({}, {}, {}) == 0.0
+        assert calculate_rri({}, {}) == 0.0
 
     def test_rri_in_range(self):
         """RRI should always be in [0, 1]."""
@@ -373,6 +367,6 @@ class TestCalculateRRI:
         keys = [f"c{i}" for i in range(20)]
         av   = {k: rng.random() for k in keys}
         ia   = {k: rng.random() for k in keys}
-        ap_c = {k: 0.0 if rng.random() < 0.5 else rng.random() for k in keys}
-        rri  = calculate_rri(av, ia, ap_c)
+        br   = {k: 0.0 if rng.random() < 0.5 else rng.random() for k in keys}
+        rri  = calculate_rri(ia, br)
         assert 0.0 <= rri <= 1.0 + 1e-9, f"RRI out of range: {rri}"

@@ -4,7 +4,7 @@
 
 ### Graph-Based Critical Component Prediction for Distributed Publish-Subscribe Systems
 
-**Version 2.2** · **February 2026**
+**Version 2.3** · **March 2026**
 
 Istanbul Technical University, Computer Engineering Department
 
@@ -94,11 +94,8 @@ Section 2 describes the system context, design constraints, and guiding principl
 
 ### 1.7 Change History
 
-| Version | Date | Summary of Changes |
-|---------|------|--------------------|
-| 2.1 | February 2026 | Initial release |
 | 2.2 | February 2026 | Updated RMAV formulas to match implementation (§4.2, §5.2, §6, Appendix B); corrected architecture description to four-layer (§1.2, §3.1); fixed REST API endpoint paths to `/api/v1/` with correct HTTP methods (§8.2); added missing endpoints; added `benchmark/` to module decomposition (§3.2); added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL algorithmic descriptions (§6.13–§6.18); corrected metric-to-dimension orthogonality table (§4.2); updated Appendix A layer IDs; updated Appendix B AHP matrices; extended Appendix D traceability for SRS v2.2 requirements |
-| 2.3 | March 2026 | Refactored backend API to use **Presenters** for decoupled response formatting (§3.1, §3.2); updated module decomposition to include `backend/api/presenters/`; enhanced dependency injection in `backend/api/dependencies.py` |
+| 2.3 | March 2026 | Refactored backend API to use **Presenters** for decoupled response formatting (§3.1, §3.2); updated module decomposition to include `backend/api/presenters/`; enhanced dependency injection in `backend/api/dependencies.py`; updated quality formulas to v2.3 (5-term Maintainability, QoS-weighted SPOF, CDPot_enh) |
 
 ---
 
@@ -405,47 +402,57 @@ Port mapping (host → container):
 
 These are Python dataclasses that flow between services. All continuous metrics are normalized to [0, 1] via min-max scaling (see §6.8).
 
-**StructuralMetrics** — output of Step 2, one per component. The 16 fields of the output vector M(v) are:
+**StructuralMetrics** — output of Step 2, one per component. The output vector M(v) has up to 20 fields:
 
-| Field | Type | Metric Symbol | Description | RMAV Usage |
-|-------|------|---------------|-------------|------------|
-| `pagerank` | float | PR(v) | Transitive importance (random-walk) | Reported only |
-| `reverse_pagerank` | float | RPR(v) | Reverse transitive importance | R(v) |
+| Field | Type | Symbol | Description | RMAV Usage |
+|-------|------|--------|-------------|------------|
+| `pagerank` | float | PR(v) | Transitive importance (random-walk) | Diagnostic |
+| `reverse_pagerank` | float | RPR(v) | Transitive reachability | R(v) |
 | `betweenness` | float | BT(v) | Shortest-path bottleneck position | M(v) |
-| `closeness` | float | CL(v) | Average distance to all reachable vertices | Reported only |
-| `eigenvector` | float | EV(v) | Connection to important hubs | Reported only |
-| `in_degree` | float | DG\_in(v) | Normalized count of incoming DEPENDS\_ON edges | R(v) |
-| `in_degree_raw` | int | — | Raw (unnormalized) in-degree count | Derived: CDPot, CouplingRisk |
-| `out_degree` | float | DG\_out(v) | Normalized count of outgoing DEPENDS\_ON edges | Derived: CDPot, CouplingRisk |
-| `out_degree_raw` | int | — | Raw (unnormalized) out-degree count | Derived: CouplingRisk |
-| `clustering_coefficient` | float | CC(v) | Neighbor interconnectedness | M(v) |
-| `ap_score` | float | AP\_c(v) | Continuous articulation point fragmentation score (undirected) | Used to derive AP_c_directed, QSPOF |
-| `is_articulation_point` | bool | — | Binary flag: removal disconnects the graph | A(v) via QSPOF |
+| `closeness` | float | CL(v) | Average distance (forward) | Diagnostic |
+| `reverse_closeness`| float | RCL(v) | Average distance (reverse) | V(v) |
+| `eigenvector` | float | EV(v) | Connection to important hubs | Diagnostic |
+| `reverse_eigenvector`| float | REV(v) | Connection from important dependents | V(v) |
+| `in_degree_raw` | int | — | Count of incoming edges | R(v) (norm) |
+| `out_degree_raw` | int | — | Count of outgoing edges | M/V (norm) |
+| `clustering_coeff` | float | CC(v) | Local neighbor interconnectedness | M(v) |
+| `ap_score` | float | AP_c(v) | Continuous articulation score (undirected) | A(v) |
 | `bridge_ratio` | float | BR(v) | Fraction of incident edges that are bridges | A(v) |
-| `weight` | float | w(v) | Component's own QoS-derived weight | A(v) via QSPOF |
-| `weighted_in_degree` | float | w\_in(v) | Sum of weights of incoming DEPENDS\_ON edges (normalized) | V(v) as QADS |
-| `weighted_out_degree` | float | w\_out(v) | Sum of weights of outgoing DEPENDS\_ON edges (normalized) | M(v) |
+| `weight` | float | w(v) | Component's own QoS weight | A(v) |
+| `w_in` | float | w_in(v) | QoS-weighted in-degree | V(v) (QADS) |
+| `w_out` | float | w_out(v) | QoS-weighted out-degree | M(v) |
+| `cdi` | float | CDI | Connectivity Degradation Index | A(v) |
+| `mpci` | float | MPCI | Multi-Path Coupling Intensity | R(v) (CDPot) |
+| `foc` | float | FOC | Fan-Out Criticality (Topics) | R(v) (Topics) |
+| `cqp` | float | CQP | Code Quality Penalty (Applications) | M(v) |
+| `ap_c_dir` | float | AP_c_d | Directed articulation point score | A(v) |
 
-> **On metric count:** The output vector M(v) has 16 fields. The figure "13 topological metrics" used in research summaries refers to the pure graph-theoretic subset: PR, RPR, BT, CL, EV, DG_in, DG_out, CC, AP_c, BR, w, w_in, w_out (excluding the two raw integer counts and the boolean flag). All 16 fields are present in the StructuralMetrics dataclass.
+> **On metric count:** The output vector M(v) has expanded from 16 to 20 fields in version 2.3 to include refined signals like MPCI, FOC, CQP, and AP_c_dir directly in the analysis step. All 20 fields are present in the `StructuralMetrics` dataclass and are available for both RMAV and GNN prediction paths.
 
-**Metric-to-Dimension Orthogonality:** Each raw metric contributes to **at most one** RMAV dimension. Derived metrics (CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI) are computed from raw fields but are not themselves stored in StructuralMetrics — they are computed inline during quality scoring:
+**Metric-to-Dimension Orthogonality:** Each raw metric from the 20-field vector M(v) feeds **exactly one** RMAV dimension. No metric appears in more than one formula.
 
 | Metric | Symbol | R | M | A | V | Notes |
 |--------|--------|:-:|:-:|:-:|:-:|-------|
 | Reverse PageRank | RPR | ✓ | | | | Global cascade reach |
-| In-Degree | DG\_in | ✓ | | | | Immediate blast radius |
-| Cascade Depth Potential | CDPot | ✓ | | | | Derived from RPR + DG ratio; see §6.13 |
+| In-Degree | DG_in | ✓ | | | | Immediate blast radius |
+| MPCI | MPCI | ✓ | | | | Multi-path coupling (via CDPot_enh) |
+| Fan-Out Criticality | FOC | ✓ | | | | Topics subscriber fan-out |
 | Betweenness | BT | | ✓ | | | Structural bottleneck position |
-| QoS-Weighted Out-Degree | w\_out | | ✓ | | | QoS-weighted efferent coupling |
-| Coupling Risk | CouplingRisk | | ✓ | | | Afferent/efferent imbalance; see §6.14 |
-| Clustering Coefficient | CC | | ✓ | | | Direction-agnostic modularity proxy |
-| QSPOF Severity | QSPOF | | | ✓ | | AP_c_directed × w(v); see §6.15 |
-| Bridge Ratio | BR | | | ✓ | | Irreplaceable connections |
-| AP_c Directed | AP\_c\_dir | | | ✓ | | Directed articulation score; see §6.16 |
-| Connectivity Degradation | CDI | | | ✓ | | APSP-based path elongation; see §6.17 |
-| Reverse Eigenvector | REV | | | | ✓ | Strategic exposure; see §6.18 |
-| Reverse Closeness | RCL | | | | ✓ | Propagation speed from dependents; see §6.18 |
-| QoS-Weighted In-Degree | w\_in (QADS) | | | | ✓ | Immediate attack surface × SLA priority |
+| QoS-Weighted Out-Degree | w_out | | ✓ | | | SLA-weighted efferent coupling |
+| Code Quality Penalty | CQP | | ✓ | | | Complexity + instability + LCOM |
+| Coupling Risk | CR | | ✓ | | | Afferent/efferent imbalance |
+| Clustering Coefficient | CC | | ✓ | | | Inverse redundancy (1-CC) |
+| Directed AP Score | AP_c_d | | | ✓ | | Directed articulation score |
+| Bridge Ratio | BR | | | ✓ | | Network-level SPOF fraction |
+| CDI | CDI | | | ✓ | | Path elongation on removal |
+| QoS-Weighted SPOF | QSPOF | | | ✓ | | Case-weighted SPOF (AP_c_d * weight) |
+| Reverse Eigenvector | REV | | | | ✓ | Strategic exposure (downstream) |
+| Reverse Closeness | RCL | | | | ✓ | Propagation speed (upstream) |
+| QoS-Weighted In-Degree | w_in | | | | ✓ | Attack surface (QADS) |
+| PageRank | PR | — | — | — | — | Diagnostic only |
+| Closeness | CL | — | — | — | — | Diagnostic only |
+| Eigenvector | EV | — | — | — | — | Diagnostic only |
+| Out-Degree | DG_out | — | — | — | — | Diagnostic only |
 | PageRank | PR | — | — | — | — | Reported only |
 | Closeness | CL | — | — | — | — | Reported only |
 | Eigenvector | EV | — | — | — | — | Reported only |
@@ -920,24 +927,23 @@ Output: NDCG@K ∈ [0, 1]
 If IDCG@K = 0 (all relevance scores are 0): NDCG@K = 1.0 by convention.
 ```
 
-### 6.13 Cascade Depth Potential (CDPot)
+### 6.13 Cascade Depth Potential (CDPot_enh)
 
-A derived signal that combines reverse-propagation breadth with the in/out-degree ratio to estimate cascade self-reinforcement depth.
+CDPot_enh measures the self-reinforcement depth of a cascade, amplified by multi-path coupling intensity.
 
 ```
-Input:  RPR(v), DG_in(v), DG_out(v)  [all normalized]
-Output: CDPot(v) ∈ [0, 1]
+Input:  RPR(v), DG_in(v), DG_out(v), MPCI(v) [all normalized]
+Output: CDPot_enh(v) ∈ [0, 1]
 
-CDPot(v) = ((RPR(v) + DG_in(v)) / 2) × (1 − min(DG_out(v) / (DG_in(v) + ε), 1.0))
-
-where ε = 1e-6 prevents division by zero.
+CDPot_base(v) = ((RPR(v) + DG_in(v)) / 2) × (1 − min(DG_out(v) / (DG_in(v) + ε), 1.0))
+CDPot_enh(v)  = min(CDPot_base(v) × (1 + MPCI(v)), 1.0)
+```
 
 Interpretation:
   - Fan-out hubs (DG_out >> DG_in): CDPot → 0 (wide, shallow cascade; quickly absorbed)
-  - Absorber nodes (DG_in >> DG_out): CDPot is high (deep, self-reinforcing cascade)
-```
+  - Absorber nodes (DG_in >> DG_out) with high MPCI: CDPot_enh is maximized (deep, multi-channel cascade)
 
-CDPot is an inline-computed derived term within QualityAnalyzer — it is not stored in StructuralMetrics. It feeds exclusively into R(v) (§6.19).
+CDPot_enh is a Tier 1 derived signal that feeds exclusively into R(v) (§6.19).
 
 ### 6.14 Coupling Risk
 
@@ -1032,29 +1038,30 @@ Both REV and RCL feed exclusively into V(v) (§6.22).
 ### 6.19 Reliability Score R(v)
 
 ```
-R(v) = 0.45 × RPR(v) + 0.30 × DG_in(v) + 0.25 × CDPot(v)
+R(v) = 0.45 × RPR(v) + 0.30 × DG_in(v) + 0.25 × CDPot_enh(v)
 ```
 
 | Term | Weight | Rationale |
 |------|--------|-----------|
 | RPR(v) | 0.45 | Reverse PageRank — global cascade reach; how broadly v's failure propagates in the reverse-dependency direction |
-| DG\_in(v) | 0.30 | In-degree — count of direct dependents; immediate structural blast radius |
-| CDPot(v) | 0.25 | Cascade Depth Potential — absorber nodes (DG_in >> DG_out) produce deep cascades; fan-out hubs produce wide shallow cascades |
+| DG_in(v) | 0.30 | In-degree — count of direct dependents; immediate structural blast radius |
+| CDPot_enh(v) | 0.25 | Enhanced Cascade Depth Potential — amplified by MPCI; captures depth and multi-channel coupling risk |
 
 A component with high R(v) is one whose failure would propagate both broadly and deeply through the dependency graph.
 
 ### 6.20 Maintainability Score M(v)
 
 ```
-M(v) = 0.40 × BT(v) + 0.35 × w_out(v) + 0.15 × CouplingRisk(v) + 0.10 × (1 − CC(v))
+M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk(v) + 0.08 × (1 − CC(v))
 ```
 
 | Term | Weight | Rationale |
 |------|--------|-----------|
-| BT(v) | 0.40 | Betweenness — structural bottleneck position; v lies on many dependency paths |
-| w\_out(v) | 0.35 | QoS-weighted efferent coupling — counts outgoing dependencies weighted by SLA class; strictly more informative than raw DG\_out |
-| CouplingRisk(v) | 0.15 | Afferent/efferent imbalance — components embedded on both sides (near Instability = 0.5) are hardest to change safely |
-| (1 − CC(v)) | 0.10 | Inverse clustering — sparse neighborhood implies harder refactoring |
+| BT(v) | 0.35 | Betweenness — structural bottleneck position; v lies on many dependency paths |
+| w_out(v) | 0.30 | QoS-weighted efferent coupling — counts outgoing dependencies weighted by SLA priority |
+| CQP(v) | 0.15 | Code Quality Penalty — composite of complexity, instability, and LCOM |
+| CouplingRisk(v) | 0.12 | Afferent/efferent imbalance — components embedded on both sides are hardest to change safely |
+| (1 − CC(v)) | 0.08 | Inverse clustering — low local redundancy means connection is a unique structural link |
 
 A component with high M(v) is a structural bottleneck that has many tightly-contracted outgoing dependencies and sits at an unstable coupling boundary.
 
@@ -1368,47 +1375,45 @@ Launched via `docker compose up`. A Next.js 16 frontend (port 7000) communicatin
 The production defaults are empirically smoothed from the AHP geometric-mean result toward more balanced weighting to reduce sensitivity to outlier matrix entries. All defaults satisfy CR < 0.10.
 
 ```python
-# Reliability R(v): inputs = [RPR, DG_in, CDPot]
-# AHP judgment: RPR moderately more important than DG_in; CDPot slightly less
+# Reliability R(v): inputs = [RPR, DG_in, CDPot_enh]
+# AHP judgment: RPR (reach) > DG_in (immediate) > CDPot (depth)
 criteria_reliability = [
-    [1.0, 2.0, 2.0],   # RPR vs DG_in vs CDPot
-    [0.5, 1.0, 1.5],
-    [0.5, 0.67, 1.0],
+    [1.0,  1.5,   2.0],  # RPR: reach is primary
+    [0.67, 1.0,   1.5],  # DG_in: immediate dependents
+    [0.5,  0.67,  1.0],  # CDPot: cascade depth (secondary)
 ]
-# → Normalized: [0.46, 0.28, 0.26]
-# Default used: [0.45, 0.30, 0.25]  (CR ≈ 0.002)
+# → Normalized: [0.45, 0.30, 0.25]; CR ≈ 0.001
 
-# Maintainability M(v): inputs = [BT, w_out, CouplingRisk, (1-CC)]
-# AHP judgment: BT strongly dominant; w_out next; CouplingRisk and CC modest
+# Maintainability M(v): inputs = [BT, w_out, CQP, CouplingRisk, (1-CC)]
+# AHP judgment: structural bottleneck (BT) and contracts (w_out) are dominant
 criteria_maintainability = [
-    [1.0, 2.0, 3.0, 4.0],
-    [0.5, 1.0, 2.0, 3.0],
-    [0.33, 0.5, 1.0, 2.0],
-    [0.25, 0.33, 0.5, 1.0],
+    # BT    w_out   CQP    CR    (1-CC)
+    [1.0,  1.17,  2.33,  2.92,  4.38],
+    [0.86, 1.0,   2.0,   2.5,   3.75],
+    [0.43, 0.5,   1.0,   1.25,  1.88],
+    [0.34, 0.4,   0.8,   1.0,   1.5],
+    [0.23, 0.27,  0.53,  0.67,  1.0],
 ]
-# → Normalized: [0.47, 0.29, 0.15, 0.09]
-# Default used: [0.40, 0.35, 0.15, 0.10]  (smoothed; CR ≈ 0.006)
+# → Normalized: [0.35, 0.30, 0.15, 0.12, 0.08]; CR ≈ 0.000 (perfectly consistent)
 
-# Availability A(v): inputs = [QSPOF, BR, AP_c_directed, CDI]
+# Availability A(v): inputs = [QSPOF, BR, AP_c_dir, CDI]
 # AHP judgment: QSPOF strongly dominant; BR significant; AP_c_dir and CDI supporting
 criteria_availability = [
-    [1.0, 2.0, 4.0, 5.0],
-    [0.5, 1.0, 3.0, 4.0],
-    [0.25, 0.33, 1.0, 2.0],
-    [0.2, 0.25, 0.5, 1.0],
+    [1.0,  3.0,  5.0,  9.0],
+    [0.33, 1.0,  2.0,  4.0],
+    [0.2,  0.5,  1.0,  3.0],
+    [0.11, 0.25, 0.33, 1.0],
 ]
-# → Normalized: [0.49, 0.30, 0.13, 0.08]
-# Default used: [0.45, 0.30, 0.15, 0.10]  (conservative; CR ≈ 0.01)
+# → Normalized (after λ=0.7 shrinkage): [0.45, 0.30, 0.15, 0.10]
 
-# Vulnerability V(v): inputs = [REV, RCL, w_in]
-# AHP judgment: REV and RCL roughly equal; w_in slightly less
+# Vulnerability V(v): inputs = [REV, RCL, QADS]
+# AHP judgment: REV reach > RCL speed > QADS surface
 criteria_vulnerability = [
-    [1.0, 1.5, 2.0],
-    [0.67, 1.0, 1.5],
-    [0.5, 0.67, 1.0],
+    [1.0,  1.14,  1.6],
+    [0.88, 1.0,   1.4],
+    [0.62, 0.71,  1.0],
 ]
-# → Normalized: [0.41, 0.35, 0.24]
-# Default used: [0.40, 0.35, 0.25]  (CR ≈ 0.001)
+# → Normalized: [0.40, 0.35, 0.25]; CR ≈ 0.000
 
 # Overall Q(v): [R, M, A, V] — equal by default (general-purpose analysis)
 criteria_overall = [
@@ -1508,5 +1513,5 @@ criteria_overall = [
 
 ---
 
-*Software-as-a-Graph Framework v2.2 · February 2026*
+*Software-as-a-Graph Framework v2.3 · March 2026*
 *Istanbul Technical University, Computer Engineering Department*

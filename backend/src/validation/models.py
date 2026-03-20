@@ -16,7 +16,7 @@ class ValidationTargets:
     top_5_overlap: float = 0.60        # G4: Top-5 ≥ 0.60
 
     # Tier 2 — Secondary Gates
-    predictive_gain: float = 0.0       # G5: PG > 0
+    predictive_gain: float = 0.03       # G5: PG > 0.03
     weighted_kappa_cta: float = 0.70   # G6: κ_CTA ≥ 0.70
     cdcc_max: float = 0.30             # G7: CDCC < 0.30
 
@@ -62,6 +62,8 @@ class ValidationTargets:
     # Composite / Orthogonality
     composite_spearman: float = 0.85         # ρ(Q*(v), I*(v)) ≥ 0.85
     max_interdim_correlation: float = 0.40  # CDCC target
+    composite_f1: float = 0.90              # F1(Q*(v), I*(v)) ≥ 0.90
+    composite_top5_overlap: float = 0.80   # Top-5(Q*(v), I*(v)) ≥ 0.80
 
     def to_dict(self) -> Dict[str, float]:
         return {k: v for k, v in asdict(self).items() if isinstance(v, (float, int))}

@@ -597,7 +597,7 @@ def calculate_bottleneck_precision(
         return 0.0
     bt_dominant = [
         cid for cid in common
-        if predicted_bt[cid] > bt_threshold and predicted_w_out[cid] > w_out_threshold
+        if predicted_bt[cid] > bt_threshold and predicted_w_out[cid] < w_out_threshold
     ]
     if not bt_dominant:
         return 0.0

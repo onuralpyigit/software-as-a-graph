@@ -282,7 +282,7 @@ class TestCompositeValidationTargets:
         """max_interdim_correlation must be 0.70."""
         t = ValidationTargets()
         assert hasattr(t, "max_interdim_correlation")
-        assert t.max_interdim_correlation == pytest.approx(0.70, abs=0.01)
+        assert t.max_interdim_correlation == pytest.approx(0.40, abs=0.01)
 
     def test_layer_result_has_composite_spearman(self):
         """LayerValidationResult must expose composite_spearman and predictive_gain."""

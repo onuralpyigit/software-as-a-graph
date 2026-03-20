@@ -4,7 +4,7 @@
 
 ### Graph-Based Critical Component Prediction for Distributed Publish-Subscribe Systems
 
-**Version 2.2** · **February 2026**
+**Version 2.3** · **March 2026**
 
 Istanbul Technical University, Computer Engineering Department
 
@@ -76,13 +76,13 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | AP\_c\_directed | Directed variant of AP\_c — `max(AP_c_out, AP_c_in)` on the directed graph |
 | BR | Bridge Ratio — fraction of a vertex's incident edges that are bridges |
 | CDI | Connectivity Degradation Index — normalised path elongation upon vertex removal |
-| CDPot | Cascade Depth Potential — derived depth signal: `((RPR + DG_in) / 2) × (1 − min(DG_out / DG_in, 1))` |
-| CouplingRisk | `1 − |2·Instability − 1|` — afferent/efferent imbalance score |
+| CDPot_enh | Enhanced Cascade Depth Potential — derived depth signal: `CDPot_base × (1 + MPCI)` |
+| CouplingRisk | `1 − |2·Instability − 1|` — afferent/efferent imbalance score (also denoted CR in some contexts) |
 | CR | Consistency Ratio in AHP (must be < 0.10) |
 | Fixture | Predefined test data created before a test runs |
 | Mock | Simulated object that isolates the code under test |
 | NDCG | Normalized Discounted Cumulative Gain — ranking quality metric |
-| QSPOF | QoS-weighted SPOF Severity — `AP_c_directed(v) × w(v)` |
+| QSPOF | QoS-weighted SPOF Severity — `AP_c_dir(v) × w(v)` |
 | RCL | Reverse Closeness Centrality — closeness computed on G^T |
 | REV | Reverse Eigenvector Centrality — eigenvector centrality computed on G^T |
 | ρ | Spearman rank correlation coefficient |
@@ -95,7 +95,7 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | Version | Date | Summary of Changes |
 |---------|------|--------------------|
 | 2.1 | February 2026 | Initial release |
-| 2.3 | March 2026 | Renamed §4.3 from 'Quality Scoring' to 'Prediction (RMAV)'; updated IT-ANAL-01/02 class references |
+| 2.3 | March 2026 | Refactored backend architecture with thinner routers, presenters, and dependency injection; updated quality formulas to include CDPot_enh, CQP, QSPOF, and QADS; aligned weights with AHP v2.3; updated glossary and test case formula references |
 | 2.2 | February 2026 | Updated references to SRS/SDD v2.2; added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL to glossary (§1.6); corrected UT-ANAL-21 formula reference from PR to RPR; added unit tests for new derived terms (§4.3 UT-ANAL-33–43); added `api` marker to pytest config (§3.3); corrected IT-API-09 from POST to GET; updated coverage table (§4.9); raised validation primary targets to match SRS v2.2 (§8.1, §8.2, AC-25); updated achieved results to IEEE RASSE 2025 published figures (§8.3); extended traceability matrix for SRS v2.2 requirements (§10) |
 | 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5) |
 | 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5) |
@@ -277,11 +277,7 @@ Tests that QoS attributes produce correct edge weights, which drive all downstre
 | UT-CORE-03 | PERSISTENT adds +0.40 | Weight ≈ 0.40 |
 | UT-CORE-04 | URGENT adds +0.30 | Weight ≈ 0.30 |
 | UT-CORE-05 | All maximum QoS settings combined | Weight ≈ 1.00 |
-| UT-CORE-06 | Size score formula: min(log₂(1+size/1024)/10, 1.0) | Correct for 1 KB, 8 KB, 64 KB, 1 MB |
-| UT-CORE-07 | JSON topology roundtrip: parse → re-serialize | All fields preserved, IDs unchanged |
-| UT-CORE-08 | TRANSIENT\_LOCAL durability → +0.20 increment | Weight = 0.20 (durability only) |
-| UT-CORE-09 | HIGH priority → +0.20, MEDIUM → +0.10 | Correct intermediate increments |
-
+| UT-CORE-06 | Size score formula: min(log₂(1+size/1024)/50, 0.20) | Correct for 1 KB, 8 KB, 64 KB, 1 MB |
 ```python
 class TestQoSPolicy:
     def test_default_qos_weight(self):
@@ -296,10 +292,12 @@ class TestQoSPolicy:
         assert policy.calculate_weight() == pytest.approx(1.0, abs=0.01)
 
     def test_size_score_formula(self):
-        cases = [(1024, 0.1), (8192, 0.32), (65536, 0.60), (1_048_576, 1.0)]
+        cases = [(1024, 0.02), (8192, 0.06), (1_048_576, 0.20)]
         for size, expected in cases:
-            score = min(math.log2(1 + size / 1024) / 10, 1.0)
-            assert score == pytest.approx(expected, abs=0.05)
+             # Using calculate_weight with size contribution logic from Topic class
+             size_kb = size / 1024
+             score = min(math.log2(1 + size_kb) / 50, 0.20)
+             assert score == pytest.approx(expected, abs=0.01)
 
     def test_intermediate_durability(self):
         policy = QoSPolicy(durability="TRANSIENT_LOCAL")
@@ -392,10 +390,10 @@ def test_graph_summary_present(self, linear_graph):
 Tests that the RMAV formula inputs are correctly resolved, derived terms are computed, and the composite Q(v) and classification are correct.
 
 **RMAV formula inputs reference (SDD v2.2 §6.19–§6.23):**
-- R(v) = 0.45 × RPR + 0.30 × DG\_in + 0.25 × CDPot
-- M(v) = 0.40 × BT + 0.35 × w\_out + 0.15 × CouplingRisk + 0.10 × (1 − CC)
-- A(v) = 0.45 × QSPOF + 0.30 × BR + 0.15 × AP\_c\_directed + 0.10 × CDI
-- V(v) = 0.40 × REV + 0.35 × RCL + 0.25 × w\_in
+- R(v) = 0.45 × RPR + 0.30 × DG_in + 0.25 × CDPot_enh
+- M(v) = 0.35 × BT + 0.30 × w_out + 0.15 × CQP + 0.12 × CouplingRisk + 0.08 × (1 − CC)
+- A(v) = 0.45 × QSPOF + 0.30 × BR + 0.15 × AP_c_dir + 0.10 × CDI
+- V(v) = 0.40 × REV + 0.35 × RCL + 0.25 × QADS
 
 | Test ID | Description | Expected Result |
 |---------|-------------|-----------------|

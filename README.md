@@ -276,10 +276,10 @@ Quality scores are computed per component v. AHP weights use a shrinkage factor 
 
 | Dimension | Formula | Captures |
 |-----------|---------|----------|
-| **R** — Reliability | `0.45·RPR + 0.30·DG_in + 0.25·CDPot` | Fault propagation blast radius |
-| **M** — Maintainability | `0.40·BT + 0.35·CouplingRisk + 0.25·CC_inv` | Coupling complexity and change fragility |
-| **A** — Availability | `0.45·AP_c + 0.35·BR + 0.20·QSPOF` | Single-point-of-failure risk |
-| **V** — Vulnerability | `0.40·PR + 0.35·w_in + 0.25·EV` | Attack surface and compromise exposure |
+| **R** — Reliability | `0.45·RPR + 0.30·DG_in + 0.25·CDPot_enh` | Fault propagation blast radius |
+| **M** — Maintainability | `0.35·BT + 0.30·w_out + 0.15·CQP + 0.12·CR + 0.08·(1−CC)` | Coupling complexity and change fragility |
+| **A** — Availability | `0.45·QSPOF + 0.30·BR + 0.15·AP_c_dir + 0.10·CDI` | Single-point-of-failure risk |
+| **V** — Vulnerability | `0.40·REV + 0.35·RCL + 0.25·QADS` | Attack surface and compromise exposure |
 
 Criticality is classified into five levels — MINIMAL, LOW, MEDIUM, HIGH, CRITICAL — using adaptive box-plot thresholds derived from the actual score distribution of the system under analysis.
 

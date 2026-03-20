@@ -205,14 +205,14 @@ The RMAV framework maps structural metrics to four quality dimensions. These dim
 
 ```
 R(v) = 0.45 × RPR(v) + 0.30 × DG_in(v) + 0.25 × CDPot(v)
-M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.20 × CouplingRisk(v) + 0.15 × (1 − CC(v))
-A(v) = 0.40 × QSPOF(v) + 0.30 × BR(v) + 0.20 × AP_c_dir(v) + 0.10 × CDI(v)
-V(v) = 0.45 × REV(v) + 0.30 × RCL(v) + 0.25 × w_in(v)
+M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CR(v) + 0.08 × (1 − CC(v))
+A(v) = 0.45 × QSPOF(v) + 0.30 × BR(v) + 0.15 × AP_c_dir(v) + 0.10 × CDI(v)
+V(v) = 0.40 × REV(v) + 0.35 × RCL(v) + 0.25 × QADS(v)
 
-Q(v) = 0.35 × R(v) + 0.25 × M(v) + 0.25 × A(v) + 0.15 × V(v)
+Q(v) = 0.25 × R(v) + 0.25 × M(v) + 0.25 × A(v) + 0.25 × V(v)
 ```
 
-Weights are derived from the Analytic Hierarchy Process (AHP) using domain expert pairwise comparison matrices, with a shrinkage factor `λ = 0.7` blending learned weights with a uniform prior for robustness on small graphs.
+Weights are derived from the Analytic Hierarchy Process (AHP) using domain expert pairwise comparison matrices, with a shrinkage factor `λ = 0.7` blending learned weights with a uniform prior for robustness on small graphs. The overall quality weight `Q(v)` defaults to a balanced 0.25 for each dimension unless customized for specific system priorities.
 
 Each RMAV dimension addresses a distinct operational concern:
 
@@ -791,7 +791,7 @@ The following table summarizes the primary RMAV dimension affected by each patte
 | DEEP_PIPELINE | Reliability (R) | Path length, RPR |
 | TOPIC_FANOUT | Reliability (R) | Topic out-degree |
 | CHATTY_PAIR | Maintainability (M) | Edge score product |
-| QOS_MISMATCH | Reliability (R) | w_in, w_out gap |
+| QOS_MISMATCH | Reliability (R) | QADS (w_in) gap |
 | ORPHANED_TOPIC | Maintainability (M) | Topic in/out degree |
 | UNSTABLE_INTERFACE | Maintainability (M) | CouplingRisk |
 

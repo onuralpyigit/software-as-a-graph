@@ -178,13 +178,13 @@ Architecture → Graph → Metrics → Scores → Simulation → Validation → 
 
 Quality scores are computed per component v. Weights are derived via AHP with shrinkage factor λ=0.7 (blends with uniform prior).
 
-### Reliability — R(v) v4
+### Reliability — R(v) v6
 ```
-R(v) = 0.40·RPR + 0.35·w_in + 0.25·CDPot
+R(v) = 0.45·RPR + 0.30·DG_in + 0.25·CDPot_enh
 ```
 - **RPR**: Reverse PageRank (fault propagation reach)
-- **w_in**: QoS-weighted in-degree (dependent count weighted by topic priority/QoS)
-- **CDPot**: Cascade Depth Potential = `((RPR + w_in) / 2) * (1 - min(w_out / w_in, 1))`
+- **DG_in**: Normalized in-degree (direct dependent count)
+- **CDPot_enh**: Enhanced Cascade Depth Potential = `CDPot_base * (1 + MPCI)`
 
 ### Maintainability — M(v) v6
 ```

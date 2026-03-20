@@ -4,7 +4,7 @@
 
 ### Graph-Based Critical Component Prediction for Distributed Publish-Subscribe Systems
 
-**Version 2.2** · **February 2026**
+**Version 2.3** · **March 2026**
 
 Istanbul Technical University, Computer Engineering Department
 
@@ -77,10 +77,8 @@ Section 2 describes the product's context, interfaces, users, and constraints. S
 
 ### 1.6 Change History
 
-| Version | Date | Summary of Changes |
-|---------|------|--------------------|
-| 2.1 | February 2026 | Initial release of SRS v2.1 |
 | 2.2 | February 2026 | Added REST API interface and Genieus web app requirements (§2.2, §3.9); corrected metric count to 16 (§2.4); added FastAPI, Next.js, Docker dependencies (§2.6); added Node.js constraint (§2.5); updated accuracy targets to reflect achieved performance (§4.2, §6.2, §6.3); added CLI flags (§3.8); expanded Appendix B glossary |
+| 2.3 | March 2026 | Refactored backend architecture with thinner routers, presenters, and dependency injection; updated quality formulas to include CDPot_enh, CQP (C-Maintainability), QSPOF, and QADS; aligned weights with AHP v2.3; updated testing strategy in SDD/STD |
 
 ---
 
@@ -202,7 +200,7 @@ The following capabilities are planned for future versions and inform current de
 | REQ-SA-11 | The system shall normalize all metrics to the [0, 1] interval before quality scoring. |
 | REQ-SA-12 | The system shall compute graph-level summary statistics (component count, edge count, density, average clustering, number of articulation points, number of bridges). |
 
-> **Note on metric count:** Steps 2 computes 16 metric fields per component: PR, RPR, BT, CL, EV, DG_in, DG_out, CC, AP (bool), AP_c, BR, w, w_in, w_out, plus the two graph-level derived values IMP and SP (structural prominence). The figure "13 topological centrality metrics" used in research summaries refers to the pure graph-theoretic subset excluding the QoS-derived fields.
+> **Note on metric count:** Step 2 computes up to 20 metric fields per component: PR, RPR, BT, CL, EV, DG_in, DG_out, CC, AP (bool), AP_c_dir, BR, w, w_in, w_out, CDI, RCL, REV, MPCI, FOC, plus graph-level summary statistics. The figure "13 topological metrics" used in earlier research refers to the core Tier 1 subset.
 
 ### 3.3 Prediction (Step 3)
 
@@ -528,56 +526,52 @@ Prediction accuracy improves with scale — larger systems produce more stable c
 w(e) = w_reliability + w_durability + w_priority + w_size
 
 w_reliability = 0.30  if RELIABLE,  0.00 otherwise
-w_durability  = 0.40  if PERSISTENT, 0.25 if TRANSIENT, 0.20 if TRANSIENT_LOCAL, 0.00 if VOLATILE
+w_durability  = 0.40  if PERSISTENT, 0.24 if TRANSIENT, 0.20 if TRANSIENT_LOCAL, 0.00 if VOLATILE
 w_priority    = 0.30  if URGENT, 0.20 if HIGH, 0.10 if MEDIUM, 0.00 if LOW
-w_size        = min(log₂(1 + size_bytes / 1024) / 10, 1.0)
+w_size        = min(log₂(1 + size_bytes / 1024) / 50, 0.20)
 ```
 
 ### A.2 Reliability Score
 
 ```
-R(v) = w₁ × PR(v) + w₂ × RPR(v) + w₃ × DG_in(v)
+R(v) = w₁ × RPR(v) + w₂ × DG_in(v) + w₃ × CDPot_enh(v)
 ```
 
-Default intra-dimension weights: w₁ = 0.40, w₂ = 0.35, w₃ = 0.25.
+Default intra-dimension weights: w₁ = 0.45, w₂ = 0.30, w₃ = 0.25.
+CDPot_enh(v) captures the cascade potential based on follower count, topic fan-out hotspots (FOC), and multi-path couplings (MPCI).
 
 ### A.3 Maintainability Score
 
 ```
-M(v) = w₁ × BT(v) + w₂ × DG_out(v) + w₃ × (1 − CC(v))
+M(v) = w₁ × BT(v) + w₂ × w_out(v) + w₃ × CQP(v) + w₄ × CouplingRisk(v) + w₅ × (1 − CC(v))
 ```
 
-Default intra-dimension weights: w₁ = 0.40, w₂ = 0.35, w₃ = 0.25.
+Default intra-dimension weights: w₁ = 0.35, w₂ = 0.30, w₃ = 0.15, w₄ = 0.12, w₅ = 0.08.
+CouplingRisk(v) is derived from Martin instability; CC is the clustering coefficient representing local redundancy. CQP is code-level maintainability penalty.
 
 ### A.4 Availability Score
 
 ```
-A(v) = w₁ × AP_c(v) + w₂ × BR(v) + w₃ × IMP(v)
-
-IMP(v) = (PR(v) + RPR(v)) / 2
+A(v) = w₁ × QSPOF(v) + w₂ × BR(v) + w₃ × AP_c_directed(v) + w₄ × CDI(v)
 ```
 
-where IMP(v) is the structural importance proxy — the average of normalized PageRank and Reverse PageRank. It captures a component's combined forward and reverse influence in the dependency graph.
-
-Default intra-dimension weights: w₁ = 0.50, w₂ = 0.30, w₃ = 0.20.
+Default intra-dimension weights: w₁ = 0.45, w₂ = 0.30, w₃ = 0.15, w₄ = 0.10.
+QSPOF is the QoS-weighted articulation point score; CDI is the connectivity degradation index.
 
 ### A.5 Vulnerability Score
 
 ```
-V(v) = w₁ × EV(v) + w₂ × CL(v) + w₃ × DG_out(v)
+V(v) = w₁ × REV(v) + w₂ × RCL(v) + w₃ × QADS(v)
 ```
 
-Default intra-dimension weights: w₁ = 0.40, w₂ = 0.30, w₃ = 0.30.
-
-> **Note:** DG\_out(v) appears in both Maintainability (as efferent coupling) and Vulnerability (as attack surface) with distinct semantic rationale. It is the sole metric shared between two RMAV dimensions.
+Default intra-dimension weights: w₁ = 0.40, w₂ = 0.35, w₃ = 0.25.
+REV/RCL are reverse eigenvector/closeness centrality; QADS is QoS-weighted Attack-Dependent Surface.
 
 ### A.6 Composite Quality Score
 
 ```
-Q(v) = α·R(v) + β·M(v) + γ·A(v) + δ·V(v)
-```
-
-Default AHP-derived dimension weights: α = 0.40, β = 0.25, γ = 0.20, δ = 0.15. These weights reflect the relative importance of reliability > maintainability > availability > vulnerability in distributed publish-subscribe systems, as derived from the AHP pairwise comparison matrix.
+Default system-layer weights: α = β = γ = δ = 0.25 (Balanced). 
+The system also supports AHP-derived weights which typically prioritize Availability (γ ≈ 0.43) and Reliability (α ≈ 0.24) over Maintainability and Vulnerability, reflecting the mission-critical nature of distributed pub-sub infrastructure.
 
 ---
 
@@ -619,5 +613,5 @@ Default AHP-derived dimension weights: α = 0.40, β = 0.25, γ = 0.20, δ = 0.1
 
 ---
 
-*Software-as-a-Graph Framework v2.2 · February 2026*
+*Software-as-a-Graph Framework v2.3 · March 2026*
 *Istanbul Technical University, Computer Engineering Department*

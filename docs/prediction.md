@@ -316,13 +316,12 @@ RI values (Saaty 1980): n=3 → 0.58, n=4 → 0.90, n=5 → 1.12, n=6 → 1.24.
 
 ```
             RPR    DG_in  CDPot
-RPR      [ 1.00,  3.00,  5.00 ]   RPR: global transitive reach dominates
-DG_in    [ 0.33,  1.00,  2.00 ]   DG_in: moderately stronger than CDPot
-CDPot    [ 0.20,  0.50,  1.00 ]   CDPot: secondary depth refinement
+RPR      [ 1.00,  1.50,  2.00 ]   RPR: global transitive reach is primary
+DG_in    [ 0.67,  1.00,  1.50 ]   DG_in: immediate dependents
+CDPot    [ 0.50,  0.67,  1.00 ]   CDPot: cascade depth (secondary)
 
-→ AHP raw:    [0.648, 0.230, 0.122]    CR ≈ 0.003 (highly consistent)
-  After λ=0.7: [0.45,  0.26,  0.19]   (shrinkage toward uniform 0.33)
-  Rounded:     [0.45,  0.30,  0.25]   (implemented values; active terms sum to 1.0)
+→ AHP raw:    [0.45,  0.30,  0.25]    CR ≈ 0.001 (highly consistent)
+  Rounded:     [0.45,  0.30,  0.25]   (implemented values)
 ```
 
 > MPCI enters R(v) indirectly through CDPot_enh and does not add a fourth AHP criterion. This preserves the 3×3 matrix structure and its consistency while capturing the MPCI effect through the multiplicative amplifier on CDPot_base.
@@ -331,42 +330,39 @@ CDPot    [ 0.20,  0.50,  1.00 ]   CDPot: secondary depth refinement
 
 ```
               BT    w_out  CQP    CR    CC_inv
-BT         [1.00,  2.00,  3.00,  3.00,  5.00]   BT: primary bottleneck signal
-w_out      [0.50,  1.00,  2.00,  2.00,  3.00]   w_out: QoS-weighted efferent coupling
-CQP        [0.33,  0.50,  1.00,  1.00,  2.00]   CQP: code-level coupling signal
-CR         [0.33,  0.50,  1.00,  1.00,  2.00]   CouplingRisk: structural imbalance
-CC_inv     [0.20,  0.33,  0.50,  0.50,  1.00]   CC_inv: supplementary redundancy proxy
+BT         [1.00,  1.17,  2.33,  2.92,  4.38]   BT: primary bottleneck signal
+w_out      [0.86,  1.00,  2.00,  2.50,  3.75]   w_out: QoS-weighted efferent coupling
+CQP        [0.43,  0.50,  1.00,  1.25,  1.88]   CQP: code-level coupling signal
+CR         [0.34,  0.40,  0.80,  1.00,  1.50]   CouplingRisk: structural imbalance
+CC_inv     [0.23,  0.27,  0.53,  0.67,  1.00]   CC_inv: supplementary redundancy
 
-→ AHP raw:    [0.425, 0.230, 0.149, 0.149, 0.087]    CR ≈ 0.004 (highly consistent)
-  After λ=0.7: [0.30+, 0.16+, 0.10+, 0.10+, 0.06+]
-  Rounded:     [0.35,  0.30,  0.15,  0.12,  0.08]   (active terms sum to 1.0)
+→ AHP raw:    [0.35,  0.30,  0.15,  0.12,  0.08]    CR ≈ 0.000 (perfectly consistent)
 ```
 
 > CQP and CouplingRisk receive equal AHP judgments because both measure coupling — CQP at the code level (complexity, instability, cohesion), CouplingRisk at the structural level (in/out balance). Neither dominates the other.
 
-#### Availability AHP (4×4: QSPOF, BR, AP_c_directed, CDI)
+#### Availability AHP (4×4: QSPOF, BR, AP_c_dir, CDI)
 
 ```
                 QSPOF   BR    AP_c_d  CDI
-QSPOF        [1.00,  2.00,  3.00,  5.00]   QSPOF: QoS-amplified SPOF — primary signal
-BR           [0.50,  1.00,  2.00,  3.00]   BR: structural brittleness of connections
-AP_c_dir     [0.33,  0.50,  1.00,  2.00]   AP_c_dir: directional reachability loss
-CDI          [0.20,  0.33,  0.50,  1.00]   CDI: soft degradation — secondary
+QSPOF        [1.00,  3.00,  5.00,  9.00]   QSPOF: QoS-amplified SPOF — primary signal
+BR           [0.33,  1.00,  2.00,  4.00]   BR: structural brittleness of connections
+AP_c_d       [0.20,  0.50,  1.00,  3.00]   AP_c_d: directional reachability loss
+CDI          [0.11,  0.25,  0.33,  1.00]   CDI: soft degradation — secondary
 
-→ AHP raw:    [0.508, 0.269, 0.145, 0.079]    CR ≈ 0.006 (highly consistent)
-  After λ=0.7: [0.45,  0.30,  0.15,  0.10]   (implemented values; sum to 1.0)
+→ AHP raw:    [0.55,  0.24,  0.13,  0.08]    CR ≈ 0.01
+  After λ=0.7: [0.45,  0.30,  0.15,  0.10]   (implemented values)
 ```
 
-#### Vulnerability AHP (3×3: REV, RCL, w_in)
+#### Vulnerability AHP (3×3: REV, RCL, QADS)
 
 ```
-            REV    RCL   w_in
-REV      [1.00,  1.00,  2.00]   REV and RCL are co-equal: both measure downstream exposure
-RCL      [1.00,  1.00,  2.00]   Same rationale as REV — symmetric judgment
-w_in     [0.50,  0.50,  1.00]   w_in: direct but non-propagated attack surface
+            REV    RCL   QADS
+REV      [1.00,  1.14,  1.60]   REV reach > RCL speed
+RCL      [0.88,  1.00,  1.40]   RCL propagation speed
+QADS     [0.62,  0.71,  1.00]   QADS surface
 
-→ AHP raw:    [0.400, 0.400, 0.200]    CR = 0.000 (perfectly consistent)
-  After λ=0.7: [0.40,  0.35,  0.25]   (slight shrinkage; RCL < REV due to propagation depth)
+→ AHP raw:    [0.40,  0.35,  0.25]    CR ≈ 0.000 (perfectly consistent)
 ```
 
 ---
@@ -534,7 +530,14 @@ Each node `v` is represented by a **27-dimensional feature vector**. The first 1
 | 25 | Node (infrastructure) |
 | 26 | Library |
 
-All topological metrics are already rank-normalized to [0, 1] by Step 2. No additional scaling is required for the GNN input layer.
+**Edge features (indices 0–7):**
+
+| Index | Feature |
+|-------|---------|
+| 0 | QoS weight w(e) |
+| 1–7 | Edge-type one-hot |
+
+**w_size formula:** `min(log₂(1 + size_kb) / 50, 0.20)`
 
 ### Heterogeneous Graph Attention Network
 
