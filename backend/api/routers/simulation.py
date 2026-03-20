@@ -2,25 +2,33 @@
 Simulation endpoints for event and failure analysis.
 """
 
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from fastapi import APIRouter, HTTPException, Depends
+from typing import Dict, Any, List
 import logging
 
 from api.models import (
     EventSimulationRequest,
     FailureSimulationRequest,
     ExhaustiveSimulationRequest,
-    ReportRequest
+    ReportRequest,
+    EventSimulationResponse,
+    FailureSimulationResponse,
+    ExhaustiveSimulationResponse,
+    SimulationReportResponse
 )
-from src.core import create_repository
+from api.dependencies import get_simulation_service
 from src.simulation import SimulationService
+from api.presenters import simulation_presenter
 
 router = APIRouter(prefix="/api/v1/simulation", tags=["simulation"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/event", response_model=Dict[str, Any])
-async def simulate_event(request: EventSimulationRequest):
+@router.post("/event", response_model=EventSimulationResponse)
+async def simulate_event(
+    request: EventSimulationRequest, 
+    service: SimulationService = Depends(get_simulation_service)
+):
     """
     Run event simulation from a source application.
     
@@ -33,32 +41,23 @@ async def simulate_event(request: EventSimulationRequest):
     try:
         logger.info(f"Running event simulation: source={request.source_app}, messages={request.num_messages}")
         
-        creds = request.credentials
-        repo = create_repository(uri=creds.uri, user=creds.user, password=creds.password)
+        result = service.run_event_simulation(
+            source_app=request.source_app,
+            num_messages=request.num_messages,
+            duration=request.duration
+        )
         
-        try:
-            service = SimulationService(repo)
-            
-            result = service.run_event_simulation(
-                source_app=request.source_app,
-                num_messages=request.num_messages,
-                duration=request.duration
-            )
-            
-            return {
-                "success": True,
-                "simulation_type": "event",
-                "result": result.to_dict()
-            }
-        finally:
-            repo.close()
+        return simulation_presenter.format_event_simulation_response(result)
     except Exception as e:
         logger.error(f"Event simulation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Event simulation failed: {str(e)}")
 
 
-@router.post("/failure", response_model=Dict[str, Any])
-async def simulate_failure(request: FailureSimulationRequest):
+@router.post("/failure", response_model=FailureSimulationResponse)
+async def simulate_failure(
+    request: FailureSimulationRequest,
+    service: SimulationService = Depends(get_simulation_service)
+):
     """
     Run failure simulation for a target component.
     
@@ -82,32 +81,23 @@ async def simulate_failure(request: FailureSimulationRequest):
     try:
         logger.info(f"Running failure simulation: target={request.target_id}, layer={request.layer}")
         
-        creds = request.credentials
-        repo = create_repository(uri=creds.uri, user=creds.user, password=creds.password)
+        result = service.run_failure_simulation(
+            target_id=request.target_id,
+            layer=request.layer,
+            cascade_probability=request.cascade_probability
+        )
         
-        try:
-            service = SimulationService(repo)
-            
-            result = service.run_failure_simulation(
-                target_id=request.target_id,
-                layer=request.layer,
-                cascade_probability=request.cascade_probability
-            )
-            
-            return {
-                "success": True,
-                "simulation_type": "failure",
-                "result": result.to_dict()
-            }
-        finally:
-            repo.close()
+        return simulation_presenter.format_failure_simulation_response(result)
     except Exception as e:
         logger.error(f"Failure simulation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failure simulation failed: {str(e)}")
 
 
-@router.post("/exhaustive", response_model=Dict[str, Any])
-async def simulate_exhaustive(request: ExhaustiveSimulationRequest):
+@router.post("/exhaustive", response_model=ExhaustiveSimulationResponse)
+async def simulate_exhaustive(
+    request: ExhaustiveSimulationRequest,
+    service: SimulationService = Depends(get_simulation_service)
+):
     """
     Run exhaustive failure analysis for all components in a layer.
     
@@ -128,44 +118,22 @@ async def simulate_exhaustive(request: ExhaustiveSimulationRequest):
     try:
         logger.info(f"Running exhaustive failure analysis: layer={request.layer}")
         
-        creds = request.credentials
-        repo = create_repository(uri=creds.uri, user=creds.user, password=creds.password)
+        results = service.run_failure_simulation_exhaustive(
+            layer=request.layer,
+            cascade_probability=request.cascade_probability
+        )
         
-        try:
-            service = SimulationService(repo)
-            
-            results = service.run_failure_simulation_exhaustive(
-                layer=request.layer,
-                cascade_probability=request.cascade_probability
-            )
-            
-            # Create summary from results
-            summary = {
-                "total_components": len(results),
-                "avg_impact": sum(r.impact.composite_impact for r in results) / len(results) if results else 0,
-                "max_impact": max((r.impact.composite_impact for r in results), default=0),
-                "critical_count": sum(1 for r in results if r.impact.composite_impact > 0.7),
-                "high_count": sum(1 for r in results if 0.4 < r.impact.composite_impact <= 0.7),
-                "medium_count": sum(1 for r in results if 0.2 < r.impact.composite_impact <= 0.4),
-                "spof_count": sum(1 for r in results if r.impact.fragmentation > 0.01),
-            }
-            
-            return {
-                "success": True,
-                "simulation_type": "exhaustive",
-                "layer": request.layer,
-                "summary": summary,
-                "results": [r.to_dict() for r in results]
-            }
-        finally:
-            repo.close()
+        return simulation_presenter.format_exhaustive_simulation_response(results, request.layer)
     except Exception as e:
         logger.error(f"Exhaustive simulation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Exhaustive simulation failed: {str(e)}")
 
 
-@router.post("/report", response_model=Dict[str, Any])
-async def generate_simulation_report(request: ReportRequest):
+@router.post("/report", response_model=SimulationReportResponse)
+async def generate_simulation_report(
+    request: ReportRequest,
+    service: SimulationService = Depends(get_simulation_service)
+):
     """
     Generate comprehensive simulation report with analysis across multiple layers.
     
@@ -204,42 +172,9 @@ async def generate_simulation_report(request: ReportRequest):
     try:
         logger.info(f"Generating simulation report: layers={mapped_layers}")
         
-        creds = request.credentials
-        repo = create_repository(uri=creds.uri, user=creds.user, password=creds.password)
+        report = service.generate_report(layers=mapped_layers)
         
-        try:
-            service = SimulationService(repo)
-            
-            report = service.generate_report(layers=mapped_layers)
-            
-            # Transform top_critical to match frontend expectations (nested structure)
-            report_dict = report.to_dict()
-            if "top_critical" in report_dict:
-                report_dict["top_critical"] = [
-                    {
-                        "id": comp["id"],
-                        "type": comp["type"],
-                        "level": comp["level"],
-                        "scores": {
-                            "event_impact": 0.0,
-                            "failure_impact": 0.0,
-                            "combined_impact": comp.get("combined_impact", 0.0),
-                        },
-                        "metrics": {
-                            "cascade_count": comp.get("cascade_count", 0),
-                            "message_throughput": 0,
-                            "reachability_loss_percent": 0.0,
-                        },
-                    }
-                    for comp in report_dict["top_critical"]
-                ]
-            
-            return {
-                "success": True,
-                "report": report_dict
-            }
-        finally:
-            repo.close()
+        return simulation_presenter.format_simulation_report_response(report)
     except Exception as e:
         logger.error(f"Report generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")

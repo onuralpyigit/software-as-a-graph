@@ -11,10 +11,11 @@ import os
 import logging
 from typing import AsyncGenerator
 
-from fastapi import Depends
+from fastapi import Depends, Request, HTTPException
 from src.core import create_repository
 from src.core.interfaces import IGraphRepository
-from src.analysis import AnalysisService
+from src.analysis import AnalysisService, StatisticsService
+from src.simulation import SimulationService
 from api.models import Neo4jCredentials
 
 # ── Configuration ────────────────────────────────────────────────────────
@@ -31,21 +32,28 @@ DEFAULT_NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "")
 
 # ── Dependencies ─────────────────────────────────────────────────────────
 
-async def get_repository(credentials: Neo4jCredentials) -> AsyncGenerator[IGraphRepository, None]:
+async def get_repository(request: Request) -> AsyncGenerator[IGraphRepository, None]:
     """
     Request-scoped repository dependency.
 
-    Creates a repository from the credentials provided in the request body,
-    yields it for the endpoint to use, and closes it automatically when the
-    request completes — even if the endpoint raises an exception.
-
-    Usage in an endpoint::
-
-        @router.post("/example")
-        async def example(repo: IGraphRepository = Depends(get_repository)):
-            data = repo.get_graph_data()
-            return {"nodes": data.components}
+    Extracts Neo4j credentials from the request body (either at the top level
+    or nested under a 'credentials' key) and provides a repository instance.
     """
+    body = await request.json()
+    
+    # Try to extract credentials from the 'credentials' key first (standard pattern)
+    # Then fall back to the top-level body
+    creds_data = body.get("credentials") or body
+    
+    try:
+        credentials = Neo4jCredentials(**creds_data)
+    except Exception as e:
+        logging.error(f"Failed to parse Neo4j credentials from body: {str(e)}")
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid Neo4j credentials: {str(e)}"
+        )
+
     repo = create_repository(
         uri=credentials.uri,
         user=credentials.user,
@@ -63,3 +71,19 @@ def get_analysis_service(repo: IGraphRepository = Depends(get_repository)) -> An
     Automatically uses the request-scoped repository.
     """
     return AnalysisService(repo)
+
+
+def get_simulation_service(repo: IGraphRepository = Depends(get_repository)) -> SimulationService:
+    """
+    Dependency to provide a configured SimulationService instance.
+    Automatically uses the request-scoped repository.
+    """
+    return SimulationService(repo)
+
+
+def get_statistics_service(repo: IGraphRepository = Depends(get_repository)) -> StatisticsService:
+    """
+    Dependency to provide a configured StatisticsService instance.
+    Automatically uses the request-scoped repository.
+    """
+    return StatisticsService(repo)

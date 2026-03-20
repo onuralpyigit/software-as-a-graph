@@ -148,6 +148,476 @@ class AnalysisEnvelope(BaseModel):
     analysis: AnalysisDetailModel
 
 
+# ── Simulation Response Models ──────────────────────────────────────────
+
+class EventMetricsModel(BaseModel):
+    messages_published: int
+    messages_delivered: int
+    messages_dropped: int
+    delivery_rate_percent: float
+    drop_rate_percent: float
+    avg_latency_ms: float
+    p99_latency_ms: float
+    throughput_per_sec: float
+
+
+class EventSimulationResultModel(BaseModel):
+    source_app: str
+    scenario: str
+    duration_sec: float
+    metrics: EventMetricsModel
+    affected_topics: List[str]
+    reached_subscribers: List[str]
+    brokers_used: List[str]
+    component_impacts: Dict[str, float]
+    failed_components: List[str]
+    drop_reasons: Dict[str, int]
+    related_components: List[str]
+
+
+class EventSimulationResponse(BaseModel):
+    success: bool
+    simulation_type: str
+    result: EventSimulationResultModel
+
+
+class ImpactDetail(BaseModel):
+    initial_paths: Optional[int] = None
+    remaining_paths: Optional[int] = None
+    loss_percent: float
+
+
+class FragmentationDetail(BaseModel):
+    fragmentation_percent: float
+
+
+class CascadeDetail(BaseModel):
+    count: int
+    depth: int
+
+
+class ReliabilityImpactModel(BaseModel):
+    cascade_reach: float
+    weighted_cascade_impact: float
+    normalized_cascade_depth: float
+    reliability_impact: float
+
+
+class MaintainabilityImpactModel(BaseModel):
+    change_reach: float
+    weighted_change_impact: float
+    normalized_change_depth: float
+    maintainability_impact: float
+
+
+class AvailabilityImpactModel(BaseModel):
+    weighted_reachability_loss: float
+    weighted_fragmentation: float
+    path_breaking_throughput_loss: float
+    availability_impact: float
+    ia_out: float
+    ia_in: float
+
+
+class VulnerabilityImpactModel(BaseModel):
+    attack_reach: float
+    weighted_attack_impact: float
+    high_value_contamination: float
+    vulnerability_impact: float
+
+
+class FailureImpactModel(BaseModel):
+    reachability: ImpactDetail
+    fragmentation: FragmentationDetail
+    throughput: ImpactDetail
+    flow_disruption: ImpactDetail
+    cascade: CascadeDetail
+    composite_impact: float
+    reliability: ReliabilityImpactModel
+    maintainability: MaintainabilityImpactModel
+    availability: AvailabilityImpactModel
+    vulnerability: VulnerabilityImpactModel
+
+
+class CascadeSequenceEvent(BaseModel):
+    id: str
+    type: str
+    cause: str
+    depth: int
+
+
+class FailureSimulationResultModel(BaseModel):
+    target_id: str
+    target_type: str
+    scenario: str
+    impact: FailureImpactModel
+    cascaded_failures: List[str]
+    cascade_sequence: List[CascadeSequenceEvent]
+    layer_impacts: Dict[str, float]
+
+
+class FailureSimulationResponse(BaseModel):
+    success: bool
+    simulation_type: str
+    result: FailureSimulationResultModel
+
+
+class ExhaustiveSummaryModel(BaseModel):
+    total_components: int
+    avg_impact: float
+    max_impact: float
+    critical_count: int
+    high_count: int
+    medium_count: int
+    spof_count: int
+
+
+class ExhaustiveSimulationResponse(BaseModel):
+    success: bool
+    simulation_type: str
+    layer: str
+    summary: ExhaustiveSummaryModel
+    results: List[FailureSimulationResultModel]
+
+
+class LayerEventMetricsModel(BaseModel):
+    delivery_rate_percent: float
+    avg_latency_ms: float
+
+
+class LayerFailureMetricsModel(BaseModel):
+    avg_reachability_loss_percent: float
+    max_impact: float
+
+
+class LayerCriticalitySummaryModel(BaseModel):
+    critical: int
+    high: int
+
+
+class LayerMetricsResponseModel(BaseModel):
+    layer: str
+    event_metrics: LayerEventMetricsModel
+    failure_metrics: LayerFailureMetricsModel
+    criticality: LayerCriticalitySummaryModel
+
+
+class TopCriticalComponentModel(BaseModel):
+    id: str
+    type: str
+    level: str
+    scores: Dict[str, float]
+    metrics: Dict[str, Any]
+
+
+class SimulationReportResponseModel(BaseModel):
+    timestamp: str
+    layer_metrics: Dict[str, LayerMetricsResponseModel]
+    top_critical: List[TopCriticalComponentModel]
+
+
+class SimulationReportResponse(BaseModel):
+    success: bool
+    report: SimulationReportResponseModel
+
+
+class GraphStatsResponse(BaseModel):
+    success: bool
+    stats: Dict[str, Any]
+
+
+# ── Statistics Response Models ──────────────────────────────────────────
+
+class DistributionMetricsModel(BaseModel):
+    mean: float
+    median: float
+    std: float
+    min: float
+    max: float
+
+
+class DegreeDistributionModel(BaseModel):
+    in_degree: DistributionMetricsModel
+    out_degree: DistributionMetricsModel
+    total_degree: DistributionMetricsModel
+    hub_nodes: List[Dict[str, Any]]
+    isolated_nodes: int
+    total_nodes: int
+    hub_threshold: float
+
+
+class DegreeDistributionResponse(BaseModel):
+    success: bool
+    stats: DegreeDistributionModel
+    computation_time_ms: float = 0.0
+
+
+class DensityStatsModel(BaseModel):
+    density: float
+    total_nodes: int
+    total_edges: int
+    max_possible_edges: int
+    interpretation: str
+    category: str
+    most_dense_components: List[Dict[str, Any]]
+
+
+class ConnectivityDensityResponse(BaseModel):
+    success: bool
+    stats: DensityStatsModel
+    computation_time_ms: float = 0.0
+
+
+class ClusteringStatsModel(BaseModel):
+    avg_clustering_coefficient: float
+    global_clustering: float
+    average_clustering: float
+    max_coefficient: float
+    median_coefficient: float
+    min_coefficient: float
+    std_coefficient: float
+    high_clustering_count: int
+    medium_clustering_count: int
+    low_clustering_count: int
+    zero_clustering_count: int
+    total_nodes: int
+    high_clustering_nodes: List[Dict[str, Any]]
+    zero_clustering_nodes: List[Dict[str, Any]]
+
+
+class ClusteringCoefficientResponse(BaseModel):
+    success: bool
+    stats: ClusteringStatsModel
+    computation_time_ms: float = 0.0
+
+
+class DepthStatsModel(BaseModel):
+    max_depth: int
+    avg_depth: float
+    median_depth: float
+    min_depth: int
+    std_depth: float
+    interpretation: str
+    category: str
+    depth_distribution: Dict[str, int]
+    shallow_count: int
+    low_depth_count: int
+    medium_depth_count: int
+    high_depth_count: int
+    total_nodes: int
+    root_nodes: List[Dict[str, Any]]
+    leaf_nodes: List[Dict[str, Any]]
+    deepest_components: List[Dict[str, Any]]
+
+
+class DependencyDepthResponse(BaseModel):
+    success: bool
+    stats: DepthStatsModel
+    computation_time_ms: float = 0.0
+
+
+class IsolationStatsModel(BaseModel):
+    isolated_count: int
+    isolated_percentage: float
+    source_count: int
+    source_percentage: float
+    sink_count: int
+    sink_percentage: float
+    bidirectional_count: int
+    bidirectional_percentage: float
+    category: str
+    interpretation: str
+    health: str
+    top_sources: List[Dict[str, Any]]
+    top_sinks: List[Dict[str, Any]]
+    isolated_components: List[Dict[str, Any]]
+    total_nodes: int
+
+
+class ComponentIsolationResponse(BaseModel):
+    success: bool
+    stats: IsolationStatsModel
+    computation_time_ms: float = 0.0
+
+
+class MessageFlowStatsModel(BaseModel):
+    total_topics: int
+    total_brokers: int
+    total_applications: int
+    active_applications: int
+    avg_publishers_per_topic: float
+    avg_subscribers_per_topic: float
+    avg_topics_per_broker: float
+    interpretation: str
+    category: str
+    health: str
+    hot_topics: List[Dict[str, Any]]
+    broker_utilization: List[Dict[str, Any]]
+    isolated_applications: List[Dict[str, Any]]
+    top_publishers: List[Dict[str, Any]]
+    top_subscribers: List[Dict[str, Any]]
+
+
+class MessageFlowPatternsResponse(BaseModel):
+    success: bool
+    stats: MessageFlowStatsModel
+    computation_time_ms: float = 0.0
+
+
+class RedundancyStatsModel(BaseModel):
+    total_components: int
+    spof_count: int
+    spof_percentage: float
+    redundant_count: int
+    redundancy_percentage: float
+    resilience_score: float
+    interpretation: str
+    category: str
+    health: str
+    single_points_of_failure: List[Dict[str, Any]]
+    bridge_components: List[Dict[str, Any]]
+
+
+class ComponentRedundancyResponse(BaseModel):
+    success: bool
+    stats: RedundancyStatsModel
+    computation_time_ms: float = 0.0
+
+
+class WeightDistributionModel(BaseModel):
+    total_components: Optional[int] = None
+    total_edges: Optional[int] = None
+    total_weight: float
+    avg_weight: float
+    median_weight: float
+    min_weight: float
+    max_weight: float
+    std_weight: float
+    weight_concentration: float
+    interpretation: str
+    category: str
+    health: str
+    very_high_count: int
+    high_count: int
+    medium_count: int
+    low_count: int
+    very_low_count: int
+    top_components: Optional[List[Dict[str, Any]]] = None
+    top_edges: Optional[List[Dict[str, Any]]] = None
+    type_stats: Dict[str, Any]
+
+
+class NodeWeightDistributionResponse(BaseModel):
+    success: bool
+    stats: WeightDistributionModel
+    computation_time_ms: float = 0.0
+
+
+class EdgeWeightDistributionResponse(BaseModel):
+    success: bool
+    stats: WeightDistributionModel
+    computation_time_ms: float = 0.0
+
+
+class GraphGenerationStats(BaseModel):
+    nodes: int
+    brokers: int
+    topics: int
+    applications: int
+
+
+class GraphGenerationResponse(BaseModel):
+    success: bool
+    message: str
+    metadata: Dict[str, Any]
+    stats: GraphGenerationStats
+    graph_data: Dict[str, Any]
+
+
+class GenericSuccessResponse(BaseModel):
+    success: bool
+    message: str
+
+
+class GraphImportResponse(BaseModel):
+    success: bool
+    message: str
+    stats: Dict[str, Any]
+
+
+class GraphGenerateImportResponse(BaseModel):
+    success: bool
+    message: str
+    generation: Dict[str, Any]
+    import_stats: Dict[str, Any]
+
+
+class GraphExportResponse(BaseModel):
+    success: bool
+    components: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
+    stats: Dict[str, Any]
+
+
+class LimitedGraphExportStats(BaseModel):
+    component_count: int
+    edge_count: int
+    node_limit: int
+    edge_limit: Optional[int]
+    limited: bool
+
+
+class LimitedGraphExportResponse(BaseModel):
+    success: bool
+    components: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
+    stats: LimitedGraphExportStats
+
+
+class Neo4jExportStats(BaseModel):
+    nodes: int
+    brokers: int
+    topics: int
+    applications: int
+    libraries: int
+
+
+class Neo4jExportResponse(BaseModel):
+    success: bool
+    message: str
+    graph_data: Dict[str, Any]
+    stats: Neo4jExportStats
+
+
+class SearchNodesResponse(BaseModel):
+    success: bool
+    query: str
+    count: int
+    nodes: List[Dict[str, Any]]
+
+
+class NodeConnectionsStats(BaseModel):
+    connected_nodes: int
+    edges: int
+
+
+class NodeConnectionsResponse(BaseModel):
+    success: bool
+    node_id: str
+    depth: int
+    components: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
+    stats: NodeConnectionsStats
+
+
+class TopologyResponse(BaseModel):
+    success: bool
+    node_id: Optional[str]
+    components: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
+    stats: Dict[str, int]
+
+
 class ComponentQueryParams(BaseModel):
     component_type: Optional[str] = Field(None, description="Filter by component type")
     min_weight: Optional[float] = Field(None, description="Minimum weight threshold")
