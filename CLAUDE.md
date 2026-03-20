@@ -12,7 +12,7 @@ The project is a full-stack application with three main components:
 
 ### Backend (`backend/`)
 - **Language:** Python 3.9+
-- **API:** FastAPI (`backend/api/main.py`) with routers for health, graph, analysis, components, statistics, simulation, classification, and validation
+- **API:** FastAPI (`backend/api/main.py`) with routers for health, graph, analysis, components, statistics, simulation, classification, and validation; **presenters** (`backend/api/presenters/`) for decoupled response formatting.
 - **Source code:** `backend/src/` — modular packages:
   - `core/` — domain models (`models.py`), metrics, layers, Neo4j repository (`neo4j_repo.py`), memory repository, criticality, exporters/importers, interfaces
   - `analysis/` — structural analyzer, quality analyzer, weight calculator (AHP), classifier, statistics service, problem detector
@@ -125,6 +125,7 @@ pytest -k "test_name"  # Run by test name pattern
   - `test_domain_model.py` — core models
   - `test_cli.py` — all CLI scripts
   - `test_api_statistics.py` — API statistics endpoints
+  - `test_api_graph.py` — API graph endpoints
   - `test_generation_service.py` — graph generation
   - **Dimension-specific tests:**
     - `test_reliability_dimension.py` — R(v) v4, IR(v), CCR@K, CME

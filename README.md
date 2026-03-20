@@ -304,6 +304,9 @@ Criticality is classified into five levels — MINIMAL, LOW, MEDIUM, HIGH, CRITI
 │
 ├── backend/                    # Python backend (hexagonal architecture)
 │   ├── api/                    #   FastAPI application & routers
+│   │   ├── presenters/         #     Response formatting & API translation
+│   │   ├── routers/            #     REST endpoints (thin layer)
+│   │   └── dependencies.py     #     Service & Repository injection
 │   ├── src/                    #   Domain source code
 │   │   ├── core/               #     Domain models, ports, Neo4j & memory repos
 │   │   ├── analysis/           #     Structural metrics + RMAV quality scoring

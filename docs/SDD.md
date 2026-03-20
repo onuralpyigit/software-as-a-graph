@@ -98,6 +98,7 @@ Section 2 describes the system context, design constraints, and guiding principl
 |---------|------|--------------------|
 | 2.1 | February 2026 | Initial release |
 | 2.2 | February 2026 | Updated RMAV formulas to match implementation (§4.2, §5.2, §6, Appendix B); corrected architecture description to four-layer (§1.2, §3.1); fixed REST API endpoint paths to `/api/v1/` with correct HTTP methods (§8.2); added missing endpoints; added `benchmark/` to module decomposition (§3.2); added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL algorithmic descriptions (§6.13–§6.18); corrected metric-to-dimension orthogonality table (§4.2); updated Appendix A layer IDs; updated Appendix B AHP matrices; extended Appendix D traceability for SRS v2.2 requirements |
+| 2.3 | March 2026 | Refactored backend API to use **Presenters** for decoupled response formatting (§3.1, §3.2); updated module decomposition to include `backend/api/presenters/`; enhanced dependency injection in `backend/api/dependencies.py` |
 
 ---
 
@@ -180,6 +181,8 @@ The system follows SOLID principles with emphasis on three key decisions:
 │                                                                     │
 │  REST API exposes the same pipeline operations as the CLI.          │
 │  Frontend calls API; API calls the same domain services as CLI.     │
+│  API uses **Presenters** to decouple domain logic from API response│
+│  formatting, following the Hexagonal Architecture pattern.         │
 ├─────────────────────────────────────────────────────────────────────┤
 │                        PIPELINE COMPONENTS                          │
 │                                                                     │
@@ -231,7 +234,9 @@ software-as-a-graph/
 ├── backend/
 │   ├── api/                          # Web Application Layer — FastAPI
 │   │   ├── main.py                   #   FastAPI app, CORS, health endpoint
-│   │   ├── routers/                  #   Route handlers per domain area
+│   │   ├── routers/                  #   REST endpoints (thin layer)
+│   │   ├── presenters/               #   Response formatting & API translation
+│   │   ├── dependencies.py           #   Service & Repository injection
 │   │   └── models.py                 #   Pydantic request/response models
 │   └── src/                          # Pipeline Components + Core (shared with CLI)
 │       ├── core/                     #   Core Layer

@@ -97,6 +97,8 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | 2.1 | February 2026 | Initial release |
 | 2.3 | March 2026 | Renamed §4.3 from 'Quality Scoring' to 'Prediction (RMAV)'; updated IT-ANAL-01/02 class references |
 | 2.2 | February 2026 | Updated references to SRS/SDD v2.2; added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL to glossary (§1.6); corrected UT-ANAL-21 formula reference from PR to RPR; added unit tests for new derived terms (§4.3 UT-ANAL-33–43); added `api` marker to pytest config (§3.3); corrected IT-API-09 from POST to GET; updated coverage table (§4.9); raised validation primary targets to match SRS v2.2 (§8.1, §8.2, AC-25); updated achieved results to IEEE RASSE 2025 published figures (§8.3); extended traceability matrix for SRS v2.2 requirements (§10) |
+| 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5) |
+| 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5) |
 
 ---
 
@@ -708,6 +710,8 @@ Tests that the FastAPI backend correctly invokes domain services and returns pro
 | IT-API-07 | `POST /api/v1/validation/run-pipeline` | HTTP 200; Spearman ρ ∈ [−1, 1] |
 | IT-API-08 | `GET /api/v1/validation/layers` | HTTP 200; result contains layer entries |
 | IT-API-09 | `GET /api/v1/components` with unknown layer | HTTP 404 or HTTP 422 with descriptive message |
+| IT-API-10 | `POST /api/v1/graph/generate` with valid payload | HTTP 200; returns generated graph data & stats |
+| IT-API-10 | `POST /api/v1/graph/generate` with valid payload | HTTP 200; returns generated graph data & stats |
 
 > **Endpoint method note:** IT-API-09 uses `GET /api/v1/components` (not POST). The `components` endpoint accepts the layer as a query parameter. See SDD v2.2 §8.2.
 
