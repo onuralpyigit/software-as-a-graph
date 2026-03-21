@@ -7,7 +7,6 @@ Provides:
     from the ``Neo4jCredentials`` body and ensures it is closed after use
 """
 
-import os
 import logging
 from typing import AsyncGenerator
 
@@ -22,6 +21,7 @@ from api.models import (
     GenerateGraphRequest,
     GenerateGraphFileRequest
 )
+from src.adapters import config
 
 # ── Configuration ────────────────────────────────────────────────────────
 
@@ -29,10 +29,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-
-DEFAULT_NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-DEFAULT_NEO4J_USER = os.environ.get("NEO4J_USERNAME", "neo4j")
-DEFAULT_NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "")
 
 
 # ── Dependencies ─────────────────────────────────────────────────────────

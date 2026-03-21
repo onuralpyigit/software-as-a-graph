@@ -6,43 +6,20 @@ from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 
 
-# Default Neo4j connection settings
-import os
-
-_DEFAULT_NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-_DEFAULT_NEO4J_USER = os.environ.get("NEO4J_USERNAME", "neo4j")
-_DEFAULT_NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "")
-
-
-def _resolve_neo4j_uri(client_uri: str) -> str:
-    """Rewrite localhost/127.0.0.1 URIs to the Docker-internal Neo4j hostname.
-
-    When the browser sends bolt://localhost:7687, this is unreachable from
-    inside the API container.  If NEO4J_URI is set (Docker), replace the
-    host portion so the connection goes to the correct container.
-    """
-    env_uri = os.environ.get("NEO4J_URI")
-    if not env_uri:
-        return client_uri  # Not running in Docker — use as-is
-
-    import re
-    # Match bolt:// or neo4j:// with localhost or 127.0.0.1
-    if re.match(r"^(bolt|neo4j)(\+s?s?)?://(localhost|127\.0\.0\.1)(:\d+)?$", client_uri):
-        return env_uri
-    return client_uri
+from src.adapters import config
 
 
 class Neo4jCredentials(BaseModel):
-    uri: str = Field(default=_DEFAULT_NEO4J_URI, description="Neo4j connection URI")
-    user: str = Field(default=_DEFAULT_NEO4J_USER, description="Neo4j username")
-    password: str = Field(default=_DEFAULT_NEO4J_PASSWORD, description="Neo4j password")
-    database: str = Field(default="neo4j", description="Neo4j database name")
+    uri: str = Field(default_factory=config.get_default_uri, description="Neo4j connection URI")
+    user: str = Field(default_factory=config.get_default_username, description="Neo4j username")
+    password: str = Field(default_factory=config.get_default_password, description="Neo4j password")
+    database: str = Field(default_factory=config.get_default_database, description="Neo4j database name")
     node_type: Optional[str] = Field(default=None, description="Filter by specific node type")
 
     def __init__(self, **data):
         super().__init__(**data)
         # Rewrite localhost URIs when running inside Docker
-        object.__setattr__(self, 'uri', _resolve_neo4j_uri(self.uri))
+        object.__setattr__(self, 'uri', config.resolve_neo4j_uri(self.uri))
 
 
 class GraphRequestWithCredentials(BaseModel):

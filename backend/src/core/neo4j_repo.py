@@ -23,6 +23,7 @@ from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, AuthError
 
 from src.core.models import GraphData, ComponentData, EdgeData, QoSPolicy, MIN_TOPIC_WEIGHT
+from src.adapters import config
 
 # ---------------------------------------------------------------------------
 # Layer Definitions for Neo4j Queries
@@ -78,9 +79,9 @@ def _resolve_layer(layer: str) -> str:
 def create_repository(uri=None, user=None, password=None):
     """Create a Neo4jRepository from params or environment."""
     return Neo4jRepository(
-        uri=uri or os.getenv("NEO4J_URI", "bolt://localhost:7687"),
-        user=user or os.getenv("NEO4J_USERNAME", "neo4j"),
-        password=password or os.getenv("NEO4J_PASSWORD", "password"),
+        uri=uri or config.get_default_uri(),
+        user=user or config.get_default_username(),
+        password=password or config.get_default_password(),
     )
 
 
@@ -97,12 +98,17 @@ class Neo4jRepository:
     
     def __init__(
         self,
-        uri: str = "bolt://localhost:7687",
-        user: str = "neo4j",
-        password: str = "password",
-        database: str = "neo4j"
+        uri: str = None,
+        user: str = None,
+        password: str = None,
+        database: str = None
     ):
         """Initialize Neo4j repository."""
+        uri = uri or config.get_default_uri()
+        user = user or config.get_default_username()
+        password = password or config.get_default_password()
+        database = database or config.get_default_database()
+        
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
         self.database = database
         self.logger = logging.getLogger(__name__)
