@@ -19,7 +19,7 @@ from api.models import (
 from api.dependencies import (
     get_simulation_service, get_repository, get_simulate_graph_use_case
 )
-from src.core import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 from src.simulation import SimulationService
 from src.usecases import SimulateGraphUseCase, SimulationMode
 from api.presenters import simulation_presenter

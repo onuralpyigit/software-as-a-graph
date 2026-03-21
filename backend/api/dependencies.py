@@ -12,7 +12,7 @@ from typing import AsyncGenerator
 
 from fastapi import Depends, Request, HTTPException
 from src.core import create_repository
-from src.core.interfaces import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 from src.analysis import AnalysisService, StatisticsService
 from src.simulation import SimulationService
 from src.generation import GenerationService

@@ -10,7 +10,7 @@ from api.dependencies import (
     get_analysis_service, get_repository,
     get_analyze_graph_use_case, get_predict_graph_use_case
 )
-from src.core import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 from src.analysis import AnalysisService
 from src.analysis.problem_detector import ProblemDetector
 from api.presenters import analysis_presenter

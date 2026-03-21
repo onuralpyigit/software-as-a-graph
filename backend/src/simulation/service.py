@@ -17,7 +17,7 @@ from .models import (
     FailureMode,
     FailureResult,
 )
-from src.core.interfaces import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 
 logger = logging.getLogger(__name__)
 

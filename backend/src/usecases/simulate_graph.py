@@ -1,5 +1,5 @@
 from typing import List, Any
-from src.core.interfaces import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 from src.simulation.service import SimulationService
 from src.simulation.models import FailureResult
 from .models import SimulationMode

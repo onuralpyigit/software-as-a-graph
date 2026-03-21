@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from src.core.interfaces import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 from .models import ImportStats
 
 class ModelGraphUseCase:

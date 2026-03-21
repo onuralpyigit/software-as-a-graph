@@ -1,11 +1,8 @@
 """
-Repository Interface
+Repository Port
 
 Defines the IGraphRepository Protocol — the contract that all repository
 implementations (Neo4j, in-memory, etc.) must satisfy.
-
-Services depend on this Protocol rather than concrete implementations,
-enabling dependency inversion and clean testability.
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 from typing import List
-from src.core.interfaces import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 from src.analysis.service import AnalysisService
 from src.simulation.service import SimulationService
 from src.validation.service import ValidationService

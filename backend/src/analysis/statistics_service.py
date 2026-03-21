@@ -12,7 +12,7 @@ from collections import defaultdict, deque
 from typing import Dict, Any, Optional, List, Union
 
 from src.core import create_repository
-from src.core.interfaces import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 from src.core.models import GraphData
 from src.analysis import statistics as stats_logic
 

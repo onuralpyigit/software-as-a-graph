@@ -12,7 +12,7 @@ from .models import LayerData, LAYER_DEFINITIONS
 from .charts import ChartGenerator
 from .dashboard import DashboardGenerator
 from .collector import LayerDataCollector
-from src.core.interfaces import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 
 
 class VisualizationService:

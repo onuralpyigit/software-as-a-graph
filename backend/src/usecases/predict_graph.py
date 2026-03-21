@@ -1,4 +1,4 @@
-from src.core.interfaces import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 from src.analysis.quality_analyzer import QualityAnalyzer
 from src.analysis.models import StructuralAnalysisResult, QualityAnalysisResult
 

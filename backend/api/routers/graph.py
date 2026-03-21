@@ -19,7 +19,7 @@ from api.models import (
     TopologyResponse
 )
 from src.generation import GenerationService
-from src.core.interfaces import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 from api.dependencies import get_repository, get_generation_service
 from api.presenters import graph_presenter
 

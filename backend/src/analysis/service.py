@@ -7,7 +7,7 @@ from .quality_analyzer import QualityAnalyzer
 from .problem_detector import ProblemDetector
 from .models import MultiLayerAnalysisResult, LayerAnalysisResult
 from src.core.layers import AnalysisLayer, get_layer_definition
-from src.core.interfaces import IGraphRepository
+from src.core.ports.graph_repository import IGraphRepository
 
 class AnalysisService:
     """

@@ -1,7 +1,7 @@
 """
 Core Logic and Repository
 """
-from .interfaces import IGraphRepository
+from .ports.graph_repository import IGraphRepository
 from .neo4j_repo import Neo4jRepository, create_repository
 from .layers import (
     AnalysisLayer, 
