@@ -165,6 +165,8 @@ def _build_analyze_args(args: argparse.Namespace, neo4j: List[str]) -> List[str]
         cmd = ["--layer", layers[0]]
 
     cmd += ["--output", str(Path(args.output_dir) / "analysis_results.json")]
+    if args.gnn_model:
+        cmd += ["--gnn-model", args.gnn_model]
     if args.use_ahp:
         cmd.append("--use-ahp")
     if args.verbose:
@@ -306,6 +308,8 @@ examples:
     analysis.add_argument("--layer", "--layers", dest="layers",
                           default="app,infra,mw",
                           help="Layers to process, comma-separated (default: app,infra,mw)")
+    analysis.add_argument("--gnn-model", metavar="PATH",
+                          help="Path to pre-trained GNN model/checkpoint")
     analysis.add_argument("--use-ahp", action="store_true",
                           help="Use AHP-derived weights for quality scoring")
     analysis.add_argument("--clean", "--clear", dest="clean", action="store_true",

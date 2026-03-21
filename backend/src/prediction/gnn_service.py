@@ -680,6 +680,7 @@ class GNNService:
         if cfg_path.exists():
             with open(cfg_path) as f:
                 cfg = json.load(f)
+            print(f"DEBUG: Loaded GNN config from {cfg_path}: {cfg}")
         else:
             cfg = {}
 
@@ -704,15 +705,13 @@ class GNNService:
             ens_path = ckpt_dir / "ensemble.pt"
 
             if nm_path.exists() and service._node_model:
-                service._node_model.load_state_dict(
-                    torch.load(nm_path, map_location=service.device)
-                )
-                logger.info("Loaded node model from '%s'.", nm_path)
+                node_sd = torch.load(nm_path, map_location=service.device)
+                service._node_model.load_state_dict(node_sd, strict=False)
+                logger.info("Loaded node model from '%s' (strict=False).", nm_path)
             if em_path.exists() and service._edge_model:
-                service._edge_model.load_state_dict(
-                    torch.load(em_path, map_location=service.device)
-                )
-                logger.info("Loaded edge model from '%s'.", em_path)
+                edge_sd = torch.load(em_path, map_location=service.device)
+                service._edge_model.load_state_dict(edge_sd, strict=False)
+                logger.info("Loaded edge model from '%s' (strict=False).", em_path)
             if ens_path.exists() and service._ensemble:
                 service._ensemble.load_state_dict(
                     torch.load(ens_path, map_location=service.device)

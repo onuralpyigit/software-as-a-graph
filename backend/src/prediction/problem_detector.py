@@ -85,13 +85,13 @@ class ProblemDetector:
         problems.sort(key=lambda p: (-p.priority, p.entity_id))
         return problems
 
-    def summarize(self, problems: List[DetectedProblem]) -> ProblemSummary:
+    def summarize(self, problems: Optional[List[DetectedProblem]]) -> ProblemSummary:
         """Create aggregated summary of detected problems."""
         by_sev: Dict[str, int] = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
         by_cat: Dict[str, int] = {}
         comp_ids, edge_ids = set(), set()
 
-        for p in problems:
+        for p in (problems or []):
             by_sev[p.severity] = by_sev.get(p.severity, 0) + 1
             by_cat[p.category] = by_cat.get(p.category, 0) + 1
             if p.entity_type == "Component":

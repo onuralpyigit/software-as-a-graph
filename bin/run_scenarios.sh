@@ -18,7 +18,7 @@ DRY_RUN=""
 NEO4J_URI="bolt://localhost:7687"
 NEO4J_USER="neo4j"
 NEO4J_PASS="password"
-LAYERS="app,infra,mw"
+LAYERS="app,infra,mw,system"
 
 # ---------------------------------------------------------------------------
 # Parse args
@@ -112,6 +112,7 @@ for CFG in "${SCENARIO_FILES[@]}"; do
     --uri     "$NEO4J_URI"
     --user    "$NEO4J_USER"
     --password "$NEO4J_PASS"
+    --gnn-model "$PROJECT_ROOT/output/gnn_checkpoints"
   )
   [[ -n "$DRY_RUN" ]] && CMD+=(--dry-run)
 

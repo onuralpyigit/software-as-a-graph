@@ -2,7 +2,7 @@
 Validation Logic
 """
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 from .models import (
@@ -38,12 +38,14 @@ class Validator:
         self,
         predicted_scores: Dict[str, float],
         actual_scores: Dict[str, float],
+        impact_data: Optional[List[Any]] = None,
         component_types: Optional[Dict[str, str]] = None,
         layer: str = "system",
         context: str = "Validation",
     ) -> ValidationResult:
         timestamp = datetime.now().isoformat()
         warnings: List[str] = []
+        impact_data = impact_data or []
 
         # Data alignment
         pred_ids = set(predicted_scores.keys())
@@ -59,6 +61,9 @@ class Validator:
             warnings.append("Insufficient data (n < 3)")
             return self._empty_result(timestamp, layer, context, len(pred_ids), len(actual_ids), len(common_ids), warnings)
 
+        # 0. Impact Stats pre-calculation (for summary reporting)
+        ia_stats = self._calculate_impact_stats(impact_data)
+        
         if len(common_ids) < 10:
             warnings.append(f"Low statistical power (n={len(common_ids)} < 10)")
 
@@ -96,7 +101,28 @@ class Validator:
             matched_count=len(common_ids),
             gates=overall.gates,
             warnings=warnings,
+            ia_stats=ia_stats,
         )
+
+    def _calculate_impact_stats(self, impact_data: List[Any]) -> Dict[str, Any]:
+        if not impact_data: return {}
+        
+        ia_out = []
+        ia_in = []
+        for d in impact_data:
+            impact = getattr(d, 'impact', d)
+            if hasattr(impact, 'ia_out'):
+                ia_out.append(impact.ia_out)
+            if hasattr(impact, 'ia_in'):
+                ia_in.append(impact.ia_in)
+        
+        import numpy as np
+        return {
+            "ia_out_avg": float(np.mean(ia_out)) if ia_out else 0.0,
+            "ia_out_max": float(np.max(ia_out)) if ia_out else 0.0,
+            "ia_in_avg": float(np.mean(ia_in)) if ia_in else 0.0,
+            "ia_in_max": float(np.max(ia_in)) if ia_in else 0.0,
+        }
 
     def _validate_group(
         self,

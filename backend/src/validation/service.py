@@ -161,6 +161,7 @@ class ValidationService:
         validation_res = self.validator.validate(
             predicted_scores=pred_scores,
             actual_scores=actual_scores,
+            impact_data=sim_results,
             component_types=comp_types,
             layer=sim_layer.value,
             context=layer_def.name

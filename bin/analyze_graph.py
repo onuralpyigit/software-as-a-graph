@@ -182,18 +182,35 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
     predict_uc = PredictGraphUseCase(repo, prediction_service=pred_svc)
     detector = ProblemDetector()
     
+    def run_gnn(layer_res, model_path):
+        from src.prediction import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict
+        try:
+            logging.info(f"Loading GNN model for layer {layer_res.layer} from {model_path}...")
+            gnn_svc = GNNService.from_checkpoint(model_path, graph=layer_res.structural.graph)
+            
+            s_dict = extract_structural_metrics_dict(layer_res.structural)
+            r_dict = extract_rmav_scores_dict(layer_res.quality)
+            
+            prediction_result = gnn_svc.predict(
+                graph=layer_res.structural.graph,
+                structural_metrics=s_dict,
+                rmav_scores=r_dict
+            )
+            layer_res.prediction = prediction_result.to_dict()
+            logging.info(f"GNN prediction for {layer_res.layer} complete.")
+        except Exception as e:
+            logging.error(f"GNN prediction for {layer_res.layer} failed: {e}")
+
     try:
         if args.all:
-            # For --all, we'll manually iterate layers for now 
-            # (or we could add an AnalyzeAllLayersUseCase if needed)
             layers = ["app", "infra", "mw", "system"]
             results_map = {}
             for l in layers:
                 s_res = analyze_uc.execute(l)
-                q_res, problems = predict_uc.execute(l, s_res)
-                # Use problems from prediction use case
+                q_res, problems = predict_uc.execute(l, s_res, detect_problems=True)
                 problem_summary = detector.summarize(problems)
-                results_map[l] = LayerAnalysisResult(
+                
+                layer_res = LayerAnalysisResult(
                     layer=l,
                     layer_name=l.capitalize(),
                     description=f"{l.capitalize()} layer analysis",
@@ -202,6 +219,10 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
                     problems=problems,
                     problem_summary=problem_summary
                 )
+                if args.gnn_model:
+                    run_gnn(layer_res, args.gnn_model)
+                results_map[l] = layer_res
+                
             return MultiLayerAnalysisResult(
                 timestamp=datetime.now().isoformat(),
                 layers=results_map,
@@ -210,7 +231,7 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
 
         # Single-layer analysis
         s_res = analyze_uc.execute(args.layer)
-        q_res, problems = predict_uc.execute(args.layer, s_res)
+        q_res, problems = predict_uc.execute(args.layer, s_res, detect_problems=True)
         problem_summary = detector.summarize(problems)
         
         layer_result = LayerAnalysisResult(
@@ -225,25 +246,7 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
 
         # Optional GNN Inference
         if args.gnn_model:
-            from src.prediction import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict
-            try:
-                logging.info(f"Loading GNN model from {args.gnn_model}...")
-                # LayerAnalysisResult has changed in Step 3 to have .graph in structural or quality?
-                # Actually, structural analysis result has the graph.
-                gnn_svc = GNNService.from_checkpoint(args.gnn_model, graph=s_res.graph)
-                
-                s_dict = extract_structural_metrics_dict(s_res)
-                r_dict = extract_rmav_scores_dict(q_res)
-                
-                prediction_result = gnn_svc.predict(
-                    graph=s_res.graph,
-                    structural_metrics=s_dict,
-                    rmav_scores=r_dict
-                )
-                layer_result.prediction = prediction_result.to_dict()
-                logging.info("GNN prediction complete.")
-            except Exception as e:
-                logging.error(f"GNN prediction failed: {e}")
+            run_gnn(layer_result, args.gnn_model)
 
         return MultiLayerAnalysisResult(
             timestamp=datetime.now().isoformat(),
