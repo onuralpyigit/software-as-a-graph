@@ -6,10 +6,16 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List
 import logging
 
-from api.dependencies import get_analysis_service
+from api.dependencies import (
+    get_analysis_service, get_repository,
+    get_analyze_graph_use_case, get_predict_graph_use_case
+)
+from src.core import IGraphRepository
 from src.analysis import AnalysisService
+from src.analysis.problem_detector import ProblemDetector
 from api.presenters import analysis_presenter
 from api.models import AnalysisEnvelope
+from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
 
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
@@ -18,7 +24,10 @@ logger = logging.getLogger(__name__)
 # ── Endpoints ────────────────────────────────────────────────────────────
 
 @router.post("/full", response_model=AnalysisEnvelope)
-async def analyze_full_system(service: AnalysisService = Depends(get_analysis_service)):
+async def analyze_full_system(
+    analyze_uc: AnalyzeGraphUseCase = Depends(get_analyze_graph_use_case),
+    predict_uc: PredictGraphUseCase = Depends(get_predict_graph_use_case)
+):
     """
     Run complete system analysis including:
     - Structural metrics (centrality, clustering, etc.)
@@ -26,13 +35,36 @@ async def analyze_full_system(service: AnalysisService = Depends(get_analysis_se
     - Problem detection
     """
     try:
-        logger.info("Running full system analysis")
-        result = service.analyze_layer("system")
+        logger.info("Running full system analysis via injected use cases")
+        
+        # Structural Analysis
+        s_res = analyze_uc.execute("system")
+        
+        # Quality Analysis (Prediction)
+        q_res = predict_uc.execute("system", s_res)
+        
+        # Problem Detection
+        detector = ProblemDetector()
+        detected_problems = detector.detect(q_res)
+        summary = detector.summarize(detected_problems)
+        
+        # Layer Result Construction
+        from src.analysis.models import LayerAnalysisResult
+        layer_result = LayerAnalysisResult(
+            layer="system",
+            layer_name="System",
+            description="Full system analysis",
+            structural=s_res,
+            quality=q_res,
+            problems=detected_problems,
+            problem_summary=summary
+        )
+        
         return analysis_presenter.build_analysis_response(
-            result,
-            result.quality.components,
-            result.quality.edges,
-            result.problems,
+            layer_result,
+            q_res.components,
+            q_res.edges,
+            detected_problems,
         )
     except Exception as e:
         logger.error(f"Full analysis failed: {str(e)}")
@@ -84,8 +116,14 @@ async def analyze_by_type(component_type: str, service: AnalysisService = Depend
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 
+from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
+
 @router.post("/layer/{layer}", response_model=AnalysisEnvelope)
-async def analyze_layer(layer: str, service: AnalysisService = Depends(get_analysis_service)):
+async def analyze_layer(
+    layer: str, 
+    analyze_uc: AnalyzeGraphUseCase = Depends(get_analyze_graph_use_case),
+    predict_uc: PredictGraphUseCase = Depends(get_predict_graph_use_case)
+):
     """
     Analyze a specific architectural layer.
 
@@ -100,12 +138,30 @@ async def analyze_layer(layer: str, service: AnalysisService = Depends(get_analy
 
     try:
         logger.info(f"Analyzing layer: {layer}")
-        result = service.analyze_layer(layer)
+        
+        struct_res = analyze_uc.execute(layer)
+        qual_res = predict_uc.execute(layer, struct_res)
+        
+        detector = ProblemDetector()
+        problems = detector.detect(qual_res)
+        summary = detector.summarize(problems)
+        
+        from src.analysis.models import LayerAnalysisResult
+        mock_result = LayerAnalysisResult(
+            layer=layer,
+            layer_name=layer.capitalize(),
+            description=f"{layer.capitalize()} layer analysis",
+            structural=struct_res,
+            quality=qual_res,
+            problems=problems,
+            problem_summary=summary
+        )
+        
         return analysis_presenter.build_analysis_response(
-            result,
-            result.quality.components,
-            result.quality.edges,
-            result.problems,
+            mock_result,
+            qual_res.components,
+            qual_res.edges,
+            problems,
         )
     except Exception as e:
         logger.error(f"Layer analysis failed: {str(e)}")

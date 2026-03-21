@@ -169,17 +169,20 @@ def handle_failure(args, sim, display) -> dict:
             print("Error: At least one of --target, --exhaustive, or --pairwise must be specified.")
             return {}
 
+    from src.usecases import SimulateGraphUseCase, SimulationMode
+
     if args.exhaustive:
-        results = sim.run_failure_simulation_exhaustive(
+        use_case = SimulateGraphUseCase(sim.repository)
+        results = use_case.execute(
             layer=args.layer,
-            cascade_probability=args.cascade_prob,
-            failure_mode=FailureMode[args.failure_mode],
-            n_trials=args.trials
+            mode=SimulationMode.EXHAUSTIVE
         )
         if not args.quiet:
             display.display_exhaustive_results(results)
-        return [r.to_dict() for r in results]
+        return [r.to_dict() if hasattr(r, 'to_dict') else r for r in results]
     elif args.pairwise:
+        # Pairwise is not explicitly in the UseCase but we can maintain service call or add it.
+        # Given the "instantiate use cases directly" requirement, I'll stick to UC where possible.
         results = sim.run_failure_simulation_pairwise(
             layer=args.layer,
             cascade_probability=args.cascade_prob,
@@ -190,7 +193,7 @@ def handle_failure(args, sim, display) -> dict:
             # Reuse exhaustive display for results table
             display.display_exhaustive_results(results[:50]) # Show top 50 pairs
         return [r.to_dict() for r in results]
-    elif args.monte_carlo:
+    elif args.monte_carlo and args.target:
         # Monte Carlo stochastic simulation
         result = sim.run_failure_simulation_monte_carlo(
             target_id=args.target,
@@ -203,11 +206,12 @@ def handle_failure(args, sim, display) -> dict:
             _display_monte_carlo_result(display, result, args.layer)
         return result.to_dict()
     else:
-        result = sim.run_failure_simulation(
+        # Single failure
+        use_case = SimulateGraphUseCase(sim.repository)
+        result = use_case.execute(
             target_id=args.target,
             layer=args.layer,
-            cascade_probability=args.cascade_prob,
-            failure_mode=FailureMode[args.failure_mode]
+            mode=SimulationMode.SINGLE
         )
         if not args.quiet:
             display.display_failure_result(result)

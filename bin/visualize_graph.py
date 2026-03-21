@@ -293,30 +293,22 @@ Examples:
         )
 
     try:
-        from src.analysis import AnalysisService
-        from src.simulation import SimulationService
-        from src.validation import ValidationService
-        from src.visualization import VisualizationService
+        from src.usecases import VisualizeGraphUseCase, VisOptions
         
-        analysis_service = AnalysisService(repo)
-        simulation_service = SimulationService(repo)
-        validation_service = ValidationService(analysis_service, simulation_service)
+        use_case = VisualizeGraphUseCase(repo)
         
-        viz_service = VisualizationService(
-            analysis_service=analysis_service,
-            simulation_service=simulation_service,
-            validation_service=validation_service,
-            repository=repo
-        )
-        
-        output_path = viz_service.generate_dashboard(
-            output_file=args.output,
-            layers=valid_layers,
+        options = VisOptions(
             include_network=not args.no_network,
             include_matrix=not args.no_matrix,
             include_validation=not args.no_validation,
             antipatterns_file=args.antipatterns,
-            multi_seed=args.multi_seed if args.multi_seed else 0,
+            multi_seed=args.multi_seed if args.multi_seed else 0
+        )
+        
+        output_path = use_case.execute(
+            output_file=args.output,
+            layers=valid_layers,
+            options=options
         )
 
         display.print_header("DASHBOARD GENERATED", "-")

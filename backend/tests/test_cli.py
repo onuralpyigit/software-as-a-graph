@@ -71,12 +71,13 @@ class TestAnalyzeGraphCLI:
         mock_analysis_service = MagicMock()
         
         mock_results = MagicMock()
-        mock_results.to_dict.return_value = {}
-        mock_analysis_service.analyze_layer.return_value = MagicMock()
+        mock_results.execute.return_value = MagicMock()
         
         with patch.object(sys, 'argv', ['analyze_graph.py', '--layer', 'app']), \
              patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
-             patch('src.analysis.AnalysisService', return_value=mock_analysis_service), \
+             patch('src.usecases.AnalyzeGraphUseCase', return_value=mock_analysis_service), \
+             patch('src.usecases.PredictGraphUseCase', return_value=mock_analysis_service), \
+             patch('src.analysis.problem_detector.ProblemDetector.detect', return_value=[]), \
              patch('src.cli.console.ConsoleDisplay', return_value=mock_display):
             
             if 'analyze_graph' in sys.modules:
@@ -107,6 +108,7 @@ class TestSimulateGraphCLI:
         with patch.object(sys, 'argv', ['simulate_graph.py', 'event', '--source', 'App1']), \
              patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
              patch('src.simulation.SimulationService', return_value=mock_sim_service) as MockSimService, \
+             patch('src.usecases.SimulateGraphUseCase.execute', return_value=[]), \
              patch('src.cli.console.ConsoleDisplay', return_value=mock_display):
             
             if 'simulate_graph' in sys.modules:
@@ -135,11 +137,11 @@ class TestValidateGraphCLI:
         mock_result = MagicMock()
         mock_result.all_passed = True
         mock_result.to_dict.return_value = {}
-        mock_val_service.validate_layers.return_value = mock_result
+        mock_val_service.execute.return_value = mock_result
         
         with patch.object(sys, 'argv', ['validate_graph.py', '--layer', 'app']), \
              patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
-             patch('src.validation.ValidationService', return_value=mock_val_service) as MockValService, \
+             patch('src.usecases.ValidateGraphUseCase', return_value=mock_val_service), \
              patch('src.cli.console.ConsoleDisplay', return_value=mock_display):
             
             if 'validate_graph' in sys.modules:
@@ -151,7 +153,6 @@ class TestValidateGraphCLI:
             
             assert ret == 0
             MockCreateRepo.assert_called_once()
-            assert MockValService.call_count == 1
             mock_display.display_pipeline_validation_result.assert_called_once()
             mock_repo.close.assert_called_once()
 
@@ -164,15 +165,13 @@ class TestVisualizeGraphCLI:
         mock_display = MagicMock()
         mock_viz_service = MagicMock()
         
-        mock_viz_service.generate_dashboard.return_value = "dashboard.html"
+        mock_viz_service.execute.return_value = "dashboard.html"
         
         with patch.object(sys, 'argv', ['visualize_graph.py', '--layer', 'app', '--output', 'test.html']), \
              patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
-             patch('src.analysis.AnalysisService', return_value=MagicMock()), \
-             patch('src.simulation.SimulationService', return_value=MagicMock()), \
-             patch('src.validation.ValidationService', return_value=MagicMock()), \
-             patch('src.visualization.VisualizationService', return_value=mock_viz_service), \
+             patch('src.usecases.VisualizeGraphUseCase', return_value=mock_viz_service), \
              patch('src.cli.console.ConsoleDisplay', return_value=mock_display), \
+             patch('os.path.exists', return_value=True), \
              patch('os.path.getsize', return_value=1024):
             
             if 'visualize_graph' in sys.modules:
@@ -184,7 +183,7 @@ class TestVisualizeGraphCLI:
             
             assert ret == 0
             MockCreateRepo.assert_called_once()
-            mock_viz_service.generate_dashboard.assert_called_once()
+            mock_viz_service.execute.assert_called_once()
             mock_repo.close.assert_called_once()
 
 

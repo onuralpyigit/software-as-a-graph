@@ -112,8 +112,13 @@ def main() -> None:
     )
     
     try:
-        repo.save_graph(data, clear=args.clear)
-        stats = repo.get_statistics()
+        from src.usecases import ModelGraphUseCase
+        
+        use_case = ModelGraphUseCase(repo)
+        stats_obj = use_case.execute(data, clear=args.clear)
+        
+        # Use underlying details dict if available for the rich printer
+        stats = stats_obj.details if stats_obj.details else {}
         print_import_stats(stats)
             
     except Exception as e:

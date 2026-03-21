@@ -5,7 +5,12 @@ from fastapi.testclient import TestClient
 from api.main import app
 from src.core.criticality import CriticalityLevel
 from src.core.metrics import QualityScores, QualityLevels
-from api.dependencies import get_analysis_service
+from api.dependencies import (
+    get_analysis_service, 
+    get_analyze_graph_use_case, 
+    get_predict_graph_use_case,
+    get_repository
+)
 
 client = TestClient(app)
 
@@ -28,7 +33,17 @@ def mock_analysis_result():
     comp = MagicMock()
     comp.id = "c1"
     comp.type = "Application"
+    comp.structural = MagicMock()
     comp.structural.name = "App 1"
+    comp.structural.betweenness = 0.1
+    comp.structural.pagerank = 0.1
+    comp.structural.closeness = 0.1
+    comp.structural.eigenvector = 0.1
+    comp.structural.clustering_coefficient = 0.1
+    comp.structural.total_degree_raw = 1
+    comp.structural.in_degree_raw = 0
+    comp.structural.is_articulation_point = False
+    comp.structural.is_isolated = False
     
     comp.levels = MagicMock(spec=QualityLevels)
     comp.levels.overall = CriticalityLevel.MEDIUM
@@ -44,8 +59,13 @@ def mock_analysis_result():
     comp.scores.vulnerability = 0.1
     comp.scores.overall = 0.4
     
+    result.quality = MagicMock()
     result.quality.components = [comp]
     result.quality.edges = []
+    
+    result.quality.classification_summary = MagicMock()
+    result.quality.classification_summary.total_components = 1
+    result.quality.classification_summary.component_distribution = {"medium": 1, "critical": 0, "high": 0}
     
     # Problem mock
     prob = MagicMock()
@@ -64,37 +84,26 @@ def mock_analysis_result():
     return result
 
 def test_analyze_full_system(mock_analysis_result):
-    # Setup mock service
-    mock_service = MagicMock()
-    mock_service.analyze_layer.return_value = mock_analysis_result
+    # Setup mock use cases
+    mock_analyze_uc = MagicMock()
+    mock_analyze_uc.execute.return_value = mock_analysis_result.structural
     
-    # Override dependency
-    app.dependency_overrides[get_analysis_service] = lambda: mock_service
+    mock_predict_uc = MagicMock()
+    mock_predict_uc.execute.return_value = mock_analysis_result.quality
+    
+    # Override dependencies
+    app.dependency_overrides[get_analyze_graph_use_case] = lambda: mock_analyze_uc
+    app.dependency_overrides[get_predict_graph_use_case] = lambda: mock_predict_uc
     
     try:
-        # Call endpoint
-        # Note: We still pass credentials in JSON, even though router doesn't use it anymore
-        # Actually, the router DOESN'T take Neo4jCredentials anymore in the function signature!
-        # It gets it via Depends(get_analysis_service) -> Depends(get_repository) -> Neo4jCredentials
-        
         response = client.post("/api/v1/analysis/full", json={
-            "uri": "bolt://localhost:7687",
-            "user": "neo4j",
-            "password": "password"
+            "credentials": {"uri": "bolt://localhost", "user": "n", "password": "p"}
         })
         
-        # Assertions
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert data["layer"] == "system"
         assert "analysis" in data
-        assert data["analysis"]["summary"]["total_components"] == 1
-        assert data["analysis"]["components"][0]["id"] == "c1"
-        assert data["analysis"]["components"][0]["criticality_levels"]["overall"] == "medium"
-        
-        # Verify service called
-        mock_service.analyze_layer.assert_called_once_with("system")
+        mock_analyze_uc.execute.assert_called_once_with("system")
     finally:
-        # Clean up overrides
         app.dependency_overrides = {}

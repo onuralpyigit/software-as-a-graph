@@ -16,8 +16,12 @@ from api.models import (
     ExhaustiveSimulationResponse,
     SimulationReportResponse
 )
-from api.dependencies import get_simulation_service
+from api.dependencies import (
+    get_simulation_service, get_repository, get_simulate_graph_use_case
+)
+from src.core import IGraphRepository
 from src.simulation import SimulationService
+from src.usecases import SimulateGraphUseCase, SimulationMode
 from api.presenters import simulation_presenter
 
 router = APIRouter(prefix="/api/v1/simulation", tags=["simulation"])
@@ -56,20 +60,10 @@ async def simulate_event(
 @router.post("/failure", response_model=FailureSimulationResponse)
 async def simulate_failure(
     request: FailureSimulationRequest,
-    service: SimulationService = Depends(get_simulation_service)
+    use_case: SimulateGraphUseCase = Depends(get_simulate_graph_use_case)
 ):
     """
     Run failure simulation for a target component.
-    
-    Simulates component failure and analyzes:
-    - Composite impact score
-    - Reachability loss (connectivity degradation)
-    - Fragmentation (component isolation)
-    - Throughput loss (capacity degradation)
-    - Cascade propagation (dependent failures)
-    - Per-layer impacts
-    
-    Valid layers: app, infra, mw-app, mw-infra, system
     """
     valid_layers = ["app", "infra", "mw-app", "mw-infra", "system"]
     if request.layer not in valid_layers:
@@ -81,10 +75,10 @@ async def simulate_failure(
     try:
         logger.info(f"Running failure simulation: target={request.target_id}, layer={request.layer}")
         
-        result = service.run_failure_simulation(
+        result = use_case.execute(
             target_id=request.target_id,
             layer=request.layer,
-            cascade_probability=request.cascade_probability
+            mode=SimulationMode.SINGLE
         )
         
         return simulation_presenter.format_failure_simulation_response(result)
@@ -96,17 +90,10 @@ async def simulate_failure(
 @router.post("/exhaustive", response_model=ExhaustiveSimulationResponse)
 async def simulate_exhaustive(
     request: ExhaustiveSimulationRequest,
-    service: SimulationService = Depends(get_simulation_service)
+    use_case: SimulateGraphUseCase = Depends(get_simulate_graph_use_case)
 ):
     """
     Run exhaustive failure analysis for all components in a layer.
-    
-    Analyzes failure impact for every component, sorted by impact score.
-    Useful for identifying the most critical components in the system.
-    
-    Valid layers: app, infra, mw-app, mw-infra, system
-    
-    Warning: This can take significant time for large graphs.
     """
     valid_layers = ["app", "infra", "mw-app", "mw-infra", "system"]
     if request.layer not in valid_layers:
@@ -118,10 +105,7 @@ async def simulate_exhaustive(
     try:
         logger.info(f"Running exhaustive failure analysis: layer={request.layer}")
         
-        results = service.run_failure_simulation_exhaustive(
-            layer=request.layer,
-            cascade_probability=request.cascade_probability
-        )
+        results = use_case.execute(layer=request.layer, mode=SimulationMode.EXHAUSTIVE)
         
         return simulation_presenter.format_exhaustive_simulation_response(results, request.layer)
     except Exception as e:

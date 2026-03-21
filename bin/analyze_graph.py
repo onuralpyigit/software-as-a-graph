@@ -173,25 +173,71 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
         sensitivity_noise=args.noise
     )
 
+    from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
+    from src.analysis.models import LayerAnalysisResult
+    from src.analysis.problem_detector import ProblemDetector
+    
+    analyze_uc = AnalyzeGraphUseCase(repo)
+    predict_uc = PredictGraphUseCase(repo)
+    detector = ProblemDetector()
+    
     try:
         if args.all:
-            return analyzer.analyze_all_layers()
+            # For --all, we'll manually iterate layers for now 
+            # (or we could add an AnalyzeAllLayersUseCase if needed)
+            layers = ["app", "infra", "mw", "system"]
+            results_map = {}
+            for l in layers:
+                s_res = analyze_uc.execute(l)
+                q_res = predict_uc.execute(l, s_res)
+                # Detect problems (calling service method for now as it's not in UC contract)
+                problems = detector.detect(q_res)
+                problem_summary = detector.summarize(problems)
+                results_map[l] = LayerAnalysisResult(
+                    layer=l,
+                    layer_name=l.capitalize(),
+                    description=f"{l.capitalize()} layer analysis",
+                    structural=s_res,
+                    quality=q_res,
+                    problems=problems,
+                    problem_summary=problem_summary
+                )
+            return MultiLayerAnalysisResult(
+                timestamp=datetime.now().isoformat(),
+                layers=results_map,
+                cross_layer_insights=[]
+            )
 
         # Single-layer analysis
-        layer_result = analyzer.analyze_layer(args.layer)
+        s_res = analyze_uc.execute(args.layer)
+        q_res = predict_uc.execute(args.layer, s_res)
+        problems = detector.detect(q_res)
+        problem_summary = detector.summarize(problems)
+        
+        layer_result = LayerAnalysisResult(
+            layer=args.layer,
+            layer_name=args.layer.capitalize(),
+            description=f"{args.layer.capitalize()} layer analysis",
+            structural=s_res,
+            quality=q_res,
+            problems=problems,
+            problem_summary=problem_summary
+        )
 
         # Optional GNN Inference
         if args.gnn_model:
             from src.prediction import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict
             try:
                 logging.info(f"Loading GNN model from {args.gnn_model}...")
-                gnn_svc = GNNService.from_checkpoint(args.gnn_model, graph=layer_result.graph)
+                # LayerAnalysisResult has changed in Step 3 to have .graph in structural or quality?
+                # Actually, structural analysis result has the graph.
+                gnn_svc = GNNService.from_checkpoint(args.gnn_model, graph=s_res.graph)
                 
-                s_dict = extract_structural_metrics_dict(layer_result.structural)
-                r_dict = extract_rmav_scores_dict(layer_result.quality)
+                s_dict = extract_structural_metrics_dict(s_res)
+                r_dict = extract_rmav_scores_dict(q_res)
                 
                 prediction_result = gnn_svc.predict(
-                    graph=layer_result.graph,
+                    graph=s_res.graph,
                     structural_metrics=s_dict,
                     rmav_scores=r_dict
                 )

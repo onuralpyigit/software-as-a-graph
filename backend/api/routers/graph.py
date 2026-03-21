@@ -61,17 +61,21 @@ async def generate_graph_file(
         raise HTTPException(status_code=500, detail=f"Graph generation failed: {e}")
 
 
+from api.dependencies import get_repository, get_model_graph_use_case
+from src.usecases import ModelGraphUseCase
+
 @router.post("/import", response_model=GraphImportResponse)
 async def import_graph(
     request: ImportGraphRequest,
-    repo: IGraphRepository = Depends(get_repository)
+    use_case: ModelGraphUseCase = Depends(get_model_graph_use_case)
 ):
     """Import graph data into Neo4j database."""
     try:
         logger.info(f"Importing graph data (clear={request.clear_database})")
-        repo.save_graph(request.graph_data, clear=request.clear_database)
-        stats = repo.get_statistics()
-        return graph_presenter.format_import_response(stats)
+        stats_obj = use_case.execute(request.graph_data, clear=request.clear_database)
+        
+        # Return the underlying details dict for backward compatibility with existing tests/clients
+        return graph_presenter.format_import_response(stats_obj.details)
     except Exception as e:
         logger.error(f"Graph import failed: {e}")
         raise HTTPException(status_code=500, detail=f"Graph import failed: {e}")
