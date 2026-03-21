@@ -53,7 +53,7 @@ fi
 # ---------------------------------------------------------------------------
 SUMMARY_CSV="$OUTPUT_DIR/scenario_summary.csv"
 mkdir -p "$OUTPUT_DIR"
-echo "scenario,status,duration_s,generate_s,import_s,analyze_s,simulate_s,validate_s,visualize_s" \
+echo "scenario,status,duration_s,generate_s,import_s,analyze_s,predict_s,simulate_s,validate_s,visualize_s" \
   > "$SUMMARY_CSV"
 
 # ---------------------------------------------------------------------------
@@ -141,14 +141,30 @@ for CFG in "${SCENARIO_FILES[@]}"; do
       | grep -oP '[0-9]+\.[0-9]+' | tail -1 || echo "—"
   }
 
-  GEN_T=$(grep -A1 "Stage.*Generation" "$LOG_FILE" 2>/dev/null | grep -oP '[0-9]+\.[0-9]+s' | head -1 || echo "—")
-  IMP_T=$(grep -A1 "Stage.*Import"      "$LOG_FILE" 2>/dev/null | grep -oP '[0-9]+\.[0-9]+s' | head -1 || echo "—")
-  ANA_T=$(grep -A1 "Stage.*Analysis"    "$LOG_FILE" 2>/dev/null | grep -oP '[0-9]+\.[0-9]+s' | head -1 || echo "—")
-  SIM_T=$(grep -A1 "Stage.*Simulation"  "$LOG_FILE" 2>/dev/null | grep -oP '[0-9]+\.[0-9]+s' | head -1 || echo "—")
-  VAL_T=$(grep -A1 "Stage.*Validation"  "$LOG_FILE" 2>/dev/null | grep -oP '[0-9]+\.[0-9]+s' | head -1 || echo "—")
-  VIZ_T=$(grep -A1 "Stage.*Visual"      "$LOG_FILE" 2>/dev/null | grep -oP '[0-9]+\.[0-9]+s' | head -1 || echo "—")
+  # Function to extract time from summary table at end of log
+  get_time() {
+    # Strip ANSI codes (\e[...m) then find the stage name and grab the time field
+    sed 's/\x1b\[[0-9;]*m//g' "$LOG_FILE" | grep -iE "^[[:space:]]*[0-9]+[[:space:]]+$1" | awk '{print $3}' | sed 's/s//' || echo "—"
+  }
 
-  echo "$NAME,$STATUS,$DURATION,$GEN_T,$IMP_T,$ANA_T,$SIM_T,$VAL_T,$VIZ_T" >> "$SUMMARY_CSV"
+  GEN_T=$(get_time "Generation")
+  IMP_T=$(get_time "Import")
+  ANA_T=$(get_time "Analysis")
+  PRED_T=$(get_time "Prediction")
+  SIM_T=$(get_time "Simulation")
+  VAL_T=$(get_time "Validation")
+  VIZ_T=$(get_time "Visual")
+
+  # Final fallback: if empty or just whitespace, use em-dash
+  [[ -z "${GEN_T// /}" ]] && GEN_T="—"
+  [[ -z "${IMP_T// /}" ]] && IMP_T="—"
+  [[ -z "${ANA_T// /}" ]] && ANA_T="—"
+  [[ -z "${PRED_T// /}" ]] && PRED_T="—"
+  [[ -z "${SIM_T// /}" ]] && SIM_T="—"
+  [[ -z "${VAL_T// /}" ]] && VAL_T="—"
+  [[ -z "${VIZ_T// /}" ]] && VIZ_T="—"
+
+  echo "$NAME,$STATUS,$DURATION,$GEN_T,$IMP_T,$ANA_T,$PRED_T,$SIM_T,$VAL_T,$VIZ_T" >> "$SUMMARY_CSV"
 
   echo "  Duration: ${DURATION}s"
 done

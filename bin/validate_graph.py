@@ -80,32 +80,62 @@ def main() -> int:
         actual_file = args.actual
 
         if predicted_file and actual_file:
-            from src.analysis import AnalysisService
-            from src.prediction import PredictionService
-            from src.simulation import SimulationService
-            from src.validation import ValidationService
+            from src.validation import Validator
+            from src.core.layers import AnalysisLayer
             
-            analysis_service = AnalysisService(repo)
-            prediction_service = PredictionService()
-            simulation_service = SimulationService(repo)
-            val_service = ValidationService(analysis_service, prediction_service, simulation_service, targets=targets, ndcg_k=args.ndcg_k)
-            
-            with open(predicted_file, 'r') as f: predicted_data = json.load(f)
-            with open(actual_file, 'r') as f: actual_data = json.load(f)
+            with open(predicted_file, 'r') as f: predicted_raw = json.load(f)
+            with open(actual_file, 'r') as f: actual_raw = json.load(f)
 
-            predicted_data = _extract_predicted_rich(predicted_data, args.layer)
+            # Extract flattened structures
+            predicted_processed = _extract_predicted_rich(predicted_raw, args.layer)
             
-            # Use the selected layer or 'app' as default
+            # Extract actual scores from simulation report
+            from src.prediction.data_preparation import extract_simulation_dict
+            actual_processed = extract_simulation_dict(actual_raw)
+            # Find the actual simulation results too (for impact data)
+            impact_data = []
+            if isinstance(actual_raw, dict) and "results" in actual_raw:
+                impact_data = actual_raw["results"]
+            elif isinstance(actual_raw, list):
+                impact_data = actual_raw
+
+            # Prepare inputs for validator
+            pred_scores = {cid: data["scores"]["overall"] for cid, data in predicted_processed.items()}
+            actual_scores = {cid: data["composite"] for cid, data in actual_processed.items() if "composite" in data}
+            comp_types = {cid: data["type"] for cid, data in predicted_processed.items()}
+            
+            validator = Validator()
             target_layer = args.layer.split(",")[0] if args.layer else "app"
             
-            # Simple mocks for quick validation from files
-            analysis_mock = MagicMock()
-            analysis_mock.quality.components = [] # Simulating data extraction logic
-            sim_results_mock = []
-
-            result = val_service.validate_single_layer_from_results(
-                analysis_mock, sim_results_mock, target_layer
+            result = validator.validate(
+                predicted_scores=pred_scores,
+                actual_scores=actual_scores,
+                impact_data=impact_data,
+                component_types=comp_types,
+                layer=target_layer,
+                context=f"Quick Validation: {target_layer}"
             )
+
+            if args.json:
+                print(json.dumps(result.to_dict(), indent=2))
+            elif not args.quiet:
+                display.print_header("Quick Validation Result")
+                print(f"\n  Files: {predicted_file} vs {actual_file}")
+                print(f"  Matched: {result.matched_count} components")
+                print(f"\n  Status: {display.status_text(result.passed)}")
+                print(f"  Spearman:  {result.overall.correlation.spearman:.4f}")
+                print(f"  F1 Score:  {result.overall.classification.f1_score:.4f}")
+                
+                display.display_gate_verdicts(result.gates)
+                
+                if args.dimensional:
+                    display.display_dimensional_results(result.overall.to_dict().get("dimensional_validation", {}))
+
+            if args.output:
+                Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+                with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
+
+            return 0 if result.passed else 1
 
             if args.json:
                 print(json.dumps(result.to_dict(), indent=2))
@@ -154,66 +184,6 @@ def main() -> int:
                 with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
 
             return 0 if result.all_passed else 1
-            
-            result = val_service.validate_single_layer_from_results(
-                analysis_mock, sim_results_mock, target_layer
-            )
-
-            if args.json:
-                print(json.dumps(result.to_dict(), indent=2))
-            elif not args.quiet:
-                # result here is a LayerValidationResult
-                display.print_header("Quick Validation Result")
-                print(f"\n  Files: {predicted_file} vs {actual_file}")
-                print(f"  Matched: {result.matched_components} components")
-                print(f"\n  Status: {display.status_text(result.passed)}")
-                print(f"  Spearman:  {result.spearman:.4f}")
-                print(f"  F1 Score:  {result.f1_score:.4f}")
-                
-                display.display_gate_verdicts(result.gates)
-                
-                if args.dimensional:
-                    display.display_dimensional_results(result.dimensional_validation)
-
-            if args.output:
-                Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-                with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
-
-            return 0 if result.passed else 1
-
-        if sorted_layers := args.layer:
-            layers_to_validate = [l.strip() for l in sorted_layers.split(",")]
-        else:
-            # Default to all primary layers
-            layers_to_validate = [layer.value for layer in SimulationLayer]
-
-        result = val_service.validate_layers(layers=layers_to_validate)
-
-        if args.json:
-            print(json.dumps(result.to_dict(), indent=2))
-        elif not args.quiet:
-            display.display_pipeline_validation_result(result)
-            
-            # Additional display for Gates, Stratification and Dimensions
-            for layer_name, layer_res in result.layers.items():
-                if getattr(layer_res, 'gates', None):
-                    display.display_gate_verdicts(layer_res.gates)
-                
-                if args.dimensional and getattr(layer_res, 'dimensional_validation', None):
-                    display.display_dimensional_results(layer_res.dimensional_validation)
-
-                if getattr(layer_res, 'node_type_stratified', None):
-                    print(f"\n    {display.colored('Node-Type Stratified ρ:', display.Colors.WHITE, bold=True)}")
-                    for ntype, data in layer_res.node_type_stratified.items():
-                        print(f"      - {ntype:11}: ρ={data['spearman']:.4f} (n={data['n']})")
-
-        if args.output:
-            Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-            with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
-            if not args.quiet:
-                print(f"\n{display.colored(f'Results saved to: {args.output}', display.Colors.GREEN)}")
-
-        print(f"\n{display.colored(f'Validation passed: {result.all_passed}', display.Colors.GREEN)}")
 
         # Generate visualization if requested
         if args.visualize:
@@ -302,6 +272,26 @@ def _extract_predicted_rich(data: dict, filter_layer: Optional[str] = None) -> d
                     }
         return extracted
     
+    # NEW: Try GNN output structure (node_scores or ensemble_scores)
+    gnn_src = data.get("ensemble_scores") or data.get("node_scores")
+    if gnn_src:
+        for cid, score_data in gnn_src.items():
+            # If score_data is already a dict (from to_dict())
+            scores = {
+                "overall": score_data.get("composite_score"),
+                "reliability": score_data.get("reliability_score"),
+                "maintainability": score_data.get("maintainability_score"),
+                "availability": score_data.get("availability_score"),
+                "vulnerability": score_data.get("vulnerability_score"),
+            }
+            extracted[cid] = {
+                "scores": scores,
+                "type": "Unknown", # GNN output currently doesn't carry type
+                "name": score_data.get("component") or cid,
+                "is_articulation_point": False
+            }
+        return extracted
+
     # Try flat dict (already scores)
     if isinstance(data, dict) and all(isinstance(v, (int, float)) for v in data.values()):
         return {k: {"scores": {"overall": v}, "type": "Unknown"} for k, v in data.items()}

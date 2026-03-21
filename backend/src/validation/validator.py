@@ -101,7 +101,6 @@ class Validator:
             matched_count=len(common_ids),
             gates=overall.gates,
             warnings=warnings,
-            ia_stats=ia_stats,
         )
 
     def _calculate_impact_stats(self, impact_data: List[Any]) -> Dict[str, Any]:

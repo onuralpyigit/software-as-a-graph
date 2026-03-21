@@ -165,10 +165,27 @@ def _build_analyze_args(args: argparse.Namespace, neo4j: List[str]) -> List[str]
         cmd = ["--layer", layers[0]]
 
     cmd += ["--output", str(Path(args.output_dir) / "analysis_results.json")]
-    if args.gnn_model:
-        cmd += ["--gnn-model", args.gnn_model]
     if args.use_ahp:
         cmd.append("--use-ahp")
+    if args.verbose:
+        cmd.append("--verbose")
+    return cmd + neo4j
+
+
+def _build_predict_args(args: argparse.Namespace, neo4j: List[str]) -> List[str]:
+    """Build arguments for predict_graph.py."""
+    layers = [l.strip() for l in args.layers.split(",") if l.strip()]
+
+    # predict_graph.py usually processes one layer at a time internally if called via service,
+    # but the CLI handles --layer. If multiple layers, we might need to loop or use 'system'.
+    # For the pipeline, we'll use the same layer subset.
+    cmd = ["--layer", args.layers]
+    cmd += ["--checkpoint", args.gnn_model or str(Path(args.output_dir).parent / "gnn_checkpoints")]
+    cmd += ["--output", str(Path(args.output_dir) / "predictions.json")]
+    
+    # Pass the structural analysis result as input to avoid re-running analysis
+    cmd += ["--structural", str(Path(args.output_dir) / "analysis_results.json")]
+
     if args.verbose:
         cmd.append("--verbose")
     return cmd + neo4j
@@ -189,6 +206,11 @@ def _build_validate_args(args: argparse.Namespace, neo4j: List[str]) -> List[str
     cmd += ["--output", str(Path(args.output_dir) / "validation_results.json")]
     if args.verbose:
         cmd.append("--verbose")
+    
+    # Pass pre-computed inputs for Step 5 (Validation)
+    cmd.append(str(Path(args.output_dir) / "predictions.json"))
+    cmd.append(str(Path(args.output_dir) / "simulation_report.json"))
+    
     return cmd + neo4j
 
 
@@ -216,6 +238,7 @@ STAGES = [
     ("generate",  "Generation",    "generate_graph.py",   _build_generate_args),
     ("do_import", "Import",        "import_graph.py",     _build_import_args),
     ("analyze",   "Analysis",      "analyze_graph.py",    _build_analyze_args),
+    ("predict",   "Prediction",    "predict_graph.py",    _build_predict_args),
     ("simulate",  "Simulation",    "simulate_graph.py",   _build_simulate_args),
     ("validate",  "Validation",    "validate_graph.py",   _build_validate_args),
     ("visualize", "Visualization", "visualize_graph.py",  _build_visualize_args),
@@ -281,13 +304,15 @@ examples:
     stages.add_argument("--import", "-i", dest="do_import", action="store_true",
                         help="Stage 2: Import data into Neo4j")
     stages.add_argument("--analyze", "-A", action="store_true",
-                        help="Stage 3: Structural + quality analysis")
+                        help="Stage 3: Structural analysis")
     stages.add_argument("--simulate", "-s", action="store_true",
                         help="Stage 4: Exhaustive failure simulation")
     stages.add_argument("--validate", "-V", action="store_true",
-                        help="Stage 5: Validate predictions vs simulation")
+                        help="Stage 6: Validate predictions vs simulation")
     stages.add_argument("--visualize", "-z", action="store_true",
-                        help="Stage 6: Generate dashboard")
+                        help="Stage 7: Generate dashboard")
+    stages.add_argument("--predict", "-P", action="store_true",
+                        help="Stage 4: GNN-enhanced criticality prediction")
 
     # --- Data options ---
     data = parser.add_argument_group("Data Options")

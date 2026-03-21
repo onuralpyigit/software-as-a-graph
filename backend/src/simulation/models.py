@@ -759,4 +759,5 @@ class SimulationReport:
             "timestamp": self.timestamp,
             "layer_metrics": {k: v.to_dict() for k, v in self.layer_metrics.items()},
             "top_critical": self.top_critical,
+            "component_criticality": [c.to_dict() for c in self.component_criticality]
         }

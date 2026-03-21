@@ -394,20 +394,32 @@ def create_node_splits(
         store.test_mask = test_mask
 
 
-def extract_simulation_dict(simulation_results: list) -> Dict[str, Dict[str, float]]:
-    """Normalise SimulationService output to the flat dict expected by this module.
-
-    The ``SimulationService.run_failure_simulation_exhaustive()`` method returns
-    a list of ``FailureResult`` dataclass instances.  This function converts
-    them into the ``{node_name: {composite, reliability, ...}}`` format.
-
-    Parameters
-    ----------
-    simulation_results:
-        List of ``FailureResult`` objects (or dicts with the same fields).
-    """
+def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, Dict[str, float]]:
+    """Normalise Simulation output to common flat dict format."""
     out: Dict[str, Dict[str, float]] = {}
-    for r in simulation_results:
+    
+    # Handle the new SimulationReport dict structure
+    if isinstance(simulation_results, dict) and "component_criticality" in simulation_results:
+        for c in simulation_results["component_criticality"]:
+            name = c.get("id")
+            out[name] = {
+                "composite": float(c.get("combined_impact", 0.0)),
+                "reliability": float(c.get("failure_impact", 0.0)), # Map failure_impact to reliability ground truth
+                "maintainability": 0.0, # Not available in summary
+                "availability": float(c.get("failure_impact", 0.0)), # Often same or similar in summary
+                "vulnerability": 0.0,
+            }
+        return out
+
+    # Handle standard list of FailureResult objects/dicts
+    results_list = simulation_results
+    if isinstance(simulation_results, dict) and "results" in simulation_results:
+        results_list = simulation_results["results"]
+
+    if not isinstance(results_list, list):
+        return out
+
+    for r in results_list:
         if hasattr(r, "target_id"):
             name = r.target_id
             impact = r.impact
@@ -419,13 +431,15 @@ def extract_simulation_dict(simulation_results: list) -> Dict[str, Dict[str, flo
                 "vulnerability": float(impact.vulnerability_impact),
             }
         elif isinstance(r, dict):
-            name = r["target_id"]
+            name = r.get("target_id")
+            if not name: continue
+            impact = r.get("impact", r) # Might be nested or flat
             out[name] = {
-                "composite": float(r.get("composite_impact", 0.0)),
-                "reliability": float(r.get("reliability_impact", 0.0)),
-                "maintainability": float(r.get("maintainability_impact", 0.0)),
-                "availability": float(r.get("availability_impact", 0.0)),
-                "vulnerability": float(r.get("vulnerability_impact", 0.0)),
+                "composite": float(impact.get("composite_impact", 0.0)),
+                "reliability": float(impact.get("reliability_impact", 0.0)),
+                "maintainability": float(impact.get("maintainability_impact", 0.0)),
+                "availability": float(impact.get("availability_impact", 0.0)),
+                "vulnerability": float(impact.get("vulnerability_impact", 0.0)),
             }
     return out
 
@@ -479,10 +493,23 @@ def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, fl
         for comp in components:
             name = getattr(comp, "component_id", getattr(comp, "name", str(getattr(comp, "id", comp))))
             out[name] = _from_component(comp)
-    # Handle dict of {name: component_dict}
+    # Handle dict of {name: component_dict} or nested structural dict
     elif isinstance(structural_result, dict):
-        for name, comp in structural_result.items():
-            out[name] = _from_component(comp)
+        components = structural_result.get("components", structural_result)
+        # If it was a nested dict with 'components' field, it might be a list or a dict
+        if isinstance(components, dict):
+             for name, comp in components.items():
+                out[name] = _from_component(comp)
+        elif isinstance(components, list):
+            for comp in components:
+                name = getattr(comp, "component_id", getattr(comp, "name", str(getattr(comp, "id", comp))))
+                if isinstance(comp, dict):
+                    name = comp.get("component_id", comp.get("name", comp.get("id", str(comp))))
+                out[name] = _from_component(comp)
+        else:
+            # Fallback for unexpected formats
+            for name, comp in structural_result.items():
+                out[name] = _from_component(comp)
 
     return out
 
@@ -503,12 +530,34 @@ def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
                     "availability": float(getattr(scores, "availability", 0.0)),
                     "vulnerability": float(getattr(scores, "vulnerability", 0.0)),
                 }
+    # Handle dict of {name: scores_dict} or nested quality dict
     elif isinstance(quality_result, dict):
-        for name, scores in quality_result.items():
-            if isinstance(scores, dict):
-                out[name] = {
-                    k: float(scores.get(k, 0.0))
-                    for k in ["overall", "reliability", "maintainability", "availability", "vulnerability"]
-                }
+        components = quality_result.get("components", quality_result)
+        if isinstance(components, list):
+            for comp in components:
+                name = getattr(comp, "component_id", getattr(comp, "name", str(comp)))
+                if isinstance(comp, dict):
+                    name = comp.get("component_id", comp.get("name", comp.get("id", str(comp))))
+                scores = getattr(comp, "scores", None)
+                if isinstance(comp, dict):
+                    scores = comp.get("scores", comp)
+                if scores is not None:
+                    out[name] = {
+                        "overall": float(getattr(scores, "overall", 0.0) if not isinstance(scores, dict) else scores.get("overall", 0.0)),
+                        "reliability": float(getattr(scores, "reliability", 0.0) if not isinstance(scores, dict) else scores.get("reliability", 0.0)),
+                        "maintainability": float(getattr(scores, "maintainability", 0.0) if not isinstance(scores, dict) else scores.get("maintainability", 0.0)),
+                        "availability": float(getattr(scores, "availability", 0.0) if not isinstance(scores, dict) else scores.get("availability", 0.0)),
+                        "vulnerability": float(getattr(scores, "vulnerability", 0.0) if not isinstance(scores, dict) else scores.get("vulnerability", 0.0)),
+                    }
+        elif isinstance(components, dict):
+            for name, scores in components.items():
+                if isinstance(scores, dict):
+                    out[name] = {
+                        "overall": float(scores.get("overall", 0.0)),
+                        "reliability": float(scores.get("reliability", 0.0)),
+                        "maintainability": float(scores.get("maintainability", 0.0)),
+                        "availability": float(scores.get("availability", 0.0)),
+                        "vulnerability": float(scores.get("vulnerability", 0.0)),
+                    }
 
     return out

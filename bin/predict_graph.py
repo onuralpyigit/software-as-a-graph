@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--layer", default="app",
-        choices=["app", "infra", "mw", "system"],
+        help="Layer(s) to process (comma-separated: app,infra,mw,system)"
     )
     parser.add_argument("--checkpoint", required=True,
                         help="Path to checkpoint directory from train_graph.py")
@@ -83,12 +83,43 @@ def main() -> None:
         extract_rmav_scores_dict
 
     # ── Data Loading ────────────────────────────────────────────────────────
-    structural_dict = load_json(args.structural)
-    rmav_dict = load_json(args.rmav)
-    simulation_dict = load_json(args.simulated)
+    structural_raw = load_json(args.structural)
+    rmav_raw = load_json(args.rmav)
+    simulation_raw = load_json(args.simulated)
     nx_graph = None
 
-    if structural_dict is None:
+    # Flatten multi-layer structures if present
+    def _flatten_results(raw_data, sub_key=None):
+        if not isinstance(raw_data, dict):
+            return raw_data
+        if "layers" in raw_data:
+            flattened = {}
+            for layer_name, layer_res in raw_data["layers"].items():
+                # Extract the relevant sub-part (structural or quality)
+                part = layer_res.get(sub_key) if sub_key else layer_res
+                if part and isinstance(part, dict):
+                    # extract_structural_metrics_dict can handle the inner structural part
+                    # but here we just want to ensure we have a collection of components
+                    # The extract_*_dict functions expect the return of .to_dict()
+                    flattened.update(extract_structural_metrics_dict(part) if sub_key == "structural_analysis" 
+                                    else extract_rmav_scores_dict(part))
+            return flattened
+        return raw_data
+
+    # Use the normalisation helpers to get flat {id: metrics} dicts
+    structural_dict = _flatten_results(structural_raw, "structural_analysis")
+    if not isinstance(structural_dict, dict) or not structural_dict:
+        structural_dict = extract_structural_metrics_dict(structural_raw)
+
+    rmav_dict = _flatten_results(rmav_raw, "quality_analysis")
+    if not isinstance(rmav_dict, dict) or not rmav_dict:
+         rmav_dict = extract_rmav_scores_dict(rmav_raw)
+         rmav_dict = extract_rmav_scores_dict(rmav_raw)
+
+    simulation_dict = simulation_raw # extract_simulation_dict is already robust
+    
+    # Rest of the loading logic...
+    if not structural_dict:
         logger.info("No --structural provided; running pipeline steps...")
         try:
             from src.core import create_repository
@@ -98,7 +129,7 @@ def main() -> None:
             sys.exit(1)
 
         conn_kwargs = {k: v for k, v in [("uri", args.uri), ("username", args.user), 
-                                        ("password", args.password)] if v}
+                                         ("password", args.password)] if v}
         repo = create_repository(**conn_kwargs)
 
         try:
