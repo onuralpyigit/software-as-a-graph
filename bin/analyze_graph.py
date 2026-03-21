@@ -162,23 +162,24 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
     Execute analysis based on parsed CLI arguments.
     """
     repo = create_repository(uri=args.uri, user=args.user, password=args.password)
-    analyzer = AnalysisService(
-        repo,
-        use_ahp=args.use_ahp,
-        normalization_method=args.norm,
-        winsorize=args.winsorize,
-        winsorize_limit=args.winsorize_limit,
-        run_sensitivity=args.sensitivity,
-        sensitivity_perturbations=args.perturbations,
-        sensitivity_noise=args.noise
-    )
+    analyzer = AnalysisService(repo)
+    # The following options are now handled by PredictionService/QualityAnalyzer
+    # and passed via PredictGraphUseCase if needed.
 
     from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
     from src.analysis.models import LayerAnalysisResult
-    from src.prediction import ProblemDetector
+    from src.prediction import PredictionService, ProblemDetector
+    
+    # Initialize services with CLI arguments
+    pred_svc = PredictionService(
+        use_ahp=args.use_ahp,
+        normalization_method=args.norm,
+        winsorize=args.winsorize,
+        winsorize_limit=args.winsorize_limit
+    )
     
     analyze_uc = AnalyzeGraphUseCase(repo)
-    predict_uc = PredictGraphUseCase(repo)
+    predict_uc = PredictGraphUseCase(repo, prediction_service=pred_svc)
     detector = ProblemDetector()
     
     try:
@@ -189,9 +190,8 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
             results_map = {}
             for l in layers:
                 s_res = analyze_uc.execute(l)
-                q_res = predict_uc.execute(l, s_res)
-                # Detect problems (calling service method for now as it's not in UC contract)
-                problems = detector.detect(q_res)
+                q_res, problems = predict_uc.execute(l, s_res)
+                # Use problems from prediction use case
                 problem_summary = detector.summarize(problems)
                 results_map[l] = LayerAnalysisResult(
                     layer=l,
@@ -210,8 +210,7 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
 
         # Single-layer analysis
         s_res = analyze_uc.execute(args.layer)
-        q_res = predict_uc.execute(args.layer, s_res)
-        problems = detector.detect(q_res)
+        q_res, problems = predict_uc.execute(args.layer, s_res)
         problem_summary = detector.summarize(problems)
         
         layer_result = LayerAnalysisResult(

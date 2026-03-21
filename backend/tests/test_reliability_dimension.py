@@ -10,7 +10,7 @@ Covers:
 - CME metric function
 """
 import pytest
-from src.analysis.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
+from src.prediction.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
 from src.simulation.models import ImpactMetrics
 from src.validation.metric_calculator import calculate_ccr_at_k, calculate_cme
 

@@ -1,5 +1,7 @@
+from typing import List, Optional, Any
+from src.core.ports.graph_repository import IGraphRepository
 from src.prediction.analyzer import QualityAnalyzer
-from src.prediction.models import QualityAnalysisResult
+from src.prediction.models import QualityAnalysisResult, DetectedProblem
 from src.analysis.models import StructuralAnalysisResult
 
 class PredictGraphUseCase:
@@ -12,10 +14,22 @@ class PredictGraphUseCase:
     This enforces the pre-deployment claim in code.
     """
     
-    def __init__(self, repository: IGraphRepository):
+    def __init__(self, repository: IGraphRepository, prediction_service: Optional[Any] = None):
         self.repository = repository
-        from src.prediction.service import PredictionService
-        self.service = PredictionService()
+        if prediction_service:
+            self.service = prediction_service
+        else:
+            from src.prediction.service import PredictionService
+            self.service = PredictionService()
         
-    def execute(self, layer: str, structural_result: StructuralAnalysisResult) -> QualityAnalysisResult:
-        return self.service.predict_quality(structural_result)
+    def execute(
+        self, 
+        layer: str, 
+        structural_result: StructuralAnalysisResult,
+        detect_problems: bool = False
+    ) -> tuple[QualityAnalysisResult, Optional[List[DetectedProblem]]]:
+        quality = self.service.predict_quality(structural_result)
+        problems = None
+        if detect_problems:
+            problems = self.service.detect_problems(quality)
+        return quality, problems

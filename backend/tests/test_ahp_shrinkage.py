@@ -6,7 +6,7 @@ from pathlib import Path
 # Add backend to sys.path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.analysis.weight_calculator import AHPProcessor, AHPMatrices
+from src.prediction.weight_calculator import AHPProcessor, AHPMatrices
 
 def test_shrinkage():
     # v5: r_pagerank and r_w_in are deprecated (0.0); the three active Reliability weights

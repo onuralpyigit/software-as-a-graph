@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from src.core import create_repository
 from src.generation import GenerationService, load_config
 from src.analysis import AnalysisService
+from src.prediction import PredictionService
 from src.simulation import SimulationService
 from src.validation import ValidationService, ValidationTargets
 from src.validation.metric_calculator import spearman_correlation
@@ -84,9 +85,11 @@ class BenchmarkRunner:
 
         # Services will be initialized once
         self.analysis_service = AnalysisService(self.repo)
+        self.prediction_service = PredictionService()
         self.simulation_service = SimulationService(self.repo)
         self.validation_service = ValidationService(
             analysis_service=self.analysis_service,
+            prediction_service=self.prediction_service,
             simulation_service=self.simulation_service,
             targets=self.targets,
             ndcg_k=self.ndcg_k

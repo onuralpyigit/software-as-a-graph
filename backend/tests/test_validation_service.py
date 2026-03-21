@@ -17,16 +17,15 @@ from src.validation.metric_calculator import (
     cohens_kappa,
     bootstrap_ci,
 )
-from src.analysis.models import LayerAnalysisResult, QualityAnalysisResult
+from src.analysis.models import LayerAnalysisResult
+from src.prediction.models import QualityAnalysisResult
 from src.simulation.models import FailureResult, ImpactMetrics
 
 @pytest.fixture
 def mock_analysis_service():
     service = MagicMock()
     # Mock analyze_layer return value
-    mock_result = MagicMock(spec=LayerAnalysisResult)
-    mock_result.quality = MagicMock(spec=QualityAnalysisResult)
-    mock_result.quality.components = []
+    mock_result = MagicMock() # Use generic mock to avoid spec issues with complex attributes
     service.analyze_layer.return_value = mock_result
     return service
 
@@ -38,9 +37,18 @@ def mock_simulation_service():
     return service
 
 @pytest.fixture
-def validation_service(mock_analysis_service, mock_simulation_service):
+def mock_prediction_service():
+    service = MagicMock()
+    mock_quality = MagicMock(spec=QualityAnalysisResult)
+    mock_quality.components = []
+    service.predict_quality.return_value = mock_quality
+    return service
+
+@pytest.fixture
+def validation_service(mock_analysis_service, mock_prediction_service, mock_simulation_service):
     return ValidationService(
         analysis_service=mock_analysis_service,
+        prediction_service=mock_prediction_service,
         simulation_service=mock_simulation_service
     )
 
@@ -74,7 +82,7 @@ class TestValidationService:
         assert "invalid_layer" not in result.layers
         assert len(result.layers) == 1
 
-    def test_validate_single_layer_flow(self, validation_service, mock_analysis_service, mock_simulation_service):
+    def test_validate_single_layer_flow(self, validation_service, mock_analysis_service, mock_prediction_service, mock_simulation_service):
         """Test the flow of efficient sinlge layer validation."""
         # Setup Analysis Result
         comps = []
@@ -101,10 +109,9 @@ class TestValidationService:
             fail_res.impact.attack_reach = values[i]
             sim_results.append(fail_res)
         
-        mock_analysis_res = MagicMock(spec=LayerAnalysisResult)
-        mock_analysis_res.quality = MagicMock(spec=QualityAnalysisResult)
-        mock_analysis_res.quality.components = comps
-        mock_analysis_service.analyze_layer.return_value = mock_analysis_res
+        mock_quality = MagicMock(spec=QualityAnalysisResult)
+        mock_quality.components = comps
+        mock_prediction_service.predict_quality.return_value = mock_quality
         
         mock_simulation_service.run_failure_simulation_exhaustive.return_value = sim_results
         
@@ -120,7 +127,7 @@ class TestValidationService:
         # Verify data passed to validator (implicitly via result checks)
         assert layer_res.component_names["A"] == "App A"
 
-    def _setup_mock_layer(self, mock_analysis_service, mock_simulation_service):
+    def _setup_mock_layer(self, mock_analysis_service, mock_prediction_service, mock_simulation_service):
         """Helper to setup a mock layer for validation tests."""
         comps = []
         sim_results = []
@@ -158,18 +165,32 @@ class TestValidationService:
             fail_res.impact.ia_in = 0.5
             fail_res.impact.attack_reach = 0.5
             fail_res.impact.cascade_reach = 0.5
+            fail_res.impact.weighted_cascade_impact = 0.5
+            fail_res.impact.normalized_cascade_depth = 0.5
             fail_res.impact.change_reach = 0.5
+            fail_res.impact.weighted_change_impact = 0.5
+            fail_res.impact.normalized_change_depth = 0.5
+            fail_res.impact.reachability_loss = 0.5
+            fail_res.impact.fragmentation = 0.5
+            fail_res.impact.throughput_loss = 0.5
+            fail_res.impact.flow_disruption = 0.5
+            fail_res.impact.weighted_reachability_loss = 0.5
+            fail_res.impact.weighted_fragmentation = 0.5
+            fail_res.impact.path_breaking_throughput_loss = 0.5
+            fail_res.impact.weighted_attack_impact = 0.5
+            fail_res.impact.high_value_contamination = 0.5
+            fail_res.impact.critical_paths = []
             sim_results.append(fail_res)
             
-        mock_analysis_res = MagicMock(spec=LayerAnalysisResult)
-        mock_analysis_res.quality = MagicMock(spec=QualityAnalysisResult)
-        mock_analysis_res.quality.components = comps
-        mock_analysis_service.analyze_layer.return_value = mock_analysis_res
+        mock_quality = MagicMock(spec=QualityAnalysisResult)
+        mock_quality.components = comps
+        mock_prediction_service.predict_quality.return_value = mock_quality
+        
         mock_simulation_service.run_failure_simulation_exhaustive.return_value = sim_results
 
-    def test_dimensional_validation_includes_all_metrics(self, validation_service, mock_analysis_service, mock_simulation_service):
+    def test_dimensional_validation_includes_all_metrics(self, validation_service, mock_analysis_service, mock_prediction_service, mock_simulation_service):
         """Test that all RMAV specialist metrics are computed and present."""
-        self._setup_mock_layer(mock_analysis_service, mock_simulation_service)
+        self._setup_mock_layer(mock_analysis_service, mock_prediction_service, mock_simulation_service)
         result = validation_service.validate_layers(layers=["app"])
         layer_res = result.layers["app"]
         
@@ -197,9 +218,9 @@ class TestValidationService:
         assert "ftr" in vul
         assert "apar" in vul
 
-    def test_composite_section_and_predictive_gain(self, validation_service, mock_analysis_service, mock_simulation_service):
+    def test_composite_section_and_predictive_gain(self, validation_service, mock_analysis_service, mock_prediction_service, mock_simulation_service):
         """Test composite I* calculation and Predictive Gain."""
-        self._setup_mock_layer(mock_analysis_service, mock_simulation_service)
+        self._setup_mock_layer(mock_analysis_service, mock_prediction_service, mock_simulation_service)
         result = validation_service.validate_layers(layers=["app"])
         layer_res = result.layers["app"]
         
@@ -208,9 +229,9 @@ class TestValidationService:
         assert "predictive_gain" in comp
         assert "best_single_dim" in comp
         
-    def test_node_type_stratified_in_output(self, validation_service, mock_analysis_service, mock_simulation_service):
+    def test_node_type_stratified_in_output(self, validation_service, mock_analysis_service, mock_prediction_service, mock_simulation_service):
         """Test node-type stratified reporting."""
-        self._setup_mock_layer(mock_analysis_service, mock_simulation_service)
+        self._setup_mock_layer(mock_analysis_service, mock_prediction_service, mock_simulation_service)
         result = validation_service.validate_layers(layers=["app"])
         layer_res = result.layers["app"]
         

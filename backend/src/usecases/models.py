@@ -18,6 +18,8 @@ class SimulationMode(Enum):
     SINGLE = "single"
     PAIRWISE = "pairwise"
     EVENT = "event"
+    REPORT = "report"
+    CLASSIFY = "classify"
 
 @dataclass
 class VisOptions:

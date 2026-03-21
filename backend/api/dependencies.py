@@ -14,6 +14,7 @@ from fastapi import Depends, Request, HTTPException
 from src.core import create_repository
 from src.core.ports.graph_repository import IGraphRepository
 from src.analysis import AnalysisService, StatisticsService
+from src.prediction import PredictionService
 from src.simulation import SimulationService
 from src.generation import GenerationService
 from api.models import (
@@ -88,6 +89,13 @@ def get_simulation_service(repo: IGraphRepository = Depends(get_repository)) -> 
     Automatically uses the request-scoped repository.
     """
     return SimulationService(repo)
+
+
+def get_prediction_service() -> PredictionService:
+    """
+    Dependency to provide a PredictionService instance.
+    """
+    return PredictionService()
 
 
 def get_statistics_service(repo: IGraphRepository = Depends(get_repository)) -> StatisticsService:

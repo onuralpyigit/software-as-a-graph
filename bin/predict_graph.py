@@ -92,8 +92,7 @@ def main() -> None:
         logger.info("No --structural provided; running pipeline steps...")
         try:
             from src.core import create_repository
-            from src.analysis import AnalysisService
-            from src.prediction import PredictionService
+            from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
         except ImportError as e:
             logger.error(f"Pipeline modules not available: {e}")
             sys.exit(1)
@@ -103,17 +102,17 @@ def main() -> None:
         repo = create_repository(**conn_kwargs)
 
         try:
-            analysis_svc = AnalysisService(repo)
-            prediction_svc = PredictionService()
+            analyze_uc = AnalyzeGraphUseCase(repo)
+            predict_uc = PredictGraphUseCase(repo)
             
             # Step 2: Structural Analysis
-            layer_result = analysis_svc.analyze_layer(args.layer)
+            layer_result = analyze_uc.execute(args.layer)
             nx_graph = layer_result.graph
             structural_dict = extract_structural_metrics_dict(layer_result.structural)
             
             if rmav_dict is None:
                 # Step 3: Quality Prediction
-                quality_res = prediction_svc.predict_quality(layer_result.structural)
+                quality_res, _ = predict_uc.execute(args.layer)
                 rmav_dict = extract_rmav_scores_dict(quality_res)
         finally:
             repo.close()

@@ -20,8 +20,8 @@ import math
 from src.core.models import Application, GraphData, ComponentData, EdgeData
 from src.core.metrics import StructuralMetrics
 from src.analysis.structural_analyzer import StructuralAnalyzer, extract_layer_subgraph
-from src.analysis.quality_analyzer import QualityAnalyzer
-from src.analysis.weight_calculator import AHPProcessor, AHPMatrices, QualityWeights
+from src.prediction.analyzer import QualityAnalyzer
+from src.prediction.weight_calculator import AHPProcessor, AHPMatrices, QualityWeights
 from src.core import AnalysisLayer
 
 

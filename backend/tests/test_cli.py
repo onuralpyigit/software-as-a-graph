@@ -76,8 +76,8 @@ class TestAnalyzeGraphCLI:
         with patch.object(sys, 'argv', ['analyze_graph.py', '--layer', 'app']), \
              patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
              patch('src.usecases.AnalyzeGraphUseCase', return_value=mock_analysis_service), \
-             patch('src.usecases.PredictGraphUseCase', return_value=mock_analysis_service), \
-             patch('src.analysis.problem_detector.ProblemDetector.detect', return_value=[]), \
+             patch('src.usecases.PredictGraphUseCase.execute', return_value=(MagicMock(), [])), \
+             patch('src.prediction.problem_detector.ProblemDetector.summarize', return_value=MagicMock()), \
              patch('src.cli.console.ConsoleDisplay', return_value=mock_display):
             
             if 'analyze_graph' in sys.modules:
@@ -108,7 +108,7 @@ class TestSimulateGraphCLI:
         with patch.object(sys, 'argv', ['simulate_graph.py', 'event', '--source', 'App1']), \
              patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
              patch('src.simulation.SimulationService', return_value=mock_sim_service) as MockSimService, \
-             patch('src.usecases.SimulateGraphUseCase.execute', return_value=[]), \
+             patch('src.usecases.SimulateGraphUseCase.execute', return_value=mock_event_result) as MockSimExecute, \
              patch('src.cli.console.ConsoleDisplay', return_value=mock_display):
             
             if 'simulate_graph' in sys.modules:
@@ -120,8 +120,7 @@ class TestSimulateGraphCLI:
             
             assert ret == 0
             MockCreateRepo.assert_called_once()
-            MockSimService.assert_called_once_with(mock_repo)
-            mock_sim_service.run_event_simulation.assert_called_once()
+            MockSimExecute.assert_called_once()
             mock_display.display_event_result.assert_called_once()
             mock_repo.close.assert_called_once()
 

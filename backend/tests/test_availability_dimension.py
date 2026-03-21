@@ -14,7 +14,7 @@ Covers:
   - calculate_rri: true-negative rate arithmetic
 """
 import pytest
-from src.analysis.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
+from src.prediction.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
 from src.simulation.models import ImpactMetrics
 from src.validation.metric_calculator import (
     calculate_spof_f1,

@@ -353,19 +353,46 @@ def mock_validation_service():
     return service
 
 
+@pytest.fixture
+def mock_prediction_service():
+    """Create a mock prediction service."""
+    service = MagicMock()
+    
+    # Build mock component
+    mock_comp = MagicMock()
+    mock_comp.id = "sensor_fusion"
+    mock_comp.type = "Application"
+    mock_comp.structural.name = "Sensor Fusion"
+    mock_comp.scores.overall = 0.84
+    mock_comp.scores.reliability = 0.82
+    mock_comp.scores.maintainability = 0.88
+    mock_comp.scores.availability = 0.90
+    mock_comp.scores.vulnerability = 0.75
+    mock_comp.levels.overall.name = "CRITICAL"
+    mock_comp.levels.overall.__str__.return_value = "CRITICAL"
+    
+    mock_result = MagicMock()
+    mock_result.components = [mock_comp]
+    mock_result.problems = [MagicMock(), MagicMock()]
+    
+    service.predict_quality.return_value = mock_result
+    return service
+
+
 class TestLayerDataCollector:
     """Tests for data collection pipeline."""
 
     def test_collect_basic_data(
-        self, mock_analysis_service, mock_simulation_service, mock_validation_service
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
         """Collector populates basic layer data from all services."""
-        repo = MagicMock()
+        repository = MagicMock()
         collector = LayerDataCollector(
             mock_analysis_service,
+            mock_prediction_service,
             mock_simulation_service,
             mock_validation_service,
-            repo,
+            repository=repository,
         )
 
         data = collector.collect_layer_data("system", include_validation=True)
@@ -379,15 +406,16 @@ class TestLayerDataCollector:
         assert data.spearman == 0.876
 
     def test_collect_component_details(
-        self, mock_analysis_service, mock_simulation_service, mock_validation_service
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
         """Collector builds ComponentDetail list with RMAV scores."""
-        repo = MagicMock()
+        repository = MagicMock()
         collector = LayerDataCollector(
             mock_analysis_service,
+            mock_prediction_service,
             mock_simulation_service,
             mock_validation_service,
-            repo,
+            repository=repository,
         )
 
         data = collector.collect_layer_data("system")
@@ -403,15 +431,16 @@ class TestLayerDataCollector:
         assert detail.level == "CRITICAL"
 
     def test_collect_scatter_data(
-        self, mock_analysis_service, mock_simulation_service, mock_validation_service
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
         """Collector builds scatter plot data from Q(v) and I(v)."""
-        repo = MagicMock()
+        repository = MagicMock()
         collector = LayerDataCollector(
             mock_analysis_service,
+            mock_prediction_service,
             mock_simulation_service,
             mock_validation_service,
-            repo,
+            repository=repository,
         )
 
         data = collector.collect_layer_data("system")
@@ -423,15 +452,16 @@ class TestLayerDataCollector:
         assert q_val == pytest.approx(0.84)
 
     def test_collect_top_k_overlap(
-        self, mock_analysis_service, mock_simulation_service, mock_validation_service
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
         """Collector captures Top-K overlap from validation."""
-        repo = MagicMock()
+        repository = MagicMock()
         collector = LayerDataCollector(
             mock_analysis_service,
+            mock_prediction_service,
             mock_simulation_service,
             mock_validation_service,
-            repo,
+            repository=repository,
         )
 
         data = collector.collect_layer_data("system", include_validation=True)
@@ -440,33 +470,35 @@ class TestLayerDataCollector:
         assert data.top10_overlap == pytest.approx(0.70)
 
     def test_collect_unknown_layer_raises(
-        self, mock_analysis_service, mock_simulation_service, mock_validation_service
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
         """Unknown layer raises ValueError."""
-        repo = MagicMock()
+        repository = MagicMock()
         collector = LayerDataCollector(
             mock_analysis_service,
+            mock_prediction_service,
             mock_simulation_service,
             mock_validation_service,
-            repo,
+            repository=repository,
         )
 
         with pytest.raises(ValueError, match="Unknown layer"):
             collector.collect_layer_data("nonexistent")
 
     def test_collect_handles_analysis_failure(
-        self, mock_simulation_service, mock_validation_service
+        self, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
         """Collector gracefully handles analysis service failure."""
         bad_analysis = MagicMock()
         bad_analysis.analyze_layer.side_effect = Exception("Neo4j down")
 
-        repo = MagicMock()
+        repository = MagicMock()
         collector = LayerDataCollector(
             bad_analysis,
+            mock_prediction_service,
             mock_simulation_service,
             mock_validation_service,
-            repo,
+            repository=repository,
         )
 
         # Should not raise
@@ -482,15 +514,16 @@ class TestVisualizationService:
     """Tests for full dashboard generation pipeline."""
 
     def test_generate_dashboard_creates_file(
-        self, mock_analysis_service, mock_simulation_service, mock_validation_service, tmp_path
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service, tmp_path
     ):
         """generate_dashboard produces an HTML file."""
-        repo = MagicMock()
+        repository = MagicMock()
         service = VisualizationService(
             mock_analysis_service,
+            mock_prediction_service,
             mock_simulation_service,
             mock_validation_service,
-            repo,
+            repository=repository,
         )
 
         output = tmp_path / "test_dashboard.html"
@@ -521,15 +554,16 @@ class TestVisualizationService:
                 assert output.exists()
 
     def test_scalability_auto_disable_network(
-        self, mock_analysis_service, mock_simulation_service, mock_validation_service
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
         """Large systems auto-disable network graph (> 500 nodes)."""
-        repo = MagicMock()
+        repository = MagicMock()
         service = VisualizationService(
             mock_analysis_service,
+            mock_prediction_service,
             mock_simulation_service,
             mock_validation_service,
-            repo,
+            repository=repository,
         )
 
         with patch.object(service, "collector") as mock_collector:
@@ -552,15 +586,16 @@ class TestVisualizationService:
                     assert mock_add.called is False
 
     def test_unknown_layer_skipped(
-        self, mock_analysis_service, mock_simulation_service, mock_validation_service
+        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
         """Empty layers raise ValueError (at least one valid layer required)."""
-        repo = MagicMock()
+        repository = MagicMock()
         service = VisualizationService(
             mock_analysis_service,
+            mock_prediction_service,
             mock_simulation_service,
             mock_validation_service,
-            repo,
+            repository=repository,
         )
 
         with patch("src.visualization.dashboard.DashboardGenerator"):

@@ -11,8 +11,8 @@ Covers:
 import math
 import pytest
 
-from src.analysis.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
-from src.analysis.quality_analyzer import CriticalityProfile
+from src.prediction.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
+from src.prediction.analyzer import CriticalityProfile
 from src.validation.models import ValidationTargets, LayerValidationResult
 
 

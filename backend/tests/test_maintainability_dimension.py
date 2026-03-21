@@ -12,7 +12,7 @@ Covers:
   - ChangePropagationSimulator: basic BFS correctness and stop conditions
 """
 import pytest
-from src.analysis.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
+from src.prediction.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
 from src.simulation.models import ImpactMetrics
 from src.validation.metric_calculator import (
     calculate_cocr_at_k,

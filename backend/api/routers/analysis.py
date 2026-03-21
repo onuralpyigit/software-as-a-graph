@@ -12,10 +12,11 @@ from api.dependencies import (
 )
 from src.core.ports.graph_repository import IGraphRepository
 from src.analysis import AnalysisService
-from src.prediction import ProblemDetector, PredictionService
+from src.prediction import ProblemDetector, PredictionService, DetectedProblem
 from api.presenters import analysis_presenter
 from api.models import AnalysisEnvelope
-from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
+from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase, SimulateGraphUseCase, ValidateGraphUseCase
+from src.prediction.models import QualityAnalysisResult
 
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
@@ -41,12 +42,8 @@ async def analyze_full_system(
         s_res = analyze_uc.execute("system")
         
         # Quality Analysis (Prediction)
-        q_res = predict_uc.execute("system", s_res)
-        
-        # Problem Detection
-        detector = ProblemDetector()
-        detected_problems = detector.detect(q_res)
-        summary = detector.summarize(detected_problems)
+        q_res, detected_problems = predict_uc.execute("system", s_res, detect_problems=True)
+        summary = ProblemDetector().summarize(detected_problems)
         
         # Layer Result Construction
         from src.analysis.models import LayerAnalysisResult
@@ -122,7 +119,7 @@ async def analyze_by_type(component_type: str, service: AnalysisService = Depend
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 
-from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
+
 
 @router.post("/layer/{layer}", response_model=AnalysisEnvelope)
 async def analyze_layer(
@@ -146,11 +143,8 @@ async def analyze_layer(
         logger.info(f"Analyzing layer: {layer}")
         
         struct_res = analyze_uc.execute(layer)
-        qual_res = predict_uc.execute(layer, struct_res)
-        
-        detector = ProblemDetector()
-        problems = detector.detect(qual_res)
-        summary = detector.summarize(problems)
+        qual_res, problems = predict_uc.execute(layer, struct_res, detect_problems=True)
+        summary = ProblemDetector().summarize(problems)
         
         from src.analysis.models import LayerAnalysisResult
         mock_result = LayerAnalysisResult(

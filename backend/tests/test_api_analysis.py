@@ -89,7 +89,7 @@ def test_analyze_full_system(mock_analysis_result):
     mock_analyze_uc.execute.return_value = mock_analysis_result.structural
     
     mock_predict_uc = MagicMock()
-    mock_predict_uc.execute.return_value = mock_analysis_result.quality
+    mock_predict_uc.execute.return_value = (mock_analysis_result.quality, mock_analysis_result.problems)
     
     # Override dependencies
     app.dependency_overrides[get_analyze_graph_use_case] = lambda: mock_analyze_uc
