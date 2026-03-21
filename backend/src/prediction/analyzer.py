@@ -56,7 +56,7 @@ from src.core.metrics import (
     EdgeMetrics,
     ClassificationSummary,
 )
-from .models import StructuralAnalysisResult
+from src.analysis.models import StructuralAnalysisResult
 from src.core.layers import AnalysisLayer
 from .weight_calculator import AHPProcessor, QualityWeights
 

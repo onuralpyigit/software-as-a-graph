@@ -13,12 +13,18 @@ class VisualizeGraphUseCase:
         self.repository = repository
         
         # Instantiate services needed by VisualizationService
+        from src.analysis.service import AnalysisService
+        from src.prediction.service import PredictionService
+        from src.simulation.service import SimulationService
+        
         analysis_service = AnalysisService(repository)
+        prediction_service = PredictionService()
         simulation_service = SimulationService(repository)
-        validation_service = ValidationService(analysis_service, simulation_service)
+        validation_service = ValidationService(analysis_service, prediction_service, simulation_service)
         
         self.service = VisualizationService(
             analysis_service=analysis_service,
+            prediction_service=prediction_service,
             simulation_service=simulation_service,
             validation_service=validation_service,
             repository=repository

@@ -12,7 +12,7 @@ from api.dependencies import (
 )
 from src.core.ports.graph_repository import IGraphRepository
 from src.analysis import AnalysisService
-from src.analysis.problem_detector import ProblemDetector
+from src.prediction import ProblemDetector, PredictionService
 from api.presenters import analysis_presenter
 from api.models import AnalysisEnvelope
 from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
@@ -94,13 +94,19 @@ async def analyze_by_type(component_type: str, service: AnalysisService = Depend
 
     try:
         logger.info(f"Analyzing component type: {component_type} (normalized to {normalized_type})")
+        # Step 2: Analysis
         result = service.analyze_layer("system")
+        
+        # Step 3: Prediction (using PredictionService directly for filtered view)
+        from src.prediction.service import PredictionService
+        pred_service = PredictionService()
+        quality_res = pred_service.predict_quality(result.structural)
 
         # Filter components and edges
-        filtered_components = [c for c in result.quality.components if c.type == normalized_type]
+        filtered_components = [c for c in quality_res.components if c.type == normalized_type]
         filtered_ids = {c.id for c in filtered_components}
-        filtered_edges = [e for e in result.quality.edges if e.source in filtered_ids or e.target in filtered_ids]
-        filtered_problems = [p for p in result.problems if p.entity_id in filtered_ids]
+        filtered_edges = [e for e in quality_res.edges if e.source in filtered_ids or e.target in filtered_ids]
+        filtered_problems = [p for p in quality_res.problems if p.entity_id in filtered_ids]
 
         return analysis_presenter.build_analysis_response(
             result,

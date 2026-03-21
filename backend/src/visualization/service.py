@@ -23,12 +23,14 @@ class VisualizationService:
     def __init__(
         self,
         analysis_service: Any,
+        prediction_service: Any,
         simulation_service: Any,
         validation_service: Any,
         repository: IGraphRepository,
         chart_generator: Optional[ChartGenerator] = None,
     ):
         self.analysis_service = analysis_service
+        self.prediction_service = prediction_service
         self.simulation_service = simulation_service
         self.validation_service = validation_service
         self.repository = repository
@@ -37,6 +39,7 @@ class VisualizationService:
         # Initialize collector
         self.collector = LayerDataCollector(
             analysis_service,
+            prediction_service,
             simulation_service,
             validation_service,
             repository,

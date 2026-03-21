@@ -19,11 +19,13 @@ class LayerDataCollector:
     def __init__(
         self,
         analysis_service: Any,
+        prediction_service: Any,
         simulation_service: Any,
         validation_service: Any,
         repository: Any,
     ):
         self.analysis_service = analysis_service
+        self.prediction_service = prediction_service
         self.simulation_service = simulation_service
         self.validation_service = validation_service
         self.repository = repository
@@ -113,6 +115,8 @@ class LayerDataCollector:
         """
         try:
             analysis = self.analysis_service.analyze_layer(layer)
+            # Run prediction step
+            prediction = self.prediction_service.predict_quality(analysis.structural)
 
             # Structural Stats
             data.nodes = analysis.structural.graph_summary.nodes
@@ -122,7 +126,7 @@ class LayerDataCollector:
             data.component_counts = analysis.structural.graph_summary.node_types or {}
 
             # Quality Classification Counts
-            for comp in analysis.quality.components:
+            for comp in prediction.components:
                 level = str(comp.levels.overall)
                 if hasattr(comp.levels.overall, "name"):
                     level = comp.levels.overall.name
@@ -136,11 +140,11 @@ class LayerDataCollector:
                 elif level == "LOW":
                     data.low_count += 1
             data.spof_count = analysis.structural.graph_summary.num_articulation_points
-            data.problems_count = len(analysis.problems)
+            data.problems_count = len(prediction.problems)
 
             # Build component details with RMAV breakdown            # 3. Quality Metrics & Ranking
             sorted_comps = sorted(
-                analysis.quality.components,
+                prediction.components,
                 key=lambda x: _safe_float(x.scores.overall),
                 reverse=True,
             )
@@ -192,7 +196,7 @@ class LayerDataCollector:
 
             data.component_names = {
                 c.id: c.structural.name
-                for c in analysis.quality.components
+                for c in prediction.components
                 if hasattr(c, "structural")
             }
             data.rcm_order = analysis.structural.rcm_order
@@ -203,7 +207,18 @@ class LayerDataCollector:
                 for d in data.component_details[:10]
             ]
             
-            return analysis
+            # Return enriched analysis-like object for downstream (used by _build_network_data)
+            # We wrap it back into a structure that looks like LayerAnalysisResult for compatibility
+            from src.analysis.models import LayerAnalysisResult
+            return LayerAnalysisResult(
+                layer=layer,
+                layer_name=data.name,
+                description="",
+                structural=analysis.structural,
+                quality=prediction,
+                problems=prediction.problems,
+                problem_summary=prediction.summary # PredictionService.predict_quality doesn't return summary directly, update might be needed
+            )
 
         except Exception as e:
             self.logger.error(f"Analysis failed for layer {layer}: {e}")

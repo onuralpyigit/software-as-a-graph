@@ -12,12 +12,17 @@ class ValidateGraphUseCase:
         self.repository = repository
         
         # Instantiate services needed by ValidationService
-        # ValidationService orchestrates Analysis and Simulation
+        from src.analysis.service import AnalysisService
+        from src.prediction.service import PredictionService
+        from src.simulation.service import SimulationService
+        
         analysis_service = AnalysisService(repository)
+        prediction_service = PredictionService()
         simulation_service = SimulationService(repository)
         
         self.service = ValidationService(
             analysis_service=analysis_service,
+            prediction_service=prediction_service,
             simulation_service=simulation_service
         )
         

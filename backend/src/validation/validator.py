@@ -13,7 +13,7 @@ from .models import (
 from .metric_calculator import (
     calculate_correlation, calculate_error, calculate_classification, calculate_ranking, calculate_auc_pr
 )
-from src.analysis.classifier import BoxPlotClassifier
+from src.prediction.classifier import BoxPlotClassifier
 
 
 class Validator:

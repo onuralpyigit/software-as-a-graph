@@ -93,6 +93,7 @@ def main() -> None:
         try:
             from src.core import create_repository
             from src.analysis import AnalysisService
+            from src.prediction import PredictionService
         except ImportError as e:
             logger.error(f"Pipeline modules not available: {e}")
             sys.exit(1)
@@ -103,11 +104,17 @@ def main() -> None:
 
         try:
             analysis_svc = AnalysisService(repo)
+            prediction_svc = PredictionService()
+            
+            # Step 2: Structural Analysis
             layer_result = analysis_svc.analyze_layer(args.layer)
             nx_graph = layer_result.graph
             structural_dict = extract_structural_metrics_dict(layer_result.structural)
+            
             if rmav_dict is None:
-                rmav_dict = extract_rmav_scores_dict(layer_result.quality)
+                # Step 3: Quality Prediction
+                quality_res = prediction_svc.predict_quality(layer_result.structural)
+                rmav_dict = extract_rmav_scores_dict(quality_res)
         finally:
             repo.close()
 

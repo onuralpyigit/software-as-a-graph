@@ -11,6 +11,7 @@ import json
 from api.models import GraphRequestWithCredentials
 from src.core import create_repository, LAYER_DEFINITIONS
 from src.analysis import AnalysisService
+from src.prediction import PredictionService
 from src.simulation import SimulationService
 from src.validation import ValidationService, ValidationTargets
 
@@ -55,8 +56,9 @@ async def run_validation_pipeline(request: ValidationRequest):
         logger.info(f"Starting validation pipeline for layers: {request.layers}")
         
         analysis_service = AnalysisService(repo)
+        prediction_service = PredictionService()
         simulation_service = SimulationService(repo)
-        validation_service = ValidationService(analysis_service, simulation_service, targets=ValidationTargets())
+        validation_service = ValidationService(analysis_service, prediction_service, simulation_service, targets=ValidationTargets())
         
         # Run validation
         result = validation_service.validate_layers(layers=request.layers)
@@ -172,8 +174,9 @@ async def quick_validation(request: QuickValidationRequest):
             )
         
         analysis_service = AnalysisService(repo)
+        prediction_service = PredictionService()
         simulation_service = SimulationService(repo)
-        validation_service = ValidationService(analysis_service, simulation_service, targets=ValidationTargets())
+        validation_service = ValidationService(analysis_service, prediction_service, simulation_service, targets=ValidationTargets())
         
         # Run quick validation
         result = validation_service.validate_from_data(

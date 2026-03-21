@@ -9,7 +9,7 @@ import logging
 from api.models import Neo4jCredentials
 from src.core import create_repository
 from src.analysis.structural_analyzer import StructuralAnalyzer
-from src.analysis.classifier import BoxPlotClassifier
+from src.prediction.classifier import BoxPlotClassifier
 
 router = APIRouter(prefix="/api/v1", tags=["classification"])
 logger = logging.getLogger(__name__)

@@ -81,12 +81,14 @@ def main() -> int:
 
         if predicted_file and actual_file:
             from src.analysis import AnalysisService
+            from src.prediction import PredictionService
             from src.simulation import SimulationService
             from src.validation import ValidationService
             
             analysis_service = AnalysisService(repo)
+            prediction_service = PredictionService()
             simulation_service = SimulationService(repo)
-            val_service = ValidationService(analysis_service, simulation_service, targets=targets, ndcg_k=args.ndcg_k)
+            val_service = ValidationService(analysis_service, prediction_service, simulation_service, targets=targets, ndcg_k=args.ndcg_k)
             
             with open(predicted_file, 'r') as f: predicted_data = json.load(f)
             with open(actual_file, 'r') as f: actual_data = json.load(f)
@@ -222,9 +224,11 @@ def main() -> int:
                 
                 # VisualizationService needs several services in this version
                 analysis_service = AnalysisService(repo)
+                prediction_service = PredictionService()
                 simulation_service = SimulationService(repo)
                 viz_service = VisualizationService(
                     analysis_service=analysis_service,
+                    prediction_service=prediction_service,
                     simulation_service=simulation_service,
                     validation_service=val_service,
                     repository=repo

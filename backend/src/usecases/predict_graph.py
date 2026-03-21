@@ -1,6 +1,6 @@
-from src.core.ports.graph_repository import IGraphRepository
-from src.analysis.quality_analyzer import QualityAnalyzer
-from src.analysis.models import StructuralAnalysisResult, QualityAnalysisResult
+from src.prediction.analyzer import QualityAnalyzer
+from src.prediction.models import QualityAnalysisResult
+from src.analysis.models import StructuralAnalysisResult
 
 class PredictGraphUseCase:
     """
@@ -13,16 +13,9 @@ class PredictGraphUseCase:
     """
     
     def __init__(self, repository: IGraphRepository):
-        # We hold the repository to satisfy the general contract,
-        # but we do NOT use it in execute() for runtime data.
         self.repository = repository
-        # Use default analyzer settings
-        self.analyzer = QualityAnalyzer()
+        from src.prediction.service import PredictionService
+        self.service = PredictionService()
         
     def execute(self, layer: str, structural_result: StructuralAnalysisResult) -> QualityAnalysisResult:
-        # Use a context string for the analysis
-        context = f"Prediction for {layer} layer (Structural-Only)"
-        
-        # QualityAnalyzer.analyze only takes StructuralAnalysisResult
-        # and computes scores based on topological metrics.
-        return self.analyzer.analyze(structural_result, context=context)
+        return self.service.predict_quality(structural_result)

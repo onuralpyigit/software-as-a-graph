@@ -3,37 +3,21 @@ import logging
 from datetime import datetime
 
 from .structural_analyzer import StructuralAnalyzer
-from .quality_analyzer import QualityAnalyzer
-from .problem_detector import ProblemDetector
 from .models import MultiLayerAnalysisResult, LayerAnalysisResult
 from src.core.layers import AnalysisLayer, get_layer_definition
 from src.core.ports.graph_repository import IGraphRepository
 
 class AnalysisService:
     """
-    Service for running graph analysis and retrieving analysis results.
-    Orchestrates StructuralAnalyzer, QualityAnalyzer, and ProblemDetector.
+    Service for running structural graph analysis.
+    Orchestrates StructuralAnalyzer.
     """
 
     def __init__(
         self,
         repository: IGraphRepository,
-        use_ahp: bool = False,
-        normalization_method: str = "robust",
-        winsorize: bool = True,
-        winsorize_limit: float = 0.05,
-        run_sensitivity: bool = False,
-        sensitivity_perturbations: int = 200,
-        sensitivity_noise: float = 0.05,
     ):
         self.repository = repository
-        self.use_ahp = use_ahp
-        self.normalization_method = normalization_method
-        self.winsorize = winsorize
-        self.winsorize_limit = winsorize_limit
-        self.run_sensitivity = run_sensitivity
-        self.sensitivity_perturbations = sensitivity_perturbations
-        self.sensitivity_noise = sensitivity_noise
 
     def analyze_all_layers(self) -> MultiLayerAnalysisResult:
         """Analyze all primary graph layers."""
@@ -68,31 +52,14 @@ class AnalysisService:
         structural_analyzer = StructuralAnalyzer()
         struct_result = structural_analyzer.analyze(graph_data, layer=layer_enum)
         
-        quality_analyzer = QualityAnalyzer(
-            normalization_method=self.normalization_method,
-            winsorize=self.winsorize,
-            winsorize_limit=self.winsorize_limit,
-            use_ahp=self.use_ahp,
-        )
-        quality_result = quality_analyzer.analyze(
-            struct_result,
-            run_sensitivity=self.run_sensitivity,
-            sensitivity_perturbations=self.sensitivity_perturbations,
-            sensitivity_noise=self.sensitivity_noise,
-        )
-        
-        detector = ProblemDetector()
-        problems = detector.detect(quality_result)
-        problem_summary = detector.summarize(problems)
-        
         return LayerAnalysisResult(
             layer=layer_enum.value,
             layer_name=layer_def.name,
             description=layer_def.description,
             structural=struct_result,
-            quality=quality_result,
-            problems=problems,
-            problem_summary=problem_summary
+            quality=None,  # Placeholder, filled by prediction step
+            problems=[],
+            problem_summary=None
         )
 
     def analyze_by_type(self, component_type: str) -> Dict[str, Any]:

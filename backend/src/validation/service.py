@@ -20,11 +20,13 @@ class ValidationService:
     def __init__(
         self,
         analysis_service: Any,
+        prediction_service: Any,
         simulation_service: Any,
         targets: Optional[ValidationTargets] = None,
         ndcg_k: int = 10
     ):
         self.analysis = analysis_service
+        self.prediction = prediction_service
         self.simulation = simulation_service
         self.targets = targets or ValidationTargets()
         self.validator = Validator(targets=self.targets, ndcg_k=ndcg_k)
@@ -95,12 +97,20 @@ class ValidationService:
         self.logger.info("Running analysis...")
         # AnalysisService uses AnalysisLayer which has same string values as SimulationLayer
         analysis_result = self.analysis.analyze_layer(sim_layer.value)
-        pred_scores = {c.id: c.scores.overall for c in analysis_result.quality.components}
-        pred_reliability   = {c.id: c.scores.reliability   for c in analysis_result.quality.components}
-        pred_availability  = {c.id: c.scores.availability  for c in analysis_result.quality.components}
-        pred_vulnerability = {c.id: c.scores.vulnerability for c in analysis_result.quality.components}
-        comp_types = {c.id: c.type for c in analysis_result.quality.components}
-        comp_names = {c.id: c.structural.name for c in analysis_result.quality.components}
+        
+        # 1.5 Prediction
+        self.logger.info("Running prediction...")
+        prediction_result = self.prediction.predict_quality(analysis_result.structural)
+        
+        # Enrichment for compatibility
+        analysis_result.quality = prediction_result
+        
+        pred_scores = {c.id: c.scores.overall for c in prediction_result.components}
+        pred_reliability   = {c.id: c.scores.reliability   for c in prediction_result.components}
+        pred_availability  = {c.id: c.scores.availability  for c in prediction_result.components}
+        pred_vulnerability = {c.id: c.scores.vulnerability for c in prediction_result.components}
+        comp_types = {c.id: c.type for c in prediction_result.components}
+        comp_names = {c.id: c.structural.name for c in prediction_result.components}
         
         # 2. Simulation
         self.logger.info("Running simulation...")

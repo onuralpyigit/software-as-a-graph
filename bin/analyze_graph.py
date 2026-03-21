@@ -175,7 +175,7 @@ def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
 
     from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
     from src.analysis.models import LayerAnalysisResult
-    from src.analysis.problem_detector import ProblemDetector
+    from src.prediction import ProblemDetector
     
     analyze_uc = AnalyzeGraphUseCase(repo)
     predict_uc = PredictGraphUseCase(repo)
