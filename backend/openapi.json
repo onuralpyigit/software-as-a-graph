@@ -517,7 +517,7 @@
     "/api/v1/graph/export-neo4j-data": {
       "post": {
         "summary": "Export Neo4J Data",
-        "description": "Export complete Neo4j graph data in the same format as input files.\nReturns data compatible with GraphImporter, suitable for re-importing.\n\nThis endpoint uses the export_graph_data() method from GraphExporter which\nproduces a JSON structure matching the format of input/dataset.json.",
+        "description": "Export complete Neo4j graph data in the same format as input files.\nReturns data suitable for re-importing.\n\nThis endpoint uses the export_json() method from the repository which\nproduces a JSON structure matching the format of input/dataset.json.",
         "operationId": "export_neo4j_data_api_v1_graph_export_neo4j_data_post",
         "requestBody": {
           "content": {
