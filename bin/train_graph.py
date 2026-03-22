@@ -121,7 +121,7 @@ def main() -> None:
     if any(x is None for x in [structural_dict, simulation_dict]):
         logger.info("Connecting to Neo4j to retrieve graph data...")
         try:
-            from src.adapters import create_repository
+            from src.infrastructure import create_repository
             from src.analysis import AnalysisService
             from src.simulation import SimulationService
         except ImportError as e:

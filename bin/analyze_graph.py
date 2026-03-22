@@ -32,7 +32,7 @@ import json
 import logging
 from datetime import datetime
 
-from src.adapters import create_repository
+from src.infrastructure import create_repository
 from src.core import AnalysisLayer
 from src.analysis import AnalysisService, MultiLayerAnalysisResult
 from src.cli.console import ConsoleDisplay

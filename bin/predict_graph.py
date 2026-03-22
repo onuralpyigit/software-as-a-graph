@@ -82,7 +82,7 @@ def main() -> None:
     display = ConsoleDisplay()
     display.print_header(f"GNN Prediction: {args.layer.upper()} Layer")
 
-    from src.adapters import create_repository
+    from src.infrastructure import create_repository
     conn_kwargs = {k: v for k, v in [("uri", args.uri), ("user", args.user), 
                                      ("password", args.password)] if v}
     repo = create_repository(**conn_kwargs)

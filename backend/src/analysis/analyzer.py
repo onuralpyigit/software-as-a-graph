@@ -4,7 +4,7 @@ Compatibility shim: src.analysis.analyzer
 Maps the old GraphAnalyzer(uri, user, password) API to the new
 AnalysisService + Neo4jGraphRepository combo.
 """
-from src.adapters.neo4j_repo import Neo4jGraphRepository
+from src.infrastructure.neo4j_repo import Neo4jRepository
 from src.analysis import AnalysisService
 
 
@@ -12,7 +12,7 @@ class GraphAnalyzer:
     """Backward-compatible facade wrapping AnalysisService."""
 
     def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="password"):
-        self._repo = Neo4jGraphRepository(uri=uri, user=user, password=password)
+        self._repo = Neo4jRepository(uri=uri, user=user, password=password)
         self._service = AnalysisService(repository=self._repo)
 
     def __enter__(self):

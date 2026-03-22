@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass, field
 from typing import List, Optional, Any, Dict
 
-from src.adapters import create_repository
+from src.infrastructure import create_repository
 from src.cli.dispatcher import (
     dispatch_generate, dispatch_import, dispatch_analyze, 
     dispatch_predict, dispatch_simulate, dispatch_validate, 

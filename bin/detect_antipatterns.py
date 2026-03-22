@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # ---------------------------------------------------------------------------
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
-from src.adapters import create_repository
+from src.infrastructure import create_repository
 from src.prediction import PredictionService, QualityAnalysisResult, DetectedProblem
 from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
 

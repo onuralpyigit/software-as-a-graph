@@ -24,7 +24,7 @@ from neo4j.exceptions import ServiceUnavailable, AuthError
 
 from src.core.ports.graph_repository import IGraphRepository
 from src.core.models import ComponentData, EdgeData, GraphData, QoSPolicy, MIN_TOPIC_WEIGHT
-from src.adapters import config
+from . import config
 
 # ---------------------------------------------------------------------------
 # Layer Definitions for Neo4j Queries

@@ -11,7 +11,7 @@ import statistics as py_stats
 from collections import defaultdict, deque
 from typing import Dict, Any, Optional, List, Union
 
-from src.adapters import create_repository
+from src.infrastructure import create_repository
 from src.core.ports.graph_repository import IGraphRepository
 from src.core.models import GraphData
 from src.analysis import statistics as stats_logic

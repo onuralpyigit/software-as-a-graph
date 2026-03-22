@@ -43,7 +43,7 @@ import argparse
 import json
 import logging
 
-from src.adapters import create_repository
+from src.infrastructure import create_repository
 from src.simulation import SimulationService
 from src.simulation.models import FailureMode
 from src.cli.console import ConsoleDisplay
@@ -300,27 +300,30 @@ def main() -> int:
         # Handle console display for CLI usage
         if not args.quiet:
             if args.command == "event":
-                from src.simulation.models import EventResult
-                if isinstance(result_data, dict) and "metrics" in result_data:
-                    display.display_event_result(EventResult.from_dict(result_data))
+                if hasattr(result_data, "metrics"):
+                    display.display_event_result(result_data)
                 elif isinstance(result_data, dict):
-                    _display_event_summary(display, result_data, args.layer)
+                    if "metrics" in result_data:
+                        # Fallback for dict but lacking from_dict: we just use summary
+                        _display_event_summary(display, result_data, args.layer)
+                    else:
+                        _display_event_summary(display, result_data, args.layer)
             elif args.command == "failure":
                 if args.exhaustive or args.pairwise:
                     display.display_exhaustive_results(result_data)
                 elif args.monte_carlo:
                     _display_monte_carlo_result(display, result_data, args.layer)
                 else:
-                    from src.simulation.models import FailureResult
-                    display.display_failure_result(FailureResult.from_dict(result_data))
+                    if hasattr(result_data, "impact"):
+                        display.display_failure_result(result_data)
             elif args.command == "report":
-                from src.simulation.models import SimulationReport
-                display.display_simulation_report(SimulationReport.from_dict(result_data))
+                if hasattr(result_data, "layer_metrics"):
+                    display.display_simulation_report(result_data)
             elif args.command == "classify":
                 if args.edges:
                     _display_edge_classification(display, result_data, args.layer, args.top)
                 else:
-                     _display_component_classification(display, result_data, args.layer, args.top)
+                    _display_component_classification(display, result_data, args.layer, args.top)
 
         # JSON stdout
         if args.json:

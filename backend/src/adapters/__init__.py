@@ -1,13 +1,8 @@
 """
-Infrastructure Adapters
-
-This package contains all concrete infrastructure adapters:
-  - neo4j_repo: Neo4j graph database adapter (implements IGraphRepository)
-  - config: environment-variable configuration helpers
+Infrastructure Adapters (Deprecated: use src.infrastructure)
 """
 
-from .neo4j_repo import Neo4jRepository, create_repository
-from . import config
+from src.infrastructure import Neo4jRepository, create_repository, config
 
 __all__ = [
     "Neo4jRepository",

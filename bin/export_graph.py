@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Any
 
-from src.adapters import create_repository
+from src.infrastructure import create_repository
 
 
 def main() -> None:

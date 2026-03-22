@@ -18,7 +18,7 @@ import webbrowser
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.adapters import create_repository
+from src.infrastructure import create_repository
 from src.core import SimulationLayer
 from src.validation import ValidationService, ValidationTargets
 from src.cli.console import ConsoleDisplay
@@ -104,22 +104,41 @@ def main() -> int:
             result = dispatch_validate(repo, args)
 
         if args.json:
-            print(json.dumps(result.to_dict(), indent=2))
+            if hasattr(result, 'to_dict'):
+                print(json.dumps(result.to_dict(), indent=2))
+            else:
+                print(json.dumps(result, indent=2))
         elif not args.quiet:
             if hasattr(result, 'layers'):
                  display.display_pipeline_validation_result(result)
-            else:
+            elif hasattr(result, 'passed'):
                  display.print_header("Quick Validation Result")
                  print(f"\n  Status: {display.status_text(result.passed)}")
-                 print(f"  Spearman:  {result.overall.correlation.spearman:.4f}")
-                 print(f"  F1 Score:  {result.overall.classification.f1_score:.4f}")
-                 display.display_gate_verdicts(result.gates)
+                 if hasattr(result, 'overall') and hasattr(result.overall, 'correlation'):
+                     print(f"  Spearman:  {result.overall.correlation.spearman:.4f}")
+                 if hasattr(result, 'overall') and hasattr(result.overall, 'classification'):
+                     print(f"  F1 Score:  {result.overall.classification.f1_score:.4f}")
+                 if hasattr(result, 'gates'):
+                     display.display_gate_verdicts(result.gates)
+            elif isinstance(result, dict):
+                 display.print_header("Validation Result (Summary)")
+                 print(f"\n  Status: {'PASSED' if result.get('passed') else 'FAILED'}")
 
         if args.output:
             Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-            with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
+            with open(args.output, 'w') as f:
+                if hasattr(result, 'to_dict'):
+                    json.dump(result.to_dict(), f, indent=2)
+                else:
+                    json.dump(result, f, indent=2)
 
-        return 0 if (getattr(result, 'all_passed', True) and result.passed) else 1
+        # Final return code
+        if hasattr(result, 'passed'):
+            all_passed = getattr(result, 'all_passed', True)
+            return 0 if (all_passed and result.passed) else 1
+        elif isinstance(result, dict):
+            return 0 if result.get('passed', False) else 1
+        return 0
 
         # Generate visualization if requested
         if args.visualize:

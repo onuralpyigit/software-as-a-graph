@@ -11,7 +11,7 @@ import logging
 from typing import AsyncGenerator
 
 from fastapi import Depends, Request, HTTPException
-from src.adapters import create_repository
+from src.infrastructure import create_repository
 from src.core.ports.graph_repository import IGraphRepository
 from src.analysis import AnalysisService, StatisticsService
 from src.prediction import PredictionService
@@ -21,7 +21,7 @@ from api.models import (
     GenerateGraphRequest,
     GenerateGraphFileRequest
 )
-from src.adapters import config
+from src.infrastructure import config
 from src.usecases import (
     ModelGraphUseCase,
     AnalyzeGraphUseCase,

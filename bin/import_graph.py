@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 from typing import Dict
 
+from src.infrastructure import create_repository
 from src.cli.dispatcher import dispatch_import
 
 

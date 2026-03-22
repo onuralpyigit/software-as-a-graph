@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-from src.adapters import create_repository
+from src.infrastructure import create_repository
 from src.cli.console import ConsoleDisplay
 
 # Import services and use cases lazily to avoid circular imports and heavy start-up costs
