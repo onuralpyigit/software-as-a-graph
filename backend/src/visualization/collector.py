@@ -8,7 +8,7 @@ import logging
 from typing import Dict, List, Any, Optional, Tuple
 
 from .models import LayerData, ComponentDetail, LAYER_DEFINITIONS
-from src.analysis.smells import SmellDetector
+from src.analysis.antipattern_detector import AntiPatternDetector
 
 
 class LayerDataCollector:
@@ -338,7 +338,7 @@ class LayerDataCollector:
                 # Real-time detection fallback
                 # Re-running analysis to get the full result for detector
                 analysis_result = self.analysis_service.analyze_layer(layer)
-                detector = SmellDetector()
+                detector = AntiPatternDetector()
                 detected = detector.detect(analysis_result, layer)
                 smells = [s.to_dict() for s in detected]
                 data.anti_patterns = smells

@@ -648,25 +648,37 @@ src.visualization.service.VisualizationService.generate_dashboard(layers, output
 
 ### 5.6 Anti-Pattern Detection Pipeline
 
-`ProblemDetector` is invoked at the end of the Analysis Pipeline (§5.2, Step 4) and identifies four categories of architectural anti-patterns from `QualityAnalysisResult`:
+The `AntiPatternDetector` (consolidated from the legacy `SmellDetector` and `ProblemDetector`) is invoked at the end of the Analysis Pipeline (§5.2, Step 4). It identifies 12 categories of architectural anti-patterns from `QualityAnalysisResult` using box-plot classification levels (never static thresholds).
 
-| Anti-Pattern | Detection Rule | Severity |
-|-------------|---------------|----------|
-| **SPOF (Single Point of Failure)** | `ap_score > 0` — component's removal fragments the graph | CRITICAL |
-| **God Component** | Q(v) > Q3 + 1.5×IQR **and** DG\_in + DG\_out > 75th percentile of degree distribution | HIGH |
-| **Bottleneck Edge** | Edge betweenness > Q3 + 1.5×IQR of edge betweenness distribution | HIGH |
-| **Systemic Risk Cluster** | ≥ 3 CRITICAL components with mutual DEPENDS\_ON edges forming a clique | CRITICAL |
+| Category | Anti-Pattern | Detection Rule (Predicate) | Severity |
+|:---------|:-------------|:---------------------------|:---------|
+| **Avail.** | **SPOF** | `is_articulation_point == True` | CRITICAL |
+| **Avail.** | **Bridge Edge** | `is_bridge == True` | HIGH |
+| **Reliab.** | **Failure Hub** | `reliability_level >= CRITICAL` | CRITICAL |
+| **Reliab.** | **Concentration Risk** | Top-3 PageRank components hold > 50% importance | MEDIUM |
+| **Maint.** | **God Component** | `maintainability_level >= CRITICAL` and `betweenness > 0.3` | CRITICAL |
+| **Maint.** | **Hub-and-Spoke** | `clustering < 0.1` and `degree > 3` | MEDIUM |
+| **Maint.** | **Bottleneck Edge** | `edge_betweenness > 0.2` and `edge_level >= HIGH` | MEDIUM |
+| **Security** | **Target** | `vulnerability_level >= CRITICAL` | CRITICAL |
+| **Security** | **Exposure** | `vulnerability_level == HIGH` and `closeness > 0.6` | HIGH |
+| **Arch.** | **Cycle** | Circular dependency path of length ≥ 2 | HIGH |
+| **Arch.** | **Chain** | Linear sequence of ≥ 4 nodes with in/out degree ≤ 1 | MEDIUM |
+| **Arch.** | **Isolated** | Node with zero in-layer dependencies | MEDIUM |
+| **Arch.** | **Systemic Risk** | > 20% of all components are classified as CRITICAL | CRITICAL |
 
-Each detected problem is returned as a `DetectedProblem` dataclass:
+Each detected problem is returned as a `DetectedProblem` dataclass (defined in `src.prediction.models`):
 
 ```python
 @dataclass
 class DetectedProblem:
-    pattern_type: str           # "SPOF" | "GOD_COMPONENT" | "BOTTLENECK_EDGE" | "SYSTEMIC_RISK"
-    severity: str               # "CRITICAL" | "HIGH"
-    component_ids: List[str]    # components involved
-    description: str            # human-readable explanation
-    recommendation: str         # suggested remediation
+    entity_id: str             # ID of component, edge, or "SYSTEM"
+    entity_type: str           # "Component" | "Edge" | "Architecture" | "System"
+    category: str              # Category (Availability, Reliability, etc.)
+    severity: str              # "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+    name: str                  # Short name (e.g., "God Component")
+    description: str           # Contextual explanation
+    recommendation: str        # Suggested remediation steps
+    evidence: Dict[str, Any]   # Underlying metrics and state
 ```
 
 ---

@@ -4,7 +4,7 @@ Analysis Package
 from .service import AnalysisService
 from .statistics_service import StatisticsService
 from .models import StructuralAnalysisResult, LayerAnalysisResult, MultiLayerAnalysisResult
-from .smells import SmellDetector, CATALOG, PatternSpec, DetectedSmell, SmellReport
+from .antipattern_detector import AntiPatternDetector, CATALOG, PatternSpec
 
 __all__ = [
     "AnalysisService",
@@ -12,9 +12,7 @@ __all__ = [
     "StructuralAnalysisResult",
     "LayerAnalysisResult",
     "MultiLayerAnalysisResult",
-    "SmellDetector",
+    "AntiPatternDetector",
     "CATALOG",
     "PatternSpec",
-    "DetectedSmell",
-    "SmellReport",
 ]
