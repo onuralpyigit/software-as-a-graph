@@ -15,6 +15,7 @@ from src.analysis import AnalysisService
 from src.prediction import PredictionService
 from src.simulation import SimulationService
 from src.validation import ValidationService, ValidationTargets
+from saag import Client
 
 router = APIRouter(prefix="/api/v1/validation", tags=["validation"])
 logger = logging.getLogger(__name__)
@@ -56,16 +57,14 @@ async def run_validation_pipeline(request: ValidationRequest):
     try:
         logger.info(f"Starting validation pipeline for layers: {request.layers}")
         
-        analysis_service = AnalysisService(repo)
-        prediction_service = PredictionService()
-        simulation_service = SimulationService(repo)
-        validation_service = ValidationService(analysis_service, prediction_service, simulation_service, targets=ValidationTargets())
+        client = Client(repo=repo)
         
         # Run validation
-        result = validation_service.validate_layers(layers=request.layers)
+        facade = client.validate(layers=request.layers)
+        result = facade.raw
         
         # Transform the result to match frontend expectations
-        result_dict = result.to_dict()
+        result_dict = facade.to_dict()
         
         # Enhance layer results with missing 'data' field expected by frontend
         enhanced_layers = {}

@@ -66,6 +66,8 @@ class ComponentResponse(BaseModel):
     id: str
     name: str
     type: str
+    is_critical: bool
+    rmav_score: float
     criticality_level: str
     criticality_levels: CriticalityLevelsModel
     scores: ScoresModel

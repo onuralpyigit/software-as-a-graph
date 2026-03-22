@@ -3,30 +3,11 @@ Presenter for analysis results, decoupling domain models from API response forma
 """
 
 from typing import Dict, Any, List, Optional
-from src.analysis.models import LayerAnalysisResult
+from saag import AnalysisResult, PredictionResult
 
 def serialize_component(c) -> Dict[str, Any]:
     """Convert a classified component to API response format."""
-    return {
-        "id": c.id,
-        "name": c.structural.name if c.structural and hasattr(c.structural, 'name') else c.id,
-        "type": c.type,
-        "criticality_level": c.levels.overall.value,
-        "criticality_levels": {
-            "reliability": c.levels.reliability.value,
-            "maintainability": c.levels.maintainability.value,
-            "availability": c.levels.availability.value,
-            "vulnerability": c.levels.vulnerability.value,
-            "overall": c.levels.overall.value,
-        },
-        "scores": {
-            "reliability": c.scores.reliability,
-            "maintainability": c.scores.maintainability,
-            "availability": c.scores.availability,
-            "vulnerability": c.scores.vulnerability,
-            "overall": c.scores.overall,
-        },
-    }
+    return c.to_dict()
 
 
 def serialize_edge(e, component_names: Dict[str, str]) -> Dict[str, Any]:
@@ -62,10 +43,9 @@ def serialize_problem(p) -> Dict[str, Any]:
 
 
 def build_analysis_response(
-    result: LayerAnalysisResult,
-    components,
-    edges,
-    problems,
+    analysis: AnalysisResult,
+    prediction: PredictionResult,
+    problems: List[Any],
     context: str = "",
     description: str = "",
     component_type: Optional[str] = None,
@@ -76,49 +56,57 @@ def build_analysis_response(
     `components`, `edges`, and `problems` are the (possibly filtered) lists
     to serialise.  Summary statistics are computed from these lists.
     """
-    component_names = {
-        c.id: (c.structural.name if c.structural and hasattr(c.structural, 'name') else c.id)
-        for c in components
-    }
+    # Extract values from SDK
+    all_components = prediction.all_components
+    layer_name = analysis.raw.layer.value if hasattr(analysis.raw.layer, 'value') else str(analysis.raw.layer)
+    raw_edges = list(analysis.raw.edges.values())
+    
+    if component_type:
+        all_components = [c for c in all_components if c.type == component_type]
+        filtered_ids = {c.id for c in all_components}
+        raw_edges = [e for e in raw_edges if e.source in filtered_ids or e.target in filtered_ids]
+        problems = [p for p in problems if p.entity_id in filtered_ids]
+
+    component_names = {c.id: c.name for c in all_components}
 
     summary = {
-        "total_components": len(components),
-        "critical_count": sum(1 for c in components if c.levels.overall.value == "critical"),
-        "high_count": sum(1 for c in components if c.levels.overall.value == "high"),
+        "total_components": len(all_components),
+        "critical_count": sum(1 for c in all_components if c.criticality_level == "critical"),
+        "high_count": sum(1 for c in all_components if c.criticality_level == "high"),
         "total_problems": len(problems),
         "critical_problems": sum(
             1 for p in problems
             if (p.severity == "CRITICAL" or (hasattr(p.severity, 'value') and p.severity.value == "CRITICAL"))
         ),
         "components": {
-            level: sum(1 for c in components if c.levels.overall.value == level)
+            level: sum(1 for c in all_components if c.criticality_level == level)
             for level in ["critical", "high", "medium", "low", "minimal"]
         },
         "edges": {
-            level: sum(1 for e in edges if e.level.value == level)
+            level: sum(1 for e in raw_edges if e.level.value == level)
             for level in ["critical", "high", "medium", "low", "minimal"]
         },
     }
 
     envelope: Dict[str, Any] = {
         "success": True,
-        "layer": result.layer,
+        "layer": layer_name,
     }
     if component_type:
         envelope["component_type"] = component_type
 
     envelope["analysis"] = {
-        "context": context or result.layer_name,
-        "description": description or result.description,
+        "context": context or layer_name.capitalize(),
+        "description": description or f"Analysis for layer {layer_name}",
         "summary": summary,
         "stats": {
-            "nodes": result.structural.graph_summary.nodes if hasattr(result, 'structural') and result.structural else len(components),
-            "edges": result.structural.graph_summary.edges if hasattr(result, 'structural') and result.structural else len(edges),
-            "density": result.structural.graph_summary.density if hasattr(result, 'structural') and result.structural else 0,
-            "avg_degree": result.structural.graph_summary.avg_degree if hasattr(result, 'structural') and result.structural else 0,
+            "nodes": analysis.raw.graph_summary.nodes,
+            "edges": analysis.raw.graph_summary.edges,
+            "density": analysis.raw.graph_summary.density,
+            "avg_degree": analysis.raw.graph_summary.avg_degree,
         },
-        "components": [serialize_component(c) for c in components],
-        "edges": [serialize_edge(e, component_names) for e in edges],
+        "components": [serialize_component(c) for c in all_components],
+        "edges": [serialize_edge(e, component_names) for e in raw_edges],
         "problems": [serialize_problem(p) for p in problems],
     }
     return envelope

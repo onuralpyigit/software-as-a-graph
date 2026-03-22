@@ -12,10 +12,8 @@ import argparse
 import json
 from pathlib import Path
 from typing import Dict, Any
-sys.path.append(str(Path(__file__).resolve().parent.parent / "backend"))
-
-from src.infrastructure import create_repository
-from common.arguments import add_neo4j_arguments, add_common_arguments
+from saag import Client
+from bin._shared import add_neo4j_args, add_common_args, setup_logging
 
 
 def main() -> None:
@@ -29,22 +27,19 @@ def main() -> None:
         required=True,
         help="Output JSON file path",
     )
-    add_neo4j_arguments(parser)
-    add_common_arguments(parser)
+    add_neo4j_args(parser)
+    add_common_args(parser)
     args = parser.parse_args()
 
+    setup_logging(args)
+    
     print(f"Connecting to Neo4j at {args.uri}...")
     
-    # Initialize Repository directly
-    repo = create_repository(
-        uri=args.uri,
-        user=args.user,
-        password=args.password
-    )
+    client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
  
     try:
         print("Exporting graph data...")
-        data = repo.export_json()
+        data = client.export_topology()
 
         # Ensure output directory exists
         output_path = Path(args.output)
@@ -59,8 +54,6 @@ def main() -> None:
     except Exception as e:
         print(f"Export failed: {e}", file=sys.stderr)
         sys.exit(1)
-    finally:
-        repo.close()
 
 
 def print_export_stats(data: Dict[str, Any]) -> None:

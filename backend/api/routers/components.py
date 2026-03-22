@@ -8,7 +8,7 @@ import logging
 
 from api.models import Neo4jCredentials
 from src.adapters import create_repository
-from src.analysis import AnalysisService
+from saag import Client
 
 router = APIRouter(prefix="/api/v1", tags=["components", "edges"])
 logger = logging.getLogger(__name__)
@@ -56,39 +56,19 @@ async def get_critical_components(
         
         repo = create_repository(credentials.uri, credentials.user, credentials.password)
         try:
-            service = AnalysisService(repo)
-            result = service.analyze_layer("system")
+            client = Client(repo=repo)
+            analysis = client.analyze(layer="system")
+            prediction = client.predict(analysis)
             
             # Sort components by overall score and take top N
             components = sorted(
-                result.quality.components,
-                key=lambda c: c.scores.overall,
+                prediction.all_components,
+                key=lambda c: c.rmav_score,
                 reverse=True
             )[:limit]
             
             # Format components for response
-            formatted_components = [
-                {
-                    "id": c.id,
-                    "type": c.type,
-                    "criticality_level": c.levels.overall.value,
-                    "criticality_levels": {
-                        "reliability": c.levels.reliability.value,
-                        "maintainability": c.levels.maintainability.value,
-                        "availability": c.levels.availability.value,
-                        "vulnerability": c.levels.vulnerability.value,
-                        "overall": c.levels.overall.value
-                    },
-                    "scores": {
-                        "reliability": c.scores.reliability,
-                        "maintainability": c.scores.maintainability,
-                        "availability": c.scores.availability,
-                        "vulnerability": c.scores.vulnerability,
-                        "overall": c.scores.overall
-                    }
-                }
-                for c in components
-            ]
+            formatted_components = [c.to_dict() for c in components]
             
             return {
                 "success": True,
@@ -146,12 +126,14 @@ async def get_critical_edges(
         
         repo = create_repository(credentials.uri, credentials.user, credentials.password)
         try:
-            service = AnalysisService(repo)
-            result = service.analyze_layer("system")
+            client = Client(repo=repo)
+            analysis = client.analyze(layer="system")
+            prediction = client.predict(analysis)
             
+            # Prediction doesn't wrap edges, access internal quality via .raw
             # Sort edges by overall score and take top N
             edges = sorted(
-                result.quality.edges,
+                prediction.raw.edges,
                 key=lambda e: e.scores.overall,
                 reverse=True
             )[:limit]
@@ -161,7 +143,7 @@ async def get_critical_edges(
                 {
                     "source": e.source,
                     "target": e.target,
-                    "criticality_level": e.level.value,
+                    "criticality_level": e.level.value if hasattr(e.level, 'value') else str(e.level),
                     "scores": {
                         "reliability": e.scores.reliability,
                         "maintainability": e.scores.maintainability,

@@ -16,10 +16,9 @@ from api.models import (
     ExhaustiveSimulationResponse,
     SimulationReportResponse
 )
-from api.dependencies import (
-    get_simulate_graph_use_case
-)
-from src.usecases import SimulateGraphUseCase, SimulationMode
+from api.dependencies import get_client
+from saag import Client
+from src.usecases import SimulationMode
 from api.presenters import simulation_presenter
 
 router = APIRouter(prefix="/api/v1/simulation", tags=["simulation"])
@@ -29,7 +28,7 @@ logger = logging.getLogger(__name__)
 @router.post("/event", response_model=EventSimulationResponse)
 async def simulate_event(
     request: EventSimulationRequest,
-    use_case: SimulateGraphUseCase = Depends(get_simulate_graph_use_case)
+    client: Client = Depends(get_client)
 ):
     """
     Run event simulation from a source application.
@@ -43,8 +42,9 @@ async def simulate_event(
     try:
         logger.info(f"Running event simulation: source={request.source_app}, messages={request.num_messages}")
         
-        result = use_case.execute(
-            mode=SimulationMode.EVENT,
+        result = client.simulate(
+            mode="event",
+            layer="system",
             source_app=request.source_app,
             num_messages=request.num_messages,
             duration=request.duration
@@ -59,7 +59,7 @@ async def simulate_event(
 @router.post("/failure", response_model=FailureSimulationResponse)
 async def simulate_failure(
     request: FailureSimulationRequest,
-    use_case: SimulateGraphUseCase = Depends(get_simulate_graph_use_case)
+    client: Client = Depends(get_client)
 ):
     """
     Run failure simulation for a target component.
@@ -74,10 +74,10 @@ async def simulate_failure(
     try:
         logger.info(f"Running failure simulation: target={request.target_id}, layer={request.layer}")
         
-        result = use_case.execute(
+        result = client.simulate(
             target_id=request.target_id,
             layer=request.layer,
-            mode=SimulationMode.SINGLE
+            mode="single"
         )
         
         return simulation_presenter.format_failure_simulation_response(result)
@@ -89,7 +89,7 @@ async def simulate_failure(
 @router.post("/exhaustive", response_model=ExhaustiveSimulationResponse)
 async def simulate_exhaustive(
     request: ExhaustiveSimulationRequest,
-    use_case: SimulateGraphUseCase = Depends(get_simulate_graph_use_case)
+    client: Client = Depends(get_client)
 ):
     """
     Run exhaustive failure analysis for all components in a layer.
@@ -104,7 +104,7 @@ async def simulate_exhaustive(
     try:
         logger.info(f"Running exhaustive failure analysis: layer={request.layer}")
         
-        results = use_case.execute(layer=request.layer, mode=SimulationMode.EXHAUSTIVE)
+        results = client.simulate(layer=request.layer, mode="exhaustive")
         
         return simulation_presenter.format_exhaustive_simulation_response(results, request.layer)
     except Exception as e:
@@ -115,7 +115,7 @@ async def simulate_exhaustive(
 @router.post("/report", response_model=SimulationReportResponse)
 async def generate_simulation_report(
     request: ReportRequest,
-    use_case: SimulateGraphUseCase = Depends(get_simulate_graph_use_case)
+    client: Client = Depends(get_client)
 ):
     """
     Generate comprehensive simulation report with analysis across multiple layers.
@@ -154,7 +154,7 @@ async def generate_simulation_report(
     try:
         logger.info(f"Generating simulation report: layers={mapped_layers}")
         
-        report = use_case.execute(mode=SimulationMode.REPORT, layers=mapped_layers)
+        report = client.simulate(layer="system", mode="report", layers=mapped_layers)
         
         return simulation_presenter.format_simulation_report_response(report)
     except Exception as e:

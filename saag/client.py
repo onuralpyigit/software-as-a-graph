@@ -4,20 +4,26 @@ saag/client.py
 import json
 from typing import Optional, List, Dict, Any
 
-from .models import AnalysisResult, PredictionResult, ValidationResult
+from .models import AnalysisResult, PredictionResult, ValidationResult, ValidationPipelineFacade
 
 class Client:
     """
     Step-by-step programmatic client for SoftwareAsAGraph.
     """
-    def __init__(self, neo4j_uri: str = "bolt://localhost:7687", user: str = "neo4j", password: str = "password"):
-        from src.infrastructure import create_repository
-        self.repo = create_repository(uri=neo4j_uri, user=user, password=password)
+    def __init__(self, neo4j_uri: str = "bolt://localhost:7687", user: str = "neo4j", password: str = "password", repo=None):
+        if repo:
+            self.repo = repo
+        else:
+            from src.infrastructure import create_repository
+            self.repo = create_repository(uri=neo4j_uri, user=user, password=password)
         
-    def import_topology(self, filepath: str, clear: bool = False) -> Dict[str, Any]:
-        """Import a JSON topology file into the graph database."""
-        with open(filepath, "r") as f:
-            graph_data = json.load(f)
+    def import_topology(self, filepath: Optional[str] = None, graph_data: Optional[Dict[str, Any]] = None, clear: bool = False) -> Dict[str, Any]:
+        """Import a JSON topology into the graph database, either from a file or raw dict."""
+        if not graph_data:
+            if not filepath:
+                raise ValueError("Either filepath or graph_data must be provided.")
+            with open(filepath, "r") as f:
+                graph_data = json.load(f)
             
         from src.usecases.model_graph import ModelGraphUseCase
         uc = ModelGraphUseCase(self.repo)
@@ -56,7 +62,7 @@ class Client:
         service = PredictionService()
         return service.detect_problems(prediction.raw)
 
-    def simulate(self, layer: str = "system", mode: str = "exhaustive") -> Any:
+    def simulate(self, layer: str = "system", mode: str = "exhaustive", **kwargs) -> Any:
         """Simulate resilience scenarios (e.g. cascading failures)."""
         from src.usecases.simulate_graph import SimulateGraphUseCase
         from src.usecases.models import SimulationMode
@@ -69,9 +75,9 @@ class Client:
                 sim_mode_enum = m
                 break
                 
-        return uc.execute(layer=layer, mode=sim_mode_enum)
+        return uc.execute(layer=layer, mode=sim_mode_enum, **kwargs)
 
-    def validate(self, layers: Optional[List[str]] = None) -> ValidationResult:
+    def validate(self, layers: Optional[List[str]] = None) -> ValidationPipelineFacade:
         """Validate pipeline accuracy across specified layers."""
         if layers is None:
             layers = ["system"]
@@ -80,9 +86,7 @@ class Client:
         uc = ValidateGraphUseCase(self.repo)
         pipeline_result = uc.execute(layers=layers)
         
-        layer_name = layers[0]
-        layer_result = pipeline_result.layers[layer_name]
-        return ValidationResult(layer_result)
+        return ValidationPipelineFacade(pipeline_result)
 
     def visualize(self, output: str = "report.html", layers: Optional[List[str]] = None, **kwargs) -> str:
         """Render the logic to an HTML report."""

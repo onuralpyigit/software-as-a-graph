@@ -18,8 +18,8 @@ backend_path = project_root / "backend"
 if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
 
-from common.dispatcher import dispatch_generate
-from common.arguments import add_common_arguments
+from bin.common.dispatcher import dispatch_generate
+from bin.common.arguments import add_common_arguments
 
 
 def main() -> None:

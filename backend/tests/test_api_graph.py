@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 from api.main import app
-from api.dependencies import get_repository, get_generation_service
+from api.dependencies import get_repository, get_generation_service, get_client
 
 client = TestClient(app)
 
@@ -37,10 +37,11 @@ def test_generate_graph(mock_gen_service):
     finally:
         app.dependency_overrides = {}
 
-def test_import_graph(mock_repo):
-    mock_repo.get_statistics.return_value = {"nodes": 10, "edges": 5}
+def test_import_graph():
+    mock_client = MagicMock()
+    mock_client.import_topology.return_value = {"node_count": 10, "edge_count": 5}
     
-    app.dependency_overrides[get_repository] = lambda: mock_repo
+    app.dependency_overrides[get_client] = lambda: mock_client
     
     try:
         response = client.post("/api/v1/graph/import", json={
@@ -52,8 +53,8 @@ def test_import_graph(mock_repo):
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert data["stats"]["nodes"] == 10
-        mock_repo.save_graph.assert_called_once()
+        assert data["stats"]["node_count"] == 10
+        mock_client.import_topology.assert_called_once()
     finally:
         app.dependency_overrides = {}
 

@@ -13,8 +13,18 @@ class Pipeline:
     """
     A fluent builder for executing the full SoftwareAsAGraph analytical pipeline sequentially.
     """
-    def __init__(self, client: Client, file_path: str):
-        self.client = client
+    def __init__(
+        self, 
+        file_path: Optional[str] = None, 
+        neo4j_uri: str = "bolt://localhost:7687", 
+        user: str = "neo4j", 
+        password: str = "password",
+        repo=None
+    ):
+        if repo is not None:
+            self.client = Client(repo=repo)
+        else:
+            self.client = Client(neo4j_uri=neo4j_uri, user=user, password=password)
         self.file_path = file_path
         
         self._layer: str = "system"
@@ -29,10 +39,24 @@ class Pipeline:
         self._do_visualize = False
 
     @staticmethod
-    def from_json(filepath: str, neo4j_uri: str = "bolt://localhost:7687", user: str = "neo4j", password: str = "password") -> "Pipeline":
+    def from_json(
+        filepath: str, 
+        neo4j_uri: str = "bolt://localhost:7687", 
+        user: str = "neo4j", 
+        password: str = "password",
+        clear: bool = False,
+        repo=None
+    ) -> "Pipeline":
         """Initialize a new Pipeline starting from a JSON topology export."""
-        client = Client(neo4j_uri=neo4j_uri, user=user, password=password)
-        return Pipeline(client=client, file_path=filepath)
+        pipeline = Pipeline(
+            file_path=filepath, 
+            neo4j_uri=neo4j_uri, 
+            user=user, 
+            password=password,
+            repo=repo
+        )
+        pipeline._clear = clear
+        return pipeline
 
     def analyze(self, layer: str = "system", **kwargs) -> "Pipeline":
         """Stage: Analyze structural metrics."""
@@ -41,21 +65,27 @@ class Pipeline:
         self._analyze_kwargs = kwargs
         return self
 
-    def simulate(self, mode: str = "exhaustive", **kwargs) -> "Pipeline":
+    def predict(self) -> "Pipeline":
+        """Stage: Predict."""
+        return self
+        
+    def simulate(self, layer: str = "system", mode: str = "exhaustive", **kwargs) -> "Pipeline":
         """Stage: Simulate cascading failures."""
+        self._layer = layer
         self._do_simulate = True
         self._simulate_kwargs = {"mode": mode, **kwargs}
         return self
 
-    def validate(self) -> "Pipeline":
+    def validate(self, layers: Optional[List[str]] = None) -> "Pipeline":
         """Stage: Validate prediction vs simulation ground truth."""
         self._do_validate = True
+        self._validate_layers = layers
         return self
 
-    def visualize(self, output: str = "report.html", **kwargs) -> "Pipeline":
+    def visualize(self, output: str = "report.html", layers: Optional[List[str]] = None, **kwargs) -> "Pipeline":
         """Stage: Generate HTML dashboard report."""
         self._do_visualize = True
-        self._visualize_kwargs = {"output": output, **kwargs}
+        self._visualize_kwargs = {"output": output, "layers": layers, **kwargs}
         return self
 
     def run(self) -> PipelineExecutionResult:
@@ -63,8 +93,10 @@ class Pipeline:
         result = PipelineExecutionResult()
         
         # 1. Import
-        logger.info(f"Importing topology from {self.file_path}")
-        self.client.import_topology(self.file_path)
+        if getattr(self, "file_path", None):
+            logger.info(f"Importing topology from {self.file_path}")
+            clear = getattr(self, "_clear", False)
+            self.client.import_topology(self.file_path, clear=clear)
         
         # 2. Analyze
         if self._do_analyze:
@@ -84,13 +116,15 @@ class Pipeline:
         # 5. Validate
         if self._do_validate:
             logger.info("Validating pipeline predictions against simulation...")
-            result.validation = self.client.validate(layers=[self._layer])
+            validate_layers = getattr(self, "_validate_layers", [self._layer]) or [self._layer]
+            result.validation = self.client.validate(layers=validate_layers)
             
         # 6. Visualize
         if self._do_visualize:
             out_file = self._visualize_kwargs.pop("output", "report.html")
+            vis_layers = self._visualize_kwargs.pop("layers", [self._layer]) or [self._layer]
             logger.info(f"Generating visualization report to {out_file}...")
-            self.client.visualize(output=out_file, layers=[self._layer], **self._visualize_kwargs)
+            self.client.visualize(output=out_file, layers=vis_layers, **self._visualize_kwargs)
             
         logger.info("Pipeline execution complete.")
         return result

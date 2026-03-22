@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 from api.main import app
-from api.dependencies import get_simulate_graph_use_case
+from api.dependencies import get_client
 
 client = TestClient(app)
 
@@ -81,10 +81,10 @@ def mock_failure_result():
     return result
 
 def test_simulate_event(mock_event_result):
-    mock_use_case = MagicMock()
-    mock_use_case.execute.return_value = mock_event_result
+    mock_client_instance = MagicMock()
+    mock_client_instance.simulate.return_value = mock_event_result
     
-    app.dependency_overrides[get_simulate_graph_use_case] = lambda: mock_use_case
+    app.dependency_overrides[get_client] = lambda: mock_client_instance
     
     try:
         response = client.post("/api/v1/simulation/event", json={
@@ -110,10 +110,10 @@ def test_simulate_event(mock_event_result):
         app.dependency_overrides = {}
 
 def test_simulate_failure(mock_failure_result):
-    mock_use_case = MagicMock()
-    mock_use_case.execute.return_value = mock_failure_result
+    mock_client_instance = MagicMock()
+    mock_client_instance.simulate.return_value = mock_failure_result
     
-    app.dependency_overrides[get_simulate_graph_use_case] = lambda: mock_use_case
+    app.dependency_overrides[get_client] = lambda: mock_client_instance
     
     try:
         response = client.post("/api/v1/simulation/failure", json={

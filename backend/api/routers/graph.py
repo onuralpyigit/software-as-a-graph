@@ -61,21 +61,22 @@ async def generate_graph_file(
         raise HTTPException(status_code=500, detail=f"Graph generation failed: {e}")
 
 
-from api.dependencies import get_repository, get_model_graph_use_case
-from src.usecases import ModelGraphUseCase
+from api.dependencies import get_repository, get_client
+from saag import Client
 
 @router.post("/import", response_model=GraphImportResponse)
 async def import_graph(
     request: ImportGraphRequest,
-    use_case: ModelGraphUseCase = Depends(get_model_graph_use_case)
+    client: Client = Depends(get_client)
 ):
     """Import graph data into Neo4j database."""
     try:
         logger.info(f"Importing graph data (clear={request.clear_database})")
-        stats_obj = use_case.execute(request.graph_data, clear=request.clear_database)
+        # client.import_topology returns a dict of stats
+        stats_dict = client.import_topology(graph_data=request.graph_data, clear=request.clear_database)
         
-        # Return the underlying details dict for backward compatibility with existing tests/clients
-        return graph_presenter.format_import_response(stats_obj.details)
+        # Format expects the details dictionary directly wrapper
+        return graph_presenter.format_import_response(stats_dict)
     except Exception as e:
         logger.error(f"Graph import failed: {e}")
         raise HTTPException(status_code=500, detail=f"Graph import failed: {e}")

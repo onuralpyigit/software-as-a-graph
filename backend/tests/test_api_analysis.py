@@ -6,8 +6,7 @@ from api.main import app
 from src.core.criticality import CriticalityLevel
 from src.core.metrics import QualityScores, QualityLevels
 from api.dependencies import (
-    get_analyze_graph_use_case, 
-    get_predict_graph_use_case,
+    get_client,
     get_repository
 )
 
@@ -58,6 +57,41 @@ def mock_analysis_result():
     comp.scores.vulnerability = 0.1
     comp.scores.overall = 0.4
     
+    comp.to_dict.return_value = {
+        "id": "c1",
+        "name": "App 1",
+        "type": "Application",
+        "criticality_level": "medium",
+        "is_critical": False,
+        "rmav_score": 0.4,
+        "criticality_levels": {
+            "reliability": "low",
+            "maintainability": "medium",
+            "availability": "high",
+            "vulnerability": "minimal",
+            "overall": "medium"
+        },
+        "scores": {
+            "reliability": 0.2,
+            "maintainability": 0.5,
+            "availability": 0.8,
+            "vulnerability": 0.1,
+            "overall": 0.4
+        },
+        "structural": {
+            "betweenness": 0.1,
+            "pagerank": 0.1,
+            "closeness": 0.1,
+            "eigenvector": 0.1,
+            "clustering_coefficient": 0.1,
+            "total_degree_raw": 1,
+            "in_degree_raw": 0,
+            "out_degree_raw": 0,
+            "is_articulation_point": False,
+            "is_isolated": False
+        }
+    }
+    
     result.quality = MagicMock()
     result.quality.components = [comp]
     result.quality.edges = []
@@ -83,16 +117,31 @@ def mock_analysis_result():
     return result
 
 def test_analyze_full_system(mock_analysis_result):
-    # Setup mock use cases
-    mock_analyze_uc = MagicMock()
-    mock_analyze_uc.execute.return_value = mock_analysis_result.structural
+    # Setup mock client
+    mock_client_instance = MagicMock()
     
-    mock_predict_uc = MagicMock()
-    mock_predict_uc.execute.return_value = (mock_analysis_result.quality, mock_analysis_result.problems)
+    # Client returns facades
+    mock_analysis = MagicMock()
+    mock_analysis.raw = mock_analysis_result.structural
+    mock_layer_enum_structural = MagicMock()
+    mock_layer_enum_structural.value = "system"
+    mock_analysis.raw.layer = mock_layer_enum_structural
+    
+    mock_prediction = MagicMock()
+    mock_prediction.all_components = mock_analysis_result.quality.components
+    
+    # Needs to be a string, not a mock, for pydantic validation
+    mock_layer_enum = MagicMock()
+    mock_layer_enum.value = "system"
+    mock_prediction.raw.layer = mock_layer_enum
+    mock_prediction.raw.edges = {}
+    
+    mock_client_instance.analyze.return_value = mock_analysis
+    mock_client_instance.predict.return_value = mock_prediction
+    mock_client_instance.detect_antipatterns.return_value = mock_analysis_result.problems
     
     # Override dependencies
-    app.dependency_overrides[get_analyze_graph_use_case] = lambda: mock_analyze_uc
-    app.dependency_overrides[get_predict_graph_use_case] = lambda: mock_predict_uc
+    app.dependency_overrides[get_client] = lambda: mock_client_instance
     
     try:
         response = client.post("/api/v1/analysis/full", json={
@@ -103,6 +152,6 @@ def test_analyze_full_system(mock_analysis_result):
         data = response.json()
         assert data["success"] is True
         assert "analysis" in data
-        mock_analyze_uc.execute.assert_called_once_with("system")
+        mock_client_instance.analyze.assert_called_once_with(layer="system")
     finally:
         app.dependency_overrides = {}

@@ -22,14 +22,7 @@ from api.models import (
     GenerateGraphFileRequest
 )
 from src.infrastructure import config
-from src.usecases import (
-    ModelGraphUseCase,
-    AnalyzeGraphUseCase,
-    PredictGraphUseCase,
-    SimulateGraphUseCase,
-    ValidateGraphUseCase,
-    VisualizeGraphUseCase
-)
+from saag import Client, Pipeline
 
 # ── Configuration ────────────────────────────────────────────────────────
 
@@ -101,20 +94,10 @@ def get_generation_service(request: GenerateGraphRequest | GenerateGraphFileRequ
         scenario=request.scenario
     )
 
-def get_model_graph_use_case(repo: IGraphRepository = Depends(get_repository)) -> ModelGraphUseCase:
-    return ModelGraphUseCase(repo)
+def get_client(repo: IGraphRepository = Depends(get_repository)) -> Client:
+    """Dependency to provide an SDK Client using the request-scoped Neo4j repository."""
+    return Client(repo=repo)
 
-def get_analyze_graph_use_case(repo: IGraphRepository = Depends(get_repository)) -> AnalyzeGraphUseCase:
-    return AnalyzeGraphUseCase(repo)
-
-def get_predict_graph_use_case(repo: IGraphRepository = Depends(get_repository)) -> PredictGraphUseCase:
-    return PredictGraphUseCase(repo)
-
-def get_simulate_graph_use_case(repo: IGraphRepository = Depends(get_repository)) -> SimulateGraphUseCase:
-    return SimulateGraphUseCase(repo)
-
-def get_validate_graph_use_case(repo: IGraphRepository = Depends(get_repository)) -> ValidateGraphUseCase:
-    return ValidateGraphUseCase(repo)
-
-def get_visualize_graph_use_case(repo: IGraphRepository = Depends(get_repository)) -> VisualizeGraphUseCase:
-    return VisualizeGraphUseCase(repo)
+def get_pipeline(repo: IGraphRepository = Depends(get_repository)) -> Pipeline:
+    """Dependency to provide an SDK Pipeline builder using the request-scoped Neo4j repository."""
+    return Pipeline(repo=repo)

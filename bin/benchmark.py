@@ -30,8 +30,8 @@ from tools.benchmark import (
     BenchmarkScenario,
     ReportGenerator,
 )
-from common.console import ConsoleDisplay
-from common.arguments import add_neo4j_arguments, add_common_arguments
+from bin.common.console import ConsoleDisplay
+from bin.common.arguments import add_neo4j_arguments, add_common_arguments
 
 # Helper for color-coding terminal output
 _display = ConsoleDisplay()

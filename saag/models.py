@@ -39,6 +39,50 @@ class ComponentFacade:
         """Is this component deemed critical?"""
         return self._inner.is_critical
 
+    @property
+    def name(self) -> str:
+        """The logical name of the component."""
+        return getattr(self._inner.structural, 'name', self.id) if getattr(self._inner, 'structural', None) else self.id
+
+    @property
+    def criticality_level(self) -> str:
+        """The overall risk classification level as a string."""
+        return self._inner.levels.overall.value if hasattr(self._inner.levels.overall, 'value') else str(self._inner.levels.overall)
+
+    @property
+    def criticality_levels(self) -> dict:
+        """The breakdown of criticality levels by dimension."""
+        return {
+            "reliability": self._inner.levels.reliability.value if hasattr(self._inner.levels.reliability, 'value') else "unknown",
+            "maintainability": self._inner.levels.maintainability.value if hasattr(self._inner.levels.maintainability, 'value') else "unknown",
+            "availability": self._inner.levels.availability.value if hasattr(self._inner.levels.availability, 'value') else "unknown",
+            "vulnerability": self._inner.levels.vulnerability.value if hasattr(self._inner.levels.vulnerability, 'value') else "unknown",
+            "overall": self.criticality_level,
+        }
+
+    @property
+    def scores(self) -> dict:
+        """The breakdown of quality predicted scores."""
+        return {
+            "reliability": self._inner.scores.reliability,
+            "maintainability": self._inner.scores.maintainability,
+            "availability": self._inner.scores.availability,
+            "vulnerability": self._inner.scores.vulnerability,
+            "overall": self._inner.scores.overall,
+        }
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.type,
+            "is_critical": self.is_critical,
+            "rmav_score": self.rmav_score,
+            "criticality_level": self.criticality_level,
+            "criticality_levels": self.criticality_levels,
+            "scores": self.scores
+        }
+
 
 class AnalysisResult:
     """Result of the structural graph analysis step."""
@@ -129,12 +173,38 @@ class ValidationResult:
             json.dump(self._inner.to_dict(), f, indent=2, default=str)
 
 
+class ValidationPipelineFacade:
+    """Result of comparing predictions against simulated ground truth across multiple layers."""
+    def __init__(self, inner):
+        self._inner = inner
+
+    @property
+    def layers(self) -> dict:
+        return {k: ValidationResult(v) for k, v in self._inner.layers.items()}
+        
+    @property
+    def raw(self):
+        return self._inner
+        
+    def to_dict(self) -> dict:
+        return self._inner.to_dict()
+
+    def save(self, filepath: str) -> None:
+        """Export the validation result to a JSON file."""
+        import json
+        from pathlib import Path
+        out = Path(filepath)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with out.open("w") as f:
+            json.dump(self.to_dict(), f, indent=2, default=str)
+
+
 @dataclass
 class PipelineExecutionResult:
     """Aggregate result from running the full Pipeline sequentially."""
     analysis: Optional[AnalysisResult] = None
     prediction: Optional[PredictionResult] = None
-    validation: Optional[ValidationResult] = None
+    validation: Optional[ValidationPipelineFacade] = None
     problems: Optional[List[_DetectedProblem]] = None
 
     def save(self, filepath: str) -> None:
@@ -155,7 +225,7 @@ class PipelineExecutionResult:
         if self.prediction:
             data["prediction"] = self.prediction.raw.to_dict()
         if self.validation:
-            data["validation"] = self.validation.raw.to_dict()
+            data["validation"] = self.validation.to_dict()
         if self.problems:
             data["problems"] = [p.to_dict() for p in self.problems]
             

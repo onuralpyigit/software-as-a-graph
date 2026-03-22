@@ -6,15 +6,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List
 import logging
 
-from api.dependencies import (
-    get_repository,
-    get_analyze_graph_use_case, get_predict_graph_use_case
-)
+from api.dependencies import get_client
+from saag import Client
 from src.prediction import ProblemDetector, PredictionService, DetectedProblem
 from api.presenters import analysis_presenter
 from api.models import AnalysisEnvelope
-from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase, SimulateGraphUseCase, ValidateGraphUseCase
-from src.prediction.models import QualityAnalysisResult
 
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
@@ -24,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/full", response_model=AnalysisEnvelope)
 async def analyze_full_system(
-    analyze_uc: AnalyzeGraphUseCase = Depends(get_analyze_graph_use_case),
-    predict_uc: PredictGraphUseCase = Depends(get_predict_graph_use_case)
+    client: Client = Depends(get_client)
 ):
     """
     Run complete system analysis including:
@@ -34,32 +29,17 @@ async def analyze_full_system(
     - Problem detection
     """
     try:
-        logger.info("Running full system analysis via injected use cases")
+        logger.info("Running full system analysis via SDK Client")
         
-        # Structural Analysis
-        s_res = analyze_uc.execute("system")
-        
-        # Quality Analysis (Prediction)
-        q_res, detected_problems = predict_uc.execute("system", s_res, detect_problems=True)
-        summary = ProblemDetector().summarize(detected_problems)
-        
-        # Layer Result Construction
-        from src.analysis.models import LayerAnalysisResult
-        layer_result = LayerAnalysisResult(
-            layer="system",
-            layer_name="System",
-            description="Full system analysis",
-            structural=s_res,
-            quality=q_res,
-            problems=detected_problems,
-            problem_summary=summary
-        )
+        # SDK calls
+        analysis = client.analyze(layer="system")
+        prediction = client.predict(analysis)
+        problems = client.detect_antipatterns(prediction)
         
         return analysis_presenter.build_analysis_response(
-            layer_result,
-            q_res.components,
-            q_res.edges,
-            detected_problems,
+            analysis,
+            prediction,
+            problems,
         )
     except Exception as e:
         logger.error(f"Full analysis failed: {str(e)}")
@@ -69,14 +49,12 @@ async def analyze_full_system(
 @router.post("/type/{component_type}", response_model=AnalysisEnvelope)
 async def analyze_by_type(
     component_type: str,
-    analyze_uc: AnalyzeGraphUseCase = Depends(get_analyze_graph_use_case),
-    predict_uc: PredictGraphUseCase = Depends(get_predict_graph_use_case),
+    client: Client = Depends(get_client),
 ):
     """
     Run analysis filtered by component type.
     Accepts: node, app, broker, Application, Node, Broker
     """
-    # Normalize component type (handle variations from frontend)
     type_mapping = {
         "application": "Application",
         "app": "Application",
@@ -94,34 +72,15 @@ async def analyze_by_type(
     try:
         logger.info(f"Analyzing component type: {component_type} (normalized to {normalized_type})")
 
-        # Structural analysis via use case
-        struct_res = analyze_uc.execute("system")
-
-        # Quality analysis via use case
-        quality_res, detected_problems = predict_uc.execute("system", struct_res, detect_problems=True)
-
-        # Filter to the requested component type
-        filtered_components = [c for c in quality_res.components if c.type == normalized_type]
-        filtered_ids = {c.id for c in filtered_components}
-        filtered_edges = [e for e in quality_res.edges if e.source in filtered_ids or e.target in filtered_ids]
-        filtered_problems = [p for p in detected_problems if p.entity_id in filtered_ids]
-
-        from src.analysis.models import LayerAnalysisResult
-        layer_result = LayerAnalysisResult(
-            layer="system",
-            layer_name="System",
-            description=f"Analysis filtered by component type: {normalized_type}",
-            structural=struct_res,
-            quality=quality_res,
-            problems=filtered_problems,
-            problem_summary=ProblemDetector().summarize(filtered_problems),
-        )
+        # SDK calls
+        analysis = client.analyze(layer="system")
+        prediction = client.predict(analysis)
+        problems = client.detect_antipatterns(prediction)
 
         return analysis_presenter.build_analysis_response(
-            layer_result,
-            filtered_components,
-            filtered_edges,
-            filtered_problems,
+            analysis,
+            prediction,
+            problems,
             context=f"{normalized_type} Components Analysis",
             description=f"Analysis filtered by component type: {normalized_type}",
             component_type=normalized_type,
@@ -138,13 +97,10 @@ async def analyze_by_type(
 @router.post("/layer/{layer}", response_model=AnalysisEnvelope)
 async def analyze_layer(
     layer: str, 
-    analyze_uc: AnalyzeGraphUseCase = Depends(get_analyze_graph_use_case),
-    predict_uc: PredictGraphUseCase = Depends(get_predict_graph_use_case)
+    client: Client = Depends(get_client),
 ):
     """
     Analyze a specific architectural layer.
-
-    Valid layers: app, infra, application, infrastructure, system
     """
     valid_layers = ["app", "infra", "application", "infrastructure", "system", "mw-app", "mw-infra"]
     if layer not in valid_layers:
@@ -156,25 +112,14 @@ async def analyze_layer(
     try:
         logger.info(f"Analyzing layer: {layer}")
         
-        struct_res = analyze_uc.execute(layer)
-        qual_res, problems = predict_uc.execute(layer, struct_res, detect_problems=True)
-        summary = ProblemDetector().summarize(problems)
-        
-        from src.analysis.models import LayerAnalysisResult
-        mock_result = LayerAnalysisResult(
-            layer=layer,
-            layer_name=layer.capitalize(),
-            description=f"{layer.capitalize()} layer analysis",
-            structural=struct_res,
-            quality=qual_res,
-            problems=problems,
-            problem_summary=summary
-        )
+        # SDK calls
+        analysis = client.analyze(layer=layer)
+        prediction = client.predict(analysis)
+        problems = client.detect_antipatterns(prediction)
         
         return analysis_presenter.build_analysis_response(
-            mock_result,
-            qual_res.components,
-            qual_res.edges,
+            analysis,
+            prediction,
             problems,
         )
     except Exception as e:

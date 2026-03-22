@@ -27,8 +27,8 @@ from typing import Optional
 # Ensure repo root is on the path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
-from common.console import ConsoleDisplay
-from common.arguments import add_neo4j_arguments, add_common_arguments
+from bin.common.console import ConsoleDisplay
+from bin.common.arguments import add_neo4j_arguments, add_common_arguments
 
 logging.basicConfig(
     level=logging.INFO,
@@ -120,16 +120,28 @@ def main() -> None:
     if any(x is None for x in [structural_dict, simulation_dict]):
         logger.info("Connecting to Neo4j to retrieve graph data...")
         try:
-            from src.infrastructure import create_repository
             from src.analysis import AnalysisService
             from src.simulation import SimulationService
         except ImportError as e:
             logger.error(f"Pipeline modules not available: {e}")
             sys.exit(1)
 
-        conn_kwargs = {k: v for k, v in [("uri", args.uri), ("username", args.user), 
+        conn_kwargs = {k: v for k, v in [("uri", args.uri), ("username", args.user),
                                         ("password", args.password)] if v}
-        repo = create_repository(**conn_kwargs)
+        # Get topological graph using saag Client
+        if args.verbose:
+            print("Connecting to repository...")
+
+        from saag import Client
+        client = Client(neo4j_uri=conn_kwargs.get("uri"), user=conn_kwargs.get("user"), password=conn_kwargs.get("password"))
+        repo = client.repo
+        if not repo:
+            raise ValueError("No repository connection established.")
+
+        # We need the inner repository here to get the raw graph
+        # This is a training script, so getting the low-level repo is acceptable
+        from src.usecases import AnalyzeGraphUseCase
+        analyze_uc = AnalyzeGraphUseCase(repo)
 
         try:
             if structural_dict is None or rmav_dict is None:
