@@ -620,6 +620,13 @@ class Neo4jRepository:
         
         stats = {}
         with self.driver.session(database=self.database) as session:
+            # Capture total metrics
+            result = session.run("MATCH (n) RETURN count(n) as c")
+            stats["total_nodes"] = result.single()["c"]
+            
+            result = session.run("MATCH ()-[r]->() RETURN count(r) as c")
+            stats["total_relationships"] = result.single()["c"]
+            
             for comp_type in all_component_types:
                 result = session.run(f"MATCH (n:{comp_type}) RETURN count(n) as c")
                 stats[f"{comp_type.lower()}_count"] = result.single()["c"]
