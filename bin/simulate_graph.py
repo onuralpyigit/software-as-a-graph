@@ -1,352 +1,54 @@
 #!/usr/bin/env python3
 """
-Graph Simulation CLI
-
-Comprehensive event-driven and failure simulation for distributed
-pub-sub systems on the multi-layer graph model.
-
-Operates directly on raw structural relationships retrieved from Neo4j:
-    - PUBLISHES_TO, SUBSCRIBES_TO, USES     (app layer)
-    - RUNS_ON, CONNECTS_TO                   (infra layer)
-    - ROUTES, PUBLISHES_TO, SUBSCRIBES_TO    (mw layer)
-    - All of the above                       (system layer)
-
-Usage Examples:
-    # Event simulation from a specific publisher
-    python simulate_graph.py event --source App1 --messages 200 --layer app
-
-    # Event simulation from all publishers
-    python simulate_graph.py event --all --layer mw
-
-    # Failure simulation for a single component
-    python simulate_graph.py failure --target Broker1 --layer mw
-
-    # Exhaustive failure analysis for a layer
-    python simulate_graph.py failure --exhaustive --layer infra
-
-    # Full multi-layer report
-    python simulate_graph.py report --layers app,infra,mw,system -o report.json
-
-    # Classify components by criticality
-    python simulate_graph.py classify --layer system --top 20
-
-    # Classify edges by criticality
-    python simulate_graph.py classify --edges --layer app
+bin/simulate_graph.py — Failure Simulation CLI
+==============================================
+Simulates failure cascades.
 """
 
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
+# Provide resolving so `saag` and `bin._shared` can be accessed natively
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse
-import json
-import logging
+from saag import Client
+from bin._shared import add_neo4j_args, add_common_args, setup_logging
 
-from src.infrastructure import create_repository
-from src.simulation import SimulationService
-from src.simulation.models import FailureMode
-from common.console import ConsoleDisplay
-from common.dispatcher import dispatch_simulate
-from common.arguments import add_neo4j_arguments, add_common_arguments
-
-
-# =============================================================================
-# Layer Descriptions (for help text)
-# =============================================================================
-
-LAYER_HELP = {
-    "app": "Application layer: Apps, Libraries via PUBLISHES_TO/SUBSCRIBES_TO/USES",
-    "infra": "Infrastructure layer: Nodes via RUNS_ON/CONNECTS_TO",
-    "mw": "Middleware layer: Brokers via ROUTES/PUBLISHES_TO/SUBSCRIBES_TO",
-    "system": "Complete system: all components and relationships",
-}
-
-
-# =============================================================================
-# Argument Parsing
-# =============================================================================
-
-def build_parser() -> argparse.ArgumentParser:
-    """Build the CLI argument parser with subcommands."""
-    # Parent parser for common arguments
-    common_parser = argparse.ArgumentParser(add_help=False)
-    
-    # --- Global options ---
-    add_neo4j_arguments(common_parser)
-    
-    output_group = common_parser.add_argument_group("Output")
-    output_group.add_argument("--output", "-o", metavar="FILE", help="Export results to JSON")
-    output_group.add_argument("--json", action="store_true", help="Print JSON to stdout")
-    add_common_arguments(common_parser)
-
-    # Main parser
+def main():
     parser = argparse.ArgumentParser(
-        prog="simulate_graph.py",
-        description="Multi-layer simulation for distributed pub-sub systems.",
+        description="Graph Failure Simulation.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="\n".join(f"  {k:<8} {v}" for k, v in LAYER_HELP.items()),
     )
-
-    # --- Subcommands ---
-    subs = parser.add_subparsers(dest="command", help="Simulation command")
-
-    # event
-    ev = subs.add_parser("event", help="Event-driven message flow simulation", parents=[common_parser])
-    ev_target = ev.add_mutually_exclusive_group(required=True)
-    ev_target.add_argument("--source", "-s", metavar="APP_ID", help="Source publisher app")
-    ev_target.add_argument("--all", "-a", action="store_true", help="Simulate all publishers")
-    ev.add_argument("--layer", "-l", choices=LAYER_HELP, default="system", help="Simulation layer")
-    ev.add_argument("--messages", "-m", type=int, default=100, help="Messages per publisher")
-    ev.add_argument("--duration", "-d", type=float, default=10.0, help="Duration (seconds)")
-
-    # failure
-    fl = subs.add_parser("failure", help="Component failure and cascade simulation", parents=[common_parser])
-    fl_target = fl.add_mutually_exclusive_group(required=False)
-    fl_target.add_argument("--target", "-t", metavar="COMP_ID", help="Target component to fail")
-    fl_target.add_argument("--exhaustive", "-x", action="store_true", help="Fail every component in layer")
-    fl_target.add_argument("--pairwise", "-w", action="store_true", help="Fail every component pair in layer (detect hidden coupling)")
-    fl.add_argument("--layer", "-l", choices=LAYER_HELP, default="system", help="Simulation layer")
-    fl.add_argument("--cascade-prob", type=float, default=1.0, help="Cascade probability (0-1)")
-    fl.add_argument("--failure-mode", choices=["CRASH", "DEGRADED", "PARTITION", "OVERLOAD"], default="CRASH", help="Failure mode for target(s)")
-    fl.add_argument("--monte-carlo", action="store_true", help="Run Monte Carlo stochastic simulation")
-    fl.add_argument("--trials", "--samples", type=int, default=100, help="Number of Monte Carlo trials/samples (default: 100)")
-
-    # report
-    rp = subs.add_parser("report", help="Generate comprehensive multi-layer report", parents=[common_parser])
-    rp.add_argument(
-        "--layers", default="app,infra,mw,system",
-        help="Comma-separated layers to include",
-    )
-    rp.add_argument("--edges", action="store_true", help="Include edge criticality")
-
-    # classify
-    cl = subs.add_parser("classify", help="Classify components or edges by criticality", parents=[common_parser])
-    cl.add_argument("--layer", "-l", choices=LAYER_HELP, default="system", help="Layer to classify")
-    cl.add_argument("--edges", action="store_true", help="Classify edges instead of components")
-    cl.add_argument("--top", type=int, default=15, help="Show top N results")
-    cl.add_argument("--k-factor", type=float, default=1.5, help="BoxPlot k-factor")
-
-    return parser
-
-
-# =============================================================================
-# Command Handlers
-# =============================================================================
-
-# Logic moved to common.dispatcher.dispatch_simulate
-
-
-# =============================================================================
-# Command Handlers
-# =============================================================================
-
-# Logic moved to src.cli.dispatcher.dispatch_simulate
-
-
-# =============================================================================
-# Display Helpers
-# =============================================================================
-
-def _display_event_summary(display, results, layer):
-    """Display aggregated event simulation summary for all publishers."""
-    total_pub = sum(r.metrics.messages_published for r in results.values())
-    total_del = sum(r.metrics.messages_delivered for r in results.values())
-    total_drop = sum(r.metrics.messages_dropped for r in results.values())
-
-    print(f"\n  Layer:               {layer}")
-    print(f"  Publishers Tested:   {len(results)}")
-    print(f"  Total Published:     {total_pub}")
-    print(f"  Total Delivered:     {display.colored(str(total_del), display.Colors.GREEN)}")
-    drop_color = display.Colors.RED if total_drop > 0 else display.Colors.GRAY
-    print(f"  Total Dropped:       {display.colored(str(total_drop), drop_color)}")
-
-    if total_pub > 0:
-        rate = total_del / total_pub * 100
-        print(f"  Delivery Rate:       {rate:.1f}%")
-
-    # Per-publisher breakdown (top 10 by throughput)
-    sorted_results = sorted(
-        results.items(),
-        key=lambda x: x[1].metrics.messages_published,
-        reverse=True,
-    )
-    display.print_subheader(f"Top Publishers (showing {min(10, len(sorted_results))})")
-    print(f"\n  {'Publisher':<25} {'Published':<12} {'Delivered':<12} {'Dropped':<10} {'Rate':<8}")
-    print(f"  {'-' * 67}")
-    for app_id, r in sorted_results[:10]:
-        m = r.metrics
-        rate = m.delivery_rate
-        color = display.Colors.GREEN if rate > 90 else (display.Colors.YELLOW if rate > 50 else display.Colors.RED)
-        print(
-            f"  {app_id:<25} {m.messages_published:<12} "
-            f"{m.messages_delivered:<12} {m.messages_dropped:<10} "
-            f"{display.colored(f'{rate:.1f}%', color)}"
-        )
-
-
-def _display_component_classification(display, results, layer, top_n):
-    """Display component criticality classification."""
-    display.print_header(f"Component Criticality: {layer.upper()} layer")
-
-    # Summary counts
-    counts = {}
-    for c in results:
-        counts[c.level] = counts.get(c.level, 0) + 1
-
-    print(f"\n  Total Components:    {len(results)}")
-    for level in ("critical", "high", "medium", "low", "minimal"):
-        count = counts.get(level, 0)
-        color = display.level_color(level)
-        print(f"  {level.capitalize():<20} {display.colored(str(count), color)}")
-
-    # Top N table
-    display.print_subheader(f"Top {min(top_n, len(results))} Components")
-    print(f"\n  {'#':<4} {'Component':<25} {'Type':<14} {'Combined':<10} {'Event':<10} {'Failure':<10} {'Level':<10}")
-    print(f"  {'-' * 83}")
-    for i, c in enumerate(results[:top_n], 1):
-        color = display.level_color(c.level)
-        print(
-            f"  {i:<4} {c.id:<25} {c.type:<14} "
-            f"{c.combined_impact:<10.4f} {c.event_impact:<10.4f} "
-            f"{c.failure_impact:<10.4f} {display.colored(c.level, color)}"
-        )
-
-
-def _display_monte_carlo_result(display, result, layer):
-    """Display Monte Carlo simulation results."""
-    display.print_header(f"Monte Carlo Simulation: {result.target_id}")
     
-    print(f"\n  Layer:               {layer}")
-    print(f"  Target:              {result.target_id}")
-    print(f"  Trials:              {result.n_trials}")
-    print(f"  Mean Impact:         {display.colored(f'{result.mean_impact:.4f}', display.Colors.CYAN)}")
-    print(f"  Std Deviation:       {result.std_impact:.4f}")
-    print(f"  95% CI:              [{result.ci_95[0]:.4f}, {result.ci_95[1]:.4f}]")
+    parser.add_argument(
+        "--mode", default="exhaustive", 
+        choices=["exhaustive", "monte_carlo", "single", "pairwise"],
+        help="Simulation execution mode"
+    )
     
-    # Impact interpretation
-    if result.mean_impact >= 0.7:
-        level, color = "CRITICAL", display.Colors.RED
-    elif result.mean_impact >= 0.5:
-        level, color = "HIGH", display.Colors.YELLOW
-    elif result.mean_impact >= 0.3:
-        level, color = "MEDIUM", display.Colors.CYAN
-    else:
-        level, color = "LOW", display.Colors.GREEN
-    print(f"  Risk Level:          {display.colored(level, color)}")
-
-
-def _display_edge_classification(display, results, layer, top_n):
-    """Display edge criticality classification."""
-    display.print_header(f"Edge Criticality: {layer.upper()} layer")
-
-    counts = {}
-    for e in results:
-        counts[e.level] = counts.get(e.level, 0) + 1
-
-    print(f"\n  Total Edges Analyzed: {len(results)}")
-    for level in ("critical", "high", "medium", "low", "minimal"):
-        count = counts.get(level, 0)
-        color = display.level_color(level)
-        print(f"  {level.capitalize():<20} {display.colored(str(count), color)}")
-
-    display.print_subheader(f"Top {min(top_n, len(results))} Edges")
-    print(f"\n  {'#':<4} {'Source':<20} {'Target':<20} {'Relationship':<18} {'Impact':<10} {'Level':<10}")
-    print(f"  {'-' * 82}")
-    for i, e in enumerate(results[:top_n], 1):
-        color = display.level_color(e.level)
-        print(
-            f"  {i:<4} {e.source:<20} {e.target:<20} "
-            f"{e.relationship:<18} {e.combined_impact:<10.4f} "
-            f"{display.colored(e.level, color)}"
-        )
-
-
-# =============================================================================
-# Main Entry Point
-# =============================================================================
-
-def main() -> int:
-    """CLI entry point."""
-    parser = build_parser()
+    add_neo4j_args(parser)
+    add_common_args(parser)
     args = parser.parse_args()
+    setup_logging(args)
 
-    if not args.command:
-        parser.print_help()
-        return 1
-
-    # Logging
-    log_level = (
-        logging.WARNING if args.quiet
-        else logging.DEBUG if args.verbose
-        else logging.INFO
-    )
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
-
-    # Initialize repository and services
-    repo = create_repository(uri=args.uri, user=args.user, password=args.password)
-    display = ConsoleDisplay()
-
-    try:
-        # Initialize repository and services via dispatcher
-        result_data = dispatch_simulate(repo, args)
-
-        # Handle console display for CLI usage
-        if not args.quiet:
-            if args.command == "event":
-                if hasattr(result_data, "metrics"):
-                    display.display_event_result(result_data)
-                elif isinstance(result_data, dict):
-                    if "metrics" in result_data:
-                        # Fallback for dict but lacking from_dict: we just use summary
-                        _display_event_summary(display, result_data, args.layer)
-                    else:
-                        _display_event_summary(display, result_data, args.layer)
-            elif args.command == "failure":
-                if args.exhaustive or args.pairwise:
-                    display.display_exhaustive_results(result_data)
-                elif args.monte_carlo:
-                    _display_monte_carlo_result(display, result_data, args.layer)
-                else:
-                    if hasattr(result_data, "impact"):
-                        display.display_failure_result(result_data)
-            elif args.command == "report":
-                if hasattr(result_data, "layer_metrics"):
-                    display.display_simulation_report(result_data)
-            elif args.command == "classify":
-                if args.edges:
-                    _display_edge_classification(display, result_data, args.layer, args.top)
-                else:
-                    _display_component_classification(display, result_data, args.layer, args.top)
-
-        # JSON stdout
-        if args.json:
-            print(json.dumps(result_data, indent=2))
-
-        # File export
-        if args.output:
-            with open(args.output, "w") as f:
-                json.dump(result_data, f, indent=2)
-            if not args.quiet:
-                print(f"\n{display.colored(f'Results saved to: {args.output}', display.Colors.GREEN)}")
-
-        return 0
-
-    except KeyboardInterrupt:
-        print("\nSimulation interrupted.")
-        return 130
-    except Exception as e:
-        print(display.colored(f"Error: {e}", display.Colors.RED), file=sys.stderr)
-        if args.verbose:
-            logging.exception("Simulation failed")
-        return 1
-    finally:
-        repo.close()
-
+    client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
+    
+    # Simulate
+    report = client.simulate(layer=args.layer, mode=args.mode)
+    
+    if args.output:
+        import json
+        with open(args.output, "w") as f:
+            if hasattr(report, "to_dict"):
+                json.dump(report.to_dict(), f, indent=2, default=str)
+            else:
+                from dataclasses import asdict
+                json.dump(asdict(report), f, indent=2, default=str)
+        if not getattr(args, "quiet", False):
+            print(f"Simulation report saved to {args.output}")
+    elif not getattr(args, "quiet", False):
+        print("Simulation executed successfully.")
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

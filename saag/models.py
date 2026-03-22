@@ -50,6 +50,24 @@ class AnalysisResult:
         """Access the underlying internal model."""
         return self._inner
 
+    def save(self, filepath: str) -> None:
+        """Export the analysis result to a JSON file."""
+        import json
+        from pathlib import Path
+        out = Path(filepath)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        
+        data = {
+            "layer": getattr(self._inner.layer, "value", str(self._inner.layer)),
+            "graph_summary": self._inner.graph_summary.to_dict() if hasattr(self._inner.graph_summary, "to_dict") else {},
+            "components": {k: c.to_dict() for k, c in self._inner.components.items()},
+            "edges": {f"{k[0]}->{k[1]}": e.to_dict() for k, e in self._inner.edges.items()},
+            "qos_profile": self._inner.qos_profile,
+            "rcm_order": self._inner.rcm_order
+        }
+        with out.open("w") as f:
+            json.dump(data, f, indent=2, default=str)
+
 
 class PredictionResult:
     """Result of the GNN quality prediction step."""
@@ -70,6 +88,15 @@ class PredictionResult:
     def raw(self) -> _QualityAnalysisResult:
         """Access the underlying internal model."""
         return self._inner
+
+    def save(self, filepath: str) -> None:
+        """Export the prediction result to a JSON file."""
+        import json
+        from pathlib import Path
+        out = Path(filepath)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with out.open("w") as f:
+            json.dump(self._inner.to_dict(), f, indent=2, default=str)
 
 
 class ValidationResult:
@@ -92,6 +119,15 @@ class ValidationResult:
         """Access the underlying internal model."""
         return self._inner
 
+    def save(self, filepath: str) -> None:
+        """Export the validation result to a JSON file."""
+        import json
+        from pathlib import Path
+        out = Path(filepath)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with out.open("w") as f:
+            json.dump(self._inner.to_dict(), f, indent=2, default=str)
+
 
 @dataclass
 class PipelineExecutionResult:
@@ -100,3 +136,28 @@ class PipelineExecutionResult:
     prediction: Optional[PredictionResult] = None
     validation: Optional[ValidationResult] = None
     problems: Optional[List[_DetectedProblem]] = None
+
+    def save(self, filepath: str) -> None:
+        """Export the full pipeline result to a JSON file."""
+        import json
+        from pathlib import Path
+        out = Path(filepath)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        
+        data = {}
+        if self.analysis:
+            # Reusing the structure defined in AnalysisResult.save()
+            data["analysis"] = {
+                "layer": getattr(self.analysis.raw.layer, "value", str(self.analysis.raw.layer)),
+                "graph_summary": self.analysis.raw.graph_summary.to_dict() if hasattr(self.analysis.raw.graph_summary, "to_dict") else {},
+                "components": {k: c.to_dict() for k, c in self.analysis.raw.components.items()},
+            }
+        if self.prediction:
+            data["prediction"] = self.prediction.raw.to_dict()
+        if self.validation:
+            data["validation"] = self.validation.raw.to_dict()
+        if self.problems:
+            data["problems"] = [p.to_dict() for p in self.problems]
+            
+        with out.open("w") as f:
+            json.dump(data, f, indent=2, default=str)

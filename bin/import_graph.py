@@ -1,82 +1,32 @@
 #!/usr/bin/env python3
 """
 CLI script to import graph data into Neo4j.
-
-Example usage:
-    python import_graph.py --input output/graph.json --clear
 """
+
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parent.parent / "backend"))
+
+# Provide resolving so `saag` and `bin._shared` can be accessed natively
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse
-import json
-import sys
-from pathlib import Path
-from typing import Dict
+from saag import Client
+from bin._shared import add_neo4j_args, setup_logging
 
-from src.infrastructure import create_repository
-from common.dispatcher import dispatch_import
-from common.arguments import add_neo4j_arguments
-
-
-def print_import_stats(stats: Dict[str, int]) -> None:
-    """Print formatted import statistics."""
-    print("\nImport & Derivation Complete!")
-    print("-" * 30)
-    print("Components Imported:")
-    print(f"  Nodes:       {stats.get('node_count', 0)}")
-    print(f"  Brokers:     {stats.get('broker_count', 0)}")
-    print(f"  Topics:      {stats.get('topic_count', 0)}")
-    print(f"  Apps:        {stats.get('application_count', 0)}")
-    print(f"  Libraries:   {stats.get('library_count', 0)}")
-    print("-" * 30)
-    print("Relationships Imported:")
-    print(f"  RUNS_ON:     {stats.get('runs_on_count', 0)}")
-    print(f"  ROUTES:      {stats.get('routes_count', 0)}")
-    print(f"  PUBLISHES_TO: {stats.get('publishes_to_count', 0)}")
-    print(f"  SUBSCRIBES_TO: {stats.get('subscribes_to_count', 0)}")
-    print(f"  CONNECTS_TO: {stats.get('connects_to_count', 0)}")
-    print(f"  USES:        {stats.get('uses_count', 0)}")
-    print("-" * 30)
-    print("Dependencies Derived:")
-    print(f"  App->App:    {stats.get('app_to_app_count', 0)}")
-    print(f"  App->Library:{stats.get('app_to_lib_count', 0)}")
-    print(f"  App->Broker: {stats.get('app_to_broker_count', 0)}")
-    print(f"  Node->Node:  {stats.get('node_to_node_count', 0)}")
-    print(f"  Node->Broker:{stats.get('node_to_broker_count', 0)}")
-    print("-" * 30)
-    print("Weight Calculation:")
-    print("  - Intrinsic weights (QoS/Size) applied to Topics/Edges.")
-    print("  - Aggregate weights applied to Apps/Brokers/Nodes.")
-    print("  - Final criticality scores (Intrinsic + Centrality) updated.")
-    print("-" * 30)
-
-
-def main() -> None:
-    """Main entry point for graph import CLI."""
+def main():
     parser = argparse.ArgumentParser(
         description="Import Graph to Neo4j & Derive Dependencies",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "--input",
-        required=True,
-        help="Input JSON file",
-    )
-    add_neo4j_arguments(parser)
-    parser.add_argument(
-        "--clear",
-        action="store_true",
-        help="Clear existing DB before import",
-    )
-    parser.add_argument(
-        "--db",
-        default="neo4j",
-        help="Database name",
-    )
+    parser.add_argument("--input", required=True, help="Input JSON file")
+    parser.add_argument("--clear", action="store_true", help="Clear existing DB before import")
+    
+    add_neo4j_args(parser)
     args = parser.parse_args()
+    setup_logging(args)
 
+    client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
+    
     input_path = Path(args.input)
     if not input_path.exists():
         print(f"Error: Input file '{args.input}' not found.", file=sys.stderr)
@@ -84,25 +34,15 @@ def main() -> None:
 
     print(f"Connecting to Neo4j at {args.uri}...")
     
-    # Initialize Repository directly
-    repo = create_repository(
-        uri=args.uri,
-        user=args.user,
-        password=args.password
-    )
+    stats = client.import_topology(filepath=args.input, clear=args.clear)
     
-    try:
-        stats = dispatch_import(repo, args)
-        print_import_stats(stats)
-            
-    except Exception as e:
-        print(f"Import failed: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
-    finally:
-        repo.close()
-
+    print("\nImport & Derivation Complete!")
+    print("-" * 30)
+    print("Components Imported:")
+    print(f"  Nodes:       {stats.get('nodes_imported', 0)}")
+    print(f"  Edges:       {stats.get('edges_imported', 0)}")
+    print(f"  Duration:    {stats.get('duration_ms', 0):.2f} ms")
+    print("-" * 30)
 
 if __name__ == "__main__":
     main()

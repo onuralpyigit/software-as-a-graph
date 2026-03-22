@@ -14,7 +14,7 @@ class Client:
         from src.infrastructure import create_repository
         self.repo = create_repository(uri=neo4j_uri, user=user, password=password)
         
-    def import_topology(self, filepath: str) -> Dict[str, Any]:
+    def import_topology(self, filepath: str, clear: bool = False) -> Dict[str, Any]:
         """Import a JSON topology file into the graph database."""
         with open(filepath, "r") as f:
             graph_data = json.load(f)
@@ -22,7 +22,7 @@ class Client:
         from src.usecases.model_graph import ModelGraphUseCase
         uc = ModelGraphUseCase(self.repo)
         
-        result = uc.execute(graph_data)
+        result = uc.execute(graph_data, clear=clear)
         return {
             "nodes_imported": result.nodes_imported,
             "edges_imported": result.edges_imported,
@@ -84,7 +84,7 @@ class Client:
         layer_result = pipeline_result.layers[layer_name]
         return ValidationResult(layer_result)
 
-    def visualize(self, output: str = "report.html", layers: Optional[List[str]] = None) -> str:
+    def visualize(self, output: str = "report.html", layers: Optional[List[str]] = None, **kwargs) -> str:
         """Render the logic to an HTML report."""
         if layers is None:
             layers = ["system"]
@@ -93,5 +93,12 @@ class Client:
         from src.usecases.models import VisOptions
         
         uc = VisualizeGraphUseCase(self.repo)
+        
         options = VisOptions()
+        if "include_network" in kwargs: options.include_network = kwargs["include_network"]
+        if "include_matrix" in kwargs: options.include_matrix = kwargs["include_matrix"]
+        if "include_validation" in kwargs: options.include_validation = kwargs["include_validation"]
+        if "antipatterns_file" in kwargs: options.antipatterns_file = kwargs["antipatterns_file"]
+        if "multi_seed" in kwargs: options.multi_seed = kwargs["multi_seed"]
+        
         return uc.execute(layers=layers, output_file=output, options=options)
