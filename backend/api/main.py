@@ -7,6 +7,13 @@ FastAPI application exposing graph generation, import, analysis, and query capab
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so we can import 'tools'
+project_root = Path(__file__).resolve().parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 # Import routers
 from api.routers import (

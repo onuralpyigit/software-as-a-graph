@@ -46,7 +46,9 @@ import logging
 from src.infrastructure import create_repository
 from src.simulation import SimulationService
 from src.simulation.models import FailureMode
-from src.cli.console import ConsoleDisplay
+from common.console import ConsoleDisplay
+from common.dispatcher import dispatch_simulate
+from common.arguments import add_neo4j_arguments, add_common_arguments
 
 
 # =============================================================================
@@ -71,16 +73,12 @@ def build_parser() -> argparse.ArgumentParser:
     common_parser = argparse.ArgumentParser(add_help=False)
     
     # --- Global options ---
-    global_group = common_parser.add_argument_group("Neo4j Connection")
-    global_group.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
-    global_group.add_argument("--user", "-u", default="neo4j", help="Neo4j username")
-    global_group.add_argument("--password", "-p", default="password", help="Neo4j password")
-
+    add_neo4j_arguments(common_parser)
+    
     output_group = common_parser.add_argument_group("Output")
     output_group.add_argument("--output", "-o", metavar="FILE", help="Export results to JSON")
     output_group.add_argument("--json", action="store_true", help="Print JSON to stdout")
-    output_group.add_argument("--quiet", "-q", action="store_true", help="Minimal output")
-    output_group.add_argument("--verbose", "-v", action="store_true", help="Debug logging")
+    add_common_arguments(common_parser)
 
     # Main parser
     parser = argparse.ArgumentParser(
@@ -136,7 +134,7 @@ def build_parser() -> argparse.ArgumentParser:
 # Command Handlers
 # =============================================================================
 
-from src.cli.dispatcher import dispatch_simulate
+# Logic moved to common.dispatcher.dispatch_simulate
 
 
 # =============================================================================

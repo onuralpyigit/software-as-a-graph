@@ -35,7 +35,12 @@ from datetime import datetime
 from src.infrastructure import create_repository
 from src.core import AnalysisLayer
 from src.analysis import AnalysisService, MultiLayerAnalysisResult
-from src.cli.console import ConsoleDisplay
+from common.console import ConsoleDisplay
+from common.arguments import (
+    add_neo4j_arguments, 
+    add_common_arguments, 
+    add_layer_argument
+)
 
 
 # ---------------------------------------------------------------------------
@@ -62,12 +67,7 @@ examples:
 
     # --- Layer selection (mutually exclusive) ---
     layer_group = parser.add_mutually_exclusive_group()
-    layer_group.add_argument(
-        "--layer", "-l",
-        choices=[la.value for la in AnalysisLayer],
-        default="system",
-        help="Analysis layer (default: system)",
-    )
+    add_layer_argument(layer_group, default="system")
     layer_group.add_argument(
         "--all", "-a",
         action="store_true",
@@ -80,10 +80,7 @@ examples:
     )
 
     # --- Neo4j connection ---
-    neo4j = parser.add_argument_group("Neo4j connection")
-    neo4j.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j Bolt URI")
-    neo4j.add_argument("--user", "-u", default="neo4j", help="Neo4j username")
-    neo4j.add_argument("--password", "-p", default="password", help="Neo4j password")
+    add_neo4j_arguments(parser)
 
     # --- Analysis options ---
     analysis = parser.add_argument_group("Analysis options")
@@ -148,8 +145,7 @@ examples:
     output = parser.add_argument_group("Output")
     output.add_argument("--output", "-o", metavar="FILE", help="Export results to JSON file")
     output.add_argument("--json", action="store_true", help="Print results as JSON to stdout")
-    output.add_argument("--quiet", "-q", action="store_true", help="Suppress console display")
-    output.add_argument("--verbose", "-v", action="store_true", help="Enable debug logging")
+    add_common_arguments(parser)
 
     return parser
 
@@ -158,7 +154,7 @@ examples:
 # Analysis Logic
 # ---------------------------------------------------------------------------
 
-from src.cli.dispatcher import dispatch_analyze
+from common.dispatcher import dispatch_analyze
 
 
 # ---------------------------------------------------------------------------
@@ -190,8 +186,7 @@ def main() -> int:
 
     # --list-layers: informational, then exit
     if args.list_layers:
-        from src.core import list_layers
-        print(list_layers())
+        print(", ".join([l.value for l in AnalysisLayer]))
         return 0
 
     # Logging setup

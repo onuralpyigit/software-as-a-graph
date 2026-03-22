@@ -24,6 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 from src.infrastructure import create_repository
 from src.prediction import PredictionService, QualityAnalysisResult, DetectedProblem
 from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
+from common.console import ConsoleDisplay
+from common.arguments import add_neo4j_arguments, add_common_arguments
 
 logger = logging.getLogger("detect_antipatterns")
 
@@ -32,99 +34,6 @@ logger = logging.getLogger("detect_antipatterns")
 # Console Display Helpers
 # =============================================================================
 
-class SmellConsoleDisplay:
-    """Rich terminal rendering for smell detection results."""
-
-    SEVERITY_COLORS = {
-        "CRITICAL": "\033[91m",   # bright red
-        "HIGH":     "\033[93m",   # yellow
-        "MEDIUM":   "\033[94m",   # blue
-        "LOW":      "\033[90m",   # gray
-    }
-    RESET  = "\033[0m"
-    BOLD   = "\033[1m"
-    CYAN   = "\033[96m"
-    GREEN  = "\033[92m"
-    GRAY   = "\033[90m"
-    DIM    = "\033[2m"
-
-    def _c(self, text: str, color: str) -> str:
-        return f"{color}{text}{self.RESET}"
-
-    def _severity_color(self, sev: str) -> str:
-        return self.SEVERITY_COLORS.get(sev.upper(), "")
-
-    def print_banner(self) -> None:
-        line = "═" * 70
-        print(f"\n{self._c(line, self.CYAN)}")
-        print(self._c(
-            "  Software-as-a-Graph  ·  Pub-Sub Anti-Pattern & Bad Smell Detector",
-            self.CYAN + self.BOLD))
-        print(f"{self._c(line, self.CYAN)}\n")
-
-    def print_report(self, problems: List[DetectedProblem], layers: List[str], total_components: int) -> None:
-        """Print the full detection report to stdout."""
-        self.print_banner()
-
-        # ── Summary KPIs ──────────────────────────────────────────────────
-        print(self._c("  SCAN SUMMARY", self.BOLD))
-        print(f"  Layers analyzed:     {', '.join(layers)}")
-        print(f"  Components scanned:  {total_components}")
-        print(f"  Total smells found:  {self._c(str(len(problems)), self.BOLD)}")
-        print()
-        
-        by_sev = {}
-        for p in problems:
-            by_sev[p.severity] = by_sev.get(p.severity, 0) + 1
-            
-        for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
-            count = by_sev.get(sev, 0)
-            color = self._severity_color(sev)
-            bar = self._c("█" * count, color) if count else self._c("─", self.GRAY)
-            print(f"  {self._c(f'{sev:<10}', color)}  {bar}  {self._c(str(count), color + self.BOLD)}")
-        print()
-
-        if not problems:
-            print(self._c("  ✓  No smells found matching the active filters.\n", self.GREEN))
-            return
-
-        print(self._c(f"  FINDINGS ({len(problems)})", self.BOLD))
-        print()
-
-        prev_sev = None
-        for i, problem in enumerate(problems, 1):
-            if problem.severity != prev_sev:
-                color = self._severity_color(problem.severity)
-                print(self._c(
-                    f"  {'─' * 3} {problem.severity} {'─' * (62 - len(problem.severity))}",
-                    color))
-                print()
-                prev_sev = problem.severity
-
-            color  = self._severity_color(problem.severity)
-
-            print(f"  {self._c(f'#{i:02d}', self.BOLD)}  "
-                  f"{self._c(f'[{problem.name}]', color + self.BOLD)}"
-                  f"  {self._c(problem.entity_id, self.BOLD)} "
-                  f"({problem.entity_type})")
-
-            # Description
-            print(f"       {self._c('Description:', self.BOLD)} {problem.description}")
-
-            # Evidence
-            ev_parts = [f"{k}={v}" for k, v in list(problem.evidence.items())[:4]]
-            print(f"       {self._c('Evidence:   ', self.BOLD)} {self._c(', '.join(ev_parts), self.GRAY)}")
-
-            # Recommendation
-            print(f"       {self._c('Fix:        ', self.BOLD)} {problem.recommendation}")
-            print()
-
-    def print_success(self, msg: str) -> None:
-        print(f"  {self._c('✓', self.GREEN)} {msg}")
-
-    def print_error(self, msg: str) -> None:
-        red = "\033[91m"
-        print(f"  {self._c('✗', red)} {msg}")
 
 
 # =============================================================================
@@ -151,10 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Scan all four layers (app, infra, mw, system)",
     )
 
-    neo4j = parser.add_argument_group("Neo4j connection")
-    neo4j.add_argument("--uri",      default="bolt://localhost:7687", help="Neo4j Bolt URI")
-    neo4j.add_argument("--user",     default="neo4j",                help="Neo4j username")
-    neo4j.add_argument("--password", default="password",             help="Neo4j password")
+    add_neo4j_arguments(parser)
 
     detection = parser.add_argument_group("Detection options")
     detection.add_argument(
@@ -166,8 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     out = parser.add_argument_group("Output")
     out.add_argument("--output", "-o", metavar="FILE",  help="Export findings to JSON file")
     out.add_argument("--json",         action="store_true", help="Print JSON to stdout")
-    out.add_argument("--quiet",  "-q", action="store_true", help="Suppress human-readable output")
-    out.add_argument("--verbose","-v", action="store_true", help="Enable debug logging")
+    add_common_arguments(parser)
 
     return parser
 
@@ -179,7 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser  = build_parser()
     args    = parser.parse_args()
-    display = SmellConsoleDisplay()
+    display = ConsoleDisplay()
 
     log_level = (
         logging.DEBUG   if args.verbose else
@@ -237,7 +142,7 @@ def main() -> int:
 
         # ── Output ───────────────────────────────────────────────────────
         if not args.quiet:
-            display.print_report(all_problems, layers_to_scan, total_components)
+            display.display_antipatterns(all_problems, layers_to_scan, total_components)
 
         if args.json:
             print(json.dumps([p.to_dict() for p in all_problems], indent=2))

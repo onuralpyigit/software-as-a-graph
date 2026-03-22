@@ -16,56 +16,31 @@ Usage:
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "backend"))
 
 import argparse
 import logging
 import time
 from typing import List
 
-from src.benchmark import (
+from tools.benchmark import (
     BenchmarkRunner,
     BenchmarkScenario,
     ReportGenerator,
 )
+from common.console import ConsoleDisplay
+from common.arguments import add_neo4j_arguments, add_common_arguments
 
-
-# =============================================================================
-# Terminal output helpers (matches run.py style)
-# =============================================================================
-
-class Colors:
-    CYAN = "\033[96m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    RED = "\033[91m"
-    GRAY = "\033[90m"
-    BLUE = "\033[94m"
-    BOLD = "\033[1m"
-    RESET = "\033[0m"
-
-
-def _c(text: str, color: str) -> str:
-    return f"{color}{text}{Colors.RESET}"
-
-
-def print_header(title: str) -> None:
-    line = "=" * 60
-    print(f"\n{_c(line, Colors.CYAN)}")
-    print(f"{_c(f' {title}', Colors.CYAN + Colors.BOLD)}")
-    print(_c(line, Colors.CYAN))
-
-
-def print_step(msg: str) -> None:
-    print(f"  {_c('→', Colors.BLUE)} {msg}")
-
-
-def print_success(msg: str) -> None:
-    print(f"  {_c('✓', Colors.GREEN)} {msg}")
-
-
-def print_error(msg: str) -> None:
-    print(f"  {_c('✗', Colors.RED)} {msg}")
+# Helper for color-coding terminal output
+_display = ConsoleDisplay()
+_c = _display.colored
+Colors = _display.Colors
+print_step = _display.print_step
+print_header = _display.print_header
+print_error = _display.print_error
+print_success = _display.print_success
 
 
 # =============================================================================
@@ -259,15 +234,11 @@ examples:
     )
 
     # --- Neo4j ---
-    neo4j = parser.add_argument_group("Neo4j Connection")
-    neo4j.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
-    neo4j.add_argument("--user", default="neo4j", help="Neo4j username")
-    neo4j.add_argument("--password", default="password", help="Neo4j password")
+    add_neo4j_arguments(parser)
 
     # --- Runtime ---
-    runtime = parser.add_argument_group("Runtime")
-    runtime.add_argument("--verbose", "-v", action="store_true",
-                         help="Verbose output with debug logging")
+    add_common_arguments(parser)
+    parser.add_argument("--dry-run", action="store_true", help="Print plans without executing")
 
     return parser
 
@@ -279,6 +250,7 @@ examples:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    display = ConsoleDisplay()
 
     # --- Logging ---
     logging.basicConfig(
@@ -307,17 +279,17 @@ def main() -> int:
         ]
 
     if not scenarios:
-        print_error("No scenarios to run.")
+        display.print_error("No scenarios to run.")
         return 1
 
     # --- Print plan ---
     output_dir = Path(args.output)
     total_runs = sum(s.runs * len(s.layers) for s in scenarios)
 
-    print_header("Software-as-a-Graph Benchmark Suite")
+    display.print_header("Software-as-a-Graph Benchmark Suite")
     print(f"  Scenarios : {len(scenarios)}")
     print(f"  Total runs: {total_runs} (scenarios × layers × repeats)")
-    print(f"  Output    : {output_dir}")
+    print(f"  Output    : {display.colored(str(output_dir), display.Colors.CYAN)}")
 
     # --- Run ---
     t0 = time.time()
@@ -346,9 +318,9 @@ def main() -> int:
     _print_summary_table(summary)
 
     print(f"\n  Reports saved to:")
-    print_success(str(json_path))
-    print_success(str(md_path))
-    print(f"\n  Completed in {_c(f'{duration:.1f}s', Colors.BOLD)}\n")
+    display.print_success(str(json_path))
+    display.print_success(str(md_path))
+    print(f"\n  Completed in {display.colored(f'{duration:.1f}s', display.Colors.BOLD)}\n")
 
     return 0
 

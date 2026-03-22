@@ -186,10 +186,10 @@ The system follows SOLID principles with emphasis on three key decisions:
 │  src.analysis         src.simulation           src.validation       │
 │  (Structural/Quality) (Event/Failure)          (Statistical)        │
 │                                                                     │
-│  src.visualization    src.generation           src.benchmark        │
+│  src.visualization    tools.generation         tools.benchmark      │
 │  (Dashboard/Charts)   (Synthetic Graphs)       (Benchmarking)       │
 │                                                                     │
-│  src.cli                                                            │
+│  bin/common                                                         │
 │  (Shared CLI Utilities)                                             │
 │                                                                     │
 │  Feature-based packages implementing specific pipeline steps.       │
@@ -221,6 +221,10 @@ software-as-a-graph/
 │   ├── visualize_graph.py            #   Dashboard generation
 │   ├── export_graph.py               #   Export graph data from Neo4j
 │   ├── benchmark.py                  #   Benchmarking across scales
+│   ├── common/                       #   Shared CLI Utilities
+│   │   ├── console.py                #     ConsoleDisplay (shared output formatting)
+│   │   ├── dispatcher.py             #     Command dispatch logic
+│   │   └── arguments.py              #     Shared argparse logic
 │   └── run_scenarios.sh              #   Batch-run all scenario configs
 │
 ├── frontend/                         # Web Application Layer — Next.js 16
@@ -268,8 +272,6 @@ software-as-a-graph/
 │       ├── benchmark/                #   Benchmark Package
 │       │   └── service.py            #     BenchmarkService (scale performance testing)
 │       │
-│       └── cli/                      #   CLI Utilities
-│           └── console.py            #     ConsoleDisplay (shared output formatting)
 │
 ├── config/                           # YAML scale presets and scenario configs
 ├── input/                            # Topology JSON & YAML scenario configs (8 scenarios)

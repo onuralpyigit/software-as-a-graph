@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import Dict
 
 from src.infrastructure import create_repository
-from src.cli.dispatcher import dispatch_import
+from common.dispatcher import dispatch_import
+from common.arguments import add_neo4j_arguments
 
 
 def print_import_stats(stats: Dict[str, int]) -> None:
@@ -63,21 +64,7 @@ def main() -> None:
         required=True,
         help="Input JSON file",
     )
-    parser.add_argument(
-        "--uri",
-        default="bolt://localhost:7687",
-        help="Neo4j Bolt URI",
-    )
-    parser.add_argument(
-        "--user",
-        default="neo4j",
-        help="Neo4j Username",
-    )
-    parser.add_argument(
-        "--password",
-        default="password",
-        help="Neo4j Password",
-    )
+    add_neo4j_arguments(parser)
     parser.add_argument(
         "--clear",
         action="store_true",

@@ -10,13 +10,16 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Add backend to path if running from bin/
+# Add project root and backend to path if running from bin/
 project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 backend_path = project_root / "backend"
 if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
 
-from src.cli.dispatcher import dispatch_generate
+from common.dispatcher import dispatch_generate
+from common.arguments import add_common_arguments
 
 
 def main() -> None:
@@ -66,6 +69,8 @@ def main() -> None:
         default=None,
         help="Scenario mapping for QoS generation (e.g. sensor_telemetry, events)",
     )
+    
+    add_common_arguments(parser)
     
     args = parser.parse_args()
     

@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from src.infrastructure import create_repository
-from src.generation import GenerationService, load_config
+from tools.generation import GenerationService, load_config
 from src.analysis import AnalysisService
 from src.prediction import PredictionService
 from src.simulation import SimulationService

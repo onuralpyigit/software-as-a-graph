@@ -22,7 +22,9 @@ from typing import Optional
 # Ensure repo root is on the path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
-from src.cli.console import ConsoleDisplay
+from common.console import ConsoleDisplay
+from common.dispatcher import dispatch_predict
+from common.arguments import add_neo4j_arguments, add_common_arguments
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,10 +46,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint", required=True,
                         help="Path to checkpoint directory from train_graph.py")
 
-    neo4j = parser.add_argument_group("Neo4j (live pipeline)")
-    neo4j.add_argument("--uri", default=None)
-    neo4j.add_argument("--user", default=None)
-    neo4j.add_argument("--password", default=None)
+    # --- Neo4j (live pipeline) ---
+    add_neo4j_arguments(parser)
 
     inputs = parser.add_argument_group("Pre-computed inputs")
     inputs.add_argument("--structural", type=str, default=None)
@@ -59,11 +59,11 @@ def parse_args() -> argparse.Namespace:
     display_opt.add_argument("--compare-rmav", action="store_true", help="Side-by-side vs RMAV")
     display_opt.add_argument("--show-edges", action="store_true", help="Display edge scores")
     display_opt.add_argument("--output", type=str, default=None, help="Save to JSON")
+    add_common_arguments(parser)
 
     return parser.parse_args()
 
 
-from src.cli.dispatcher import dispatch_predict
 
 
 def load_json(path: Optional[str]) -> Optional[dict]:

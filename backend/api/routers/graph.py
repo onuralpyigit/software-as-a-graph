@@ -18,7 +18,7 @@ from api.models import (
     NodeConnectionsResponse,
     TopologyResponse
 )
-from src.generation import GenerationService
+from tools.generation import GenerationService
 from src.core.ports.graph_repository import IGraphRepository
 from api.dependencies import get_repository, get_generation_service
 from api.presenters import graph_presenter

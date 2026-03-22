@@ -70,7 +70,7 @@ class TestGenerateGraphCLI:
         mock_data = {"nodes": [{"id": "n1"}]}
         
         with patch.object(sys, 'argv', ['generate_graph.py', '--scale', 'tiny', '--output', 'test_output.json']), \
-             patch('src.generation.generate_graph', return_value=mock_data) as mock_gen, \
+             patch('tools.generation.generate_graph', return_value=mock_data) as mock_gen, \
              patch('builtins.open', mock_open()) as m_open:
             
             script_module.main()
@@ -450,8 +450,8 @@ class TestBenchmarkCLI:
         with patch.object(sys, "argv", ["benchmark.py"] + argv):
             return module.main()
     
-    @patch("src.benchmark.runner.BenchmarkRunner.run_scenario")
-    @patch("src.benchmark.runner.BenchmarkRunner.close")
+    @patch("tools.benchmark.runner.BenchmarkRunner.run_scenario")
+    @patch("tools.benchmark.runner.BenchmarkRunner.close")
     def test_scales_flag(self, mock_close, mock_run, benchmark_module, tmp_output):
         mock_run.return_value = []
         ret = self._run_main(
@@ -464,16 +464,16 @@ class TestBenchmarkCLI:
         assert "tiny" in scenario_names
         assert "small" in scenario_names
 
-    @patch("src.benchmark.runner.BenchmarkRunner.run_scenario")
-    @patch("src.benchmark.runner.BenchmarkRunner.close")
+    @patch("tools.benchmark.runner.BenchmarkRunner.run_scenario")
+    @patch("tools.benchmark.runner.BenchmarkRunner.close")
     def test_full_suite_flag(self, mock_close, mock_run, benchmark_module, tmp_output):
         mock_run.return_value = []
         ret = self._run_main(benchmark_module, ["--full-suite", "--output", str(tmp_output)])
         assert ret == 0
         assert mock_run.call_count == 3
 
-    @patch("src.benchmark.runner.BenchmarkRunner.run_scenario")
-    @patch("src.benchmark.runner.BenchmarkRunner.close")
+    @patch("tools.benchmark.runner.BenchmarkRunner.run_scenario")
+    @patch("tools.benchmark.runner.BenchmarkRunner.close")
     def test_default_scenario(self, mock_close, mock_run, benchmark_module, tmp_output):
         mock_run.return_value = []
         ret = self._run_main(benchmark_module, ["--output", str(tmp_output)])
@@ -481,8 +481,8 @@ class TestBenchmarkCLI:
         assert mock_run.call_count == 1
         assert mock_run.call_args[0][0].scale == "medium"
 
-    @patch("src.benchmark.runner.BenchmarkRunner.run_scenario")
-    @patch("src.benchmark.runner.BenchmarkRunner.close")
+    @patch("tools.benchmark.runner.BenchmarkRunner.run_scenario")
+    @patch("tools.benchmark.runner.BenchmarkRunner.close")
     def test_layers_forwarded(self, mock_close, mock_run, benchmark_module, tmp_output):
         mock_run.return_value = []
         ret = self._run_main(
@@ -493,8 +493,8 @@ class TestBenchmarkCLI:
         scenario = mock_run.call_args[0][0]
         assert scenario.layers == ["app", "infra"]
 
-    @patch("src.benchmark.runner.BenchmarkRunner.run_scenario")
-    @patch("src.benchmark.runner.BenchmarkRunner.close")
+    @patch("tools.benchmark.runner.BenchmarkRunner.run_scenario")
+    @patch("tools.benchmark.runner.BenchmarkRunner.close")
     def test_runs_forwarded(self, mock_close, mock_run, benchmark_module, tmp_output):
         mock_run.return_value = []
         ret = self._run_main(
@@ -505,8 +505,8 @@ class TestBenchmarkCLI:
         scenario = mock_run.call_args[0][0]
         assert scenario.runs == 5
 
-    @patch("src.benchmark.runner.BenchmarkRunner.run_scenario")
-    @patch("src.benchmark.runner.BenchmarkRunner.close")
+    @patch("tools.benchmark.runner.BenchmarkRunner.run_scenario")
+    @patch("tools.benchmark.runner.BenchmarkRunner.close")
     def test_reports_generated(self, mock_close, mock_run, benchmark_module, tmp_output):
         mock_run.return_value = []
         ret = self._run_main(benchmark_module, ["--scales", "tiny", "--output", str(tmp_output)])
@@ -514,11 +514,11 @@ class TestBenchmarkCLI:
         assert (tmp_output / "benchmark_results.json").exists()
         assert (tmp_output / "benchmark_report.md").exists()
 
-    @patch("src.benchmark.runner.BenchmarkRunner.run_scenario")
-    @patch("src.benchmark.runner.BenchmarkRunner.close")
+    @patch("tools.benchmark.runner.BenchmarkRunner.run_scenario")
+    @patch("tools.benchmark.runner.BenchmarkRunner.close")
     def test_neo4j_args_forwarded(self, mock_close, mock_run, benchmark_module, tmp_output):
         mock_run.return_value = []
-        with patch("src.benchmark.runner.create_repository") as MockCreateRepo:
+        with patch("tools.benchmark.runner.create_repository") as MockCreateRepo:
             ret = self._run_main(benchmark_module, [
                 "--scales", "tiny",
                 "--uri", "bolt://db:7687",

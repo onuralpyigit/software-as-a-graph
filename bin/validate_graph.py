@@ -21,11 +21,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.infrastructure import create_repository
 from src.core import SimulationLayer
 from src.validation import ValidationService, ValidationTargets
-from src.cli.console import ConsoleDisplay
+from common.console import ConsoleDisplay
 from types import SimpleNamespace
 
 
-from src.cli.dispatcher import dispatch_validate
+from common.dispatcher import dispatch_validate
+from common.arguments import add_neo4j_arguments, add_common_arguments
 
 
 def main() -> int:
@@ -35,12 +36,9 @@ def main() -> int:
     action_group = parser.add_argument_group("Action")
     # Optional arguments for targeted validation
     action_group.add_argument("--layer", "-l", help="Comma-separated layers (e.g., app,infra,system). Defaults to ALL.")
-    action_group.add_argument("--quick", "-q", action="store_true", help="Quick validation from JSON files (uses positional args)")
+    action_group.add_argument("--quick", "-Q", action="store_true", help="Quick validation from JSON files (uses positional args)")
     
-    neo4j_group = parser.add_argument_group("Neo4j Connection")
-    neo4j_group.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
-    neo4j_group.add_argument("--user", "-u", default="neo4j", help="Neo4j username")
-    neo4j_group.add_argument("--password", "-p", default="password", help="Neo4j password")
+    add_neo4j_arguments(parser)
     # Validation targets
     targets_group = parser.add_argument_group("Validation Targets")
     targets_group.add_argument("--spearman", type=float, default=0.70, help="Target Spearman ρ")
@@ -55,8 +53,7 @@ def main() -> int:
     parser.add_argument("--visualize", action="store_true", help="Generate visualization dashboard")
     parser.add_argument("--viz-output", default="validation_dashboard.html", help="Visualization output file")
     parser.add_argument("--open", "-O", action="store_true", help="Open visualization in browser")
-    parser.add_argument("--quiet", action="store_true", help="Minimal output")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    add_common_arguments(parser)
     parser.add_argument("--dimensional", action="store_true", help="Display dimension-specific metrics (RMAV)")
     
     # Positional arguments for quick validation (optional)

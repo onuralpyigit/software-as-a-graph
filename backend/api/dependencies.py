@@ -15,7 +15,7 @@ from src.infrastructure import create_repository
 from src.core.ports.graph_repository import IGraphRepository
 from src.analysis import AnalysisService, StatisticsService
 from src.prediction import PredictionService
-from src.generation import GenerationService
+from tools.generation import GenerationService
 from api.models import (
     Neo4jCredentials,
     GenerateGraphRequest,

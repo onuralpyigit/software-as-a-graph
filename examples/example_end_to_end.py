@@ -29,9 +29,12 @@ from pathlib import Path
 from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "backend"))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+if str(ROOT / "backend") not in sys.path:
+    sys.path.insert(0, str(ROOT / "backend"))
 
-from src.generation import generate_graph, SCALE_PRESETS
+from tools.generation import generate_graph, SCALE_PRESETS
 from src.core import create_repository
 from src.analysis import AnalysisService
 from src.simulation import SimulationService

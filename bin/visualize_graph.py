@@ -30,7 +30,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
 from src.infrastructure import create_repository
 from src.visualization import VisualizationService, LAYER_DEFINITIONS
-from src.cli.console import ConsoleDisplay
+from common.console import ConsoleDisplay
+from common.arguments import add_neo4j_arguments, add_common_arguments
 
 
 def display_available_layers(display) -> None:
@@ -157,7 +158,7 @@ def run_demo(output_file: str, open_browser: bool) -> int:
         return 1
 
 
-from src.cli.dispatcher import dispatch_visualize
+from common.dispatcher import dispatch_visualize
 
 
 def main() -> int:
@@ -200,16 +201,8 @@ Examples:
         help="Generate demo dashboard with sample data (no Neo4j required)",
     )
 
-    neo4j_group = parser.add_argument_group("Neo4j Connection")
-    neo4j_group.add_argument(
-        "--uri", default="bolt://localhost:7687", help="Neo4j URI"
-    )
-    neo4j_group.add_argument(
-        "--user", "-u", default="neo4j", help="Neo4j username"
-    )
-    neo4j_group.add_argument(
-        "--password", "-p", default="password", help="Neo4j password"
-    )
+    # --- Neo4j Connection ---
+    add_neo4j_arguments(parser)
 
     output_group = parser.add_argument_group("Output Options")
     output_group.add_argument(
@@ -238,6 +231,7 @@ Examples:
         "--open", "-O", action="store_true",
         help="Open in browser after generation",
     )
+    add_common_arguments(parser)
 
     args = parser.parse_args()
 

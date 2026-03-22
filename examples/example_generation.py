@@ -13,11 +13,14 @@ import sys
 import json
 from pathlib import Path
 
-# Add backend to path (required for all examples)
+# Add project root and backend to path (required for all examples)
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "backend"))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+if str(ROOT / "backend") not in sys.path:
+    sys.path.insert(0, str(ROOT / "backend"))
 
-from src.generation import generate_graph, load_config, SCALE_PRESETS
+from tools.generation import generate_graph, load_config, SCALE_PRESETS
 
 
 # ──────────────────────────────────────────────

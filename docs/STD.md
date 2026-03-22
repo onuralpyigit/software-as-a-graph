@@ -600,10 +600,10 @@ def test_step_completion_logged(self, caplog, linear_graph):
 | `backend/src/simulation/failure_simulator.py` | ~15 | 80% |
 | `backend/src/validation/validator.py` | ~12 | 82% |
 | `backend/src/visualization/dashboard.py` | ~8 | 75% |
-| `backend/src/benchmark/service.py` | ~5 | 70% |
+| `tools/benchmark/service.py` | ~5 | 70% |
 | **Total** | **~118** | **≥ 80%** |
 
-> **Note on path prefix:** All `backend/src/` modules are importable within the `backend/` working directory as `src.<module>`. The full paths above reflect the repository layout; pytest should be run from `backend/`.
+> **Note on path prefix:** Most modules are in `backend/src/`, while dev utilities are in `tools/`. Both packages are importable if the project root and `backend/` are in the Python path.
 
 ---
 

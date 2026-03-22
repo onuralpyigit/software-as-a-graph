@@ -8,16 +8,14 @@ Example usage:
     python export_graph.py --output graph.json --raw  # Export raw format with weights
 """
 import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parent.parent / "backend"))
-
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Dict, Any
+sys.path.append(str(Path(__file__).resolve().parent.parent / "backend"))
 
 from src.infrastructure import create_repository
+from common.arguments import add_neo4j_arguments, add_common_arguments
 
 
 def main() -> None:
@@ -31,21 +29,8 @@ def main() -> None:
         required=True,
         help="Output JSON file path",
     )
-    parser.add_argument(
-        "--uri",
-        default="bolt://localhost:7687",
-        help="Neo4j Bolt URI",
-    )
-    parser.add_argument(
-        "--user",
-        default="neo4j",
-        help="Neo4j Username",
-    )
-    parser.add_argument(
-        "--password",
-        default="password",
-        help="Neo4j Password",
-    )
+    add_neo4j_arguments(parser)
+    add_common_arguments(parser)
     args = parser.parse_args()
 
     print(f"Connecting to Neo4j at {args.uri}...")

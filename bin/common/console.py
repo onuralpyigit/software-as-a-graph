@@ -79,6 +79,22 @@ class ConsoleDisplay:
         print(f"\n{self.colored(f' {title} ', Colors.WHITE, bold=True)}")
         print(f"{self.colored(char * width, Colors.GRAY)}")
 
+    def print_step(self, msg: str) -> None:
+        """Print a step indicator."""
+        print(f"  {self.colored('→', Colors.BLUE)} {msg}")
+
+    def print_success(self, msg: str) -> None:
+        """Print a success indicator."""
+        print(f"  {self.colored('✓', Colors.GREEN)} {msg}")
+
+    def print_error(self, msg: str) -> None:
+        """Print an error indicator."""
+        print(f"  {self.colored('✗', Colors.RED)} {msg}")
+
+    def print_warning(self, msg: str) -> None:
+        """Print a warning indicator."""
+        print(f"  {self.colored('⚠', Colors.YELLOW)} {msg}")
+
     def wrap_text(self, text: str, width: int) -> List[str]:
         """Wrap text to specified width."""
         words = text.split()
@@ -225,7 +241,53 @@ class ConsoleDisplay:
             for line in desc_lines[1:]: print(f"                  {line}")
             rec_lines = self.wrap_text(p.recommendation, 60)
             print(f"           Fix: {self.colored(rec_lines[0], Colors.GREEN)}")
-            for line in rec_lines[1:]: print(f"                {self.colored(line, Colors.GREEN)}")
+            for line in rec_lines[1:]: print(f"                {self.colored(line, self.Colors.GREEN)}")
+
+    def display_antipatterns(self, problems: List["DetectedProblem"], layers: List[str], total_components: int) -> None:
+        """Display anti-pattern detection findings."""
+        self.print_header("Anti-Pattern & Bad Smell Detection")
+        
+        # Summary KPIs
+        self.print_subheader("Scan Summary")
+        print(f"  Layers analyzed:     {', '.join(layers)}")
+        print(f"  Components scanned:  {total_components}")
+        print(f"  Total smells found:  {self.colored(str(len(problems)), self.Colors.WHITE, bold=True)}")
+        print()
+        
+        by_sev = {}
+        for p in problems:
+            by_sev[p.severity] = by_sev.get(p.severity, 0) + 1
+            
+        for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
+            count = by_sev.get(sev, 0)
+            color = self.severity_color(sev)
+            bar = self.colored("█" * min(count, 40), color) if count else self.colored("─", self.Colors.GRAY)
+            print(f"  {self.colored(f'{sev:<10}', color)}  {bar}  {self.colored(str(count), color, bold=True)}")
+        print()
+
+        if not problems:
+            print(f"  {self.colored('✓  No smells found matching the active filters.', self.Colors.GREEN)}")
+            return
+
+        self.print_subheader(f"Findings ({len(problems)})")
+
+        prev_sev = None
+        for i, problem in enumerate(problems, 1):
+            if problem.severity != prev_sev:
+                color = self.severity_color(problem.severity)
+                print(f"\n  {self.colored(f'--- {problem.severity} ---', color, bold=True)}")
+                prev_sev = problem.severity
+
+            color = self.severity_color(problem.severity)
+            print(f"\n  {self.colored(f'#{i:02d}', self.Colors.WHITE, bold=True)}  "
+                  f"{self.colored(f'[{problem.name}]', color, bold=True)}"
+                  f"  {self.colored(problem.entity_id, self.Colors.WHITE, bold=True)} "
+                  f"({problem.entity_type})")
+
+            print(f"       {self.colored('Description:', self.Colors.WHITE, bold=True)} {problem.description}")
+            ev_parts = [f"{k}={v}" for k, v in list(problem.evidence.items())[:4]]
+            print(f"       {self.colored('Evidence:   ', self.Colors.WHITE, bold=True)} {self.colored(', '.join(ev_parts), self.Colors.GRAY)}")
+            print(f"       {self.colored('Fix:        ', self.Colors.WHITE, bold=True)} {self.colored(problem.recommendation, self.Colors.GREEN)}")
 
     def display_sensitivity(self, result: "LayerAnalysisResult") -> None:
         """Display weight sensitivity analysis results."""

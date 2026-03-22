@@ -358,8 +358,8 @@ class TestNormalizationPopulationLevel:
 class TestGeneratorCodeQuality:
     def test_generator_produces_code_quality_fields(self):
         """CQ-009: StatisticalGraphGenerator includes loc/CC/LCOM/Ca/Ce in output."""
-        from src.generation.generator import StatisticalGraphGenerator
-        from src.generation.models import GraphConfig
+        from tools.generation.generator import StatisticalGraphGenerator
+        from tools.generation.models import GraphConfig
         
         config = GraphConfig.from_scale("tiny", seed=42)
         gen = StatisticalGraphGenerator(config)
@@ -378,8 +378,8 @@ class TestGeneratorCodeQuality:
 
     def test_generator_respects_app_type_ranges(self):
         """CQ-009b: Sensor apps have lower LOC than gateway apps on average."""
-        from src.generation.generator import StatisticalGraphGenerator, _CODE_QUALITY_PARAMS
-        from src.generation.models import GraphConfig
+        from tools.generation.generator import StatisticalGraphGenerator, _CODE_QUALITY_PARAMS
+        from tools.generation.models import GraphConfig
         
         sensor_params = _CODE_QUALITY_PARAMS["sensor"]
         gateway_params = _CODE_QUALITY_PARAMS["gateway"]

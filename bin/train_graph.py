@@ -27,7 +27,8 @@ from typing import Optional
 # Ensure repo root is on the path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
-from src.cli.console import ConsoleDisplay
+from common.console import ConsoleDisplay
+from common.arguments import add_neo4j_arguments, add_common_arguments
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,11 +49,8 @@ def parse_args() -> argparse.Namespace:
         help="System layer to analyse (default: app)",
     )
 
-    # Neo4j connection
-    neo4j = parser.add_argument_group("Neo4j connection")
-    neo4j.add_argument("--uri", default=None, help="Neo4j URI")
-    neo4j.add_argument("--user", default=None, help="Neo4j username")
-    neo4j.add_argument("--password", default=None, help="Neo4j password")
+    # --- Neo4j Connection ---
+    add_neo4j_arguments(parser)
 
     # Pre-computed inputs
     inputs = parser.add_argument_group("Pre-computed inputs (skip pipeline steps)")
@@ -84,6 +82,7 @@ def parse_args() -> argparse.Namespace:
                         help="Checkpoint directory")
     output.add_argument("--output", default=None, help="Save result JSON")
     output.add_argument("--use-ahp", action="store_true", help="Use AHP weights for RMAV")
+    add_common_arguments(parser)
 
     return parser.parse_args()
 

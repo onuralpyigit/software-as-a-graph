@@ -14,6 +14,13 @@ Covers:
 """
 
 import pytest
+import sys
+from pathlib import Path
+
+# Add project root to sys.path
+project_root = Path(__file__).resolve().parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from src.core.models import Application, Library, GraphData, ComponentData, EdgeData
 from src.core.metrics import StructuralMetrics
@@ -358,8 +365,8 @@ class TestLibraryBackwardCompatibility:
 class TestGeneratorLibraryCodeQuality:
     def test_generator_produces_lib_code_quality_fields(self):
         """LCQ-008a: StatisticalGraphGenerator includes loc/CC/LCOM for Library nodes."""
-        from src.generation.generator import StatisticalGraphGenerator
-        from src.generation.models import GraphConfig
+        from tools.generation.generator import StatisticalGraphGenerator
+        from tools.generation.models import GraphConfig
 
         config = GraphConfig.from_scale("tiny", seed=99)
         gen = StatisticalGraphGenerator(config)
@@ -376,7 +383,7 @@ class TestGeneratorLibraryCodeQuality:
 
     def test_generator_lib_archetype_ranges_are_sensible(self):
         """LCQ-008b: Library archetypes have sensible LOC ranges (utility < framework)."""
-        from src.generation.generator import _LIB_CODE_QUALITY_PARAMS
+        from tools.generation.generator import _LIB_CODE_QUALITY_PARAMS
 
         utility_max_loc   = _LIB_CODE_QUALITY_PARAMS["utility"][1]
         framework_max_loc = _LIB_CODE_QUALITY_PARAMS["framework"][1]
@@ -392,8 +399,8 @@ class TestGeneratorLibraryCodeQuality:
 class TestAssignLibCoupling:
     def test_ca_counts_apps_and_libs_depending_on_lib(self):
         """LCQ-009a: Ca = number of components that USES this library."""
-        from src.generation.generator import StatisticalGraphGenerator
-        from src.generation.models import GraphConfig
+        from tools.generation.generator import StatisticalGraphGenerator
+        from tools.generation.models import GraphConfig
 
         # Use generator's helper directly
         config = GraphConfig.from_scale("tiny", seed=7)
@@ -418,8 +425,8 @@ class TestAssignLibCoupling:
 
     def test_instability_reflects_coupling(self):
         """LCQ-009b: Library instability property correct after coupling assignment."""
-        from src.generation.generator import StatisticalGraphGenerator
-        from src.generation.models import GraphConfig
+        from tools.generation.generator import StatisticalGraphGenerator
+        from tools.generation.models import GraphConfig
         from src.core.models import Library, Application
 
         config = GraphConfig.from_scale("tiny", seed=7)

@@ -9,17 +9,19 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-sys.path.append(str(Path(__file__).parent.parent))
-sys.path.append(str(Path(__file__).parent.parent / "bin"))
+project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "backend"))
+sys.path.append(str(project_root / "bin"))
 
-from src.benchmark.models import (
+from tools.benchmark.models import (
     AggregateResult,
     BenchmarkRecord,
     BenchmarkScenario,
     BenchmarkSummary,
 )
-from src.benchmark.reporting import ReportGenerator
-from src.benchmark.runner import BenchmarkRunner
+from tools.benchmark.reporting import ReportGenerator
+from tools.benchmark.runner import BenchmarkRunner
 
 
 # =============================================================================
@@ -190,7 +192,7 @@ class TestReportGenerator:
 class TestBenchmarkRunner:
     """Tests for BenchmarkRunner using mocked internal methods."""
 
-    @patch("src.benchmark.runner.GenerationService")
+    @patch("tools.benchmark.runner.GenerationService")
     def test_generate_data_success(self, mock_gen_cls, tmp_output):
         mock_gen_cls.return_value.generate.return_value = {"nodes": []}
         runner = BenchmarkRunner(tmp_output)
@@ -201,7 +203,7 @@ class TestBenchmarkRunner:
         assert data is not None
         assert ms >= 0
 
-    @patch("src.benchmark.runner.GenerationService")
+    @patch("tools.benchmark.runner.GenerationService")
     def test_generate_data_failure(self, mock_gen_cls, tmp_output):
         mock_gen_cls.return_value.generate.side_effect = Exception("boom")
         runner = BenchmarkRunner(tmp_output)
@@ -211,11 +213,11 @@ class TestBenchmarkRunner:
 
         assert data is None
 
-    @patch("src.benchmark.runner.BenchmarkRunner._generate_data")
-    @patch("src.benchmark.runner.BenchmarkRunner._import_data")
-    @patch("src.benchmark.runner.BenchmarkRunner._run_analysis")
-    @patch("src.benchmark.runner.BenchmarkRunner._run_simulation")
-    @patch("src.benchmark.runner.BenchmarkRunner._run_validation")
+    @patch("tools.benchmark.runner.BenchmarkRunner._generate_data")
+    @patch("tools.benchmark.runner.BenchmarkRunner._import_data")
+    @patch("tools.benchmark.runner.BenchmarkRunner._run_analysis")
+    @patch("tools.benchmark.runner.BenchmarkRunner._run_simulation")
+    @patch("tools.benchmark.runner.BenchmarkRunner._run_validation")
     def test_run_scenario_flow(
         self, mock_val, mock_sim, mock_an, mock_imp, mock_gen, tmp_output
     ):
@@ -254,7 +256,7 @@ class TestBenchmarkRunner:
         assert records[0].time_analysis == 5.0
         assert records[0].time_total > 0
 
-    @patch("src.benchmark.runner.BenchmarkRunner._generate_data")
+    @patch("tools.benchmark.runner.BenchmarkRunner._generate_data")
     def test_run_scenario_skips_on_generation_failure(self, mock_gen, tmp_output):
         mock_gen.return_value = (None, 0.0)
 
@@ -264,9 +266,9 @@ class TestBenchmarkRunner:
 
         assert len(records) == 0
 
-    @patch("src.benchmark.runner.BenchmarkRunner._generate_data")
-    @patch("src.benchmark.runner.BenchmarkRunner._import_data")
-    @patch("src.benchmark.runner.BenchmarkRunner._run_analysis")
+    @patch("tools.benchmark.runner.BenchmarkRunner._generate_data")
+    @patch("tools.benchmark.runner.BenchmarkRunner._import_data")
+    @patch("tools.benchmark.runner.BenchmarkRunner._run_analysis")
     def test_analysis_failure_records_error(
         self, mock_an, mock_imp, mock_gen, tmp_output
     ):

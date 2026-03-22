@@ -10,14 +10,14 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 from src.infrastructure import create_repository
-from src.cli.console import ConsoleDisplay
+from .console import ConsoleDisplay
 
 # Import services and use cases lazily to avoid circular imports and heavy start-up costs
 # if only one stage is needed.
 
 def dispatch_generate(args: argparse.Namespace) -> Dict[str, Any]:
     """Dispatch graph generation stage."""
-    from src.generation import GenerationService, load_config, generate_graph
+    from tools.generation import GenerationService, load_config, generate_graph
     
     graph_data = {}
     if hasattr(args, 'config') and args.config:

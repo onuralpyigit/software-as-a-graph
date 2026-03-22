@@ -14,54 +14,18 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Any, Dict
 
 from src.infrastructure import create_repository
-from src.cli.dispatcher import (
+from common.dispatcher import (
     dispatch_generate, dispatch_import, dispatch_analyze, 
     dispatch_predict, dispatch_simulate, dispatch_validate, 
     dispatch_visualize
 )
+from common.console import ConsoleDisplay, Colors
+from common.arguments import add_neo4j_arguments
 
 
-# =============================================================================
-# Terminal Output Helpers
-# =============================================================================
-
-class Colors:
-    """ANSI color codes for terminal output."""
-    CYAN = "\033[96m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    RED = "\033[91m"
-    GRAY = "\033[90m"
-    BLUE = "\033[94m"
-    BOLD = "\033[1m"
-    RESET = "\033[0m"
-
-
+# Helper for colorizing text (keeping it for the summary table logic)
 def _c(text: str, color: str) -> str:
     return f"{color}{text}{Colors.RESET}"
-
-
-def print_header(title: str) -> None:
-    line = "=" * 60
-    print(f"\n{_c(line, Colors.CYAN)}")
-    print(f"{_c(f' {title}', Colors.CYAN + Colors.BOLD)}")
-    print(_c(line, Colors.CYAN))
-
-
-def print_step(msg: str) -> None:
-    print(f"  {_c('→', Colors.BLUE)} {msg}")
-
-
-def print_success(msg: str) -> None:
-    print(f"  {_c('✓', Colors.GREEN)} {msg}")
-
-
-def print_error(msg: str) -> None:
-    print(f"  {_c('✗', Colors.RED)} {msg}")
-
-
-def print_warning(msg: str) -> None:
-    print(f"  {_c('⚠', Colors.YELLOW)} {msg}")
 
 
 # =============================================================================
@@ -203,9 +167,9 @@ STAGES = [
 ]
 
 
-def print_summary(results: List[StageResult], total_time: float) -> None:
+def print_summary(display: ConsoleDisplay, results: List[StageResult], total_time: float) -> None:
     """Print a timing summary table for all executed stages."""
-    print_header("Pipeline Summary")
+    display.print_header("Pipeline Summary")
 
     # Column widths
     w_idx, w_stage, w_time, w_status = 4, 20, 10, 8
@@ -267,10 +231,8 @@ def build_parser() -> argparse.ArgumentParser:
     analysis.add_argument("--use-ahp", action="store_true", help="Use AHP weights")
     analysis.add_argument("--clean", "--clear", dest="clean", action="store_true", help="Clear Neo4j before import")
 
-    neo4j = parser.add_argument_group("Neo4j Connection")
-    neo4j.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
-    neo4j.add_argument("--user", default="neo4j", help="Neo4j username")
-    neo4j.add_argument("--password", default="password", help="Neo4j password")
+    # --- Neo4j Connection ---
+    add_neo4j_arguments(parser)
 
     runtime = parser.add_argument_group("Runtime Options")
     runtime.add_argument("--dry-run", action="store_true", help="Print plans without executing")
@@ -294,16 +256,14 @@ def main() -> int:
         parser.print_help()
         return 1
 
-    print_header("Software-as-a-Graph Pipeline (In-Process)")
-    print(f"  Scale : {args.scale}   Layers: {args.layers}")
-    print(f"  Output: {args.output_dir}")
+    # Initialize display
+    display = ConsoleDisplay()
 
-    repo = None
     if not args.dry_run:
         try:
             repo = create_repository(uri=args.uri, user=args.user, password=args.password)
         except Exception as e:
-            print_error(f"Failed to connect to Neo4j: {e}")
+            display.print_error(f"Failed to connect to Neo4j: {e}")
             return 1
 
     results: List[StageResult] = []
@@ -319,17 +279,17 @@ def main() -> int:
                 results.append(StageResult(name=label, script=label.lower(), skipped=True))
                 continue
 
-            print_header(f"Stage {stage_num}: {label}")
+            display.print_header(f"Stage {stage_num}: {label}")
             stage_args = prepper(args)
             
             if args.dry_run:
-                print_step(f"[dry-run] Would call {dispatch_func.__name__}")
+                display.print_step(f"[dry-run] Would call {dispatch_func.__name__}")
                 results.append(StageResult(name=label, script=label.lower(), success=True))
                 continue
 
             try:
                 t0 = time.time()
-                print_step(f"In-process execution of {label}...")
+                display.print_step(f"In-process execution of {label}...")
                 
                 # Special handling for in-memory data passing
                 if flag_name == "generate":
@@ -340,22 +300,22 @@ def main() -> int:
                     dispatch_func(repo, stage_args)
                 
                 duration = time.time() - t0
-                print_success(f"Completed in {duration:.2f}s")
+                display.print_success(f"Completed in {duration:.2f}s")
                 results.append(StageResult(name=label, script=label.lower(), duration=duration, success=True))
                 
             except Exception as e:
                 duration = time.time() - t0
-                print_error(f"Failed: {e}")
+                display.print_error(f"Failed: {e}")
                 if args.verbose:
                     import traceback
                     traceback.print_exc()
                 results.append(StageResult(name=label, script=label.lower(), duration=duration, success=False))
-                print_error(f"Pipeline aborted at stage {stage_num} ({label}).")
-                print_summary(results, time.time() - t_pipeline)
+                display.print_error(f"Pipeline aborted at stage {stage_num} ({label}).")
+                print_summary(display, results, time.time() - t_pipeline)
                 return 1
 
         total_time = time.time() - t_pipeline
-        print_summary(results, total_time)
+        print_summary(display, results, total_time)
         print(f"\n  All stages completed successfully.")
 
     finally:
