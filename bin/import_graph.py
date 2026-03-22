@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Dict
 
-from src.adapters import create_repository
+from src.cli.dispatcher import dispatch_import
 
 
 def print_import_stats(stats: Dict[str, int]) -> None:
@@ -94,14 +94,6 @@ def main() -> None:
         print(f"Error: Input file '{args.input}' not found.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Reading {args.input}...")
-    try:
-        with open(input_path) as f:
-            data = json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}", file=sys.stderr)
-        sys.exit(1)
-
     print(f"Connecting to Neo4j at {args.uri}...")
     
     # Initialize Repository directly
@@ -112,17 +104,13 @@ def main() -> None:
     )
     
     try:
-        from src.usecases import ModelGraphUseCase
-        
-        use_case = ModelGraphUseCase(repo)
-        stats_obj = use_case.execute(data, clear=args.clear)
-        
-        # Use underlying details dict if available for the rich printer
-        stats = stats_obj.details if stats_obj.details else {}
+        stats = dispatch_import(repo, args)
         print_import_stats(stats)
             
     except Exception as e:
         print(f"Import failed: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
     finally:
         repo.close()

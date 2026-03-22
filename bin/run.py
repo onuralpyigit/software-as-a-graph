@@ -1,34 +1,24 @@
-#!/usr/bin/env python3
-"""
-Software-as-a-Graph Pipeline Orchestrator
-
-Executes the end-to-end analysis pipeline by delegating to specialized CLI scripts.
-
-Pipeline Stages:
-    1. Generate   → Create synthetic graph data
-    2. Import     → Build graph model in Neo4j
-    3. Analyze    → Compute structural metrics (centrality, RMAV)
-    4. Simulate   → Run exhaustive failure simulations
-    5. Validate   → Compare predictions vs simulation
-    6. Visualize  → Generate interactive dashboard
-
-Usage:
-    python bin/run.py --all --scale small                      # Full pipeline
-    python bin/run.py --all --config config/ros2.yaml          # With custom config
-    python bin/run.py --analyze --simulate --validate          # Specific stages
-    python bin/run.py --all --layer system --open              # Single layer + open dashboard
-    python bin/run.py --all --dry-run                          # Preview commands
-"""
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
+# Add backend to path for imports
+backend_path = Path(__file__).resolve().parent.parent / "backend"
+if str(backend_path) not in sys.path:
+    sys.path.insert(0, str(backend_path))
 
 import argparse
-import subprocess
 import time
+import logging
+import json
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
+
+from src.adapters import create_repository
+from src.cli.dispatcher import (
+    dispatch_generate, dispatch_import, dispatch_analyze, 
+    dispatch_predict, dispatch_simulate, dispatch_validate, 
+    dispatch_visualize
+)
 
 
 # =============================================================================
@@ -75,173 +65,141 @@ def print_warning(msg: str) -> None:
 
 
 # =============================================================================
-# Script Runner
+# Stage Runner
 # =============================================================================
 
 @dataclass
 class StageResult:
     """Result of a single pipeline stage execution."""
     name: str
-    script: str
+    script: str  # Kept for compatibility with summary printer
     duration: float = 0.0
     success: bool = False
     skipped: bool = False
 
 
-def run_script(
-    script_name: str,
-    args: List[str],
-    project_root: Path,
-    *,
-    dry_run: bool = False,
-) -> tuple[bool, float]:
-    """
-    Run a bin/ script as a subprocess.
-
-    Returns:
-        (success, duration_seconds)
-    """
-    script_path = project_root / "bin" / script_name
-    if not script_path.exists():
-        print_error(f"Script not found: bin/{script_name}")
-        return False, 0.0
-
-    cmd = [sys.executable, str(script_path)] + args
-    display_cmd = f"python bin/{script_name} {' '.join(args)}"
-
-    if dry_run:
-        print_step(f"{_c('[dry-run]', Colors.YELLOW)} {_c(display_cmd, Colors.GRAY)}")
-        return True, 0.0
-
-    print_step(f"Executing: {_c(display_cmd, Colors.GRAY)}")
-
-    try:
-        t0 = time.time()
-        result = subprocess.run(cmd, cwd=str(project_root), check=False)
-        duration = time.time() - t0
-
-        if result.returncode == 0:
-            print_success(f"Completed in {duration:.2f}s")
-            return True, duration
-        else:
-            print_error(f"Failed (exit code {result.returncode})")
-            return False, duration
-
-    except Exception as e:
-        print_error(f"Execution error: {e}")
-        return False, 0.0
-
-
 # =============================================================================
-# Stage Builders — each returns the argument list for its script
+# Stage Builders — each returns an adapted Namespace for the dispatcher
 # =============================================================================
 
-def _build_generate_args(args: argparse.Namespace) -> List[str]:
-    """Build arguments for generate_graph.py."""
-    cmd = ["--output", args.input]
-    if args.config:
-        cmd += ["--config", args.config]
-    else:
-        cmd += ["--scale", args.scale, "--seed", str(args.seed)]
-    return cmd
+def _prep_generate_args(args: argparse.Namespace) -> argparse.Namespace:
+    return argparse.Namespace(
+        output=args.input,
+        config=args.config,
+        scale=args.scale,
+        seed=args.seed,
+        domain=None,
+        scenario=None
+    )
 
 
-def _build_import_args(args: argparse.Namespace, neo4j: List[str]) -> List[str]:
-    """Build arguments for import_graph.py."""
-    cmd = ["--input", args.input]
-    if args.clean:
-        cmd.append("--clear")
-    return cmd + neo4j
+def _prep_import_args(args: argparse.Namespace) -> argparse.Namespace:
+    return argparse.Namespace(
+        input=args.input,
+        clear=args.clean,
+        uri=args.uri,
+        user=args.user,
+        password=args.password
+    )
 
 
-def _build_analyze_args(args: argparse.Namespace, neo4j: List[str]) -> List[str]:
-    """Build arguments for analyze_graph.py."""
+def _prep_analyze_args(args: argparse.Namespace) -> argparse.Namespace:
     layers = [l.strip() for l in args.layers.split(",") if l.strip()]
+    return argparse.Namespace(
+        all=len(layers) > 1,
+        layer=layers[0] if len(layers) == 1 else None,
+        layers=args.layers if len(layers) > 1 else None,
+        output=str(Path(args.output_dir) / "analysis_results.json"),
+        use_ahp=args.use_ahp,
+        norm='robust',
+        winsorize=True,
+        winsorize_limit=0.05,
+        gnn_model=args.gnn_model,
+        uri=args.uri,
+        user=args.user,
+        password=args.password,
+        verbose=args.verbose
+    )
 
-    # Use --all for multi-layer, --layer for single
-    if len(layers) > 1:
-        cmd = ["--all"]
-    else:
-        cmd = ["--layer", layers[0]]
 
-    cmd += ["--output", str(Path(args.output_dir) / "analysis_results.json")]
-    if args.use_ahp:
-        cmd.append("--use-ahp")
-    if args.verbose:
-        cmd.append("--verbose")
-    return cmd + neo4j
-
-
-def _build_predict_args(args: argparse.Namespace, neo4j: List[str]) -> List[str]:
-    """Build arguments for predict_graph.py."""
+def _prep_predict_args(args: argparse.Namespace) -> argparse.Namespace:
     layers = [l.strip() for l in args.layers.split(",") if l.strip()]
-
-    # predict_graph.py usually processes one layer at a time internally if called via service,
-    # but the CLI handles --layer. If multiple layers, we might need to loop or use 'system'.
-    # For the pipeline, we'll use the same layer subset.
-    cmd = ["--layer", args.layers]
-    cmd += ["--checkpoint", args.gnn_model or str(Path(args.output_dir).parent / "gnn_checkpoints")]
-    cmd += ["--output", str(Path(args.output_dir) / "predictions.json")]
+    checkpoint = args.gnn_model
+    if not checkpoint:
+        checkpoint = str(Path(args.output_dir) / "gnn_checkpoints")
     
-    # Pass the structural analysis result as input to avoid re-running analysis
-    cmd += ["--structural", str(Path(args.output_dir) / "analysis_results.json")]
-
-    if args.verbose:
-        cmd.append("--verbose")
-    return cmd + neo4j
-
-
-def _build_simulate_args(args: argparse.Namespace, neo4j: List[str]) -> List[str]:
-    """Build arguments for simulate_graph.py (report subcommand)."""
-    cmd = ["report", "--layers", args.layers]
-    cmd += ["--output", str(Path(args.output_dir) / "simulation_report.json")]
-    if args.verbose:
-        cmd.append("--verbose")
-    return cmd + neo4j
+    return argparse.Namespace(
+        layer=args.layers,
+        checkpoint=checkpoint,
+        output=str(Path(args.output_dir) / "predictions.json"),
+        structural=str(Path(args.output_dir) / "analysis_results.json"),
+        rmav=None,
+        simulated=None,
+        uri=args.uri,
+        user=args.user,
+        password=args.password,
+        verbose=args.verbose
+    )
 
 
-def _build_validate_args(args: argparse.Namespace, neo4j: List[str]) -> List[str]:
-    """Build arguments for validate_graph.py."""
-    cmd = ["--layer", args.layers]
-    cmd += ["--output", str(Path(args.output_dir) / "validation_results.json")]
-    if args.verbose:
-        cmd.append("--verbose")
-    
-    # Pass pre-computed inputs for Step 5 (Validation)
-    cmd.append(str(Path(args.output_dir) / "predictions.json"))
-    cmd.append(str(Path(args.output_dir) / "simulation_report.json"))
-    
-    return cmd + neo4j
+def _prep_simulate_args(args: argparse.Namespace) -> argparse.Namespace:
+    return argparse.Namespace(
+        command="report",
+        layers=args.layers,
+        output=str(Path(args.output_dir) / "simulation_report.json"),
+        edges=False,
+        uri=args.uri,
+        user=args.user,
+        password=args.password,
+        verbose=args.verbose
+    )
 
 
-def _build_visualize_args(args: argparse.Namespace, neo4j: List[str]) -> List[str]:
-    """Build arguments for visualize_graph.py."""
+def _prep_validate_args(args: argparse.Namespace) -> argparse.Namespace:
+    return argparse.Namespace(
+        layer=args.layers,
+        output=str(Path(args.output_dir) / "validation_results.json"),
+        predicted=str(Path(args.output_dir) / "predictions.json"),
+        actual=str(Path(args.output_dir) / "simulation_report.json"),
+        uri=args.uri,
+        user=args.user,
+        password=args.password,
+        verbose=args.verbose
+    )
+
+
+def _prep_visualize_args(args: argparse.Namespace) -> argparse.Namespace:
     layers = [l.strip() for l in args.layers.split(",") if l.strip()]
-
-    if len(layers) > 1:
-        cmd = ["--layers", args.layers]
-    else:
-        cmd = ["--layer", layers[0]]
-
-    cmd += ["--output", str(Path(args.output_dir) / "dashboard.html")]
-    if args.open:
-        cmd.append("--open")
-    return cmd + neo4j
+    return argparse.Namespace(
+        all=len(layers) > 1,
+        layers=args.layers if len(layers) > 1 else None,
+        layer=layers[0] if len(layers) == 1 else None,
+        output=str(Path(args.output_dir) / "dashboard.html"),
+        no_network=False,
+        no_matrix=False,
+        no_validation=False,
+        antipatterns=None,
+        multi_seed=0,
+        open=args.open,
+        uri=args.uri,
+        user=args.user,
+        password=args.password
+    )
 
 
 # =============================================================================
 # Pipeline Definition
 # =============================================================================
 
-# (flag_name, stage_label, script_file, args_builder)
+# (flag_name, stage_label, dispatcher_func, args_prepper)
 STAGES = [
-    ("generate",  "Generation",    "generate_graph.py",   _build_generate_args),
-    ("do_import", "Import",        "import_graph.py",     _build_import_args),
-    ("analyze",   "Analysis",      "analyze_graph.py",    _build_analyze_args),
-    ("predict",   "Prediction",    "predict_graph.py",    _build_predict_args),
-    ("simulate",  "Simulation",    "simulate_graph.py",   _build_simulate_args),
-    ("validate",  "Validation",    "validate_graph.py",   _build_validate_args),
-    ("visualize", "Visualization", "visualize_graph.py",  _build_visualize_args),
+    ("generate",  "Generation",    dispatch_generate,  _prep_generate_args),
+    ("do_import", "Import",        dispatch_import,    _prep_import_args),
+    ("analyze",   "Analysis",      dispatch_analyze,   _prep_analyze_args),
+    ("predict",   "Prediction",    dispatch_predict,   _prep_predict_args),
+    ("simulate",  "Simulation",    dispatch_simulate,  _prep_simulate_args),
+    ("validate",  "Validation",    dispatch_validate,  _prep_validate_args),
+    ("visualize", "Visualization", dispatch_visualize, _prep_visualize_args),
 ]
 
 
@@ -271,7 +229,6 @@ def print_summary(results: List[StageResult], total_time: float) -> None:
 
         print(
             f"  {i:<{w_idx}} {r.name:<{w_stage}} {time_str:>{w_time}} {status:>{w_status + 9}}"
-            # +9 accounts for ANSI escape chars in status
         )
 
     print(f"\n  Total: {_c(f'{total_time:.2f}s', Colors.BOLD)}")
@@ -283,80 +240,42 @@ def print_summary(results: List[StageResult], total_time: float) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Software-as-a-Graph Pipeline Orchestrator",
+        description="Software-as-a-Graph Pipeline Orchestrator (In-Process)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-examples:
-  %(prog)s --all --scale small                  Full pipeline, small graph
-  %(prog)s --all --config config/ros2.yaml      Full pipeline, custom config
-  %(prog)s --analyze --simulate --validate      Run only 3 stages
-  %(prog)s --all --layer system --open          System layer + open dashboard
-  %(prog)s --all --dry-run                      Preview commands only
-""",
     )
 
-    # --- Pipeline stage flags ---
     stages = parser.add_argument_group("Pipeline Stages")
-    stages.add_argument("--all", "-a", action="store_true",
-                        help="Run all 6 stages")
-    stages.add_argument("--generate", "-g", action="store_true",
-                        help="Stage 1: Generate synthetic data")
-    stages.add_argument("--import", "-i", dest="do_import", action="store_true",
-                        help="Stage 2: Import data into Neo4j")
-    stages.add_argument("--analyze", "-A", action="store_true",
-                        help="Stage 3: Structural analysis")
-    stages.add_argument("--simulate", "-s", action="store_true",
-                        help="Stage 4: Exhaustive failure simulation")
-    stages.add_argument("--validate", "-V", action="store_true",
-                        help="Stage 6: Validate predictions vs simulation")
-    stages.add_argument("--visualize", "-z", action="store_true",
-                        help="Stage 7: Generate dashboard")
-    stages.add_argument("--predict", "-P", action="store_true",
-                        help="Stage 4: GNN-enhanced criticality prediction")
+    stages.add_argument("--all", "-a", action="store_true", help="Run all 7 stages")
+    stages.add_argument("--generate", "-g", action="store_true", help="Stage 1: Generate synthetic data")
+    stages.add_argument("--import", "-i", dest="do_import", action="store_true", help="Stage 2: Import data into Neo4j")
+    stages.add_argument("--analyze", "-A", action="store_true", help="Stage 3: Structural analysis")
+    stages.add_argument("--predict", "-P", action="store_true", help="Stage 4: GNN Prediction")
+    stages.add_argument("--simulate", "-s", action="store_true", help="Stage 5: Simulation report")
+    stages.add_argument("--validate", "-V", action="store_true", help="Stage 6: Validate results")
+    stages.add_argument("--visualize", "-z", action="store_true", help="Stage 7: Generate dashboard")
 
-    # --- Data options ---
     data = parser.add_argument_group("Data Options")
-    data.add_argument("--config", metavar="FILE",
-                      help="Graph generation config (YAML)")
-    data.add_argument("--scale", default="medium",
-                      choices=["tiny", "small", "medium", "large", "xlarge"],
-                      help="Graph scale preset (default: medium)")
-    data.add_argument("--seed", type=int, default=42,
-                      help="Random seed for generation (default: 42)")
-    data.add_argument("--input", default="output/system.json",
-                      help="Data file path — output of generate, input to import (default: output/system.json)")
-    data.add_argument("--output-dir", default="output", metavar="DIR",
-                      help="Output directory for all artifacts (default: output)")
+    data.add_argument("--config", metavar="FILE", help="Graph generation config (YAML)")
+    data.add_argument("--scale", default="medium", choices=["tiny", "small", "medium", "large", "xlarge"], help="Graph scale")
+    data.add_argument("--seed", type=int, default=42, help="Random seed")
+    data.add_argument("--input", default="output/system.json", help="Intermediate JSON path")
+    data.add_argument("--output-dir", default="output", help="Output directory")
 
-    # --- Analysis options ---
     analysis = parser.add_argument_group("Analysis Options")
-    analysis.add_argument("--layer", "--layers", dest="layers",
-                          default="app,infra,mw",
-                          help="Layers to process, comma-separated (default: app,infra,mw)")
-    analysis.add_argument("--gnn-model", metavar="PATH",
-                          help="Path to pre-trained GNN model/checkpoint")
-    analysis.add_argument("--use-ahp", action="store_true",
-                          help="Use AHP-derived weights for quality scoring")
-    analysis.add_argument("--clean", "--clear", dest="clean", action="store_true",
-                          help="Clear Neo4j database before import")
+    analysis.add_argument("--layer", "--layers", dest="layers", default="app,infra,mw", help="Layers to process")
+    analysis.add_argument("--gnn-model", metavar="PATH", help="Path to GNN model")
+    analysis.add_argument("--use-ahp", action="store_true", help="Use AHP weights")
+    analysis.add_argument("--clean", "--clear", dest="clean", action="store_true", help="Clear Neo4j before import")
 
-    # --- Neo4j connection ---
     neo4j = parser.add_argument_group("Neo4j Connection")
-    neo4j.add_argument("--uri", default="bolt://localhost:7687",
-                       help="Neo4j Bolt URI")
-    neo4j.add_argument("--user", default="neo4j",
-                       help="Neo4j username")
-    neo4j.add_argument("--password", default="password",
-                       help="Neo4j password")
+    neo4j.add_argument("--uri", default="bolt://localhost:7687", help="Neo4j URI")
+    neo4j.add_argument("--user", default="neo4j", help="Neo4j username")
+    neo4j.add_argument("--password", default="password", help="Neo4j password")
 
-    # --- Runtime options ---
     runtime = parser.add_argument_group("Runtime Options")
-    runtime.add_argument("--dry-run", action="store_true",
-                         help="Print commands without executing")
-    runtime.add_argument("--verbose", "-v", action="store_true",
-                         help="Enable verbose logging in sub-scripts")
-    runtime.add_argument("--open", "-O", action="store_true",
-                         help="Open dashboard in browser after visualization")
+    runtime.add_argument("--dry-run", action="store_true", help="Print plans without executing")
+    runtime.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
+    runtime.add_argument("--open", "-O", action="store_true", help="Open dashboard after visualization")
 
     return parser
 
@@ -365,71 +284,83 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    # Resolve project root and ensure output directory exists
     project_root = Path(__file__).resolve().parent.parent
     output_dir = project_root / args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Check that at least one stage is selected
     run_all = args.all
-    any_stage = run_all or any(
-        getattr(args, flag) for flag, *_ in STAGES
-    )
+    any_stage = run_all or any(getattr(args, flag) for flag, *_ in STAGES)
     if not any_stage:
         parser.print_help()
-        print(f"\n{_c('Error: specify --all or at least one stage flag.', Colors.RED)}")
         return 1
 
-    # Common Neo4j arguments
-    neo4j_args = ["--uri", args.uri, "--user", args.user, "--password", args.password]
-
-    # Resolve relative input path against project root
-    if not Path(args.input).is_absolute():
-        args.input = str(project_root / args.input)
-    if not Path(args.output_dir).is_absolute():
-        args.output_dir = str(project_root / args.output_dir)
-
-    print_header("Software-as-a-Graph Pipeline")
+    print_header("Software-as-a-Graph Pipeline (In-Process)")
     print(f"  Scale : {args.scale}   Layers: {args.layers}")
     print(f"  Output: {args.output_dir}")
-    if args.dry_run:
-        print(f"  {_c('DRY RUN — no commands will be executed', Colors.YELLOW)}")
 
-    # --- Execute stages ---
-    results: List[StageResult] = []
-    t_pipeline = time.time()
-
-    for flag_name, label, script, builder in STAGES:
-        enabled = run_all or getattr(args, flag_name, False)
-        stage_num = len(results) + 1
-
-        if not enabled:
-            results.append(StageResult(name=label, script=script, skipped=True))
-            continue
-
-        print_header(f"Stage {stage_num}: {label}")
-
-        # Build the argument list — generate doesn't need neo4j args
-        if flag_name == "generate":
-            stage_args = builder(args)
-        else:
-            stage_args = builder(args, neo4j_args)
-
-        ok, duration = run_script(script, stage_args, project_root, dry_run=args.dry_run)
-        results.append(StageResult(name=label, script=script, duration=duration, success=ok))
-
-        if not ok and not args.dry_run:
-            print_error(f"Pipeline aborted at stage {stage_num} ({label}).")
-            print_summary(results, time.time() - t_pipeline)
+    repo = None
+    if not args.dry_run:
+        try:
+            repo = create_repository(uri=args.uri, user=args.user, password=args.password)
+        except Exception as e:
+            print_error(f"Failed to connect to Neo4j: {e}")
             return 1
 
-    total_time = time.time() - t_pipeline
-    print_summary(results, total_time)
+    results: List[StageResult] = []
+    t_pipeline = time.time()
+    graph_data = None
 
-    executed = [r for r in results if not r.skipped]
-    if executed:
-        print(f"\n  {_c('All stages completed successfully.', Colors.GREEN)}")
-        print(f"  Outputs: {args.output_dir}\n")
+    try:
+        for flag_name, label, dispatch_func, prepper in STAGES:
+            enabled = run_all or getattr(args, flag_name, False)
+            stage_num = len(results) + 1
+
+            if not enabled:
+                results.append(StageResult(name=label, script=label.lower(), skipped=True))
+                continue
+
+            print_header(f"Stage {stage_num}: {label}")
+            stage_args = prepper(args)
+            
+            if args.dry_run:
+                print_step(f"[dry-run] Would call {dispatch_func.__name__}")
+                results.append(StageResult(name=label, script=label.lower(), success=True))
+                continue
+
+            try:
+                t0 = time.time()
+                print_step(f"In-process execution of {label}...")
+                
+                # Special handling for in-memory data passing
+                if flag_name == "generate":
+                    graph_data = dispatch_func(stage_args)
+                elif flag_name == "do_import":
+                    dispatch_func(repo, stage_args, graph_data=graph_data)
+                else:
+                    dispatch_func(repo, stage_args)
+                
+                duration = time.time() - t0
+                print_success(f"Completed in {duration:.2f}s")
+                results.append(StageResult(name=label, script=label.lower(), duration=duration, success=True))
+                
+            except Exception as e:
+                duration = time.time() - t0
+                print_error(f"Failed: {e}")
+                if args.verbose:
+                    import traceback
+                    traceback.print_exc()
+                results.append(StageResult(name=label, script=label.lower(), duration=duration, success=False))
+                print_error(f"Pipeline aborted at stage {stage_num} ({label}).")
+                print_summary(results, time.time() - t_pipeline)
+                return 1
+
+        total_time = time.time() - t_pipeline
+        print_summary(results, total_time)
+        print(f"\n  All stages completed successfully.")
+
+    finally:
+        if repo:
+            repo.close()
 
     return 0
 
@@ -438,5 +369,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
-        print(f"\n{_c('Pipeline interrupted by user.', Colors.YELLOW)}")
+        print(f"\nPipeline interrupted by user.")
         sys.exit(130)

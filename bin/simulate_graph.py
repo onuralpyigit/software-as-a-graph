@@ -136,133 +136,14 @@ def build_parser() -> argparse.ArgumentParser:
 # Command Handlers
 # =============================================================================
 
-def handle_event(args, repo, display) -> dict:
-    """Handle the 'event' subcommand."""
-    from src.usecases import SimulateGraphUseCase, SimulationMode
-    use_case = SimulateGraphUseCase(repo)
-    
-    if args.all:
-        results = use_case.execute(
-            mode=SimulationMode.EVENT,
-            source_app="all",
-            num_messages=args.messages,
-            duration=args.duration,
-            layer=args.layer,
-        )
-        if not args.quiet:
-            display.print_header(f"Event Simulation: All Publishers ({args.layer} layer)")
-            _display_event_summary(display, results, args.layer)
-        return {app: r.to_dict() for app, r in results.items()}
-    else:
-        result = use_case.execute(
-            mode=SimulationMode.EVENT,
-            source_app=args.source,
-            num_messages=args.messages,
-            duration=args.duration,
-        )
-        if not args.quiet:
-            display.display_event_result(result)
-        return result.to_dict()
+from src.cli.dispatcher import dispatch_simulate
 
 
-def handle_failure(args, repo, display) -> dict:
-    """Handle the 'failure' subcommand."""
-    # Logic to default to exhaustive if monte-carlo is specified without a target/mode
-    if not (args.target or args.exhaustive or args.pairwise):
-        if args.monte_carlo:
-            args.exhaustive = True
-        else:
-            print("Error: At least one of --target, --exhaustive, or --pairwise must be specified.")
-            return {}
+# =============================================================================
+# Command Handlers
+# =============================================================================
 
-    from src.usecases import SimulateGraphUseCase, SimulationMode
-
-    if args.exhaustive:
-        use_case = SimulateGraphUseCase(repo)
-        results = use_case.execute(
-            layer=args.layer,
-            mode=SimulationMode.EXHAUSTIVE
-        )
-        if not args.quiet:
-            display.display_exhaustive_results(results)
-        return [r.to_dict() if hasattr(r, 'to_dict') else r for r in results]
-    elif args.pairwise:
-        use_case = SimulateGraphUseCase(repo)
-        results = use_case.execute(
-            mode=SimulationMode.PAIRWISE,
-            layer=args.layer,
-            cascade_probability=args.cascade_prob,
-            failure_mode=FailureMode[args.failure_mode]
-        )
-        if not args.quiet:
-            display.print_header(f"Pairwise Failure Analysis: {args.layer.upper()} layer")
-            # Reuse exhaustive display for results table
-            display.display_exhaustive_results(results[:50]) # Show top 50 pairs
-        return [r.to_dict() for r in results]
-    elif args.monte_carlo and args.target:
-        # Monte Carlo stochastic simulation
-        use_case = SimulateGraphUseCase(repo)
-        result = use_case.execute(
-            mode=SimulationMode.MONTE_CARLO,
-            target_id=args.target,
-            layer=args.layer,
-            cascade_probability=args.cascade_prob,
-            failure_mode=FailureMode[args.failure_mode],
-            n_trials=args.trials,
-        )
-        if not args.quiet:
-            _display_monte_carlo_result(display, result, args.layer)
-        return result.to_dict()
-    else:
-        # Single failure
-        use_case = SimulateGraphUseCase(repo)
-        result = use_case.execute(
-            target_id=args.target,
-            layer=args.layer,
-            mode=SimulationMode.SINGLE
-        )
-        if not args.quiet:
-            display.display_failure_result(result)
-        return result.to_dict()
-
-
-def handle_report(args, repo, display) -> dict:
-    """Handle the 'report' subcommand."""
-    from src.usecases import SimulateGraphUseCase, SimulationMode
-    use_case = SimulateGraphUseCase(repo)
-    layers = [l.strip() for l in args.layers.split(",")]
-    report = use_case.execute(
-        mode=SimulationMode.REPORT,
-        layers=layers,
-        classify_edges=args.edges,
-    )
-    if not args.quiet:
-        display.display_simulation_report(report)
-    return report.to_dict()
-
-
-def handle_classify(args, repo, display) -> dict:
-    """Handle the 'classify' subcommand."""
-    from src.usecases import SimulateGraphUseCase, SimulationMode
-    use_case = SimulateGraphUseCase(repo)
-    
-    if args.edges:
-        results = use_case.execute(
-            mode=SimulationMode.CLASSIFY,
-            layer=args.layer,
-            edges=True,
-            k_factor=args.k_factor
-        )
-        if not args.quiet:
-            _display_edge_classification(display, results, args.layer, args.top)
-        return [e.to_dict() for e in results]
-    else:
-        results = use_case.execute(
-            mode=SimulationMode.CLASSIFY,
-            layer=args.layer,
-            edges=False,
-            k_factor=args.k_factor
-        )
+# Logic moved to src.cli.dispatcher.dispatch_simulate
 
 
 # =============================================================================
@@ -413,17 +294,33 @@ def main() -> int:
     display = ConsoleDisplay()
 
     try:
-        sim = SimulationService(repo)
+        # Initialize repository and services via dispatcher
+        result_data = dispatch_simulate(repo, args)
 
-        # Dispatch to handler
-        handlers = {
-            "event": handle_event,
-            "failure": handle_failure,
-            "report": handle_report,
-            "classify": handle_classify,
-        }
-        handler = handlers[args.command]
-        result_data = handler(args, repo, display)
+        # Handle console display for CLI usage
+        if not args.quiet:
+            if args.command == "event":
+                from src.simulation.models import EventResult
+                if isinstance(result_data, dict) and "metrics" in result_data:
+                    display.display_event_result(EventResult.from_dict(result_data))
+                elif isinstance(result_data, dict):
+                    _display_event_summary(display, result_data, args.layer)
+            elif args.command == "failure":
+                if args.exhaustive or args.pairwise:
+                    display.display_exhaustive_results(result_data)
+                elif args.monte_carlo:
+                    _display_monte_carlo_result(display, result_data, args.layer)
+                else:
+                    from src.simulation.models import FailureResult
+                    display.display_failure_result(FailureResult.from_dict(result_data))
+            elif args.command == "report":
+                from src.simulation.models import SimulationReport
+                display.display_simulation_report(SimulationReport.from_dict(result_data))
+            elif args.command == "classify":
+                if args.edges:
+                    _display_edge_classification(display, result_data, args.layer, args.top)
+                else:
+                     _display_component_classification(display, result_data, args.layer, args.top)
 
         # JSON stdout
         if args.json:

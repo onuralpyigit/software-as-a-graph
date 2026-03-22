@@ -157,6 +157,9 @@ def run_demo(output_file: str, open_browser: bool) -> int:
         return 1
 
 
+from src.cli.dispatcher import dispatch_visualize
+
+
 def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -252,75 +255,18 @@ Examples:
         repo.close()
         return 0
 
-    # Determine layers
-    if args.all:
-        layers = list(LAYER_DEFINITIONS.keys())
-    elif args.layer:
-        layers = [args.layer]
-    else:
-        layers = [l.strip() for l in args.layers.split(",")]
-
-    valid_layers = [l for l in layers if l in LAYER_DEFINITIONS]
-    if not valid_layers:
-        print(display.colored("✗ No valid layers specified", display.Colors.RED))
-        repo.close()
-        return 1
-
     display.print_header("SOFTWARE-AS-A-GRAPH VISUALIZATION", "═")
-    print(
-        f"\n  {display.colored('Neo4j:', display.Colors.CYAN)}  {args.uri}"
-    )
-    print(
-        f"  {display.colored('Output:', display.Colors.CYAN)} {args.output}"
-    )
-    print(
-        f"  {display.colored('Layers:', display.Colors.CYAN)} "
-        f"{', '.join(valid_layers)}"
-    )
-
-    # Display options
-    options = []
-    if args.no_network:
-        options.append("no-network")
-    if args.no_matrix:
-        options.append("no-matrix")
-    if args.no_validation:
-        options.append("no-validation")
-    if options:
-        print(
-            f"  {display.colored('Flags:', display.Colors.CYAN)}  "
-            f"{', '.join(options)}"
-        )
+    print(f"\n  Neo4j:   {args.uri}")
+    print(f"  Output:  {args.output}")
 
     try:
-        from src.usecases import VisualizeGraphUseCase, VisOptions
-        
-        use_case = VisualizeGraphUseCase(repo)
-        
-        options = VisOptions(
-            include_network=not args.no_network,
-            include_matrix=not args.no_matrix,
-            include_validation=not args.no_validation,
-            antipatterns_file=args.antipatterns,
-            multi_seed=args.multi_seed if args.multi_seed else 0
-        )
-        
-        output_path = use_case.execute(
-            output_file=args.output,
-            layers=valid_layers,
-            options=options
-        )
+        output_path = dispatch_visualize(repo, args)
 
         display.print_header("DASHBOARD GENERATED", "-")
         abs_path = os.path.abspath(output_path)
         file_size = os.path.getsize(abs_path) / 1024
-        print(
-            f"\n  {display.colored('File:', display.Colors.GREEN)} {abs_path}"
-        )
-        print(
-            f"  {display.colored('Size:', display.Colors.GREEN)} "
-            f"{file_size:.0f} KB"
-        )
+        print(f"\n  File: {abs_path}")
+        print(f"  Size: {file_size:.0f} KB")
 
         if args.open:
             webbrowser.open(f"file://{abs_path}")
@@ -333,6 +279,10 @@ Examples:
         return 1
     finally:
         repo.close()
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":

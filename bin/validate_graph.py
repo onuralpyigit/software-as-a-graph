@@ -25,6 +25,9 @@ from src.cli.console import ConsoleDisplay
 from types import SimpleNamespace
 
 
+from src.cli.dispatcher import dispatch_validate
+
+
 def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Validate graph modeling and analysis approach.")
@@ -65,49 +68,29 @@ def main() -> int:
     log_level = logging.WARNING if args.quiet else (logging.DEBUG if args.verbose else logging.INFO)
     logging.basicConfig(level=log_level, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
     
-    targets = ValidationTargets(spearman=args.spearman, f1_score=args.f1, precision=args.precision, recall=args.recall, top_5_overlap=args.top5)
-    
     # Initialize repository and display
     repo = create_repository(uri=args.uri, user=args.user, password=args.password)
     display = ConsoleDisplay()
 
     try:
-        from src.usecases import ValidateGraphUseCase
-        
-        use_case = ValidateGraphUseCase(repo)
-
-        # Determine inputs for quick validation
-        predicted_file = args.predicted
-        actual_file = args.actual
-
-        if predicted_file and actual_file:
+        # Determine if quick validation or standard pipeline
+        if args.predicted and args.actual:
+            # Quick validation logic remains here as it's a CLI-specific shortcut
             from src.validation import Validator
-            from src.core.layers import AnalysisLayer
-            
-            with open(predicted_file, 'r') as f: predicted_raw = json.load(f)
-            with open(actual_file, 'r') as f: actual_raw = json.load(f)
+            with open(args.predicted, 'r') as f: predicted_raw = json.load(f)
+            with open(args.actual, 'r') as f: actual_raw = json.load(f)
 
-            # Extract flattened structures
             predicted_processed = _extract_predicted_rich(predicted_raw, args.layer)
-            
-            # Extract actual scores from simulation report
             from src.prediction.data_preparation import extract_simulation_dict
             actual_processed = extract_simulation_dict(actual_raw)
-            # Find the actual simulation results too (for impact data)
-            impact_data = []
-            if isinstance(actual_raw, dict) and "results" in actual_raw:
-                impact_data = actual_raw["results"]
-            elif isinstance(actual_raw, list):
-                impact_data = actual_raw
+            impact_data = actual_raw.get("results", []) if isinstance(actual_raw, dict) else actual_raw
 
-            # Prepare inputs for validator
             pred_scores = {cid: data["scores"]["overall"] for cid, data in predicted_processed.items()}
             actual_scores = {cid: data["composite"] for cid, data in actual_processed.items() if "composite" in data}
             comp_types = {cid: data["type"] for cid, data in predicted_processed.items()}
             
             validator = Validator()
             target_layer = args.layer.split(",")[0] if args.layer else "app"
-            
             result = validator.validate(
                 predicted_scores=pred_scores,
                 actual_scores=actual_scores,
@@ -116,75 +99,27 @@ def main() -> int:
                 layer=target_layer,
                 context=f"Quick Validation: {target_layer}"
             )
-
-            if args.json:
-                print(json.dumps(result.to_dict(), indent=2))
-            elif not args.quiet:
-                display.print_header("Quick Validation Result")
-                print(f"\n  Files: {predicted_file} vs {actual_file}")
-                print(f"  Matched: {result.matched_count} components")
-                print(f"\n  Status: {display.status_text(result.passed)}")
-                print(f"  Spearman:  {result.overall.correlation.spearman:.4f}")
-                print(f"  F1 Score:  {result.overall.classification.f1_score:.4f}")
-                
-                display.display_gate_verdicts(result.gates)
-                
-                if args.dimensional:
-                    display.display_dimensional_results(result.overall.to_dict().get("dimensional_validation", {}))
-
-            if args.output:
-                Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-                with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
-
-            return 0 if result.passed else 1
-
-            if args.json:
-                print(json.dumps(result.to_dict(), indent=2))
-            elif not args.quiet:
-                # result here is a LayerValidationResult
-                display.print_header("Quick Validation Result")
-                print(f"\n  Files: {predicted_file} vs {actual_file}")
-                print(f"  Matched: {result.matched_components} components")
-                print(f"\n  Status: {display.status_text(result.passed)}")
-                print(f"  Spearman:  {result.spearman:.4f}")
-                print(f"  F1 Score:  {result.f1_score:.4f}")
-                
-                display.display_gate_verdicts(result.gates)
-                
-                if args.dimensional:
-                    display.display_dimensional_results(result.dimensional_validation)
-
-            if args.output:
-                Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-                with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
-
-            return 0 if result.passed else 1
-
-        # Standard Pipeline Validation (using Use Case)
         else:
-            if sorted_layers := args.layer:
-                layers_to_validate = [l.strip() for l in sorted_layers.split(",")]
+            # Standard Pipeline Validation via dispatcher
+            result = dispatch_validate(repo, args)
+
+        if args.json:
+            print(json.dumps(result.to_dict(), indent=2))
+        elif not args.quiet:
+            if hasattr(result, 'layers'):
+                 display.display_pipeline_validation_result(result)
             else:
-                layers_to_validate = ["app", "infra", "mw", "system"]
+                 display.print_header("Quick Validation Result")
+                 print(f"\n  Status: {display.status_text(result.passed)}")
+                 print(f"  Spearman:  {result.overall.correlation.spearman:.4f}")
+                 print(f"  F1 Score:  {result.overall.classification.f1_score:.4f}")
+                 display.display_gate_verdicts(result.gates)
 
-            result = use_case.execute(layers=layers_to_validate)
+        if args.output:
+            Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+            with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
 
-            if args.json:
-                print(json.dumps(result.to_dict(), indent=2))
-            elif not args.quiet:
-                display.display_pipeline_validation_result(result)
-                
-                for layer_name, layer_res in result.layers.items():
-                    if getattr(layer_res, 'gates', None):
-                        display.display_gate_verdicts(layer_res.gates)
-                    if args.dimensional and getattr(layer_res, 'dimensional_validation', None):
-                        display.display_dimensional_results(layer_res.dimensional_validation)
-
-            if args.output:
-                Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-                with open(args.output, 'w') as f: json.dump(result.to_dict(), f, indent=2)
-
-            return 0 if result.all_passed else 1
+        return 0 if (getattr(result, 'all_passed', True) and result.passed) else 1
 
         # Generate visualization if requested
         if args.visualize:

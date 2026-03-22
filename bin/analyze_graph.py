@@ -158,104 +158,14 @@ examples:
 # Analysis Logic
 # ---------------------------------------------------------------------------
 
-def run_analysis(args: argparse.Namespace) -> MultiLayerAnalysisResult:
-    """
-    Execute analysis based on parsed CLI arguments.
-    """
-    repo = create_repository(uri=args.uri, user=args.user, password=args.password)
-    analyzer = AnalysisService(repo)
-    # The following options are now handled by PredictionService/QualityAnalyzer
-    # and passed via PredictGraphUseCase if needed.
+from src.cli.dispatcher import dispatch_analyze
 
-    from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
-    from src.analysis.models import LayerAnalysisResult
-    from src.prediction import PredictionService, ProblemDetector
-    
-    # Initialize services with CLI arguments
-    pred_svc = PredictionService(
-        use_ahp=args.use_ahp,
-        normalization_method=args.norm,
-        winsorize=args.winsorize,
-        winsorize_limit=args.winsorize_limit
-    )
-    
-    analyze_uc = AnalyzeGraphUseCase(repo)
-    predict_uc = PredictGraphUseCase(repo, prediction_service=pred_svc)
-    detector = ProblemDetector()
-    
-    def run_gnn(layer_res, model_path):
-        from src.prediction import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict
-        try:
-            logging.info(f"Loading GNN model for layer {layer_res.layer} from {model_path}...")
-            gnn_svc = GNNService.from_checkpoint(model_path, graph=layer_res.structural.graph)
-            
-            s_dict = extract_structural_metrics_dict(layer_res.structural)
-            r_dict = extract_rmav_scores_dict(layer_res.quality)
-            
-            prediction_result = gnn_svc.predict(
-                graph=layer_res.structural.graph,
-                structural_metrics=s_dict,
-                rmav_scores=r_dict
-            )
-            layer_res.prediction = prediction_result.to_dict()
-            logging.info(f"GNN prediction for {layer_res.layer} complete.")
-        except Exception as e:
-            logging.error(f"GNN prediction for {layer_res.layer} failed: {e}")
 
-    try:
-        if args.all:
-            layers = ["app", "infra", "mw", "system"]
-            results_map = {}
-            for l in layers:
-                s_res = analyze_uc.execute(l)
-                q_res, problems = predict_uc.execute(l, s_res, detect_problems=True)
-                problem_summary = detector.summarize(problems)
-                
-                layer_res = LayerAnalysisResult(
-                    layer=l,
-                    layer_name=l.capitalize(),
-                    description=f"{l.capitalize()} layer analysis",
-                    structural=s_res,
-                    quality=q_res,
-                    problems=problems,
-                    problem_summary=problem_summary
-                )
-                if args.gnn_model:
-                    run_gnn(layer_res, args.gnn_model)
-                results_map[l] = layer_res
-                
-            return MultiLayerAnalysisResult(
-                timestamp=datetime.now().isoformat(),
-                layers=results_map,
-                cross_layer_insights=[]
-            )
+# ---------------------------------------------------------------------------
+# Analysis Logic
+# ---------------------------------------------------------------------------
 
-        # Single-layer analysis
-        s_res = analyze_uc.execute(args.layer)
-        q_res, problems = predict_uc.execute(args.layer, s_res, detect_problems=True)
-        problem_summary = detector.summarize(problems)
-        
-        layer_result = LayerAnalysisResult(
-            layer=args.layer,
-            layer_name=args.layer.capitalize(),
-            description=f"{args.layer.capitalize()} layer analysis",
-            structural=s_res,
-            quality=q_res,
-            problems=problems,
-            problem_summary=problem_summary
-        )
-
-        # Optional GNN Inference
-        if args.gnn_model:
-            run_gnn(layer_result, args.gnn_model)
-
-        return MultiLayerAnalysisResult(
-            timestamp=datetime.now().isoformat(),
-            layers={layer_result.layer: layer_result},
-            cross_layer_insights=[],
-        )
-    finally:
-        repo.close()
+# Logic moved to src.cli.dispatcher.dispatch_analyze
 
 
 # ---------------------------------------------------------------------------
@@ -300,22 +210,28 @@ def main() -> int:
     display = ConsoleDisplay()
 
     try:
-        # Run the analysis pipeline
-        results = run_analysis(args)
+        # Initialize repository
+        repo = create_repository(uri=args.uri, user=args.user, password=args.password)
+        
+        try:
+            # Run the analysis pipeline via dispatcher
+            results = dispatch_analyze(repo, args)
 
-        # Export to file if requested
-        if args.output:
-            export_json(results, args.output)
-            if not args.quiet:
-                print(f"\n✓ Results exported to: {args.output}")
+            # Export to file if requested
+            if args.output:
+                export_json(results, args.output)
+                if not args.quiet:
+                    print(f"\n✓ Results exported to: {args.output}")
 
-        # Display to stdout
-        if args.json:
-            print(json.dumps(results.to_dict(), indent=2, default=str))
-        elif not args.quiet:
-            display.display_multi_layer_analysis_result(results)
+            # Display to stdout
+            if args.json:
+                print(json.dumps(results.to_dict(), indent=2, default=str))
+            elif not args.quiet:
+                display.display_multi_layer_analysis_result(results)
 
-        return 0
+            return 0
+        finally:
+            repo.close()
 
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)

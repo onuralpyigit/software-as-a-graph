@@ -16,7 +16,7 @@ backend_path = project_root / "backend"
 if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
 
-from src.generation import GenerationService, load_config, generate_graph
+from src.cli.dispatcher import dispatch_generate
 
 
 def main() -> None:
@@ -70,33 +70,15 @@ def main() -> None:
     args = parser.parse_args()
     
     try:
-        graph_data = {}
-        
         if args.config:
             print(f"Loading configuration from {args.config}...")
-            config = load_config(args.config)
-            # When using config file, seed and scale are usually inside it, 
-            # but we can allow override or just pass the config object.
-            # The Service handles the config object priority.
-            service = GenerationService(config=config)
-            graph_data = service.generate()
         else:
             scale = args.scale or "medium"
             print(f"Generating {scale} graph with seed {args.seed}...")
             if args.domain:
                 print(f"Using domain dataset: {args.domain}" + (f" (scenario: {args.scenario})" if args.scenario else ""))
-            graph_data = generate_graph(
-                scale=scale, 
-                seed=args.seed,
-                domain=args.domain,
-                scenario=args.scenario
-            )
-            
-        # Ensure output directory exists
-        args.output.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(args.output, "w") as f:
-            json.dump(graph_data, f, indent=2)
+        graph_data = dispatch_generate(args)
             
         print(f"Graph generated successfully: {args.output}")
         component_counts = {
