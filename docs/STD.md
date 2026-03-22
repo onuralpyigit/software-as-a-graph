@@ -98,7 +98,7 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | 2.3 | March 2026 | Refactored backend architecture with thinner routers, presenters, and dependency injection; updated quality formulas to include CDPot_enh, CQP, QSPOF, and QADS; aligned weights with AHP v2.3; updated glossary and test case formula references |
 | 2.2 | February 2026 | Updated references to SRS/SDD v2.2; added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL to glossary (§1.6); corrected UT-ANAL-21 formula reference from PR to RPR; added unit tests for new derived terms (§4.3 UT-ANAL-33–43); added `api` marker to pytest config (§3.3); corrected IT-API-09 from POST to GET; updated coverage table (§4.9); raised validation primary targets to match SRS v2.2 (§8.1, §8.2, AC-25); updated achieved results to IEEE RASSE 2025 published figures (§8.3); extended traceability matrix for SRS v2.2 requirements (§10) |
 | 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5) |
-| 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5) |
+| 2.3 | March 2026 | Added `tests/test_api_graph.py` for comprehensive Graph module API verification; updated §3.5 with specific test command; refined REST API integration test descriptions (§5.5); removed legacy `analyzer.py` shim |
 
 ---
 
@@ -597,7 +597,6 @@ def test_step_completion_logged(self, caplog, linear_graph):
 | `backend/src/core/memory_repo.py` | ~8 | 80% |
 | `backend/src/analysis/structural_analyzer.py` | ~20 | 85% |
 | `backend/src/analysis/quality_analyzer.py` | ~20 | 85% |
-| `backend/src/analysis/analyzer.py` (wrapper) | ~5 | 75% |
 | `backend/src/simulation/failure_simulator.py` | ~15 | 80% |
 | `backend/src/validation/validator.py` | ~12 | 82% |
 | `backend/src/visualization/dashboard.py` | ~8 | 75% |
