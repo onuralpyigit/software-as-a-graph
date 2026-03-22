@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 
 from api.models import Neo4jCredentials, HealthResponse
-from src.core import create_repository
+from src.adapters import create_repository
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

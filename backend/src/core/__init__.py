@@ -2,7 +2,6 @@
 Core Logic and Repository
 """
 from .ports.graph_repository import IGraphRepository
-from .neo4j_repo import Neo4jRepository, create_repository
 from .layers import (
     AnalysisLayer, 
     SimulationLayer, 
@@ -43,8 +42,6 @@ from .criticality import (
 
 __all__ = [
     "IGraphRepository",
-    "Neo4jRepository",
-    "create_repository",
     "AnalysisLayer",
     "SimulationLayer",
     "get_layer_definition",

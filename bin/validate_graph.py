@@ -18,7 +18,8 @@ import webbrowser
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.core import create_repository, SimulationLayer
+from src.adapters import create_repository
+from src.core import SimulationLayer
 from src.validation import ValidationService, ValidationTargets
 from src.cli.console import ConsoleDisplay
 from types import SimpleNamespace

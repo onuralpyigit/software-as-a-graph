@@ -107,6 +107,15 @@ class TestValidationService:
             fail_res.impact.availability_impact = values[i]
             fail_res.impact.vulnerability_impact = values[i]
             fail_res.impact.attack_reach = values[i]
+            fail_res.impact.reachability_loss = values[i]
+            fail_res.impact.fragmentation = values[i]
+            fail_res.impact.throughput_loss = values[i]
+            fail_res.impact.reliability_impact = values[i]
+            fail_res.impact.maintainability_impact = values[i]
+            fail_res.impact.availability_impact = values[i]
+            fail_res.impact.vulnerability_impact = values[i]
+            fail_res.impact.ia_out = values[i]
+            fail_res.impact.ia_in = values[i]
             sim_results.append(fail_res)
         
         mock_quality = MagicMock(spec=QualityAnalysisResult)

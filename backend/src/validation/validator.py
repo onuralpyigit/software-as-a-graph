@@ -38,8 +38,8 @@ class Validator:
         self,
         predicted_scores: Dict[str, float],
         actual_scores: Dict[str, float],
-        impact_data: Optional[List[Any]] = None,
         component_types: Optional[Dict[str, str]] = None,
+        impact_data: Optional[List[Any]] = None,
         layer: str = "system",
         context: str = "Validation",
     ) -> ValidationResult:
@@ -116,11 +116,26 @@ class Validator:
                 ia_in.append(impact.ia_in)
         
         import numpy as np
+        # Ensure we have numeric lists (handle mocks and non-numeric data safely)
+        ia_out_clean = []
+        for v in ia_out:
+            try:
+                ia_out_clean.append(float(v))
+            except (ValueError, TypeError):
+                continue
+                
+        ia_in_clean = []
+        for v in ia_in:
+            try:
+                ia_in_clean.append(float(v))
+            except (ValueError, TypeError):
+                continue
+        
         return {
-            "ia_out_avg": float(np.mean(ia_out)) if ia_out else 0.0,
-            "ia_out_max": float(np.max(ia_out)) if ia_out else 0.0,
-            "ia_in_avg": float(np.mean(ia_in)) if ia_in else 0.0,
-            "ia_in_max": float(np.max(ia_in)) if ia_in else 0.0,
+            "ia_out_avg": float(np.mean(ia_out_clean)) if ia_out_clean else 0.0,
+            "ia_out_max": float(np.max(ia_out_clean)) if ia_out_clean else 0.0,
+            "ia_in_avg": float(np.mean(ia_in_clean)) if ia_in_clean else 0.0,
+            "ia_in_max": float(np.max(ia_in_clean)) if ia_in_clean else 0.0,
         }
 
     def _validate_group(

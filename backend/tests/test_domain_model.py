@@ -361,7 +361,7 @@ class TestConstants:
 # Neo4j Import & Derivation Tests
 # =========================================================================
 
-from src.core.neo4j_repo import Neo4jRepository
+from src.adapters.neo4j_repo import Neo4jRepository
 
 @pytest.fixture(scope="module")
 def neo4j_repo():

@@ -122,7 +122,7 @@ def main() -> None:
     if not structural_dict:
         logger.info("No --structural provided; running pipeline steps...")
         try:
-            from src.core import create_repository
+            from src.adapters import create_repository
             from src.usecases import AnalyzeGraphUseCase, PredictGraphUseCase
         except ImportError as e:
             logger.error(f"Pipeline modules not available: {e}")

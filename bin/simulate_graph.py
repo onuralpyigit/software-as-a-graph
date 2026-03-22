@@ -43,7 +43,7 @@ import argparse
 import json
 import logging
 
-from src.core import create_repository
+from src.adapters import create_repository
 from src.simulation import SimulationService
 from src.simulation.models import FailureMode
 from src.cli.console import ConsoleDisplay

@@ -6,7 +6,6 @@ from api.main import app
 from src.core.criticality import CriticalityLevel
 from src.core.metrics import QualityScores, QualityLevels
 from api.dependencies import (
-    get_analysis_service, 
     get_analyze_graph_use_case, 
     get_predict_graph_use_case,
     get_repository

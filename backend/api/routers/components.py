@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional
 import logging
 
 from api.models import Neo4jCredentials
-from src.core import create_repository
+from src.adapters import create_repository
 from src.analysis import AnalysisService
 
 router = APIRouter(prefix="/api/v1", tags=["components", "edges"])

@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.core import create_repository
+from src.adapters import create_repository
 from src.generation import GenerationService, load_config
 from src.analysis import AnalysisService
 from src.prediction import PredictionService

@@ -11,11 +11,10 @@ import logging
 from typing import AsyncGenerator
 
 from fastapi import Depends, Request, HTTPException
-from src.core import create_repository
+from src.adapters import create_repository
 from src.core.ports.graph_repository import IGraphRepository
 from src.analysis import AnalysisService, StatisticsService
 from src.prediction import PredictionService
-from src.simulation import SimulationService
 from src.generation import GenerationService
 from api.models import (
     Neo4jCredentials,
@@ -74,21 +73,6 @@ async def get_repository(request: Request) -> AsyncGenerator[IGraphRepository, N
     finally:
         repo.close()
 
-
-def get_analysis_service(repo: IGraphRepository = Depends(get_repository)) -> AnalysisService:
-    """
-    Dependency to provide a configured AnalysisService instance.
-    Automatically uses the request-scoped repository.
-    """
-    return AnalysisService(repo)
-
-
-def get_simulation_service(repo: IGraphRepository = Depends(get_repository)) -> SimulationService:
-    """
-    Dependency to provide a configured SimulationService instance.
-    Automatically uses the request-scoped repository.
-    """
-    return SimulationService(repo)
 
 
 def get_prediction_service() -> PredictionService:

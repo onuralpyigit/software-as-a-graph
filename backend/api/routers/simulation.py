@@ -17,10 +17,8 @@ from api.models import (
     SimulationReportResponse
 )
 from api.dependencies import (
-    get_simulation_service, get_repository, get_simulate_graph_use_case
+    get_simulate_graph_use_case
 )
-from src.core.ports.graph_repository import IGraphRepository
-from src.simulation import SimulationService
 from src.usecases import SimulateGraphUseCase, SimulationMode
 from api.presenters import simulation_presenter
 
@@ -30,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 @router.post("/event", response_model=EventSimulationResponse)
 async def simulate_event(
-    request: EventSimulationRequest, 
-    service: SimulationService = Depends(get_simulation_service)
+    request: EventSimulationRequest,
+    use_case: SimulateGraphUseCase = Depends(get_simulate_graph_use_case)
 ):
     """
     Run event simulation from a source application.
@@ -45,7 +43,8 @@ async def simulate_event(
     try:
         logger.info(f"Running event simulation: source={request.source_app}, messages={request.num_messages}")
         
-        result = service.run_event_simulation(
+        result = use_case.execute(
+            mode=SimulationMode.EVENT,
             source_app=request.source_app,
             num_messages=request.num_messages,
             duration=request.duration
@@ -116,7 +115,7 @@ async def simulate_exhaustive(
 @router.post("/report", response_model=SimulationReportResponse)
 async def generate_simulation_report(
     request: ReportRequest,
-    service: SimulationService = Depends(get_simulation_service)
+    use_case: SimulateGraphUseCase = Depends(get_simulate_graph_use_case)
 ):
     """
     Generate comprehensive simulation report with analysis across multiple layers.
@@ -143,7 +142,6 @@ async def generate_simulation_report(
     mapped_layers = []
     
     for layer in request.layers:
-        # Map legacy name to canonical name
         canonical_layer = layer_aliases.get(layer, layer)
         
         if canonical_layer not in valid_layers:
@@ -156,9 +154,12 @@ async def generate_simulation_report(
     try:
         logger.info(f"Generating simulation report: layers={mapped_layers}")
         
-        report = service.generate_report(layers=mapped_layers)
+        report = use_case.execute(mode=SimulationMode.REPORT, layers=mapped_layers)
         
         return simulation_presenter.format_simulation_report_response(report)
     except Exception as e:
         logger.error(f"Report generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
+
+
+

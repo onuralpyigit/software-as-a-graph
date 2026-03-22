@@ -7,11 +7,9 @@ from typing import Dict, Any, List
 import logging
 
 from api.dependencies import (
-    get_analysis_service, get_repository,
+    get_repository,
     get_analyze_graph_use_case, get_predict_graph_use_case
 )
-from src.core.ports.graph_repository import IGraphRepository
-from src.analysis import AnalysisService
 from src.prediction import ProblemDetector, PredictionService, DetectedProblem
 from api.presenters import analysis_presenter
 from api.models import AnalysisEnvelope
@@ -69,7 +67,11 @@ async def analyze_full_system(
 
 
 @router.post("/type/{component_type}", response_model=AnalysisEnvelope)
-async def analyze_by_type(component_type: str, service: AnalysisService = Depends(get_analysis_service)):
+async def analyze_by_type(
+    component_type: str,
+    analyze_uc: AnalyzeGraphUseCase = Depends(get_analyze_graph_use_case),
+    predict_uc: PredictGraphUseCase = Depends(get_predict_graph_use_case),
+):
     """
     Run analysis filtered by component type.
     Accepts: node, app, broker, Application, Node, Broker
@@ -91,22 +93,32 @@ async def analyze_by_type(component_type: str, service: AnalysisService = Depend
 
     try:
         logger.info(f"Analyzing component type: {component_type} (normalized to {normalized_type})")
-        # Step 2: Analysis
-        result = service.analyze_layer("system")
-        
-        # Step 3: Prediction (using PredictionService directly for filtered view)
-        from src.prediction.service import PredictionService
-        pred_service = PredictionService()
-        quality_res = pred_service.predict_quality(result.structural)
 
-        # Filter components and edges
+        # Structural analysis via use case
+        struct_res = analyze_uc.execute("system")
+
+        # Quality analysis via use case
+        quality_res, detected_problems = predict_uc.execute("system", struct_res, detect_problems=True)
+
+        # Filter to the requested component type
         filtered_components = [c for c in quality_res.components if c.type == normalized_type]
         filtered_ids = {c.id for c in filtered_components}
         filtered_edges = [e for e in quality_res.edges if e.source in filtered_ids or e.target in filtered_ids]
-        filtered_problems = [p for p in quality_res.problems if p.entity_id in filtered_ids]
+        filtered_problems = [p for p in detected_problems if p.entity_id in filtered_ids]
+
+        from src.analysis.models import LayerAnalysisResult
+        layer_result = LayerAnalysisResult(
+            layer="system",
+            layer_name="System",
+            description=f"Analysis filtered by component type: {normalized_type}",
+            structural=struct_res,
+            quality=quality_res,
+            problems=filtered_problems,
+            problem_summary=ProblemDetector().summarize(filtered_problems),
+        )
 
         return analysis_presenter.build_analysis_response(
-            result,
+            layer_result,
             filtered_components,
             filtered_edges,
             filtered_problems,
@@ -117,6 +129,8 @@ async def analyze_by_type(component_type: str, service: AnalysisService = Depend
     except Exception as e:
         logger.error(f"Type analysis failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
 
 
 

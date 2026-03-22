@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 import logging
 
 from api.models import Neo4jCredentials
-from src.core import create_repository
+from src.adapters import create_repository
 from src.analysis.structural_analyzer import StructuralAnalyzer
 from src.prediction.classifier import BoxPlotClassifier
 

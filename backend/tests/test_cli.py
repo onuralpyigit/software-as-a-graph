@@ -46,7 +46,7 @@ class TestImportGraphCLI:
         mock_data = {"nodes": []}
         
         with patch.object(sys, 'argv', ['import_graph.py', '--input', 'test.json', '--clear']), \
-             patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
+             patch('src.adapters.create_repository', return_value=mock_repo) as MockCreateRepo, \
              patch('pathlib.Path.exists', return_value=True), \
              patch('builtins.open', mock_open(read_data=json.dumps(mock_data))):
             
@@ -74,7 +74,7 @@ class TestAnalyzeGraphCLI:
         mock_results.execute.return_value = MagicMock()
         
         with patch.object(sys, 'argv', ['analyze_graph.py', '--layer', 'app']), \
-             patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
+             patch('src.adapters.create_repository', return_value=mock_repo) as MockCreateRepo, \
              patch('src.usecases.AnalyzeGraphUseCase', return_value=mock_analysis_service), \
              patch('src.usecases.PredictGraphUseCase.execute', return_value=(MagicMock(), [])), \
              patch('src.prediction.problem_detector.ProblemDetector.summarize', return_value=MagicMock()), \
@@ -106,7 +106,7 @@ class TestSimulateGraphCLI:
         mock_sim_service.run_event_simulation.return_value = mock_event_result
         
         with patch.object(sys, 'argv', ['simulate_graph.py', 'event', '--source', 'App1']), \
-             patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
+             patch('src.adapters.create_repository', return_value=mock_repo) as MockCreateRepo, \
              patch('src.simulation.SimulationService', return_value=mock_sim_service) as MockSimService, \
              patch('src.usecases.SimulateGraphUseCase.execute', return_value=mock_event_result) as MockSimExecute, \
              patch('src.cli.console.ConsoleDisplay', return_value=mock_display):
@@ -139,7 +139,7 @@ class TestValidateGraphCLI:
         mock_val_service.execute.return_value = mock_result
         
         with patch.object(sys, 'argv', ['validate_graph.py', '--layer', 'app']), \
-             patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
+             patch('src.adapters.create_repository', return_value=mock_repo) as MockCreateRepo, \
              patch('src.usecases.ValidateGraphUseCase', return_value=mock_val_service), \
              patch('src.cli.console.ConsoleDisplay', return_value=mock_display):
             
@@ -167,7 +167,7 @@ class TestVisualizeGraphCLI:
         mock_viz_service.execute.return_value = "dashboard.html"
         
         with patch.object(sys, 'argv', ['visualize_graph.py', '--layer', 'app', '--output', 'test.html']), \
-             patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
+             patch('src.adapters.create_repository', return_value=mock_repo) as MockCreateRepo, \
              patch('src.usecases.VisualizeGraphUseCase', return_value=mock_viz_service), \
              patch('src.cli.console.ConsoleDisplay', return_value=mock_display), \
              patch('os.path.exists', return_value=True), \
@@ -196,7 +196,7 @@ class TestExportGraphCLI:
         
         try:
             with patch.object(sys, 'argv', ['export_graph.py', '--output', 'exported.json']), \
-                 patch('src.core.create_repository', return_value=mock_repo) as MockCreateRepo, \
+                 patch('src.adapters.create_repository', return_value=mock_repo) as MockCreateRepo, \
                  patch('builtins.open', mock_open()) as m_open:
                 
                 if 'export_graph' in sys.modules:
@@ -249,9 +249,10 @@ class TestRunOrchestrator:
             assert "generate_graph.py" in scripts[0]
             assert "import_graph.py" in scripts[1]
             assert "analyze_graph.py" in scripts[2]
-            assert "simulate_graph.py" in scripts[3]
-            assert "validate_graph.py" in scripts[4]
-            assert "visualize_graph.py" in scripts[5]
+            assert "predict_graph.py" in scripts[3]
+            assert "simulate_graph.py" in scripts[4]
+            assert "validate_graph.py" in scripts[5]
+            assert "visualize_graph.py" in scripts[6]
 
     def test_generate_args(self):
         with patch("subprocess.run") as mock_run, \

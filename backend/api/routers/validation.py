@@ -9,7 +9,8 @@ import logging
 import json
 
 from api.models import GraphRequestWithCredentials
-from src.core import create_repository, LAYER_DEFINITIONS
+from src.adapters import create_repository
+from src.core import LAYER_DEFINITIONS
 from src.analysis import AnalysisService
 from src.prediction import PredictionService
 from src.simulation import SimulationService
