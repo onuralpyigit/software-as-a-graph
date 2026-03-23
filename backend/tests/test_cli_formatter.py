@@ -73,3 +73,33 @@ def test_print_critical_report():
             CLIFormatter.print_critical_report(res)
             assert mock_print.called
             mock_engine.explain_component.assert_called_once()
+def test_format_system_report():
+    from src.explanation.engine import SystemReport, RemediationStep
+    
+    report = SystemReport(
+        total_components=32,
+        critical_count=3,
+        high_count=5,
+        deployment_blocked=True,
+        reason="2 CRITICAL anti-patterns detected (SPOF, CYCLIC_DEPENDENCY).",
+        top_risk_summary="The system's primary architectural risk is concentration.",
+        by_stakeholder={
+            "Reliability Engineer": ["Add circuit breakers."],
+            "Software Architect": ["Extract stable interface."],
+            "DevOps / SRE": ["Deploy failover replica."],
+            "Security Engineer": ["Apply input validation."]
+        },
+        component_explanations=[],
+        remediation_plan=[
+            RemediationStep(action="Redundancy for App_Controller", components=["App_Controller"], priority=1)
+        ]
+    )
+    
+    output = CLIFormatter.format_system_report(report, "app")
+    
+    assert "System Report — app layer" in output
+    assert "BLOCKED" in output
+    assert "SPOF" in output
+    assert "Reliability Engineer" in output
+    assert "backlog" in output
+    assert "P1 [CRITICAL" in output

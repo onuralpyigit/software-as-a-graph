@@ -53,6 +53,7 @@ class SystemReport:
     critical_count: int
     high_count: int
     deployment_blocked: bool     # True if any CRITICAL anti-pattern found
+    reason: str                  # Reason for deployment block or status
     top_risk_summary: str        # 2-3 sentence plain English summary
     by_stakeholder: Dict[str, List[str]]  # role → list of action items
     component_explanations: List[ComponentExplanation]
@@ -179,6 +180,7 @@ class ExplanationEngine:
     def explain_system(self, quality_result: QualityAnalysisResult,
                        smell_report: AntiPatternReport) -> SystemReport:
         """Generate a system-level report with executive summaries and action plans."""
+        from .templates import STAKEHOLDER_MAPPING
         
         all_components = quality_result.components
         total = len(all_components)
@@ -192,26 +194,57 @@ class ExplanationEngine:
                 my_smells = [s for s in smell_report.problems if s.entity_id == c.id]
                 component_explanations.append(self.explain_component(c, my_smells))
         
-        # Check if deployment blocked: any CRITICAL severity smell (or CRITICAL components?)
-        # Specification says: "True if any CRITICAL anti-pattern found"
-        deployment_blocked = any(s.severity.upper() == "CRITICAL" for s in smell_report.problems)
-
-        # Generate top risk summary
-        if critical_comps:
-            crit_names = [c.id for c in critical_comps[:2]]
-            top_risk_summary = f"The system architecture is at critical risk due to {' and '.join(crit_names)}. " \
-                               f"These structural bottlenecks threaten both stability and scale."
-        elif high_comps:
-            top_risk_summary = "System health is moderate, but several high-risk hubs are beginning to emerge. " \
-                               "Refactoring now will prevent future cascading failures."
+        # Check if deployment blocked
+        critical_smells = [s for s in smell_report.problems if s.severity.upper() == "CRITICAL"]
+        deployment_blocked = len(critical_smells) > 0
+        
+        # Reason for block
+        if deployment_blocked:
+            block_names = sorted(list(set(s.name for s in critical_smells)))
+            reason = f"{len(critical_smells)} CRITICAL anti-patterns detected ({', '.join(block_names)})."
         else:
-            top_risk_summary = "The architecture is structurally sound with no high-risk bottlenecks or SPOFs."
+            reason = "No critical architectural blockers detected."
 
-        # Aggregate remediation into prioritized plan
-        # We group by action to avoid repeats
+        # Summary text
+        top_risk_summary = f"{len(critical_comps)} CRITICAL components require action before deployment. "
+        top_risk_summary += f"{len(high_comps)} HIGH components should be addressed in the current sprint. "
+        
+        if critical_comps:
+            risk_drivers = []
+            for c in critical_comps[:2]:
+                exp = self.explain_component(c, [])
+                for dim in exp.dimensions:
+                    if dim.level == "CRITICAL":
+                        risk_drivers.append(dim.plain_meaning)
+            if risk_drivers:
+                top_risk_summary += f"The system's primary architectural risk is concentration: {risk_drivers[0]} " \
+                                   f"and have limited structural redundancy."
+
+        # Aggregate remediation into prioritized plan AND stakeholder map
+        by_stakeholder = {
+            "Reliability Engineer": [],
+            "Software Architect": [],
+            "DevOps / SRE": [],
+            "Security Engineer": []
+        }
+        
         action_map = {}
         for exp in component_explanations:
             act = exp.priority_action
+            
+            # Identify stakeholder
+            role = STAKEHOLDER_MAPPING["patterns"].get(exp.pattern)
+            if not role:
+                # Fallback to dimensions
+                roles = []
+                for dim in exp.dimensions:
+                    if dim.level in ("CRITICAL", "HIGH"):
+                        roles.append(STAKEHOLDER_MAPPING["dimensions"].get(dim.dimension))
+                role = roles[0] if roles else "Software Architect"
+            
+            if act not in by_stakeholder[role]:
+                by_stakeholder[role].append(act)
+
             if act not in action_map:
                 prio = 1 if exp.level == "CRITICAL" else 2
                 action_map[act] = RemediationStep(
@@ -219,27 +252,17 @@ class ExplanationEngine:
                     components=[],
                     priority=prio
                 )
-            action_map[act].components.append(exp.component_id)
+            if exp.component_id not in action_map[act].components:
+                action_map[act].components.append(exp.component_id)
 
-        # Sort the step map by priority (1=Critical, 2=High), then length of components desc
         sorted_steps = sorted(list(action_map.values()), key=lambda x: (x.priority, -len(x.components)))
-
-        # Naive stakeholder mapping based on dimension presence
-        by_stakeholder = {
-            "Architect": ["Review overall structural decouplings and new bounded contexts."],
-            "DevOps": ["Evaluate single-points-of-failure for active-active deployment."],
-            "Security": ["Audit highly exposed routing components and enforce zero-trust."]
-        }
-        
-        # Add specific notes based on findings
-        if deployment_blocked:
-            by_stakeholder["DevOps"].insert(0, "URGENT: Deployment halt required to resolve critical anti-patterns.")
 
         return SystemReport(
             total_components=total,
             critical_count=len(critical_comps),
             high_count=len(high_comps),
             deployment_blocked=deployment_blocked,
+            reason=reason,
             top_risk_summary=top_risk_summary,
             by_stakeholder=by_stakeholder,
             component_explanations=component_explanations,

@@ -80,3 +80,19 @@ PATTERN_TEMPLATES = {
         "priority_action": "Review coupling and redundancy together; no single fix resolves this.",
     },
 }
+STAKEHOLDER_MAPPING = {
+    # Maps dimensions to stakeholder roles
+    "dimensions": {
+        "Reliability": "Reliability Engineer",
+        "Maintainability": "Software Architect",
+        "Availability": "DevOps / SRE",
+        "Vulnerability": "Security Engineer",
+    },
+    # Maps specific patterns to stakeholder roles (overrides dimensions if needed)
+    "patterns": {
+        "Total Hub": "Reliability Engineer",
+        "SPOF": "DevOps / SRE",
+        "Bottleneck": "Software Architect",
+        "Attack Target": "Security Engineer",
+    }
+}
