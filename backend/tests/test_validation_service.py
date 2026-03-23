@@ -136,60 +136,73 @@ class TestValidationService:
         # Verify data passed to validator (implicitly via result checks)
         assert layer_res.component_names["A"] == "App A"
 
-    def _setup_mock_layer(self, mock_analysis_service, mock_prediction_service, mock_simulation_service):
-        """Helper to setup a mock layer for validation tests."""
-        comps = []
-        sim_results = []
-        for i, char in enumerate(['A', 'B', 'C', 'D', 'E']):
-            comp = MagicMock()
-            comp.id = char
-            comp.type = "Application"
-            comp.scores.overall = 0.5
-            comp.scores.reliability = 0.5
-            comp.scores.maintainability = 0.5
-            comp.scores.availability = 0.5
-            comp.scores.vulnerability = 0.5
-            comp.metrics = {
-                "ap_c_out": 0.5, 
-                "ap_c_in": 0.5, 
-                "qspof": 0.5, 
-                "bridge_score": 0.1
-            }
-            comp.structural.is_articulation_point = False
-            comp.structural.name = str(char)
-            comp.structural.betweenness = 0.1
-            comp.structural.dependency_weight_out = 0.1
-            comp.structural.weight = 1.0
-            comps.append(comp)
+    def _make_comp(self, id, overall, reliability=0.5, maintainability=0.5, availability=0.5, vulnerability=0.5):
+        """Build a complex MagicMock for a component."""
+        comp = MagicMock()
+        comp.id = id
+        comp.type = "Application"
+        comp.scores = MagicMock()
+        comp.scores.overall = overall
+        comp.scores.reliability = reliability
+        comp.scores.maintainability = maintainability
+        comp.scores.availability = availability
+        comp.scores.vulnerability = vulnerability
+        comp.metrics = {
+            "ap_c_out": 0.5, 
+            "ap_c_in": 0.5, 
+            "qspof": 0.5, 
+            "bridge_score": 0.1
+        }
+        comp.structural = MagicMock()
+        comp.structural.is_articulation_point = False
+        comp.structural.name = f"App {id}"
+        comp.structural.betweenness = 0.1
+        comp.structural.dependency_weight_out = 0.1
+        comp.structural.weight = 1.0
+        return comp
+
+    def _make_sim(self, id, composite, reliability=0.5, maintainability=0.5, availability=0.5, vulnerability=0.5):
+        """Build a mock failure result."""
+        fail_res = MagicMock(spec=FailureResult)
+        fail_res.target_id = id
+        fail_res.impact = MagicMock(spec=ImpactMetrics)
+        # All impact fields set to 0.5 initially
+        for attr in dir(fail_res.impact):
+            if not attr.startswith('_'):
+                setattr(fail_res.impact, attr, 0.5)
+        
+        # Explicitly set key metrics
+        fail_res.impact.composite_impact = composite
+        fail_res.impact.reliability_impact = reliability
+        fail_res.impact.maintainability_impact = maintainability
+        fail_res.impact.availability_impact = availability
+        fail_res.impact.vulnerability_impact = vulnerability
+        
+        # Specialist metrics used in validation
+        fail_res.impact.ia_out = 0.5
+        fail_res.impact.ia_in = 0.5
+        fail_res.impact.attack_reach = 0.5
+        fail_res.impact.fragmentation = 0.5
+        fail_res.impact.throughput_loss = 0.5
+        fail_res.impact.reachability_loss = 0.5
+        fail_res.impact.weighted_reachability_loss = 0.5
+        fail_res.impact.weighted_fragmentation = 0.5
+        fail_res.impact.path_breaking_throughput_loss = 0.5
+        fail_res.impact.weighted_attack_impact = 0.5
+        fail_res.impact.high_value_contamination = 0.5
+        
+        return fail_res
+
+    def _setup_mock_layer(self, mock_prediction_service, mock_simulation_service, scores=None, impacts=None):
+        """Helper to setup a mock layer for validation tests with deterministic data."""
+        ids = ['A', 'B', 'C', 'D', 'E']
+        if scores is None:
+            scores = [0.9, 0.7, 0.5, 0.3, 0.1]
+        if impacts is None:
+            impacts = [0.9, 0.7, 0.5, 0.3, 0.1]
             
-            fail_res = MagicMock(spec=FailureResult)
-            fail_res.target_id = str(char)
-            fail_res.impact = MagicMock(spec=ImpactMetrics)
-            fail_res.impact.composite_impact = 0.5
-            fail_res.impact.reliability_impact = 0.5
-            fail_res.impact.maintainability_impact = 0.5
-            fail_res.impact.availability_impact = 0.5
-            fail_res.impact.vulnerability_impact = 0.5
-            fail_res.impact.ia_out = 0.5
-            fail_res.impact.ia_in = 0.5
-            fail_res.impact.attack_reach = 0.5
-            fail_res.impact.cascade_reach = 0.5
-            fail_res.impact.weighted_cascade_impact = 0.5
-            fail_res.impact.normalized_cascade_depth = 0.5
-            fail_res.impact.change_reach = 0.5
-            fail_res.impact.weighted_change_impact = 0.5
-            fail_res.impact.normalized_change_depth = 0.5
-            fail_res.impact.reachability_loss = 0.5
-            fail_res.impact.fragmentation = 0.5
-            fail_res.impact.throughput_loss = 0.5
-            fail_res.impact.flow_disruption = 0.5
-            fail_res.impact.weighted_reachability_loss = 0.5
-            fail_res.impact.weighted_fragmentation = 0.5
-            fail_res.impact.path_breaking_throughput_loss = 0.5
-            fail_res.impact.weighted_attack_impact = 0.5
-            fail_res.impact.high_value_contamination = 0.5
-            fail_res.impact.critical_paths = []
-            sim_results.append(fail_res)
+        comps = [self._make_comp(cid, s) for cid, s in zip(ids, scores)]
+        sim_results = [self._make_sim(cid, im) for cid, im in zip(ids, impacts)]
             
         mock_quality = MagicMock(spec=QualityAnalysisResult)
         mock_quality.components = comps
@@ -197,9 +210,9 @@ class TestValidationService:
         
         mock_simulation_service.run_failure_simulation_exhaustive.return_value = sim_results
 
-    def test_dimensional_validation_includes_all_metrics(self, validation_service, mock_analysis_service, mock_prediction_service, mock_simulation_service):
+    def test_dimensional_validation_includes_all_metrics(self, validation_service, mock_prediction_service, mock_simulation_service):
         """Test that all RMAV specialist metrics are computed and present."""
-        self._setup_mock_layer(mock_analysis_service, mock_prediction_service, mock_simulation_service)
+        self._setup_mock_layer(mock_prediction_service, mock_simulation_service)
         result = validation_service.validate_layers(layers=["app"])
         layer_res = result.layers["app"]
         
@@ -227,9 +240,9 @@ class TestValidationService:
         assert "ftr" in vul
         assert "apar" in vul
 
-    def test_composite_section_and_predictive_gain(self, validation_service, mock_analysis_service, mock_prediction_service, mock_simulation_service):
+    def test_composite_section_and_predictive_gain(self, validation_service, mock_prediction_service, mock_simulation_service):
         """Test composite I* calculation and Predictive Gain."""
-        self._setup_mock_layer(mock_analysis_service, mock_prediction_service, mock_simulation_service)
+        self._setup_mock_layer(mock_prediction_service, mock_simulation_service)
         result = validation_service.validate_layers(layers=["app"])
         layer_res = result.layers["app"]
         
@@ -238,14 +251,36 @@ class TestValidationService:
         assert "predictive_gain" in comp
         assert "best_single_dim" in comp
         
-    def test_node_type_stratified_in_output(self, validation_service, mock_analysis_service, mock_prediction_service, mock_simulation_service):
+    def test_node_type_stratified_in_output(self, validation_service, mock_prediction_service, mock_simulation_service):
         """Test node-type stratified reporting."""
-        self._setup_mock_layer(mock_analysis_service, mock_prediction_service, mock_simulation_service)
+        self._setup_mock_layer(mock_prediction_service, mock_simulation_service)
         result = validation_service.validate_layers(layers=["app"])
         layer_res = result.layers["app"]
         
         assert "Application" in layer_res.node_type_stratified
         assert layer_res.node_type_stratified["Application"]["target_rho"] == 0.75
+
+    def test_perfect_rank_agreement(self, validation_service, mock_prediction_service, mock_simulation_service):
+        """Q(v) and I(v) agree perfectly → Spearman ρ = 1.0."""
+        scores = [0.9, 0.7, 0.5, 0.3, 0.1]
+        impacts = [0.9, 0.7, 0.5, 0.3, 0.1]
+        self._setup_mock_layer(mock_prediction_service, mock_simulation_service, scores, impacts)
+        
+        result = validation_service.validate_layers(layers=["app"])
+        layer_res = result.layers["app"]
+        
+        assert layer_res.validation_result.overall.correlation.spearman == pytest.approx(1.0, abs=0.01)
+
+    def test_perfect_rank_disagreement(self, validation_service, mock_prediction_service, mock_simulation_service):
+        """Q(v) and I(v) are exactly inverted → Spearman ρ = -1.0."""
+        scores = [0.9, 0.7, 0.5, 0.3, 0.1]
+        impacts = [0.1, 0.3, 0.5, 0.7, 0.9]
+        self._setup_mock_layer(mock_prediction_service, mock_simulation_service, scores, impacts)
+        
+        result = validation_service.validate_layers(layers=["app"])
+        layer_res = result.layers["app"]
+        
+        assert layer_res.validation_result.overall.correlation.spearman == pytest.approx(-1.0, abs=0.01)
 """
 Unit Tests for validation module
 
