@@ -35,7 +35,7 @@ if str(ROOT / "backend") not in sys.path:
     sys.path.insert(0, str(ROOT / "backend"))
 
 from tools.generation import generate_graph, SCALE_PRESETS
-from src.core import create_repository
+from src.adapters import create_repository
 from src.analysis import AnalysisService
 from src.simulation import SimulationService
 from src.validation import ValidationService
