@@ -562,7 +562,7 @@ export default function MessageFlowPatternsPage() {
                             <tr className="border-b bg-muted/50">
                               <th className="p-3 text-left text-sm font-medium">Rank</th>
                               <th className="p-3 text-left text-sm font-medium">Application</th>
-                              <th className="p-3 text-right text-sm font-medium">Topics</th>
+                              <th className="p-3 text-right text-sm font-medium">Publications</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -586,7 +586,7 @@ export default function MessageFlowPatternsPage() {
                                 </td>
                                 <td className="p-3 text-right">
                                   <div className="font-semibold text-green-600 dark:text-green-400">
-                                    {app.topics}
+                                    {(app as any).publications ?? (app as any).topics ?? 0}
                                   </div>
                                 </td>
                               </tr>
@@ -622,7 +622,7 @@ export default function MessageFlowPatternsPage() {
                             <tr className="border-b bg-muted/50">
                               <th className="p-3 text-left text-sm font-medium">Rank</th>
                               <th className="p-3 text-left text-sm font-medium">Application</th>
-                              <th className="p-3 text-right text-sm font-medium">Topics</th>
+                              <th className="p-3 text-right text-sm font-medium">Subscriptions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -646,7 +646,7 @@ export default function MessageFlowPatternsPage() {
                                 </td>
                                 <td className="p-3 text-right">
                                   <div className="font-semibold text-purple-600 dark:text-purple-400">
-                                    {app.topics}
+                                    {(app as any).subscriptions ?? (app as any).topics ?? 0}
                                   </div>
                                 </td>
                               </tr>

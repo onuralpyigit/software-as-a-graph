@@ -48,7 +48,9 @@ async def get_degree_distribution_stats(
     """Degree distribution statistics (in/out/total, hubs, isolated nodes)."""
     try:
         logger.info("Computing degree distribution statistics")
-        return service.get_degree_distribution(node_type=credentials.node_type)
+        result = service.get_degree_distribution(node_type=credentials.node_type)
+        computation_time_ms = result.pop("computation_time_ms", 0.0)
+        return {"success": True, "stats": result, "computation_time_ms": computation_time_ms}
     except AttributeError as e:
         logger.warning(f"Degree distribution unavailable: {e}")
         return statistics_presenter.format_empty_statistics_response(

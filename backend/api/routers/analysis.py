@@ -102,12 +102,16 @@ async def analyze_layer(
     """
     Analyze a specific architectural layer.
     """
-    valid_layers = ["app", "infra", "application", "infrastructure", "system", "mw-app", "mw-infra"]
+    valid_layers = ["app", "infra", "application", "infrastructure", "system", "mw-app", "mw-infra", "middleware"]
     if layer not in valid_layers:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid layer. Must be one of: {', '.join(valid_layers)}"
         )
+
+    # Normalize frontend-friendly alias
+    if layer == "middleware":
+        layer = "mw-app"
 
     try:
         logger.info(f"Analyzing layer: {layer}")
