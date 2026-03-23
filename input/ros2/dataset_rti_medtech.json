@@ -75,104 +75,446 @@
     {
       "id": "A0",
       "name": "Arm",
-      "role": "pubsub",
+      "version": "1.0.0",
       "app_type": "controller",
+      "role": "pubsub",
       "criticality": true,
-      "version": "1.0.0"
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "User Interface",
+        "csms_name": "Configuration Management"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1339,
+          "total_classes": 12,
+          "total_methods": 111,
+          "total_fields": 114
+        },
+        "complexity": {
+          "total_wmc": 525,
+          "avg_wmc": 43.83,
+          "max_wmc": 54
+        },
+        "cohesion": {
+          "avg_lcom": 74.95,
+          "max_lcom": 118.4
+        },
+        "coupling": {
+          "avg_cbo": 6.87,
+          "max_cbo": 9,
+          "avg_rfc": 37.74,
+          "max_rfc": 38,
+          "avg_fanin": 3.24,
+          "max_fanin": 8,
+          "avg_fanout": 13.1,
+          "max_fanout": 30
+        }
+      }
     },
     {
       "id": "A1",
       "name": "ArmController",
-      "role": "pubsub",
+      "version": "1.0.0",
       "app_type": "controller",
+      "role": "pubsub",
       "criticality": true,
-      "version": "1.0.0"
+      "system_hierarchy": {
+        "csc_name": "Mission Software",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Data Persistence"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1807,
+          "total_classes": 13,
+          "total_methods": 43,
+          "total_fields": 117
+        },
+        "complexity": {
+          "total_wmc": 583,
+          "avg_wmc": 44.91,
+          "max_wmc": 87
+        },
+        "cohesion": {
+          "avg_lcom": 40.57,
+          "max_lcom": 82.7
+        },
+        "coupling": {
+          "avg_cbo": 20.27,
+          "max_cbo": 23,
+          "avg_rfc": 19.17,
+          "max_rfc": 22,
+          "avg_fanin": 2.44,
+          "max_fanin": 4,
+          "avg_fanout": 12.45,
+          "max_fanout": 37
+        }
+      }
     },
     {
       "id": "A2",
       "name": "Orchestrator",
-      "role": "pubsub",
+      "version": "1.0.0",
       "app_type": "service",
+      "role": "pubsub",
       "criticality": true,
-      "version": "1.0.0"
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Support Software",
+        "css_name": "Control Logic",
+        "csms_name": "Core Logic"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1500,
+          "total_classes": 16,
+          "total_methods": 50,
+          "total_fields": 85
+        },
+        "complexity": {
+          "total_wmc": 685,
+          "avg_wmc": 42.83,
+          "max_wmc": 88
+        },
+        "cohesion": {
+          "avg_lcom": 55.34,
+          "max_lcom": 180.5
+        },
+        "coupling": {
+          "avg_cbo": 3.78,
+          "max_cbo": 4,
+          "avg_rfc": 40.92,
+          "max_rfc": 45,
+          "avg_fanin": 7.13,
+          "max_fanin": 8,
+          "avg_fanout": 5.8,
+          "max_fanout": 12
+        }
+      }
     },
     {
       "id": "A3",
       "name": "PatientSensor",
-      "role": "pubsub",
+      "version": "1.0.0",
       "app_type": "sensor",
+      "role": "pubsub",
       "criticality": true,
-      "version": "1.0.0"
+      "system_hierarchy": {
+        "csc_name": "Platform Engineering",
+        "csci_name": "Infrastructure Software",
+        "css_name": "User Interface",
+        "csms_name": "Messaging Utilities"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 2999,
+          "total_classes": 9,
+          "total_methods": 191,
+          "total_fields": 44
+        },
+        "complexity": {
+          "total_wmc": 249,
+          "avg_wmc": 27.68,
+          "max_wmc": 65
+        },
+        "cohesion": {
+          "avg_lcom": 52.62,
+          "max_lcom": 149.2
+        },
+        "coupling": {
+          "avg_cbo": 7.16,
+          "max_cbo": 14,
+          "avg_rfc": 25.18,
+          "max_rfc": 45,
+          "avg_fanin": 5.82,
+          "max_fanin": 8,
+          "avg_fanout": 8.85,
+          "max_fanout": 9
+        }
+      }
     },
     {
       "id": "A4",
       "name": "PatientMonitor",
-      "role": "pubsub",
+      "version": "1.0.0",
       "app_type": "monitor",
+      "role": "pubsub",
       "criticality": false,
-      "version": "1.0.0"
+      "system_hierarchy": {
+        "csc_name": "Computer Science",
+        "csci_name": "Systems Engineering",
+        "css_name": "User Interface",
+        "csms_name": "Logging Framework"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 2473,
+          "total_classes": 6,
+          "total_methods": 31,
+          "total_fields": 21
+        },
+        "complexity": {
+          "total_wmc": 187,
+          "avg_wmc": 31.17,
+          "max_wmc": 51
+        },
+        "cohesion": {
+          "avg_lcom": 15.12,
+          "max_lcom": 41.6
+        },
+        "coupling": {
+          "avg_cbo": 13.5,
+          "max_cbo": 23,
+          "avg_rfc": 22.68,
+          "max_rfc": 30,
+          "avg_fanin": 2.26,
+          "max_fanin": 4,
+          "avg_fanout": 6.23,
+          "max_fanout": 12
+        }
+      }
     }
   ],
   "libraries": [
     {
       "id": "L0",
       "name": "DdsUtils",
-      "version": "1.0.0"
+      "version": "1.0.0",
+      "system_hierarchy": {
+        "csc_name": "Mission Software",
+        "csci_name": "Application Software",
+        "css_name": "Data Management",
+        "csms_name": "Configuration Management"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 292,
+          "total_classes": 18,
+          "total_methods": 136,
+          "total_fields": 10
+        },
+        "complexity": {
+          "total_wmc": 472,
+          "avg_wmc": 26.25,
+          "max_wmc": 35
+        },
+        "cohesion": {
+          "avg_lcom": 32.12,
+          "max_lcom": 111.8
+        },
+        "coupling": {
+          "avg_cbo": 7.49,
+          "max_cbo": 8,
+          "avg_rfc": 16.54,
+          "max_rfc": 30,
+          "avg_fanin": 3.65,
+          "max_fanin": 7,
+          "avg_fanout": 7.03,
+          "max_fanout": 7
+        }
+      }
     },
     {
       "id": "L1",
       "name": "Types",
-      "version": "1.0.0"
+      "version": "1.0.0",
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Application Software",
+        "css_name": "User Interface",
+        "csms_name": "Core Logic"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1958,
+          "total_classes": 11,
+          "total_methods": 121,
+          "total_fields": 15
+        },
+        "complexity": {
+          "total_wmc": 33,
+          "avg_wmc": 3.09,
+          "max_wmc": 5
+        },
+        "cohesion": {
+          "avg_lcom": 48.65,
+          "max_lcom": 165.6
+        },
+        "coupling": {
+          "avg_cbo": 8.6,
+          "max_cbo": 9,
+          "avg_rfc": 31.12,
+          "max_rfc": 50,
+          "avg_fanin": 5.21,
+          "max_fanin": 13,
+          "avg_fanout": 5.26,
+          "max_fanout": 7
+        }
+      }
     }
   ],
   "relationships": {
     "runs_on": [
-      {"from": "A0", "to": "N1"},
-      {"from": "A1", "to": "N1"},
-      {"from": "A2", "to": "N0"},
-      {"from": "A3", "to": "N2"},
-      {"from": "A4", "to": "N2"}
+      {
+        "from": "A0",
+        "to": "N1"
+      },
+      {
+        "from": "A1",
+        "to": "N1"
+      },
+      {
+        "from": "A2",
+        "to": "N0"
+      },
+      {
+        "from": "A3",
+        "to": "N2"
+      },
+      {
+        "from": "A4",
+        "to": "N2"
+      }
     ],
     "routes": [],
     "publishes_to": [
-      {"from": "A0", "to": "T1"},
-      {"from": "A0", "to": "T2"},
-      {"from": "A1", "to": "T0"},
-      {"from": "A1", "to": "T1"},
-      {"from": "A1", "to": "T2"},
-      {"from": "A2", "to": "T3"},
-      {"from": "A3", "to": "T4"},
-      {"from": "A3", "to": "T1"},
-      {"from": "A3", "to": "T2"},
-      {"from": "A4", "to": "T1"},
-      {"from": "A4", "to": "T2"}
+      {
+        "from": "A0",
+        "to": "T1"
+      },
+      {
+        "from": "A0",
+        "to": "T2"
+      },
+      {
+        "from": "A1",
+        "to": "T0"
+      },
+      {
+        "from": "A1",
+        "to": "T1"
+      },
+      {
+        "from": "A1",
+        "to": "T2"
+      },
+      {
+        "from": "A2",
+        "to": "T3"
+      },
+      {
+        "from": "A3",
+        "to": "T4"
+      },
+      {
+        "from": "A3",
+        "to": "T1"
+      },
+      {
+        "from": "A3",
+        "to": "T2"
+      },
+      {
+        "from": "A4",
+        "to": "T1"
+      },
+      {
+        "from": "A4",
+        "to": "T2"
+      }
     ],
     "subscribes_to": [
-      {"from": "A0", "to": "T0"},
-      {"from": "A0", "to": "T3"},
-      {"from": "A1", "to": "T3"},
-      {"from": "A2", "to": "T1"},
-      {"from": "A2", "to": "T2"},
-      {"from": "A3", "to": "T3"},
-      {"from": "A4", "to": "T4"},
-      {"from": "A4", "to": "T3"}
+      {
+        "from": "A0",
+        "to": "T0"
+      },
+      {
+        "from": "A0",
+        "to": "T3"
+      },
+      {
+        "from": "A1",
+        "to": "T3"
+      },
+      {
+        "from": "A2",
+        "to": "T1"
+      },
+      {
+        "from": "A2",
+        "to": "T2"
+      },
+      {
+        "from": "A3",
+        "to": "T3"
+      },
+      {
+        "from": "A4",
+        "to": "T4"
+      },
+      {
+        "from": "A4",
+        "to": "T3"
+      }
     ],
     "connects_to": [
-      {"from": "N0", "to": "N1"},
-      {"from": "N0", "to": "N2"},
-      {"from": "N1", "to": "N2"}
+      {
+        "from": "N0",
+        "to": "N1"
+      },
+      {
+        "from": "N0",
+        "to": "N2"
+      },
+      {
+        "from": "N1",
+        "to": "N2"
+      }
     ],
     "uses": [
-      {"from": "A0", "to": "L0"},
-      {"from": "A0", "to": "L1"},
-      {"from": "A1", "to": "L0"},
-      {"from": "A1", "to": "L1"},
-      {"from": "A2", "to": "L0"},
-      {"from": "A2", "to": "L1"},
-      {"from": "A3", "to": "L0"},
-      {"from": "A3", "to": "L1"},
-      {"from": "A4", "to": "L0"},
-      {"from": "A4", "to": "L1"}
+      {
+        "from": "A0",
+        "to": "L0"
+      },
+      {
+        "from": "A0",
+        "to": "L1"
+      },
+      {
+        "from": "A1",
+        "to": "L0"
+      },
+      {
+        "from": "A1",
+        "to": "L1"
+      },
+      {
+        "from": "A2",
+        "to": "L0"
+      },
+      {
+        "from": "A2",
+        "to": "L1"
+      },
+      {
+        "from": "A3",
+        "to": "L0"
+      },
+      {
+        "from": "A3",
+        "to": "L1"
+      },
+      {
+        "from": "A4",
+        "to": "L0"
+      },
+      {
+        "from": "A4",
+        "to": "L1"
+      }
     ]
   }
 }

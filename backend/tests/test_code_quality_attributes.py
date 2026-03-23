@@ -74,13 +74,22 @@ def _simple_two_app_graph(
 # CQ-001: Application dataclass
 # =============================================================================
 
+def _mk_code_metrics(loc=0, cc=0.0, ca=0, ce=0, lcom=0.0):
+    """Build a nested code_metrics dict for test construction."""
+    return {
+        "size": {"total_loc": loc},
+        "complexity": {"avg_wmc": cc},
+        "cohesion": {"avg_lcom": lcom},
+        "coupling": {"avg_fanin": ca, "avg_fanout": ce},
+    }
+
+
 class TestApplicationDataclass:
     def test_code_quality_fields_stored(self):
-        """CQ-001a: Application stores all 5 code-quality fields."""
+        """CQ-001a: Application stores all 5 code-quality fields via code_metrics."""
         app = Application(
             id="svc1", name="SVC1",
-            loc=500, cyclomatic_complexity=8.5,
-            coupling_afferent=3, coupling_efferent=7, lcom=0.62,
+            code_metrics=_mk_code_metrics(loc=500, cc=8.5, ca=3, ce=7, lcom=0.62),
         )
         assert app.loc == 500
         assert app.cyclomatic_complexity == 8.5
@@ -90,7 +99,8 @@ class TestApplicationDataclass:
 
     def test_instability_property(self):
         """CQ-001b: instability = Ce / (Ca + Ce)."""
-        app = Application(id="svc1", name="SVC1", coupling_afferent=3, coupling_efferent=7)
+        app = Application(id="svc1", name="SVC1",
+                          code_metrics=_mk_code_metrics(ca=3, ce=7))
         assert app.instability == pytest.approx(7 / 10)
 
     def test_instability_zero_when_no_coupling(self):
@@ -107,19 +117,19 @@ class TestApplicationDataclass:
         assert app.coupling_efferent == 0
         assert app.lcom == 0.0
 
-    def test_to_dict_omits_zero_fields(self):
-        """CQ-001e: to_dict() omits code-quality keys when all are 0."""
+    def test_to_dict_includes_code_metrics(self):
+        """CQ-001e: to_dict() always includes code_metrics key."""
         app = Application(id="svc1", name="SVC1")
         d = app.to_dict()
-        assert "loc" not in d
-        assert "lcom" not in d
+        assert "code_metrics" in d
 
     def test_to_dict_includes_nonzero_fields(self):
-        """CQ-001f: to_dict() includes code-quality keys when non-zero."""
-        app = Application(id="svc1", name="SVC1", loc=300, lcom=0.4)
+        """CQ-001f: to_dict() includes code_metrics; backward-compat properties work."""
+        app = Application(id="svc1", name="SVC1",
+                          code_metrics=_mk_code_metrics(loc=300, lcom=0.4))
         d = app.to_dict()
-        assert d["loc"] == 300
-        assert d["lcom"] == pytest.approx(0.4)
+        assert d["code_metrics"]["size"]["total_loc"] == 300
+        assert d["code_metrics"]["cohesion"]["avg_lcom"] == pytest.approx(0.4)
 
 
 # =============================================================================
@@ -357,7 +367,7 @@ class TestNormalizationPopulationLevel:
 
 class TestGeneratorCodeQuality:
     def test_generator_produces_code_quality_fields(self):
-        """CQ-009: StatisticalGraphGenerator includes loc/CC/LCOM/Ca/Ce in output."""
+        """CQ-009: StatisticalGraphGenerator includes code_metrics for every Application."""
         from tools.generation.generator import StatisticalGraphGenerator
         from tools.generation.models import GraphConfig
         
@@ -368,24 +378,21 @@ class TestGeneratorCodeQuality:
         apps = data["applications"]
         assert len(apps) > 0
         for app in apps:
-            assert "loc" in app, f"App {app['id']} missing 'loc'"
-            assert app["loc"] > 0, f"App {app['id']} has loc=0"
-            assert "cyclomatic_complexity" in app
-            assert app["cyclomatic_complexity"] > 0
-            assert "lcom" in app
-            # ca and ce may be 0 for isolated nodes but at least the key should be present if nonzero
-            # (to_dict omits zero fields, so absence means 0)
+            assert "code_metrics" in app, f"App {app['id']} missing 'code_metrics'"
+            cm = app["code_metrics"]
+            assert cm["size"]["total_loc"] > 0, f"App {app['id']} has total_loc=0"
+            assert cm["complexity"]["avg_wmc"] > 0
+            assert "avg_lcom" in cm["cohesion"]
 
     def test_generator_respects_app_type_ranges(self):
-        """CQ-009b: Sensor apps have lower LOC than gateway apps on average."""
-        from tools.generation.generator import StatisticalGraphGenerator, _CODE_QUALITY_PARAMS
-        from tools.generation.models import GraphConfig
+        """CQ-009b: Sensor apps have lower max LOC than gateway apps."""
+        from tools.generation.generator import _CODE_METRICS_PARAMS
         
-        sensor_params = _CODE_QUALITY_PARAMS["sensor"]
-        gateway_params = _CODE_QUALITY_PARAMS["gateway"]
+        sensor_params = _CODE_METRICS_PARAMS["sensor"]
+        gateway_params = _CODE_METRICS_PARAMS["gateway"]
         
-        assert sensor_params[1] < gateway_params[1], "sensor max_loc should be < gateway max_loc"
-        assert sensor_params[3] < gateway_params[3], "sensor max_cc should be < gateway max_cc"
+        assert sensor_params["loc"][1] < gateway_params["loc"][1], "sensor max_loc should be < gateway max_loc"
+        assert sensor_params["avg_wmc"][1] < gateway_params["avg_wmc"][1], "sensor max_cc should be < gateway max_cc"
 
 
 # =============================================================================

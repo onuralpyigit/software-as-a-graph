@@ -19,6 +19,7 @@ COPY backend/requirements.txt .
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir torch==2.5.0 --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 # ============================================
@@ -113,11 +114,13 @@ COPY --from=python-builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app/backend
+    PYTHONPATH=/app/backend:/app
 
 # Copy Python application code
 COPY backend/src/ ./backend/src/
 COPY backend/api/ ./backend/api/
+COPY tools/ ./tools/
+COPY saag/ ./saag/
 COPY bin/*.py ./bin/
 
 # Copy input data for pipeline examples
