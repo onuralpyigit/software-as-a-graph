@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse
 from saag import Pipeline
+from src.explanation import CLIFormatter
 from bin._shared import add_neo4j_args, add_common_args, setup_logging
 
 def main():
@@ -89,6 +90,10 @@ def main():
         
     # Execute pipeline
     result = pipeline.run()
+    
+    # NEW: Print criticality cards if prediction happened and not quiet
+    if result.prediction and not getattr(args, "quiet", False):
+        CLIFormatter.print_critical_report(result.prediction.raw, problems=result.problems, limit_top=5)
     
     # Save generic result if output provided and not visualizing
     if args.output and not (args.visualize or args.all):

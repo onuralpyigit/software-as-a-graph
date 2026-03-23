@@ -41,6 +41,7 @@ from src.analysis import AnalysisService
 from src.simulation import SimulationService
 from src.validation import ValidationService
 from src.visualization import VisualizationService
+from src.explanation import CLIFormatter
 from src.prediction import PredictionService, GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict, extract_simulation_dict
 
 
@@ -216,8 +217,6 @@ def step3_criticality_prediction(repo, output_dir: Path, layer: str, analysis_re
     # 3.1 Rule-based RMAV Scoring
     print("  [3.1] Computing Rule-based RMAV Quality Scores...")
     result = analysis_res["result"]
-    # In this framework, AnalysisService.analyze_layer often includes RMAV if quality analyzer is plugged in
-    # Here we assume it's already there or we trigger it.
     from src.prediction.analyzer import QualityAnalyzer
     quality_analyzer = QualityAnalyzer()
     quality_res = quality_analyzer.analyze(result.structural)
@@ -226,13 +225,8 @@ def step3_criticality_prediction(repo, output_dir: Path, layer: str, analysis_re
     comps = quality_res.components
     print_kv("Criticality Levels", f"{len([c for c in comps if c.levels.overall.value.lower() == 'critical'])} Critical, {len([c for c in comps if c.levels.overall.value.lower() == 'high'])} High")
 
-    # Top-5 Table
-    print(f"\n  Top 5 components by RMAV Prediction Q(v):")
-    print(f"  {'ID':<28} {'Q':>6} {'R':>6} {'M':>6} {'A':>6} {'V':>6}  Level")
-    print(f"  {'-'*75}")
-    for c in comps[:5]:
-        s = c.scores
-        print(f"  {c.id[:27]:<28} {s.overall:>6.3f} {s.reliability:>6.3f} {s.maintainability:>6.3f} {s.availability:>6.3f} {s.vulnerability:>6.3f}  {c.levels.overall.value.upper()}")
+    # Replaced Top-5 Table with Component Cards
+    CLIFormatter.print_critical_report(quality_res, limit_top=5)
 
     # 3.2 Learning-based GNN Prediction (Optional - requires sim_results for training)
     gnn_summary = {}
@@ -412,9 +406,6 @@ def main() -> None:
         predict_summary = step3_criticality_prediction(
             repo, output_dir, args.layer, struct_summary, _sim_results
         )
-        
-        # NEW: Interpret the results for the user
-        interpret_critical_components(predict_summary['quality'].components)
 
         # ── Step 5: Statistical Validation ────────────────────────────
         validation_summary = step5_validate(repo, args.layer)

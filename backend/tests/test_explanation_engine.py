@@ -92,7 +92,7 @@ def test_explain_component(sample_quality, sample_smells):
 
     assert explanation.component_id == "App_Controller"
     assert explanation.pattern == "Total Hub"
-    assert explanation.severity == "CRITICAL"
+    assert explanation.level == "CRITICAL"
     assert "App_Controller is a critical hub" in explanation.one_line
     assert "three independent failure modes" in explanation.top_risk
     assert "CyclicDependency" in explanation.anti_patterns

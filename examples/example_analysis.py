@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 
 from src.core import create_repository
 from src.analysis import AnalysisService
+from src.explanation import CLIFormatter
 
 
 # ──────────────────────────────────────────────
@@ -107,7 +108,9 @@ def main():
         print(f"  Components analysed: {len(comps)}")
         dist = level_distribution(comps)
         print(f"  Criticality distribution: {dist}")
-        print_component_table(comps, top_n=5)
+        
+        # Replaced table with cards
+        CLIFormatter.print_critical_report(app_res.quality, limit_top=3)
 
         # ── 2. System layer (all component types) ─────────────────────
         print_section("Layer: system  (All component types)")
@@ -116,10 +119,9 @@ def main():
         print(f"  Components analysed: {len(all_comps)}")
         dist_all = level_distribution(all_comps)
         print(f"  Criticality distribution: {dist_all}")
-        print_component_table(all_comps, top_n=10)
         
-        # ── 2b. Decision Interpretation ──────────────────────────────
-        interpret_critical_components(all_comps)
+        # Replaced table and interpretation with cards
+        CLIFormatter.print_critical_report(sys_res.quality, problems=sys_res.problems, limit_top=5)
 
         # ── 3. Critical edges ─────────────────────────────────────────
         print_section("Top critical dependencies (edges)")

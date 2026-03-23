@@ -30,7 +30,7 @@ class ComponentExplanation:
     """Full explanation for one component."""
     component_id: str
     pattern: str             # "Total Hub" | "SPOF" | "Bottleneck" …
-    severity: str            # "CRITICAL"
+    level: str               # "CRITICAL"
     one_line: str            # "App_Controller fails in three independent ways."
     top_risk: str            # "A single failure here activates three independent failure modes at once."
     dimensions: List[DimensionExplanation]   # one per elevated dimension
@@ -167,7 +167,7 @@ class ExplanationEngine:
         component_exp = ComponentExplanation(
             component_id=quality.id,
             pattern=pattern,
-            severity=quality.levels.overall.value.upper(),
+            level=quality.levels.overall.value.upper(),
             one_line=template_group.get("one_line", "{id} requires attention across multiple dimensions.").format(**ctx),
             top_risk=template_group.get("top_risk", "Multiple systemic vulnerabilities detected.").format(**ctx),
             dimensions=dim_explanations,
@@ -213,7 +213,7 @@ class ExplanationEngine:
         for exp in component_explanations:
             act = exp.priority_action
             if act not in action_map:
-                prio = 1 if exp.severity == "CRITICAL" else 2
+                prio = 1 if exp.level == "CRITICAL" else 2
                 action_map[act] = RemediationStep(
                     action=act,
                     components=[],
