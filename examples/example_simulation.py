@@ -94,7 +94,20 @@ def main():
             print(f"  95% CI     : [{mc.ci_95[0]:.4f}, {mc.ci_95[1]:.4f}]")
 
         # ── 3. Exhaustive failure simulation (ground truth) ───────────
-        print_section("Mode 3: Exhaustive failure simulation  (all components)")
+        print_section("Mode 3: Exhaustive failure simulation (ground truth)")
+        
+        # ── Independence guarantee — the scientific foundation ────────────
+        # NOTE: The criticality scores Q(v) you saw in example_analysis.py 
+        # were computed purely from topological metrics (centrality, etc.).
+        #
+        # The impact scores I(v) we are about to compute are derived 
+        # PURELY from cascade simulation rules—they have never seen Q(v).
+        #
+        # If Q(v) and I(v) correlate later in example_validation.py,
+        # it proves that topology ALONE is a reliable predictor of 
+        # runtime failure impact.
+        # ──────────────────────────────────────────────────────────────────
+        
         print("  Running exhaustive failure simulation for layer='app'...")
         print("  (This also computes IR(v), IM(v), IA(v), IV(v) ground truths)\n")
         exhaustive = sim.run_failure_simulation_exhaustive(layer="app")

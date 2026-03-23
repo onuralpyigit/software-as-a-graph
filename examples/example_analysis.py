@@ -61,6 +61,29 @@ def level_distribution(components) -> dict:
     return dist
 
 
+def interpret_critical_components(components):
+    """Translate RMAV scores into engineering decisions."""
+    print("\n  [Decision Support: Critical Component Interpretation]")
+    found_critical = False
+    for c in components:
+        if c.levels.overall.value == "CRITICAL":
+            found_critical = True
+            reasons = []
+            s = c.scores
+            # Semantic interpretation of scores
+            if s.availability > 0.70:
+                reasons.append(f"structural SPOF — removing it disconnects the system")
+            if s.reliability > 0.75:
+                reasons.append(f"cascade amplifier — failures here broadcast to {c.structural.out_degree_raw} neighbors")
+            if s.maintainability > 0.70:
+                reasons.append(f"high-churn hub — changes here force {c.structural.in_degree_raw} other components to refactor")
+            
+            print(f"    • {c.id}: {' + '.join(reasons) if reasons else 'High combined risk score'}")
+    
+    if not found_critical:
+        print("    ✅ No CRITICAL components found. System structural health is good.")
+
+
 # ──────────────────────────────────────────────
 # Main
 # ──────────────────────────────────────────────
@@ -94,6 +117,9 @@ def main():
         dist_all = level_distribution(all_comps)
         print(f"  Criticality distribution: {dist_all}")
         print_component_table(all_comps, top_n=10)
+        
+        # ── 2b. Decision Interpretation ──────────────────────────────
+        interpret_critical_components(all_comps)
 
         # ── 3. Critical edges ─────────────────────────────────────────
         print_section("Top critical dependencies (edges)")
