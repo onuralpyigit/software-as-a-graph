@@ -94,6 +94,38 @@ def pass_fail(value: float, threshold: float) -> str:
     return "✓ PASS" if value >= threshold else "✗ FAIL"
 
 
+def interpret_critical_components(components, top_n: int = 3):
+    """Translate RMAV scores into engineering decisions."""
+    # Include both CRITICAL and HIGH to ensure visible output in example runs
+    targets = [c for c in components if c.levels.overall.value.lower() in ("critical", "high")]
+    if not targets:
+        return
+
+    print("\n  [Analysis Interpretation: Actionable Guidance]")
+    for c in targets[:top_n]:
+        reasons = []
+        s = c.scores
+        st = c.structural
+        
+        # Heuristics for interpretation
+        if st.is_articulation_point:
+            reasons.append("Structural SPOF — its removal disconnects the architecture graph.")
+        if s.availability > 0.70:
+            reasons.append(f"High Availability Risk — lacks sufficient redundancy for its topological role.")
+        if s.reliability > 0.70:
+            reasons.append(f"Cascade Hub — failure here propagates widely due to high PageRank.")
+        if s.maintainability > 0.70 or st.in_degree_raw > 5:
+            reasons.append(f"Change Bottleneck — {st.in_degree_raw} components depend on this; interface changes are high-risk.")
+        
+        if not reasons:
+            reasons.append("High composite RMAV score across multiple dimensions.")
+
+        print(f"\n    • {c.id[:30]:<32} is {c.levels.overall.value.upper()} because:")
+        for r in reasons:
+            print(f"      - {r}")
+        print(f"      Recommendation: Add redundancy, circuit breakers, or extract stable interface.")
+
+
 # ──────────────────────────────────────────────
 # Step functions
 # ──────────────────────────────────────────────
@@ -170,7 +202,7 @@ def step3_criticality_prediction(repo, output_dir: Path, layer: str, analysis_re
     result.quality = quality_res
     
     comps = quality_res.components
-    print_kv("Criticality Levels", f"{len([c for c in comps if c.levels.overall.value == 'CRITICAL'])} Critical, {len([c for c in comps if c.levels.overall.value == 'HIGH'])} High")
+    print_kv("Criticality Levels", f"{len([c for c in comps if c.levels.overall.value.lower() == 'critical'])} Critical, {len([c for c in comps if c.levels.overall.value.lower() == 'high'])} High")
 
     # Top-5 Table
     print(f"\n  Top 5 components by RMAV Prediction Q(v):")
@@ -333,6 +365,9 @@ def main() -> None:
         predict_summary = step3_criticality_prediction(
             repo, output_dir, args.layer, struct_summary, _sim_results
         )
+        
+        # NEW: Interpret the results for the user
+        interpret_critical_components(predict_summary['quality'].components)
 
         # ── Step 5: Statistical Validation ────────────────────────────
         validation_summary = step5_validate(repo, args.layer)
@@ -367,7 +402,7 @@ def main() -> None:
         print(f"  [1] System Deployment Safety:  {'RAISE CAUTION ⚠️' if not passed else 'GO / PROCEED ✅'}")
         print(f"      (Validation Confidence ρ={validation_summary.get('spearman', 0):.2f})")
         
-        critical_comps = [c for c in predict_summary['quality'].components if c.levels.overall.value == 'CRITICAL']
+        critical_comps = [c for c in predict_summary['quality'].components if c.levels.overall.value.lower() == 'critical']
         worst_id = critical_comps[0].id if critical_comps else "None"
         print(f"  [2] High-Priority Redundancy:  Component '{worst_id}'")
         print(f"      (Target for immediate replication or failover testing)")
