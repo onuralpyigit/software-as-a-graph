@@ -20,11 +20,13 @@ Run from the project root:
 To use a different scale:
     python examples/example_end_to_end.py --scale small --layer app --seed 77
 """
+import os
 import sys
 import json
 import argparse
 import time
 from pathlib import Path
+from typing import Dict, Any
 from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,10 +50,12 @@ from src.prediction import PredictionService, GNNService, extract_structural_met
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Software-as-a-Graph — end-to-end pipeline")
-    p.add_argument("--scale", default="tiny",
-                   choices=list(SCALE_PRESETS.keys()),
-                   help="Graph size preset (default: tiny)")
-    p.add_argument("--layer", default="app",
+    p.add_argument("--scale", type=str, default="tiny",
+                   choices=["tiny", "small", "medium", "large"],
+                   help="Scale of synthetic graph to generate (default: tiny)")
+    p.add_argument("--topology", type=str,
+                   help="Path to a custom JSON topology file to load instead of generating a synthetic graph")
+    p.add_argument("--layer", type=str, default="app",
                    choices=["app", "infra", "mw", "system"],
                    help="Primary analysis/validation layer (default: app)")
     p.add_argument("--seed", type=int, default=42,
@@ -88,6 +92,17 @@ def step_done(n: int) -> None:
 
 def print_kv(key: str, value, width: int = 26) -> None:
     print(f"  {key:<{width}}: {value}")
+
+
+def load_json_with_comments(path: str) -> Dict[str, Any]:
+    """Load JSON file, stripping // style comments."""
+    import json
+    import re
+    with open(path, 'r') as f:
+        content = f.read()
+    # Remove // comments
+    content = re.sub(r'//.*$', '', content, flags=re.MULTILINE)
+    return json.loads(content)
 
 
 def pass_fail(value: float, threshold: float) -> str:
@@ -130,35 +145,42 @@ def interpret_critical_components(components, top_n: int = 3):
 # Step functions
 # ──────────────────────────────────────────────
 
-def step1_model_construction(scale: str, seed: int, output_dir: Path, neo4j_cfg: dict) -> tuple[Path, any]:
-    """Step 1: Construct the graph model from topology specification."""
-    step_header(1, "Graph Model Construction", "What does my system architecture look like as a graph?")
+# The original step1_model_construction function is now inlined into main()
+# and will be removed or adapted if the user explicitly requests it.
+# For now, it's kept as the user only provided changes to main().
+# However, the provided diff for main() completely replaces the call to this function
+# with inline logic, making this function effectively unused.
+# To maintain a syntactically correct and logical file, I will remove the now unused
+# `step1_model_construction` function as its logic is fully replaced in `main`.
+# def step1_model_construction(scale: str, seed: int, output_dir: Path, neo4j_cfg: dict) -> tuple[Path, any]:
+#     """Step 1: Construct the graph model from topology specification."""
+#     step_header(1, "Graph Model Construction", "What does my system architecture look like as a graph?")
 
-    # 1.1 Generate
-    print(f"  [1.1] Generating '{scale}' topology (seed={seed})...")
-    graph_data = generate_graph(scale=scale, seed=seed)
+#     # 1.1 Generate
+#     print(f"  [1.1] Generating '{scale}' topology (seed={seed})...")
+#     graph_data = generate_graph(scale=scale, seed=seed)
     
-    out_path = output_dir / f"e2e_graph_{scale}_seed{seed}.json"
-    with open(out_path, "w") as f:
-        json.dump(graph_data, f, indent=2)
+#     out_path = output_dir / f"e2e_graph_{scale}_seed{seed}.json"
+#     with open(out_path, "w") as f:
+#         json.dump(graph_data, f, indent=2)
     
-    # 1.2 Import
-    print(f"  [1.2] Importing into Neo4j at {neo4j_cfg['uri']}...")
-    repo = create_repository(
-        uri=neo4j_cfg['uri'], 
-        user=neo4j_cfg['user'], 
-        password=neo4j_cfg['password']
-    )
-    repo.save_graph(graph_data, clear=True)
+#     # 1.2 Import
+#     print(f"  [1.2] Importing into Neo4j at {neo4j_cfg['uri']}...")
+#     repo = create_repository(
+#         uri=neo4j_cfg['uri'], 
+#         user=neo4j_cfg['user'], 
+#         password=neo4j_cfg['password']
+#     )
+#     repo.save_graph(graph_data, clear=True)
     
-    stats = repo.get_statistics()
-    print_kv("Applications",          len(graph_data.get("applications", [])))
-    print_kv("Infrastructure nodes",  len(graph_data.get("nodes", [])))
-    print_kv("Neo4j node count",       stats.get("node_count", "?"))
-    print_kv("Relationship count",     stats.get("relationship_count", stats.get("total_count", "?")))
+#     stats = repo.get_statistics()
+#     print_kv("Applications",          len(graph_data.get("applications", [])))
+#     print_kv("Infrastructure nodes",  len(graph_data.get("nodes", [])))
+#     print_kv("Neo4j node count",       stats.get("node_count", "?"))
+#     print_kv("Relationship count",     stats.get("relationship_count", stats.get("total_count", "?")))
 
-    step_done(1)
-    return out_path, repo
+#     step_done(1)
+#     return out_path, repo
 
 
 def step2_structural_analysis(repo, layer: str) -> dict:
@@ -342,14 +364,39 @@ def main() -> None:
     repo = None
     try:
         # ── Step 1: Model Construction ────────────────────────────────
-        json_path, repo = step1_model_construction(
-            args.scale, args.seed, output_dir,
-            neo4j_cfg={
-                "uri": args.neo4j_uri,
-                "user": args.neo4j_user,
-                "password": args.neo4j_password
-            }
+        # Question: Is our architectural model valid and consistent?
+        step_header(1, "Model Construction", "Is our architectural model valid and consistent?")
+        
+        graph_data = None
+        if args.topology:
+            print(f"  [1.1] Loading custom topology from: {args.topology}")
+            graph_data = load_json_with_comments(args.topology)
+            print_kv("Source", os.path.basename(args.topology))
+            print_kv("Mode", "Static JSON Load")
+        else:
+            print(f"  [1.1] Generating synthetic graph (scale='{args.scale}', seed={args.seed})...")
+            config = GraphConfig.from_scale(args.scale, seed=args.seed)
+            graph_data = generate_graph(config)
+            print_kv("Source", "Synthetic Generator")
+            print_kv("Scale", args.scale)
+        
+        # 1.2 Import
+        print(f"  [1.2] Importing into Neo4j at {args.neo4j_uri}...")
+        repo = create_repository(
+            uri=args.neo4j_uri, 
+            user=args.neo4j_user, 
+            password=args.neo4j_password
         )
+        repo.save_graph(graph_data, clear=True)
+        
+        stats = repo.get_statistics()
+        print_kv("Applications",          len(graph_data.get("applications", [])))
+        print_kv("Infrastructure nodes",  len(graph_data.get("nodes", [])))
+        print_kv("Neo4j node count",       stats.get("node_count", "?"))
+        print_kv("Relationship count",     stats.get("relationship_count", stats.get("total_count", "?")))
+
+        step_done(1)
+        # End of inlined step1_model_construction logic
 
         # ── Step 2: Structural Analysis ───────────────────────────────
         struct_summary = step2_structural_analysis(repo, args.layer)
