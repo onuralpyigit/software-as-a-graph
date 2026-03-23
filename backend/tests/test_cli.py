@@ -9,48 +9,23 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "backend"))
 
-def load_script(path: Path, module_name: str):
-    """Load a script file as a module with a unique name."""
-    spec = importlib.util.spec_from_file_location(module_name, str(path))
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
+import bin.run as run_module_imported
+import bin.generate_graph
+import bin.import_graph
+import bin.analyze_graph
+import bin.simulate_graph
+import bin.validate_graph
+import bin.visualize_graph
+import bin.export_graph
+import bin.benchmark
 
 # =============================================================================
 # Shared Fixtures
 # =============================================================================
 
-@pytest.fixture(scope="module")
-def run_module():
-    return load_script(PROJECT_ROOT / "bin" / "run.py", "test_run_module")
 
-@pytest.fixture
-def mock_stages(run_module):
-    mock_dispatchers = {
-        name: MagicMock() for name in [
-            "dispatch_generate", "dispatch_import", "dispatch_analyze", 
-            "dispatch_predict", "dispatch_simulate", "dispatch_validate", 
-            "dispatch_visualize"
-        ]
-    }
-    
-    # Store originals
-    original_stages = list(run_module.STAGES)
-    
-    # Create new stages list with mocks
-    new_stages = []
-    for flag, label, func, prepper in original_stages:
-        mock_func = mock_dispatchers.get(func.__name__, func)
-        new_stages.append((flag, label, mock_func, prepper))
-    
-    # Patch STAGES
-    run_module.STAGES = new_stages
-    
-    yield mock_dispatchers
-    
-    # Restore
-    run_module.STAGES = original_stages
+
+
 
 # =============================================================================
 # CLI Smoke Tests (Individual Scripts)
@@ -61,7 +36,7 @@ class TestGenerateGraphCLI:
     
     @pytest.fixture(scope="class")
     def script_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "generate_graph.py", "test_gen_class")
+        return bin.generate_graph
 
     def test_main(self, script_module):
         mock_data = {"nodes": [{"id": "n1"}]}
@@ -81,7 +56,7 @@ class TestImportGraphCLI:
     
     @pytest.fixture(scope="class")
     def script_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "import_graph.py", "test_imp_class")
+        return bin.import_graph
 
     def test_main(self, script_module):
         mock_client = MagicMock()
@@ -109,7 +84,7 @@ class TestAnalyzeGraphCLI:
     
     @pytest.fixture(scope="class")
     def script_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "analyze_graph.py", "test_ana_class")
+        return bin.analyze_graph
 
     def test_main(self, script_module):
         mock_client = MagicMock()
@@ -130,7 +105,7 @@ class TestSimulateGraphCLI:
     
     @pytest.fixture(scope="class")
     def script_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "simulate_graph.py", "test_sim_class")
+        return bin.simulate_graph
 
     def test_main(self, script_module):
         mock_client = MagicMock()
@@ -166,7 +141,7 @@ class TestValidateGraphCLI:
     
     @pytest.fixture(scope="class")
     def script_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "validate_graph.py", "test_val_class")
+        return bin.validate_graph
 
     def test_main(self, script_module):
         mock_client = MagicMock()
@@ -192,7 +167,7 @@ class TestVisualizeGraphCLI:
     
     @pytest.fixture(scope="class")
     def script_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "visualize_graph.py", "test_viz_class")
+        return bin.visualize_graph
 
     def test_main(self, script_module):
         mock_client = MagicMock()
@@ -214,7 +189,7 @@ class TestExportGraphCLI:
     
     @pytest.fixture(scope="class")
     def script_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "export_graph.py", "test_exp_class")
+        return bin.export_graph
 
         mock_client = MagicMock()
         mock_data = {"nodes": [], "relationships": {}}
@@ -240,7 +215,7 @@ class TestExportGraphCLI:
 
 @pytest.fixture
 def mock_pipeline():
-    with patch('test_run_module.Pipeline') as mock_pipe_class:
+    with patch('bin.run.Pipeline') as mock_pipe_class:
         instance = MagicMock()
         # Mock fluent interface
         instance.analyze.return_value = instance
@@ -254,10 +229,17 @@ def mock_pipeline():
 
 class TestRunOrchestrator:
     """Tests for bin/run.py using saag.Pipeline"""
+
+    def test_run_help_subprocess(self):
+        import subprocess
+        result = subprocess.run([sys.executable, str(PROJECT_ROOT / "bin" / "run.py"), "--help"], capture_output=True, text=True)
+        assert result.returncode == 0
+        assert "usage:" in result.stdout.lower()
+
     
     @pytest.fixture(scope="class")
     def run_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "run.py", "test_run_module")
+        return bin.run
 
     def _run_main(self, module, argv: list[str]) -> int:
         with patch.object(sys, "argv", ["run.py"] + argv), \
@@ -316,7 +298,7 @@ class TestLayerHandling:
     
     @pytest.fixture(scope="class")
     def run_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "run.py", "test_run_module")
+        return bin.run
 
     def _run_main(self, module, argv: list[str]) -> int:
         with patch.object(sys, "argv", ["run.py"] + argv), \
@@ -343,7 +325,7 @@ class TestOptionsPassthrough:
     
     @pytest.fixture(scope="class")
     def run_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "run.py", "test_run_module")
+        return bin.run
 
     def _run_main(self, module, argv: list[str]) -> int:
         with patch.object(sys, "argv", ["run.py"] + argv), \
@@ -364,7 +346,7 @@ class TestOutputPaths:
     
     @pytest.fixture(scope="class")
     def run_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "run.py", "test_run_module")
+        return bin.run
 
     def _run_main(self, module, argv: list[str]) -> int:
         with patch.object(sys, "argv", ["run.py"] + argv), \
@@ -396,7 +378,7 @@ class TestBenchmarkCLI:
     
     @pytest.fixture(scope="class")
     def benchmark_module(self):
-        return load_script(PROJECT_ROOT / "bin" / "benchmark.py", "test_bench_class")
+        return bin.benchmark
 
     @pytest.fixture
     def tmp_output(self, tmp_path):
