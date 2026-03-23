@@ -77,7 +77,38 @@ class MemoryRepository:
                     properties={k: v for k, v in item.items() if k not in ["id", "weight"]}
                 ))
 
-        edges = []  # In-memory derivation of DEPENDS_ON is complex, skipping for basic unit tests
+        # Build a lookup map of ID -> Type for edges
+        id_to_type = {c.id: c.component_type for c in components}
+
+        edges = []
+        for rel_type, items in self.data.get("relationships", {}).items():
+            # Map raw relationship types to the DEPENDS_ON subtypes expected by Analysis layers
+            dep_type = "unknown"
+            if rel_type in ["publishes_to", "subscribes_to", "uses"]:
+                dep_type = "app_to_app"
+            elif rel_type == "routes":
+                dep_type = "app_to_broker"
+            elif rel_type == "connects_to":
+                dep_type = "node_to_node"
+            elif rel_type == "runs_on":
+                dep_type = "node_to_node"
+            
+            if dependency_types and dep_type not in dependency_types:
+                continue
+
+            for item in items:
+                src_id = item["source_id"]
+                tgt_id = item["target_id"]
+                edges.append(EdgeData(
+                    source_id=src_id,
+                    target_id=tgt_id,
+                    source_type=id_to_type.get(src_id, "Unknown"),
+                    target_type=id_to_type.get(tgt_id, "Unknown"),
+                    dependency_type=dep_type,
+                    relation_type=rel_type,
+                    weight=item.get("weight", 1.0),
+                    properties={k: v for k, v in item.items() if k not in ["source_id", "target_id", "weight"]}
+                ))
         
         return GraphData(components=components, edges=edges)
 
@@ -88,8 +119,18 @@ class MemoryRepository:
     def get_statistics(self) -> Dict[str, int]:
         """Retrieve graph statistics."""
         stats = {}
+        total_nodes = 0
         for key in ["nodes", "brokers", "topics", "applications", "libraries"]:
-            stats[f"{key[:-1]}_count"] = len(self.data.get(key, []))
+            count = len(self.data.get(key, []))
+            stats[f"{key[:-1]}_count"] = count
+            total_nodes += count
+        
+        total_rels = 0
+        for key in self.data.get("relationships", {}):
+            total_rels += len(self.data["relationships"][key])
+            
+        stats["total_nodes"] = total_nodes
+        stats["total_relationships"] = total_rels
         return stats
 
     def export_json(self) -> Dict[str, Any]:

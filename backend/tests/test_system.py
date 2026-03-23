@@ -37,9 +37,14 @@ def test_system_end_to_end(tmp_path):
 
     try:
         # 3. Analyze
-        analysis_service = AnalysisService(repo, use_ahp=False)
+        analysis_service = AnalysisService(repo)
         analysis_result = analysis_service.analyze_layer("app")
         assert analysis_result is not None
+        
+        # 3.5 Predict (Required for ValidationService)
+        from src.prediction.service import PredictionService
+        prediction_service = PredictionService()
+        analysis_result.quality = prediction_service.predict_quality(analysis_result.structural)
         assert len(analysis_result.quality.components) > 0
 
         # 4. Simulate
@@ -48,7 +53,7 @@ def test_system_end_to_end(tmp_path):
         assert len(sim_results) > 0
 
         # 5. Validate
-        validation_service = ValidationService(analysis_service, simulation_service, ndcg_k=5)
+        validation_service = ValidationService(analysis_service, prediction_service, simulation_service, ndcg_k=5)
         val_result = validation_service.validate_single_layer("app")
         assert val_result is not None
 
