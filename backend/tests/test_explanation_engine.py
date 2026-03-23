@@ -93,19 +93,23 @@ def test_explain_component(sample_quality, sample_smells):
     assert explanation.component_id == "App_Controller"
     assert explanation.pattern == "Total Hub"
     assert explanation.severity == "CRITICAL"
+    assert "App_Controller is a critical hub" in explanation.one_line
+    assert "three independent failure modes" in explanation.top_risk
     assert "CyclicDependency" in explanation.anti_patterns
     
     # Check dimensions
     assert len(explanation.dimensions) == 4
     
-    # Check interpolation in plain meaning
+    # Check interpolation in plain meaning (using default templates now)
     rel_dim = next((d for d in explanation.dimensions if d.dimension == "Reliability"), None)
     assert rel_dim is not None
     assert "14" in rel_dim.plain_meaning
+    assert "Primary driver" in rel_dim.plain_meaning
     
     maint_dim = next((d for d in explanation.dimensions if d.dimension == "Maintainability"), None)
     assert maint_dim is not None
-    assert "75.0%" in maint_dim.plain_meaning
+    assert "5" in maint_dim.plain_meaning
+    assert "Primary driver" in maint_dim.plain_meaning
 
 
 def test_explain_system(sample_analysis_result, sample_smell_report):

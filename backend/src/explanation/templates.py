@@ -31,143 +31,52 @@ DEFAULT_DIMENSION_TEMPLATES = {
 
 PATTERN_TEMPLATES = {
     "Total Hub": {
-        "one_line": "This component is deeply entrenched, critically exposed, and a single point of failure.",
-        "priority_action": "Introduce redundancy and decouple its most heavily used endpoints.",
-        "full_remediation": [
-            "Deploy active-active redundancy.",
-            "Implement circuit breakers on incoming traffic.",
-            "Split its responsibilities into smaller, domain-specific services."
-        ],
-        "dimensions": {
-            "reliability": {
-                "driving_metric": "Reverse PageRank (RPR)",
-                "plain_meaning": "{in_degree_raw} downstream components depend on it transitively.",
-                "risk_sentence": "A failure here cascades to the entire dependent stack."
-            },
-            "maintainability": {
-                "driving_metric": "Betweenness Centrality (BC)",
-                "plain_meaning": "It sits on {bridge_ratio_pct}% of the system's structural bridges.",
-                "risk_sentence": "Changes here are highly likely to break independent modules."
-            },
-            "availability": {
-                "driving_metric": "Articulation Point (AP)",
-                "plain_meaning": "It represents a critical single point of failure.",
-                "risk_sentence": "Without it, the dependent subsystems cannot communicate."
-            },
-            "vulnerability": {
-                "driving_metric": "Reverse Eigenvector",
-                "plain_meaning": "It is widely exposed to unauthenticated or risky paths.",
-                "risk_sentence": "An exploit here gives access to a massive portion of the architecture."
-            }
-        }
-    },
-    "Reliability Hub": {
-        "one_line": "Many downstream components rely on this for their normal operation.",
-        "priority_action": "Add strict SLAs and aggressive caching to its outputs.",
-        "full_remediation": [
-            "Implement caching for read-heavy operations.",
-            "Enforce strict API versioning to prevent breaking downstream."
-        ],
-        "dimensions": {
-            "reliability": {
-                "driving_metric": "Reverse PageRank (RPR)",
-                "plain_meaning": "{in_degree_raw} components depend on it directly or indirectly.",
-                "risk_sentence": "A degradation here causes widespread cascading latency or failure."
-            }
-        }
-    },
-    "Bottleneck": {
-        "one_line": "This component orchestrates too many disparate dependencies.",
-        "priority_action": "Refactor to apply the Dependency Inversion Principle.",
-        "full_remediation": [
-            "Use event-driven architecture to invert dependencies.",
-            "Decompose the monolith into focused bounded contexts."
-        ],
-        "dimensions": {
-            "maintainability": {
-                "driving_metric": "Betweenness Centrality & Out-Degree",
-                "plain_meaning": "It coordinates {out_degree_raw} external boundaries.",
-                "risk_sentence": "Any localized change forces a re-test of the entire workflow."
-            }
-        }
+        "one_line": "{id} is a critical hub — it concentrates reliability, "
+                    "availability, and change risk simultaneously.",
+        "top_risk": "A single failure here activates three independent failure modes at once. "
+                    "It is the highest-priority component in the system.",
+        "priority_action": "Introduce a redundant replica and circuit breakers before deployment.",
     },
     "SPOF": {
-        "one_line": "This component represents a critical structural disconnect risk.",
-        "priority_action": "Deploy multiple active instances across availability zones.",
-        "full_remediation": [
-            "Implement active-active or active-passive deployment.",
-            "Eliminate persistent local state to allow clustering."
-        ],
-        "dimensions": {
-            "availability": {
-                "driving_metric": "QoS Weighted SPOF",
-                "plain_meaning": "It is isolated as an articulation point.",
-                "risk_sentence": "A discrete crash completely halts data flow in this region."
-            }
-        }
+        "one_line": "{id} is a structural single point of failure.",
+        "top_risk": "Removing it disconnects {fragmented_pct:.0%} of the system's "
+                    "dependency graph. No redundant path exists.",
+        "priority_action": "Deploy a failover replica or add an alternative routing path.",
+    },
+    "Reliability Hub": {
+        "one_line": "{id} is a reliability hub — failure cascades broadly.",
+        "top_risk": "{cascade_count} downstream components depend on it transitively. "
+                    "Its failure silences their data flows.",
+        "priority_action": "Add circuit breakers and health checks in all direct dependents.",
+    },
+    "Bottleneck": {
+        "one_line": "{id} is a change bottleneck — interface changes are expensive.",
+        "top_risk": "{coupling_count} components must be updated whenever its interface changes. "
+                    "This is the highest maintenance cost in the system.",
+        "priority_action": "Extract a stable interface; reduce outgoing dependency count.",
     },
     "Attack Target": {
-        "one_line": "Highly exposed to the edges of the application, representing a prime vulnerability.",
-        "priority_action": "Audit access controls and implement zero-trust policies.",
-        "full_remediation": [
-            "Enforce strict input validation on all entry points.",
-            "Run isolated in a highly restrictive network policy."
-        ],
-        "dimensions": {
-            "vulnerability": {
-                "driving_metric": "Reverse Closeness / Exposure",
-                "plain_meaning": "It is only a few hops away from untrusted entry points.",
-                "risk_sentence": "If compromised, it offers immediate lateral movement to core systems."
-            }
-        }
+        "one_line": "{id} is a high-value attack target.",
+        "top_risk": "It receives high-priority traffic from {in_degree_raw} publishers and "
+                    "is reachable from most of the system. Compromise propagates broadly.",
+        "priority_action": "Apply access controls, input validation, and network isolation.",
     },
     "Fragile Hub": {
-        "one_line": "A heavily relied-upon hub that is simultaneously a single point of failure.",
-        "priority_action": "Immediate horizontal scaling and load balancing.",
-        "full_remediation": [
-            "Scale horizontally behind a resilient load balancer.",
-            "Introduce bulkheads to restrict failure blast radius."
-        ],
-        "dimensions": {
-            "reliability": {
-                "driving_metric": "Reverse PageRank (RPR)",
-                "plain_meaning": "It supports {in_degree_raw} incoming dependencies.",
-                "risk_sentence": "Its workload is heavy, increasing the chance of overload."
-            },
-            "availability": {
-                "driving_metric": "Articulation Point",
-                "plain_meaning": "There are no alternate redundant fallback routes.",
-                "risk_sentence": "When it overloads and crashes, the graph separates."
-            }
-        }
+        "one_line": "{id} combines reliability risk with availability risk.",
+        "top_risk": "It is simultaneously a cascade source and a structural SPOF. "
+                    "Failure stops data flows and disconnects the graph.",
+        "priority_action": "Redundancy is essential — both for availability and to reduce blast radius.",
     },
     "Exposed Bottleneck": {
-        "one_line": "A high-friction maintenance area that is also widely exposed to external input.",
-        "priority_action": "Isolate the component behind a strict API gateway.",
-        "full_remediation": [
-            "Implement a Facade to untangle direct integrations.",
-            "Audit all incoming paths for injection risks."
-        ],
-        "dimensions": {
-            "maintainability": {
-                "driving_metric": "Betweenness Centrality",
-                "plain_meaning": "It merges {in_degree_raw} incoming with {out_degree_raw} outgoing edges.",
-                "risk_sentence": "Developer cognitive load here is extremely high."
-            },
-            "vulnerability": {
-                "driving_metric": "Weighted Exposure",
-                "plain_meaning": "It processes payloads from diverse, untrusted sources.",
-                "risk_sentence": "Complex logic combined with high exposure often hides zero-days."
-            }
-        }
+        "one_line": "{id} is a change bottleneck that is also an attractive attack target.",
+        "top_risk": "High coupling makes it difficult to change safely; high attack surface "
+                    "makes it a priority for hardening.",
+        "priority_action": "Harden the interface first, then reduce outgoing coupling.",
     },
     "Composite Risk": {
-        "one_line": "This component exhibits a combination of structural risks across multiple dimensions.",
-        "priority_action": "Investigate structural metrics to determine explicit decoupled fixes.",
-        "full_remediation": [
-            "Review code quality metrics and refactor.",
-            "Ensure operational monitoring is exceptionally tight."
-        ],
-        "dimensions": {}
-    }
+        "one_line": "{id} has elevated risk across multiple dimensions without a single dominant cause.",
+        "top_risk": "No one metric dominates, but the combination across R, M, A, V puts it "
+                    "above the system's population threshold.",
+        "priority_action": "Review coupling and redundancy together; no single fix resolves this.",
+    },
 }

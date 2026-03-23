@@ -32,9 +32,9 @@ class ComponentExplanation:
     pattern: str             # "Total Hub" | "SPOF" | "Bottleneck" …
     severity: str            # "CRITICAL"
     one_line: str            # "App_Controller fails in three independent ways."
+    top_risk: str            # "A single failure here activates three independent failure modes at once."
     dimensions: List[DimensionExplanation]   # one per elevated dimension
     priority_action: str     # single most impactful remediation step
-    full_remediation: List[str]  # ordered list of steps
     anti_patterns: List[str]     # IDs of any triggered catalog entries
 
 
@@ -112,6 +112,12 @@ class ExplanationEngine:
         ctx["out_degree_raw"] = quality.structural.out_degree_raw
         bridge_ratio = getattr(quality.structural, "bridge_ratio", 0.0)
         ctx["bridge_ratio_pct"] = round(bridge_ratio * 100, 1)
+        
+        # Additional context for Pattern-Specific Templates
+        ctx["id"] = quality.id
+        ctx["fragmented_pct"] = bridge_ratio
+        ctx["cascade_count"] = quality.structural.in_degree_raw
+        ctx["coupling_count"] = quality.structural.total_degree_raw
 
         dim_explanations: List[DimensionExplanation] = []
         
@@ -162,10 +168,10 @@ class ExplanationEngine:
             component_id=quality.id,
             pattern=pattern,
             severity=quality.levels.overall.value.upper(),
-            one_line=template_group.get("one_line", f"This component requires attention across {len(dim_explanations)} dimensions."),
+            one_line=template_group.get("one_line", "{id} requires attention across multiple dimensions.").format(**ctx),
+            top_risk=template_group.get("top_risk", "Multiple systemic vulnerabilities detected.").format(**ctx),
             dimensions=dim_explanations,
-            priority_action=template_group.get("priority_action", "Review architecture and decouple."),
-            full_remediation=template_group.get("full_remediation", []),
+            priority_action=template_group.get("priority_action", "Review architecture and decouple.").format(**ctx),
             anti_patterns=anti_pattern_ids
         )
         return component_exp
