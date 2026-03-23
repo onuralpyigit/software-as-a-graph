@@ -13,6 +13,8 @@ Covers:
 """
 import pytest
 from src.prediction.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
+from src.prediction.analyzer import QualityAnalyzer
+from src.analysis.structural_analyzer import StructuralAnalyzer
 from src.simulation.models import ImpactMetrics
 from src.validation.metric_calculator import (
     calculate_cocr_at_k,
@@ -125,6 +127,43 @@ class TestCouplingRiskFormula:
         """Both 0 should not raise ZeroDivisionError."""
         cr = self._coupling_risk(dg_out=0.0, dg_in=0.0)
         assert 0.0 <= cr <= 1.0
+
+
+# ===========================================================================
+# Property Tests: Maintainability via Analyzer Pipeline
+# ===========================================================================
+
+class TestMaintainabilityProperty:
+    """
+    Property tests for Maintainability: M(v) = f(BT, w_out, CQP, CouplingRisk, CC).
+    Verifies that the QualityAnalyzer correctly applies the formula and that 
+    the star_graph fixture yields expected directional results.
+    """
+
+    def test_linear_maintainability_gradient(self, linear_graph):
+        """
+        In A -> B -> C, B is the intermediate node.
+        B should have a higher maintainability risk (M score) than A or C 
+        because it has higher betweenness centrality.
+        """
+        # 1. Structural Analysis
+        struct_analyzer = StructuralAnalyzer()
+        struct_res = struct_analyzer.analyze(linear_graph)
+
+        # 2. Quality Analysis
+        quality_analyzer = QualityAnalyzer(normalization_method="max")
+        quality_res = quality_analyzer.analyze(struct_res)
+
+        # 3. Property Asserts
+        comp_map = {c.id: c for c in quality_res.components}
+        m_a = comp_map["A"].scores.maintainability
+        m_b = comp_map["B"].scores.maintainability
+        m_c = comp_map["C"].scores.maintainability
+
+        # B should be higher than C (C has 0 out-degree and 0 betweenness)
+        # B should be higher than A (both have 1 out-degree, but B has higher betweenness)
+        assert m_b > m_c, f"Middle node B ({m_b:.4f}) should have higher M than sink C ({m_c:.4f})"
+        assert m_b > m_a, f"Middle node B ({m_b:.4f}) should have higher M than source A ({m_a:.4f})"
 
 
 # ===========================================================================
