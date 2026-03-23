@@ -59,6 +59,40 @@ class SystemReport:
     remediation_plan: List[RemediationStep]  # ordered, deduplicated
 
 
+DIMENSION_DRIVERS = {
+    "Reliability": [
+        ("reverse_pagerank", "Reverse PageRank", "fraction of the system reachable from this component"),
+        ("in_degree", "In-degree centrality", "number of components directly depending on it"),
+        ("cdpot", "Cascade Depth Potential", "depth × breadth of its failure cascade"),
+    ],
+    "Maintainability": [
+        ("betweenness", "Betweenness centrality", "routing traffic passing through it"),
+        ("dependency_weight_out", "Weighted out-degree", "number and priority of interface dependencies"),
+        ("coupling_risk", "Coupling Risk", "instability relative to its dependents"),
+    ],
+    "Availability": [
+        ("ap_c_directed", "Directed SPOF score", "fraction of connectivity lost if it is removed"),
+        ("bridge_ratio", "Bridge ratio", "fraction of its connections that are irreplaceable"),
+        ("cdi", "Connectivity Degradation Index", "increase in average path length without it"),
+    ],
+    "Vulnerability": [
+        ("dependency_weight_in", "QoS-weighted in-degree (QADS)", "attack surface — high-priority traffic flowing into it"),
+        ("reverse_closeness", "Reverse Closeness", "how quickly compromise propagates to its dependents"),
+        ("reverse_eigenvector", "Reverse Eigenvector", "connection quality to high-value downstream targets"),
+    ],
+}
+
+def identify_driver(component: ComponentQuality, dimension: str) -> tuple[str, float, str]:
+    """Return (metric_name, value, plain_meaning) for the top contributor."""
+    metrics = DIMENSION_DRIVERS.get(dimension, [])
+    if not metrics:
+        return ("Unknown", 0.0, "unknown metric driver")
+    
+    values = [(name, getattr(component.structural, attr, 0.0), meaning)
+              for attr, name, meaning in metrics]
+    return max(values, key=lambda x: x[1])
+
+
 class ExplanationEngine:
     """
     Engine for translating ComponentQuality and AntiPattern reports into 
@@ -84,13 +118,13 @@ class ExplanationEngine:
         # We only explain dimensions that are at least HIGH or explicitly flagged in the profile.
         # But we do it systematically via the scores.
         dimension_map = {
-            "reliability": (quality.scores.reliability, quality.levels.reliability.value.upper(), quality.structural.reverse_pagerank),
-            "maintainability": (quality.scores.maintainability, quality.levels.maintainability.value.upper(), quality.structural.betweenness),
-            "availability": (quality.scores.availability, quality.levels.availability.value.upper(), quality.structural.ap_c_directed),
-            "vulnerability": (quality.scores.vulnerability, quality.levels.vulnerability.value.upper(), quality.structural.reverse_eigenvector),
+            "reliability": (quality.scores.reliability, quality.levels.reliability.value.upper()),
+            "maintainability": (quality.scores.maintainability, quality.levels.maintainability.value.upper()),
+            "availability": (quality.scores.availability, quality.levels.availability.value.upper()),
+            "vulnerability": (quality.scores.vulnerability, quality.levels.vulnerability.value.upper()),
         }
         
-        for dim, (score, level_str, drv_val) in dimension_map.items():
+        for dim, (score, level_str) in dimension_map.items():
             level_enum = CriticalityLevel(level_str.lower())
             is_elevated = level_enum >= CriticalityLevel.HIGH
             
@@ -102,14 +136,18 @@ class ExplanationEngine:
                 if not dim_template:
                     dim_template = DEFAULT_DIMENSION_TEMPLATES[dim]
 
-                plain_meaning = dim_template["plain_meaning"].format(**ctx)
+                # Identify primary driver dynamically
+                drv_metric_name, drv_val, drv_meaning = identify_driver(quality, dim.capitalize())
+
+                template_meaning = dim_template["plain_meaning"].format(**ctx)
+                plain_meaning = f"{template_meaning} Primary driver: {drv_meaning}."
                 risk_sentence = dim_template["risk_sentence"].format(**ctx)
 
                 dim_exp = DimensionExplanation(
                     dimension=dim.capitalize(),
                     score=round(score, 3),
                     level=level_str,
-                    driving_metric=dim_template["driving_metric"],
+                    driving_metric=drv_metric_name,
                     driving_value=round(drv_val, 3),
                     plain_meaning=plain_meaning,
                     risk_sentence=risk_sentence
