@@ -97,8 +97,8 @@ class MemoryRepository:
                 continue
 
             for item in items:
-                src_id = item["source_id"]
-                tgt_id = item["target_id"]
+                src_id = item.get("from", item.get("source_id"))
+                tgt_id = item.get("to", item.get("target_id"))
                 edges.append(EdgeData(
                     source_id=src_id,
                     target_id=tgt_id,
