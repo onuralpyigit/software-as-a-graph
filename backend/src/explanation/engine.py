@@ -23,6 +23,17 @@ class DimensionExplanation:
     driving_value: float     # 0.87 (normalized)
     plain_meaning: str       # "14 downstream components depend on it transitively."
     risk_sentence: str       # "A failure here cascades to the entire planning stack."
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "dimension": self.dimension,
+            "score": self.score,
+            "level": self.level,
+            "driving_metric": self.driving_metric,
+            "driving_value": self.driving_value,
+            "plain_meaning": self.plain_meaning,
+            "risk_sentence": self.risk_sentence
+        }
 
 
 @dataclass
@@ -36,6 +47,18 @@ class ComponentExplanation:
     dimensions: List[DimensionExplanation]   # one per elevated dimension
     priority_action: str     # single most impactful remediation step
     anti_patterns: List[str]     # IDs of any triggered catalog entries
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "component_id": self.component_id,
+            "pattern": self.pattern,
+            "level": self.level,
+            "one_line": self.one_line,
+            "top_risk": self.top_risk,
+            "dimensions": [d.to_dict() for d in self.dimensions],
+            "priority_action": self.priority_action,
+            "anti_patterns": self.anti_patterns
+        }
 
 
 @dataclass
@@ -44,6 +67,13 @@ class RemediationStep:
     action: str
     components: List[str]
     priority: int
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "action": self.action,
+            "components": self.components,
+            "priority": self.priority
+        }
 
 
 @dataclass
@@ -58,6 +88,19 @@ class SystemReport:
     by_stakeholder: Dict[str, List[str]]  # role → list of action items
     component_explanations: List[ComponentExplanation]
     remediation_plan: List[RemediationStep]  # ordered, deduplicated
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_components": self.total_components,
+            "critical_count": self.critical_count,
+            "high_count": self.high_count,
+            "deployment_blocked": self.deployment_blocked,
+            "reason": self.reason,
+            "top_risk_summary": self.top_risk_summary,
+            "by_stakeholder": self.by_stakeholder,
+            "component_explanations": [c.to_dict() for c in self.component_explanations],
+            "remediation_plan": [r.to_dict() for r in self.remediation_plan]
+        }
 
 
 DIMENSION_DRIVERS = {
@@ -222,39 +265,62 @@ class ExplanationEngine:
                                    f"collectively drive {risk_drivers[0]} and have limited structural redundancy."
 
         # Aggregate remediation into prioritized plan AND stakeholder map
-        by_stakeholder = {
-            "Reliability Engineer": [],
-            "Software Architect": [],
-            "DevOps / SRE": [],
-            "Security Engineer": []
+        stakeholder_actions = {
+            "SRE": {"urgent": [], "strategic": []},
+            "Architect": {"urgent": [], "strategic": []},
+            "DevOps": {"urgent": [], "strategic": []},
+            "Security": {"urgent": [], "strategic": []}
         }
         
         action_map = {}
         for exp in component_explanations:
             act = exp.priority_action
             
-            # Identify stakeholder
-            role = STAKEHOLDER_MAPPING["patterns"].get(exp.pattern)
-            if not role:
-                # Fallback to dimensions
-                roles = []
-                for dim in exp.dimensions:
-                    if dim.level in ("CRITICAL", "HIGH"):
-                        roles.append(STAKEHOLDER_MAPPING["dimensions"].get(dim.dimension))
-                role = roles[0] if roles else "Software Architect"
+            # Determine stakeholders (multiple possible)
+            roles = []
+            if exp.pattern == "Total Hub":
+                roles = ["SRE", "DevOps", "Architect"]
+            elif exp.pattern == "Fragile Hub":
+                roles = ["SRE", "DevOps"]
+            elif exp.pattern == "Exposed Bottleneck":
+                roles = ["Architect", "Security"]
+            else:
+                role = STAKEHOLDER_MAPPING["patterns"].get(exp.pattern)
+                if role:
+                    roles = [role]
+                else:
+                    for dim in exp.dimensions:
+                        if dim.level in ("CRITICAL", "HIGH"):
+                            r = STAKEHOLDER_MAPPING["dimensions"].get(dim.dimension)
+                            if r: roles.append(r)
             
-            if act not in by_stakeholder[role]:
-                by_stakeholder[role].append(act)
+            if not roles:
+                roles = ["Architect"]
+                
+            for role in set(roles):
+                if role not in stakeholder_actions: continue
+                if exp.level == "CRITICAL":
+                    stakeholder_actions[role]["urgent"].append(exp.component_id)
+                else:
+                    stakeholder_actions[role]["strategic"].append(exp.component_id)
 
+            # System-wide remediation plan
             if act not in action_map:
                 prio = 1 if exp.level == "CRITICAL" else 2
-                action_map[act] = RemediationStep(
-                    action=act,
-                    components=[],
-                    priority=prio
-                )
+                action_map[act] = RemediationStep(action=act, components=[], priority=prio)
             if exp.component_id not in action_map[act].components:
                 action_map[act].components.append(exp.component_id)
+
+        # Generate stakeholder summary sentences
+        by_stakeholder = {}
+        for role, groups in stakeholder_actions.items():
+            actions = []
+            if groups["urgent"]:
+                actions.append(f"URGENT: Remediate {len(groups['urgent'])} components to restore {role} targets.")
+            if groups["strategic"]:
+                actions.append(f"STRATEGIC: Plan decoupling for {len(groups['strategic'])} {role}-critical assets.")
+            if actions:
+                by_stakeholder[role] = actions
 
         sorted_steps = sorted(list(action_map.values()), key=lambda x: (x.priority, -len(x.components)))
 

@@ -2,12 +2,14 @@
 backend/src/analysis/smells.py — High-level Architectural Anti-Pattern API
 """
 from __future__ import annotations
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass
 
 from .antipattern_detector import AntiPatternDetector
-from .models import LayerAnalysisResult
 from src.prediction.models import DetectedProblem
+
+if TYPE_CHECKING:
+    from .models import LayerAnalysisResult
 
 @dataclass
 class AntiPatternReport:

@@ -6,6 +6,8 @@ from .structural_analyzer import StructuralAnalyzer
 from .models import MultiLayerAnalysisResult, LayerAnalysisResult
 from src.core.layers import AnalysisLayer, get_layer_definition
 from src.core.ports.graph_repository import IGraphRepository
+from src.analysis.antipattern_detector import AntiPatternDetector
+from src.analysis.smells import AntiPatternReport
 
 class AnalysisService:
     """
@@ -18,6 +20,14 @@ class AnalysisService:
         repository: IGraphRepository,
     ):
         self.repository = repository
+        self._smell_detector = AntiPatternDetector()
+        
+        # Local imports to break circular dependencies
+        from src.prediction.service import PredictionService
+        from src.explanation.engine import ExplanationEngine
+        
+        self._quality_analyzer = PredictionService()
+        self._explanation_engine = ExplanationEngine()
 
     def analyze_all_layers(self) -> MultiLayerAnalysisResult:
         """Analyze all primary graph layers."""
@@ -52,14 +62,30 @@ class AnalysisService:
         structural_analyzer = StructuralAnalyzer()
         struct_result = structural_analyzer.analyze(graph_data, layer=layer_enum)
         
+        # Consolidation: Perform quality prediction and smell detection
+        quality_result = self._quality_analyzer.predict_quality(struct_result)
+        problems = self._smell_detector.detect(struct_result, layer=layer)
+        problem_summary = self._quality_analyzer.summarize_problems(problems)
+        
+        # Wrapper for ExplanationEngine
+        smell_report = AntiPatternReport(
+            layer=layer,
+            problems=problems,
+            summary=problem_summary.to_dict() if hasattr(problem_summary, "to_dict") else problem_summary
+        )
+        
+        # Human-readable explanations
+        explanation = self._explanation_engine.explain_system(quality_result, smell_report)
+        
         return LayerAnalysisResult(
             layer=layer_enum.value,
             layer_name=layer_def.name,
             description=layer_def.description,
             structural=struct_result,
-            quality=None,  # Placeholder, filled by prediction step
-            problems=[],
-            problem_summary=None
+            quality=quality_result,
+            problems=problems,
+            problem_summary=problem_summary,
+            explanation=explanation
         )
 
     def analyze_by_type(self, component_type: str) -> Dict[str, Any]:

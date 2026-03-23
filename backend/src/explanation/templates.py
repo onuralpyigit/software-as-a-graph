@@ -83,16 +83,16 @@ PATTERN_TEMPLATES = {
 STAKEHOLDER_MAPPING = {
     # Maps dimensions to stakeholder roles
     "dimensions": {
-        "Reliability": "Reliability Engineer",
-        "Maintainability": "Software Architect",
-        "Availability": "DevOps / SRE",
-        "Vulnerability": "Security Engineer",
+        "Reliability": "SRE",
+        "Maintainability": "Architect",
+        "Availability": "DevOps",
+        "Vulnerability": "Security",
     },
     # Maps specific patterns to stakeholder roles (overrides dimensions if needed)
     "patterns": {
-        "Total Hub": "Reliability Engineer",
-        "SPOF": "DevOps / SRE",
-        "Bottleneck": "Software Architect",
-        "Attack Target": "Security Engineer",
+        "Total Hub": "SRE",
+        "SPOF": "DevOps",
+        "Bottleneck": "Architect",
+        "Attack Target": "Security",
     }
 }

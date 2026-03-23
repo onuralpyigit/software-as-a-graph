@@ -12,6 +12,7 @@ from typing import Dict, List, Any, Optional, Tuple, Set, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import networkx as nx
+    from src.explanation.engine import SystemReport
 
 from src.core.layers import AnalysisLayer
 from src.core.metrics import StructuralMetrics, EdgeMetrics, GraphSummary, QualityScores, QualityLevels, ComponentQuality, EdgeQuality
@@ -72,6 +73,7 @@ class LayerAnalysisResult:
     node_allocations: Dict[str, List[str]] = field(default_factory=dict)
     broker_routing: Dict[str, List[str]] = field(default_factory=dict)
     prediction: Optional[Dict[str, Any]] = None
+    explanation: Optional[SystemReport] = None
     
     @property
     def graph(self) -> Optional[nx.DiGraph]:
@@ -105,6 +107,7 @@ class LayerAnalysisResult:
             "node_allocations": self.node_allocations,
             "broker_routing": self.broker_routing,
             "prediction": self.prediction,
+            "explanation": self.explanation.to_dict() if self.explanation else None,
         }
 
 @dataclass

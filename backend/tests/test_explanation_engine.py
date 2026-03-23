@@ -52,6 +52,43 @@ def sample_quality():
 
 
 @pytest.fixture
+def sample_quality_high():
+    """Create a sample ComponentQuality object with HIGH level."""
+    scores = QualityScores(
+        reliability=0.75, maintainability=0.7, availability=0.72, vulnerability=0.78, overall=0.75
+    )
+    levels = QualityLevels(
+        reliability=CriticalityLevel.HIGH,
+        maintainability=CriticalityLevel.HIGH,
+        availability=CriticalityLevel.HIGH,
+        vulnerability=CriticalityLevel.HIGH,
+        overall=CriticalityLevel.HIGH
+    )
+    structural = StructuralMetrics(
+        id="Aux_Service",
+        name="Aux",
+        type="Infrastructure",
+        in_degree_raw=3,
+        out_degree_raw=2,
+        reverse_pagerank=0.3,
+        betweenness=0.1,
+        ap_c_directed=0.2,
+        reverse_eigenvector=0.4,
+        bridge_ratio=0.1
+    )
+    profile = CriticalityProfile(r_crit=False, m_crit=False, a_crit=True, v_crit=False, q_crit=False)
+    
+    return ComponentQuality(
+        id="Aux_Service",
+        type="Infrastructure",
+        scores=scores,
+        levels=levels,
+        structural=structural,
+        profile=profile
+    )
+
+
+@pytest.fixture
 def sample_smells():
     return [
         DetectedProblem(
@@ -67,12 +104,12 @@ def sample_smells():
 
 
 @pytest.fixture
-def sample_analysis_result(sample_quality):
+def sample_analysis_result(sample_quality, sample_quality_high):
     return QualityAnalysisResult(
         timestamp="2026-03-24T00:00:00Z",
         layer="system",
         context="test_context",
-        components=[sample_quality],
+        components=[sample_quality, sample_quality_high],
         edges=[],
         classification_summary=None
     )
@@ -116,12 +153,13 @@ def test_explain_system(sample_analysis_result, sample_smell_report):
     engine = ExplanationEngine()
     system_report = engine.explain_system(sample_analysis_result, sample_smell_report)
     
-    assert system_report.total_components == 1
+    assert system_report.total_components == 2
     assert system_report.critical_count == 1
+    assert system_report.high_count == 1
     assert system_report.deployment_blocked is True
     assert "App_Controller" in system_report.top_risk_summary
     
-    assert len(system_report.component_explanations) == 1
+    assert len(system_report.component_explanations) == 2
     
     # Check remediation steps
     assert len(system_report.remediation_plan) > 0
@@ -129,3 +167,4 @@ def test_explain_system(sample_analysis_result, sample_smell_report):
 
     assert len(system_report.by_stakeholder["DevOps"]) == 2
     assert "URGENT" in system_report.by_stakeholder["DevOps"][0]
+    assert "STRATEGIC" in system_report.by_stakeholder["DevOps"][1]
