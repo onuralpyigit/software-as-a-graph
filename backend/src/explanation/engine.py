@@ -211,14 +211,15 @@ class ExplanationEngine:
         
         if critical_comps:
             risk_drivers = []
+            ids = [c.id for c in critical_comps[:2]]
             for c in critical_comps[:2]:
                 exp = self.explain_component(c, [])
                 for dim in exp.dimensions:
                     if dim.level == "CRITICAL":
                         risk_drivers.append(dim.plain_meaning)
             if risk_drivers:
-                top_risk_summary += f"The system's primary architectural risk is concentration: {risk_drivers[0]} " \
-                                   f"and have limited structural redundancy."
+                top_risk_summary += f"The system's primary architectural risk is concentration: {', '.join(ids)} " \
+                                   f"collectively drive {risk_drivers[0]} and have limited structural redundancy."
 
         # Aggregate remediation into prioritized plan AND stakeholder map
         by_stakeholder = {

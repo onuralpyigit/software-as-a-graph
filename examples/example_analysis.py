@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
 from src.core import create_repository
-from src.analysis import AnalysisService
+from src.analysis import AnalysisService, AntiPatternDetector
 from src.explanation import CLIFormatter
 
 
@@ -110,7 +110,9 @@ def main():
         print(f"  Criticality distribution: {dist}")
         
         # Replaced table with cards
-        CLIFormatter.print_critical_report(app_res.quality, limit_top=3)
+        detector = AntiPatternDetector()
+        app_smells = detector.detect(app_res.structural)
+        CLIFormatter.print_critical_report(app_res.quality, problems=app_smells.problems, limit_top=3)
 
         # ── 2. System layer (all component types) ─────────────────────
         print_section("Layer: system  (All component types)")
@@ -121,7 +123,8 @@ def main():
         print(f"  Criticality distribution: {dist_all}")
         
         # Replaced table and interpretation with cards
-        CLIFormatter.print_critical_report(sys_res.quality, problems=sys_res.problems, limit_top=5)
+        sys_smells = detector.detect(sys_res.structural)
+        CLIFormatter.print_critical_report(sys_res.quality, problems=sys_smells.problems, limit_top=5)
 
         # ── 3. Critical edges ─────────────────────────────────────────
         print_section("Top critical dependencies (edges)")

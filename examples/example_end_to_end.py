@@ -226,7 +226,11 @@ def step3_criticality_prediction(repo, output_dir: Path, layer: str, analysis_re
     print_kv("Criticality Levels", f"{len([c for c in comps if c.levels.overall.value.lower() == 'critical'])} Critical, {len([c for c in comps if c.levels.overall.value.lower() == 'high'])} High")
 
     # Replaced Top-5 Table with Component Cards
-    CLIFormatter.print_critical_report(quality_res, limit_top=5)
+    from src.analysis import AntiPatternDetector
+    detector = AntiPatternDetector()
+    smell_report = detector.detect(result.structural)
+    
+    CLIFormatter.print_critical_report(quality_res, problems=smell_report.problems, limit_top=5)
 
     # 3.2 Learning-based GNN Prediction (Optional - requires sim_results for training)
     gnn_summary = {}
