@@ -3,13 +3,12 @@ End-to-End Pipeline: Software-as-a-Graph
 =========================================
 Runs the complete 6-step analysis pipeline in a single script:
 
-  Step 1  Generate   — Synthetic pub-sub topology (scale='tiny', reproducible seed)
-  Step 2  Import     — Load into Neo4j (clears previous data)
-  Step 3  Analyze    — RMAV quality scoring (R, M, A, V, Q) per component
-  Step 4  Simulate   — Exhaustive failure simulation → I(v), IR(v), IM(v), IA(v), IV(v)
-  Step 5  Validate   — Statistical comparison (Spearman, F1, per-dimension metrics)
-  Step 6  Predict    — Train GNN criticality prediction model
-  Step 7  Visualize  — Static HTML dashboard (self-contained research artefact)
+  Step 1  Model Construction   — "What does my system architecture look like as a graph?"
+  Step 2  Structural Analysis   — "Which components are topologically central or represent single points of failure?"
+  Step 3  Criticality Prediction — "Which components are most 'at risk' from a quality perspective?" (RMAV + GNN)
+  Step 4  Failure Simulation    — "If a component fails, how far does the damage spread?" (I(v) Ground Truth)
+  Step 5  Statistical Validation — "Can we trust the topological predictions against simulated reality?"
+  Step 6  Visualization          — "How do we communicate these risks to stakeholders?"
 
 Prerequisites:
   • Python 3.9+ virtual environment with requirements.txt installed
@@ -40,7 +39,7 @@ from src.analysis import AnalysisService
 from src.simulation import SimulationService
 from src.validation import ValidationService
 from src.visualization import VisualizationService
-from src.prediction import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict, extract_simulation_dict
+from src.prediction import PredictionService, GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict, extract_simulation_dict
 
 
 # ──────────────────────────────────────────────
@@ -74,10 +73,11 @@ def parse_args() -> argparse.Namespace:
 STEP_TIMINGS: dict = {}
 
 
-def step_header(n: int, title: str) -> None:
-    print(f"\n{'━'*65}")
+def step_header(n: int, title: str, question: str) -> None:
+    print(f"\n{'━'*75}")
     print(f"  Step {n}/6 — {title}")
-    print(f"{'━'*65}")
+    print(f"  Q: {question}")
+    print(f"{'━'*75}")
     STEP_TIMINGS[n] = time.time()
 
 
@@ -98,187 +98,155 @@ def pass_fail(value: float, threshold: float) -> str:
 # Step functions
 # ──────────────────────────────────────────────
 
-def step1_generate(scale: str, seed: int, output_dir: Path) -> Path:
-    """Generate a synthetic graph and save to JSON."""
-    step_header(1, "Generate Synthetic Topology")
+def step1_model_construction(scale: str, seed: int, output_dir: Path, neo4j_cfg: dict) -> tuple[Path, any]:
+    """Step 1: Construct the graph model from topology specification."""
+    step_header(1, "Graph Model Construction", "What does my system architecture look like as a graph?")
 
+    # 1.1 Generate
+    print(f"  [1.1] Generating '{scale}' topology (seed={seed})...")
     graph_data = generate_graph(scale=scale, seed=seed)
-
-    apps    = graph_data.get("applications", [])
-    brokers = graph_data.get("brokers", [])
-    topics  = graph_data.get("topics", [])
-    nodes   = graph_data.get("nodes", [])
-
-    print_kv("Scale preset",         scale)
-    print_kv("Seed",                  seed)
-    print_kv("Applications",          len(apps))
-    print_kv("Brokers",               len(brokers))
-    print_kv("Topics",                len(topics))
-    print_kv("Infrastructure nodes",  len(nodes))
-
-    qos_dist: dict = {}
-    for t in topics:
-        qos = t.get("qos_reliability", "?")
-        qos_dist[qos] = qos_dist.get(qos, 0) + 1
-    print_kv("Topic QoS distribution", qos_dist)
-
+    
     out_path = output_dir / f"e2e_graph_{scale}_seed{seed}.json"
     with open(out_path, "w") as f:
         json.dump(graph_data, f, indent=2)
-    print_kv("Saved JSON", out_path.name)
+    
+    # 1.2 Import
+    print(f"  [1.2] Importing into Neo4j at {neo4j_cfg['uri']}...")
+    repo = create_repository(
+        uri=neo4j_cfg['uri'], 
+        user=neo4j_cfg['user'], 
+        password=neo4j_cfg['password']
+    )
+    repo.save_graph(graph_data, clear=True)
+    
+    stats = repo.get_statistics()
+    print_kv("Applications",          len(graph_data.get("applications", [])))
+    print_kv("Infrastructure nodes",  len(graph_data.get("nodes", [])))
+    print_kv("Neo4j node count",       stats.get("node_count", "?"))
+    print_kv("Relationship count",     stats.get("relationship_count", stats.get("total_count", "?")))
 
     step_done(1)
-    return out_path
+    return out_path, repo
 
 
-def step2_import(json_path: Path, neo4j_uri: str, neo4j_user: str, neo4j_password: str):
-    """Import graph JSON into Neo4j, return an open repository handle."""
-    step_header(2, "Import into Neo4j")
+def step2_structural_analysis(repo, layer: str) -> dict:
+    """Step 2: Compute topological metrics (PageRank, Betweenness, etc.)."""
+    step_header(2, "Structural Analysis", "Which components are topologically central or represent SPOFs?")
 
-    with open(json_path) as f:
-        data = json.load(f)
-
-    print_kv("Neo4j URI", neo4j_uri)
-    print_kv("Graph file", json_path.name)
-
-    repo = create_repository(uri=neo4j_uri, user=neo4j_user, password=neo4j_password)
-    repo.save_graph(data, clear=True)
-
-    stats = repo.get_statistics()
-    print_kv("Neo4j node count",         stats.get("node_count", "?"))
-    print_kv("Relationship count",       stats.get("relationship_count", stats.get("total_count", "?")))
+    analyzer = AnalysisService(repo)
+    result   = analyzer.analyze_layer(layer)
+    struct   = result.structural
+    
+    print_kv("Analyzed Layer", layer)
+    print_kv("Components",     len(struct.components))
+    
+    # Show top-3 by PageRank and Betweenness
+    top_pr = struct.get_top_by_metric("pagerank", n=3)
+    top_bt = struct.get_top_by_metric("betweenness", n=3)
+    
+    print("\n  Top-3 by Topological Centrality:")
+    for i, c in enumerate(top_pr):
+        print(f"    {i+1}. {c.id[:30]:<32} PageRank: {c.pagerank:.4f}")
+        
+    ap_count = len(struct.get_articulation_points())
+    print_kv("\nArticulation Points (SPOFs)", ap_count)
 
     step_done(2)
-    return repo
+    return {"result": result}
 
 
-def step3_analyze(repo, layer: str) -> dict:
-    """Run RMAV quality analysis and return key results."""
-    step_header(3, "RMAV Quality Analysis")
+def step3_criticality_prediction(repo, output_dir: Path, layer: str, analysis_res: dict, sim_results: Optional[list] = None) -> dict:
+    """Step 3: Map structural metrics to RMAV scores and GNN predictions."""
+    step_header(3, "Criticality Prediction", "Which components are most 'at risk' from a quality perspective?")
 
-    analyzer = AnalysisService(repo, use_ahp=False)
-    result   = analyzer.analyze_layer(layer)
-    comps    = result.quality.components
+    # 3.1 Rule-based RMAV Scoring
+    print("  [3.1] Computing Rule-based RMAV Quality Scores...")
+    result = analysis_res["result"]
+    # In this framework, AnalysisService.analyze_layer often includes RMAV if quality analyzer is plugged in
+    # Here we assume it's already there or we trigger it.
+    from src.prediction.analyzer import QualityAnalyzer
+    quality_analyzer = QualityAnalyzer()
+    quality_res = quality_analyzer.analyze(result.structural)
+    result.quality = quality_res
+    
+    comps = quality_res.components
+    print_kv("Criticality Levels", f"{len([c for c in comps if c.levels.overall.value == 'CRITICAL'])} Critical, {len([c for c in comps if c.levels.overall.value == 'HIGH'])} High")
 
-    # Criticality distribution
-    dist: dict = {}
-    for c in comps:
-        lv = c.levels.overall.value.upper()
-        dist[lv] = dist.get(lv, 0) + 1
-
-    print_kv("Layer",                 layer)
-    print_kv("Components analysed",   len(comps))
-    print_kv("Criticality dist.",     dist)
-
-    # Top-5 table
-    print(f"\n  Top 5 components by overall score Q(v):")
-    print(f"  {'ID':<28} {'Type':<14} {'Q':>6} {'R':>6} {'M':>6} {'A':>6} {'V':>6}  Level")
-    print(f"  {'-'*88}")
+    # Top-5 Table
+    print(f"\n  Top 5 components by RMAV Prediction Q(v):")
+    print(f"  {'ID':<28} {'Q':>6} {'R':>6} {'M':>6} {'A':>6} {'V':>6}  Level")
+    print(f"  {'-'*75}")
     for c in comps[:5]:
         s = c.scores
-        print(
-            f"  {c.id[:27]:<28} {c.type[:13]:<14}"
-            f" {s.overall:>6.3f} {s.reliability:>6.3f}"
-            f" {s.maintainability:>6.3f} {s.availability:>6.3f}"
-            f" {s.vulnerability:>6.3f}  {c.levels.overall.value.upper()}"
-        )
+        print(f"  {c.id[:27]:<28} {s.overall:>6.3f} {s.reliability:>6.3f} {s.maintainability:>6.3f} {s.availability:>6.3f} {s.vulnerability:>6.3f}  {c.levels.overall.value.upper()}")
 
-    # Critical edges
-    crit_edges = [e for e in result.quality.edges
-                  if e.level.value.upper() in ("CRITICAL", "HIGH")]
-    print_kv("\nCritical/High edges",  len(crit_edges))
+    # 3.2 Learning-based GNN Prediction (Optional - requires sim_results for training)
+    gnn_summary = {}
+    if sim_results:
+        print(f"\n  [3.2] Training GNN for layer='{layer}' (Refining predictions)...")
+        structural_dict = extract_structural_metrics_dict(result.structural)
+        rmav_dict       = extract_rmav_scores_dict(result.quality)
+        simulation_dict = extract_simulation_dict(sim_results)
+
+        gnn_service = GNNService(
+            checkpoint_dir=str(output_dir / "gnn_checkpoint"),
+        )
+        train_result = gnn_service.train(
+            graph=result.graph,
+            structural_metrics=structural_dict,
+            simulation_results=simulation_dict,
+            rmav_scores=rmav_dict,
+            num_epochs=10,
+        )
+        gnn_summary = {"trained": True, "top": train_result.top_critical_nodes(3)}
+        print_kv("GNN Refinement", "Complete")
 
     step_done(3)
-    return {"analysis_result": result, "top_components": comps[:5]}
+    return {"quality": quality_res, "gnn": gnn_summary, "analysis_result": result}
 
 
 def step4_simulate(repo, layer: str) -> list:
-    """Run exhaustive failure simulation and return results list."""
-    step_header(4, "Exhaustive Failure Simulation")
+    """Step 4: Run exhaustive failure simulation to measure ground-truth impact."""
+    step_header(4, "Failure Simulation", "If a component fails, how far does the damage spread?")
 
     sim_service = SimulationService(repo)
-
-    print(f"  Simulating all components in layer='{layer}'...")
-    print("  (Computes I(v), IR(v), IM(v), IA(v), IV(v) ground truths)")
-
+    print(f"  Simulating failures in layer='{layer}'...")
+    
     results = sim_service.run_failure_simulation_exhaustive(layer=layer)
     ranked  = sorted(results, key=lambda r: r.impact.composite_impact, reverse=True)
 
-    print_kv("\nComponents simulated", len(results))
-
-    # Summary stats
-    avg_i   = sum(r.impact.composite_impact for r in results) / max(len(results), 1)
-    max_i   = max(r.impact.composite_impact for r in results) if results else 0.0
-    spof_n  = sum(1 for r in results if r.impact.fragmentation > 0.01)
+    print_kv("Components simulated", len(results))
+    avg_i = sum(r.impact.composite_impact for r in results) / max(len(results), 1)
     print_kv("Avg composite I(v)",    f"{avg_i:.4f}")
-    print_kv("Max composite I(v)",    f"{max_i:.4f}  ({ranked[0].target_id if ranked else '-'})")
-    print_kv("Components with SPOF",  spof_n)
-
-    # Top-5 ground truths
-    print(f"\n  Top 5 — composite impact I(v) and per-RMAV ground truths:")
-    print(f"  {'ID':<28} {'I(v)':>7} {'IR(v)':>7} {'IM(v)':>7} {'IA(v)':>7} {'IV(v)':>7}")
-    print(f"  {'-'*68}")
-    for r in ranked[:5]:
-        im = r.impact
-        print(
-            f"  {r.target_id[:27]:<28}"
-            f" {im.composite_impact:>7.4f}"
-            f" {im.reliability_impact:>7.4f}"
-            f" {im.maintainability_impact:>7.4f}"
-            f" {im.availability_impact:>7.4f}"
-            f" {im.vulnerability_impact:>7.4f}"
-        )
+    
+    if ranked:
+        print_kv("Worst-case Impact", f"{ranked[0].impact.composite_impact:.4f} ({ranked[0].target_id})")
 
     step_done(4)
     return results
 
 
 def step5_validate(repo, layer: str) -> dict:
-    """Run statistical validation and return key metric scores."""
-    step_header(5, "Statistical Validation")
+    """Step 5: Statistically compare predictions (Q) against simulations (I)."""
+    step_header(5, "Statistical Validation", "Can we trust the topological predictions against simulated reality?")
 
     analysis   = AnalysisService(repo)
+    prediction = PredictionService()
     simulation = SimulationService(repo)
-    validator  = ValidationService(analysis, simulation, ndcg_k=10)
+    validator  = ValidationService(analysis, prediction, simulation, ndcg_k=10)
 
     layer_res = validator.validate_single_layer(layer)
-
-    status = "PASS ✓" if layer_res.passed else "FAIL ✗"
-    print_kv("Layer",            layer)
-    print_kv("Overall status",   status)
-
-    # Overall metrics
     vr = layer_res.validation_result
+    
     if vr:
-        ov = vr.overall
-        pf_sp = pass_fail(ov.correlation.spearman, 0.75)
-        pf_f1 = pass_fail(ov.classification.f1_score, 0.70)
-        print(f"\n  Overall (Q vs I):")
-        print(f"    Spearman ρ   : {ov.correlation.spearman:>7.4f}   {pf_sp}")
-        print(f"    Kendall τ    : {ov.correlation.kendall:>7.4f}   (gap={abs(ov.correlation.spearman - ov.correlation.kendall):.4f})")
-        print(f"    F1 Score     : {ov.classification.f1_score:>7.4f}   {pf_f1}")
-        print(f"    Top-5 Overlap: {ov.ranking.top_5_overlap:>7.4f}")
-        print(f"    RMSE         : {ov.error.rmse:>7.4f}")
-
-    # Per-dimension summary row
-    dv = layer_res.dimensional_validation
-    if dv:
-        print(f"\n  Per-dimension Spearman ρ:")
-        for dim in ("reliability", "maintainability", "availability", "vulnerability"):
-            if dim in dv:
-                sp = dv[dim].get("spearman", 0.0)
-                gt = dv[dim].get("ground_truth", "?")
-                pf = pass_fail(sp, 0.65)
-                print(f"    {dim.capitalize():<18} ρ={sp:>7.4f}  vs {gt:<8}  {pf}")
-
-    # Warnings
-    if layer_res.warnings:
-        print(f"\n  Warnings ({len(layer_res.warnings)}):")
-        for w in layer_res.warnings[:5]:
-            print(f"    • {w}")
+        sp = vr.overall.correlation.spearman
+        f1 = vr.overall.classification.f1_score
+        print_kv("Spearman ρ", f"{sp:.4f}  ({pass_fail(sp, 0.75)})")
+        print_kv("F1-Score",   f"{f1:.4f}  ({pass_fail(f1, 0.70)})")
+    
+    print_kv("Validation Result", "PASS ✓" if layer_res.passed else "FAIL ✗")
 
     step_done(5)
-
     return {
         "passed":   layer_res.passed,
         "spearman": vr.overall.correlation.spearman if vr else 0.0,
@@ -286,75 +254,33 @@ def step5_validate(repo, layer: str) -> dict:
     }
 
 
-def step6_predict(repo, output_dir: Path, layer: str, analysis_summary: dict, sim_results: list) -> dict:
-    """Train GNN and predict component criticality."""
-    step_header(6, "GNN Criticality Prediction")
-
-    result_analysis = analysis_summary.get("analysis_result")
-    if not result_analysis:
-        print("  [ERROR] Missing analysis results; skipping GNN prediction.")
-        return {}
-
-    structural_dict = extract_structural_metrics_dict(result_analysis.structural)
-    rmav_dict       = extract_rmav_scores_dict(result_analysis.quality)
-    simulation_dict = extract_simulation_dict(sim_results)
-
-    gnn_service = GNNService(
-        hidden_channels=32,
-        num_heads=2,
-        num_layers=2,
-        dropout=0.1,
-        predict_edges=True,
-        checkpoint_dir=str(output_dir / "gnn_checkpoint"),
-    )
-
-    print(f"  Training GNN for layer='{layer}'...")
-    train_result = gnn_service.train(
-        graph=result_analysis.graph,
-        structural_metrics=structural_dict,
-        simulation_results=simulation_dict,
-        rmav_scores=rmav_dict,
-        num_epochs=15,
-        lr=1e-3,
-    )
-    
-    gnn_service.save()
-
-    print_kv("\nTop Critical Components", min(5, len(train_result.top_critical_nodes(5))))
-    for node in train_result.top_critical_nodes(3):
-        print(f"    {node.component[:30]:<32} Score: {node.composite_score:.4f}  [{node.criticality_level}]")
-        
-    step_done(6)
-    return {"trained": True}
+# Formerly Step 6, now integrated into Step 3
 
 
-def step7_visualize(repo, output_dir: Path, layer: str) -> Optional[str]:
-    """Generate static HTML dashboard."""
-    step_header(7, "Dashboard Visualization")
+def step6_visualize(repo, output_dir: Path, layer: str) -> Optional[str]:
+    """Step 6: Generate interactive HTML dashboard."""
+    step_header(6, "Dashboard Visualization", "How do we communicate these risks to stakeholders?")
 
     analysis   = AnalysisService(repo)
+    prediction = PredictionService()
     simulation = SimulationService(repo)
-    validation = ValidationService(analysis, simulation)
+    validation = ValidationService(analysis, prediction, simulation)
     viz        = VisualizationService(
         analysis_service=analysis,
+        prediction_service=prediction,
         simulation_service=simulation,
         validation_service=validation,
         repository=repo,
     )
 
     out_file = str(output_dir / "e2e_dashboard.html")
-    print_kv("Layers",    f"{layer}, system")
-    print_kv("Output",    out_file)
-
     path = viz.generate_dashboard(
         output_file=out_file,
         layers=[layer, "system"],
         include_network=True,
     )
 
-    import os
-    size_kb = os.path.getsize(path) / 1024
-    print_kv("File size",  f"{size_kb:.1f} KB")
+    print_kv("Dashboard File", out_file)
     print(f"\n  Open in browser:  xdg-open {os.path.abspath(path)}")
 
     step_done(6)
@@ -383,28 +309,56 @@ def main() -> None:
 
     repo = None
     try:
-        # ── Steps 1–2 ────────────────────────────────────────────────
-        json_path = step1_generate(args.scale, args.seed, output_dir)
-        repo      = step2_import(
-            json_path,
-            neo4j_uri=args.neo4j_uri,
-            neo4j_user=args.neo4j_user,
-            neo4j_password=args.neo4j_password,
+        # ── Step 1: Model Construction ────────────────────────────────
+        json_path, repo = step1_model_construction(
+            args.scale, args.seed, output_dir,
+            neo4j_cfg={
+                "uri": args.neo4j_uri,
+                "user": args.neo4j_user,
+                "password": args.neo4j_password
+            }
         )
 
-        # ── Steps 3–5 ────────────────────────────────────────────────
-        analysis_summary  = step3_analyze(repo, args.layer)
-        _sim_results      = step4_simulate(repo, args.layer)
+        # ── Step 2: Structural Analysis ───────────────────────────────
+        struct_summary = step2_structural_analysis(repo, args.layer)
+
+        # ── Step 3: Criticality Prediction (Initial) ──────────────────
+        # We run simulation first to allow GNN training in Step 3
+        # In a real "decision" flow, you might predict first, then simulate to validate
+        
+        # ── Step 4: Failure Simulation ────────────────────────────────
+        _sim_results = step4_simulate(repo, args.layer)
+
+        # Now complete Step 3 with GNN
+        predict_summary = step3_criticality_prediction(
+            repo, output_dir, args.layer, struct_summary, _sim_results
+        )
+
+        # ── Step 5: Statistical Validation ────────────────────────────
         validation_summary = step5_validate(repo, args.layer)
 
-        # ── Step 6 (Predict) ──────────────────────────────────────────
-        _predict_summary  = step6_predict(repo, output_dir, args.layer, analysis_summary, _sim_results)
-
-        # ── Step 7 (optional) ─────────────────────────────────────────
+        # ── Step 6: Visualization ─────────────────────────────────────
         if not args.skip_viz:
-            step7_visualize(repo, output_dir, args.layer)
-        else:
-            print("\n  [Step 7 skipped — use --skip-viz=False to generate dashboard]")
+            step6_visualize(repo, output_dir, args.layer)
+        
+        # ── DECISION SUPPORT REPORT ──────────────────────────────────
+        print("\n" + "━" * 75)
+        print("  DECISION SUPPORT REPORT")
+        print("━" * 75)
+        
+        passed = validation_summary.get("passed", False)
+        print(f"  [1] System Deployment Safety:  {'RAISE CAUTION ⚠️' if not passed else 'GO / PROCEED ✅'}")
+        print(f"      (Validation Confidence ρ={validation_summary.get('spearman', 0):.2f})")
+        
+        critical_comps = [c for c in predict_summary['quality'].components if c.levels.overall.value == 'CRITICAL']
+        worst_id = critical_comps[0].id if critical_comps else "None"
+        print(f"  [2] High-Priority Redundancy:  Component '{worst_id}'")
+        print(f"      (Target for immediate replication or failover testing)")
+        
+        spof_nodes = struct_summary['result'].structural.get_articulation_points()
+        print(f"  [3] Architectural Bottlenecks: {len(spof_nodes)} SPOFs detected")
+        if spof_nodes:
+            print(f"      Recommended: Decouple direct dependencies on {spof_nodes[0].id[:20]}...")
 
     except KeyboardInterrupt:
         print("\n\n[Interrupted by user]")
