@@ -144,196 +144,617 @@
     {
       "id": "A0",
       "name": "App-0",
-      "role": "pubsub",
-      "app_type": "gateway",
-      "criticality": false,
       "version": "3.4.9",
-      "loc": 1311,
-      "cyclomatic_complexity": 24.46,
-      "coupling_afferent": 3,
-      "coupling_efferent": 2,
-      "lcom": 0.551
+      "app_type": "gateway",
+      "role": "pubsub",
+      "criticality": false,
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "User Interface",
+        "csms_name": "Configuration Management"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1112,
+          "total_classes": 11,
+          "total_methods": 65,
+          "total_fields": 28
+        },
+        "complexity": {
+          "total_wmc": 360,
+          "avg_wmc": 32.8,
+          "max_wmc": 34
+        },
+        "cohesion": {
+          "avg_lcom": 10.74,
+          "max_lcom": 22.0
+        },
+        "coupling": {
+          "avg_cbo": 13.1,
+          "max_cbo": 13,
+          "avg_rfc": 36.13,
+          "max_rfc": 70,
+          "avg_fanin": 4.52,
+          "max_fanin": 11,
+          "avg_fanout": 10.07,
+          "max_fanout": 10
+        }
+      }
     },
     {
       "id": "A1",
       "name": "App-1",
-      "role": "sub",
-      "app_type": "processor",
-      "criticality": true,
       "version": "2.1.3",
-      "loc": 742,
-      "cyclomatic_complexity": 6.73,
-      "coupling_afferent": 2,
-      "coupling_efferent": 2,
-      "lcom": 0.441
+      "app_type": "processor",
+      "role": "sub",
+      "criticality": true,
+      "system_hierarchy": {
+        "csc_name": "Computer Science",
+        "csci_name": "Support Software",
+        "css_name": "User Interface",
+        "csms_name": "Messaging Utilities"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 3357,
+          "total_classes": 10,
+          "total_methods": 160,
+          "total_fields": 122
+        },
+        "complexity": {
+          "total_wmc": 174,
+          "avg_wmc": 17.42,
+          "max_wmc": 29
+        },
+        "cohesion": {
+          "avg_lcom": 23.41,
+          "max_lcom": 84.7
+        },
+        "coupling": {
+          "avg_cbo": 17.07,
+          "max_cbo": 18,
+          "avg_rfc": 47.84,
+          "max_rfc": 81,
+          "avg_fanin": 1.62,
+          "max_fanin": 4,
+          "avg_fanout": 6.18,
+          "max_fanout": 10
+        }
+      }
     },
     {
       "id": "A2",
       "name": "App-2",
-      "role": "pub",
-      "app_type": "controller",
-      "criticality": false,
       "version": "2.5.3",
-      "loc": 1328,
-      "cyclomatic_complexity": 12.9,
-      "coupling_afferent": 3,
-      "coupling_efferent": 1,
-      "lcom": 0.446
+      "app_type": "controller",
+      "role": "pub",
+      "criticality": false,
+      "system_hierarchy": {
+        "csc_name": "Platform Engineering",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Communication",
+        "csms_name": "Core Logic"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 2870,
+          "total_classes": 26,
+          "total_methods": 156,
+          "total_fields": 118
+        },
+        "complexity": {
+          "total_wmc": 1540,
+          "avg_wmc": 59.26,
+          "max_wmc": 88
+        },
+        "cohesion": {
+          "avg_lcom": 105.31,
+          "max_lcom": 258.0
+        },
+        "coupling": {
+          "avg_cbo": 14.07,
+          "max_cbo": 27,
+          "avg_rfc": 31.42,
+          "max_rfc": 54,
+          "avg_fanin": 2.42,
+          "max_fanin": 4,
+          "avg_fanout": 13.83,
+          "max_fanout": 34
+        }
+      }
     },
     {
       "id": "A3",
       "name": "App-3",
-      "role": "pubsub",
-      "app_type": "processor",
-      "criticality": false,
       "version": "1.8.3",
-      "loc": 1999,
-      "cyclomatic_complexity": 16.37,
-      "coupling_afferent": 1,
-      "coupling_efferent": 3,
-      "lcom": 0.594
+      "app_type": "processor",
+      "role": "pubsub",
+      "criticality": false,
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Control Logic",
+        "csms_name": "Configuration Management"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 2811,
+          "total_classes": 11,
+          "total_methods": 286,
+          "total_fields": 73
+        },
+        "complexity": {
+          "total_wmc": 708,
+          "avg_wmc": 64.44,
+          "max_wmc": 145
+        },
+        "cohesion": {
+          "avg_lcom": 93.2,
+          "max_lcom": 191.0
+        },
+        "coupling": {
+          "avg_cbo": 11.49,
+          "max_cbo": 11,
+          "avg_rfc": 25.31,
+          "max_rfc": 26,
+          "avg_fanin": 5.03,
+          "max_fanin": 11,
+          "avg_fanout": 9.02,
+          "max_fanout": 15
+        }
+      }
     },
     {
       "id": "A4",
       "name": "App-4",
-      "role": "pub",
-      "app_type": "monitor",
-      "criticality": false,
       "version": "3.3.5",
-      "loc": 576,
-      "cyclomatic_complexity": 11.91,
-      "coupling_afferent": 4,
-      "coupling_efferent": 4,
-      "lcom": 0.424
+      "app_type": "monitor",
+      "role": "pub",
+      "criticality": false,
+      "system_hierarchy": {
+        "csc_name": "Platform Engineering",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Logging Framework"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1234,
+          "total_classes": 12,
+          "total_methods": 132,
+          "total_fields": 17
+        },
+        "complexity": {
+          "total_wmc": 99,
+          "avg_wmc": 8.33,
+          "max_wmc": 19
+        },
+        "cohesion": {
+          "avg_lcom": 35.0,
+          "max_lcom": 75.5
+        },
+        "coupling": {
+          "avg_cbo": 9.6,
+          "max_cbo": 18,
+          "avg_rfc": 20.78,
+          "max_rfc": 27,
+          "avg_fanin": 9.98,
+          "max_fanin": 13,
+          "avg_fanout": 4.57,
+          "max_fanout": 5
+        }
+      }
     },
     {
       "id": "A5",
       "name": "App-5",
-      "role": "pub",
-      "app_type": "sensor",
-      "criticality": true,
       "version": "3.5.3",
-      "loc": 261,
-      "cyclomatic_complexity": 3.81,
-      "coupling_afferent": 1,
-      "coupling_efferent": 4,
-      "lcom": 0.12
+      "app_type": "sensor",
+      "role": "pub",
+      "criticality": true,
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Data Management",
+        "csms_name": "Configuration Management"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1776,
+          "total_classes": 16,
+          "total_methods": 172,
+          "total_fields": 18
+        },
+        "complexity": {
+          "total_wmc": 293,
+          "avg_wmc": 18.36,
+          "max_wmc": 32
+        },
+        "cohesion": {
+          "avg_lcom": 44.68,
+          "max_lcom": 175.5
+        },
+        "coupling": {
+          "avg_cbo": 17.63,
+          "max_cbo": 17,
+          "avg_rfc": 37.21,
+          "max_rfc": 44,
+          "avg_fanin": 5.77,
+          "max_fanin": 13,
+          "avg_fanout": 9.51,
+          "max_fanout": 19
+        }
+      }
     },
     {
       "id": "A6",
       "name": "App-6",
-      "role": "pubsub",
-      "app_type": "monitor",
-      "criticality": false,
       "version": "1.8.8",
-      "loc": 958,
-      "cyclomatic_complexity": 7.13,
-      "coupling_afferent": 2,
-      "coupling_efferent": 1,
-      "lcom": 0.293
+      "app_type": "monitor",
+      "role": "pubsub",
+      "criticality": false,
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Application Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Configuration Management"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1228,
+          "total_classes": 9,
+          "total_methods": 15,
+          "total_fields": 54
+        },
+        "complexity": {
+          "total_wmc": 307,
+          "avg_wmc": 34.13,
+          "max_wmc": 82
+        },
+        "cohesion": {
+          "avg_lcom": 13.18,
+          "max_lcom": 49.8
+        },
+        "coupling": {
+          "avg_cbo": 13.32,
+          "max_cbo": 17,
+          "avg_rfc": 34.93,
+          "max_rfc": 66,
+          "avg_fanin": 6.48,
+          "max_fanin": 8,
+          "avg_fanout": 3.62,
+          "max_fanout": 5
+        }
+      }
     },
     {
       "id": "A7",
       "name": "App-7",
-      "role": "sub",
-      "app_type": "gateway",
-      "criticality": false,
       "version": "1.8.7",
-      "loc": 2435,
-      "cyclomatic_complexity": 12.24,
-      "coupling_efferent": 1,
-      "lcom": 0.799
+      "app_type": "gateway",
+      "role": "sub",
+      "criticality": false,
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Application Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Core Logic"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 2361,
+          "total_classes": 7,
+          "total_methods": 122,
+          "total_fields": 54
+        },
+        "complexity": {
+          "total_wmc": 73,
+          "avg_wmc": 10.43,
+          "max_wmc": 12
+        },
+        "cohesion": {
+          "avg_lcom": 15.88,
+          "max_lcom": 43.1
+        },
+        "coupling": {
+          "avg_cbo": 5.25,
+          "max_cbo": 9,
+          "avg_rfc": 44.93,
+          "max_rfc": 52,
+          "avg_fanin": 5.96,
+          "max_fanin": 13,
+          "avg_fanout": 4.98,
+          "max_fanout": 12
+        }
+      }
     },
     {
       "id": "A8",
       "name": "App-8",
-      "role": "pub",
-      "app_type": "sensor",
-      "criticality": true,
       "version": "2.9.1",
-      "loc": 178,
-      "cyclomatic_complexity": 5.39,
-      "coupling_afferent": 2,
-      "coupling_efferent": 3,
-      "lcom": 0.338
+      "app_type": "sensor",
+      "role": "pub",
+      "criticality": true,
+      "system_hierarchy": {
+        "csc_name": "Mission Software",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Control Logic",
+        "csms_name": "Configuration Management"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1994,
+          "total_classes": 12,
+          "total_methods": 122,
+          "total_fields": 57
+        },
+        "complexity": {
+          "total_wmc": 437,
+          "avg_wmc": 36.49,
+          "max_wmc": 64
+        },
+        "cohesion": {
+          "avg_lcom": 14.08,
+          "max_lcom": 29.0
+        },
+        "coupling": {
+          "avg_cbo": 8.75,
+          "max_cbo": 17,
+          "avg_rfc": 32.16,
+          "max_rfc": 46,
+          "avg_fanin": 1.05,
+          "max_fanin": 1,
+          "avg_fanout": 4.29,
+          "max_fanout": 4
+        }
+      }
     },
     {
       "id": "A9",
       "name": "App-9",
-      "role": "sub",
-      "app_type": "gateway",
-      "criticality": false,
       "version": "1.1.8",
-      "loc": 2717,
-      "cyclomatic_complexity": 15.58,
-      "coupling_afferent": 1,
-      "coupling_efferent": 2,
-      "lcom": 0.788
+      "app_type": "gateway",
+      "role": "sub",
+      "criticality": false,
+      "system_hierarchy": {
+        "csc_name": "Platform Engineering",
+        "csci_name": "Systems Engineering",
+        "css_name": "Control Logic",
+        "csms_name": "Configuration Management"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 2155,
+          "total_classes": 12,
+          "total_methods": 201,
+          "total_fields": 77
+        },
+        "complexity": {
+          "total_wmc": 367,
+          "avg_wmc": 30.65,
+          "max_wmc": 76
+        },
+        "cohesion": {
+          "avg_lcom": 94.07,
+          "max_lcom": 275.4
+        },
+        "coupling": {
+          "avg_cbo": 12.51,
+          "max_cbo": 24,
+          "avg_rfc": 32.34,
+          "max_rfc": 58,
+          "avg_fanin": 3.14,
+          "max_fanin": 3,
+          "avg_fanout": 10.91,
+          "max_fanout": 21
+        }
+      }
     },
     {
       "id": "A10",
       "name": "App-10",
-      "role": "sub",
-      "app_type": "sensor",
-      "criticality": false,
       "version": "3.4.8",
-      "loc": 250,
-      "cyclomatic_complexity": 4.04,
-      "coupling_afferent": 3,
-      "coupling_efferent": 1,
-      "lcom": 0.236
+      "app_type": "sensor",
+      "role": "sub",
+      "criticality": false,
+      "system_hierarchy": {
+        "csc_name": "Mission Software",
+        "csci_name": "Support Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Core Logic"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1589,
+          "total_classes": 6,
+          "total_methods": 35,
+          "total_fields": 61
+        },
+        "complexity": {
+          "total_wmc": 198,
+          "avg_wmc": 33.02,
+          "max_wmc": 39
+        },
+        "cohesion": {
+          "avg_lcom": 23.65,
+          "max_lcom": 46.7
+        },
+        "coupling": {
+          "avg_cbo": 10.63,
+          "max_cbo": 16,
+          "avg_rfc": 17.34,
+          "max_rfc": 31,
+          "avg_fanin": 2.75,
+          "max_fanin": 2,
+          "avg_fanout": 6.43,
+          "max_fanout": 19
+        }
+      }
     },
     {
       "id": "A11",
       "name": "App-11",
-      "role": "pub",
-      "app_type": "processor",
-      "criticality": true,
       "version": "1.2.5",
-      "loc": 1211,
-      "cyclomatic_complexity": 19.47,
-      "coupling_afferent": 3,
-      "coupling_efferent": 1,
-      "lcom": 0.553
+      "app_type": "processor",
+      "role": "pub",
+      "criticality": true,
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Control Logic",
+        "csms_name": "Core Logic"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 3929,
+          "total_classes": 8,
+          "total_methods": 171,
+          "total_fields": 46
+        },
+        "complexity": {
+          "total_wmc": 301,
+          "avg_wmc": 37.74,
+          "max_wmc": 50
+        },
+        "cohesion": {
+          "avg_lcom": 114.03,
+          "max_lcom": 428.3
+        },
+        "coupling": {
+          "avg_cbo": 8.29,
+          "max_cbo": 8,
+          "avg_rfc": 59.34,
+          "max_rfc": 75,
+          "avg_fanin": 5.63,
+          "max_fanin": 12,
+          "avg_fanout": 9.28,
+          "max_fanout": 26
+        }
+      }
     },
     {
       "id": "A12",
       "name": "App-12",
-      "role": "pub",
-      "app_type": "gateway",
-      "criticality": true,
       "version": "2.4.3",
-      "loc": 2127,
-      "cyclomatic_complexity": 14.77,
-      "coupling_afferent": 1,
-      "coupling_efferent": 1,
-      "lcom": 0.445
+      "app_type": "gateway",
+      "role": "pub",
+      "criticality": true,
+      "system_hierarchy": {
+        "csc_name": "Mission Software",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Data Management",
+        "csms_name": "Messaging Utilities"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 899,
+          "total_classes": 10,
+          "total_methods": 44,
+          "total_fields": 89
+        },
+        "complexity": {
+          "total_wmc": 394,
+          "avg_wmc": 39.41,
+          "max_wmc": 42
+        },
+        "cohesion": {
+          "avg_lcom": 12.61,
+          "max_lcom": 33.9
+        },
+        "coupling": {
+          "avg_cbo": 20.55,
+          "max_cbo": 36,
+          "avg_rfc": 18.77,
+          "max_rfc": 34,
+          "avg_fanin": 2.48,
+          "max_fanin": 3,
+          "avg_fanout": 3.82,
+          "max_fanout": 4
+        }
+      }
     },
     {
       "id": "A13",
       "name": "App-13",
-      "role": "pub",
-      "app_type": "gateway",
-      "criticality": true,
       "version": "1.8.2",
-      "loc": 1122,
-      "cyclomatic_complexity": 6.71,
-      "coupling_afferent": 3,
-      "coupling_efferent": 3,
-      "lcom": 0.594
+      "app_type": "gateway",
+      "role": "pub",
+      "criticality": true,
+      "system_hierarchy": {
+        "csc_name": "Computer Science",
+        "csci_name": "Support Software",
+        "css_name": "Communication",
+        "csms_name": "Data Persistence"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 725,
+          "total_classes": 11,
+          "total_methods": 178,
+          "total_fields": 91
+        },
+        "complexity": {
+          "total_wmc": 374,
+          "avg_wmc": 34.01,
+          "max_wmc": 60
+        },
+        "cohesion": {
+          "avg_lcom": 68.48,
+          "max_lcom": 199.5
+        },
+        "coupling": {
+          "avg_cbo": 9.69,
+          "max_cbo": 13,
+          "avg_rfc": 20.78,
+          "max_rfc": 30,
+          "avg_fanin": 3.43,
+          "max_fanin": 6,
+          "avg_fanout": 4.57,
+          "max_fanout": 8
+        }
+      }
     },
     {
       "id": "A14",
       "name": "App-14",
-      "role": "pub",
-      "app_type": "gateway",
-      "criticality": false,
       "version": "2.3.8",
-      "loc": 1476,
-      "cyclomatic_complexity": 10.3,
-      "coupling_afferent": 3,
-      "coupling_efferent": 2,
-      "lcom": 0.749
+      "app_type": "gateway",
+      "role": "pub",
+      "criticality": false,
+      "system_hierarchy": {
+        "csc_name": "Mission Software",
+        "csci_name": "Application Software",
+        "css_name": "Communication",
+        "csms_name": "Core Logic"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1219,
+          "total_classes": 18,
+          "total_methods": 189,
+          "total_fields": 87
+        },
+        "complexity": {
+          "total_wmc": 199,
+          "avg_wmc": 11.08,
+          "max_wmc": 17
+        },
+        "cohesion": {
+          "avg_lcom": 54.54,
+          "max_lcom": 99.9
+        },
+        "coupling": {
+          "avg_cbo": 10.28,
+          "max_cbo": 11,
+          "avg_rfc": 49.81,
+          "max_rfc": 72,
+          "avg_fanin": 3.71,
+          "max_fanin": 6,
+          "avg_fanout": 13.0,
+          "max_fanout": 35
+        }
+      }
     }
   ],
   "libraries": [
@@ -341,47 +762,191 @@
       "id": "L0",
       "name": "Lib-0",
       "version": "2.5.7",
-      "loc": 561,
-      "cyclomatic_complexity": 9.13,
-      "coupling_afferent": 4,
-      "coupling_efferent": 2,
-      "lcom": 0.24
+      "system_hierarchy": {
+        "csc_name": "Platform Engineering",
+        "csci_name": "Systems Engineering",
+        "css_name": "Control Logic",
+        "csms_name": "Messaging Utilities"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 572,
+          "total_classes": 5,
+          "total_methods": 44,
+          "total_fields": 21
+        },
+        "complexity": {
+          "total_wmc": 135,
+          "avg_wmc": 27.02,
+          "max_wmc": 62
+        },
+        "cohesion": {
+          "avg_lcom": 9.46,
+          "max_lcom": 20.9
+        },
+        "coupling": {
+          "avg_cbo": 4.74,
+          "max_cbo": 6,
+          "avg_rfc": 11.11,
+          "max_rfc": 21,
+          "avg_fanin": 5.26,
+          "max_fanin": 13,
+          "avg_fanout": 4.42,
+          "max_fanout": 4
+        }
+      }
     },
     {
       "id": "L1",
       "name": "Lib-1",
       "version": "1.0.9",
-      "loc": 562,
-      "cyclomatic_complexity": 2.97,
-      "coupling_afferent": 4,
-      "lcom": 0.167
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Support Software",
+        "css_name": "User Interface",
+        "csms_name": "Core Logic"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 635,
+          "total_classes": 2,
+          "total_methods": 95,
+          "total_fields": 54
+        },
+        "complexity": {
+          "total_wmc": 40,
+          "avg_wmc": 20.2,
+          "max_wmc": 28
+        },
+        "cohesion": {
+          "avg_lcom": 9.76,
+          "max_lcom": 25.4
+        },
+        "coupling": {
+          "avg_cbo": 11.17,
+          "max_cbo": 19,
+          "avg_rfc": 5.29,
+          "max_rfc": 5,
+          "avg_fanin": 5.73,
+          "max_fanin": 7,
+          "avg_fanout": 4.82,
+          "max_fanout": 9
+        }
+      }
     },
     {
       "id": "L2",
       "name": "Lib-2",
       "version": "2.0.3",
-      "loc": 335,
-      "cyclomatic_complexity": 6.71,
-      "coupling_afferent": 4,
-      "lcom": 0.102
+      "system_hierarchy": {
+        "csc_name": "Computer Science",
+        "csci_name": "Support Software",
+        "css_name": "Data Management",
+        "csms_name": "Core Logic"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 263,
+          "total_classes": 11,
+          "total_methods": 103,
+          "total_fields": 55
+        },
+        "complexity": {
+          "total_wmc": 299,
+          "avg_wmc": 27.27,
+          "max_wmc": 40
+        },
+        "cohesion": {
+          "avg_lcom": 34.74,
+          "max_lcom": 110.0
+        },
+        "coupling": {
+          "avg_cbo": 6.6,
+          "max_cbo": 12,
+          "avg_rfc": 34.22,
+          "max_rfc": 43,
+          "avg_fanin": 5.63,
+          "max_fanin": 8,
+          "avg_fanout": 7.05,
+          "max_fanout": 19
+        }
+      }
     },
     {
       "id": "L3",
       "name": "Lib-3",
       "version": "0.4.7",
-      "loc": 66,
-      "cyclomatic_complexity": 4.44,
-      "coupling_afferent": 1,
-      "lcom": 0.064
+      "system_hierarchy": {
+        "csc_name": "Computer Science",
+        "csci_name": "Support Software",
+        "css_name": "Communication",
+        "csms_name": "Configuration Management"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 2843,
+          "total_classes": 12,
+          "total_methods": 115,
+          "total_fields": 56
+        },
+        "complexity": {
+          "total_wmc": 315,
+          "avg_wmc": 26.33,
+          "max_wmc": 41
+        },
+        "cohesion": {
+          "avg_lcom": 14.81,
+          "max_lcom": 51.4
+        },
+        "coupling": {
+          "avg_cbo": 3.41,
+          "max_cbo": 3,
+          "avg_rfc": 30.76,
+          "max_rfc": 44,
+          "avg_fanin": 2.0,
+          "max_fanin": 5,
+          "avg_fanout": 3.45,
+          "max_fanout": 6
+        }
+      }
     },
     {
       "id": "L4",
       "name": "Lib-4",
       "version": "2.9.7",
-      "loc": 326,
-      "cyclomatic_complexity": 1.53,
-      "coupling_afferent": 7,
-      "lcom": 0.237
+      "system_hierarchy": {
+        "csc_name": "Computer Science",
+        "csci_name": "Systems Engineering",
+        "css_name": "Data Management",
+        "csms_name": "Logging Framework"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 384,
+          "total_classes": 12,
+          "total_methods": 81,
+          "total_fields": 60
+        },
+        "complexity": {
+          "total_wmc": 349,
+          "avg_wmc": 29.11,
+          "max_wmc": 46
+        },
+        "cohesion": {
+          "avg_lcom": 18.86,
+          "max_lcom": 52.3
+        },
+        "coupling": {
+          "avg_cbo": 10.83,
+          "max_cbo": 18,
+          "avg_rfc": 14.93,
+          "max_rfc": 14,
+          "avg_fanin": 1.58,
+          "max_fanin": 2,
+          "avg_fanout": 2.25,
+          "max_fanout": 4
+        }
+      }
     }
   ],
   "relationships": {

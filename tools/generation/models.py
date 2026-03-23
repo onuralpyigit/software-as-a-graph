@@ -121,14 +121,12 @@ class AppCriticalityDistribution(CategoricalDistribution):
             mode_percentage=base.mode_percentage,
         )
     
-    def to_weighted_list(self, default_options: List[str] = None) -> List[bool]:
-        """Convert to weighted list with boolean values."""
+    def to_weighted_list(self, default_options: List[bool] = None) -> List[bool]:
+        """Convert to weighted list with boolean criticality values."""
         result = []
         for category, count in self.category_counts.items():
-            if category == "critical":
-                result.extend([True] * count)
-            else:
-                result.extend([False] * count)
+            val = category.lower() in ("true", "1", "yes", "critical", "high")
+            result.extend([val] * count)
         return result if result else [True, False]
 
 

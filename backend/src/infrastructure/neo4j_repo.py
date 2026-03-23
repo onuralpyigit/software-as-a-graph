@@ -220,24 +220,66 @@ class Neo4jRepository:
         # Applications
         apps = []
         for a in data.get("applications", []):
+            cm = a.get("code_metrics") or {}
+            sh = a.get("system_hierarchy") or {}
+            size = cm.get("size", {})
+            complexity = cm.get("complexity", {})
+            cohesion = cm.get("cohesion", {})
+            coupling = cm.get("coupling", {})
             apps.append({
                 "id": a["id"],
                 "name": a.get("name", a["id"]),
                 "role": a.get("role", "pubsub"),
                 "app_type": a.get("app_type", "service"),
-                "criticality": a.get("criticality", False),
+                "criticality": a.get("criticality", "LOW"),
                 "version": a.get("version"),
-                # Code-quality attributes (optional; default 0 when absent)
-                "loc": a.get("loc", 0),
-                "cyclomatic_complexity": float(a.get("cyclomatic_complexity", 0.0)),
-                "coupling_afferent": a.get("coupling_afferent", 0),
-                "coupling_efferent": a.get("coupling_efferent", 0),
-                "lcom": float(a.get("lcom", 0.0)),
+                # System hierarchy
+                "csc_name": sh.get("csc_name", ""),
+                "csci_name": sh.get("csci_name", ""),
+                "css_name": sh.get("css_name", ""),
+                "csms_name": sh.get("csms_name", ""),
+                # Code metrics — size
+                "cm_total_loc": size.get("total_loc", 0),
+                "cm_total_classes": size.get("total_classes", 0),
+                "cm_total_methods": size.get("total_methods", 0),
+                "cm_total_fields": size.get("total_fields", 0),
+                # Code metrics — complexity
+                "cm_total_wmc": complexity.get("total_wmc", 0),
+                "cm_avg_wmc": float(complexity.get("avg_wmc", 0.0)),
+                "cm_max_wmc": complexity.get("max_wmc", 0),
+                # Code metrics — cohesion
+                "cm_avg_lcom": float(cohesion.get("avg_lcom", 0.0)),
+                "cm_max_lcom": float(cohesion.get("max_lcom", 0.0)),
+                # Code metrics — coupling
+                "cm_avg_cbo": float(coupling.get("avg_cbo", 0.0)),
+                "cm_max_cbo": coupling.get("max_cbo", 0),
+                "cm_avg_rfc": float(coupling.get("avg_rfc", 0.0)),
+                "cm_max_rfc": coupling.get("max_rfc", 0),
+                "cm_avg_fanin": float(coupling.get("avg_fanin", 0.0)),
+                "cm_max_fanin": coupling.get("max_fanin", 0),
+                "cm_avg_fanout": float(coupling.get("avg_fanout", 0.0)),
+                "cm_max_fanout": coupling.get("max_fanout", 0),
+                # Analysis-compatible aliases
+                "loc": size.get("total_loc", 0),
+                "cyclomatic_complexity": float(complexity.get("avg_wmc", 0.0)),
+                "coupling_afferent": int(coupling.get("avg_fanin", 0)),
+                "coupling_efferent": int(coupling.get("avg_fanout", 0)),
+                "lcom": float(cohesion.get("avg_lcom", 0.0)),
             })
         self._import_batch(apps, """
             MERGE (a:Application {id: row.id})
             SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
                 a.criticality = row.criticality, a.version = row.version,
+                a.csc_name = row.csc_name, a.csci_name = row.csci_name,
+                a.css_name = row.css_name, a.csms_name = row.csms_name,
+                a.cm_total_loc = row.cm_total_loc, a.cm_total_classes = row.cm_total_classes,
+                a.cm_total_methods = row.cm_total_methods, a.cm_total_fields = row.cm_total_fields,
+                a.cm_total_wmc = row.cm_total_wmc, a.cm_avg_wmc = row.cm_avg_wmc, a.cm_max_wmc = row.cm_max_wmc,
+                a.cm_avg_lcom = row.cm_avg_lcom, a.cm_max_lcom = row.cm_max_lcom,
+                a.cm_avg_cbo = row.cm_avg_cbo, a.cm_max_cbo = row.cm_max_cbo,
+                a.cm_avg_rfc = row.cm_avg_rfc, a.cm_max_rfc = row.cm_max_rfc,
+                a.cm_avg_fanin = row.cm_avg_fanin, a.cm_max_fanin = row.cm_max_fanin,
+                a.cm_avg_fanout = row.cm_avg_fanout, a.cm_max_fanout = row.cm_max_fanout,
                 a.loc = row.loc,
                 a.cyclomatic_complexity = row.cyclomatic_complexity,
                 a.coupling_afferent = row.coupling_afferent,
@@ -248,20 +290,62 @@ class Neo4jRepository:
         # Libraries
         libs = []
         for l in data.get("libraries", []):
+            cm = l.get("code_metrics") or {}
+            sh = l.get("system_hierarchy") or {}
+            size = cm.get("size", {})
+            complexity = cm.get("complexity", {})
+            cohesion = cm.get("cohesion", {})
+            coupling = cm.get("coupling", {})
             libs.append({
                 "id": l["id"],
                 "name": l.get("name", l["id"]),
                 "version": l.get("version"),
-                # Code-quality attributes (optional; default 0 when absent)
-                "loc": l.get("loc", 0),
-                "cyclomatic_complexity": float(l.get("cyclomatic_complexity", 0.0)),
-                "coupling_afferent": l.get("coupling_afferent", 0),
-                "coupling_efferent": l.get("coupling_efferent", 0),
-                "lcom": float(l.get("lcom", 0.0)),
+                # System hierarchy
+                "csc_name": sh.get("csc_name", ""),
+                "csci_name": sh.get("csci_name", ""),
+                "css_name": sh.get("css_name", ""),
+                "csms_name": sh.get("csms_name", ""),
+                # Code metrics — size
+                "cm_total_loc": size.get("total_loc", 0),
+                "cm_total_classes": size.get("total_classes", 0),
+                "cm_total_methods": size.get("total_methods", 0),
+                "cm_total_fields": size.get("total_fields", 0),
+                # Code metrics — complexity
+                "cm_total_wmc": complexity.get("total_wmc", 0),
+                "cm_avg_wmc": float(complexity.get("avg_wmc", 0.0)),
+                "cm_max_wmc": complexity.get("max_wmc", 0),
+                # Code metrics — cohesion
+                "cm_avg_lcom": float(cohesion.get("avg_lcom", 0.0)),
+                "cm_max_lcom": float(cohesion.get("max_lcom", 0.0)),
+                # Code metrics — coupling
+                "cm_avg_cbo": float(coupling.get("avg_cbo", 0.0)),
+                "cm_max_cbo": coupling.get("max_cbo", 0),
+                "cm_avg_rfc": float(coupling.get("avg_rfc", 0.0)),
+                "cm_max_rfc": coupling.get("max_rfc", 0),
+                "cm_avg_fanin": float(coupling.get("avg_fanin", 0.0)),
+                "cm_max_fanin": coupling.get("max_fanin", 0),
+                "cm_avg_fanout": float(coupling.get("avg_fanout", 0.0)),
+                "cm_max_fanout": coupling.get("max_fanout", 0),
+                # Analysis-compatible aliases
+                "loc": size.get("total_loc", 0),
+                "cyclomatic_complexity": float(complexity.get("avg_wmc", 0.0)),
+                "coupling_afferent": int(coupling.get("avg_fanin", 0)),
+                "coupling_efferent": int(coupling.get("avg_fanout", 0)),
+                "lcom": float(cohesion.get("avg_lcom", 0.0)),
             })
         self._import_batch(libs, """
             MERGE (l:Library {id: row.id})
             SET l.name = row.name, l.version = row.version,
+                l.csc_name = row.csc_name, l.csci_name = row.csci_name,
+                l.css_name = row.css_name, l.csms_name = row.csms_name,
+                l.cm_total_loc = row.cm_total_loc, l.cm_total_classes = row.cm_total_classes,
+                l.cm_total_methods = row.cm_total_methods, l.cm_total_fields = row.cm_total_fields,
+                l.cm_total_wmc = row.cm_total_wmc, l.cm_avg_wmc = row.cm_avg_wmc, l.cm_max_wmc = row.cm_max_wmc,
+                l.cm_avg_lcom = row.cm_avg_lcom, l.cm_max_lcom = row.cm_max_lcom,
+                l.cm_avg_cbo = row.cm_avg_cbo, l.cm_max_cbo = row.cm_max_cbo,
+                l.cm_avg_rfc = row.cm_avg_rfc, l.cm_max_rfc = row.cm_max_rfc,
+                l.cm_avg_fanin = row.cm_avg_fanin, l.cm_max_fanin = row.cm_max_fanin,
+                l.cm_avg_fanout = row.cm_avg_fanout, l.cm_max_fanout = row.cm_max_fanout,
                 l.loc = row.loc,
                 l.cyclomatic_complexity = row.cyclomatic_complexity,
                 l.coupling_afferent = row.coupling_afferent,

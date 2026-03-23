@@ -154,57 +154,66 @@ class GraphEntity:
 class Application(GraphEntity):
     """A software service that publishes and/or subscribes to topics.
 
-    Code-level quality attributes (optional — default to 0/0.0 when not provided):
-        loc                  : Lines of code (raw size proxy)
-        cyclomatic_complexity: Average cyclomatic complexity per method
-        coupling_afferent    : Ca — number of external modules that depend on this one
-        coupling_efferent    : Ce — number of external modules this one depends on
-        lcom                 : Lack of Cohesion of Methods ∈ [0, 1] (0 = perfectly cohesive)
+    Attributes:
+        system_hierarchy: MIL-STD-498 decomposition (CSC → CSCI → CSS → CSMS).
+        code_metrics: Nested OO metrics (size, complexity, cohesion, coupling).
     """
     role: str = "pubsub"  # pub, sub, pubsub
     app_type: str = "service"
     criticality: bool = False
     version: Optional[str] = None
+    system_hierarchy: Optional[Dict[str, str]] = None
+    code_metrics: Optional[Dict[str, Any]] = None
 
-    # Code-level quality attributes (all optional; 0 → not provided / unknown)
-    loc: int = 0
-    cyclomatic_complexity: float = 0.0
-    coupling_afferent: int = 0
-    coupling_efferent: int = 0
-    lcom: float = 0.0
+    # --- backward-compatible computed properties for analysis pipeline ---
+
+    @property
+    def loc(self) -> int:
+        if self.code_metrics:
+            return self.code_metrics.get("size", {}).get("total_loc", 0)
+        return 0
+
+    @property
+    def cyclomatic_complexity(self) -> float:
+        if self.code_metrics:
+            return float(self.code_metrics.get("complexity", {}).get("avg_wmc", 0.0))
+        return 0.0
+
+    @property
+    def lcom(self) -> float:
+        if self.code_metrics:
+            return float(self.code_metrics.get("cohesion", {}).get("avg_lcom", 0.0))
+        return 0.0
+
+    @property
+    def coupling_afferent(self) -> int:
+        if self.code_metrics:
+            return int(self.code_metrics.get("coupling", {}).get("avg_fanin", 0))
+        return 0
+
+    @property
+    def coupling_efferent(self) -> int:
+        if self.code_metrics:
+            return int(self.code_metrics.get("coupling", {}).get("avg_fanout", 0))
+        return 0
 
     @property
     def instability(self) -> float:
-        """Martin Instability I = Ce / (Ca + Ce) ∈ [0, 1].
-
-        0 = maximally stable (nothing depends on external code),
-        1 = maximally unstable (depends on everything, nothing depends on it).
-        Returns 0.0 when both coupling counts are zero (unknown / not provided).
-        """
+        """Martin Instability I = Ce / (Ca + Ce) ∈ [0, 1]."""
         total = self.coupling_afferent + self.coupling_efferent
         return self.coupling_efferent / total if total > 0 else 0.0
 
     def to_dict(self) -> Dict[str, Any]:
-        result = {
+        result: Dict[str, Any] = {
             "id": self.id,
             "name": self.name,
-            "role": self.role,
+            "version": self.version,
             "app_type": self.app_type,
+            "role": self.role,
             "criticality": self.criticality,
+            "system_hierarchy": self.system_hierarchy,
+            "code_metrics": self.code_metrics,
         }
-        if self.version:
-            result["version"] = self.version
-        # Include code-quality fields only when non-zero to keep JSON compact
-        if self.loc:
-            result["loc"] = self.loc
-        if self.cyclomatic_complexity:
-            result["cyclomatic_complexity"] = self.cyclomatic_complexity
-        if self.coupling_afferent:
-            result["coupling_afferent"] = self.coupling_afferent
-        if self.coupling_efferent:
-            result["coupling_efferent"] = self.coupling_efferent
-        if self.lcom:
-            result["lcom"] = self.lcom
         return result
 
 @dataclass
@@ -253,51 +262,60 @@ class Topic(GraphEntity):
 class Library(GraphEntity):
     """A reusable code component (shared library, SDK, framework, driver, etc.).
 
-    Code-level quality attributes (optional — default to 0/0.0 when not provided):
-        loc                  : Lines of code (raw size proxy)
-        cyclomatic_complexity: Average cyclomatic complexity per method
-        coupling_afferent    : Ca — number of external modules that depend on this library
-        coupling_efferent    : Ce — number of external modules this library depends on
-        lcom                 : Lack of Cohesion of Methods ∈ [0, 1] (0 = perfectly cohesive)
+    Attributes:
+        system_hierarchy: MIL-STD-498 decomposition (CSC → CSCI → CSS → CSMS).
+        code_metrics: Nested OO metrics (size, complexity, cohesion, coupling).
     """
     version: Optional[str] = None
+    system_hierarchy: Optional[Dict[str, str]] = None
+    code_metrics: Optional[Dict[str, Any]] = None
 
-    # Code-level quality attributes (all optional; 0 → not provided / unknown)
-    loc: int = 0
-    cyclomatic_complexity: float = 0.0
-    coupling_afferent: int = 0
-    coupling_efferent: int = 0
-    lcom: float = 0.0
+    # --- backward-compatible computed properties for analysis pipeline ---
+
+    @property
+    def loc(self) -> int:
+        if self.code_metrics:
+            return self.code_metrics.get("size", {}).get("total_loc", 0)
+        return 0
+
+    @property
+    def cyclomatic_complexity(self) -> float:
+        if self.code_metrics:
+            return float(self.code_metrics.get("complexity", {}).get("avg_wmc", 0.0))
+        return 0.0
+
+    @property
+    def lcom(self) -> float:
+        if self.code_metrics:
+            return float(self.code_metrics.get("cohesion", {}).get("avg_lcom", 0.0))
+        return 0.0
+
+    @property
+    def coupling_afferent(self) -> int:
+        if self.code_metrics:
+            return int(self.code_metrics.get("coupling", {}).get("avg_fanin", 0))
+        return 0
+
+    @property
+    def coupling_efferent(self) -> int:
+        if self.code_metrics:
+            return int(self.code_metrics.get("coupling", {}).get("avg_fanout", 0))
+        return 0
 
     @property
     def instability(self) -> float:
-        """Martin Instability I = Ce / (Ca + Ce) ∈ [0, 1].
-
-        0 = maximally stable (many dependents, no external dependencies),
-        1 = maximally unstable (depends on everything, nothing depends on it).
-        Returns 0.0 when both coupling counts are zero (unknown / not provided).
-        """
+        """Martin Instability I = Ce / (Ca + Ce) ∈ [0, 1]."""
         total = self.coupling_afferent + self.coupling_efferent
         return self.coupling_efferent / total if total > 0 else 0.0
 
     def to_dict(self) -> Dict[str, Any]:
-        result = {
+        result: Dict[str, Any] = {
             "id": self.id,
             "name": self.name,
+            "version": self.version,
+            "system_hierarchy": self.system_hierarchy,
+            "code_metrics": self.code_metrics,
         }
-        if self.version:
-            result["version"] = self.version
-        # Include code-quality fields only when non-zero to keep JSON compact
-        if self.loc:
-            result["loc"] = self.loc
-        if self.cyclomatic_complexity:
-            result["cyclomatic_complexity"] = self.cyclomatic_complexity
-        if self.coupling_afferent:
-            result["coupling_afferent"] = self.coupling_afferent
-        if self.coupling_efferent:
-            result["coupling_efferent"] = self.coupling_efferent
-        if self.lcom:
-            result["lcom"] = self.lcom
         return result
 
 @dataclass

@@ -33,6 +33,16 @@ from src.core import AnalysisLayer
 # Helpers
 # =============================================================================
 
+def _mk_code_metrics(loc=0, cc=0.0, ca=0, ce=0, lcom=0.0):
+    """Build a nested code_metrics dict for test construction."""
+    return {
+        "size": {"total_loc": loc},
+        "complexity": {"avg_wmc": cc},
+        "cohesion": {"avg_lcom": lcom},
+        "coupling": {"avg_fanin": ca, "avg_fanout": ce},
+    }
+
+
 def _make_lib_component(
     lib_id: str,
     loc: int = 0,
@@ -93,11 +103,10 @@ def _simple_system_graph(
 
 class TestLibraryDataclass:
     def test_code_quality_fields_stored(self):
-        """LCQ-001a: Library stores all 5 code-quality fields."""
+        """LCQ-001a: Library stores all 5 code-quality fields via code_metrics."""
         lib = Library(
             id="lib1", name="Lib1",
-            loc=1200, cyclomatic_complexity=10.5,
-            coupling_afferent=5, coupling_efferent=2, lcom=0.32,
+            code_metrics=_mk_code_metrics(loc=1200, cc=10.5, ca=5, ce=2, lcom=0.32),
         )
         assert lib.loc == 1200
         assert lib.cyclomatic_complexity == 10.5
@@ -107,7 +116,8 @@ class TestLibraryDataclass:
 
     def test_instability_property(self):
         """LCQ-001b: instability = Ce / (Ca + Ce)."""
-        lib = Library(id="lib1", name="Lib1", coupling_afferent=5, coupling_efferent=2)
+        lib = Library(id="lib1", name="Lib1",
+                      code_metrics=_mk_code_metrics(ca=5, ce=2))
         assert lib.instability == pytest.approx(2 / 7)
 
     def test_instability_zero_when_no_coupling(self):
@@ -124,20 +134,20 @@ class TestLibraryDataclass:
         assert lib.coupling_afferent == 0
         assert lib.coupling_efferent == 0
 
-    def test_to_dict_omits_zero_fields(self):
-        """LCQ-001e: to_dict() omits code-quality keys when all zero."""
+    def test_to_dict_includes_code_metrics(self):
+        """LCQ-001e: to_dict() always includes code_metrics key."""
         lib = Library(id="lib1", name="Lib1", version="1.0.0")
         d = lib.to_dict()
-        assert "loc" not in d
-        assert "lcom" not in d
+        assert "code_metrics" in d
         assert "version" in d
 
     def test_to_dict_includes_nonzero_fields(self):
-        """LCQ-001f: to_dict() includes non-zero code-quality keys."""
-        lib = Library(id="lib1", name="Lib1", loc=500, lcom=0.4)
+        """LCQ-001f: to_dict() includes code_metrics with non-zero values."""
+        lib = Library(id="lib1", name="Lib1",
+                      code_metrics=_mk_code_metrics(loc=500, lcom=0.4))
         d = lib.to_dict()
-        assert d["loc"] == 500
-        assert d["lcom"] == pytest.approx(0.4)
+        assert d["code_metrics"]["size"]["total_loc"] == 500
+        assert d["code_metrics"]["cohesion"]["avg_lcom"] == pytest.approx(0.4)
 
 
 # =============================================================================
@@ -364,7 +374,7 @@ class TestLibraryBackwardCompatibility:
 
 class TestGeneratorLibraryCodeQuality:
     def test_generator_produces_lib_code_quality_fields(self):
-        """LCQ-008a: StatisticalGraphGenerator includes loc/CC/LCOM for Library nodes."""
+        """LCQ-008a: StatisticalGraphGenerator includes code_metrics for Library nodes."""
         from tools.generation.generator import StatisticalGraphGenerator
         from tools.generation.models import GraphConfig
 
@@ -375,72 +385,40 @@ class TestGeneratorLibraryCodeQuality:
         libs = data["libraries"]
         assert len(libs) > 0
         for lib in libs:
-            assert "loc" in lib, f"Library {lib['id']} missing 'loc'"
-            assert lib["loc"] > 0
-            assert "cyclomatic_complexity" in lib
-            assert lib["cyclomatic_complexity"] > 0
-            assert "lcom" in lib
+            assert "code_metrics" in lib, f"Library {lib['id']} missing 'code_metrics'"
+            cm = lib["code_metrics"]
+            assert cm["size"]["total_loc"] > 0
+            assert cm["complexity"]["avg_wmc"] > 0
+            assert "avg_lcom" in cm["cohesion"]
 
     def test_generator_lib_archetype_ranges_are_sensible(self):
         """LCQ-008b: Library archetypes have sensible LOC ranges (utility < framework)."""
-        from tools.generation.generator import _LIB_CODE_QUALITY_PARAMS
+        from tools.generation.generator import _LIB_CODE_METRICS_PARAMS
 
-        utility_max_loc   = _LIB_CODE_QUALITY_PARAMS["utility"][1]
-        framework_max_loc = _LIB_CODE_QUALITY_PARAMS["framework"][1]
+        utility_max_loc   = _LIB_CODE_METRICS_PARAMS["utility"]["loc"][1]
+        framework_max_loc = _LIB_CODE_METRICS_PARAMS["framework"]["loc"][1]
         assert utility_max_loc < framework_max_loc, (
             "utility libraries should have smaller max LOC than framework libraries"
         )
 
 
 # =============================================================================
-# LCQ-009: _assign_lib_coupling derives Ca/Ce correctly
+# LCQ-009: Library coupling — now intrinsic to code_metrics (no _assign_lib_coupling)
 # =============================================================================
 
-class TestAssignLibCoupling:
-    def test_ca_counts_apps_and_libs_depending_on_lib(self):
-        """LCQ-009a: Ca = number of components that USES this library."""
-        from tools.generation.generator import StatisticalGraphGenerator
-        from tools.generation.models import GraphConfig
-
-        # Use generator's helper directly
-        config = GraphConfig.from_scale("tiny", seed=7)
-        gen = StatisticalGraphGenerator(config)
-
-        from src.core.models import Library, Application
-        libs = [Library(id="L0", name="L0"), Library(id="L1", name="L1")]
-        apps = [Application(id="A0", name="A0")]
-        # A0 uses L0, L0 uses L1
-        uses = [
-            {"from": "A0", "to": "L0"},
-            {"from": "L0", "to": "L1"},
-        ]
-        gen._assign_lib_coupling(libs, apps, uses)
-
-        # Ca for L0 = 1 (A0 depends on it), Ca for L1 = 1 (L0 depends on it)
-        assert libs[0].coupling_afferent == 1   # L0: A0 depends on it
-        assert libs[1].coupling_afferent == 1   # L1: L0 depends on it
-        # Ce for L0 = 1 (it depends on L1), Ce for L1 = 0
-        assert libs[0].coupling_efferent == 1   # L0: depends on L1
-        assert libs[1].coupling_efferent == 0   # L1: depends on nothing
+class TestLibraryCoupling:
+    def test_coupling_from_code_metrics(self):
+        """LCQ-009a: Library coupling is read from code_metrics.coupling."""
+        lib = Library(id="L0", name="L0",
+                      code_metrics=_mk_code_metrics(ca=3, ce=2))
+        assert lib.coupling_afferent == 3
+        assert lib.coupling_efferent == 2
 
     def test_instability_reflects_coupling(self):
-        """LCQ-009b: Library instability property correct after coupling assignment."""
-        from tools.generation.generator import StatisticalGraphGenerator
-        from tools.generation.models import GraphConfig
-        from src.core.models import Library, Application
-
-        config = GraphConfig.from_scale("tiny", seed=7)
-        gen = StatisticalGraphGenerator(config)
-
-        libs = [Library(id="L0", name="L0")]
-        apps = [Application(id="A0", name="A0"), Application(id="A1", name="A1")]
-        uses = [
-            {"from": "A0", "to": "L0"},
-            {"from": "A1", "to": "L0"},
-        ]
-        gen._assign_lib_coupling(libs, apps, uses)
-
+        """LCQ-009b: Library instability property correct from code_metrics."""
+        lib = Library(id="L0", name="L0",
+                      code_metrics=_mk_code_metrics(ca=2, ce=0))
         # Ca=2, Ce=0 → instability = 0/2 = 0 (very stable)
-        assert libs[0].coupling_afferent == 2
-        assert libs[0].coupling_efferent == 0
-        assert libs[0].instability == pytest.approx(0.0)
+        assert lib.coupling_afferent == 2
+        assert lib.coupling_efferent == 0
+        assert lib.instability == pytest.approx(0.0)
