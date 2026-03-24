@@ -24,7 +24,8 @@ from api.routers import (
     statistics,
     simulation,
     classification,
-    validation
+    validation,
+    prediction,
 )
 
 # Configure logging
@@ -59,8 +60,9 @@ app.include_router(statistics.router)
 app.include_router(simulation.router)
 app.include_router(classification.router)
 app.include_router(validation.router)
+app.include_router(prediction.router)
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

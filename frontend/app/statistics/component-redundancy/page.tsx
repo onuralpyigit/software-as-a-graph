@@ -384,8 +384,11 @@ export default function ComponentRedundancyPage() {
                       <TableBody>
                         {stats.single_points_of_failure?.map((component, index) => (
                           <TableRow key={component.id} className="hover:bg-muted/50 cursor-pointer group" onClick={() => router.push(`/explorer?node=${encodeURIComponent(component.id)}`)}>
-                            <TableCell className="font-medium max-w-[300px] truncate group-hover:underline transition-all" title={component.name}>
-                              {component.name}
+                            <TableCell className="font-medium max-w-[300px] group-hover:underline transition-all">
+                              <div className="truncate" title={component.name}>{component.name}</div>
+                              {component.name !== component.id && (
+                                <div className="text-xs text-muted-foreground font-mono truncate" title={component.id}>{component.id}</div>
+                              )}
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="text-xs">
@@ -448,8 +451,11 @@ export default function ComponentRedundancyPage() {
                       <TableBody>
                         {stats.bridge_components?.map((component, index) => (
                           <TableRow key={component.id} className="hover:bg-muted/50 cursor-pointer group" onClick={() => router.push(`/explorer?node=${encodeURIComponent(component.id)}`)}>
-                            <TableCell className="font-medium max-w-[300px] truncate group-hover:underline transition-all" title={component.name}>
-                              {component.name}
+                            <TableCell className="font-medium max-w-[300px] group-hover:underline transition-all">
+                              <div className="truncate" title={component.name}>{component.name}</div>
+                              {component.name !== component.id && (
+                                <div className="text-xs text-muted-foreground font-mono truncate" title={component.id}>{component.id}</div>
+                              )}
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="text-xs">
