@@ -16,9 +16,9 @@ numpy==2.1.2
 scipy==1.15.1
 scikit-learn==1.5.2
 
-# torch (CPU-only; CUDA builds available at https://download.pytorch.org/whl/cuXXX)
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.0+cpu
+# torch
+--find-links https://data.pyg.org/whl/torch-2.5.0+cpu.html
+torch==2.5.0
 torch-geometric==2.7.0
 torch-scatter==2.1.2
 torch-sparse==0.6.18

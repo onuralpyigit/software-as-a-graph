@@ -21,35 +21,74 @@ from .models import (
     ROLE_OPTIONS,
     APP_TYPE_OPTIONS,
 )
-from .datasets import DomainDataset, get_qos_for_topic, get_app_type_for_name, get_lib_archetype_for_name
+from .datasets import DomainDataset, get_qos_for_topic, get_app_type_for_name, get_lib_archetype_for_name, get_generic_system_hierarchy
 
 
-# --- Code-quality generation parameters by app_type ---
-# Each entry: (loc_lo, loc_hi, cc_lo, cc_hi, lcom_lo, lcom_hi)
-# Values are design-level approximations of typical software metrics per component archetype
-_CODE_QUALITY_PARAMS: Dict[str, Tuple[int, int, float, float, float, float]] = {
-    "sensor":     (100,  500,  1.0,  8.0,  0.10, 0.40),
-    "actuator":   (100,  400,  1.0,  6.0,  0.10, 0.35),
-    "monitor":    (300, 1000,  3.0, 12.0,  0.20, 0.55),
-    "controller": (400, 1500,  4.0, 18.0,  0.30, 0.70),
-    "gateway":    (800, 3000,  5.0, 25.0,  0.40, 0.80),
-    "processor":  (600, 2500,  6.0, 22.0,  0.35, 0.75),
-    "service":    (400, 2000,  4.0, 20.0,  0.30, 0.70),
+# --- Code-metrics generation parameters by app_type ---
+# Each entry maps to ranges for the full code_metrics structure.
+# Format: {loc_lo, loc_hi, classes_per_kloc, methods_per_class, fields_per_class,
+#          avg_wmc_lo, avg_wmc_hi, avg_lcom_lo, avg_lcom_hi,
+#          avg_cbo_lo, avg_cbo_hi, avg_rfc_lo, avg_rfc_hi,
+#          avg_fanin_lo, avg_fanin_hi, avg_fanout_lo, avg_fanout_hi}
+_CODE_METRICS_PARAMS: Dict[str, Dict[str, Any]] = {
+    "sensor":     {"loc": (100,  500),  "cls_per_kloc": (8, 15), "meth_per_cls": (4, 8),  "fld_per_cls": (2, 4),
+                   "avg_wmc": (4, 10),   "avg_lcom": (5, 25),
+                   "avg_cbo": (2, 6),    "avg_rfc": (8, 20),
+                   "avg_fanin": (1, 4),  "avg_fanout": (2, 5)},
+    "actuator":   {"loc": (100,  400),  "cls_per_kloc": (8, 14), "meth_per_cls": (4, 7),  "fld_per_cls": (2, 4),
+                   "avg_wmc": (4, 9),    "avg_lcom": (5, 20),
+                   "avg_cbo": (2, 5),    "avg_rfc": (8, 18),
+                   "avg_fanin": (1, 3),  "avg_fanout": (2, 5)},
+    "monitor":    {"loc": (300, 1000),  "cls_per_kloc": (10, 18), "meth_per_cls": (5, 9),  "fld_per_cls": (2, 5),
+                   "avg_wmc": (8, 16),   "avg_lcom": (10, 40),
+                   "avg_cbo": (4, 10),   "avg_rfc": (14, 32),
+                   "avg_fanin": (1, 5),  "avg_fanout": (3, 8)},
+    "controller": {"loc": (400, 2000),  "cls_per_kloc": (9, 16),  "meth_per_cls": (5, 10), "fld_per_cls": (2, 5),
+                   "avg_wmc": (10, 20),  "avg_lcom": (12, 50),
+                   "avg_cbo": (5, 14),   "avg_rfc": (16, 40),
+                   "avg_fanin": (1, 6),  "avg_fanout": (3, 10)},
+    "gateway":    {"loc": (800, 3000),  "cls_per_kloc": (8, 14),  "meth_per_cls": (6, 12), "fld_per_cls": (3, 6),
+                   "avg_wmc": (12, 28),  "avg_lcom": (20, 65),
+                   "avg_cbo": (6, 16),   "avg_rfc": (20, 50),
+                   "avg_fanin": (2, 8),  "avg_fanout": (4, 14)},
+    "processor":  {"loc": (600, 2500),  "cls_per_kloc": (8, 15),  "meth_per_cls": (5, 11), "fld_per_cls": (2, 5),
+                   "avg_wmc": (10, 25),  "avg_lcom": (15, 55),
+                   "avg_cbo": (5, 14),   "avg_rfc": (18, 45),
+                   "avg_fanin": (1, 7),  "avg_fanout": (3, 12)},
+    "service":    {"loc": (400, 2000),  "cls_per_kloc": (9, 16),  "meth_per_cls": (5, 10), "fld_per_cls": (2, 5),
+                   "avg_wmc": (8, 22),   "avg_lcom": (10, 50),
+                   "avg_cbo": (4, 12),   "avg_rfc": (14, 38),
+                   "avg_fanin": (1, 6),  "avg_fanout": (3, 10)},
 }
 
-# --- Code-quality generation parameters by library archetype ---
-# Libraries tend to be more stable and focused than applications but vary widely.
-# Archetypes: utility (small, simple), framework (large, complex),
-#             driver (HW interface), middleware (message/transport), protocol (standards)
-_LIB_CODE_QUALITY_PARAMS: Dict[str, Tuple[int, int, float, float, float, float]] = {
-    "utility":    (50,   500,  1.0,  5.0,  0.05, 0.25),
-    "framework":  (500, 6000,  5.0, 32.0,  0.30, 0.75),
-    "driver":     (100,  900,  2.0, 10.0,  0.10, 0.40),
-    "middleware": (200, 2500,  3.0, 20.0,  0.20, 0.60),
-    "protocol":   (150, 1200,  2.0, 12.0,  0.10, 0.45),
+# --- Code-metrics generation parameters by library archetype ---
+_LIB_CODE_METRICS_PARAMS: Dict[str, Dict[str, Any]] = {
+    "utility":    {"loc": (50,   500),  "cls_per_kloc": (10, 20), "meth_per_cls": (3, 7),  "fld_per_cls": (1, 3),
+                   "avg_wmc": (3, 8),    "avg_lcom": (3, 15),
+                   "avg_cbo": (1, 4),    "avg_rfc": (5, 14),
+                   "avg_fanin": (2, 8),  "avg_fanout": (1, 4)},
+    "framework":  {"loc": (500, 6000),  "cls_per_kloc": (6, 12),  "meth_per_cls": (6, 14), "fld_per_cls": (3, 7),
+                   "avg_wmc": (10, 30),  "avg_lcom": (15, 60),
+                   "avg_cbo": (5, 16),   "avg_rfc": (16, 50),
+                   "avg_fanin": (3, 12), "avg_fanout": (2, 8)},
+    "driver":     {"loc": (100,  900),  "cls_per_kloc": (8, 16),  "meth_per_cls": (4, 8),  "fld_per_cls": (2, 5),
+                   "avg_wmc": (5, 12),   "avg_lcom": (5, 25),
+                   "avg_cbo": (2, 7),    "avg_rfc": (8, 22),
+                   "avg_fanin": (2, 6),  "avg_fanout": (1, 5)},
+    "middleware": {"loc": (200, 2500),  "cls_per_kloc": (7, 14),  "meth_per_cls": (5, 10), "fld_per_cls": (2, 5),
+                   "avg_wmc": (7, 20),   "avg_lcom": (10, 45),
+                   "avg_cbo": (4, 12),   "avg_rfc": (12, 35),
+                   "avg_fanin": (2, 8),  "avg_fanout": (2, 6)},
+    "protocol":   {"loc": (150, 1200),  "cls_per_kloc": (8, 16),  "meth_per_cls": (4, 9),  "fld_per_cls": (2, 4),
+                   "avg_wmc": (5, 14),   "avg_lcom": (5, 30),
+                   "avg_cbo": (3, 8),    "avg_rfc": (10, 28),
+                   "avg_fanin": (2, 7),  "avg_fanout": (1, 5)},
 }
 # Weighted random selection of lib archetype (utility and driver are most common)
 _LIB_ARCHETYPE_WEIGHTS = ["utility"] * 4 + ["framework"] * 2 + ["driver"] * 3 + ["middleware"] * 2 + ["protocol"] * 2
+
+# --- Criticality levels for statistical generation ---
+CRITICALITY_OPTIONS = [True, False]
 
 
 class StatisticalGraphGenerator:
@@ -110,85 +149,72 @@ class StatisticalGraphGenerator:
         used_libs = self._get_all_used_libs_recursive(entity_id)
         return sum(self._direct_sub_counts.get(lib_id, 0) for lib_id in used_libs)
 
-    def _generate_code_quality(self, app_type: str) -> Tuple[int, float, float]:
-        """Return (loc, cyclomatic_complexity, lcom) sampled for the given app_type."""
-        params = _CODE_QUALITY_PARAMS.get(app_type, _CODE_QUALITY_PARAMS["service"])
-        loc_lo, loc_hi, cc_lo, cc_hi, lcom_lo, lcom_hi = params
-        loc  = self.rng.randint(loc_lo, loc_hi)
-        cc   = round(self.rng.uniform(cc_lo, cc_hi), 2)
-        lcom = round(self.rng.uniform(lcom_lo, lcom_hi), 3)
-        return loc, cc, lcom
+    def _generate_code_metrics(self, app_type: str) -> Dict[str, Any]:
+        """Generate a full code_metrics dict for an Application."""
+        params = _CODE_METRICS_PARAMS.get(app_type, _CODE_METRICS_PARAMS["service"])
+        return self._build_code_metrics(params)
 
-    def _generate_lib_code_quality(self, archetype: Optional[str] = None) -> Tuple[int, float, float]:
-        """Return (loc, cyclomatic_complexity, lcom) sampled for a Library node.
-
-        Picks a random library archetype weighted toward utility/driver (most common),
-        then samples within the archetype's parameter ranges, unless archetype is specified.
-        """
-        if not archetype or archetype not in _LIB_CODE_QUALITY_PARAMS:
+    def _generate_lib_code_metrics(self, archetype: Optional[str] = None) -> Dict[str, Any]:
+        """Generate a full code_metrics dict for a Library."""
+        if not archetype or archetype not in _LIB_CODE_METRICS_PARAMS:
             archetype = self.rng.choice(_LIB_ARCHETYPE_WEIGHTS)
-        params = _LIB_CODE_QUALITY_PARAMS[archetype]
-        loc_lo, loc_hi, cc_lo, cc_hi, lcom_lo, lcom_hi = params
-        loc  = self.rng.randint(loc_lo, loc_hi)
-        cc   = round(self.rng.uniform(cc_lo, cc_hi), 2)
-        lcom = round(self.rng.uniform(lcom_lo, lcom_hi), 3)
-        return loc, cc, lcom
+        params = _LIB_CODE_METRICS_PARAMS[archetype]
+        return self._build_code_metrics(params)
 
-    def _assign_lib_coupling(
-        self,
-        libs: List[Library],
-        apps: List[Application],
-        uses: List[Dict[str, str]],
-    ) -> None:
-        """Derive Ca/Ce for each Library from USES topology.
+    def _build_code_metrics(self, p: Dict[str, Any]) -> Dict[str, Any]:
+        """Build a code_metrics dict from parameter ranges."""
+        rng = self.rng
+        total_loc = rng.randint(*p["loc"])
+        cls_per_kloc = rng.uniform(*p["cls_per_kloc"])
+        total_classes = max(1, int(round(total_loc / 1000.0 * cls_per_kloc)))
+        meth_per_cls = rng.uniform(*p["meth_per_cls"])
+        total_methods = max(1, int(round(total_classes * meth_per_cls)))
+        fld_per_cls = rng.uniform(*p["fld_per_cls"])
+        total_fields = max(0, int(round(total_classes * fld_per_cls)))
 
-        Rules:
-          Ce (efferent / out-coupling) = number of other Libraries this lib depends on
-                                         (lib→lib USES edges where this lib is the source)
-          Ca (afferent / in-coupling)  = number of Applications + Libraries that depend
-                                         on this lib (USES edges where this lib is target)
-        """
-        lib_ids = {lib.id for lib in libs}
-        # Count outgoing lib→lib deps (Ce)
-        ce_count: Dict[str, int] = {}
-        for edge in uses:
-            src, tgt = edge["from"], edge["to"]
-            if src in lib_ids and tgt in lib_ids:
-                ce_count[src] = ce_count.get(src, 0) + 1
-        # Count incoming anything→lib deps (Ca)
-        ca_count: Dict[str, int] = {}
-        for edge in uses:
-            tgt = edge["to"]
-            if tgt in lib_ids:
-                ca_count[tgt] = ca_count.get(tgt, 0) + 1
-        for lib in libs:
-            lib.coupling_efferent = ce_count.get(lib.id, 0)
-            lib.coupling_afferent = ca_count.get(lib.id, 0)
+        avg_wmc = round(rng.uniform(*p["avg_wmc"]), 2)
+        total_wmc = int(round(avg_wmc * total_classes))
+        max_wmc = int(round(avg_wmc * rng.uniform(1.8, 3.0)))
 
-    def _assign_coupling(
-        self,
-        apps: List[Application],
-        publishes: List[Dict[str, str]],
-        subscribes: List[Dict[str, str]],
-    ) -> None:
-        """Derive Ca/Ce for each Application from pub-sub topology.
+        avg_lcom = round(rng.uniform(*p["avg_lcom"]), 2)
+        max_lcom = round(avg_lcom * rng.uniform(2.0, 4.5), 1)
 
-        Rule (approximation from structural topology):
-          Ce (efferent / out-coupling) ≈ number of distinct topics this app publishes to
-          Ca (afferent / in-coupling)  ≈ number of distinct topics this app subscribes to
+        avg_cbo = round(rng.uniform(*p["avg_cbo"]), 2)
+        max_cbo = int(round(avg_cbo * rng.uniform(1.5, 2.5)))
+        avg_rfc = round(rng.uniform(*p["avg_rfc"]), 2)
+        max_rfc = int(round(avg_rfc * rng.uniform(1.5, 2.5)))
+        avg_fanin = round(rng.uniform(*p["avg_fanin"]), 2)
+        max_fanin = int(round(avg_fanin * rng.uniform(2.0, 4.5)))
+        avg_fanout = round(rng.uniform(*p["avg_fanout"]), 2)
+        max_fanout = int(round(avg_fanout * rng.uniform(2.0, 3.0)))
 
-        This leverages the generated pub/sub relationships to set coupling counts
-        without requiring a full dependency graph traversal.
-        """
-        pub_count: Dict[str, int] = {}
-        sub_count: Dict[str, int] = {}
-        for edge in publishes:
-            pub_count[edge["from"]] = pub_count.get(edge["from"], 0) + 1
-        for edge in subscribes:
-            sub_count[edge["from"]] = sub_count.get(edge["from"], 0) + 1
-        for app in apps:
-            app.coupling_efferent = pub_count.get(app.id, 0)
-            app.coupling_afferent = sub_count.get(app.id, 0)
+        return {
+            "size": {
+                "total_loc": total_loc,
+                "total_classes": total_classes,
+                "total_methods": total_methods,
+                "total_fields": total_fields,
+            },
+            "complexity": {
+                "total_wmc": total_wmc,
+                "avg_wmc": avg_wmc,
+                "max_wmc": max_wmc,
+            },
+            "cohesion": {
+                "avg_lcom": avg_lcom,
+                "max_lcom": max_lcom,
+            },
+            "coupling": {
+                "avg_cbo": avg_cbo,
+                "max_cbo": max_cbo,
+                "avg_rfc": avg_rfc,
+                "max_rfc": max_rfc,
+                "avg_fanin": avg_fanin,
+                "max_fanin": max_fanin,
+                "avg_fanout": avg_fanout,
+                "max_fanout": max_fanout,
+            },
+        }
 
     def generate(self) -> Dict[str, Any]:
         c = self.config
@@ -293,7 +319,7 @@ class StatisticalGraphGenerator:
             elif criticality_pool:
                 criticality = self.rng.choice(criticality_pool)
             else:
-                criticality = self.rng.choice([True, False])
+                criticality = self.rng.choice(CRITICALITY_OPTIONS)
             
             app_name = domain_ds.get_app_name() if domain_ds else f"App-{i}"
             if domain_ds:
@@ -301,7 +327,8 @@ class StatisticalGraphGenerator:
             else:
                 app_type = self.rng.choice(APP_TYPE_OPTIONS)
                 
-            loc, cc, lcom = self._generate_code_quality(app_type)
+            code_metrics = self._generate_code_metrics(app_type)
+            hierarchy = domain_ds.get_system_hierarchy() if domain_ds else get_generic_system_hierarchy(self.rng)
             apps.append(Application(
                 id=f"A{i}",
                 name=app_name,
@@ -309,9 +336,8 @@ class StatisticalGraphGenerator:
                 app_type=app_type,
                 criticality=criticality,
                 version=f"{self.rng.randint(1, 3)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
-                loc=loc,
-                cyclomatic_complexity=cc,
-                lcom=lcom,
+                system_hierarchy=hierarchy,
+                code_metrics=code_metrics,
             ))
 
         libs: List[Library] = []
@@ -319,17 +345,17 @@ class StatisticalGraphGenerator:
             lib_name = domain_ds.get_library_name() if domain_ds else f"Lib-{i}"
             if domain_ds:
                 archetype = get_lib_archetype_for_name(lib_name)
-                loc_l, cc_l, lcom_l = self._generate_lib_code_quality(archetype)
+                lib_code_metrics = self._generate_lib_code_metrics(archetype)
             else:
-                loc_l, cc_l, lcom_l = self._generate_lib_code_quality()
-                
+                lib_code_metrics = self._generate_lib_code_metrics()
+
+            lib_hierarchy = domain_ds.get_system_hierarchy() if domain_ds else get_generic_system_hierarchy(self.rng)
             libs.append(Library(
                 id=f"L{i}",
                 name=lib_name,
                 version=f"{self.rng.randint(0, 2)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
-                loc=loc_l,
-                cyclomatic_complexity=cc_l,
-                lcom=lcom_l,
+                system_hierarchy=lib_hierarchy,
+                code_metrics=lib_code_metrics,
             ))
 
         # 2. Relationships
@@ -513,10 +539,6 @@ class StatisticalGraphGenerator:
             for j in range(i + 1, len(nodes)):
                 if self.rng.random() < 0.3:
                     connects.append(self._make_edge(nodes[i], nodes[j]))
-
-        # Assign coupling counts (Ca / Ce) after topology is finalised
-        self._assign_coupling(apps, publishes, subscribes)
-        self._assign_lib_coupling(libs, apps, uses)
 
         return {
             "metadata": {

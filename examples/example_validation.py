@@ -16,6 +16,12 @@ Prerequisites:
 
 Run from the project root:
     python examples/example_validation.py
+
+Interpreting the Results:
+  • Spearman ρ ≥ 0.80: Excellent. The topology is a primary driver of risk.
+  • Spearman ρ < 0.60: The system may have significant logic/QoS overrides
+                      that topology alone cannot capture.
+  • PASS: The model's predictive accuracy meets the safety-critical threshold.
 """
 import sys
 from pathlib import Path
@@ -128,8 +134,19 @@ def main():
         sys_result = validation.validate_single_layer("system")
         status_s = "PASS ✓" if sys_result.passed else "FAIL ✗"
         print(f"\n  Overall status: {status_s}")
-        print()
         print_overall_metrics(sys_result)
+
+        print("\n  [Scientific Interpretation]")
+        rho = sys_result.overall.correlation.spearman
+        if rho >= 0.85:
+            print(f"    ✅ High Correlation ({rho:.3f}): The topological analysis is a")
+            print("       valid 'digital twin' for predicting failure cascades.")
+        elif rho >= 0.70:
+            print(f"    ⚠️  Moderate Correlation ({rho:.3f}): Topology is a strong indicator,")
+            print("       but non-topological factors (e.g. QoS) also play a role.")
+        else:
+            print(f"    ✗  Low Correlation ({rho:.3f}): Topology alone is insufficient")
+            print("       to predict impact in this specific configuration.")
 
         # ── 3. Multi-layer pipeline ────────────────────────────────────
         print_section("Multi-layer pipeline: [app, mw, system]")

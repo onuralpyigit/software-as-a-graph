@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "domain": "test",
+    "scenario": "fragile_system"
+  },
+  "nodes": [
+    { "id": "N0", "name": "Host_Node" }
+  ],
+  "brokers": [
+    { "id": "B0", "name": "Legacy_Broker" }
+  ],
+  "topics": [
+    { "id": "T0", "name": "topic_1", "size": 1024, "qos": { "reliability": "BEST_EFFORT" } },
+    { "id": "T1", "name": "topic_2", "size": 1024, "qos": { "reliability": "BEST_EFFORT" } }
+  ],
+  "applications": [
+    { "id": "A0", "name": "Producer", "role": "pub", "criticality": true },
+    { "id": "A1", "name": "Intermediate_Hub", "role": "pubsub", "criticality": true },
+    { "id": "A2", "name": "Consumer", "role": "sub", "criticality": true }
+  ],
+  "relationships": {
+    "runs_on": [
+      { "from": "A0", "to": "N0" }, { "from": "A1", "to": "N0" }, { "from": "A2", "to": "N0" }, { "from": "B0", "to": "N0" }
+    ],
+    "routes": [
+      { "from": "B0", "to": "T0" }, { "from": "B0", "to": "T1" }
+    ],
+    "publishes_to": [
+      { "from": "A0", "to": "T0" }, { "from": "A1", "to": "T1" }
+    ],
+    "subscribes_to": [
+      { "from": "A1", "to": "T0" }, { "from": "A2", "to": "T1" }
+    ],
+    "uses": [
+      { "from": "A0", "to": "A1" }, { "from": "A1", "to": "A2" }, { "from": "A2", "to": "A0" }
+    ]
+  }
+}

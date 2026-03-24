@@ -227,7 +227,7 @@ class TestEntities:
     def test_library_without_version(self):
         lib = Library(id="L1", name="NavLib")
         d = lib.to_dict()
-        assert "version" not in d
+        assert d["version"] is None
 
     def test_topic_to_dict(self):
         topic = Topic(id="T1", name="/sensor/lidar", size=8192)

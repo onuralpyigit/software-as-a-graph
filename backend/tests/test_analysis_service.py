@@ -29,24 +29,7 @@ from src.core import GraphData, ComponentData, EdgeData, AnalysisLayer
 from src.analysis.structural_analyzer import StructuralAnalyzer, extract_layer_subgraph
 
 
-# =============================================================================
-# Fixtures
-# =============================================================================
-
-@pytest.fixture
-def mock_graph_data():
-    """Simple A->B->C linear graph."""
-    return GraphData(
-        components=[
-            ComponentData(id="A", component_type="Application", weight=1.0),
-            ComponentData(id="B", component_type="Application", weight=1.0),
-            ComponentData(id="C", component_type="Application", weight=1.0),
-        ],
-        edges=[
-            EdgeData("A", "B", "Application", "Application", "app_to_app", "dependency", 1.0),
-            EdgeData("B", "C", "Application", "Application", "app_to_app", "dependency", 2.0),
-        ],
-    )
+# Fixtures (Layer-specific or extra-canonical)
 
 
 @pytest.fixture
@@ -66,24 +49,6 @@ def multi_layer_graph():
             EdgeData("app1", "broker1", "Application", "Broker", "app_to_broker", "dependency", 2.0),
             EdgeData("node1", "node2", "Node", "Node", "node_to_node", "dependency", 1.0),
             EdgeData("node1", "broker1", "Node", "Broker", "node_to_broker", "dependency", 1.5),
-        ],
-    )
-
-
-@pytest.fixture
-def articulation_point_graph():
-    """Graph where B is an articulation point: A--B--C, B--D."""
-    return GraphData(
-        components=[
-            ComponentData(id="A", component_type="Application", weight=1.0),
-            ComponentData(id="B", component_type="Application", weight=1.0),
-            ComponentData(id="C", component_type="Application", weight=1.0),
-            ComponentData(id="D", component_type="Application", weight=1.0),
-        ],
-        edges=[
-            EdgeData("A", "B", "Application", "Application", "app_to_app", "dependency", 1.0),
-            EdgeData("B", "C", "Application", "Application", "app_to_app", "dependency", 1.0),
-            EdgeData("B", "D", "Application", "Application", "app_to_app", "dependency", 1.0),
         ],
     )
 
@@ -182,10 +147,10 @@ def dag_graph():
 class TestStructuralAnalyzer:
     """Tests for StructuralAnalyzer metrics computation."""
 
-    def test_structural_metrics(self, mock_graph_data):
+    def test_structural_metrics(self, linear_graph):
         """UT-ANAL-001: Basic metrics computation — all fields populated."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(mock_graph_data)
+        res = analyzer.analyze(linear_graph)
 
         assert "A" in res.components
         assert "B" in res.components
@@ -195,26 +160,26 @@ class TestStructuralAnalyzer:
         # Edge A->B should exist
         assert ("A", "B") in res.edges
 
-    def test_pagerank_ordering(self, mock_graph_data):
+    def test_pagerank_ordering(self, linear_graph):
         """UT-ANAL-002: Downstream nodes have higher PageRank."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(mock_graph_data)
+        res = analyzer.analyze(linear_graph)
 
         # In A->B->C, C should have higher PageRank (A and B depend on C)
         assert res.components["C"].pagerank >= res.components["A"].pagerank
 
-    def test_reverse_pagerank_ordering(self, mock_graph_data):
+    def test_reverse_pagerank_ordering(self, linear_graph):
         """UT-ANAL-003: Upstream nodes have higher reverse PageRank."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(mock_graph_data)
+        res = analyzer.analyze(linear_graph)
 
         # In A->B->C, A should have highest reverse PageRank (depends on most)
         assert res.components["A"].reverse_pagerank >= res.components["C"].reverse_pagerank
 
-    def test_articulation_point_detection(self, articulation_point_graph):
+    def test_articulation_point_detection(self, ap_graph):
         """UT-ANAL-004: Articulation points correctly identified."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(articulation_point_graph)
+        res = analyzer.analyze(ap_graph)
 
         # B connects A to C and D, so B is an articulation point
         assert res.components["B"].is_articulation_point is True
@@ -223,10 +188,10 @@ class TestStructuralAnalyzer:
         assert res.components["C"].is_articulation_point is False
         assert res.components["D"].is_articulation_point is False
 
-    def test_bridge_detection(self, mock_graph_data):
+    def test_bridge_detection(self, linear_graph):
         """UT-ANAL-005: Bridge edges detected with correct count in linear graph."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(mock_graph_data)
+        res = analyzer.analyze(linear_graph)
 
         # In A->B->C linear graph, both edges are bridges (undirected)
         bridges = res.get_bridges()
@@ -263,10 +228,10 @@ class TestStructuralAnalyzer:
 class TestDegreeNormalization:
     """Tests verifying that normalized degree fields are correctly populated."""
 
-    def test_degree_normalization_values(self, mock_graph_data):
+    def test_degree_normalization_values(self, linear_graph):
         """UT-ANAL-008: Normalized degree fields match raw / (n-1)."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(mock_graph_data)
+        res = analyzer.analyze(linear_graph)
         n = 3  # A, B, C
 
         # B has in_degree_raw=1, out_degree_raw=1
@@ -285,10 +250,10 @@ class TestDegreeNormalization:
         assert c.in_degree == pytest.approx(1 / (n - 1))
         assert c.out_degree == pytest.approx(0.0)
 
-    def test_degree_normalization_range(self, articulation_point_graph):
+    def test_degree_normalization_range(self, ap_graph):
         """Normalized degrees should always be in [0, 1]."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(articulation_point_graph)
+        res = analyzer.analyze(ap_graph)
 
         for comp in res.components.values():
             assert 0.0 <= comp.degree <= 1.0
@@ -458,10 +423,10 @@ class TestMultiLayerFiltering:
 class TestBridgeCountRatio:
     """Tests verifying per-node bridge count and ratio fields."""
 
-    def test_bridge_count_linear(self, mock_graph_data):
+    def test_bridge_count_linear(self, linear_graph):
         """UT-ANAL-012a: Linear graph — all nodes touch bridges."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(mock_graph_data)
+        res = analyzer.analyze(linear_graph)
 
         # A-B is a bridge, B-C is a bridge
         # A touches 1 bridge (A-B), B touches 2 bridges (A-B, B-C), C touches 1 (B-C)
@@ -469,20 +434,20 @@ class TestBridgeCountRatio:
         assert res.components["B"].bridge_count == 2
         assert res.components["C"].bridge_count == 1
 
-    def test_bridge_ratio_linear(self, mock_graph_data):
+    def test_bridge_ratio_linear(self, linear_graph):
         """UT-ANAL-012b: Bridge ratio = bridge_count / total_degree."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(mock_graph_data)
+        res = analyzer.analyze(linear_graph)
 
         # A: 1 bridge / 1 total edges (undirected) = 1.0
         assert res.components["A"].bridge_ratio == pytest.approx(1.0)
         # B: 2 bridges / 2 total edges = 1.0
         assert res.components["B"].bridge_ratio == pytest.approx(1.0)
 
-    def test_bridge_count_star(self, articulation_point_graph):
+    def test_bridge_count_star(self, ap_graph):
         """Bridge count in star topology (B is center)."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(articulation_point_graph)
+        res = analyzer.analyze(ap_graph)
 
         # B is center with 3 edges, all bridges
         assert res.components["B"].bridge_count == 3
@@ -500,10 +465,10 @@ class TestBridgeCountRatio:
 class TestGraphSummary:
     """Tests for graph-level summary statistics."""
 
-    def test_summary_fields_populated(self, mock_graph_data):
+    def test_summary_fields_populated(self, linear_graph):
         """UT-ANAL-015: Graph summary includes all expected fields."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(mock_graph_data)
+        res = analyzer.analyze(linear_graph)
         s = res.graph_summary
 
         assert s.nodes == 3
@@ -523,18 +488,18 @@ class TestGraphSummary:
         assert res.graph_summary.nodes == 5
         assert res.graph_summary.edges == 3
 
-    def test_summary_ap_count_matches(self, articulation_point_graph):
+    def test_summary_ap_count_matches(self, ap_graph):
         """Summary AP count matches actual articulation points found."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(articulation_point_graph)
+        res = analyzer.analyze(ap_graph)
 
         actual_aps = [c for c in res.components.values() if c.is_articulation_point]
         assert res.graph_summary.num_articulation_points == len(actual_aps)
 
-    def test_summary_bridge_count_matches(self, mock_graph_data):
+    def test_summary_bridge_count_matches(self, linear_graph):
         """Summary bridge count matches actual bridges found."""
         analyzer = StructuralAnalyzer()
-        res = analyzer.analyze(mock_graph_data)
+        res = analyzer.analyze(linear_graph)
 
         actual_bridges = res.get_bridges()
         assert res.graph_summary.num_bridges == len(actual_bridges)

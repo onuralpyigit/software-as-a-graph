@@ -118,6 +118,7 @@ class ComponentDetail:
     mpci: float = 0.0
     foc: float = 0.0
     spof: bool = False
+    explanation: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -136,6 +137,7 @@ class ComponentDetail:
             "mpci": self.mpci,
             "foc": self.foc,
             "spof": self.spof,
+            "explanation": self.explanation,
         }
 
 @dataclass
@@ -220,6 +222,7 @@ class LayerData:
     # Top-K overlap metrics
     top5_overlap: float = 0.0
     top10_overlap: float = 0.0
+    explanation: Optional[Dict[str, Any]] = None
 
     # Flag indicating matrix-only visualization is recommended (for large graphs)
 

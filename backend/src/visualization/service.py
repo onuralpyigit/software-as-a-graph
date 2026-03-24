@@ -100,6 +100,10 @@ class VisualizationService:
         # Section 3: Component Details
         self._add_component_details(dash, primary_data)
         
+        # Section 3.5: Human-Readable Explanations
+        if primary_data.explanation:
+            self._add_explanation_section(dash, primary_data)
+        
         # Section 4: Correlation Scatter Plots (Validation Diagnostics)
         if include_validation:
             self._add_validation_plots(dash, primary_data)
@@ -220,6 +224,16 @@ class VisualizationService:
         chart = self.charts.rmav_breakdown(data.component_details, "RMAV Quality Dimensions")
         if chart:
             gen.add_charts([chart])
+        gen.end_section()
+
+    def _add_explanation_section(self, gen: DashboardGenerator, data: LayerData) -> None:
+        """Section 3.5: Human-Readable Explanations (Component Cards)."""
+        if not data.explanation:
+            return
+            
+        gen.start_section("📖 Architectural Explanations", "explanations")
+        gen.add_subsection("Automated Risk Narrative & Triage Guidance")
+        gen.add_explanation_section(data.explanation)
         gen.end_section()
 
     def _add_validation_plots(self, gen: DashboardGenerator, data: LayerData, include_per_dim: bool = True) -> None:

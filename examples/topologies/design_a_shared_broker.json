@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "name": "Design A: Shared Broker",
+    "description": "Baseline architecture where all applications share a single broker."
+  },
+  "nodes": [
+    { "id": "N0", "name": "Host_Node" }
+  ],
+  "brokers": [
+    { "id": "B1", "name": "Central_Broker" }
+  ],
+  "topics": [
+    { "id": "T1", "name": "telemetry" },
+    { "id": "T2", "name": "commands" },
+    { "id": "T3", "name": "logs" }
+  ],
+  "applications": [
+    { "id": "App1", "name": "Sensor_Driver", "role": "pub" },
+    { "id": "App2", "name": "Controller", "role": "pubsub" },
+    { "id": "App3", "name": "Logger", "role": "sub" }
+  ],
+  "relationships": {
+    "runs_on": [
+      { "from": "B1", "to": "N0" }, { "from": "App1", "to": "N0" }, { "from": "App2", "to": "N0" }, { "from": "App3", "to": "N0" }
+    ],
+    "routes": [
+      { "from": "B1", "to": "T1" }, { "from": "B1", "to": "T2" }, { "from": "B1", "to": "T3" }
+    ],
+    "publishes_to": [
+      { "from": "App1", "to": "T1" }, { "from": "App2", "to": "T2" }
+    ],
+    "subscribes_to": [
+      { "from": "App2", "to": "T1" }, { "from": "App3", "to": "T3" }
+    ]
+  }
+}

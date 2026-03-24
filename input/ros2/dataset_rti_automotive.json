@@ -41,47 +41,173 @@
     {
       "id": "A0",
       "name": "UserInterface",
-      "role": "pubsub",
+      "version": "1.0.0",
       "app_type": "ui",
+      "role": "pubsub",
       "criticality": false,
-      "version": "1.0.0"
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "User Interface",
+        "csms_name": "Configuration Management"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 3071,
+          "total_classes": 11,
+          "total_methods": 65,
+          "total_fields": 28
+        },
+        "complexity": {
+          "total_wmc": 430,
+          "avg_wmc": 39.11,
+          "max_wmc": 73
+        },
+        "cohesion": {
+          "avg_lcom": 15.13,
+          "max_lcom": 38.7
+        },
+        "coupling": {
+          "avg_cbo": 3.51,
+          "max_cbo": 4,
+          "avg_rfc": 19.31,
+          "max_rfc": 38,
+          "avg_fanin": 2.16,
+          "max_fanin": 3,
+          "avg_fanout": 9.16,
+          "max_fanout": 26
+        }
+      }
     },
     {
       "id": "A1",
       "name": "ZonalController",
-      "role": "pubsub",
+      "version": "1.0.0",
       "app_type": "controller",
+      "role": "pubsub",
       "criticality": true,
-      "version": "1.0.0"
+      "system_hierarchy": {
+        "csc_name": "Mission Software",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Data Persistence"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1807,
+          "total_classes": 13,
+          "total_methods": 43,
+          "total_fields": 117
+        },
+        "complexity": {
+          "total_wmc": 583,
+          "avg_wmc": 44.91,
+          "max_wmc": 87
+        },
+        "cohesion": {
+          "avg_lcom": 40.57,
+          "max_lcom": 82.7
+        },
+        "coupling": {
+          "avg_cbo": 20.27,
+          "max_cbo": 23,
+          "avg_rfc": 19.17,
+          "max_rfc": 22,
+          "avg_fanin": 2.44,
+          "max_fanin": 4,
+          "avg_fanout": 12.45,
+          "max_fanout": 37
+        }
+      }
     }
   ],
   "libraries": [
     {
       "id": "L0",
       "name": "WindowSupport",
-      "version": "1.0.0"
+      "version": "1.0.0",
+      "system_hierarchy": {
+        "csc_name": "Software Systems",
+        "csci_name": "Support Software",
+        "css_name": "Control Logic",
+        "csms_name": "Core Logic"
+      },
+      "code_metrics": {
+        "size": {
+          "total_loc": 1300,
+          "total_classes": 14,
+          "total_methods": 30,
+          "total_fields": 40
+        },
+        "complexity": {
+          "total_wmc": 355,
+          "avg_wmc": 25.39,
+          "max_wmc": 48
+        },
+        "cohesion": {
+          "avg_lcom": 29.71,
+          "max_lcom": 96.9
+        },
+        "coupling": {
+          "avg_cbo": 2.6,
+          "max_cbo": 3,
+          "avg_rfc": 28.19,
+          "max_rfc": 30,
+          "avg_fanin": 5.28,
+          "max_fanin": 6,
+          "avg_fanout": 3.66,
+          "max_fanout": 10
+        }
+      }
     }
   ],
   "relationships": {
     "runs_on": [
-      {"from": "A0", "to": "N0"},
-      {"from": "A1", "to": "N1"}
+      {
+        "from": "A0",
+        "to": "N0"
+      },
+      {
+        "from": "A1",
+        "to": "N1"
+      }
     ],
     "routes": [],
     "publishes_to": [
-      {"from": "A0", "to": "T0"},
-      {"from": "A1", "to": "T1"}
+      {
+        "from": "A0",
+        "to": "T0"
+      },
+      {
+        "from": "A1",
+        "to": "T1"
+      }
     ],
     "subscribes_to": [
-      {"from": "A0", "to": "T1"},
-      {"from": "A1", "to": "T0"}
+      {
+        "from": "A0",
+        "to": "T1"
+      },
+      {
+        "from": "A1",
+        "to": "T0"
+      }
     ],
     "connects_to": [
-      {"from": "N0", "to": "N1"}
+      {
+        "from": "N0",
+        "to": "N1"
+      }
     ],
     "uses": [
-      {"from": "A0", "to": "L0"},
-      {"from": "A1", "to": "L0"}
+      {
+        "from": "A0",
+        "to": "L0"
+      },
+      {
+        "from": "A1",
+        "to": "L0"
+      }
     ]
   }
 }

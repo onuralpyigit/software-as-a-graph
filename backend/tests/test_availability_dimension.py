@@ -15,6 +15,8 @@ Covers:
 """
 import pytest
 from src.prediction.weight_calculator import QualityWeights, AHPMatrices, AHPProcessor
+from src.prediction.analyzer import QualityAnalyzer
+from src.analysis.structural_analyzer import StructuralAnalyzer
 from src.simulation.models import ImpactMetrics
 from src.validation.metric_calculator import (
     calculate_spof_f1,
@@ -163,6 +165,51 @@ class TestAPcDirectedFormula:
             for b in [0.0, 0.1, 0.5, 1.0]:
                 result = self._ap_c_directed(a, b)
                 assert 0.0 <= result <= 1.0
+
+
+# ===========================================================================
+# Property Tests: Availability via Analyzer Pipeline
+# ===========================================================================
+
+class TestAvailabilityProperty:
+    """
+    Property tests for Availability: A(v) = f(QSPOF, BR, AP_c, CDI).
+    Verifies that the QualityAnalyzer correctly applies the formula and that 
+    the ap_graph fixture yields expected directional results.
+    """
+
+    def test_articulation_point_availability_risk(self, ap_graph):
+        """
+        In an ap_graph (A-B-C, B-D), B is an articulation point.
+        B should have a higher Availability score than others because 
+        it is a Single Point of Failure (QSPOF > 0).
+        """
+        # 1. Structural Analysis
+        struct_analyzer = StructuralAnalyzer()
+        struct_res = struct_analyzer.analyze(ap_graph)
+
+        # 2. Quality Analysis
+        quality_analyzer = QualityAnalyzer(normalization_method="max")
+        quality_res = quality_analyzer.analyze(struct_res)
+
+        # 3. Property Asserts
+        comp_map = {c.id: c for c in quality_res.components}
+        b_quality = comp_map["B"]
+        a_b = b_quality.scores.availability
+
+        leaf_scores = [
+            comp.scores.availability 
+            for cid, comp in comp_map.items() 
+            if cid != "B"
+        ]
+
+        # B should have higher availability risk (A score) than any leaf.
+        assert all(a_b > a_leaf for a_leaf in leaf_scores), (
+            f"Articulation Point B availability ({a_b:.4f}) should be higher than leaf nodes {leaf_scores}"
+        )
+        # B should have non-zero QSPOF contributing to it
+        assert b_quality.structural.ap_c_directed > 0.0
+        assert a_b > 0.1  # Sanity check it's non-negligible
 
 
 # ===========================================================================

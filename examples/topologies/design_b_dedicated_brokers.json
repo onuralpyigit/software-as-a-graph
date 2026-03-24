@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "name": "Design B: Dedicated Brokers",
+    "description": "Optimized architecture where critical traffic is isolated to dedicated brokers."
+  },
+  "nodes": [
+    { "id": "N0", "name": "Primary_Host" },
+    { "id": "N1", "name": "Secondary_Host" }
+  ],
+  "brokers": [
+    { "id": "B1", "name": "Telemetry_Broker" },
+    { "id": "B2", "name": "Control_Broker" }
+  ],
+  "topics": [
+    { "id": "T1", "name": "telemetry" },
+    { "id": "T2", "name": "commands" },
+    { "id": "T3", "name": "logs" }
+  ],
+  "applications": [
+    { "id": "App1", "name": "Sensor_Driver", "role": "pub" },
+    { "id": "App2", "name": "Controller", "role": "pubsub" },
+    { "id": "App3", "name": "Logger", "role": "sub" }
+  ],
+  "relationships": {
+    "runs_on": [
+      { "from": "B1", "to": "N0" }, { "from": "App1", "to": "N0" }, { "from": "App2", "to": "N1" }, { "from": "App3", "to": "N1" }, { "from": "B2", "to": "N1" }
+    ],
+    "routes": [
+      { "from": "B1", "to": "T1" }, { "from": "B2", "to": "T2" }, { "from": "B1", "to": "T3" }
+    ],
+    "publishes_to": [
+      { "from": "App1", "to": "T1" }, { "from": "App2", "to": "T2" }
+    ],
+    "subscribes_to": [
+      { "from": "App2", "to": "T1" }, { "from": "App3", "to": "T3" }
+    ]
+  }
+}

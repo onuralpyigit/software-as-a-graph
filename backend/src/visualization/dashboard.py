@@ -209,6 +209,35 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .footer {{ text-align: center; padding: 60px 40px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid var(--border); margin-top: 60px; }}
 
         @media (max-width: 1024px) {{ .chart-grid {{ grid-template-columns: 1fr; }} .antipattern-body {{ grid-template-columns: 1fr; }} }}
+
+        /* --- Stakeholder Tabs & Component Cards --- */
+        .stakeholder-tabs {{ display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 10px; }}
+        .tab-btn {{ padding: 10px 20px; border: none; background: none; font-weight: 700; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: all 0.2s; }}
+        .tab-btn:hover {{ background: #f1f5f9; color: var(--primary); }}
+        .tab-btn.active {{ background: var(--primary); color: white; }}
+        
+        .component-card-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 25px; }}
+        .component-card {{ background: white; border: 1px solid var(--border); border-radius: 14px; padding: 25px; transition: all 0.3s; position: relative; border-top: 5px solid var(--primary); }}
+        .component-card.critical {{ border-top-color: var(--danger); }}
+        .component-card.high {{ border-top-color: var(--warning); }}
+        
+        .card-header {{ display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; }}
+        .card-title {{ font-size: 1.25rem; font-weight: 800; color: var(--text); }}
+        .card-pattern {{ font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }}
+        
+        .card-one-line {{ font-weight: 600; margin-bottom: 12px; color: var(--primary); line-height: 1.4; }}
+        .card-risk {{ font-size: 0.9rem; color: #475569; margin-bottom: 20px; }}
+        
+        .dimension-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 20px; }}
+        .dim-box {{ display: flex; flex-direction: column; gap: 2px; }}
+        .dim-header {{ display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }}
+        .dim-driver {{ font-size: 0.7rem; color: var(--text-muted); }}
+        .dim-meaning {{ font-size: 0.8rem; font-weight: 500; margin-top: 4px; border-top: 1px solid #e2e8f0; padding-top: 4px; }}
+        
+        .remediation-box {{ border-top: 1px solid var(--border); padding-top: 15px; }}
+        .rem-header {{ font-size: 0.85rem; font-weight: 800; text-transform: uppercase; margin-bottom: 10px; color: #1e293b; }}
+        .rem-step {{ display: flex; gap: 10px; font-size: 0.85rem; margin-bottom: 8px; }}
+        .rem-dot {{ width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-top: 6px; flex-shrink: 0; }}
     </style>
 </head>
 <body>
@@ -795,6 +824,98 @@ class DashboardGenerator:
         """
         self.scripts.append(script)
     
+    def add_explanation_section(self, explanation: Dict[str, Any]) -> None:
+        """Add the human-readable explanation section with stakeholder tabs."""
+        if not explanation:
+            return
+
+        html = [
+            '<div class="explanation-container">',
+            '  <div class="stakeholder-tabs">',
+            '    <button class="tab-btn active" onclick="filterStakeholder(\'ALL\', this)">All Views</button>',
+            '    <button class="tab-btn" onclick="filterStakeholder(\'DevOps\', this)">Availability (DevOps)</button>',
+            '    <button class="tab-btn" onclick="filterStakeholder(\'SRE\', this)">Reliability (SRE)</button>',
+            '    <button class="tab-btn" onclick="filterStakeholder(\'Architect\', this)">Maintainability (Architect)</button>',
+            '    <button class="tab-btn" onclick="filterStakeholder(\'Security\', this)">Vulnerability (Security)</button>',
+            '  </div>',
+            '  <div class="component-card-grid">'
+        ]
+
+        for comp in explanation.get("component_explanations", []):
+            severity = comp.get("overall_level", "MINIMAL").lower()
+            stakeholders = comp.get("stakeholders", [])
+            roles_attr = ",".join(stakeholders)
+            
+            card_html = [
+                f'<div class="component-card {severity}" data-stakeholders="{roles_attr}">',
+                '  <div class="card-header">',
+                f'    <div class="card-title">{comp["component_id"]}</div>',
+                f'    <div class="card-pattern">{comp["pattern"]}</div>',
+                '  </div>',
+                f'  <div class="card-one-line">{comp["one_line_summary"]}</div>',
+                f'  <div class="card-risk">{comp["top_risk_description"]}</div>',
+                '  <div class="dimension-grid">'
+            ]
+            
+            for dim in comp.get("dimension_explanations", []):
+                dim_severity = dim.get("level", "MINIMAL").lower()
+                card_html.extend([
+                    '    <div class="dim-box">',
+                    '      <div class="dim-header">',
+                    f'        <span>{dim["dimension"]}</span>',
+                    f'        <span class="badge badge-{dim_severity}">{dim["score"]:.3f}</span>',
+                    '      </div>',
+                    f'      <div class="dim-driver">Driven by: {dim["driving_metric"]}</div>',
+                    f'      <div class="dim-meaning">{dim["plain_meaning"]}</div>',
+                    '    </div>'
+                ])
+            
+            card_html.append('  </div>') # end dimension-grid
+            
+            # Remediation
+            card_html.append('  <div class="remediation-box">')
+            card_html.append('    <div class="rem-header">Recommended Actions</div>')
+            for step in comp.get("remediation_steps", []):
+                card_html.append(f'    <div class="rem-step"><div class="rem-dot"></div>{step["action"]}</div>')
+            card_html.append('  </div>') # end remediation-box
+            
+            card_html.append('</div>') # end component-card
+            html.append("".join(card_html))
+
+        html.append('  </div>') # end component-card-grid
+        html.append('</div>') # end explanation-container
+        
+        self.sections.append("".join(html))
+        
+        # Add the filtering script if not already added
+        if not any("filterStakeholder" in s for s in self.scripts):
+            self.scripts.append("""
+            <script>
+            function filterStakeholder(role, btn) {
+                // Update active button
+                const container = btn.closest('.explanation-container');
+                container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Filter cards
+                const grid = container.querySelector('.component-card-grid');
+                const cards = grid.querySelectorAll('.component-card');
+                cards.forEach(card => {
+                    if (role === 'ALL') {
+                        card.style.display = 'block';
+                    } else {
+                        const roles = card.getAttribute('data-stakeholders').split(',');
+                        if (roles.includes(role)) {
+                            card.style.display = 'block';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    }
+                });
+            }
+            </script>
+            """)
+
     def add_antipattern_catalog(self, smells: List[Dict[str, Any]]) -> None:
         """
         Add an anti-pattern catalog section with detailed analysis and recommendations.
