@@ -249,7 +249,6 @@ async def train_gnn(
     try:
         from src.prediction import GNNService, extract_structural_metrics_dict, \
             extract_rmav_scores_dict, extract_simulation_dict
-        from src.analysis import AnalysisService
         from src.simulation import SimulationService
     except ImportError as e:
         raise HTTPException(status_code=501, detail=f"GNN module not available: {e}")
@@ -265,9 +264,13 @@ async def train_gnn(
         logger.info("GNN training: layer=%s epochs=%d checkpoint_dir=%s", request.layer, request.epochs, ckpt_dir)
 
         # Step 2+3: structural analysis + RMAV scores
-        analysis_svc = AnalysisService(client.repo)
-        layer_result = analysis_svc.analyze_layer(request.layer)
-        nx_graph = layer_result.graph
+        from src.analysis.structural_analyzer import StructuralAnalyzer
+        from src.core.layers import AnalysisLayer
+        graph_data = client.repo.get_graph_data()
+        struct_analyzer = StructuralAnalyzer()
+        layer_enum = AnalysisLayer.from_string(request.layer)
+        struct_result = struct_analyzer.analyze(graph_data, layer=layer_enum)
+        nx_graph = struct_result.graph
         if nx_graph is None:
             import networkx as nx
             nx_graph = nx.DiGraph()
@@ -276,12 +279,11 @@ async def train_gnn(
                 f"Layer '{request.layer}' has no nodes. "
                 "Make sure the graph is imported and the correct layer is selected."
             )
-        structural_dict = extract_structural_metrics_dict(layer_result.structural)
+        structural_dict = extract_structural_metrics_dict(struct_result)
 
         from src.prediction.service import PredictionService
         pred_svc = PredictionService(use_ahp=request.use_ahp)
-        from src.analysis.models import StructuralAnalysisResult
-        quality_result = pred_svc.predict_quality(layer_result.structural)
+        quality_result = pred_svc.predict_quality(struct_result)
         rmav_dict = extract_rmav_scores_dict(quality_result)
 
         # Step 4: simulation ground truth
@@ -387,7 +389,6 @@ async def predict_gnn(
     try:
         from src.prediction import GNNService, extract_structural_metrics_dict, \
             extract_rmav_scores_dict
-        from src.analysis import AnalysisService
     except ImportError as e:
         raise HTTPException(status_code=501, detail=f"GNN module not available: {e}")
 
@@ -398,9 +399,13 @@ async def predict_gnn(
         ckpt_dir = request.checkpoint_dir.strip() or str(_GNN_CHECKPOINTS_DIR)
 
         # Step 2+3: structural analysis + RMAV scores (needed for features AND metadata)
-        analysis_svc = AnalysisService(client.repo)
-        layer_result = analysis_svc.analyze_layer(request.layer)
-        nx_graph = layer_result.graph
+        from src.analysis.structural_analyzer import StructuralAnalyzer
+        from src.core.layers import AnalysisLayer
+        graph_data = client.repo.get_graph_data()
+        struct_analyzer = StructuralAnalyzer()
+        layer_enum = AnalysisLayer.from_string(request.layer)
+        struct_result = struct_analyzer.analyze(graph_data, layer=layer_enum)
+        nx_graph = struct_result.graph
         if nx_graph is None:
             import networkx as nx
             nx_graph = nx.DiGraph()
@@ -409,11 +414,11 @@ async def predict_gnn(
                 f"Layer '{request.layer}' has no nodes. "
                 "Make sure the graph is imported and the correct layer is selected."
             )
-        structural_dict = extract_structural_metrics_dict(layer_result.structural)
+        structural_dict = extract_structural_metrics_dict(struct_result)
 
         from src.prediction.service import PredictionService
         pred_svc = PredictionService(use_ahp=False)
-        quality_result = pred_svc.predict_quality(layer_result.structural)
+        quality_result = pred_svc.predict_quality(struct_result)
         rmav_dict = extract_rmav_scores_dict(quality_result)
 
         # Load trained model — pass graph so from_checkpoint can reconstruct PyG metadata

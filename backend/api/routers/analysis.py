@@ -8,12 +8,27 @@ import logging
 
 from api.dependencies import get_client
 from saag import Client
+from saag.models import AnalysisResult as SaagAnalysisResult
 from src.prediction import ProblemDetector, PredictionService, DetectedProblem
+from src.analysis.structural_analyzer import StructuralAnalyzer
+from src.core.layers import AnalysisLayer
 from api.presenters import analysis_presenter
 from api.models import AnalysisEnvelope
 
 router = APIRouter(prefix="/api/v1/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
+
+
+def _structural_analyze(client: Client, layer: str) -> SaagAnalysisResult:
+    """
+    Run structural analysis directly via StructuralAnalyzer, bypassing AnalysisService
+    which incorrectly passes StructuralAnalysisResult to AntiPatternDetector.detect().
+    """
+    graph_data = client.repo.get_graph_data()
+    analyzer = StructuralAnalyzer()
+    layer_enum = AnalysisLayer.from_string(layer)
+    raw = analyzer.analyze(graph_data, layer=layer_enum)
+    return SaagAnalysisResult(raw)
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────
@@ -31,8 +46,8 @@ async def analyze_full_system(
     try:
         logger.info("Running full system analysis via SDK Client")
         
-        # SDK calls
-        analysis = client.analyze(layer="system")
+        # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
+        analysis = _structural_analyze(client, "system")
         prediction = client.predict(analysis)
         problems = client.detect_antipatterns(prediction)
         
@@ -72,8 +87,8 @@ async def analyze_by_type(
     try:
         logger.info(f"Analyzing component type: {component_type} (normalized to {normalized_type})")
 
-        # SDK calls
-        analysis = client.analyze(layer="system")
+        # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
+        analysis = _structural_analyze(client, "system")
         prediction = client.predict(analysis)
         problems = client.detect_antipatterns(prediction)
 
@@ -116,8 +131,8 @@ async def analyze_layer(
     try:
         logger.info(f"Analyzing layer: {layer}")
         
-        # SDK calls
-        analysis = client.analyze(layer=layer)
+        # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
+        analysis = _structural_analyze(client, layer)
         prediction = client.predict(analysis)
         problems = client.detect_antipatterns(prediction)
         
