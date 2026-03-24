@@ -38,15 +38,26 @@ async def get_repository(request: Request) -> AsyncGenerator[IGraphRepository, N
     """
     Request-scoped repository dependency.
 
-    Extracts Neo4j credentials from the request body (either at the top level
-    or nested under a 'credentials' key) and provides a repository instance.
+    For POST/PUT requests: extracts Neo4j credentials from the JSON body
+    (either at the top level or nested under a 'credentials' key).
+    For GET requests (no body): reads credentials from query parameters
+    (uri, user, password, database).
     """
-    body = await request.json()
-    
-    # Try to extract credentials from the 'credentials' key first (standard pattern)
-    # Then fall back to the top-level body
-    creds_data = body.get("credentials") or body
-    
+    creds_data: dict = {}
+
+    # Only attempt to read a JSON body for methods that carry one
+    if request.method not in ("GET", "HEAD", "DELETE"):
+        try:
+            body = await request.json()
+            creds_data = body.get("credentials") or body
+        except Exception:
+            pass  # Fall through to query-param extraction
+
+    # Fall back to (or exclusively use) query parameters
+    if not creds_data:
+        params = dict(request.query_params)
+        creds_data = {k: v for k, v in params.items() if k in ("uri", "user", "password", "database")}
+
     try:
         credentials = Neo4jCredentials(**creds_data)
     except Exception as e:

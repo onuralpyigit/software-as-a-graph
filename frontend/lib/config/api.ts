@@ -27,7 +27,7 @@ function getDefaultApiUrl(): string {
 export const API_BASE_URL = getDefaultApiUrl();
 
 // Alternative: Use the old API server (uncomment if needed)
-// export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+// export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const API_CONFIG = {
   baseURL: API_BASE_URL,

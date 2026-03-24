@@ -136,7 +136,10 @@ class EventMetricsModel(BaseModel):
     delivery_rate_percent: float
     drop_rate_percent: float
     avg_latency_ms: float
+    min_latency_ms: float
+    p50_latency_ms: float
     p99_latency_ms: float
+    max_latency_ms: float
     throughput_per_sec: float
 
 
@@ -173,6 +176,7 @@ class FragmentationDetail(BaseModel):
 class CascadeDetail(BaseModel):
     count: int
     depth: int
+    by_type: Dict[str, int] = Field(default_factory=dict)
 
 
 class ReliabilityImpactModel(BaseModel):
@@ -205,12 +209,19 @@ class VulnerabilityImpactModel(BaseModel):
     vulnerability_impact: float
 
 
+class AffectedDetail(BaseModel):
+    topics: int
+    publishers: int
+    subscribers: int
+
+
 class FailureImpactModel(BaseModel):
     reachability: ImpactDetail
     fragmentation: FragmentationDetail
     throughput: ImpactDetail
     flow_disruption: ImpactDetail
     cascade: CascadeDetail
+    affected: AffectedDetail
     composite_impact: float
     reliability: ReliabilityImpactModel
     maintainability: MaintainabilityImpactModel
@@ -248,6 +259,7 @@ class ExhaustiveSummaryModel(BaseModel):
     critical_count: int
     high_count: int
     medium_count: int
+    low_count: int
     spof_count: int
 
 
@@ -262,6 +274,7 @@ class ExhaustiveSimulationResponse(BaseModel):
 class LayerEventMetricsModel(BaseModel):
     delivery_rate_percent: float
     avg_latency_ms: float
+    throughput: float = 0.0
 
 
 class LayerFailureMetricsModel(BaseModel):
@@ -272,6 +285,9 @@ class LayerFailureMetricsModel(BaseModel):
 class LayerCriticalitySummaryModel(BaseModel):
     critical: int
     high: int
+    total_components: int = 0
+    medium: int = 0
+    spof_count: int = 0
 
 
 class LayerMetricsResponseModel(BaseModel):
@@ -293,6 +309,8 @@ class SimulationReportResponseModel(BaseModel):
     timestamp: str
     layer_metrics: Dict[str, LayerMetricsResponseModel]
     top_critical: List[TopCriticalComponentModel]
+    graph_summary: Dict[str, Any] = Field(default_factory=dict)
+    recommendations: List[str] = Field(default_factory=list)
 
 
 class SimulationReportResponse(BaseModel):

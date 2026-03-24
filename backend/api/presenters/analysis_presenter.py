@@ -12,20 +12,24 @@ def serialize_component(c) -> Dict[str, Any]:
 
 def serialize_edge(e, component_names: Dict[str, str]) -> Dict[str, Any]:
     """Convert a classified edge to API response format."""
+    level = e.level.value if hasattr(e, 'level') and hasattr(e.level, 'value') else (str(e.level) if hasattr(e, 'level') else "minimal")
+    scores = {}
+    if hasattr(e, 'scores') and e.scores is not None:
+        scores = {
+            "reliability": e.scores.reliability,
+            "maintainability": e.scores.maintainability,
+            "availability": e.scores.availability,
+            "vulnerability": e.scores.vulnerability,
+            "overall": e.scores.overall,
+        }
     return {
         "source": e.source,
         "target": e.target,
         "source_name": component_names.get(e.source, e.source),
         "target_name": component_names.get(e.target, e.target),
         "type": e.dependency_type,
-        "criticality_level": e.level.value,
-        "scores": {
-            "reliability": e.scores.reliability,
-            "maintainability": e.scores.maintainability,
-            "availability": e.scores.availability,
-            "vulnerability": e.scores.vulnerability,
-            "overall": e.scores.overall,
-        },
+        "criticality_level": level,
+        "scores": scores,
     }
 
 
@@ -59,12 +63,13 @@ def build_analysis_response(
     # Extract values from SDK
     all_components = prediction.all_components
     layer_name = analysis.raw.layer.value if hasattr(analysis.raw.layer, 'value') else str(analysis.raw.layer)
-    raw_edges = list(analysis.raw.edges.values())
-    
+    # EdgeQuality objects (have .level) come from the prediction result
+    quality_edges = list(prediction.raw.edges)
+
     if component_type:
         all_components = [c for c in all_components if c.type == component_type]
         filtered_ids = {c.id for c in all_components}
-        raw_edges = [e for e in raw_edges if e.source in filtered_ids or e.target in filtered_ids]
+        quality_edges = [e for e in quality_edges if e.source in filtered_ids or e.target in filtered_ids]
         problems = [p for p in problems if p.entity_id in filtered_ids]
 
     component_names = {c.id: c.name for c in all_components}
@@ -83,7 +88,10 @@ def build_analysis_response(
             for level in ["critical", "high", "medium", "low", "minimal"]
         },
         "edges": {
-            level: sum(1 for e in raw_edges if e.level.value == level)
+            level: sum(
+                1 for e in quality_edges
+                if (e.level.value if hasattr(e.level, 'value') else str(e.level)) == level
+            )
             for level in ["critical", "high", "medium", "low", "minimal"]
         },
     }
@@ -106,7 +114,7 @@ def build_analysis_response(
             "avg_degree": analysis.raw.graph_summary.avg_degree,
         },
         "components": [serialize_component(c) for c in all_components],
-        "edges": [serialize_edge(e, component_names) for e in raw_edges],
+        "edges": [serialize_edge(e, component_names) for e in quality_edges],
         "problems": [serialize_problem(p) for p in problems],
     }
     return envelope

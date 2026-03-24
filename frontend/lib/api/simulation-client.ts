@@ -10,20 +10,20 @@ interface EventMetrics {
   messages_published: number;
   messages_delivered: number;
   messages_dropped: number;
-  delivery_rate: number;
-  drop_rate: number;
-  avg_latency: number;
-  min_latency: number;
-  max_latency: number;
-  p50_latency: number;
-  p99_latency: number;
-  throughput: number;
+  delivery_rate_percent: number;
+  drop_rate_percent: number;
+  avg_latency_ms: number;
+  min_latency_ms: number;
+  p50_latency_ms: number;
+  p99_latency_ms: number;
+  max_latency_ms: number;
+  throughput_per_sec: number;
 }
 
 interface EventResult {
   source_app: string;
   scenario: string;
-  duration: number;
+  duration_sec: number;
   metrics: EventMetrics;
   affected_topics: string[];
   brokers_used: string[];
@@ -34,19 +34,30 @@ interface EventResult {
 
 interface FailureImpact {
   composite_impact: number;
-  reachability_loss: number;
-  initial_paths: number;
-  remaining_paths: number;
-  fragmentation: number;
-  initial_components: number;
-  failed_components: number;
-  throughput_loss: number;
-  affected_topics: number;
-  affected_publishers: number;
-  affected_subscribers: number;
-  cascade_count: number;
-  cascade_depth: number;
-  cascade_by_type: Record<string, number>;
+  reachability: {
+    initial_paths: number;
+    remaining_paths: number;
+    loss_percent: number;
+  };
+  fragmentation: {
+    fragmentation_percent: number;
+  };
+  throughput: {
+    loss_percent: number;
+  };
+  flow_disruption: {
+    loss_percent: number;
+  };
+  cascade: {
+    count: number;
+    depth: number;
+    by_type: Record<string, number>;
+  };
+  affected: {
+    topics: number;
+    publishers: number;
+    subscribers: number;
+  };
 }
 
 interface FailureResult {
@@ -60,19 +71,22 @@ interface FailureResult {
 
 interface LayerMetrics {
   layer: string;
-  event_throughput: number;
-  event_delivery_rate: number;
-  event_drop_rate: number;
-  event_avg_latency_ms: number;
-  avg_reachability_loss: number;
-  avg_fragmentation: number;
-  avg_throughput_loss: number;
-  max_impact: number;
-  total_components: number;
-  critical_count: number;
-  high_count: number;
-  medium_count: number;
-  spof_count: number;
+  event_metrics: {
+    delivery_rate_percent: number;
+    avg_latency_ms: number;
+    throughput: number;
+  };
+  failure_metrics: {
+    avg_reachability_loss_percent: number;
+    max_impact: number;
+  };
+  criticality: {
+    critical: number;
+    high: number;
+    medium: number;
+    total_components: number;
+    spof_count: number;
+  };
 }
 
 interface SimulationReport {
@@ -83,8 +97,8 @@ interface SimulationReport {
     id: string;
     type: string;
     level: string;
-    combined_impact: number;
-    cascade_count: number;
+    scores: { combined_impact: number; event_impact: number; failure_impact: number };
+    metrics: { cascade_count: number; message_throughput: number; reachability_loss_percent: number };
   }>;
   recommendations: string[];
 }

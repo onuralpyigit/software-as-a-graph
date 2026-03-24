@@ -106,7 +106,7 @@ export default function DegreeDistributionPage() {
       }
 
       const data = await response.json()
-      setStats(data)
+      setStats(data.stats ?? data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {

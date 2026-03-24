@@ -1304,10 +1304,16 @@ class GraphAnalysisAPI {
     this.baseURL = url;
     this.client.defaults.baseURL = url;
   }
+
+  // Get current base URL
+  getBaseURL(): string {
+    return this.baseURL;
+  }
 }
 
-// Export singleton instance
-export const apiClient = new GraphAnalysisAPI();
+// Export singleton instance — initialise with saved URL so all pages use the right port
+const _savedApiUrl = typeof window !== 'undefined' ? localStorage.getItem('api-base-url') : null;
+export const apiClient = new GraphAnalysisAPI(_savedApiUrl ?? undefined);
 
 // Export class for custom instances
 export default GraphAnalysisAPI;

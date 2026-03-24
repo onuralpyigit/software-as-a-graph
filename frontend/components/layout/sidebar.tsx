@@ -15,6 +15,8 @@ import {
   Zap,
   BarChart3,
   ShieldCheck,
+  Brain,
+  Cpu,
 } from "lucide-react"
 
 const navigation = [
@@ -47,6 +49,16 @@ const navigation = [
     name: "Validation",
     href: "/validation",
     icon: ShieldCheck,
+  },
+  {
+    name: "Train",
+    href: "/train",
+    icon: Brain,
+  },
+  {
+    name: "Predict",
+    href: "/predict",
+    icon: Cpu,
   },
   {
     name: "Data",
