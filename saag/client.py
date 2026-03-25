@@ -44,22 +44,30 @@ class Client:
         return AnalysisResult(raw_analysis)
 
     def predict(self, analysis: AnalysisResult, gnn_model: Optional[str] = None, **kwargs) -> PredictionResult:
-        """Predict quality metrics via GNN."""
-        from src.usecases.predict_graph import PredictGraphUseCase
-        
-        # If gnn_model is provided, we might want to inject a specific service
-        prediction_service = None
-        if gnn_model:
-            from src.prediction.service import GNNService
-            prediction_service = GNNService.from_checkpoint(gnn_model)
+        """Predict quality metrics using the statistical quality analyser.
 
-        uc = PredictGraphUseCase(self.repo, prediction_service=prediction_service)
-        
+        Args:
+            analysis:   Result of a prior ``analyze()`` call.
+            gnn_model:  Reserved for future GNN checkpoint loading.
+                        Currently ignored; ``PredictionService`` is always used.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        if gnn_model:
+            logger.warning(
+                "gnn_model=%r supplied but GNN checkpoint loading is not yet "
+                "implemented; falling back to PredictionService.", gnn_model
+            )
+
+        from src.usecases.predict_graph import PredictGraphUseCase
+        uc = PredictGraphUseCase(self.repo)
+
         layer_str = analysis.raw.layer.value
         quality, _ = uc.execute(
-            layer=layer_str, 
-            structural_result=analysis.raw, 
-            detect_problems=False
+            layer=layer_str,
+            structural_result=analysis.raw,
+            detect_problems=False,
         )
         return PredictionResult(quality)
 
