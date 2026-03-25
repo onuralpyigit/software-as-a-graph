@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from src.infrastructure import create_repository
 from tools.generation import GenerationService, load_config
-from src.analysis import AnalysisService
+from src.analysis import AnalysisService, StructuralAnalyzer
 from src.prediction import PredictionService
 from src.simulation import SimulationService
 from src.validation import ValidationService, ValidationTargets
@@ -85,6 +85,7 @@ class BenchmarkRunner:
 
         # Services will be initialized once
         self.analysis_service = AnalysisService(self.repo)
+        self.structural_analyzer = StructuralAnalyzer()
         self.prediction_service = PredictionService()
         self.simulation_service = SimulationService(self.repo)
         self.validation_service = ValidationService(
@@ -147,12 +148,35 @@ class BenchmarkRunner:
                 traceback.print_exc()
             return False, 0.0
 
-    def _run_analysis(self, layer: str) -> Tuple[Optional[Dict], float]:
-        """Run structural + quality analysis, return dict."""
+    def _run_prediction(self, structural_result: Any, layer: str) -> Tuple[Optional[Dict], float]:
+        """Run GNN-based quality prediction."""
         t0 = time.time()
         try:
-            result = self.analysis_service.analyze_layer(layer)
-            return result.to_dict(), (time.time() - t0) * 1000
+            # PredictionService.predict_quality expects StructuralAnalysisResult
+            res = self.prediction_service.predict_quality(structural_result)
+            return res.to_dict() if res else None, (time.time() - t0) * 1000
+        except Exception as e:
+            self.logger.error("Prediction failed for layer %s: %s", layer, e)
+            if self.verbose:
+                traceback.print_exc()
+            return None, 0.0
+
+    def _run_analysis(self, layer: str) -> Tuple[Optional[Any], Optional[Dict], float]:
+        """Run structural analysis, return (StructuralAnalysisResult, ResultDict, elapsed_ms)."""
+        t0 = time.time()
+        try:
+            from src.core.layers import AnalysisLayer
+            layer_enum = AnalysisLayer.from_string(layer)
+            
+            graph_data = self.repo.get_graph_data()
+            result = self.structural_analyzer.analyze(graph_data, layer=layer_enum)
+            
+            return result, result.to_dict(), (time.time() - t0) * 1000
+        except Exception as e:
+            self.logger.error("Analysis failed for layer %s: %s", layer, e)
+            if self.verbose:
+                traceback.print_exc()
+            return None, None, 0.0
 
         except Exception as e:
             self.logger.error("Analysis failed for layer %s: %s", layer, e)
@@ -212,15 +236,15 @@ class BenchmarkRunner:
             
             # 1. Betweenness Centrality
             bc_scores: Dict[str, float] = {}
-            for c in analysis_data.get("structural_analysis", {}).get("components", []):
-                bc_scores[c["id"]] = c["metrics"].get("betweenness", 0.0)
+            for c in analysis_data.get("components", []):
+                bc_scores[c["id"]] = c.get("betweenness", 0.0)
             m_bc = [bc_scores.get(cid, 0.0) for cid in m_ids]
             spearman_bc, _ = spearman_correlation(m_bc, m_actuals)
 
             # 2. Degree Centrality
             deg_scores: Dict[str, float] = {}
-            for c in analysis_data.get("structural_analysis", {}).get("components", []):
-                deg_scores[c["id"]] = c["metrics"].get("degree", 0.0)
+            for c in analysis_data.get("components", []):
+                deg_scores[c["id"]] = c.get("degree", 0.0)
             m_deg = [deg_scores.get(cid, 0.0) for cid in m_ids]
             spearman_deg, _ = spearman_correlation(m_deg, m_actuals)
 
@@ -299,14 +323,17 @@ class BenchmarkRunner:
  
         for i in range(scenario.runs):
             seed = base_seed + i
+            self.logger.info("Starting run %d/%d (seed=%d) for scenario '%s'", i+1, scenario.runs, seed, scenario.name)
 
             # 1. Generate
+            self.logger.info("[1/6] Generating synthetic data...")
             graph_data, gen_time = self._generate_data(scenario, seed)
             if not graph_data:
                 self.logger.warning("Run %d: generation failed — skipping", i)
                 continue
 
             # 2. Import
+            self.logger.info("[2/6] Importing to Neo4j...")
             ok, imp_time = self._import_data(graph_data)
             if not ok:
                 self.logger.warning("Run %d: import failed — skipping", i)
@@ -325,10 +352,11 @@ class BenchmarkRunner:
                 )
 
                 # 3. Analysis
-                an_data, an_time = self._run_analysis(layer)
+                self.logger.info("[%s] [3/6] Running structural analysis...", layer)
+                an_obj, an_data, an_time = self._run_analysis(layer)
                 record.time_analysis = an_time
 
-                if not an_data:
+                if not an_obj:
                     record.error = "Analysis failed"
                     self._commit_record(record, scenario_records)
                     continue
@@ -338,7 +366,19 @@ class BenchmarkRunner:
                 record.edges = stats.get("edges", 0)
                 record.density = stats.get("density", 0.0)
 
-                # 4. Simulation
+                # 4. Prediction
+                self.logger.info("[%s] [4/6] Running quality prediction...", layer)
+                pred_data, pred_time = self._run_prediction(an_obj, layer)
+                record.time_prediction = pred_time
+                if pred_data:
+                    # Merge prediction results into analysis data for validation
+                    # Validation expects 'quality_analysis' to be present
+                    an_data["quality_analysis"] = pred_data
+                else:
+                    self.logger.error("[%s] Quality prediction failed (pred_data is None)", layer)
+
+                # 5. Simulation
+                self.logger.info("[%s] [5/6] Running failure simulation...", layer)
                 sim_data, sim_time = self._run_simulation(layer)
                 record.time_simulation = sim_time
 
@@ -347,11 +387,13 @@ class BenchmarkRunner:
                     self._commit_record(record, scenario_records)
                     continue
 
-                # 5. Validation
-                (val_result, baseline), val_time = self._run_validation(layer, an_data, sim_data)
+                # 6. Validation
+                self.logger.info("[%s] [6/6] Validating against ground truth...", layer)
+                val_out, val_time = self._run_validation(layer, an_data, sim_data)
                 record.time_validation = val_time
 
-                if val_result:
+                if val_out:
+                    val_result, baseline = val_out
                     self._fill_record_from_validation(record, val_result)
                     # Set baselines
                     record.spearman_bc = baseline.get("spearman_bc", 0.0)
@@ -364,6 +406,7 @@ class BenchmarkRunner:
                     record.time_generation
                     + record.time_import
                     + record.time_analysis
+                    + getattr(record, "time_prediction", 0.0)
                     + record.time_simulation
                     + record.time_validation
                 )
@@ -390,15 +433,26 @@ class BenchmarkRunner:
             duration=duration,
             total_runs=len(self.records),
             passed_runs=sum(1 for r in self.records if r.passed),
+            spearman_target=self.targets.spearman,
+            f1_target=self.targets.f1_score,
             records=self.records,
         )
 
         if not self.records:
             return summary
 
+        # 1. Overall stats (only from non-error runs for validity)
+        valid_records = [r for r in self.records if not r.error]
+        if not valid_records:
+            return summary
+
         summary.overall_pass_rate = (summary.passed_runs / summary.total_runs) * 100
-        summary.overall_spearman = statistics.mean(r.spearman for r in self.records)
-        summary.overall_f1 = statistics.mean(r.f1_score for r in self.records)
+        
+        valid_spearman = [r.spearman for r in valid_records]
+        valid_f1 = [r.f1_score for r in valid_records]
+        
+        summary.overall_spearman = statistics.mean(valid_spearman) if valid_spearman else 0.0
+        summary.overall_f1 = statistics.mean(valid_f1) if valid_f1 else 0.0
 
         # Identify best / worst by Spearman
         best = max(self.records, key=lambda r: r.spearman)
@@ -443,6 +497,7 @@ class BenchmarkRunner:
 
         # Timing
         agg.avg_time_analysis = _mean("time_analysis")
+        agg.avg_time_prediction = _mean("time_prediction")
         agg.avg_time_simulation = _mean("time_simulation")
         agg.avg_time_total = _mean("time_total")
         if agg.avg_time_analysis > 0:

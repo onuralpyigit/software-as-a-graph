@@ -37,6 +37,13 @@ class ReportGenerator:
             f"**Total Runs:** {summary.total_runs}",
             f"**Passed Runs:** {summary.passed_runs} ({summary.overall_pass_rate:.1f}%)",
             "",
+            "## Configuration",
+            "",
+            f"- **Scales:** {', '.join(summary.scales)}",
+            f"- **Layers:** {', '.join(summary.layers)}",
+            f"- **Spearman Target:** {getattr(summary, 'spearman_target', 0.70):.2f}",
+            f"- **F1 Target:** {getattr(summary, 'f1_target', 0.80):.2f}",
+            "",
             "## Executive Summary",
             "",
             f"- **Overall Spearman ρ:** {summary.overall_spearman:.3f}",
@@ -61,7 +68,7 @@ class ReportGenerator:
             f1_ci = f"{a.avg_f1:.3f} [{a.avg_f1_ci[0]:.2f}, {a.avg_f1_ci[1]:.2f}]" if a.avg_f1_ci else f"{a.avg_f1:.3f}"
             lines.append(
                 f"| {a.scale} | {a.layer} | {a.num_runs} | {a.pass_rate:.1f}% | "
-                f"{sp_ci} | {f1_ci} | {a.avg_time_simulation:.0f} |"
+                f"{sp_ci} | {f1_ci} | {a.avg_time_simulation/1000:.2f} |"
             )
 
         # ── Baseline Comparison ───────────────────────────────────
@@ -106,9 +113,9 @@ class ReportGenerator:
         ])
         for a in summary.aggregates:
             lines.append(
-                f"| {a.scale} | {a.layer} | {a.avg_nodes:.0f} | "
-                f"{a.avg_edges:.0f} | {a.avg_density:.4f} | "
-                f"{a.avg_time_analysis:.0f} | {a.avg_time_total:.0f} |"
+                f"| {a.scale} | {a.layer} | {a.avg_nodes:,.0f} | "
+                f"{a.avg_edges:,.0f} | {a.avg_density:.4f} | "
+                f"{a.avg_time_analysis/1000:.2f} | {a.avg_time_total/1000:.2f} |"
             )
 
         # ── Diagnostics ───────────────────────────────────────────
@@ -139,7 +146,8 @@ class ReportGenerator:
                 "|--------|-------|-------|-------|",
             ])
             for r in errors:
-                lines.append(f"| {r.run_id} | {r.scale} | {r.layer} | {r.error} |")
+                err_msg = (r.error[:117] + "...") if len(r.error) > 120 else r.error
+                lines.append(f"| {r.run_id} | {r.scale} | {r.layer} | `{err_msg}` |")
 
         with open(path, "w") as f:
             f.write("\n".join(lines) + "\n")

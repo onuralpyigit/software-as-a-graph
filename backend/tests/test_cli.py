@@ -256,8 +256,8 @@ class TestRunOrchestrator:
         assert ret == 0
         
         mock_class.from_json.assert_called_once()
-        mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=False, gnn_model=None)
-        mock_inst.predict.assert_called_once()
+        mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=False)
+        mock_inst.predict.assert_called_once_with(gnn_model=None)
         mock_inst.simulate.assert_called_once_with(layer='system', mode='exhaustive')
         mock_inst.validate.assert_called_once_with(layers=['app', 'infra', 'mw', 'system'])
         mock_inst.visualize.assert_called_once()
@@ -312,7 +312,7 @@ class TestLayerHandling:
     def test_single_layer_uses_layer_flag(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
         self._run_main(run_module, ["--analyze", "--layer", "system"])
-        mock_inst.analyze.assert_called_once_with(layer="system", use_ahp=False, gnn_model=None)
+        mock_inst.analyze.assert_called_once_with(layer="system", use_ahp=False)
 
     def test_visualize_multi_layer(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
@@ -339,7 +339,7 @@ class TestOptionsPassthrough:
     def test_use_ahp_forwarded(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
         self._run_main(run_module, ["--analyze", "--use-ahp"])
-        mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=True, gnn_model=None)
+        mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=True)
 
 class TestOutputPaths:
     """Tests for output directory and file paths in run.py"""
@@ -408,8 +408,8 @@ class TestBenchmarkCLI:
         assert ret == 0
         assert mock_run.call_count == 2
         scenario_names = [call.args[0].name for call in mock_run.call_args_list]
-        assert "tiny" in scenario_names
-        assert "small" in scenario_names
+        assert "auto-tiny" in scenario_names
+        assert "auto-small" in scenario_names
 
     @patch("tools.benchmark.runner.BenchmarkRunner.run_scenario")
     @patch("tools.benchmark.runner.BenchmarkRunner.close")
@@ -425,8 +425,9 @@ class TestBenchmarkCLI:
         mock_run.return_value = []
         ret = self._run_main(benchmark_module, ["--output", str(tmp_output)])
         assert ret == 0
-        assert mock_run.call_count == 1
-        assert mock_run.call_args[0][0].scale == "medium"
+        assert mock_run.call_count == 2
+        assert mock_run.call_args_list[0].args[0].scale == "tiny"
+        assert mock_run.call_args_list[1].args[0].scale == "small"
 
     @patch("tools.benchmark.runner.BenchmarkRunner.run_scenario")
     @patch("tools.benchmark.runner.BenchmarkRunner.close")

@@ -32,6 +32,13 @@ class StructuralAnalysisResult:
     graph: Optional[nx.DiGraph] = None
     qos_profile: Dict[str, Any] = field(default_factory=dict)
     rcm_order: List[str] = field(default_factory=list)
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "layer": self.layer.value,
+            "graph_summary": self.graph_summary.to_dict(),
+            "components": [v.to_dict() for v in self.components.values()],
+            "edges": [v.to_dict() for v in self.edges.values()],
+        }
 
     def get_components_by_type(self, comp_type: str) -> List[StructuralMetrics]:
         return [c for c in self.components.values() if c.type == comp_type]

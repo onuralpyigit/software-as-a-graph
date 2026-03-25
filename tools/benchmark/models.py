@@ -34,6 +34,7 @@ class BenchmarkRecord:
     time_generation: float = 0.0
     time_import: float = 0.0
     time_analysis: float = 0.0
+    time_prediction: float = 0.0
     time_simulation: float = 0.0
     time_validation: float = 0.0
     time_total: float = 0.0
@@ -86,6 +87,7 @@ class AggregateResult:
 
     # Timing (averages, ms)
     avg_time_analysis: float = 0.0
+    avg_time_prediction: float = 0.0
     avg_time_simulation: float = 0.0
     avg_time_total: float = 0.0
     speedup_ratio: float = 0.0  # simulation / analysis
@@ -128,6 +130,8 @@ class BenchmarkSummary:
     duration: float  # seconds
     total_runs: int
     passed_runs: int
+    spearman_target: float = 0.70
+    f1_target: float = 0.80
 
     scales: List[str] = field(default_factory=list)
     layers: List[str] = field(default_factory=list)
@@ -150,6 +154,8 @@ class BenchmarkSummary:
             "duration": self.duration,
             "total_runs": self.total_runs,
             "passed_runs": self.passed_runs,
+            "spearman_target": self.spearman_target,
+            "f1_target": self.f1_target,
             "overall_pass_rate": self.overall_pass_rate,
             "overall_spearman": self.overall_spearman,
             "overall_f1": self.overall_f1,

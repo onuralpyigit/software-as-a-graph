@@ -34,44 +34,37 @@ from bin.common.console import ConsoleDisplay
 from bin.common.arguments import add_neo4j_arguments, add_common_arguments
 
 # Helper for color-coding terminal output
-_display = ConsoleDisplay()
-_c = _display.colored
-Colors = _display.Colors
-print_step = _display.print_step
-print_header = _display.print_header
-print_error = _display.print_error
-print_success = _display.print_success
+# _display = ConsoleDisplay()  <-- Moved to main()
+# _c = _display.colored
+# Colors = _display.Colors
+# print_step = _display.print_step
+# print_header = _display.print_header
+# print_error = _display.print_error
+# print_success = _display.print_success
 
 
 # =============================================================================
 # Scenario builders
 # =============================================================================
 
-def _build_cli_scenarios(args: argparse.Namespace) -> List[BenchmarkScenario]:
-    """Build scenarios from --scales and --layers CLI flags."""
-    scales = [s.strip() for s in args.scales.split(",")]
+def _build_scenarios(args: argparse.Namespace) -> List[BenchmarkScenario]:
+    """Build scenarios based on CLI arguments."""
+    if args.config:
+        return _load_yaml_scenarios(args.config)
+
+    if args.full_suite:
+        scales = ["tiny", "small", "medium"]
+    elif args.scales:
+        scales = [s.strip() for s in args.scales.split(",")]
+    else:
+        # Default fallback
+        scales = ["tiny", "small"]
+
     layers = [l.strip() for l in args.layers.split(",")]
 
     return [
         BenchmarkScenario(
-            name=f"{scale}",
-            scale=scale,
-            layers=layers,
-            runs=args.runs,
-            seed=args.seed,
-        )
-        for scale in scales
-    ]
-
-
-def _build_full_suite(args: argparse.Namespace) -> List[BenchmarkScenario]:
-    """Build the comprehensive full-suite benchmark."""
-    scales = ["tiny", "small", "medium"]
-    layers = [l.strip() for l in args.layers.split(",")]
-
-    return [
-        BenchmarkScenario(
-            name=f"full-{scale}",
+            name=f"auto-{scale}",
             scale=scale,
             layers=layers,
             runs=args.runs,
@@ -125,6 +118,7 @@ def _load_yaml_scenarios(config_path: Path) -> List[BenchmarkScenario]:
 # =============================================================================
 
 def _print_scenario_result(
+    display: ConsoleDisplay,
     idx: int,
     total: int,
     scenario: BenchmarkScenario,
@@ -134,40 +128,54 @@ def _print_scenario_result(
     passed = sum(1 for r in records if r.passed)
     n = len(records)
     ratio = f"{passed}/{n}"
-    status = _c("pass", Colors.GREEN) if passed == n else _c(f"{ratio}", Colors.YELLOW)
+    status = display.colored("pass", display.Colors.GREEN) if passed == n else display.colored(f"{ratio}", display.Colors.YELLOW)
+    
+    # Calculate average time for successfully completed runs in this scenario
+    valid_recs = [r for r in records if not r.error]
+    avg_time = sum(r.time_total for r in valid_recs) / len(valid_recs) if valid_recs else 0.0
 
-    print_step(
-        f"[{idx}/{total}] {scenario.name:12s}  "
+    display.print_step(
+        f"[{idx}/{total}] {scenario.name:15s}  "
         f"scale={scenario.label:8s}  "
-        f"layers={len(scenario.layers)}  "
         f"runs={scenario.runs}  "
+        f"avg={avg_time/1000:5.1f}s  "
         f"result={status}"
     )
 
 
-def _print_summary_table(summary) -> None:
+def _print_summary_table(display: ConsoleDisplay, summary) -> None:
     """Print a compact summary table to the terminal."""
     if not summary.aggregates:
         return
 
-    print_header("Benchmark Results")
+    display.print_header("Benchmark Results Summary")
 
     # Header
     hdr = (
-        f"  {'Scale':<10} {'Layer':<8} {'Runs':>5} {'Pass%':>7} "
-        f"{'Spearman':>10} {'F1':>8} {'Total(ms)':>10}"
+        f"  {'Scale':<8} {'Layer':<8} {'Runs':>4} {'Pass%':>6} "
+        f"{'ρ-Our':>7} {'ρ-BC':>7} {'Gain%':>7} {'F1':>6} {'Dur(s)':>7}"
     )
-    print(f"\n{_c(hdr, Colors.BOLD)}")
-    print(f"  {'─' * 62}")
+    print(f"\n{display.colored(hdr, display.Colors.BOLD)}")
+    print(f"  {'─' * 70}")
 
     for a in summary.aggregates:
-        sp = f"{a.avg_spearman:.3f}"
-        f1 = f"{a.avg_f1:.3f}"
+        sp = f"{a.avg_spearman:.2f}"
+        bc = f"{a.avg_spearman_bc:.2f}"
+        gain = ((a.avg_spearman - a.avg_spearman_bc) / a.avg_spearman_bc * 100) if a.avg_spearman_bc > 0 else 0.0
+        f1 = f"{a.avg_f1:.2f}"
         rate = f"{a.pass_rate:.0f}%"
-        color = Colors.GREEN if a.pass_rate == 100 else Colors.YELLOW if a.pass_rate > 0 else Colors.RED
+        
+        # Color gain
+        gain_str = f"{gain:+.1f}%"
+        gain_color = display.Colors.GREEN if gain > 5 else display.Colors.YELLOW if gain >= 0 else display.Colors.RED
+        
+        pass_color = display.Colors.GREEN if a.pass_rate == 100 else display.Colors.YELLOW if a.pass_rate > 0 else display.Colors.RED
+        
         print(
-            f"  {a.scale:<10} {a.layer:<8} {a.num_runs:>5} "
-            f"{_c(rate, color):>16} {sp:>10} {f1:>8} {a.avg_time_total:>10.0f}"
+            f"  {a.scale:<8} {a.layer:<8} {a.num_runs:>4} "
+            f"{display.colored(rate, pass_color):>15} "
+            f"{sp:>7} {bc:>7} {display.colored(gain_str, gain_color):>16} "
+            f"{f1:>6} {a.avg_time_total/1000:>7.1f}"
         )
 
     overall = (
@@ -175,7 +183,7 @@ def _print_summary_table(summary) -> None:
         f"{summary.passed_runs} passed ({summary.overall_pass_rate:.1f}%), "
         f"ρ={summary.overall_spearman:.3f}, F1={summary.overall_f1:.3f}"
     )
-    print(_c(overall, Colors.BOLD))
+    print(display.colored(overall, display.Colors.BOLD))
 
 
 # =============================================================================
@@ -232,6 +240,14 @@ examples:
         "--seed", type=int, default=42,
         help="Base seed for synthetic generation (default: 42)",
     )
+    opts.add_argument(
+        "--spearman-target", type=float, default=0.70,
+        help="Spearman correlation target (default: 0.70)",
+    )
+    opts.add_argument(
+        "--f1-target", type=float, default=0.80,
+        help="F1 score target (default: 0.80)",
+    )
 
     # --- Neo4j ---
     add_neo4j_arguments(parser)
@@ -260,23 +276,7 @@ def main() -> int:
     )
 
     # --- Build scenario list ---
-    if args.config:
-        scenarios = _load_yaml_scenarios(args.config)
-    elif args.full_suite:
-        scenarios = _build_full_suite(args)
-    elif args.scales:
-        scenarios = _build_cli_scenarios(args)
-    else:
-        # Default: medium scale with requested layers
-        scenarios = [
-            BenchmarkScenario(
-                name="default",
-                scale="medium",
-                layers=[l.strip() for l in args.layers.split(",")],
-                runs=args.runs,
-                seed=args.seed,
-            )
-        ]
+    scenarios = _build_scenarios(args)
 
     if not scenarios:
         display.print_error("No scenarios to run.")
@@ -290,8 +290,20 @@ def main() -> int:
     print(f"  Scenarios : {len(scenarios)}")
     print(f"  Total runs: {total_runs} (scenarios × layers × repeats)")
     print(f"  Output    : {display.colored(str(output_dir), display.Colors.CYAN)}")
+    
+    if args.dry_run:
+        print(f"\n  {display.colored('[DRY RUN] Plan confirmed. Exiting.', display.Colors.YELLOW)}")
+        for s in scenarios:
+            print(f"    - {s.name}: scale={s.label}, layers={s.layers}, runs={s.runs}")
+        return 0
 
     # --- Run ---
+    from src.validation import ValidationTargets
+    targets = ValidationTargets(
+        spearman=args.spearman_target,
+        f1_score=args.f1_target,
+    )
+
     t0 = time.time()
 
     with BenchmarkRunner(
@@ -301,10 +313,11 @@ def main() -> int:
         password=args.password,
         ndcg_k=args.ndcg_k,
         verbose=args.verbose,
+        targets=targets,
     ) as runner:
         for i, scenario in enumerate(scenarios, 1):
             records = runner.run_scenario(scenario)
-            _print_scenario_result(i, len(scenarios), scenario, records)
+            _print_scenario_result(display, i, len(scenarios), scenario, records)
 
         duration = time.time() - t0
         summary = runner.aggregate_results(duration)
@@ -315,7 +328,7 @@ def main() -> int:
     md_path = reporter.generate_markdown(summary)
 
     # --- Terminal summary ---
-    _print_summary_table(summary)
+    _print_summary_table(display, summary)
 
     print(f"\n  Reports saved to:")
     display.print_success(str(json_path))
