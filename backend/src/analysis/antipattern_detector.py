@@ -187,7 +187,7 @@ class AntiPatternDetector:
     def detect(self, layer_result: Any, layer: str) -> List[DetectedProblem]:
         """Run all active detectors against a LayerAnalysisResult."""
         problems: List[DetectedProblem] = []
-        components = layer_result.quality.components if layer_result.quality else []
+        components = layer_result.components if layer_result else []
         if not components:
             return problems
 
@@ -277,14 +277,14 @@ class AntiPatternDetector:
 
     def _detect_spof(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
-        for c in lr.quality.components:
+        for c in lr.components:
             if getattr(c.structural, 'is_articulation_point', False):
                 out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value}))
         return out
 
     def _detect_bridge_edge(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
-        for e in getattr(lr.quality, "edges", []):
+        for e in getattr(lr, "edges", []):
             if getattr(e.structural, 'is_bridge', False):
                 out.append(self._make_problem("BRIDGE_EDGE", e.id, {"is_bridge": True}, entity_type="Edge"))
         return out
@@ -292,13 +292,13 @@ class AntiPatternDetector:
     def _detect_failure_hub(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
         from src.core.criticality import CriticalityLevel
-        for c in lr.quality.components:
+        for c in lr.components:
             if c.levels.reliability >= CriticalityLevel.CRITICAL:
                 out.append(self._make_problem("FAILURE_HUB", c.id, {"reliability": c.scores.reliability}))
         return out
 
     def _detect_concentration_risk(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
-        comps = lr.quality.components
+        comps = lr.components
         if len(comps) < 5: return []
         sorted_pr = sorted(comps, key=lambda c: getattr(c.structural, 'pagerank', 0), reverse=True)
         top3_pr = sum(getattr(c.structural, 'pagerank', 0) for c in sorted_pr[:3])
@@ -309,7 +309,7 @@ class AntiPatternDetector:
     def _detect_god_component(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
         from src.core.criticality import CriticalityLevel
-        for c in lr.quality.components:
+        for c in lr.components:
             betweenness = getattr(c.structural, 'betweenness', 0)
             if betweenness > 0.3 and c.levels.maintainability >= CriticalityLevel.CRITICAL:
                 out.append(self._make_problem("GOD_COMPONENT", c.id, {"betweenness": betweenness}))
@@ -317,7 +317,7 @@ class AntiPatternDetector:
 
     def _detect_hub_and_spoke(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
-        for c in lr.quality.components:
+        for c in lr.components:
             cc = getattr(c.structural, 'clustering_coefficient', 1.0)
             deg = getattr(c.structural, 'in_degree_raw', 0) + getattr(c.structural, 'out_degree_raw', 0)
             if cc < 0.1 and deg > 3:
@@ -326,7 +326,7 @@ class AntiPatternDetector:
 
     def _detect_bottleneck_edge(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
-        for e in getattr(lr.quality, "edges", []):
+        for e in getattr(lr, "edges", []):
             betweenness = getattr(e.structural, 'betweenness', 0)
             if betweenness > 0.2:
                 out.append(self._make_problem("BOTTLENECK_EDGE", e.id, {"betweenness": betweenness}, entity_type="Edge"))
@@ -335,7 +335,7 @@ class AntiPatternDetector:
     def _detect_target(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
         from src.core.criticality import CriticalityLevel
-        for c in lr.quality.components:
+        for c in lr.components:
             if c.levels.vulnerability >= CriticalityLevel.CRITICAL:
                 out.append(self._make_problem("TARGET", c.id, {"vulnerability": c.scores.vulnerability}))
         return out
@@ -343,7 +343,7 @@ class AntiPatternDetector:
     def _detect_exposure(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
         from src.core.criticality import CriticalityLevel
-        for c in lr.quality.components:
+        for c in lr.components:
             closeness = getattr(c.structural, 'closeness', 0)
             if c.levels.vulnerability == CriticalityLevel.HIGH and closeness > 0.6:
                 out.append(self._make_problem("EXPOSURE", c.id, {"closeness": closeness}))
@@ -353,7 +353,7 @@ class AntiPatternDetector:
         out = []
         import networkx as nx
         G = nx.DiGraph()
-        for e in getattr(lr.quality, "edges", []):
+        for e in getattr(lr, "edges", []):
             G.add_edge(e.source, e.target)
         for scc in nx.strongly_connected_components(G):
             if len(scc) >= 2:
@@ -363,7 +363,7 @@ class AntiPatternDetector:
     def _detect_chain(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         import networkx as nx
         G = nx.DiGraph()
-        for e in getattr(lr.quality, "edges", []):
+        for e in getattr(lr, "edges", []):
             G.add_edge(e.source, e.target)
         chain_nodes = [v for v in G.nodes if G.in_degree(v) <= 1 and G.out_degree(v) <= 1]
         H = G.subgraph(chain_nodes)
@@ -375,14 +375,14 @@ class AntiPatternDetector:
 
     def _detect_isolated(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
-        for c in lr.quality.components:
+        for c in lr.components:
             if getattr(c.structural, 'is_isolated', False):
                 out.append(self._make_problem("ISOLATED", c.id, {"isolated": True}))
         return out
 
     def _detect_systemic_risk(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         from src.core.criticality import CriticalityLevel
-        crit_count = sum(1 for c in lr.quality.components if c.levels.overall == CriticalityLevel.CRITICAL)
+        crit_count = sum(1 for c in lr.components if c.levels.overall == CriticalityLevel.CRITICAL)
         total = stats["total_count"]
         if total > 0 and (crit_count / total) > 0.2:
             return [self._make_problem("SYSTEMIC_RISK", "SYSTEM", {"critical_ratio": crit_count/total}, entity_type="System")]
