@@ -121,7 +121,7 @@ COPY backend/src/ ./backend/src/
 COPY backend/api/ ./backend/api/
 COPY tools/ ./tools/
 COPY saag/ ./saag/
-COPY bin/*.py ./bin/
+COPY bin/ ./bin/
 
 # Copy input data for pipeline examples
 COPY input/ ./input/
