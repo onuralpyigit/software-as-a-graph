@@ -12,6 +12,7 @@ import argparse
 import json
 from pathlib import Path
 from typing import Dict, Any
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from saag import Client
 from bin._shared import add_neo4j_args, add_common_args, setup_logging
 
@@ -22,14 +23,12 @@ def main() -> None:
         description="Export Graph Data from Neo4j to JSON",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "--output",
-        required=True,
-        help="Output JSON file path",
-    )
     add_neo4j_args(parser)
     add_common_args(parser)
     args = parser.parse_args()
+
+    if not args.output:
+        parser.error("--output / -o is required for export_graph.py")
 
     setup_logging(args)
     
@@ -39,7 +38,7 @@ def main() -> None:
  
     try:
         print("Exporting graph data...")
-        data = client.export_topology()
+        data = client.repo.export_json()
 
         # Ensure output directory exists
         output_path = Path(args.output)

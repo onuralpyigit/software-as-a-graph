@@ -19,12 +19,13 @@
 5. [Quick Start (Docker)](#quick-start-docker)
 6. [Web Interface (Genieus)](#web-interface-genieus)
 7. [Development Setup (CLI)](#development-setup-cli)
-8. [How It Works — The 6-Step Pipeline](#how-it-works--the-6-step-pipeline)
-9. [RMAV Prediction](#rmav-prediction)
-10. [Project Structure](#project-structure)
-11. [Research Context](#research-context)
-12. [Citation](#citation)
-13. [License](#license)
+8. [Local Development](#local-development)
+9. [How It Works — The 6-Step Pipeline](#how-it-works--the-6-step-pipeline)
+10. [RMAV Prediction](#rmav-prediction)
+11. [Project Structure](#project-structure)
+12. [Research Context](#research-context)
+13. [Citation](#citation)
+14. [License](#license)
 
 ---
 
@@ -220,6 +221,40 @@ For Python-based integration, see the annotated examples in `examples/`:
 | `examples/example_simulation.py` | Running failure simulations |
 | `examples/example_validation.py` | Validating predictions against ground truth |
 | `examples/example_visualization.py` | Generating HTML dashboards |
+
+---
+
+## Local Development
+
+Use this guide when you want to run the backend API and frontend separately with hot-reload, without Docker.
+
+### Backend (FastAPI)
+
+Start Neo4j:
+```bash
+docker run -d --name neo4j \
+  -p 7474:7474 -p 7687:7687 \
+  -e NEO4J_AUTH=neo4j/password \
+  neo4j:2026.02.2
+```
+
+```bash
+python3.11 -m venv backend/env
+source backend/env/bin/activate
+pip install -r backend/requirements.txt
+cd backend
+uvicorn api.main:app --reload --port 8000
+```
+
+The API will be available at http://localhost:8000 and the interactive docs at http://localhost:8000/docs.
+
+### Frontend (Next.js)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ---
 

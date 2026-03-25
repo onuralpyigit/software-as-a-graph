@@ -330,7 +330,7 @@ class LayerDataCollector:
                 # Re-running analysis to get the full result for detector
                 analysis_result = self.analysis_service.analyze_layer(layer)
                 detector = AntiPatternDetector()
-                detected = detector.detect(analysis_result, layer)
+                detected = detector.detect(analysis_result.quality, layer)
                 smells = [s.to_dict() for s in detected]
                 data.anti_patterns = smells
             data.problems_count = len(smells)

@@ -64,12 +64,11 @@ class AnalysisService:
         
         # Consolidation: Perform quality prediction and smell detection
         quality_result = self._quality_analyzer.predict_quality(struct_result)
-        problems = self._smell_detector.detect(struct_result, layer=layer)
+        problems = self._smell_detector.detect(quality_result, layer=layer)
         problem_summary = self._quality_analyzer.summarize_problems(problems)
         
         # Wrapper for ExplanationEngine
         smell_report = AntiPatternReport(
-            layer=layer,
             problems=problems,
             summary=problem_summary.to_dict() if hasattr(problem_summary, "to_dict") else problem_summary
         )

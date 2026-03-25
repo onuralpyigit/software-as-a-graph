@@ -24,8 +24,10 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Ensure repo root is on the path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+# Ensure repo root and backend are on the path
+_repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_repo_root))
+sys.path.insert(0, str(_repo_root / "backend"))
 
 from bin.common.console import ConsoleDisplay
 from bin.common.arguments import add_neo4j_arguments, add_common_arguments
@@ -146,7 +148,7 @@ def main() -> None:
         try:
             if structural_dict is None or rmav_dict is None:
                 logger.info("[Step 2+3] Running analysis and quality scoring...")
-                analysis_svc = AnalysisService(repo, use_ahp=args.use_ahp)
+                analysis_svc = AnalysisService(repo)
                 layer_result = analysis_svc.analyze_layer(args.layer)
                 nx_graph = layer_result.graph
                 if structural_dict is None:

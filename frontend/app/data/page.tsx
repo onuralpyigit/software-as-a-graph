@@ -33,13 +33,27 @@ import {
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
 
-const SCALES = [
-  { value: "tiny", label: "Tiny", description: "25 total nodes", count: "10 apps, 8 topics, 1 broker, 3 nodes, 3 libs" },
-  { value: "small", label: "Small", description: "100 total nodes", count: "40 apps, 30 topics, 3 brokers, 12 nodes, 15 libs" },
-  { value: "medium", label: "Medium", description: "500 total nodes", count: "200 apps, 150 topics, 10 brokers, 60 nodes, 80 libs" },
-  { value: "large", label: "Large", description: "1,000 total nodes", count: "400 apps, 300 topics, 15 brokers, 120 nodes, 165 libs" },
-  { value: "xlarge", label: "X-Large", description: "10,000 total nodes", count: "4,100 apps, 3,000 topics, 50 brokers, 1,200 nodes, 1,650 libs" }
-]
+const SCALE_PRESETS = {
+  tiny:   { apps: 5,   topics: 5,   brokers: 1,  nodes: 2,  libs: 2   },
+  small:  { apps: 15,  topics: 10,  brokers: 2,  nodes: 4,  libs: 5   },
+  medium: { apps: 50,  topics: 30,  brokers: 3,  nodes: 8,  libs: 10  },
+  large:  { apps: 150, topics: 100, brokers: 6,  nodes: 20, libs: 30  },
+  xlarge: { apps: 500, topics: 300, brokers: 10, nodes: 50, libs: 100 },
+} as const
+
+const SCALE_LABELS: Record<string, string> = {
+  tiny: "Tiny", small: "Small", medium: "Medium", large: "Large", xlarge: "X-Large"
+}
+
+const SCALES = (Object.entries(SCALE_PRESETS) as [string, { apps: number; topics: number; brokers: number; nodes: number; libs: number }][]).map(([value, c]) => {
+  const total = c.apps + c.topics + c.brokers + c.nodes + c.libs
+  return {
+    value,
+    label: SCALE_LABELS[value],
+    description: `${total.toLocaleString()} total nodes`,
+    count: `${c.apps} apps, ${c.topics} topics, ${c.brokers} broker${c.brokers !== 1 ? 's' : ''}, ${c.nodes} nodes, ${c.libs} libs`,
+  }
+})
 
 export default function DataPage() {
   const router = useRouter()

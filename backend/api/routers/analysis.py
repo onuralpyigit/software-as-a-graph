@@ -6,11 +6,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List
 import logging
 
+from types import SimpleNamespace
+
 from api.dependencies import get_client
 from saag import Client
 from saag.models import AnalysisResult as SaagAnalysisResult
 from src.prediction import ProblemDetector, PredictionService, DetectedProblem
 from src.analysis.structural_analyzer import StructuralAnalyzer
+from src.analysis.antipattern_detector import AntiPatternDetector
 from src.core.layers import AnalysisLayer
 from api.presenters import analysis_presenter
 from api.models import AnalysisEnvelope
@@ -31,6 +34,21 @@ def _structural_analyze(client: Client, layer: str) -> SaagAnalysisResult:
     return SaagAnalysisResult(raw)
 
 
+def _detect_antipatterns(prediction) -> list:
+    """
+    Detect antipatterns by calling AntiPatternDetector directly with a shim that
+    includes the required 'components' attribute, bypassing the broken SimpleNamespace
+    shim in ProblemDetector which omits 'components'.
+    """
+    quality = prediction.raw
+    layer_name = getattr(quality, "layer", "system")
+    if hasattr(layer_name, "value"):
+        layer_name = layer_name.value
+    shim = SimpleNamespace(quality=quality, components=quality.components)
+    detector = AntiPatternDetector()
+    return detector.detect(shim, layer_name)
+
+
 # ── Endpoints ────────────────────────────────────────────────────────────
 
 @router.post("/full", response_model=AnalysisEnvelope)
@@ -49,7 +67,7 @@ async def analyze_full_system(
         # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
         analysis = _structural_analyze(client, "system")
         prediction = client.predict(analysis)
-        problems = client.detect_antipatterns(prediction)
+        problems = _detect_antipatterns(prediction)
         
         return analysis_presenter.build_analysis_response(
             analysis,
@@ -90,7 +108,7 @@ async def analyze_by_type(
         # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
         analysis = _structural_analyze(client, "system")
         prediction = client.predict(analysis)
-        problems = client.detect_antipatterns(prediction)
+        problems = _detect_antipatterns(prediction)
 
         return analysis_presenter.build_analysis_response(
             analysis,
@@ -134,7 +152,7 @@ async def analyze_layer(
         # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
         analysis = _structural_analyze(client, layer)
         prediction = client.predict(analysis)
-        problems = client.detect_antipatterns(prediction)
+        problems = _detect_antipatterns(prediction)
         
         return analysis_presenter.build_analysis_response(
             analysis,

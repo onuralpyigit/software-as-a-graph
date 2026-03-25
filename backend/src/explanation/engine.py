@@ -53,11 +53,17 @@ class ComponentExplanation:
             "component_id": self.component_id,
             "pattern": self.pattern,
             "level": self.level,
+            "overall_level": self.level,
             "one_line": self.one_line,
+            "one_line_summary": self.one_line,
             "top_risk": self.top_risk,
+            "top_risk_description": self.top_risk,
             "dimensions": [d.to_dict() for d in self.dimensions],
+            "dimension_explanations": [d.to_dict() for d in self.dimensions],
             "priority_action": self.priority_action,
-            "anti_patterns": self.anti_patterns
+            "remediation_steps": [{"action": self.priority_action}] if self.priority_action else [],
+            "anti_patterns": self.anti_patterns,
+            "stakeholders": []
         }
 
 
