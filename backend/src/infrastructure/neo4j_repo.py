@@ -110,7 +110,10 @@ class Neo4jRepository:
         password = password or config.get_default_password()
         database = database or config.get_default_database()
         
-        self.driver = GraphDatabase.driver(uri, auth=(user, password))
+        self.driver = GraphDatabase.driver(
+            uri, auth=(user, password),
+            notifications_min_severity="WARNING",
+        )
         self.database = database
         self.logger = logging.getLogger(__name__)
 
