@@ -36,17 +36,24 @@ class Client:
             "success": result.success,
         }
 
-    def analyze(self, layer: str = "system", use_ahp: bool = False) -> AnalysisResult:
+    def analyze(self, layer: str = "system", use_ahp: bool = False, **kwargs) -> AnalysisResult:
         """Analyze the structural graph topology."""
         from src.usecases.analyze_graph import AnalyzeGraphUseCase
         uc = AnalyzeGraphUseCase(self.repo)
         raw_analysis = uc.execute(layer=layer)
         return AnalysisResult(raw_analysis)
 
-    def predict(self, analysis: AnalysisResult) -> PredictionResult:
+    def predict(self, analysis: AnalysisResult, gnn_model: Optional[str] = None, **kwargs) -> PredictionResult:
         """Predict quality metrics via GNN."""
         from src.usecases.predict_graph import PredictGraphUseCase
-        uc = PredictGraphUseCase(self.repo)
+        
+        # If gnn_model is provided, we might want to inject a specific service
+        prediction_service = None
+        if gnn_model:
+            from src.prediction.service import GNNService
+            prediction_service = GNNService.from_checkpoint(gnn_model)
+
+        uc = PredictGraphUseCase(self.repo, prediction_service=prediction_service)
         
         layer_str = analysis.raw.layer.value
         quality, _ = uc.execute(

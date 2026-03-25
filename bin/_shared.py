@@ -34,9 +34,8 @@ def add_common_args(parser: argparse.ArgumentParser):
     # Layer argument (present in almost all scripts)
     group.add_argument(
         "--layer", "-l",
-        choices=["app", "infra", "mw", "system"],
         default="system",
-        help="Analysis layer (default: system)",
+        help="Analysis layer(s). Can be comma-separated (e.g. 'app,infra,system'). Defaults to 'system'.",
     )
     
     # Common Output argument

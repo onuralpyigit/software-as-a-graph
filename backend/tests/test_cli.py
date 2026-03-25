@@ -256,7 +256,7 @@ class TestRunOrchestrator:
         assert ret == 0
         
         mock_class.from_json.assert_called_once()
-        mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=False)
+        mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=False, gnn_model=None)
         mock_inst.predict.assert_called_once()
         mock_inst.simulate.assert_called_once_with(layer='system', mode='exhaustive')
         mock_inst.validate.assert_called_once_with(layers=['app', 'infra', 'mw', 'system'])
@@ -312,7 +312,7 @@ class TestLayerHandling:
     def test_single_layer_uses_layer_flag(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
         self._run_main(run_module, ["--analyze", "--layer", "system"])
-        mock_inst.analyze.assert_called_once_with(layer="system", use_ahp=False)
+        mock_inst.analyze.assert_called_once_with(layer="system", use_ahp=False, gnn_model=None)
 
     def test_visualize_multi_layer(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
@@ -339,7 +339,7 @@ class TestOptionsPassthrough:
     def test_use_ahp_forwarded(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
         self._run_main(run_module, ["--analyze", "--use-ahp"])
-        mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=True)
+        mock_inst.analyze.assert_called_once_with(layer='system', use_ahp=True, gnn_model=None)
 
 class TestOutputPaths:
     """Tests for output directory and file paths in run.py"""
@@ -365,8 +365,17 @@ class TestOutputPaths:
 
     def test_custom_input_path(self, run_module, mock_pipeline):
         mock_class, mock_inst = mock_pipeline
-        self._run_main(run_module, ["--import-file", "data/custom.json"])
+        self._run_main(run_module, ["--input", "data/custom.json"])
         mock_class.from_json.assert_called_once_with("data/custom.json", clear=False, neo4j_uri="bolt://localhost:7687", password="password", user="neo4j")
+
+    def test_generate_stage_called(self, run_module, mock_pipeline):
+        mock_class, mock_inst = mock_pipeline
+        with patch('bin.common.dispatcher.dispatch_generate') as mock_gen:
+            ret = self._run_main(run_module, ["--generate", "--input", "test.json", "--scale", "tiny"])
+            assert ret == 0
+            mock_gen.assert_called_once()
+            # Pipeline is then initialized from the generated file
+            mock_class.from_json.assert_called_once_with("test.json", clear=False, neo4j_uri="bolt://localhost:7687", password="password", user="neo4j")
 
 
 # =============================================================================

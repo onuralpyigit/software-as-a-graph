@@ -32,7 +32,11 @@ class ProblemDetector:
         the expected interface.
         """
         # Create a shim for LayerAnalysisResult expected by engine
-        shim = SimpleNamespace(quality=quality)
+        shim = SimpleNamespace(
+            quality=quality,
+            components=quality.components,
+            edges=quality.edges
+        )
         layer_name = getattr(quality, "layer", "system")
         
         problems = self._engine.detect(shim, layer_name)

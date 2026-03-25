@@ -65,8 +65,9 @@ class Pipeline:
         self._analyze_kwargs = kwargs
         return self
 
-    def predict(self) -> "Pipeline":
+    def predict(self, **kwargs) -> "Pipeline":
         """Stage: Predict."""
+        self._predict_kwargs = kwargs
         return self
         
     def simulate(self, layer: str = "system", mode: str = "exhaustive", **kwargs) -> "Pipeline":
@@ -105,7 +106,8 @@ class Pipeline:
             
             # 3. Predict & Detect Problems
             logger.info("Predicting quality metrics and detecting antipatterns...")
-            result.prediction = self.client.predict(result.analysis)
+            predict_kwargs = getattr(self, "_predict_kwargs", {})
+            result.prediction = self.client.predict(result.analysis, **predict_kwargs)
             result.problems = self.client.detect_antipatterns(result.prediction)
             
         # 4. Simulate
