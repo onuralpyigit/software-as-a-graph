@@ -799,7 +799,50 @@ class ConsoleDisplay:
                     f"{reach:>7.4f} {cascade:>7}"
                 )
 
-    def display_structural_summary(self, summary: Dict[str, Any]) -> None:
+    def display_validation_summary(self, result: Any) -> None:
+        """Display summary of validation pipeline results."""
+        # result is typically saag.models.ValidationPipelineFacade
+        if not result:
+            return
+            
+        layers_dict = {}
+        if hasattr(result, "layers"):
+            layers_dict = result.layers
+        elif isinstance(result, dict):
+            layers_dict = result.get("layers", result)
+            
+        if not layers_dict:
+            return
+
+        self.print_subheader(f"Validation Results ({len(layers_dict)} layers)")
+        
+        header = f"  {'Layer':<15} {'Spearman ρ':>12} {'F1 Score':>12} {'Status':<10}"
+        print(self.colored(header, Colors.WHITE, bold=True))
+        print("  " + "-" * 55)
+        
+        for layer_name, res in layers_dict.items():
+            rho = getattr(res, "spearman_rho", 0.0)
+            f1 = getattr(res, "f1_score", 0.0)
+            
+            # Simple heuristic for status
+            status = "PASSED" if rho > 0.6 and f1 > 0.6 else "WEAK"
+            status_color = Colors.GREEN if status == "PASSED" else Colors.YELLOW
+            
+            print(
+                f"  {layer_name:<15} "
+                f"{rho:>12.4f} {f1:>12.4f} "
+                f"{self.colored(f'{status:<10}', status_color)}"
+            )
+
+    def display_visualization_summary(self, filepath: str) -> None:
+        """Display success message for dashboard generation."""
+        abs_path = os.path.abspath(filepath)
+        size_kb = os.path.getsize(abs_path) / 1024
+        
+        self.print_subheader("Visualization Generated")
+        print(f"  {self.colored('Dashboard:', Colors.CYAN)} {abs_path}")
+        print(f"  {self.colored('File Size:', Colors.CYAN)} {size_kb:.0f} KB")
+        print(f"  {self.colored('Status:', Colors.GREEN)} Ready for review")
         """Display summary of structural graph analysis results."""
         self.print_subheader(f"Structural analysis: Layer '{summary.get('layer', 'unknown')}'")
         

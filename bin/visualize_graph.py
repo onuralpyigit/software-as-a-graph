@@ -16,8 +16,10 @@ import webbrowser
 import os
 from saag import Client
 from bin._shared import add_neo4j_args, add_common_args, setup_logging
+from bin.common.console import ConsoleDisplay
 
 def run_demo(output_file: str, open_browser: bool) -> int:
+    display = ConsoleDisplay()
     """Generate a demo dashboard with sample data (no Neo4j required)."""
     # Keep the same run_demo logic. It operates statelessly without client.
     from src.visualization import LayerData, ComponentDetail
@@ -80,19 +82,17 @@ def main():
     add_common_args(parser)
     
     args, unknown = parser.parse_known_args()
-    setup_logging(args)
-
-    out_file = args.output if args.output else "dashboard.html"
-
+    display = ConsoleDisplay()
+    
     if args.demo:
-        return run_demo(out_file, args.open)
+        return run_demo(args.output if args.output else "dashboard.html", args.open)
 
+    display.print_header("Analysis Dashboard Generation")
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
     
-    layers = [l.strip() for l in args.layer.split(",") if l.strip()]
-    
+    display.print_step(f"Generating dashboard for layers: {', '.join(layers)}")
     out_path = client.visualize(
-        output=out_file,
+        output=args.output if args.output else "dashboard.html",
         layers=layers,
         include_network=not args.no_network,
         include_matrix=not args.no_matrix,
@@ -101,10 +101,7 @@ def main():
         multi_seed=args.multi_seed
     )
     
-    abs_path = os.path.abspath(out_path)
-    if getattr(args, "verbose", False) or not getattr(args, "quiet", False):
-        file_size = os.path.getsize(abs_path) / 1024
-        print(f"\nDashboard Generated: {abs_path} ({file_size:.0f} KB)")
+    display.display_visualization_summary(out_path)
         
     if args.open:
         webbrowser.open(f"file://{abs_path}")
