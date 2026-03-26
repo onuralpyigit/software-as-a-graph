@@ -619,6 +619,47 @@ class ConsoleDisplay:
                 formatted_dep = dep.replace("_", " ").title()
                 print(f"    - {formatted_dep:<18} {count}")
 
+    def display_structural_summary(self, summary: Dict[str, Any]) -> None:
+        """Display summary of structural graph analysis results."""
+        self.print_subheader(f"Structural analysis: Layer '{summary.get('layer', 'unknown')}'")
+        
+        col1 = 25
+        print(f"  {'Total Nodes:':<{col1}} {summary.get('nodes', 0)}")
+        print(f"  {'Total Edges:':<{col1}} {summary.get('edges', 0)}")
+        print(f"  {'Graph Density:':<{col1}} {summary.get('density', 0.0):.4f}")
+        print(f"  {'Avg Degree:':<{col1}} {summary.get('avg_degree', 0.0):.2f}")
+        print(f"  {'Avg Clustering:':<{col1}} {summary.get('avg_clustering', 0.0):.4f}")
+        
+        print(f"\n  {'Connectivity Health:':<{col1}} {summary.get('connectivity_health', 'unknown')}")
+        print(f"  {'Num. Components:':<{col1}} {summary.get('num_components', 0)}")
+        print(f"  {'Is Connected:':<{col1}} {summary.get('is_connected', False)}")
+        
+        print(f"\n  {'Resilience Indicators:':<{col1}}")
+        print(f"    - {'Articulation Points:':<22} {summary.get('num_articulation_points', 0)} (SPOF Ratio: {summary.get('num_articulation_points', 0) / summary.get('nodes', 1):.1%})")
+        print(f"    - {'Bridges:':<22} {summary.get('num_bridges', 0)} (Bridge Ratio: {summary.get('num_bridges', 0) / summary.get('edges', 1):.1%})")
+        
+        print(f"\n  {'Mixing Pattern:':<{col1}} {summary.get('assortativity_pattern', 'unknown')} (r={summary.get('assortativity', 0.0):.3f})")
+
+    def display_top_components(self, components: List[Dict[str, Any]], metric: str = "betweenness", n: int = 5) -> None:
+        """Display top-N components sorted by a specific structural metric."""
+        if not components:
+            return
+            
+        self.print_subheader(f"Top {n} components by {metric.title()}")
+        
+        # Sort and take top N
+        top_n = sorted(components, key=lambda c: c.get(metric, 0), reverse=True)[:n]
+        
+        header = f"  {'ID':<{30}} {'Type':<{15}} {metric.title():<{15}}"
+        print(header)
+        print("  " + "-" * (len(header) - 2))
+        
+        for comp in top_n:
+            comp_id = comp.get("id", "unknown")
+            if len(comp_id) > 28:
+                comp_id = comp_id[:25] + "..."
+            print(f"  {comp_id:<30} {comp.get('type', 'Unknown'):<15} {comp.get(metric, 0.0):<15.4f}")
+
     def display_graph_data_summary(self, graph_data: Dict[str, Any], title: str = "Graph Data Summary") -> None:
         """Display summary of a graph data dictionary (nodes/relationships format)."""
         self.print_subheader(title)

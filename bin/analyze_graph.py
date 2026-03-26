@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 from saag import Client
 from bin._shared import add_neo4j_args, add_common_args, setup_logging
+from bin.common.console import ConsoleDisplay
 
 def main():
     parser = argparse.ArgumentParser(description="Multi-layer graph analysis for distributed pub-sub systems.")
@@ -29,16 +30,38 @@ def main():
     
     args = parser.parse_args()
     setup_logging(args)
+    console = ConsoleDisplay()
 
-    client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
-    result = client.analyze(layer=args.layer, use_ahp=args.use_ahp, equal_weights=args.equal_weights, ahp_shrinkage=args.ahp_shrinkage)
+    console.print_header("Structural Graph Analysis")
+    console.print_step(f"Connecting to Neo4j at {args.uri}...")
     
-    if args.output:
-        result.save(args.output)
-        if not args.quiet:
-            print(f"Analysis saved to {args.output}")
-    elif not args.quiet:
-        print("Analysis completed successfully. (No output file specified)")
+    try:
+        client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
+        console.print_step(f"Analyzing layer: {args.layer}...")
+        
+        # Analyze returns AnalysisResult which wraps StructuralAnalysisResult
+        result = client.analyze(layer=args.layer)
+        
+        console.print_success("Analysis Complete!")
+        
+        # Display summary stats
+        summary = result.raw.graph_summary.to_dict()
+        console.display_structural_summary(summary)
+        
+        # Display top components by betweenness (bottlenecks)
+        comps = [c.to_dict() for c in result.raw.components.values()]
+        console.display_top_components(comps, metric="betweenness", n=5)
+
+        if args.output:
+            result.save(args.output)
+            console.print_success(f"Full analysis results saved to {args.output}")
+
+    except Exception as e:
+        console.print_error(f"Analysis failed: {e}")
+        if getattr(args, 'verbose', False):
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

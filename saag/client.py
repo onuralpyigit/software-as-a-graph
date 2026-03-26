@@ -39,7 +39,7 @@ class Client:
             stats.update(result.details)
         return stats
 
-    def analyze(self, layer: str = "app") -> AnalysisResult:
+    def analyze(self, layer: str = "app", **kwargs) -> AnalysisResult:
         """Analyze the structural graph topology."""
         from src.usecases.analyze_graph import AnalyzeGraphUseCase
         uc = AnalyzeGraphUseCase(self.repo)
