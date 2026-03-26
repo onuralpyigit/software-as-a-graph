@@ -493,8 +493,8 @@ class StatisticsService:
 
     # ── node weight distribution ─────────────────────────────────────
 
-    def get_node_weight_distribution(self) -> Dict[str, Any]:
-        """Node importance distribution based on degree centrality."""
+    def get_component_centrality_distribution(self) -> Dict[str, Any]:
+        """Component importance distribution based on degree centrality."""
         t0 = time.time()
         gd = self._graph_data()
 
@@ -505,48 +505,48 @@ class StatisticsService:
             degree_map[edge.target_id] += 1
 
         max_degree = max(degree_map.values()) if degree_map else 1
-        weights = {cid: degree_map[cid] / max_degree for cid in info}
+        centrality = {cid: degree_map[cid] / max_degree for cid in info}
 
-        wv = list(weights.values())
-        concentration = _gini_coefficient(wv)
+        cv = list(centrality.values())
+        concentration = _gini_coefficient(cv)
         health_info = _health_from_concentration(concentration)
 
         top_components = [
             {"id": cid, "name": info[cid]["name"], "type": info[cid]["type"],
-             "weight": round(w, 4)}
-            for cid, w in sorted(weights.items(), key=lambda x: x[1], reverse=True)[:20]
+             "centrality": round(c, 4)}
+            for cid, c in sorted(centrality.items(), key=lambda x: x[1], reverse=True)[:20]
         ]
 
         by_type: Dict[str, list] = defaultdict(list)
         for cid, ci in info.items():
-            by_type[ci["type"]].append(weights[cid])
+            by_type[ci["type"]].append(centrality[cid])
         type_stats = {}
-        for t, tw in by_type.items():
+        for t, tc in by_type.items():
             type_stats[t] = {
-                "count": len(tw),
-                "total_weight": round(sum(tw), 3),
-                "avg_weight": round(py_stats.mean(tw), 3),
-                "median_weight": round(py_stats.median(tw), 3),
-                "min_weight": round(min(tw), 3),
-                "max_weight": round(max(tw), 3),
-                "std_weight": round(py_stats.stdev(tw), 3) if len(tw) > 1 else 0,
+                "count": len(tc),
+                "total_centrality": round(sum(tc), 3),
+                "avg_centrality": round(py_stats.mean(tc), 3),
+                "median_centrality": round(py_stats.median(tc), 3),
+                "min_centrality": round(min(tc), 3),
+                "max_centrality": round(max(tc), 3),
+                "std_centrality": round(py_stats.stdev(tc), 3) if len(tc) > 1 else 0,
             }
 
         return {
             "total_components": len(info),
-            "total_weight": round(sum(wv), 3),
-            "avg_weight": round(py_stats.mean(wv), 4) if wv else 0,
-            "median_weight": round(py_stats.median(wv), 4) if wv else 0,
-            "min_weight": round(min(wv), 4) if wv else 0,
-            "max_weight": round(max(wv), 4) if wv else 0,
-            "std_weight": round(py_stats.stdev(wv), 4) if len(wv) > 1 else 0,
-            "weight_concentration": round(concentration, 4),
+            "total_centrality": round(sum(cv), 3),
+            "avg_centrality": round(py_stats.mean(cv), 4) if cv else 0,
+            "median_centrality": round(py_stats.median(cv), 4) if cv else 0,
+            "min_centrality": round(min(cv), 4) if cv else 0,
+            "max_centrality": round(max(cv), 4) if cv else 0,
+            "std_centrality": round(py_stats.stdev(cv), 4) if len(cv) > 1 else 0,
+            "centrality_concentration": round(concentration, 4),
             **health_info,
-            "very_high_count": sum(1 for w in wv if w >= 0.8),
-            "high_count": sum(1 for w in wv if 0.6 <= w < 0.8),
-            "medium_count": sum(1 for w in wv if 0.3 <= w < 0.6),
-            "low_count": sum(1 for w in wv if 0.1 <= w < 0.3),
-            "very_low_count": sum(1 for w in wv if w < 0.1),
+            "very_high_count": sum(1 for c in cv if c >= 0.8),
+            "high_count": sum(1 for c in cv if 0.6 <= c < 0.8),
+            "medium_count": sum(1 for c in cv if 0.3 <= c < 0.6),
+            "low_count": sum(1 for c in cv if 0.1 <= c < 0.3),
+            "very_low_count": sum(1 for c in cv if c < 0.1),
             "top_components": top_components,
             "type_stats": type_stats,
             "computation_time_ms": round((time.time() - t0) * 1000, 2),
