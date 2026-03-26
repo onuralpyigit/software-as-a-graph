@@ -247,11 +247,11 @@ MIN_WEIGHT = 0.01
 
 Once topics have weights, those weights propagate to the vertices that depend on them:
 
-- **Application weight** = `max(w(t))` over all topics t the application publishes to or subscribes to
+- **Application weight** = `0.80 × max(w(t)) + 0.20 × mean(w(t))` over all topics t
 - **Broker weight** = `0.70 × max(w(t)) + 0.30 × mean(w(t))` over all topics t the broker routes
 - **Node weight** = `max(w(v))` over all applications and brokers hosted on the node
 
-**Application** uses `max()` because an application's criticality is bounded by the most critical stream it handles — a single URGENT/PERSISTENT stream makes the application critical regardless of how many LOW/BEST_EFFORT streams it also handles.
+**Application** uses a hybrid formula because applications aggregate multiple data streams. While an application's criticality is primarily bounded by the most critical stream it handles (0.80 × max), a dense subscription footprint of multiple medium-weight streams adds materially to its cumulative load and failure impact (0.20 × mean).
 
 **Broker** uses a hybrid formula because brokers aggregate system-wide routing exposure. A broker routing 20 medium-weight topics carries materially more cumulative risk than one routing a single high-weight topic — yet `max()` alone assigns them the same weight. The hybrid captures both worst-case exposure (0.70 × max) and accumulated routing load (0.30 × mean). When a broker routes only one topic, `mean = max` and the formula collapses to `w = max`, preserving backward compatibility.
 
@@ -396,8 +396,8 @@ QoS_score(/temperature) = 0.30×1.0 + 0.40×0.5 + 0.30×0.66 = 0.30 + 0.20 + 0.1
 size_norm(/temperature) ≈ 0.0017  [64 bytes]
 w(/temperature) = max(0.01, 0.85 × 0.698 + 0.15 × 0.0017) ≈ 0.59
 
-w(SensorApp)  = max(w(/temperature)) = 0.59
-w(MonitorApp) = max(w(/temperature)) = 0.59
+w(SensorApp)  = 0.80 × 0.59 + 0.20 × 0.59 = 0.59
+w(MonitorApp) = 0.80 × 0.59 + 0.20 × 0.59 = 0.59
 w(MainBroker) = 0.70 × 0.59 + 0.30 × 0.59 = 0.59   [single topic; mean = max]
 w(NavLib)     = 0.59  [propagated from consuming apps]
 ```

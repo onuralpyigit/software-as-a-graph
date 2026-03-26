@@ -17,6 +17,12 @@ MIN_TOPIC_WEIGHT: float = 0.01
 #: Rationale: QoS semantics are the primary signal; payload size is a secondary amplifier.
 TOPIC_QOS_WEIGHT_BETA: float = 0.85
 
+#: Hybrid weight coefficients for aggregate components
+APP_HYBRID_MAX_COEFF: float = 0.80
+APP_HYBRID_MEAN_COEFF: float = 0.20
+BROKER_HYBRID_MAX_COEFF: float = 0.70
+BROKER_HYBRID_MEAN_COEFF: float = 0.30
+
 @dataclass
 class ComponentData:
     """Domain entity representing a graph component (vertex)."""

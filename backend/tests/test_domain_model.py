@@ -454,3 +454,37 @@ class TestNeo4jGraphImport:
         # 0.70 * 0.85 + 0.30 * 0.6375 = 0.595 + 0.19125 = 0.78625
         assert broker.weight == pytest.approx(0.78625, abs=0.01)
 
+    def test_application_hybrid_weight(self, neo4j_repo):
+        """Test application hybrid weight calculation: 0.80 * max + 0.20 * avg."""
+        graph_data = {
+            "applications": [
+                {"id": "app1", "name": "App 1"}
+            ],
+            "topics": [
+                {
+                    "id": "t1", 
+                    "size": 0, 
+                    "qos": {"reliability": "RELIABLE", "durability": "PERSISTENT", "transport_priority": "URGENT"}
+                },
+                {
+                    "id": "t2", 
+                    "size": 0, 
+                    "qos": {"reliability": "RELIABLE", "durability": "TRANSIENT_LOCAL", "transport_priority": "LOW"}
+                }
+            ],
+            "relationships": {
+                "publishes_to": [
+                    {"from": "app1", "to": "t1"},
+                    {"from": "app1", "to": "t2"}
+                ]
+            }
+        }
+        neo4j_repo.save_graph(graph_data, clear=True)
+        
+        app = neo4j_repo.get_graph_data(component_types=["Application"]).components[0]
+        # w(t1) = 0.85*1.0 + 0.15*0 = 0.85
+        # w(t2) = 0.85*0.5 + 0.15*0 = 0.425
+        # max_w = 0.85, mean_w = 0.6375
+        # 0.80 * 0.85 + 0.20 * 0.6375 = 0.68 + 0.1275 = 0.8075
+        assert app.weight == pytest.approx(0.8075, abs=0.01)
+

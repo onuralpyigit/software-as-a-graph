@@ -23,7 +23,12 @@ from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, AuthError
 
 from src.core.ports.graph_repository import IGraphRepository
-from src.core.models import ComponentData, EdgeData, GraphData, QoSPolicy, MIN_TOPIC_WEIGHT, TOPIC_QOS_WEIGHT_BETA
+from src.core.models import (
+    ComponentData, EdgeData, GraphData, QoSPolicy, 
+    MIN_TOPIC_WEIGHT, TOPIC_QOS_WEIGHT_BETA,
+    APP_HYBRID_MAX_COEFF, APP_HYBRID_MEAN_COEFF,
+    BROKER_HYBRID_MAX_COEFF, BROKER_HYBRID_MEAN_COEFF
+)
 from . import config
 
 # ---------------------------------------------------------------------------
@@ -465,15 +470,17 @@ class Neo4jRepository:
             Node:        w(n) = max w(c) for hosted components
             app_to_lib:  w(e) = w(App)
         """
-        # 1. Application Weight (max topic weight)
-        self._run_query("""
+        # 1. Application Weight (hybrid: 0.80 * max + 0.20 * mean)
+        self._run_query(f"""
             MATCH (a:Application)
             OPTIONAL MATCH (a)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
-            WITH a, max(t.weight) as topic_max
-            SET a.weight = coalesce(topic_max, 0.01)
+            WITH a, max(t.weight) as max_w, avg(t.weight) as mean_w
+            SET a.weight = coalesce({APP_HYBRID_MAX_COEFF} * max_w + {APP_HYBRID_MEAN_COEFF} * mean_w, 0.01)
         """)
 
         # 2. Library Weight (propagated from consuming apps or direct topics)
+        # Note: Library remains max() because it's a passive dependency, 
+        # its criticality is the worst-case consumer.
         self._run_query("""
             MATCH (l:Library)
             OPTIONAL MATCH (l)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
@@ -486,11 +493,11 @@ class Neo4jRepository:
         """)
 
         # 3. Broker Weight (hybrid: 0.70 * max + 0.30 * mean)
-        self._run_query("""
+        self._run_query(f"""
             MATCH (b:Broker)
             OPTIONAL MATCH (b)-[:ROUTES]->(t:Topic)
             WITH b, max(t.weight) as max_w, avg(t.weight) as mean_w
-            SET b.weight = coalesce(0.70 * max_w + 0.30 * mean_w, 0.01)
+            SET b.weight = coalesce({BROKER_HYBRID_MAX_COEFF} * max_w + {BROKER_HYBRID_MEAN_COEFF} * mean_w, 0.01)
         """)
 
         # 4. Node Weight (max hosted component weight)
