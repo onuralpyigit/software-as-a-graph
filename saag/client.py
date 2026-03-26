@@ -36,20 +36,21 @@ class Client:
             "success": result.success,
         }
 
-    def analyze(self, layer: str = "system", use_ahp: bool = False, **kwargs) -> AnalysisResult:
+    def analyze(self, layer: str = "system", use_ahp: bool = False, equal_weights: bool = False, **kwargs) -> AnalysisResult:
         """Analyze the structural graph topology."""
         from src.usecases.analyze_graph import AnalyzeGraphUseCase
         uc = AnalyzeGraphUseCase(self.repo)
         raw_analysis = uc.execute(layer=layer)
         return AnalysisResult(raw_analysis)
 
-    def predict(self, analysis: AnalysisResult, gnn_model: Optional[str] = None, **kwargs) -> PredictionResult:
+    def predict(self, analysis: AnalysisResult, gnn_model: Optional[str] = None, equal_weights: bool = False, **kwargs) -> PredictionResult:
         """Predict quality metrics using the statistical quality analyser.
 
         Args:
             analysis:   Result of a prior ``analyze()`` call.
             gnn_model:  Reserved for future GNN checkpoint loading.
                         Currently ignored; ``PredictionService`` is always used.
+            equal_weights: If True, use equal 0.25 weights for all Q(v) dimensions.
         """
         import logging
         logger = logging.getLogger(__name__)
@@ -60,8 +61,10 @@ class Client:
                 "implemented; falling back to PredictionService.", gnn_model
             )
 
+        from src.prediction.service import PredictionService
+        service = PredictionService(use_ahp=False, equal_weights=equal_weights)
         from src.usecases.predict_graph import PredictGraphUseCase
-        uc = PredictGraphUseCase(self.repo)
+        uc = PredictGraphUseCase(self.repo, prediction_service=service)
 
         layer_str = analysis.raw.layer.value
         quality, _ = uc.execute(

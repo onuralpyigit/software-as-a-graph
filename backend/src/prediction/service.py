@@ -26,11 +26,13 @@ class PredictionService:
         normalization_method: str = "robust",
         winsorize: bool = True,
         winsorize_limit: float = 0.05,
+        equal_weights: bool = False,
     ):
         self.use_ahp = use_ahp
         self.normalization_method = normalization_method
         self.winsorize = winsorize
         self.winsorize_limit = winsorize_limit
+        self.equal_weights = equal_weights
 
     def predict_quality(
         self, 
@@ -47,6 +49,7 @@ class PredictionService:
             winsorize=self.winsorize,
             winsorize_limit=self.winsorize_limit,
             use_ahp=self.use_ahp,
+            equal_weights=self.equal_weights,
         )
         
         return analyzer.analyze(

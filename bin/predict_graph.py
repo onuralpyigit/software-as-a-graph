@@ -21,6 +21,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     
+    parser.add_argument("--equal-weights", action="store_true", help="Use equal 0.25 weights for all Q(v) dimensions (baseline)")
+    
     add_neo4j_args(parser)
     add_common_args(parser)
     args = parser.parse_args()
@@ -29,8 +31,8 @@ def main():
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
     
     # Predict relies on structural analysis
-    analysis = client.analyze(layer=args.layer)
-    result = client.predict(analysis)
+    analysis = client.analyze(layer=args.layer, equal_weights=args.equal_weights)
+    result = client.predict(analysis, equal_weights=args.equal_weights)
     
     if args.output:
         result.save(args.output)

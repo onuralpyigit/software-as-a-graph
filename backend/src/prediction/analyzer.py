@@ -153,11 +153,19 @@ class QualityAnalyzer:
         winsorize: bool = True,
         winsorize_limit: float = 0.05,
         adapt_qos_weights: bool = True,
+        equal_weights: bool = False,
     ) -> None:
+        weights = weights or QualityWeights()
+        if equal_weights:
+            weights.q_reliability = 0.25
+            weights.q_maintainability = 0.25
+            weights.q_availability = 0.25
+            weights.q_vulnerability = 0.25
+
         self.classifier = BoxPlotClassifier(k_factor=k_factor)
         self.weights = (
             AHPProcessor(shrinkage_factor=ahp_shrinkage).compute_weights() if use_ahp
-            else (weights or QualityWeights())
+            else weights
         )
         self.normalization_method = normalization_method
         self.winsorize = winsorize

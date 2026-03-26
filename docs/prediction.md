@@ -196,16 +196,16 @@ V(v) = 0.40 × REV(v) + 0.35 × RCL(v) + 0.25 × w_in(v)
 Q(v) = w_R × R(v) + w_M × M(v) + w_A × A(v) + w_V × V(v)
 ```
 
-**Default weights:** equal weighting `w_R = w_M = w_A = w_V = 0.25`, suitable for general-purpose analysis.
+**Default weights:** By default, the system uses **AHP-derived weights** to ensure the composite score reflects the structural importance established in the methodology.
 
-**Domain-specific adjustments** via `--use-ahp`:
+| Dimension | weight | Rationale |
+| :--- | :---: | :--- |
+| **Availability (A)** | **0.43** | Primary structural alignment; SPOF severity is the strongest signal |
+| **Reliability (R)** | **0.24** | Strategic importance of propagation reach and cascade potential |
+| **Maintainability (M)** | **0.17** | Efferent coupling and code-level debt amplification |
+| **Vulnerability (V)** | **0.16** | Strategic exposure of the dependent surface |
 
-| System Type | Priority Order | Example Weights |
-|-------------|---------------|-----------------|
-| High-availability (medical, aerospace) | A > R > M > V | w_A=0.40, w_R=0.30, w_M=0.20, w_V=0.10 |
-| Security-critical (financial, government) | V > A > R > M | w_V=0.40, w_A=0.30, w_R=0.20, w_M=0.10 |
-| Actively developed (fast iteration) | M > R > A > V | w_M=0.40, w_R=0.30, w_A=0.20, w_V=0.10 |
-| General-purpose | Equal | w_R = w_M = w_A = w_V = 0.25 |
+**Baseline comparison:** An equal-weight baseline (0.25 each) can be enabled via the `--equal-weights` flag in the CLI or `equal_weights=True` in the SDK for sensitivity or reproducibility studies.
 
 ---
 

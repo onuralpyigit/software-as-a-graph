@@ -21,6 +21,7 @@ def main():
     
     # Specific args
     parser.add_argument("--use-ahp", action="store_true", help="Use AHP-derived weights instead of default fixed weights")
+    parser.add_argument("--equal-weights", action="store_true", help="Use equal 0.25 weights for all Q(v) dimensions (baseline)")
     
     add_neo4j_args(parser)
     add_common_args(parser)
@@ -29,7 +30,7 @@ def main():
     setup_logging(args)
 
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
-    result = client.analyze(layer=args.layer, use_ahp=args.use_ahp)
+    result = client.analyze(layer=args.layer, use_ahp=args.use_ahp, equal_weights=args.equal_weights)
     
     if args.output:
         result.save(args.output)

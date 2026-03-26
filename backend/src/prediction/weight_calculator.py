@@ -79,10 +79,11 @@ class QualityWeights:
     v_out_degree: float = 0.0
     
     # Overall quality weights (sum should be 1.0)
-    q_reliability: float = 0.25      # Default balanced (1.0 vs 1.0 vs 1.0 vs 1.0)
-    q_maintainability: float = 0.25
-    q_availability: float = 0.25
-    q_vulnerability: float = 0.25
+    # Formally derived via AHP: A(0.43) > R(0.24) > M(0.17) ≈ V(0.16)
+    q_reliability: float = 0.24
+    q_maintainability: float = 0.17
+    q_availability: float = 0.43
+    q_vulnerability: float = 0.16
     
     # Impact score weights I(v) (sum should be 1.0)
     # Formally derived via AHP: Reachability > Fragmentation = Throughput
