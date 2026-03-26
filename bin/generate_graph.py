@@ -20,6 +20,7 @@ if str(backend_path) not in sys.path:
 
 from bin.common.dispatcher import dispatch_generate
 from bin.common.arguments import add_common_arguments
+from bin.common.console import ConsoleDisplay
 
 
 def main() -> None:
@@ -73,32 +74,28 @@ def main() -> None:
     add_common_arguments(parser)
     
     args = parser.parse_args()
+    console = ConsoleDisplay()
     
     try:
+        console.print_header("Graph Generation")
         if args.config:
-            print(f"Loading configuration from {args.config}...")
+            console.print_step(f"Loading configuration from {args.config}...")
         else:
             scale = args.scale or "medium"
-            print(f"Generating {scale} graph with seed {args.seed}...")
+            console.print_step(f"Generating {scale} graph with seed {args.seed}...")
             if args.domain:
-                print(f"Using domain dataset: {args.domain}" + (f" (scenario: {args.scenario})" if args.scenario else ""))
+                console.print_step(f"Using domain dataset: {args.domain}" + (f" (scenario: {args.scenario})" if args.scenario else ""))
         
         graph_data = dispatch_generate(args)
             
-        print(f"Graph generated successfully: {args.output}")
-        component_counts = {
-            "nodes": len(graph_data.get("nodes", [])),
-            "brokers": len(graph_data.get("brokers", [])),
-            "topics": len(graph_data.get("topics", [])),
-            "applications": len(graph_data.get("applications", [])),
-            "libraries": len(graph_data.get("libraries", [])),
-        }
-        print(f"Components: {component_counts}")
+        console.print_success(f"Graph generated successfully: {args.output}")
+        console.display_generation_summary(graph_data)
         
     except Exception as e:
-        print(f"Error generating graph: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
+        console.print_error(f"Error generating graph: {e}")
+        if getattr(args, 'verbose', False):
+            import traceback
+            traceback.print_exc()
         sys.exit(1)
 
 

@@ -586,6 +586,35 @@ class ConsoleDisplay:
             print(self.colored(f"{label}:{status}", color), end="  ")
         print()
 
+    def display_generation_summary(self, graph_data: Dict[str, Any]) -> None:
+        """Display summary of generated graph data."""
+        self.print_subheader("Graph Generation Summary")
+        
+        # In this project's generator, components are separated by key
+        main_components = {
+            "Nodes (Compute)": len(graph_data.get("nodes", [])),
+            "Brokers": len(graph_data.get("brokers", [])),
+            "Topics": len(graph_data.get("topics", [])),
+            "Applications": len(graph_data.get("applications", [])),
+            "Libraries": len(graph_data.get("libraries", [])),
+        }
+        
+        total_entities = sum(main_components.values())
+        print(f"  {'Total Entities:':<20} {total_entities}")
+        for label, count in main_components.items():
+            if count > 0:
+                print(f"    - {label:<18} {count}")
+            
+        relationships = graph_data.get("relationships", {})
+        total_edges = sum(len(rels) for rels in relationships.values())
+        
+        print(f"\n  {'Total Relationships:':<20} {total_edges}")
+        for rel_type, rel_list in sorted(relationships.items()):
+            if rel_list:
+                # Format relationship type: pub_sub_rel -> Pub Sub Rel
+                formatted_rel = rel_type.replace("_", " ").title()
+                print(f"    - {formatted_rel:<18} {len(rel_list)}")
+
     def display_dimensional_results(self, dimensional_validation: Dict[str, Any]) -> None:
         """Display dimension-specific metrics (RMAV)."""
         if not dimensional_validation:
