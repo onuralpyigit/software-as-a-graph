@@ -619,9 +619,9 @@ class ConsoleDisplay:
                 formatted_dep = dep.replace("_", " ").title()
                 print(f"    - {formatted_dep:<18} {count}")
 
-    def display_generation_summary(self, graph_data: Dict[str, Any]) -> None:
-        """Display summary of generated graph data."""
-        self.print_subheader("Graph Generation Summary")
+    def display_graph_data_summary(self, graph_data: Dict[str, Any], title: str = "Graph Data Summary") -> None:
+        """Display summary of a graph data dictionary (nodes/relationships format)."""
+        self.print_subheader(title)
         
         # In this project's generator, components are separated by key
         main_components = {

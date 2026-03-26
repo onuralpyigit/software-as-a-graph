@@ -89,7 +89,7 @@ def main() -> None:
         graph_data = dispatch_generate(args)
             
         console.print_success(f"Graph generated successfully: {args.output}")
-        console.display_generation_summary(graph_data)
+        console.display_graph_data_summary(graph_data, title="Graph Generation Summary")
         
     except Exception as e:
         console.print_error(f"Error generating graph: {e}")
