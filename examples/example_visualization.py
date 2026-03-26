@@ -27,8 +27,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
-from src.core import create_repository
+from src.adapters import create_repository
 from src.analysis import AnalysisService
+from src.prediction import PredictionService
 from src.simulation import SimulationService
 from src.validation import ValidationService
 from src.visualization import VisualizationService
@@ -55,11 +56,13 @@ def main():
     try:
         print_section("Initialising services")
         analysis   = AnalysisService(repo)
+        prediction = PredictionService()
         simulation = SimulationService(repo)
-        validation = ValidationService(analysis, simulation, ndcg_k=10)
+        validation = ValidationService(analysis, prediction, simulation, ndcg_k=10)
 
         viz = VisualizationService(
             analysis_service=analysis,
+            prediction_service=prediction,
             simulation_service=simulation,
             validation_service=validation,
             repository=repo,

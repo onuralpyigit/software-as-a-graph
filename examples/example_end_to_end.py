@@ -35,7 +35,7 @@ if str(ROOT) not in sys.path:
 if str(ROOT / "backend") not in sys.path:
     sys.path.insert(0, str(ROOT / "backend"))
 
-from tools.generation import generate_graph, SCALE_PRESETS
+from tools.generation import generate_graph, SCALE_PRESETS, GraphConfig
 from src.adapters import create_repository
 from src.analysis import AnalysisService
 from src.simulation import SimulationService
@@ -142,46 +142,7 @@ def interpret_critical_components(components, top_n: int = 3):
         print(f"      Recommendation: Add redundancy, circuit breakers, or extract stable interface.")
 
 
-# ──────────────────────────────────────────────
-# Step functions
-# ──────────────────────────────────────────────
 
-# The original step1_model_construction function is now inlined into main()
-# and will be removed or adapted if the user explicitly requests it.
-# For now, it's kept as the user only provided changes to main().
-# However, the provided diff for main() completely replaces the call to this function
-# with inline logic, making this function effectively unused.
-# To maintain a syntactically correct and logical file, I will remove the now unused
-# `step1_model_construction` function as its logic is fully replaced in `main`.
-# def step1_model_construction(scale: str, seed: int, output_dir: Path, neo4j_cfg: dict) -> tuple[Path, any]:
-#     """Step 1: Construct the graph model from topology specification."""
-#     step_header(1, "Graph Model Construction", "What does my system architecture look like as a graph?")
-
-#     # 1.1 Generate
-#     print(f"  [1.1] Generating '{scale}' topology (seed={seed})...")
-#     graph_data = generate_graph(scale=scale, seed=seed)
-    
-#     out_path = output_dir / f"e2e_graph_{scale}_seed{seed}.json"
-#     with open(out_path, "w") as f:
-#         json.dump(graph_data, f, indent=2)
-    
-#     # 1.2 Import
-#     print(f"  [1.2] Importing into Neo4j at {neo4j_cfg['uri']}...")
-#     repo = create_repository(
-#         uri=neo4j_cfg['uri'], 
-#         user=neo4j_cfg['user'], 
-#         password=neo4j_cfg['password']
-#     )
-#     repo.save_graph(graph_data, clear=True)
-    
-#     stats = repo.get_statistics()
-#     print_kv("Applications",          len(graph_data.get("applications", [])))
-#     print_kv("Infrastructure nodes",  len(graph_data.get("nodes", [])))
-#     print_kv("Neo4j node count",       stats.get("node_count", "?"))
-#     print_kv("Relationship count",     stats.get("relationship_count", stats.get("total_count", "?")))
-
-#     step_done(1)
-#     return out_path, repo
 
 
 def step2_structural_analysis(repo, layer: str) -> dict:

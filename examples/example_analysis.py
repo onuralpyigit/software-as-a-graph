@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
-from src.core import create_repository
+from src.adapters import create_repository
 from src.analysis import AnalysisService, AntiPatternDetector
 from src.explanation import CLIFormatter
 
@@ -98,8 +98,8 @@ def main():
         return
 
     try:
-        # AnalysisService can use AHP-derived weights (use_ahp=True) or defaults
-        analyzer = AnalysisService(repo, use_ahp=False)
+        # AnalysisService computes structural metrics and orchestrates quality prediction
+        analyzer = AnalysisService(repo)
 
         # ── 1. Application layer ──────────────────────────────────────
         print_section("Layer: app  (Applications only)")

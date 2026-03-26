@@ -16,13 +16,16 @@ This directory contains a progressive tutorial for using the Software-as-a-Graph
 | Order | Script | Question Answered | Run Time |
 | :--- | :--- | :--- | :--- |
 | 0 | `example_introduction.py` | Why does topology predict risk? | 2s (No Neo4j) |
-| 1 | `example_end_to_end.py` | How does the full 6-step pipeline work? | ~30s |
-| 2 | `example_analysis.py` | Which components are my critical SPOFs? | ~5s |
-| 3 | `example_antipatterns.py` | Can I block unsafe deployments in CI/CD? | ~5s |
+| 1 | `example_generation.py` | How do I generate a synthetic model? | 3s (No Neo4j) |
+| 2 | `example_import.py` | How do I load a model into Neo4j? | 5s |
+| 3 | `example_analysis.py` | Which components are my critical SPOFs? | ~5s |
 | 4 | `example_simulation.py` | What is the real-world impact of a failure? | ~15s |
 | 5 | `example_validation.py` | Are the predictions actually accurate? | ~10s |
-| 6 | `example_compare.py` | Which architectural design is safer? | ~20s |
+| 6 | `example_prediction.py` | How does a GNN improve risk prediction? | ~20s |
 | 7 | `example_visualization.py` | How do I produce an executive report? | ~10s |
+| 8 | `example_end_to_end.py` | How does the full 8-step pipeline work? | ~40s |
+| 9 | `example_antipatterns.py` | Can I block unsafe deployments in CI/CD? | ~5s |
+| 10 | `example_compare.py` | Which architectural design is safer? | ~20s |
 
 ## Reading the Output
 

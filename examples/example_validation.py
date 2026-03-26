@@ -29,8 +29,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
-from src.core import create_repository
+from src.adapters import create_repository
 from src.analysis import AnalysisService
+from src.prediction import PredictionService
 from src.simulation import SimulationService
 from src.validation import ValidationService
 
@@ -114,7 +115,7 @@ def main():
         analysis   = AnalysisService(repo)
         simulation = SimulationService(repo)
         # ndcg_k=10 is the default ranking horizon for NDCG; adjust to suit your system size
-        validation = ValidationService(analysis, simulation, ndcg_k=10)
+        validation = ValidationService(analysis, PredictionService(), simulation, ndcg_k=10)
 
         # ── 1. Validate the application layer ─────────────────────────
         print_section("Validating layer: app")

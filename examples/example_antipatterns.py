@@ -18,10 +18,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(ROOT))
 sys.path.append(str(ROOT / "backend"))
 
-from backend.src.infrastructure.memory_repo import MemoryRepository
-from backend.src.analysis.service import AnalysisService
-from backend.src.prediction.service import PredictionService
-from backend.src.analysis.smells import SmellDetector
+from src.infrastructure.memory_repo import MemoryRepository
+from src.analysis.service import AnalysisService
 
 def load_json_with_comments(path: str):
     import re
@@ -38,6 +36,8 @@ def main():
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("🛡️  Architectural Anti-Pattern Guardrail")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("  This script demonstrates how to use the framework's anti-pattern")
+    print("  detection engine to enforce architectural guardrails in CI/CD.")
 
     # 1. Load Topology & Construct Model
     print(f"  [1] Loading topology: {os.path.basename(args.topology)}")
@@ -46,34 +46,36 @@ def main():
     repo = MemoryRepository()
     repo.save_graph(graph_data, clear=True)
     
-    # 2. Run Analysis & Prediction
-    print("  [2] Analyzing system architecture & predicting quality...")
+    # 2. Run Analysis
+    # AnalysisService.analyze_layer() is the "one-stop shop" — it computes
+    # structural metrics, predicts RMAV quality, and detects anti-patterns.
+    print("  [2] Analyzing system architecture & detecting smells...")
     analysis_service = AnalysisService(repo)
-    prediction_service = PredictionService(repo)
     
-    # We analyze all primary layers and predict quality to enable smell detection
-    layers = ["app", "infra", "mw", "system"]
-    layer_results = []
-    for layer in layers:
-        struct_res = analysis_service.analyze_layer(layer)
-        # Prediction populates the .quality field needed by AntiPatternDetector
-        quality_res = prediction_service.predict_quality(struct_res.structural)
-        struct_res.quality = quality_res
-        layer_results.append(struct_res)
+    # We analyze the full system layer
+    result = analysis_service.analyze_layer("system")
     
-    # 3. Detect Anti-Patterns (Smells)
-    print("  [3] Scanning for architectural anti-patterns...")
-    detector = SmellDetector()
-    report = detector.detect_all(layer_results)
-    
-    # 4. Interpret Results
+    # 3. Interpret Results
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    detector.print_findings(report)
+    if not result.problems:
+        print("✨ No architectural anti-patterns detected.")
+    else:
+        print(f"🔍 Detected {len(result.problems)} architectural anti-patterns:")
+        # Group by severity
+        for severity in ["CRITICAL", "HIGH", "MEDIUM"]:
+            sev_probs = [p for p in result.problems if p.severity == severity]
+            if sev_probs:
+                print(f"\n[{severity}] {len(sev_probs)} findings:")
+                for p in sev_probs:
+                    print(f"  • {p.name:<30} ({p.entity_type}: {p.entity_id})")
+                    print(f"    {p.description}")
+                    print(f"    Fix: {p.recommendation}")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    # 5. CI/CD Gate Logic
-    critical_count = report.by_severity.get("CRITICAL", 0)
-    high_count = report.by_severity.get("HIGH", 0)
+    # 4. CI/CD Gate Logic
+    # We can use the result.problem_summary or manually count
+    critical_count = len([p for p in result.problems if p.severity == "CRITICAL"])
+    high_count = len([p for p in result.problems if p.severity == "HIGH"])
     
     if critical_count > 0:
         print(f"\n❌ DEPLOYMENT BLOCKED: {critical_count} CRITICAL anti-patterns detected.")

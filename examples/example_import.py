@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
-from src.core import create_repository
+from src.adapters import create_repository
 
 
 def print_section(title: str) -> None:
