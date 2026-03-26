@@ -33,14 +33,7 @@ from tools.benchmark import (
 from bin.common.console import ConsoleDisplay
 from bin.common.arguments import add_neo4j_arguments, add_common_arguments
 
-# Helper for color-coding terminal output
-# _display = ConsoleDisplay()  <-- Moved to main()
-# _c = _display.colored
-# Colors = _display.Colors
-# print_step = _display.print_step
-# print_header = _display.print_header
-# print_error = _display.print_error
-# print_success = _display.print_success
+# Helper for color-coding terminal output (initialized in main)
 
 
 # =============================================================================
@@ -173,17 +166,18 @@ def _print_summary_table(display: ConsoleDisplay, summary) -> None:
         
         print(
             f"  {a.scale:<8} {a.layer:<8} {a.num_runs:>4} "
-            f"{display.colored(rate, pass_color):>15} "
-            f"{sp:>7} {bc:>7} {display.colored(gain_str, gain_color):>16} "
+            f"{display.colored(f'{rate:>6}', pass_color)} "
+            f"{sp:>7} {bc:>7} {display.colored(f'{gain_str:>7}', gain_color)} "
             f"{f1:>6} {a.avg_time_total/1000:>7.1f}"
         )
 
+    print(f"  {'-' * 70}")
     overall = (
-        f"\n  Overall: {summary.total_runs} runs, "
+        f"  Overall: {summary.total_runs} runs, "
         f"{summary.passed_runs} passed ({summary.overall_pass_rate:.1f}%), "
         f"ρ={summary.overall_spearman:.3f}, F1={summary.overall_f1:.3f}"
     )
-    print(display.colored(overall, display.Colors.BOLD))
+    print(f"\n{display.colored(overall, display.Colors.WHITE, bold=True)}")
 
 
 # =============================================================================
