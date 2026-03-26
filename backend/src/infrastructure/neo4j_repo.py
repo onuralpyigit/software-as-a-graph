@@ -670,7 +670,7 @@ class Neo4jRepository:
             result = session.run(
                 f"MATCH (s)-[d:DEPENDS_ON]->(t){dep_filter} "
                 f"RETURN s.id as src, t.id as tgt, labels(s)[0] as stype, "
-                f"labels(t)[0] as ttype, d.dependency_type as dep_type, d.weight as weight"
+                f"labels(t)[0] as ttype, d.dependency_type as dep_type, d.weight as weight, d.path_count as path_count"
             )
             for record in result:
                 edges.append(EdgeData(
@@ -681,6 +681,7 @@ class Neo4jRepository:
                     dependency_type=record["dep_type"],
                     relation_type="DEPENDS_ON",
                     weight=record["weight"] or 1.0,
+                    path_count=record["path_count"] or 1,
                 ))
             
             # Optionally include raw structural edges

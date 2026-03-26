@@ -62,6 +62,7 @@ class StructuralMetrics:
     broker_exposure: float = 0.0         # Distinct brokers routing touched topics
     fan_out_criticality: float = 0.0     # Topic fan-out (Topic nodes only)
     mpci: float = 0.0                    # Multi-path coupling intensity
+    path_complexity: float = 0.0         # Efferent path count complexity: mean(log2(1+path_count))
 
     # === Code Quality Metrics (Application nodes only; 0.0 for all other types) ===
     # Populated from optional JSON fields (loc, cyclomatic_complexity, coupling_*, lcom).

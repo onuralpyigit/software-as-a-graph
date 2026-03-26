@@ -27,6 +27,10 @@ BROKER_HYBRID_MEAN_COEFF: float = 0.30
 #: Applied as: 1 + γ * log2(1 + DG_in).
 LIB_FANOUT_GAMMA: float = 0.15
 
+#: Regularization coefficient (δ) for path count coupling complexity.
+#: Applied as: CR_enriched = CR_base * (1 + δ * path_complexity).
+COUPLING_PATH_DELTA: float = 0.10
+
 @dataclass
 class ComponentData:
     """Domain entity representing a graph component (vertex)."""
@@ -54,6 +58,7 @@ class EdgeData:
     dependency_type: str
     relation_type: str
     weight: float = 1.0
+    path_count: int = 1
     properties: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:

@@ -104,17 +104,18 @@ TOPOLOGICAL_METRIC_KEYS: List[str] = [
     "qos_weight_in",         # 11: w_in (QADS)
     "qos_weight_out",        # 12: w_out
     "mpci",                  # 13: New Tier 1
-    "fan_out_criticality",   # 14
-    "ap_c_directed",         # 15
-    "cdi",                   # 16
-    "loc_norm",              # 17: Code Quality
-    "complexity_norm",       # 18
-    "instability_code",      # 19
-    "lcom_norm",             # 20
-    "code_quality_penalty",  # 21
+    "path_complexity",       # 14: Issue 4 (Efferent path count complexity)
+    "fan_out_criticality",   # 15
+    "ap_c_directed",         # 16
+    "cdi",                   # 17
+    "loc_norm",              # 18: Code Quality
+    "complexity_norm",       # 19
+    "instability_code",      # 20
+    "lcom_norm",             # 21
+    "code_quality_penalty",  # 22
 ]
 
-NODE_FEATURE_DIM = len(TOPOLOGICAL_METRIC_KEYS) + len(NODE_TYPES)  # 27
+NODE_FEATURE_DIM = len(TOPOLOGICAL_METRIC_KEYS) + len(NODE_TYPES)  # 28 (23 metrics + 5 types)
 EDGE_FEATURE_DIM = 1 + len(EDGE_TYPES)                              # 8
 
 # Label column indices in the (N, 5) label matrix

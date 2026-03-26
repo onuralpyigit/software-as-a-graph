@@ -58,6 +58,7 @@ from src.core.metrics import (
 )
 from src.analysis.models import StructuralAnalysisResult
 from src.core.layers import AnalysisLayer
+from src.core.models import COUPLING_PATH_DELTA
 from .weight_calculator import AHPProcessor, QualityWeights
 
 
@@ -381,6 +382,8 @@ class QualityAnalyzer:
         _eps = 1e-9
         _instability = od_n / (id_n + od_n + _eps)
         coupling_risk = 1.0 - abs(2.0 * _instability - 1.0)
+        # Enrich coupling risk with path complexity (Issue 4)
+        coupling_risk *= (1.0 + COUPLING_PATH_DELTA * m.path_complexity)
         M = (
             w.m_betweenness * bt
             + getattr(w, 'm_w_out', 0.30) * w_out_n

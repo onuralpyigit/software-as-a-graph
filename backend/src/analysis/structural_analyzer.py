@@ -39,6 +39,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from typing import Dict, List, Any, Optional, Set, Tuple
 
@@ -220,6 +221,16 @@ class StructuralAnalyzer:
             mpci[nid] = raw_mpci / (n_nodes - 1) if n_nodes > 1 else 0.0
 
         foc: Dict[str, float] = {}
+        path_complexity: Dict[str, float] = {}
+        for nid in G.nodes:
+            # path_complexity(v) = mean(log2(1 + path_count(e))) for v -> * (efferent)
+            out_edges = G.out_edges(nid, data=True)
+            if out_edges:
+                log_sum = sum(math.log2(1 + data.get("path_count", 1)) for _, _, data in out_edges)
+                path_complexity[nid] = log_sum / len(out_edges)
+            else:
+                path_complexity[nid] = 0.0
+
         topic_nodes = [n for n, d in G.nodes(data=True) if d.get("component_type") == "Topic"]
         if topic_nodes:
             max_sub = max((G.nodes[n].get("subscriber_count", 0) for n in topic_nodes), default=0)
@@ -320,6 +331,7 @@ class StructuralAnalyzer:
                 broker_exposure=ps.get("broker_exposure", 0.0),
                 fan_out_criticality=foc.get(nid, 0.0),
                 mpci=mpci.get(nid, 0.0),
+                path_complexity=path_complexity.get(nid, 0.0),
                 # Code quality — raw stored temporarily; post-loop normalisation fills them
                 # loc_norm / complexity_norm / lcom_norm hold RAW values until the pass
                 loc_norm=float(raw_loc),
