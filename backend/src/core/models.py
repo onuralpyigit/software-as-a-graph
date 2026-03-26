@@ -13,6 +13,10 @@ from typing import Dict, List, Any, Optional, ClassVar
 #: Minimum weight floor for any topic, preventing zero-importance components.
 MIN_TOPIC_WEIGHT: float = 0.01
 
+#: Convex combination factor (β) for topic weight: 0.85 QoS + 0.15 Size.
+#: Rationale: QoS semantics are the primary signal; payload size is a secondary amplifier.
+TOPIC_QOS_WEIGHT_BETA: float = 0.85
+
 @dataclass
 class ComponentData:
     """Domain entity representing a graph component (vertex)."""
@@ -242,21 +246,27 @@ class Topic(GraphEntity):
     
     def calculate_weight(self) -> float:
         """
-        Topic importance = QoS_Score + Size_Penalty.
+        Topic importance = β * QoS_Score + (1-β) * Size_Norm.
         
-        Refined Size Penalty: 
+        Refined Size Norm: 
         - Logarithmic scaling to avoid dominance by massive messages.
-        - Capped at 0.20 (max 20% of total importance) to preserve 
-          QoS-driven semantics.
+        - Normalize to [0, 1] range.
         - Divisor of 50 ensures size only pushes a topic into a higher
           criticality bracket if it is significantly larger than typical
           DDS control packets (e.g. > 100KB).
+        
+        This convex combination ensures w(topic) ∈ [0, 1].
         """
-        qos_weight = self.qos.calculate_weight()
+        qos_score = self.qos.calculate_weight()
         # size / 1024 converts to KB
         size_kb = self.size / 1024
-        size_weight = min(math.log2(1 + size_kb) / 50, 0.20)
-        return max(MIN_TOPIC_WEIGHT, qos_weight + size_weight)
+        # size_norm in [0, 1]
+        size_norm = min(math.log2(1 + size_kb) / 50, 1.0)
+        
+        beta = TOPIC_QOS_WEIGHT_BETA
+        weight = beta * qos_score + (1 - beta) * size_norm
+        
+        return max(MIN_TOPIC_WEIGHT, weight)
 
 @dataclass
 class Library(GraphEntity):

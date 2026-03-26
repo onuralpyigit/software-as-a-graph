@@ -23,7 +23,7 @@ from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, AuthError
 
 from src.core.ports.graph_repository import IGraphRepository
-from src.core.models import ComponentData, EdgeData, GraphData, QoSPolicy, MIN_TOPIC_WEIGHT
+from src.core.models import ComponentData, EdgeData, GraphData, QoSPolicy, MIN_TOPIC_WEIGHT, TOPIC_QOS_WEIGHT_BETA
 from . import config
 
 # ---------------------------------------------------------------------------
@@ -394,15 +394,18 @@ class Neo4jRepository:
         """
         Generate Cypher expression for QoS weight calculation.
         
-        Implements: W_topic = max(ε, S_reliability + S_durability + S_priority + S_size)
+        Implements: W_topic = max(ε, β * QoS_score + (1-β) * S_size)
         Uses scoring constants from QoSPolicy class to ensure consistency.
         """
         rel_scores = QoSPolicy.RELIABILITY_SCORES
         dur_scores = QoSPolicy.DURABILITY_SCORES
         pri_scores = QoSPolicy.PRIORITY_SCORES
         
-        # Build the raw sum expression
-        raw_sum = f"""
+        beta = TOPIC_QOS_WEIGHT_BETA
+        one_minus_beta = round(1.0 - beta, 4)
+        
+        # Build the QoS score expression
+        qos_score = f"""
         ({QoSPolicy.W_RELIABILITY} * CASE {topic_var}.qos_reliability WHEN 'RELIABLE' THEN {rel_scores['RELIABLE']} ELSE 0.0 END +
          {QoSPolicy.W_DURABILITY} * CASE {topic_var}.qos_durability 
              WHEN 'PERSISTENT' THEN {dur_scores['PERSISTENT']} 
@@ -413,17 +416,23 @@ class Neo4jRepository:
              WHEN 'URGENT' THEN {pri_scores['URGENT']} 
              WHEN 'HIGH' THEN {pri_scores['HIGH']} 
              WHEN 'MEDIUM' THEN {pri_scores['MEDIUM']} 
-             ELSE 0.0 END +
-         CASE WHEN {topic_var}.size <= 0 THEN 0.0
-              WHEN (log(1 + {topic_var}.size / 1024.0) / (log(2) * 50.0)) > 0.20 THEN 0.20
-              ELSE (log(1 + {topic_var}.size / 1024.0) / (log(2) * 50.0))
-         END)
+             ELSE 0.0 END)
         """
         
-        # Apply minimum weight floor: max(ε, raw_sum)
+        # Build the size norm expression (capped at 1.0)
+        size_norm = f"""
+        CASE WHEN {topic_var}.size <= 0 THEN 0.0
+              WHEN (log(1 + {topic_var}.size / 1024.0) / (log(2) * 50.0)) > 1.0 THEN 1.0
+              ELSE (log(1 + {topic_var}.size / 1024.0) / (log(2) * 50.0))
+         END
+        """
+        
+        weighted_sum = f"({beta} * {qos_score} + {one_minus_beta} * {size_norm})"
+        
+        # Apply minimum weight floor: max(ε, weighted_sum)
         return f"""
-        CASE WHEN {raw_sum} < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT}
-             ELSE {raw_sum}
+        CASE WHEN {weighted_sum} < {MIN_TOPIC_WEIGHT} THEN {MIN_TOPIC_WEIGHT}
+             ELSE {weighted_sum}
         END
         """
 

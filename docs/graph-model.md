@@ -218,12 +218,15 @@ Weights encode dependency strength. A `DEPENDS_ON` edge with weight 1.0 represen
 #### Topic Weight Formula
 
 ```
-w(topic) = max(MIN_WEIGHT, QoS_score + size_weight)
+w(topic) = max(MIN_WEIGHT, β × QoS_score + (1−β) × size_norm)
 
 QoS_score  = 0.30 × reliability_score + 0.40 × durability_score + 0.30 × priority_score
-size_weight = min(log₂(1 + size_kb) / 50, 0.20)     where size_kb = size_bytes / 1024
-MIN_WEIGHT  = 0.01
+size_norm  = min(log₂(1 + size_kb) / 50, 1.0)     where size_kb = size_bytes / 1024
+β          = 0.85
+MIN_WEIGHT = 0.01
 ```
+
+**AHP justification for β:** QoS semantics are the primary signal for dependency criticality; payload size is a secondary amplifier. The 0.85 weighting preserves the primacy of the QoS contract while allowing message volume to modulate the final score within the [0, 1] range.
 
 | Component | Symbolic Value | Score |
 |-----------|----------------|-------|
@@ -390,19 +393,22 @@ Rule 5 (app_to_lib):    MonitorApp --[DEPENDS_ON]--> NavLib     (w = w(MonitorAp
 **Phase 4 — Weight Assignment:**
 ```
 QoS_score(/temperature) = 0.30×1.0 + 0.40×0.5 + 0.30×0.66 = 0.30 + 0.20 + 0.198 = 0.698
-w(/temperature) = max(0.01, 0.698 + size_weight) ≈ 0.71
+size_norm(/temperature) ≈ 0.0017  [64 bytes]
+w(/temperature) = max(0.01, 0.85 × 0.698 + 0.15 × 0.0017) ≈ 0.59
 
-w(SensorApp)  = max(w(/temperature)) = 0.71
-w(MonitorApp) = max(w(/temperature)) = 0.71
-w(MainBroker) = 0.70 × 0.71 + 0.30 × 0.71 = 0.71   [single topic; mean = max]
-w(NavLib)     = 0.71  [propagated from consuming apps]
+w(SensorApp)  = max(w(/temperature)) = 0.59
+w(MonitorApp) = max(w(/temperature)) = 0.59
+w(MainBroker) = 0.70 × 0.59 + 0.30 × 0.59 = 0.59   [single topic; mean = max]
+w(NavLib)     = 0.59  [propagated from consuming apps]
+```
 
-DEPENDS_ON edge weights:
-  MonitorApp → SensorApp:  0.71
-  MonitorApp → MainBroker: 0.71
-  SensorApp  → MainBroker: 0.71
-  SensorApp  → NavLib:     0.71
-  MonitorApp → NavLib:     0.71
+**DEPENDS_ON edge weights:**
+```
+MonitorApp → SensorApp:  0.59
+MonitorApp → MainBroker: 0.59
+SensorApp  → MainBroker: 0.59
+SensorApp  → NavLib:     0.59
+MonitorApp → NavLib:     0.59
 ```
 
 **Resulting reliability-relevant vertex properties:**
