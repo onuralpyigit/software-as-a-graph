@@ -131,7 +131,7 @@ EDGE_TYPES: List[str] = [
     "DEPENDS_ON",
 ]
 
-NODE_FEATURE_DIM = 27   # Updated to match data_preparation.py logic
+NODE_FEATURE_DIM = 28   # Updated to match data_preparation.py logic (23 metrics + 5 types)
 EDGE_FEATURE_DIM = 8    # 1 weight + 7 edge-type one-hot
 NUM_LABEL_DIMS   = 5    # composite, reliability, maintainability, availability, vulnerability
 

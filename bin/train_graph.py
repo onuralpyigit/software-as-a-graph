@@ -120,34 +120,27 @@ def main() -> None:
     nx_graph = None
 
     if any(x is None for x in [structural_dict, simulation_dict]):
-        logger.info("Connecting to Neo4j to retrieve graph data...")
+        display.print_step("Connecting to Neo4j to retrieve graph data...")
         try:
             from src.analysis import AnalysisService
             from src.simulation import SimulationService
         except ImportError as e:
-            logger.error(f"Pipeline modules not available: {e}")
+            display.print_error(f"Pipeline modules not available: {e}")
             sys.exit(1)
 
-        conn_kwargs = {k: v for k, v in [("uri", args.uri), ("username", args.user),
-                                        ("password", args.password)] if v}
-        # Get topological graph using saag Client
-        if args.verbose:
-            print("Connecting to repository...")
-
         from saag import Client
-        client = Client(neo4j_uri=conn_kwargs.get("uri"), user=conn_kwargs.get("user"), password=conn_kwargs.get("password"))
-        repo = client.repo
-        if not repo:
-            raise ValueError("No repository connection established.")
-
-        # We need the inner repository here to get the raw graph
-        # This is a training script, so getting the low-level repo is acceptable
-        from src.usecases import AnalyzeGraphUseCase
-        analyze_uc = AnalyzeGraphUseCase(repo)
-
         try:
+            client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
+            repo = client.repo
+            if not repo:
+                raise ValueError("No repository connection established.")
+
+            # We need the inner repository here to get the raw graph
+            from src.usecases import AnalyzeGraphUseCase
+            analyze_uc = AnalyzeGraphUseCase(repo)
+
             if structural_dict is None or rmav_dict is None:
-                logger.info("[Step 2+3] Running analysis and quality scoring...")
+                display.print_step("[Step 2+3] Running analysis and quality scoring...")
                 analysis_svc = AnalysisService(repo)
                 layer_result = analysis_svc.analyze_layer(args.layer)
                 nx_graph = layer_result.graph
@@ -157,12 +150,13 @@ def main() -> None:
                     rmav_dict = extract_rmav_scores_dict(layer_result.quality)
 
             if simulation_dict is None:
-                logger.info("[Step 4] Running failure simulation ground truth...")
+                display.print_step("[Step 4] Running failure simulation ground truth (exhaustive)...")
                 sim_svc = SimulationService(repo)
                 sim_results = sim_svc.run_failure_simulation_exhaustive(layer=args.layer)
                 simulation_dict = extract_simulation_dict(sim_results)
         finally:
-            repo.close()
+            if 'repo' in locals() and repo:
+                repo.close()
 
     if nx_graph is None:
         import networkx as nx
@@ -212,7 +206,7 @@ def main() -> None:
         checkpoint_dir=args.checkpoint,
     )
 
-    logger.info("Starting GNN training session...")
+    display.print_step("Starting GNN training session...")
     result = service.train(
         graph=nx_graph,
         structural_metrics=structural_dict,
@@ -229,32 +223,15 @@ def main() -> None:
 
     # ── Results ─────────────────────────────────────────────────────────────
     service.save()
+    display.print_success(f"Models saved to {args.checkpoint}")
     
-    summary = result.summary()
-    display.print_subheader(f"Training Results ({summary['total_components']} components)")
-    
-    for lvl in ["critical", "high", "medium", "low", "minimal"]:
-        count = summary[lvl]
-        bar = "█" * min(count * 2, 40)
-        color = display.level_color(lvl)
-        print(f"  {lvl.upper():<9} {count:>3}  {display.colored(bar, color)}")
+    display.display_training_summary(result.summary())
     
     if result.gnn_metrics:
-        print(f"\n  {display.colored('Validation Metrics (Test Set):', display.Colors.CYAN)}")
-        print(result.gnn_metrics)
+        display.display_training_metrics(result.gnn_metrics.to_dict())
 
-    display.print_subheader("Top 10 Critical Components (Ensemble)")
-    header = f"  {'Rank':<5} {'Component':<30} {'Score':>7} {'Level':<10} {'R':>6} {'M':>6} {'A':>6} {'V':>6}"
-    print(display.colored(header, display.Colors.WHITE, bold=True))
-    print("  " + "-" * 79)
-    for i, s in enumerate(result.top_critical_nodes(10), 1):
-        color = display.level_color(s.criticality_level)
-        print(
-            f"  {i:<5} {s.component[:29]:<30} "
-            f"{display.colored(f'{s.composite_score:>7.4f}', color)} {display.colored(s.criticality_level[:10], color):<10} "
-            f"{s.reliability_score:>6.3f} {s.maintainability_score:>6.3f} "
-            f"{s.availability_score:>6.3f} {s.vulnerability_score:>6.3f}"
-        )
+    # Display Top 10 using specialized method
+    display.display_critical_components(result.top_critical_nodes(10), n=10)
 
     if args.output:
         out_path = Path(args.output)

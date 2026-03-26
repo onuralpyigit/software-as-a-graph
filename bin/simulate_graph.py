@@ -14,8 +14,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 from saag import Client
 from bin._shared import add_neo4j_args, add_common_args, setup_logging
+from bin.common.console import ConsoleDisplay
 
 def main():
+    display = ConsoleDisplay()
     parser = argparse.ArgumentParser(
         description="Graph Failure Simulation.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -30,12 +32,14 @@ def main():
     add_neo4j_args(parser)
     add_common_args(parser)
     args = parser.parse_args()
-    setup_logging(args)
-
+    display.print_header(f"Failure Simulation: {args.layer.upper()} Layer")
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
     
     # Simulate
+    display.print_step(f"Running {args.mode} simulation...")
     report = client.simulate(layer=args.layer, mode=args.mode)
+    
+    display.display_simulation_summary(report)
     
     if args.output:
         import json
@@ -45,10 +49,9 @@ def main():
             else:
                 from dataclasses import asdict
                 json.dump(asdict(report), f, indent=2, default=str)
-        if not getattr(args, "quiet", False):
-            print(f"Simulation report saved to {args.output}")
-    elif not getattr(args, "quiet", False):
-        print("Simulation executed successfully.")
+        display.print_success(f"Simulation report saved to {args.output}")
+    else:
+        display.print_success("Simulation executed successfully.")
 
 if __name__ == "__main__":
     main()

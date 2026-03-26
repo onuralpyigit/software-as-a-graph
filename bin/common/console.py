@@ -619,6 +619,186 @@ class ConsoleDisplay:
                 formatted_dep = dep.replace("_", " ").title()
                 print(f"    - {formatted_dep:<18} {count}")
 
+    def display_critical_components(self, components: List[Any], n: int = 10) -> None:
+        """Display top-N critical components with their RMAV breakdown."""
+        if not components:
+            return
+            
+        self.print_subheader(f"Top {min(len(components), n)} Critical Components (Ensemble)")
+        
+        header = f"  {'Rank':<5} {'Component':<30} {'Score':>7} {'Level':<10} {'R':>6} {'M':>6} {'A':>6} {'V':>6}"
+        print(self.colored(header, Colors.WHITE, bold=True))
+        print("  " + "-" * 79)
+        
+        for i, s in enumerate(components[:n], 1):
+            # Polymorphic attribute access (handles internal model and saag SDK facade)
+            level = getattr(s, "criticality_level", "MINIMAL")
+            color = self.level_color(level)
+            
+            comp_name = getattr(s, "component", getattr(s, "id", "unknown"))
+            if len(comp_name) > 29:
+                comp_name = comp_name[:26] + "..."
+            
+            # Scores (facade uses .scores dict, internal uses direct attributes)
+            if hasattr(s, "scores") and isinstance(s.scores, dict):
+                comp_s = s.scores.get("overall", 0.0)
+                r_s = s.scores.get("reliability", 0.0)
+                m_s = s.scores.get("maintainability", 0.0)
+                a_s = s.scores.get("availability", 0.0)
+                v_s = s.scores.get("vulnerability", 0.0)
+            else:
+                comp_s = getattr(s, "composite_score", 0.0)
+                r_s = getattr(s, "reliability_score", 0.0)
+                m_s = getattr(s, "maintainability_score", 0.0)
+                a_s = getattr(s, "availability_score", 0.0)
+                v_s = getattr(s, "vulnerability_score", 0.0)
+                
+            print(
+                f"  {i:<5} {comp_name:<30} "
+                f"{self.colored(f'{comp_s:>7.4f}', color)} "
+                f"{self.colored(f'{level[:10]:<10}', color)} "
+                f"{r_s:>6.3f} {m_s:>6.3f} "
+                f"{a_s:>6.3f} {v_s:>6.3f}"
+            )
+
+    def display_training_summary(self, summary: Dict[str, Any]) -> None:
+        """Display summary of GNN training results (ensemble levels)."""
+        self.print_subheader(f"Training Results ({summary.get('total_components', 0)} components)")
+        
+        for lvl in ["critical", "high", "medium", "low", "minimal"]:
+            count = summary.get(lvl, 0)
+            bar_len = min(count * 2, 40)
+            bar = "█" * bar_len
+            color = self.level_color(lvl)
+            print(f"  {lvl.upper():<9} {count:>3}  {self.colored(bar, color)}")
+
+    def display_training_metrics(self, metrics: Dict[str, Any]) -> None:
+        """Display validation metrics in a clean list."""
+        if not metrics:
+            return
+            
+        print(f"\n  {self.colored('Validation Metrics (Test Set):', Colors.CYAN)}")
+        for k, v in metrics.items():
+            if isinstance(v, float):
+                print(f"    - {k:<25} {v:.4f}")
+            else:
+                print(f"    - {k:<25} {v}")
+
+    def display_prediction_summary(self, result: Any) -> None:
+        """Display summary of GNN prediction results."""
+        # result can be saag.models.PredictionResult or src.prediction.models.QualityAnalysisResult
+        components = []
+        if hasattr(result, "all_components"):
+            components = result.all_components
+        elif hasattr(result, "components"):
+            components = result.components
+            
+        if not components:
+            return
+
+        self.print_subheader(f"Prediction Results ({len(components)} components)")
+        
+        # Count levels
+        counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "MINIMAL": 0}
+        for c in components:
+            level = ""
+            if hasattr(c, "criticality_level"):
+                level = c.criticality_level.upper()
+            elif hasattr(c, "levels") and hasattr(c.levels, "overall"):
+                level = c.levels.overall.value.upper()
+            
+            if level in counts:
+                counts[level] += 1
+            else:
+                counts["MINIMAL"] += 1
+                
+        for lvl in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "MINIMAL"]:
+            count = counts[lvl]
+            bar = "█" * min(count * 2, 40)
+            color = self.level_color(lvl)
+            print(f"  {lvl:<9} {count:>3}  {self.colored(bar, color)}")
+
+        # Display Top 10
+        sorted_comps = sorted(components, key=lambda c: getattr(c, "composite_score", getattr(c, "rmav_score", 0.0)), reverse=True)
+        self.display_critical_components(sorted_comps, n=10)
+
+    def display_simulation_summary(self, report: Any) -> None:
+        """Display summary of failure simulation results."""
+        if not report:
+            return
+            
+        data = report
+        if hasattr(report, "to_dict"):
+            data = report.to_dict()
+            
+        # Case 1: SimulationReport dict/object
+        if isinstance(data, dict) and "component_criticality" in data:
+            comps = data.get("component_criticality", [])
+            if not comps: return
+            
+            self.print_subheader(f"Simulation Results ({len(comps)} components)")
+            
+            counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "minimal": 0}
+            for c in comps:
+                lvl = c.get("level", "minimal").lower()
+                if lvl in counts: counts[lvl] += 1
+                    
+            for lvl in ["critical", "high", "medium", "low", "minimal"]:
+                count = counts[lvl]
+                bar = "█" * min(count * 2, 40)
+                print(f"  {lvl.upper():<9} {count:>3}  {self.colored(bar, self.level_color(lvl))}")
+                
+            self.print_subheader("Top 10 Most Impactful Components (Simulation)")
+            header = f"  {'Rank':<5} {'Component':<30} {'Impact':>7} {'Reach.':>7} {'Casc.':>7}"
+            print(self.colored(header, Colors.WHITE, bold=True))
+            print("  " + "-" * 59)
+            for i, c in enumerate(comps[:10], 1):
+                level = c.get("level", "minimal")
+                impact_val = c.get("combined_impact", 0.0)
+                impact_str = f"{impact_val:>7.4f}"
+                print(
+                    f"  {i:<5} {c.get('id', 'unknown')[:29]:<30} "
+                    f"{self.colored(impact_str, self.level_color(level))} "
+                    f"{c.get('reachability_loss', 0.0):>7.4f} {c.get('cascade_count', 0):>7}"
+                )
+            
+            recs = data.get("recommendations", [])
+            if recs:
+                print(f"\n  {self.colored('Recommendations:', Colors.YELLOW)}")
+                for rec in recs: print(f"    - {rec}")
+            return
+
+        # Case 2: List of FailureResult objects
+        if isinstance(report, list):
+            self.print_subheader(f"Simulation Results ({len(report)} scenarios)")
+            
+            # Simple list view for exhaustive run
+            header = f"  {'Rank':<5} {'Target':<30} {'Impact':>7} {'Reach.':>7} {'Casc.':>7}"
+            print(self.colored(header, Colors.WHITE, bold=True))
+            print("  " + "-" * 59)
+            
+            # Sort by impact
+            sorted_results = sorted(report, key=lambda r: getattr(getattr(r, "impact", r), "composite_impact", 0.0), reverse=True)
+            for i, r in enumerate(sorted_results[:10], 1):
+                impact_obj = getattr(r, "impact", r)
+                imp = getattr(impact_obj, "composite_impact", 0.0)
+                reach = getattr(impact_obj, "reachability_loss", 0.0)
+                cascade = getattr(impact_obj, "cascade_count", 0)
+                
+                target = getattr(r, "target_id", "Multiple")
+                level = "minimal"
+                if imp > 0.8: level = "critical"
+                elif imp > 0.6: level = "high"
+                elif imp > 0.4: level = "medium"
+                elif imp > 0.2: level = "low"
+                
+                impact_str = f"{imp:>7.4f}"
+                print(
+                    f"  {i:<5} {target[:29]:<30} "
+                    f"{self.colored(impact_str, self.level_color(level))} "
+                    f"{reach:>7.4f} {cascade:>7}"
+                )
+
     def display_structural_summary(self, summary: Dict[str, Any]) -> None:
         """Display summary of structural graph analysis results."""
         self.print_subheader(f"Structural analysis: Layer '{summary.get('layer', 'unknown')}'")

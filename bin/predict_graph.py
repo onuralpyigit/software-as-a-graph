@@ -14,8 +14,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 from saag import Client
 from bin._shared import add_neo4j_args, add_common_args, setup_logging
+from bin.common.console import ConsoleDisplay
 
 def main():
+    display = ConsoleDisplay()
     parser = argparse.ArgumentParser(
         description="GNN inference — predict criticality on a new system graph.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -27,20 +29,23 @@ def main():
     add_neo4j_args(parser)
     add_common_args(parser)
     args = parser.parse_args()
-    setup_logging(args)
-
+    display.print_header(f"GNN Prediction: {args.layer.upper()} Layer")
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
     
     # Predict relies on structural analysis
+    display.print_step("Running structural analysis...")
     analysis = client.analyze(layer=args.layer, equal_weights=args.equal_weights)
+    
+    display.print_step("Running GNN inference...")
     result = client.predict(analysis, equal_weights=args.equal_weights, ahp_shrinkage=args.ahp_shrinkage)
+    
+    display.display_prediction_summary(result)
     
     if args.output:
         result.save(args.output)
-        if not getattr(args, "quiet", False):
-            print(f"Prediction saved to {args.output}")
-    elif not getattr(args, "quiet", False):
-        print("Prediction completed successfully. (No output file specified)")
+        display.print_success(f"Prediction saved to {args.output}")
+    else:
+        display.print_success("Prediction completed successfully.")
 
 if __name__ == "__main__":
     main()
