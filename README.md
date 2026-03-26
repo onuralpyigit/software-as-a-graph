@@ -22,10 +22,11 @@
 8. [Local Development](#local-development)
 9. [How It Works — The 6-Step Pipeline](#how-it-works--the-6-step-pipeline)
 10. [RMAV Prediction](#rmav-prediction)
-11. [Project Structure](#project-structure)
-12. [Research Context](#research-context)
-13. [Citation](#citation)
-14. [License](#license)
+11. [Python SDK (`saag`)](#python-sdk-saag)
+12. [Project Structure](#project-structure)
+13. [Research Context](#research-context)
+14. [Citation](#citation)
+15. [License](#license)
 
 ---
 
@@ -42,6 +43,8 @@ We treat your system architecture as a graph and apply topological analysis to *
 > **A component's position in the dependency graph reliably predicts its real-world failure impact.**
 
 Applications, brokers, topics, and infrastructure nodes are modelled as vertices. Their publish-subscribe relationships become weighted directed edges, with weights derived from QoS settings (reliability, durability, priority, message size). Graph-theoretic metrics — Reverse PageRank, betweenness centrality, articulation point detection, bridge ratio, and more — are combined into an **RMAV composite quality score** (Reliability, Maintainability, Availability, Vulnerability) using AHP-derived weights.
+
+An optional **Graph Neural Network (GNN)** layer, trained on simulation results, refines predictions beyond rule-based scoring. An **anti-pattern detector** then audits the quality results to flag structural smells such as hub overloading, missing redundancy, and cyclic coupling — enabling automated CI/CD policy gates.
 
 Ground-truth impact scores are produced by four parallel failure simulators (cascade, change-propagation, connectivity-loss, and compromise-propagation), each aligned to one RMAV dimension.
 
@@ -167,8 +170,8 @@ python bin/import_graph.py --input input/system.json --clear
 # Step 2 — Analysis: structural metrics (13 topological indicators per component)
 python bin/analyze_graph.py --layer system
 
-# Step 3 — Prediction: RMAV quality scoring (AHP-weighted criticality classification)
-python bin/analyze_graph.py --layer system --use-ahp
+# Step 3 — Prediction: RMAV quality scoring + anti-pattern detection
+python bin/analyze_graph.py --layer system --predict
 
 # Step 4 — Simulation: failure simulation (produces per-dimension ground-truth scores)
 python bin/simulate_graph.py failure --layer system --exhaustive
@@ -208,19 +211,25 @@ pytest tests/test_analysis_service.py   # Single file
 pytest -k "reliability"                 # Filter by name
 ```
 
-### Programmatic API
+### Programmatic API (Examples)
 
-For Python-based integration, see the annotated examples in `examples/`:
+For Python-based integration, see the annotated examples in `examples/`. Run them from the project root:
 
-| File | What it demonstrates |
-|------|----------------------|
-| `examples/example_end_to_end.py` | Full pipeline from modeling to validation |
-| `examples/example_generation.py` | Generating topology data programmatically |
-| `examples/example_import.py` | Importing a graph into Neo4j via the Python API |
-| `examples/example_analysis.py` | Running structural analysis |
-| `examples/example_simulation.py` | Running failure simulations |
-| `examples/example_validation.py` | Validating predictions against ground truth |
-| `examples/example_visualization.py` | Generating HTML dashboards |
+| Order | File | What it demonstrates | Needs Neo4j |
+|:---:|------|----------------------|:-----------:|
+| 0 | `examples/example_introduction.py` | Core concepts: why topology predicts risk (no database) | No |
+| 1 | `examples/example_generation.py` | Generating a synthetic topology programmatically | No |
+| 2 | `examples/example_import.py` | Importing a graph into Neo4j via the Python API | Yes |
+| 3 | `examples/example_analysis.py` | Structural metrics, RMAV scoring & anti-pattern detection | Yes |
+| 4 | `examples/example_simulation.py` | Exhaustive failure simulations (ground-truth I(v)) | Yes |
+| 5 | `examples/example_validation.py` | Validating predictions against ground truth | Yes |
+| 6 | `examples/example_prediction.py` | GNN-based criticality refinement | Yes |
+| 7 | `examples/example_visualization.py` | Generating self-contained HTML dashboards | Yes |
+| 8 | `examples/example_end_to_end.py` | Full 6-step pipeline in a single script | Yes |
+| 9 | `examples/example_antipatterns.py` | Anti-pattern gating for CI/CD pipelines | Yes |
+| 10 | `examples/example_compare.py` | Comparing two architectural designs side-by-side | Yes |
+
+See [`examples/README.md`](examples/README.md) for prerequisites and guidance on interpreting outputs.
 
 ---
 
@@ -264,29 +273,30 @@ npm run dev
 Architecture JSON
       │
       ▼
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Step 1     │    │  Step 2     │    │  Step 3     │
-│  Modeling   │───▶│  Analysis   │───▶│  Prediction │
-│             │    │             │    │             │
-└─────────────┘    └─────────────┘    └─────────────┘
-                                             │
-      ┌──────────────────────────────────────┘
-      ▼
+┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐
+│  Step 1     │    │  Step 2     │    │  Step 3             │
+│  Modeling   │───▶│  Analysis   │───▶│  Prediction         │
+│  (Import)   │    │  (Metrics)  │    │  (RMAV + GNN +      │
+│             │    │             │    │   Anti-Patterns)     │
+└─────────────┘    └─────────────┘    └─────────────────────┘
+                                              │
+       ┌──────────────────────────────────────┘
+       ▼
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
 │  Step 4     │    │  Step 5     │    │  Step 6     │
 │  Simulation │───▶│  Validation │───▶│  Visuali-   │
-│             │    │             │    │  zation     │
+│  (I(v) GT)  │    │  (ρ, F1)    │    │  zation     │
 └─────────────┘    └─────────────┘    └─────────────┘
-                                             │
-                                             ▼
-                                      HTML Dashboard
+                                              │
+                                              ▼
+                                       HTML Dashboard
 ```
 
 | Step | What It Does | Key Output |
 |------|-------------|------------|
 | **1. [Modeling](docs/graph-model.md)** | Converts topology JSON to a weighted directed graph G(V, E, w); derives DEPENDS_ON edges from pub-sub relationships | G_structural and G_analysis(l) |
 | **2. [Analysis](docs/structural-analysis.md)** | Computes Reverse PageRank, betweenness, closeness, eigenvector centralities, bridge ratio, articulation points, clustering | Metric vector M(v) per component |
-| **3. [Prediction](docs/prediction.md)** | Maps M(v) to RMAV dimensions using AHP-derived weights; classifies criticality via box-plot adaptive thresholds | Q*(v) composite score and Q(v) ∈ {MINIMAL, LOW, MEDIUM, HIGH, CRITICAL} |
+| **3. [Prediction](docs/prediction.md)** | Maps M(v) to RMAV dimensions using AHP-derived weights; optional GNN refinement; classifies criticality via box-plot adaptive thresholds; detects anti-patterns | Q*(v) composite score, Q(v) ∈ {MINIMAL, LOW, MEDIUM, HIGH, CRITICAL}, structural smell report |
 | **4. [Simulation](docs/failure-simulation.md)** | Runs four parallel simulators (cascade, change-propagation, connectivity-loss, compromise-propagation) | Per-dimension ground-truth scores IR(v), IM(v), IA(v), IV(v) and composite I*(v) |
 | **5. [Validation](docs/validation.md)** | Computes Spearman ρ and Kendall τ between Q*(v) and I*(v) and per-dimension pairs; evaluates F1, NDCG@K, Top-K overlap, and specialist metrics | Statistical evidence of predictive validity |
 | **6. [Visualization](docs/visualization.md)** | Renders interactive dashboards with network graphs, dependency matrices, and layer comparison views | `dashboard.html` (fully self-contained) |
@@ -318,6 +328,54 @@ Quality scores are computed per component v. AHP weights use a shrinkage factor 
 
 Criticality is classified into five levels — MINIMAL, LOW, MEDIUM, HIGH, CRITICAL — using adaptive box-plot thresholds derived from the actual score distribution of the system under analysis.
 
+### Anti-Pattern Detection
+
+After RMAV scoring, the `AntiPatternDetector` audits results and flags architectural smells:
+
+| Anti-Pattern | Trigger Condition |
+|---|---|
+| **Hub Overload** | High betweenness + high in/out-degree |
+| **Missing Redundancy** | CRITICAL availability score + articulation point |
+| **Cyclic Coupling** | Mutually high betweenness within a component group |
+| **Cascade Amplifier** | High reliability score + high out-degree |
+
+Anti-patterns can be consumed by CI/CD gates (see `examples/example_antipatterns.py`) to block unsafe deployments automatically.
+
+---
+
+## Python SDK (`saag`)
+
+The `saag` package provides a fluent Python API for building analysis pipelines without touching the CLI. It is the recommended interface for notebook-based and programmatic workflows.
+
+```python
+import saag
+
+# Full pipeline in 5 lines
+result = (
+    saag.Pipeline.from_json("input/system.json", clear=True)
+        .analyze(layer="app")
+        .simulate(layer="app", mode="exhaustive")
+        .validate()
+        .visualize(output="output/report.html")
+        .run()
+)
+
+print(f"Spearman ρ = {result.validation.overall.spearman:.3f}")
+print(f"F1-Score   = {result.validation.overall.f1:.3f}")
+```
+
+**Key classes:**
+
+| Class | Purpose |
+|-------|---------|
+| `saag.Pipeline` | Fluent builder that chains and executes pipeline stages |
+| `saag.Client` | Low-level service wrapper (analysis, simulation, validation, visualization) |
+| `saag.AnalysisResult` | Holds structural metrics and RMAV quality scores |
+| `saag.PredictionResult` | Holds criticality levels and anti-pattern report |
+| `saag.ValidationResult` | Holds Spearman ρ, F1-score, and per-RMAV correlations |
+
+**Independence guarantee:** `Q(v)` (RMAV prediction, Step 3) is computed using only graph topology. `I(v)` (simulation impact, Step 4) is computed using only cascade propagation rules and never reads `Q(v)`. Measuring their agreement in Step 5 is therefore a genuine empirical test — not a consistency check.
+
 ---
 
 ## Project Structure
@@ -337,6 +395,11 @@ Criticality is classified into five levels — MINIMAL, LOW, MEDIUM, HIGH, CRITI
 │   ├── run_scenarios.sh        #   Full pipeline across 8 domain scenarios
 │   └── ground_threshold.py     #   Empirical SPOF threshold grounding
 │
+├── saag/                       # Public Python SDK (fluent pipeline API)
+│   ├── pipeline.py             #   saag.Pipeline — fluent builder
+│   ├── client.py               #   saag.Client — service façade
+│   └── models.py               #   Result & data model types
+│
 ├── backend/                    # Python backend (hexagonal architecture)
 │   ├── api/                    #   FastAPI application & routers
 │   │   ├── presenters/         #     Response formatting & API translation
@@ -344,17 +407,18 @@ Criticality is classified into five levels — MINIMAL, LOW, MEDIUM, HIGH, CRITI
 │   │   └── dependencies.py     #     Service & Repository injection
 │   ├── src/                    #   Domain source code
 │   │   ├── core/               #     Domain models, ports, Neo4j & memory repos
-│   │   ├── analysis/           #     Structural metrics + RMAV quality scoring
+│   │   ├── analysis/           #     Structural metrics + anti-pattern detection
+│   │   ├── prediction/         #     RMAV quality scoring + GNN predictor
 │   │   ├── simulation/         #     Four parallel failure/event simulators
 │   │   ├── validation/         #     Per-dimension statistical validation
 │   │   ├── visualization/      #     Dashboard & chart generation
 │   │   ├── generation/         #     Synthetic graph generation
 │   │   ├── benchmark/          #     Benchmarking services
-│   │   └── cli/                #     Shared CLI utilities
-│   ├── tests/                  #   Pytest unit & integration tests (24 files)
+│   │   └── explanation/        #     Human-readable CLI & report formatting
+│   ├── tests/                  #   Pytest unit & integration tests
 │   └── requirements.txt        #   Python dependencies
 │
-├── examples/                   # Annotated Python usage examples
+├── examples/                   # Annotated Python usage examples (see examples/README.md)
 ├── input/                      # Topology JSON & YAML scenario configs (8 scenarios)
 ├── output/                     # Pipeline output artefacts (dashboards, reports)
 ├── results/                    # Validation results from previous runs
@@ -362,7 +426,7 @@ Criticality is classified into five levels — MINIMAL, LOW, MEDIUM, HIGH, CRITI
 └── docs/                       # Per-step methodology documentation
     ├── graph-model.md          #   Step 1: Modeling
     ├── structural-analysis.md  #   Step 2: Analysis
-    ├── prediction.md      #   Step 3: Prediction
+    ├── prediction.md           #   Step 3: Prediction
     ├── failure-simulation.md   #   Step 4: Simulation
     ├── validation.md           #   Step 5: Validation
     ├── visualization.md        #   Step 6: Visualization
