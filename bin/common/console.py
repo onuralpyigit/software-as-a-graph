@@ -586,6 +586,39 @@ class ConsoleDisplay:
             print(self.colored(f"{label}:{status}", color), end="  ")
         print()
 
+    def display_import_summary(self, stats: Dict[str, Any]) -> None:
+        """Display summary of graph import results."""
+        self.print_subheader("Graph Import Summary")
+        
+        print(f"  {'Status:':<20} {self.colored('SUCCESS', Colors.GREEN) if stats.get('success') else self.colored('FAILED', Colors.RED)}")
+        print(f"  {'Total Nodes:':<20} {stats.get('nodes_imported', 0)}")
+        print(f"  {'Total Edges:':<20} {stats.get('edges_imported', 0)}")
+        print(f"  {'Duration:':<20} {stats.get('duration_ms', 0):.2f} ms")
+        
+        # breakdown by label/type
+        print(f"\n  {'Entity Breakdown:':<20}")
+        entities = ["application", "broker", "node", "topic", "library"]
+        for ent in entities:
+            count = stats.get(f"{ent}_count", 0)
+            if count > 0:
+                print(f"    - {ent.capitalize():<18} {count}")
+                
+        print(f"\n  {'Relationship Breakdown:':<20}")
+        rels = ["runs_on", "routes", "publishes_to", "subscribes_to", "connects_to", "uses"]
+        for rel in rels:
+            count = stats.get(f"{rel}_count", 0)
+            if count > 0:
+                formatted_rel = rel.replace("_", " ").title()
+                print(f"    - {formatted_rel:<18} {count}")
+                
+        print(f"\n  {'Derived Dependencies:':<20}")
+        deps = ["app_to_app", "node_to_node", "app_to_broker", "node_to_broker", "app_to_lib"]
+        for dep in deps:
+            count = stats.get(f"{dep}_count", 0)
+            if count > 0:
+                formatted_dep = dep.replace("_", " ").title()
+                print(f"    - {formatted_dep:<18} {count}")
+
     def display_generation_summary(self, graph_data: Dict[str, Any]) -> None:
         """Display summary of generated graph data."""
         self.print_subheader("Graph Generation Summary")

@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 from saag import Client
 from bin._shared import add_neo4j_args, setup_logging
+from bin.common.console import ConsoleDisplay
 
 def main():
     parser = argparse.ArgumentParser(
@@ -24,25 +25,30 @@ def main():
     add_neo4j_args(parser)
     args = parser.parse_args()
     setup_logging(args)
+    console = ConsoleDisplay()
 
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
     
     input_path = Path(args.input)
     if not input_path.exists():
-        print(f"Error: Input file '{args.input}' not found.", file=sys.stderr)
+        console.print_error(f"Input file '{args.input}' not found.")
         sys.exit(1)
 
-    print(f"Connecting to Neo4j at {args.uri}...")
+    console.print_header("Graph Import")
+    if args.clear:
+        console.print_step("Clearing existing database...")
+    console.print_step(f"Importing {input_path.name} into Neo4j at {args.uri}...")
     
-    stats = client.import_topology(filepath=args.input, clear=args.clear)
-    
-    print("\nImport & Derivation Complete!")
-    print("-" * 30)
-    print("Components Imported:")
-    print(f"  Nodes:       {stats.get('nodes_imported', 0)}")
-    print(f"  Edges:       {stats.get('edges_imported', 0)}")
-    print(f"  Duration:    {stats.get('duration_ms', 0):.2f} ms")
-    print("-" * 30)
+    try:
+        stats = client.import_topology(filepath=args.input, clear=args.clear)
+        console.print_success("Import & Derivation Complete!")
+        console.display_import_summary(stats)
+    except Exception as e:
+        console.print_error(f"Import failed: {e}")
+        if getattr(args, 'verbose', False):
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

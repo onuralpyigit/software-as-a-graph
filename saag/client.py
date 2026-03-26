@@ -29,12 +29,15 @@ class Client:
         uc = ModelGraphUseCase(self.repo)
         
         result = uc.execute(graph_data, clear=clear)
-        return {
+        stats = {
             "nodes_imported": result.nodes_imported,
             "edges_imported": result.edges_imported,
             "duration_ms": result.duration_ms,
             "success": result.success,
         }
+        if result.details:
+            stats.update(result.details)
+        return stats
 
     def analyze(self, layer: str = "app") -> AnalysisResult:
         """Analyze the structural graph topology."""
