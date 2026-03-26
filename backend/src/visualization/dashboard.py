@@ -33,230 +33,238 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Visualization Libraries -->
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
     <script src="https://unpkg.com/layout-base@2.0.1/layout-base.js"></script>
     <script src="https://unpkg.com/cose-base@2.2.0/cose-base.js"></script>
     <script src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
     <style>
         :root {{
-            --primary: #1a2a6c;
-            --secondary: #b21f1f;
-            --accent: #fdbb2d;
-            --success: #00b09b;
-            --warning: #f39c12;
-            --danger: #e74c3c;
-            --bg: #f4f7f6;
-            --card-bg: #ffffff;
-            --border: #e1e8ed;
-            --text: #2c3e50;
-            --text-muted: #657786;
-            --glass: rgba(255, 255, 255, 0.8);
+            --primary: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary: #ec4899;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card-bg: rgba(255, 255, 255, 0.75);
+            --border: rgba(226, 232, 240, 0.8);
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
         }}
         
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         
         body {{
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            background-attachment: fixed;
             color: var(--text);
             line-height: 1.6;
+            min-height: 100vh;
         }}
         
         .navbar {{
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background: rgba(26, 42, 108, 0.95);
-            backdrop-filter: blur(10px);
+            top: 0; left: 0; right: 0;
+            height: 64px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             color: white;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 40px;
             z-index: 1000;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }}
         
-        .navbar-brand {{ font-size: 1.2rem; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase; }}
+        .navbar-brand {{ 
+            font-size: 1.1rem; 
+            font-weight: 800; 
+            letter-spacing: -0.5px; 
+            text-transform: uppercase; 
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .navbar-brand span {{ opacity: 0.6; font-weight: 400; font-size: 0.8rem; }}
         
-        .navbar-nav {{ display: flex; gap: 20px; }}
-        
+        .navbar-nav {{ display: flex; gap: 8px; }}
         .navbar-nav a {{ 
             color: rgba(255,255,255,0.7); 
             text-decoration: none; 
-            font-size: 0.85rem; 
+            font-size: 0.8rem; 
             font-weight: 600;
             transition: all 0.2s; 
-            padding: 5px 10px;
-            border-radius: 6px;
+            padding: 6px 14px;
+            border-radius: 8px;
         }}
-        
         .navbar-nav a:hover {{ color: white; background: rgba(255,255,255,0.1); }}
         
-        .main-content {{ margin-top: 80px; padding: 0 40px 40px; max-width: 1600px; margin-left: auto; margin-right: auto; }}
+        .main-content {{ margin-top: 100px; padding: 0 40px 40px; max-width: 1600px; margin-left: auto; margin-right: auto; }}
         
         .page-header {{ 
-            margin-bottom: 30px; 
-            padding: 40px; 
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            border-radius: 16px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
-            text-align: left;
-        }}
-        
-        .page-header h1 {{ font-size: 2.5rem; font-weight: 900; margin-bottom: 10px; letter-spacing: -1px; }}
-        
-        .page-header .meta {{ opacity: 0.8; font-size: 0.95rem; font-weight: 500; }}
-        
-        .section {{ background: var(--card-bg); border-radius: 16px; padding: 35px; margin-bottom: 35px; box-shadow: 0 5px 25px rgba(0,0,0,0.03); scroll-margin-top: 100px; border: 1px solid var(--border); }}
-        
-        .section-header {{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }}
-        
-        .section-header h2 {{ font-size: 1.8rem; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }}
-        
-        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 25px; margin-bottom: 35px; }}
-        
-        .kpi-card {{ 
-            background: var(--card-bg); 
-            border: 1px solid var(--border);
-            padding: 30px; 
-            border-radius: 14px; 
-            text-align: left; 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 40px; 
+            padding: 60px; 
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             position: relative;
+            color: white;
+            border-radius: 24px; 
+            box-shadow: var(--shadow-lg); 
             overflow: hidden;
         }}
         
-        .kpi-card::before {{
+        .page-header::before {{
             content: '';
             position: absolute;
-            top: 0; left: 0; width: 4px; height: 100%;
-            background: var(--primary);
+            top: -50%; left: -20%; width: 140%; height: 200%;
+            background: radial-gradient(circle at 20% 30%, rgba(79, 70, 229, 0.15) 0%, transparent 40%),
+                        radial-gradient(circle at 80% 70%, rgba(236, 72, 153, 0.1) 0%, transparent 40%);
+            pointer-events: none;
         }}
         
-        .kpi-card:hover {{ transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }}
+        .page-header h1 {{ font-size: 2.75rem; font-weight: 900; margin-bottom: 12px; letter-spacing: -1.5px; line-height: 1.1; }}
+        .page-header .meta {{ opacity: 0.7; font-size: 0.9rem; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }}
         
-        .kpi-value {{ font-size: 2.5rem; font-weight: 800; margin-bottom: 8px; color: var(--primary); line-height: 1; }}
+        .section {{ 
+            background: var(--card-bg); 
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px; 
+            padding: 40px; 
+            margin-bottom: 40px; 
+            box-shadow: var(--shadow); 
+            scroll-margin-top: 100px; 
+        }}
         
-        .kpi-label {{ font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); }}
+        .section-header {{ 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            margin-bottom: 35px; 
+            padding-bottom: 20px; 
+            border-bottom: 1px solid var(--border); 
+        }}
         
-        .kpi-card.danger::before {{ background: var(--danger); }}
+        .section-header h2 {{ font-size: 1.75rem; font-weight: 800; color: var(--text); letter-spacing: -0.7px; }}
+        
+        .kpi-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-bottom: 40px; }}
+        
+        .kpi-card {{ 
+            background: rgba(255, 255, 255, 0.5); 
+            border: 1px solid var(--glass-border);
+            padding: 32px; 
+            border-radius: 20px; 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        }}
+        
+        .kpi-card:hover {{ transform: translateY(-8px) scale(1.02); box-shadow: var(--shadow-lg); background: white; }}
+        
+        .kpi-value {{ font-size: 3rem; font-weight: 800; margin-bottom: 4px; color: var(--primary); line-height: 1; letter-spacing: -1px; }}
+        .kpi-label {{ font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); }}
+        
         .kpi-card.danger .kpi-value {{ color: var(--danger); }}
-        
-        .kpi-card.warning::before {{ background: var(--warning); }}
         .kpi-card.warning .kpi-value {{ color: var(--warning); }}
-
-        .kpi-card.success::before {{ background: var(--success); }}
         .kpi-card.success .kpi-value {{ color: var(--success); }}
         
-        .chart-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 30px; margin-bottom: 35px; }}
+        .chart-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 32px; margin-bottom: 40px; }}
         
-        .chart-card {{ background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 25px; transition: all 0.3s; }}
+        .chart-card {{ 
+            background: rgba(255, 255, 255, 0.8); 
+            border: 1px solid var(--glass-border);
+            border-radius: 20px; 
+            padding: 30px; 
+            transition: all 0.3s ease; 
+        }}
+        .chart-card:hover {{ box-shadow: var(--shadow); background: white; }}
+        .chart-card h4 {{ color: var(--text); margin-bottom: 24px; font-size: 1.1rem; font-weight: 700; opacity: 0.9; }}
         
-        .chart-card h4 {{ color: var(--text); margin-bottom: 20px; font-size: 1.1rem; font-weight: 700; text-align: left; }}
-        
-        .table-container {{ overflow-x: auto; margin-bottom: 30px; border-radius: 12px; border: 1px solid var(--border); }}
-        
-        table {{ width: 100%; border-collapse: collapse; font-size: 0.95rem; background: white; }}
-        
-        th {{ background: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; padding: 16px 20px; border-bottom: 2px solid var(--border); }}
-        
-        td {{ padding: 14px 20px; border-bottom: 1px solid var(--border); color: #1e293b; }}
-        
+        .table-container {{ overflow-x: auto; margin-bottom: 30px; border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); background: white; }}
+        table {{ width: 100%; border-collapse: collapse; font-size: 0.9rem; }}
+        th {{ background: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px; padding: 18px 24px; border-bottom: 1px solid var(--border); }}
+        td {{ padding: 16px 24px; border-bottom: 1px solid var(--border); color: #1e293b; font-weight: 500; }}
         tr:last-child td {{ border-bottom: none; }}
-        
         tr:hover td {{ background: #f1f5f9; }}
         
-        .badge {{ display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }}
+        .badge {{ display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }}
+        .badge-critical {{ background: #fee2e2; color: #b91c1c; }}
+        .badge-high {{ background: #ffedd5; color: #c2410c; }}
+        .badge-medium {{ background: #fef9c3; color: #854d0e; }}
+        .badge-low {{ background: #dcfce7; color: #15803d; }}
+        .badge-minimal {{ background: #f1f5f9; color: #475569; }}
+        .badge-passed {{ background: #dcfce7; color: #15803d; }}
+        .badge-failed {{ background: #fee2e2; color: #b91c1c; }}
         
-        .badge-critical {{ background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }}
-        .badge-high {{ background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }}
-        .badge-medium {{ background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }}
-        .badge-low {{ background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }}
-        .badge-minimal {{ background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }}
-        .badge-passed {{ background: #dcfce7; color: #166534; }}
-        .badge-failed {{ background: #fee2e2; color: #991b1b; }}
-
-        .badge-tag {{ background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; margin-right: 4px; border-radius: 4px; font-size: 0.7rem; }}
+        .metrics-box {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; background: rgba(248, 250, 252, 0.5); border-radius: 16px; padding: 30px; border: 1px solid var(--border); }}
+        .metric-item {{ display: flex; flex-direction: column; gap: 6px; }}
+        .metric-name {{ font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }}
+        .metric-value {{ font-family: 'JetBrains Mono', monospace; font-size: 1.3rem; font-weight: 700; color: var(--primary); }}
         
-        .metrics-box {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; background: #f8fafc; border-radius: 12px; padding: 25px; border: 1px solid var(--border); }}
-        
-        .metric-item {{ display: flex; flex-direction: column; gap: 5px; }}
-        .metric-name {{ font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }}
-        .metric-value {{ font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 1.2rem; font-weight: 700; color: var(--primary); }}
-        
-        .cytoscape-wrapper {{ border-radius: 16px; border: 1px solid var(--border); background: white; position: relative; overflow: hidden; height: 700px; }}
+        .cytoscape-wrapper {{ border-radius: 20px; border: 1px solid var(--border); background: white; position: relative; overflow: hidden; height: 750px; box-shadow: var(--shadow); }}
         .cytoscape-container {{ height: 100%; width: 100%; }}
         
-        .antipattern-card {{ border: 1px solid var(--border); border-radius: 12px; padding: 25px; margin-bottom: 20px; border-left: 6px solid var(--primary); transition: transform 0.2s; }}
-        .antipattern-card:hover {{ transform: scale(1.01); }}
+        .antipattern-card {{ 
+            background: white; 
+            border: 1px solid var(--border); 
+            border-radius: 16px; 
+            padding: 30px; 
+            margin-bottom: 24px; 
+            border-left: 8px solid var(--primary); 
+            transition: all 0.3s; 
+        }}
+        .antipattern-card:hover {{ transform: translateX(8px); box-shadow: var(--shadow); }}
         .antipattern-card.critical {{ border-left-color: var(--danger); }}
         .antipattern-card.high {{ border-left-color: var(--warning); }}
-        .antipattern-card.medium {{ border-left-color: var(--accent); }}
         
-        .antipattern-header {{ display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }}
-        .antipattern-name {{ font-size: 1.2rem; font-weight: 800; }}
-        .antipattern-meta {{ display: flex; gap: 10px; font-size: 0.8rem; color: var(--text-muted); }}
+        .footer {{ text-align: center; padding: 80px 40px; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 80px; }}
+        .footer p {{ margin-bottom: 8px; font-weight: 500; }}
         
-        .antipattern-body {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 0.9rem; }}
-        .antipattern-col h5 {{ font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }}
-        
-        .footer {{ text-align: center; padding: 60px 40px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid var(--border); margin-top: 60px; }}
+        /* Interactive Tabs */
+        .stakeholder-tabs {{ display: flex; gap: 8px; margin-bottom: 35px; background: rgba(0,0,0,0.05); padding: 6px; border-radius: 12px; width: fit-content; }}
+        .tab-btn {{ padding: 10px 20px; border: none; background: none; font-weight: 700; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: all 0.2s; font-size: 0.85rem; }}
+        .tab-btn:hover {{ background: rgba(255,255,255,0.5); color: var(--text); }}
+        .tab-btn.active {{ background: white; color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }}
 
-        @media (max-width: 1024px) {{ .chart-grid {{ grid-template-columns: 1fr; }} .antipattern-body {{ grid-template-columns: 1fr; }} }}
-
-        /* --- Stakeholder Tabs & Component Cards --- */
-        .stakeholder-tabs {{ display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 10px; }}
-        .tab-btn {{ padding: 10px 20px; border: none; background: none; font-weight: 700; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: all 0.2s; }}
-        .tab-btn:hover {{ background: #f1f5f9; color: var(--primary); }}
-        .tab-btn.active {{ background: var(--primary); color: white; }}
-        
-        .component-card-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 25px; }}
-        .component-card {{ background: white; border: 1px solid var(--border); border-radius: 14px; padding: 25px; transition: all 0.3s; position: relative; border-top: 5px solid var(--primary); }}
-        .component-card.critical {{ border-top-color: var(--danger); }}
-        .component-card.high {{ border-top-color: var(--warning); }}
-        
-        .card-header {{ display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; }}
-        .card-title {{ font-size: 1.25rem; font-weight: 800; color: var(--text); }}
-        .card-pattern {{ font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }}
-        
-        .card-one-line {{ font-weight: 600; margin-bottom: 12px; color: var(--primary); line-height: 1.4; }}
-        .card-risk {{ font-size: 0.9rem; color: #475569; margin-bottom: 20px; }}
-        
-        .dimension-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 20px; }}
-        .dim-box {{ display: flex; flex-direction: column; gap: 2px; }}
-        .dim-header {{ display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }}
-        .dim-driver {{ font-size: 0.7rem; color: var(--text-muted); }}
-        .dim-meaning {{ font-size: 0.8rem; font-weight: 500; margin-top: 4px; border-top: 1px solid #e2e8f0; padding-top: 4px; }}
-        
-        .remediation-box {{ border-top: 1px solid var(--border); padding-top: 15px; }}
-        .rem-header {{ font-size: 0.85rem; font-weight: 800; text-transform: uppercase; margin-bottom: 10px; color: #1e293b; }}
-        .rem-step {{ display: flex; gap: 10px; font-size: 0.85rem; margin-bottom: 8px; }}
-        .rem-dot {{ width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-top: 6px; flex-shrink: 0; }}
+        @media (max-width: 1024px) {{ .chart-grid {{ grid-template-columns: 1fr; }} .main-content {{ padding: 0 20px 20px; }} }}
     </style>
 </head>
 <body>
     <nav class="navbar">
-        <div class="navbar-brand">Software-as-a-Graph <span>v2.0</span></div>
+        <div class="navbar-brand">Software-as-a-Graph <span>v2.1 Precision Analysis</span></div>
         <div class="navbar-nav">{nav_links}</div>
     </nav>
     <div class="main-content">
         <div class="page-header">
+            <div class="meta">Analysis Session • {timestamp} • Visualization Phase</div>
             <h1>{title}</h1>
-            <div class="meta">Analysis Session • {timestamp} • Step 6: Visualization</div>
         </div>
         {content}
     </div>
     <div class="footer">
         <p><strong>Software-as-a-Graph Methodology</strong></p>
-        <p>Step 6: Translation of quantitative analysis into interactive Dashboards.</p>
-        <p style="margin-top:10px;">&copy; 2026 Architectural Decision Support Pipeline</p>
+        <p>Advanced Architectural Decision Support & Criticality Prediction Pipeline</p>
+        <p style="margin-top:12px; opacity: 0.6;">&copy; 2026 Architectural Intelligence Framework</p>
     </div>
+    <script>lucide.createIcons();</script>
     {scripts}
 </body>
 </html>

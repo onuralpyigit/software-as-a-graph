@@ -19,9 +19,11 @@ from bin._shared import add_neo4j_args, add_common_args, setup_logging
 from bin.common.console import ConsoleDisplay
 
 def run_demo(output_file: str, open_browser: bool) -> int:
-    display = ConsoleDisplay()
     """Generate a demo dashboard with sample data (no Neo4j required)."""
-    # Keep the same run_demo logic. It operates statelessly without client.
+    display = ConsoleDisplay()
+    display.print_header("Software-as-a-Graph Demo Mode")
+    display.print_step("Generating mock analysis data...")
+
     from src.visualization import LayerData, ComponentDetail
     from src.visualization.charts import ChartGenerator
     from src.visualization.dashboard import DashboardGenerator
@@ -39,27 +41,48 @@ def run_demo(output_file: str, open_browser: bool) -> int:
     
     demo_data.component_details = [
         ComponentDetail("sensor_fusion", "Sensor Fusion", "Application", 0.82, 0.88, 0.90, 0.75, 0.84, "CRITICAL", 0.79),
+        ComponentDetail("planning_engine", "Planning Engine", "Application", 0.75, 0.81, 0.85, 0.60, 0.72, "HIGH", 0.65),
     ]
     demo_data.scatter_data = [(c.id, c.overall, c.impact, c.level) for c in demo_data.component_details]
     
     dash.start_section("📊 Demo Overview", "overview")
     dash.add_kpis({"Nodes": 48,"Edges": 127,"Critical": 5,"SPOFs": 3,"Anti-Patterns": 2}, {"Critical": "danger", "SPOFs": "warning"})
     
+    display.print_step("Assembling interactive charts...")
     chart_list = []
     if c := charts.criticality_distribution(demo_data.classification_distribution): chart_list.append(c)
     if c := charts.rmav_breakdown(demo_data.component_details, "RMAV Breakdown"): chart_list.append(c)
     if c := charts.correlation_scatter(demo_data.scatter_data, spearman=0.876): chart_list.append(c)
     dash.add_charts(chart_list)
+    
+    display.print_step("Adding interactive network visualization...")
+    # Add a simple mock network
+    mock_nodes = [
+        {"id": "sf", "label": "Sensor Fusion", "type": "Application", "level": "CRITICAL", "value": 0.84},
+        {"id": "pe", "label": "Planning Engine", "type": "Application", "level": "HIGH", "value": 0.72},
+        {"id": "mb", "label": "Main Broker", "type": "Broker", "level": "CRITICAL", "value": 0.80},
+        {"id": "db", "label": "Database", "type": "Node", "level": "LOW", "value": 0.3},
+    ]
+    mock_edges = [
+        {"source": "sf", "target": "mb", "weight": 2.5, "dependency_type": "publishes_to"},
+        {"source": "pe", "target": "mb", "weight": 1.2, "dependency_type": "subscribes_to"},
+        {"source": "sf", "target": "pe", "weight": 0.8, "dependency_type": "uses"},
+        {"source": "mb", "target": "db", "weight": 1.0, "dependency_type": "connects_to"},
+    ]
+    dash.add_cytoscape_network("demo-net", mock_nodes, mock_edges, "System Connectivity (Mock)")
+    
     dash.end_section()
     
+    display.print_step("Finalizing dashboard export...")
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(dash.generate())
         
-    abs_path = os.path.abspath(output_path)
-    print(f"✓ Demo dashboard generated: {abs_path}")
+    display.display_visualization_summary(str(output_path))
+    
     if open_browser:
+        abs_path = os.path.abspath(output_path)
         webbrowser.open(f"file://{abs_path}")
     return 0
 
