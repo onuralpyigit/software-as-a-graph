@@ -189,9 +189,9 @@ def step3_criticality_prediction(repo, output_dir: Path, layer: str, analysis_re
     # Replaced Top-5 Table with Component Cards
     from src.analysis import AntiPatternDetector
     detector = AntiPatternDetector()
-    smell_report = detector.detect(result.structural)
+    smell_report = detector.detect(result.quality, layer=layer)
     
-    CLIFormatter.print_critical_report(quality_res, problems=smell_report.problems, limit_top=5)
+    CLIFormatter.print_critical_report(quality_res, problems=smell_report, limit_top=5)
 
     # 3.2 Learning-based GNN Prediction (Optional - requires sim_results for training)
     gnn_summary = {}
@@ -335,7 +335,7 @@ def main() -> None:
         else:
             print(f"  [1.1] Generating synthetic graph (scale='{args.scale}', seed={args.seed})...")
             config = GraphConfig.from_scale(args.scale, seed=args.seed)
-            graph_data = generate_graph(config)
+            graph_data = generate_graph(config=config) # Changed here
             print_kv("Source", "Synthetic Generator")
             print_kv("Scale", args.scale)
         
@@ -421,6 +421,7 @@ def main() -> None:
         print(f"\n[ERROR] Pipeline failed: {e}")
         import traceback
         traceback.print_exc()
+        sys.exit(1)
     finally:
         if repo is not None:
             repo.close()

@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
-from src.core import create_repository
+from src.adapters import create_repository
 from src.analysis import AnalysisService
 from src.simulation import SimulationService
 from src.prediction import (
@@ -59,7 +59,7 @@ def main():
     try:
         # ── 1. Preparation ─────────────────────────────────────────────
         print_section("Preparation: Fetching features and ground truth")
-        analysis = AnalysisService(repo, use_ahp=False)
+        analysis = AnalysisService(repo)
         simulation = SimulationService(repo)
 
         layer = "app"
@@ -102,9 +102,10 @@ def main():
         print("\n  Training complete. Validation metrics:")
         if train_result.gnn_metrics:
             metrics = train_result.gnn_metrics
-            print(f"    RMSE (Node)    : {metrics.node_rmse:.4f}")
-            if metrics.edge_rmse is not None:
-                print(f"    RMSE (Edge)    : {metrics.edge_rmse:.4f}")
+            print(f"    RMSE           : {metrics.rmse:.4f}")
+            print(f"    Spearman ρ     : {metrics.spearman_rho:.4f}")
+            print(f"    F1 Score       : {metrics.f1_score:.4f}")
+            print(f"    Top-5 Overlap  : {metrics.top_5_overlap:.4f}")
 
         # Saving model
         gnn_service.save()

@@ -138,7 +138,7 @@ def main():
         print_overall_metrics(sys_result)
 
         print("\n  [Scientific Interpretation]")
-        rho = sys_result.overall.correlation.spearman
+        rho = sys_result.spearman
         if rho >= 0.85:
             print(f"    ✅ High Correlation ({rho:.3f}): The topological analysis is a")
             print("       valid 'digital twin' for predicting failure cascades.")

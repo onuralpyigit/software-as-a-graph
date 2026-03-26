@@ -109,10 +109,11 @@ def main():
         dist = level_distribution(comps)
         print(f"  Criticality distribution: {dist}")
         
-        # Replaced table with cards
+        # Anti-pattern detection
+        print("\n  🔍  Scanning for 'app' layer anti-patterns...")
         detector = AntiPatternDetector()
-        app_smells = detector.detect(app_res.structural)
-        CLIFormatter.print_critical_report(app_res.quality, problems=app_smells.problems, limit_top=3)
+        app_smells = detector.detect(app_res.quality, layer="app")
+        CLIFormatter.print_critical_report(app_res.quality, problems=app_smells, limit_top=3)
 
         # ── 2. System layer (all component types) ─────────────────────
         print_section("Layer: system  (All component types)")
@@ -123,8 +124,8 @@ def main():
         print(f"  Criticality distribution: {dist_all}")
         
         # Replaced table and interpretation with cards
-        sys_smells = detector.detect(sys_res.structural)
-        CLIFormatter.print_critical_report(sys_res.quality, problems=sys_smells.problems, limit_top=5)
+        sys_smells = detector.detect(sys_res.quality, layer="system")
+        CLIFormatter.print_critical_report(sys_res.quality, problems=sys_smells, limit_top=5)
 
         # ── 3. Critical edges ─────────────────────────────────────────
         print_section("Top critical dependencies (edges)")
