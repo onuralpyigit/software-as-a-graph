@@ -8,15 +8,20 @@ Published at IEEE RASSE 2025.
 
 ## Architecture
 
-The project is a full-stack application with three main components:
+The project is a full-stack application with four main components:
+
+### Python SDK (`saag/`)
+- **Name:** saag (Software-as-a-Graph SDK)
+- **Purpose:** Public fluent API for programmatic pipeline execution and integration.
+- **Key classes:** `Pipeline` (fluent builder), `Client` (service façade), `AnalysisResult`, `PredictionResult`, `ValidationResult`.
+- **Logic:** Injected into `sys.path` automatically via `saag/__init__.py`.
 
 ### Backend (`backend/`)
 - **Language:** Python 3.9+
 - **API:** FastAPI (`backend/api/main.py`) with routers for health, graph, analysis, components, statistics, simulation, classification, and validation; **presenters** (`backend/api/presenters/`) for decoupled response formatting.
 - **Source code:** `backend/src/` — modular packages:
-  - `core/` — domain models (`models.py`), metrics, layers, Neo4j repository (`neo4j_repo.py`), memory repository, criticality, exporters/importers, interfaces
-  - `analysis/` — structural analyzer, quality analyzer, weight calculator (AHP), classifier, statistics service, problem detector
-  - `simulation/` — event simulator, failure simulator, change propagation simulator, compromise propagation simulator, simulation graph, models, service
+  - `analysis/` — structural analyzer, quality analyzer, weight calculator (AHP), classifier, statistics service, anti-pattern (smell) detector
+  - `prediction/` — domain models (`models.py`), RMAV scoring, GNN service, ensemble blending, data preparation
   - `validation/` — validation logic, validator, metric calculator, models
   - `visualization/` — dashboard and visualization services
   - `generation/` — graph generation logic
@@ -40,10 +45,11 @@ Pipeline scripts that can run independently or via the orchestrator:
 - `run_scenarios.sh` — Batch-run the pipeline across all 8 scenario datasets
 - `generate_graph.py` — Synthetic graph data generation
 - `import_graph.py` — Import graph data into Neo4j
-- `analyze_graph.py` — Structural and quality analysis
+- `analyze_graph.py` — Structural and quality analysis (`--predict` for RMAV + Anti-Patterns)
 - `simulate_graph.py` — Cascade failure simulation (subcommands: `failure`, `event`, `report`)
 - `validate_graph.py` — Statistical validation
 - `visualize_graph.py` — Static HTML dashboard generation
+- `detect_antipatterns.py` — Standalone anti-pattern analysis
 - `benchmark.py` — Benchmarking across scales
 - `export_graph.py` — Export graph data
 - `ground_threshold.py` — SPOF threshold grounding: sweeps all 8 scenarios, computes F1/AUC to justify the I(v) > 0.5 SPOF threshold empirically
@@ -141,11 +147,12 @@ pytest -k "test_name"  # Run by test name pattern
 ## Key Patterns & Conventions
 
 ### Python Backend
-- **No `pyproject.toml` or `setup.py`** — dependencies managed via `requirements.txt`; modules imported with relative/absolute paths from the project root
-- **Repository pattern:** `core/neo4j_repo.py` (production) and `core/memory_repo.py` (testing) implement the same interface
-- **CLI scripts** in `bin/` import from `backend/src/` — they must be run from the repo root (e.g., `python bin/analyze_graph.py`)
-- **API routers** in `backend/api/routers/` follow a consistent pattern with dependency injection via `backend/api/dependencies.py`
-- **Graph layers:** The system supports four graph layers: `app`, `infra`, `mw` (middleware), `system`
+- **Internal Repository pattern:** `core/neo4j_repo.py` (production) and `core/memory_repo.py` (testing) implement the same interface.
+- **SDK Entry Point:** Prefer `saag.Pipeline` for programmatic use. It handles repository lifecycle and stage orchestration.
+- **CLI scripts** in `bin/` import from `backend/src/` — they must be run from the repo root (e.g., `python bin/analyze_graph.py`).
+- **API routers** in `backend/api/routers/` follow a consistent pattern with dependency injection via `backend/api/dependencies.py`.
+- **Graph layers:** The system supports four graph layers: `app`, `infra`, `mw` (middleware), `system`.
+- **Examples:** 11 transitionary examples in `examples/` (`example_end_to_end.py` is the most comprehensive). 
 - **Input data:** Topology JSON files in `input/` (e.g., `system.json`, `dataset.json`) and YAML configs (`graph_config.yaml`)
 - **Scenarios:** 8 domain scenarios under `input/scenario_0N_*.yaml` (autonomous vehicle, IoT, financial trading, healthcare, hub-and-spoke, microservices, enterprise XL, tiny regression)
 
@@ -167,12 +174,13 @@ Architecture → Graph → Metrics → Scores → Simulation → Validation → 
    (input)     Step 1   Step 2    Step 3    Step 4       Step 5       Step 6
 ```
 
-1. **Graph Model** — Converts topology JSON to a weighted directed graph in Neo4j
-2. **Structural Analysis** — Computes centrality metrics (Reverse PageRank, Betweenness, Closeness, Eigenvector, Reverse variants, Bridge Ratio, Clustering, etc.)
-3. **Prediction** — Maps metrics to RMAV dimensions using AHP-derived weights (see below)
-4. **Failure Simulation** — Injects faults; runs four parallel ground-truth simulators; exhaustive or Monte Carlo modes
-5. **Validation** — Per-dimension statistical comparison: overall Q(v) vs I(v) plus per-RMAV-dimension comparators
-6. **Visualization** — Generates interactive dashboards (web or static HTML)
+1. **Graph Model** — Converts topology JSON to a weighted directed graph in Neo4j.
+2. **Structural Analysis** — Computes centrality metrics (Reverse PageRank, Betweenness, Bridge Ratio, etc.).
+3. **Prediction** — Maps metrics to RMAV dimensions (AHP weights) and detects anti-patterns.
+3.5 **GNN Refinement** — (Optional) Trains/Runs GNN on topology to refine RMAV scores via Ensemble blending.
+4. **Failure Simulation** — Injects faults; runs four parallel ground-truth simulators.
+5. **Validation** — Per-dimension statistical comparison: Q(v) vs I(v).
+6. **Visualization** — Generates interactive dashboards (web or static HTML).
 
 ## RMAV Prediction Formulas
 
@@ -200,14 +208,15 @@ M(v) = 0.35·BT + 0.30·w_out + 0.15·CQP + 0.12·CouplingRisk + 0.08·(1 − CC
 - **CouplingRisk**: `1 − |2·Instability − 1|` where `Instability = DG_out / (DG_in + DG_out)` — maximised at 0.5 (deeply embedded on both sides)
 - **(1−CC)**: Inverse clustering coefficient (direction-agnostic proxy, reduced weight)
 
-### Availability — A(v) v2
+### Availability — A(v) v3
 ```
-A(v) = 0.45·QSPOF + 0.30·BR + 0.15·AP_c_directed + 0.10·CDI
+A(v) = 0.35·AP_c_directed + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v)
 ```
-- **QSPOF**: `AP_c_directed × w(v)` — QoS-scaled SPOF severity
-- **BR**: Bridge ratio (fraction of incident edges that are bridges)
-- **AP_c_directed**: `max(AP_c_out, AP_c_in)` — worst-case directional articulation point score; `AP_c_out = 1 - |largest_CC(G \ {v})| / (|V|−1)`
-- **CDI**: Connectivity Degradation Index — normalised increase in average path length after removing v
+- **AP_c_directed**: `max(AP_c_out, AP_c_in)` — directional articulation point score.
+- **QSPOF**: `AP_c_directed × w(v)` — QoS-scaled SPOF severity.
+- **BR**: Bridge ratio (fraction of incident edges that are bridges).
+- **CDI**: Connectivity Degradation Index — normalised increase in path length.
+- **w(v)**: Pure operational priority weight.
 
 ### Vulnerability — V(v) v2
 ```
@@ -219,9 +228,34 @@ V(v) = 0.40·REV + 0.35·RCL + 0.25·QADS
 
 ### Overall Quality
 ```
-Q(v) = 0.25·R(v) + 0.25·M(v) + 0.25·A(v) + 0.25·V(v)   [default equal weights]
+Q(v) = 0.24·R(v) + 0.17·M(v) + 0.43·A(v) + 0.16·V(v)
 ```
-Dimension weights are configurable; defaults assume balanced system priorities.
+Dimension weights are derived via AHP: Availability is dominant due to highest structural alignment.
+
+### Anti-Pattern Detection
+The `AntiPatternDetector` audits quality results and flags architectural smells:
+
+| Anti-Pattern | Trigger / Heuristic | Severity |
+|---|---|---|
+| **SPOF** | `is_articulation_point == True` | CRITICAL |
+| **FAILURE_HUB** | `R(v) >= CRITICAL` | CRITICAL |
+| **GOD_COMPONENT** | `M(v) >= CRITICAL` and `betweenness > 0.3` | CRITICAL |
+| **TARGET** | `V(v) >= CRITICAL` | CRITICAL |
+| **BRIDGE_EDGE** | `is_bridge == True` (Edge) | HIGH |
+| **EXPOSURE** | `V(v) == HIGH` and `closeness > 0.6` | HIGH |
+| **CYCLE** | Strongly Connected Component size >= 2 | HIGH |
+| **HUB_AND_SPOKE** | `clustering < 0.1` and `degree > 3` | MEDIUM |
+| **CHAIN** | Weakly connected sequence length >= 4 | MEDIUM |
+| **SYSTEMIC_RISK** | `CRITICAL` nodes count > 20% of system | CRITICAL |
+
+### GNN Refinement
+Step 3.5 integrates GNN predictions via an ensemble approach:
+```
+Q_ensemble(v) = α · Q_GNN + (1 - α) · Q_RMAV
+```
+- **Q_GNN**: Criticality learned via GAT (Graph Attention Network) message passing across types.
+- **α**: Blending coefficient (learned per dimension during training, typically 0.6-0.8).
+- **Service:** `PredictionService` handles rule-based scoring; `GNNService` handles learned refinement.
 
 ### Classification (Box-Plot)
 - `CRITICAL`: score > Q3 + k×IQR (k=0.75 by default)
@@ -284,10 +318,34 @@ Validation also reports statistical power tables and Spearman–Kendall gap diag
 
 ## Documentation
 
-- `docs/` contains detailed documentation for each pipeline step:
+- `docs/` — Detailed documentation for each pipeline step:
   - `graph-model.md`, `structural-analysis.md`, `prediction.md`, `failure-simulation.md`, `validation.md`, `visualization.md`
-  - `SDD.md` (Software Design Description), `SRS.md` (Requirements), `STD.md` (Test Description)
-- `examples/` contains runnable example scripts for programmatic API usage
-- `output/` — pipeline output artefacts (dashboards, reports, exported graphs)
-- `results/` — validation results from previous runs
-- `benchmarks/` — benchmark data
+  - `SDD.md` (Design), `SRS.md` (Requirements), `STD.md` (Test Description)
+- `examples/` — Runnable example scripts for programmatic API usage.
+- `output/` — Pipeline output artefacts (dashboards, reports, exported graphs).
+- `results/` — Validation results from previous runs.
+- `benchmarks/` — Benchmark data and results.
+
+## Project Structure
+
+```text
+.
+├── saag/                       # Public Python SDK (fluent pipeline API)
+│   ├── pipeline.py             #   saag.Pipeline — fluent builder
+│   ├── client.py               #   saag.Client — service façade
+│   └── models.py               #   Result & data model types
+├── backend/                    # Python backend (hexagonal architecture)
+│   ├── api/                    #   FastAPI application (routers & presenters)
+│   ├── src/                    #   Core business logic (analysis, simulation, etc.)
+│   └── tests/                  #   Unit and integration tests (pytest)
+├── frontend/                   # Next.js web application (Genieus)
+│   ├── app/                    #   Pages and layout
+│   └── components/             #   UI components (Radix + shadcn)
+├── bin/                        # CLI scripts and pipeline orchestrator
+├── input/                      # Topology JSONs and scenario YAMLs
+├── output/                     # Generated dashboards and reports
+├── examples/                   # Tutorial scripts
+├── docs/                       # Methodology and research documentation
+├── Dockerfile                  # API container definition
+└── docker-compose.yaml         # Full-stack orchestration
+```
