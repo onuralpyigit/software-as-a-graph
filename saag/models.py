@@ -114,22 +114,36 @@ class AnalysisResult:
 
 
 class PredictionResult:
-    """Result of the GNN quality prediction step."""
-    def __init__(self, inner: _QualityAnalysisResult):
+    """Result of the quality prediction step (Statistical or GNN)."""
+    def __init__(self, inner: Any):
         self._inner = inner
 
     @property
     def critical_components(self) -> List[ComponentFacade]:
         """Components identified as CRITICAL by the prediction model."""
-        return [ComponentFacade(c) for c in self._inner.get_critical_components()]
+        if hasattr(self._inner, "get_critical_components"):
+            return [ComponentFacade(c) for c in self._inner.get_critical_components()]
+        
+        # GNN model check
+        comps = []
+        source_dict = getattr(self._inner, "ensemble_scores", getattr(self._inner, "node_scores", {}))
+        for score in source_dict.values():
+            if getattr(score, "criticality_level", "") == "CRITICAL":
+                comps.append(ComponentFacade(score))
+        return comps
         
     @property
     def all_components(self) -> List[ComponentFacade]:
         """All assessed components in this layer."""
-        return [ComponentFacade(c) for c in self._inner.components]
+        if hasattr(self._inner, "components") and isinstance(self._inner.components, list):
+            return [ComponentFacade(c) for c in self._inner.components]
+            
+        # GNN model check
+        source_dict = getattr(self._inner, "ensemble_scores", getattr(self._inner, "node_scores", {}))
+        return [ComponentFacade(c) for c in source_dict.values()]
 
     @property
-    def raw(self) -> _QualityAnalysisResult:
+    def raw(self) -> Any:
         """Access the underlying internal model."""
         return self._inner
 
@@ -204,6 +218,7 @@ class PipelineExecutionResult:
     """Aggregate result from running the full Pipeline sequentially."""
     analysis: Optional[AnalysisResult] = None
     prediction: Optional[PredictionResult] = None
+    simulation: Optional[Any] = None
     validation: Optional[ValidationPipelineFacade] = None
     problems: Optional[List[_DetectedProblem]] = None
 
@@ -224,6 +239,11 @@ class PipelineExecutionResult:
             }
         if self.prediction:
             data["prediction"] = self.prediction.raw.to_dict()
+        if self.simulation:
+            if hasattr(self.simulation, "to_dict"):
+                data["simulation"] = self.simulation.to_dict()
+            else:
+                data["simulation"] = self.simulation
         if self.validation:
             data["validation"] = self.validation.to_dict()
         if self.problems:

@@ -46,15 +46,19 @@ class Client:
         raw_analysis = uc.execute(layer=layer)
         return AnalysisResult(raw_analysis)
 
-    def predict(self, analysis: AnalysisResult, equal_weights: bool = False, ahp_shrinkage: float = 0.7) -> PredictionResult:
+    def predict(self, analysis: AnalysisResult, equal_weights: bool = False, ahp_shrinkage: float = 0.7, **kwargs) -> PredictionResult:
         """Predict quality metrics using the statistical quality analyser.
 
         Args:
             analysis:      Result of a prior ``analyze()`` call.
             equal_weights: If True, use equal 0.25 weights for all Q(v) dimensions.
             ahp_shrinkage: Shrinkage factor for AHP weights (default: 0.7).
+            gnn_model:     Optional path to a trained GNN model checkpoint.
         """
         from src.prediction.service import PredictionService
+        
+        gnn_model = kwargs.get("gnn_model")
+        
         service = PredictionService(
             use_ahp=True, 
             equal_weights=equal_weights,
@@ -69,6 +73,25 @@ class Client:
             structural_result=analysis.raw,
             detect_problems=False,
         )
+        
+        # GNN integration
+        if gnn_model:
+            from src.prediction.gnn_service import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict
+            try:
+                # Initialize GNN service from checkpoint
+                gs = GNNService.from_checkpoint(gnn_model, graph=analysis.raw.graph)
+                
+                # Run GNN prediction
+                gnn_res = gs.predict(
+                    graph=analysis.raw.graph,
+                    structural_metrics=extract_structural_metrics_dict(analysis.raw),
+                    rmav_scores=extract_rmav_scores_dict(quality)
+                )
+                return PredictionResult(gnn_res)
+            except Exception as e:
+                import logging
+                logging.error(f"GNN prediction failed (falling back to statistical): {e}")
+
         return PredictionResult(quality)
 
     def detect_antipatterns(self, prediction: PredictionResult) -> List[Any]:

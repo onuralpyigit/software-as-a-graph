@@ -88,6 +88,10 @@ def main():
         return run_demo(args.output if args.output else "dashboard.html", args.open)
 
     display.print_header("Analysis Dashboard Generation")
+    
+    # Layer handling
+    layers = [l.strip() for l in args.layer.split(",")] if args.layer else ["system"]
+    
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
     
     display.print_step(f"Generating dashboard for layers: {', '.join(layers)}")
@@ -102,8 +106,9 @@ def main():
     )
     
     display.display_visualization_summary(out_path)
-        
+    
     if args.open:
+        abs_path = os.path.abspath(out_path)
         webbrowser.open(f"file://{abs_path}")
 
 if __name__ == "__main__":

@@ -13,8 +13,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 from saag import Pipeline
 from bin._shared import add_neo4j_args, add_common_args, setup_logging
+from bin.common.console import ConsoleDisplay
 
 def main():
+    display = ConsoleDisplay()
     parser = argparse.ArgumentParser(
         description="Run the Software-as-a-Graph pipeline.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -71,8 +73,11 @@ def main():
         gen_output = args.input or (Path(args.output_dir) / "graph.json" if args.output_dir else "output/graph.json")
         args.output = str(gen_output) # dispatch_generate expects output in args.output
         
-        print(f"[*] Stage 1/6: Generating graph...")
-        dispatch_generate(args)
+        display.print_header("Stage 1/6: Graph Generation")
+        display.print_step("Generating synthetic topology...")
+        data = dispatch_generate(args)
+        display.display_graph_data_summary(data)
+        
         # Update input path for subsequent stages
         args.input = args.output
 
@@ -124,22 +129,41 @@ def main():
         )
         
     # 3. Execute pipeline
-    print(f"[*] Running analytical stages...")
+    display.print_header("Analytical Pipeline Execution")
+    display.print_step("Running configured stages sequentially...")
     result = pipeline.run()
     
     # 4. Post-Execution reporting
-    if result.prediction and not getattr(args, "quiet", False):
-        from src.explanation import CLIFormatter
-        CLIFormatter.print_critical_report(result.prediction.raw, problems=result.problems, limit_top=5)
+    if result.analysis:
+        # Use the summary method we added
+        display.display_structural_summary(result.analysis.raw.to_dict())
     
+    if result.prediction:
+        display.display_prediction_summary(result.prediction)
+        
+    if result.simulation:
+        display.display_simulation_summary(result.simulation)
+        
+    if result.validation:
+        display.display_validation_summary(result.validation)
+    
+    # Anti-patterns
+    if result.problems and not getattr(args, "quiet", False):
+        display.print_subheader(f"Architectural Anti-Patterns ({len(result.problems)})")
+        for p in result.problems:
+            from bin.common.console import Colors
+            severity = getattr(p, "severity", "medium").upper()
+            category = getattr(p, "category", "risk")
+            color = display.severity_color(severity)
+            print(f"  {display.colored(f'[{severity}]', color)} {category}: {p.name}")
+            print(f"    {display.colored('↳', Colors.GRAY)} {p.description}")
+
     # Save generic result if output path provided and not just visualizing
     if args.output and not (args.visualize or args.all):
         result.save(args.output)
-        if not getattr(args, "quiet", False):
-            print(f"Pipeline executed successfully. Result saved to {args.output}")
+        display.print_success(f"Pipeline executed successfully. Result saved to {args.output}")
     else:
-        if not getattr(args, "quiet", False):
-            print("Pipeline executed successfully.")
+        display.print_success("Pipeline execution completed.")
 
     return 0
 

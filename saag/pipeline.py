@@ -113,7 +113,7 @@ class Pipeline:
         # 4. Simulate
         if self._do_simulate:
             logger.info("Running fault simulation...")
-            self.client.simulate(layer=self._layer, **self._simulate_kwargs)
+            result.simulation = self.client.simulate(layer=self._layer, **self._simulate_kwargs)
             
         # 5. Validate
         if self._do_validate:

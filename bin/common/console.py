@@ -843,25 +843,44 @@ class ConsoleDisplay:
         print(f"  {self.colored('Dashboard:', Colors.CYAN)} {abs_path}")
         print(f"  {self.colored('File Size:', Colors.CYAN)} {size_kb:.0f} KB")
         print(f"  {self.colored('Status:', Colors.GREEN)} Ready for review")
+    def display_structural_summary(self, summary: Dict[str, Any]) -> None:
         """Display summary of structural graph analysis results."""
-        self.print_subheader(f"Structural analysis: Layer '{summary.get('layer', 'unknown')}'")
+        # Handle both flat dict and nested dict (from LayerAnalysisResult)
+        gs = summary.get("graph_summary", summary)
+        layer_name = summary.get("layer", gs.get("layer", "unknown"))
+        
+        self.print_subheader(f"Structural analysis: Layer '{layer_name}'")
+        
+        # Get counts safely (handle cases where they might be lists or ints)
+        def get_count(target, key):
+            val = target.get(key, 0)
+            return len(val) if isinstance(val, list) else val
+
+        nodes_count = get_count(gs, "nodes")
+        edges_count = get_count(gs, "edges")
         
         col1 = 25
-        print(f"  {'Total Nodes:':<{col1}} {summary.get('nodes', 0)}")
-        print(f"  {'Total Edges:':<{col1}} {summary.get('edges', 0)}")
-        print(f"  {'Graph Density:':<{col1}} {summary.get('density', 0.0):.4f}")
-        print(f"  {'Avg Degree:':<{col1}} {summary.get('avg_degree', 0.0):.2f}")
-        print(f"  {'Avg Clustering:':<{col1}} {summary.get('avg_clustering', 0.0):.4f}")
+        print(f"  {'Total Nodes:':<{col1}} {nodes_count}")
+        print(f"  {'Total Edges:':<{col1}} {edges_count}")
+        print(f"  {'Graph Density:':<{col1}} {gs.get('density', 0.0):.4f}")
+        print(f"  {'Avg Degree:':<{col1}} {gs.get('avg_degree', 0.0):.2f}")
+        print(f"  {'Avg Clustering:':<{col1}} {gs.get('avg_clustering', 0.0):.4f}")
         
-        print(f"\n  {'Connectivity Health:':<{col1}} {summary.get('connectivity_health', 'unknown')}")
-        print(f"  {'Num. Components:':<{col1}} {summary.get('num_components', 0)}")
-        print(f"  {'Is Connected:':<{col1}} {summary.get('is_connected', False)}")
+        print(f"\n  {'Connectivity Health:':<{col1}} {gs.get('connectivity_health', 'unknown')}")
+        print(f"  {'Num. Components:':<{col1}} {gs.get('num_components', 0)}")
+        print(f"  {'Is Connected:':<{col1}} {gs.get('is_connected', False)}")
         
         print(f"\n  {'Resilience Indicators:':<{col1}}")
-        print(f"    - {'Articulation Points:':<22} {summary.get('num_articulation_points', 0)} (SPOF Ratio: {summary.get('num_articulation_points', 0) / summary.get('nodes', 1):.1%})")
-        print(f"    - {'Bridges:':<22} {summary.get('num_bridges', 0)} (Bridge Ratio: {summary.get('num_bridges', 0) / summary.get('edges', 1):.1%})")
+        ap_count = gs.get('num_articulation_points', 0)
+        br_count = gs.get('num_bridges', 0)
         
-        print(f"\n  {'Mixing Pattern:':<{col1}} {summary.get('assortativity_pattern', 'unknown')} (r={summary.get('assortativity', 0.0):.3f})")
+        spof_ratio = ap_count / nodes_count if nodes_count > 0 else 0.0
+        bridge_ratio = br_count / edges_count if edges_count > 0 else 0.0
+        
+        print(f"    - {'Articulation Points:':<22} {ap_count} (SPOF Ratio: {spof_ratio:.1%})")
+        print(f"    - {'Bridges:':<22} {br_count} (Bridge Ratio: {bridge_ratio:.1%})")
+        
+        print(f"\n  {'Mixing Pattern:':<{col1}} {gs.get('assortativity_pattern', 'unknown')} (r={gs.get('assortativity', 0.0):.3f})")
 
     def display_top_components(self, components: List[Dict[str, Any]], metric: str = "betweenness", n: int = 5) -> None:
         """Display top-N components sorted by a specific structural metric."""
