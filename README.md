@@ -3,7 +3,8 @@
 **Predict which components in a distributed system will cause the most damage when they fail — using only the system's architecture.**
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/docker-compose-blue)](https://www.docker.com/)
 [![Neo4j 5.x](https://img.shields.io/badge/neo4j-5.x-green.svg)](https://neo4j.com/)
 [![IEEE RASSE 2025](https://img.shields.io/badge/IEEE-RASSE%202025-orange.svg)](#citation)
@@ -22,11 +23,12 @@
 8. [Local Development](#local-development)
 9. [How It Works — The 6-Step Pipeline](#how-it-works--the-6-step-pipeline)
 10. [RMAV Prediction](#rmav-prediction)
-11. [Python SDK (`saag`)](#python-sdk-saag)
-12. [Project Structure](#project-structure)
-13. [Research Context](#research-context)
-14. [Citation](#citation)
-15. [License](#license)
+11. [Anti-Pattern Detection](#anti-pattern-detection)
+12. [Python SDK (`saag`)](#python-sdk-saag)
+13. [Project Structure](#project-structure)
+14. [Research Context](#research-context)
+15. [Citation](#citation)
+16. [License](#license)
 
 ---
 
@@ -44,7 +46,7 @@ We treat your system architecture as a graph and apply topological analysis to *
 
 Applications, brokers, topics, and infrastructure nodes are modelled as vertices. Their publish-subscribe relationships become weighted directed edges, with weights derived from QoS settings (reliability, durability, priority, message size). Graph-theoretic metrics — Reverse PageRank, betweenness centrality, articulation point detection, bridge ratio, and more — are combined into an **RMAV composite quality score** (Reliability, Maintainability, Availability, Vulnerability) using AHP-derived weights.
 
-An optional **Graph Neural Network (GNN)** layer, trained on simulation results, refines predictions beyond rule-based scoring. An **anti-pattern detector** then audits the quality results to flag structural smells such as hub overloading, missing redundancy, and cyclic coupling — enabling automated CI/CD policy gates.
+An optional **Graph Neural Network (GNN)** layer (Graph Attention Network) refines predictions beyond rule-based scoring by learning from simulation results and blending them with the RMAV scores via a per-dimension ensemble. An **anti-pattern detector** then audits the quality results to flag 10 categories of architectural smells — enabling automated CI/CD policy gates.
 
 Ground-truth impact scores are produced by four parallel failure simulators (cascade, change-propagation, connectivity-loss, and compromise-propagation), each aligned to one RMAV dimension.
 
@@ -56,7 +58,7 @@ The methodology has been empirically validated across 8 scenario datasets spanni
 
 | Metric | Target | Achieved |
 |--------|--------|----------|
-| Spearman correlation ρ(Q*, I*) | ≥ 0.85 | **> 0.85** |
+| Spearman correlation ρ(Q*, I*) | ≥ 0.85 | **> 0.87** |
 | Overall F1-score | ≥ 0.90 | **> 0.90** |
 | Predictive Gain (PG) vs. degree baseline | > 0.03 | **> 0.03** |
 | Analysis layer | — | Application layer outperforms infrastructure layer |
@@ -113,7 +115,7 @@ docker run --name genieus --network host genieus:1.0.0
 
 ## Web Interface (Genieus)
 
-The **Genieus** dashboard (Next.js 16, React 19, TypeScript) provides an interactive frontend for the full analysis pipeline:
+The **Genieus** dashboard (Next.js 16, React 19, TypeScript, Tailwind CSS 4) provides an interactive frontend for the full analysis pipeline:
 
 1. **Dashboard** — High-level KPIs, criticality distribution heatmap, and top critical component list.
 2. **Graph Explorer** — Interactive 2D/3D force-directed graph. Filter by layer (app / infra / middleware / system), search components, and inspect dependency details.
@@ -173,6 +175,12 @@ python bin/analyze_graph.py --layer system
 # Step 3 — Prediction: RMAV quality scoring + anti-pattern detection
 python bin/analyze_graph.py --layer system --predict
 
+# Step 3.5 — (Optional) GNN training: train the Graph Attention Network
+python bin/train_graph.py --layer system
+
+# Step 3.5 — (Optional) GNN inference: predict criticality using a trained model
+python bin/predict_graph.py --layer system
+
 # Step 4 — Simulation: failure simulation (produces per-dimension ground-truth scores)
 python bin/simulate_graph.py failure --layer system --exhaustive
 
@@ -188,6 +196,9 @@ The `--layer` flag accepts `app`, `infra`, `mw`, or `system` (all layers combine
 Additional utility scripts:
 
 ```bash
+# Standalone anti-pattern detection (CI/CD gating)
+python bin/detect_antipatterns.py --layer system --output output/antipatterns.json
+
 # Export graph data from Neo4j
 python bin/export_graph.py --layer system --output output/graph_export.json
 
@@ -279,7 +290,7 @@ Architecture JSON
 │  (Import)   │    │  (Metrics)  │    │  (RMAV + GNN +      │
 │             │    │             │    │   Anti-Patterns)     │
 └─────────────┘    └─────────────┘    └─────────────────────┘
-                                              │
+                                                    │
        ┌──────────────────────────────────────┘
        ▼
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
@@ -287,9 +298,9 @@ Architecture JSON
 │  Simulation │───▶│  Validation │───▶│  Visuali-   │
 │  (I(v) GT)  │    │  (ρ, F1)    │    │  zation     │
 └─────────────┘    └─────────────┘    └─────────────┘
-                                              │
-                                              ▼
-                                       HTML Dashboard
+                                                │
+                                                ▼
+                                         HTML Dashboard
 ```
 
 | Step | What It Does | Key Output |
@@ -319,27 +330,113 @@ The synthetic generator supports five scale presets for rapid experimentation:
 
 Quality scores are computed per component v. AHP weights use a shrinkage factor λ=0.7 (blending learned weights with a uniform prior for robustness on small graphs).
 
-| Dimension | Formula | Captures |
-|-----------|---------|----------|
-| **R** — Reliability | `0.45·RPR + 0.30·DG_in + 0.25·CDPot_enh` | Fault propagation blast radius |
-| **M** — Maintainability | `0.35·BT + 0.30·w_out + 0.15·CQP + 0.12·CR + 0.08·(1−CC)` | Coupling complexity and change fragility |
-| **A** — Availability | `0.45·QSPOF + 0.30·BR + 0.15·AP_c_dir + 0.10·CDI` | Single-point-of-failure risk |
-| **V** — Vulnerability | `0.40·REV + 0.35·RCL + 0.25·QADS` | Attack surface and compromise exposure |
+### Reliability — R(v)
 
-Criticality is classified into five levels — MINIMAL, LOW, MEDIUM, HIGH, CRITICAL — using adaptive box-plot thresholds derived from the actual score distribution of the system under analysis.
+```
+R(v) = 0.45·RPR + 0.30·DG_in + 0.25·CDPot_enh
+```
 
-### Anti-Pattern Detection
+| Term | Description |
+|------|-------------|
+| **RPR** | Reverse PageRank — fault propagation reach |
+| **DG_in** | Normalised in-degree — direct dependent count |
+| **CDPot_enh** | Enhanced cascade depth potential = CDPot_base × (1 + MPCI) |
 
-After RMAV scoring, the `AntiPatternDetector` audits results and flags architectural smells:
+### Maintainability — M(v)
 
-| Anti-Pattern | Trigger Condition |
-|---|---|
-| **Hub Overload** | High betweenness + high in/out-degree |
-| **Missing Redundancy** | CRITICAL availability score + articulation point |
-| **Cyclic Coupling** | Mutually high betweenness within a component group |
-| **Cascade Amplifier** | High reliability score + high out-degree |
+```
+M(v) = 0.35·BT + 0.30·w_out + 0.15·CQP + 0.12·CouplingRisk + 0.08·(1 − CC)
+```
 
-Anti-patterns can be consumed by CI/CD gates (see `examples/example_antipatterns.py`) to block unsafe deployments automatically.
+| Term | Description |
+|------|-------------|
+| **BT** | Betweenness centrality — structural bottleneck position |
+| **w_out** | QoS-weighted efferent coupling (outgoing dependency weight) |
+| **CQP** | Code Quality Penalty = 0.40·complexity_norm + 0.35·instability_code + 0.25·lcom_norm (zero when absent — backward-compatible) |
+| **CouplingRisk** | `1 − |2·Instability − 1|` — maximised at 0.5 for deeply embedded components |
+| **(1−CC)** | Inverse clustering coefficient (reduced weight) |
+
+### Availability — A(v)
+
+```
+A(v) = 0.35·AP_c_directed + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v)
+```
+
+| Term | Description |
+|------|-------------|
+| **AP_c_directed** | `max(AP_c_out, AP_c_in)` — directional articulation point score |
+| **QSPOF** | `AP_c_directed × w(v)` — QoS-scaled SPOF severity |
+| **BR** | Bridge ratio — fraction of incident edges that are bridges |
+| **CDI** | Connectivity Degradation Index — normalised increase in path length on removal |
+| **w(v)** | Pure operational priority weight |
+
+### Vulnerability — V(v)
+
+```
+V(v) = 0.40·REV + 0.35·RCL + 0.25·QADS
+```
+
+| Term | Description |
+|------|-------------|
+| **REV** | Reverse eigenvector centrality on G^T — strategic attack reach |
+| **RCL** | Reverse closeness centrality on G^T — adversarial propagation speed |
+| **QADS** | QoS-weighted attack-dependent surface (inbound dependency weight) |
+
+### Overall Quality Score — Q*(v)
+
+```
+Q*(v) = 0.24·R(v) + 0.17·M(v) + 0.43·A(v) + 0.16·V(v)
+```
+
+Dimension weights are derived via AHP across all four RMAV axes. Availability is dominant because connectivity disruption has the highest structural alignment with composite failure impact across all validated domains.
+
+### Criticality Classification (Adaptive Box-Plot)
+
+Criticality is classified into five levels using adaptive box-plot thresholds derived from the actual score distribution of the system under analysis:
+
+| Level | Threshold |
+|-------|-----------|
+| **CRITICAL** | score > Q3 + 0.75 × IQR |
+| **HIGH** | score > Q3 |
+| **MEDIUM** | score > Median |
+| **LOW** | score > Q1 |
+| **MINIMAL** | score ≤ Q1 |
+
+> For graphs with fewer than 12 components, a fixed-percentile fallback is used (top 10% → CRITICAL, etc.).
+
+### GNN Ensemble Refinement (Step 3.5)
+
+An optional Graph Attention Network (GAT) layer refines predictions beyond rule-based scoring. After training (or loading a pre-trained model), predictions are blended:
+
+```
+Q_ensemble(v) = α · Q_GNN(v) + (1 − α) · Q_RMAV(v)
+```
+
+where α is a per-dimension blending coefficient learned during training (typically 0.6–0.8). Training uses simulation ground truth (I(v)) as supervision.
+
+```bash
+# Train or retrain the GNN on the current dataset
+python bin/train_graph.py --layer system
+```
+
+---
+
+## Anti-Pattern Detection
+
+After RMAV scoring, the `AntiPatternDetector` audits results and flags architectural smells across 10 categories. It can be run standalone via `bin/detect_antipatterns.py` or consumed programmatically within CI/CD pipelines (see `examples/example_antipatterns.py`).
+
+| Anti-Pattern | Trigger Condition | Severity |
+|---|---|---|
+| **SPOF** | Component is an articulation point | CRITICAL |
+| **FAILURE_HUB** | R(v) ≥ CRITICAL threshold | CRITICAL |
+| **GOD_COMPONENT** | M(v) ≥ CRITICAL and betweenness > 0.3 | CRITICAL |
+| **TARGET** | V(v) ≥ CRITICAL threshold | CRITICAL |
+| **SYSTEMIC_RISK** | CRITICAL components > 20% of system | CRITICAL |
+| **BRIDGE_EDGE** | Edge is a graph bridge | HIGH |
+| **EXPOSURE** | V(v) == HIGH and closeness > 0.6 | HIGH |
+| **CYCLE** | Strongly Connected Component ≥ 2 nodes | HIGH |
+| **HUB_AND_SPOKE** | Clustering < 0.1 and degree > 3 | MEDIUM |
+| **CHAIN** | Weakly connected sequence ≥ 4 nodes | MEDIUM |
 
 ---
 
@@ -383,10 +480,13 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 ```
 .
 ├── bin/                        # CLI pipeline scripts
-│   ├── run.py                  #   Master pipeline runner (--all flag)
+│   ├── run.py                  #   Master pipeline orchestrator (--all flag)
 │   ├── generate_graph.py       #   Synthetic topology generator
 │   ├── import_graph.py         #   Step 1: Modeling — Neo4j import
-│   ├── analyze_graph.py        #   Steps 2 & 3: Analysis + Prediction
+│   ├── analyze_graph.py        #   Step 2: Analysis
+│   ├── train_graph.py          #   Step 3: GNN training (optional)
+│   ├── predict_graph.py        #   Step 3: GNN inference on a new graph
+│   ├── detect_antipatterns.py  #   Standalone anti-pattern / CI gate
 │   ├── simulate_graph.py       #   Step 4: Simulation
 │   ├── validate_graph.py       #   Step 5: Validation
 │   ├── visualize_graph.py      #   Step 6: Visualization
