@@ -60,17 +60,13 @@ class QualityWeights:
     # Deprecated in v5 — subsumed by m_w_out (QoS-aware). Kept for backward-compat serialisation.
     m_out_degree: float = 0.0
     
-    # Availability weights (SPOF risk) — A(v) v2
-    # Formula: 0.45*QSPOF + 0.30*BR + 0.15*AP_c_directed + 0.10*CDI
-    a_qspof: float = 0.45          # QoS-weighted SPOF: AP_c_directed * w(v)
-    a_bridge_ratio: float = 0.30   # Edge-level irrecoverability (unchanged)
-    a_ap_c_directed: float = 0.15  # Pure structural directed SPOF severity
+    # Availability weights (SPOF risk) — A(v) v3
+    # Formula: 0.35*AP_c_directed + 0.25*QSPOF + 0.25*BR + 0.10*CDI + 0.05*w(v)
+    a_ap_c_directed: float = 0.35  # AHP primary: structural directed SPOF severity (baseline)
+    a_qspof: float = 0.25          # QoS-weighted SPOF: AP_c_directed * w(v)
+    a_bridge_ratio: float = 0.25   # Edge-level irrecoverability (reduced weight)
     a_cdi: float = 0.10            # Connectivity Degradation Index
-    # Deprecated in v2 — kept at 0.0 for backward-compat serialisation only
-    a_articulation: float = 0.0    # Was primary SPOF weight (v1); now split into a_qspof + a_ap_c_directed
-    a_qos_weight: float = 0.0      # Was secondary weight (v1); now replaced by a_cdi
-    # Legacy alias used by _perturb_weights; do not rely on in new code
-    a_importance: float = 0.0      # Alias for a_qos_weight (deprecated)
+    a_qos_weight: float = 0.05     # Operational weight contribution w(v) (Issue 5: decoupling)
 
     # Vulnerability weights (exposure risk) — V(v) v2
     # Formula: 0.40*REV + 0.35*RCL + 0.25*QADS
@@ -180,14 +176,15 @@ class AHPMatrices:
             
         if self.criteria_availability is None:
             self.criteria_availability = [
-                # QSPOF  BR    AP_c_d  CDI
-                [1.0,  3.0,  5.0,   9.0],  # QSPOF: operationally weighted; strongest availability signal
-                [0.33, 1.0,  2.0,   4.0],  # BR: edge-level irrecoverability
-                [0.2,  0.5,  1.0,   3.0],  # AP_c_directed: pure structural SPOF severity
-                [0.11, 0.25, 0.33,  1.0],  # CDI: residual non-AP hub degradation
+                # AP_c_d QSPOF BR     CDI    w
+                [1.0,  1.4,   1.4,   3.5,   7.0],  # AP_c_d: Structural baseline (primary)
+                [0.71, 1.0,   1.0,   2.5,   5.0],  # QSPOF: QoS-weighted SPOF
+                [0.71, 1.0,   1.0,   2.5,   5.0],  # BR: Multi-edge brittleness
+                [0.29, 0.4,   0.4,   1.0,   2.0],  # CDI: Path elongation
+                [0.14, 0.2,   0.2,   0.5,   1.0],  # w: Pure operational priority
             ]
-            # Geometric mean → approx [0.57, 0.23, 0.13, 0.07] before shrinkage
-            # After λ=0.7 shrinkage ≈ [0.47, 0.23, 0.15, 0.12] → rounded to [0.45, 0.30, 0.15, 0.10]
+            # Geometric mean → approx [0.35, 0.25, 0.25, 0.10, 0.05] before shrinkage
+            # With shrinkage λ=0.7, weighted toward uniform (0.2)
 
         if self.criteria_vulnerability is None:
             self.criteria_vulnerability = [
@@ -349,15 +346,12 @@ class AHPProcessor:
             m_clustering=w_main[4],
             m_out_degree=0.0,               # Deprecated in v5+
             
-            # Availability v2: (QSPOF, BR, AP_c_directed, CDI)
-            a_qspof=w_avail[0],
-            a_bridge_ratio=w_avail[1],
-            a_ap_c_directed=w_avail[2],
-            a_cdi=w_avail[3],
-            # Deprecated fields explicitly zeroed
-            a_articulation=0.0,
-            a_qos_weight=0.0,
-            a_importance=0.0,
+            # Availability v3: (AP_c_directed, QSPOF, BR, CDI, w)
+            a_ap_c_directed=w_avail[0],    # Structural baseline (0.35)
+            a_qspof=w_avail[1],             # QoS-weighted SPOF (0.25)
+            a_bridge_ratio=w_avail[2],      # Multi-edge brittleness (0.25)
+            a_cdi=w_avail[3],               # Path elongation (0.10)
+            a_qos_weight=w_avail[4],        # Pure operational priority (0.05)
             
             # Vulnerability v2: (REV, RCL, QADS)
             v_reverse_eigenvector=w_vuln[0],

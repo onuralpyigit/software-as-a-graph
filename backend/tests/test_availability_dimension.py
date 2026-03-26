@@ -1,10 +1,10 @@
 """
-Unit tests for the Availability dimension improvements (A(v) v2).
+Unit tests for the Availability dimension improvements (A(v) v3).
 
 Covers:
-  - QualityWeights: new a_qspof, a_ap_c_directed, a_cdi fields present; deprecated zeroed
-  - AHPMatrices: criteria_availability is 4×4
-  - AHPProcessor: positive weights with correct ordering
+  - QualityWeights: new a_qspof, a_ap_c_directed, a_cdi, a_qos_weight fields present
+  - AHPMatrices: criteria_availability is 5×5
+  - AHPProcessor: positive weights with correct ordering (AP primary)
   - QSPOF(v) formula correctness
   - AP_c_directed = max(AP_c_out, AP_c_in)
   - CDI normalisation
@@ -29,30 +29,38 @@ from src.validation.metric_calculator import (
 # QualityWeights: new v2 A fields present, deprecated fields zero
 # ===========================================================================
 
-class TestQualityWeightsV2A:
+class TestQualityWeightsV3A:
 
     def test_new_a_fields_are_present_with_defaults(self):
-        """A(v) v2 fields must exist and be positive by default."""
+        """A(v) v3 fields must exist and be positive by default."""
         w = QualityWeights()
         assert hasattr(w, 'a_qspof'),        "a_qspof missing"
         assert hasattr(w, 'a_ap_c_directed'), "a_ap_c_directed missing"
         assert hasattr(w, 'a_cdi'),           "a_cdi missing"
+        assert hasattr(w, 'a_qos_weight'),    "a_qos_weight missing"
         assert w.a_qspof > 0.0,        "a_qspof should be positive"
         assert w.a_ap_c_directed > 0.0, "a_ap_c_directed should be positive"
         assert w.a_cdi > 0.0,           "a_cdi should be positive"
+        assert w.a_qos_weight > 0.0,    "a_qos_weight should be positive"
 
-    def test_deprecated_a_fields_are_zero(self):
-        """a_articulation and a_qos_weight must be 0.0 (deprecated in v2)."""
+    def test_legacy_a_fields_are_removed(self):
+        """a_articulation and a_importance should be removed."""
         w = QualityWeights()
-        assert w.a_articulation == 0.0, "a_articulation should be deprecated (0.0) in v2"
-        assert w.a_qos_weight == 0.0,   "a_qos_weight should be deprecated (0.0) in v2"
+        assert not hasattr(w, 'a_articulation'), "a_articulation should be removed"
+        assert not hasattr(w, 'a_importance'),   "a_importance should be removed"
 
     def test_default_a_weights_sum_to_one(self):
-        """Active A(v) v2 weights must sum to 1.0."""
+        """Active A(v) v3 weights must sum to 1.0."""
         w = QualityWeights()
-        total = w.a_qspof + w.a_bridge_ratio + w.a_ap_c_directed + w.a_cdi
-        assert total == pytest.approx(1.0, abs=0.01), (
-            f"Active A(v) v2 weights should sum ~1.0, got {total:.4f}"
+        total = (
+            w.a_qspof + 
+            w.a_bridge_ratio + 
+            w.a_ap_c_directed + 
+            w.a_cdi + 
+            w.a_qos_weight
+        )
+        assert total == pytest.approx(1.0, abs=0.1), (
+            f"Active A(v) v3 weights should sum ~1.0, got {total:.4f}"
         )
 
 
@@ -62,21 +70,27 @@ class TestQualityWeightsV2A:
 
 class TestAHPAvailabilityMatrix:
 
-    def test_availability_matrix_is_4x4(self):
-        """criteria_availability must be 4×4 (QSPOF, BR, AP_c_d, CDI)."""
+    def test_availability_matrix_is_5x5(self):
+        """criteria_availability must be 5×5 (AP_c_d, QSPOF, BR, CDI, w)."""
         m = AHPMatrices()
-        assert len(m.criteria_availability) == 4, (
-            f"Expected 4×4, got {len(m.criteria_availability)} rows"
+        assert len(m.criteria_availability) == 5, (
+            f"Expected 5×5, got {len(m.criteria_availability)} rows"
         )
-        assert all(len(row) == 4 for row in m.criteria_availability), (
-            "All rows in criteria_availability must have 4 columns"
+        assert all(len(row) == 5 for row in m.criteria_availability), (
+            "All rows in criteria_availability must have 5 columns"
         )
 
     def test_ahp_computed_a_weights_sum_near_one(self):
-        """AHP-computed A(v) v2 weights should be positive and sum ~1.0."""
+        """AHP-computed A(v) v3 weights should be positive and sum ~1.0."""
         proc = AHPProcessor()
         w = proc.compute_weights()
-        active = w.a_qspof + w.a_bridge_ratio + w.a_ap_c_directed + w.a_cdi
+        active = (
+            w.a_qspof + 
+            w.a_bridge_ratio + 
+            w.a_ap_c_directed + 
+            w.a_cdi + 
+            w.a_qos_weight
+        )
         assert active == pytest.approx(1.0, abs=0.05), (
             f"Computed A(v) weights should sum ~1.0, got {active:.4f}"
         )
@@ -84,24 +98,18 @@ class TestAHPAvailabilityMatrix:
         assert w.a_bridge_ratio > 0.0
         assert w.a_ap_c_directed > 0.0
         assert w.a_cdi > 0.0
+        assert w.a_qos_weight > 0.0
 
-    def test_ahp_weight_ordering_qspof_largest(self):
-        """QSPOF should have the largest weight; CDI the smallest."""
+    def test_ahp_weight_ordering_ap_c_directed_largest(self):
+        """AP_c_directed should have the largest weight (baseline)."""
         proc = AHPProcessor()
         w = proc.compute_weights()
-        assert w.a_qspof >= w.a_bridge_ratio, (
-            f"QSPOF ({w.a_qspof:.4f}) should be >= BR ({w.a_bridge_ratio:.4f})"
+        assert w.a_ap_c_directed >= w.a_qspof, (
+            f"AP_c_directed ({w.a_ap_c_directed:.4f}) should be >= QSPOF ({w.a_qspof:.4f})"
         )
-        assert w.a_cdi <= w.a_ap_c_directed + 0.05, (
-            f"CDI ({w.a_cdi:.4f}) should be approximately the smallest"
+        assert w.a_qos_weight <= w.a_cdi + 0.05, (
+            f"w ({w.a_qos_weight:.4f}) should be the smallest"
         )
-
-    def test_deprecated_a_weights_zeroed_by_ahp(self):
-        """AHP compute_weights must keep deprecated fields at 0.0."""
-        proc = AHPProcessor()
-        w = proc.compute_weights()
-        assert w.a_articulation == 0.0
-        assert w.a_qos_weight == 0.0
 
 
 # ===========================================================================

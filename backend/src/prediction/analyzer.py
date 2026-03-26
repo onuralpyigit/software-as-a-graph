@@ -392,13 +392,14 @@ class QualityAnalyzer:
             + w.m_clustering * (1.0 - cc)
         )
 
-        # Availability: A(v) v2 — SPOF risk (directed, QoS-weighted)
+        # Availability: A(v) v3 — SPOF risk (decoupled Structural/QoS signals)
         qspof = ap_c * qw
         A = (
-            getattr(w, 'a_qspof',        0.45) * qspof
+            getattr(w, 'a_ap_c_directed', 0.35) * ap_c
+            + getattr(w, 'a_qspof',        0.25) * qspof
             + w.a_bridge_ratio           * m.bridge_ratio
-            + getattr(w, 'a_ap_c_directed', 0.15) * ap_c
             + getattr(w, 'a_cdi',           0.10) * cdi
+            + getattr(w, 'a_qos_weight',    0.05) * qw
         )
 
         # Vulnerability: strategic dependent reach + propagation speed + QoS attack surface

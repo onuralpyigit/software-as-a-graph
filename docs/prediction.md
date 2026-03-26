@@ -156,18 +156,19 @@ CQP(v) = 0.40 × complexity_norm(v) + 0.35 × instability_code(v) + 0.25 × lcom
 
 #### Availability A(v) — SPOF Risk
 
-A(v) measures whether a component is a structural single point of failure.
+A(v) measures whether a component is a structural single point of failure, decoupled from its operational priority.
 
 ```
-A(v) = 0.45 × QSPOF(v) + 0.30 × BR(v) + 0.15 × AP_c_directed(v) + 0.10 × CDI(v)
+A(v) = 0.35 × AP_c_directed(v) + 0.25 × QSPOF(v) + 0.25 × BR(v) + 0.10 × CDI(v) + 0.05 × w(v)
 ```
 
 | Term | Weight | Rationale |
 |------|--------|-----------|
-| QSPOF(v) | 0.45 | QoS-weighted SPOF severity — `AP_c_directed × w(v)`; scales structural SPOF by the component's own QoS importance |
-| BR(v) | 0.30 | Bridge Ratio — fraction of incident edges that are non-redundant bridges; losing any bridge disconnects a subgraph |
-| AP_c_directed(v) | 0.15 | Directed articulation score — fraction of directed reachability lost when v is removed (stored in M(v) from Step 2) |
-| CDI(v) | 0.10 | Connectivity Degradation Index — average path elongation upon v's removal; catches soft SPOFs (stored in M(v) from Step 2) |
+| AP_c_directed(v) | 0.35 | Directed articulation score — primary structural SPOF baseline; ensures bottlenecks are critical even with low-priority traffic |
+| QSPOF(v) | 0.25 | QoS-weighted SPOF severity — `AP_c_directed × w(v)`; provides additional weight to high-priority SPOFs |
+| BR(v) | 0.25 | Bridge Ratio — fraction of incident edges that are non-redundant bridges; losing any bridge disconnects a subgraph |
+| CDI(v) | 0.10 | Connectivity Degradation Index — average path elongation upon v's removal; catches soft SPOFs |
+| w(v) | 0.05 | Component QoS weight — direct contribution of operational priority to overall availability focus |
 
 Note: AP_c_directed and CDI are now computed in Step 2 and stored in M(v). They are read directly from M(v) here rather than being recomputed.
 
@@ -341,17 +342,18 @@ CC_inv     [0.23,  0.27,  0.53,  0.67,  1.00]   CC_inv: supplementary redundancy
 
 > CQP and CouplingRisk receive equal AHP judgments because both measure coupling — CQP at the code level (complexity, instability, cohesion), CouplingRisk at the structural level (in/out balance). Neither dominates the other.
 
-#### Availability AHP (4×4: QSPOF, BR, AP_c_dir, CDI)
+#### Availability AHP (5×5: AP_c_dir, QSPOF, BR, CDI, w)
 
 ```
-                QSPOF   BR    AP_c_d  CDI
-QSPOF        [1.00,  3.00,  5.00,  9.00]   QSPOF: QoS-amplified SPOF — primary signal
-BR           [0.33,  1.00,  2.00,  4.00]   BR: structural brittleness of connections
-AP_c_d       [0.20,  0.50,  1.00,  3.00]   AP_c_d: directional reachability loss
-CDI          [0.11,  0.25,  0.33,  1.00]   CDI: soft degradation — secondary
+                AP_c_d  QSPOF   BR    CDI    w
+AP_c_d       [  1.00,  1.40,  1.40,  3.50,  7.00 ]   AP_c_d: Structural baseline is primary
+QSPOF        [  0.71,  1.00,  1.00,  2.50,  5.00 ]   QSPOF: QoS-weighted secondary signal
+BR           [  0.71,  1.00,  1.00,  2.50,  5.00 ]   BR: Multi-edge brittleness
+CDI          [  0.29,  0.40,  0.40,  1.00,  2.00 ]   CDI: Path elongation
+w            [  0.14,  0.20,  0.20,  0.50,  1.00 ]   w: Pure operational priority
 
-→ AHP raw:    [0.55,  0.24,  0.13,  0.08]    CR ≈ 0.01
-  After λ=0.7: [0.45,  0.30,  0.15,  0.10]   (implemented values)
+→ AHP raw:    [0.35,  0.25,  0.25,  0.10,  0.05]    CR ≈ 0.000 (perfectly consistent)
+  Rounded:     [0.35,  0.25,  0.25,  0.10,  0.05]   (implemented values)
 ```
 
 #### Vulnerability AHP (3×3: REV, RCL, QADS)
