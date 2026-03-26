@@ -23,6 +23,10 @@ APP_HYBRID_MEAN_COEFF: float = 0.20
 BROKER_HYBRID_MAX_COEFF: float = 0.70
 BROKER_HYBRID_MEAN_COEFF: float = 0.30
 
+#: Library fan-out multiplier coefficient (γ) for simultaneous blast semantics.
+#: Applied as: 1 + γ * log2(1 + DG_in).
+LIB_FANOUT_GAMMA: float = 0.15
+
 @dataclass
 class ComponentData:
     """Domain entity representing a graph component (vertex)."""

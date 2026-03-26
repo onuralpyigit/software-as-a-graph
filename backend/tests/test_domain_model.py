@@ -417,6 +417,12 @@ class TestNeo4jGraphImport:
             )
             in_degree = result.single()["in_degree"]
             assert in_degree == 2
+            
+        lib = neo4j_repo.get_graph_data(component_types=["Library"]).components[0]
+        # base_w = 0.01 (min weight, no topics/apps have real weights yet)
+        # dg_in = 2
+        # lib.weight = 0.01 * (1 + 0.15 * log2(1 + 2)) ≈ 0.012377
+        assert lib.weight == pytest.approx(0.012377, abs=0.001)
 
     def test_broker_hybrid_weight(self, neo4j_repo):
         """Test broker hybrid weight calculation: 0.70 * max + 0.30 * avg."""

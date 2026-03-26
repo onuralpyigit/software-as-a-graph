@@ -27,7 +27,8 @@ from src.core.models import (
     ComponentData, EdgeData, GraphData, QoSPolicy, 
     MIN_TOPIC_WEIGHT, TOPIC_QOS_WEIGHT_BETA,
     APP_HYBRID_MAX_COEFF, APP_HYBRID_MEAN_COEFF,
-    BROKER_HYBRID_MAX_COEFF, BROKER_HYBRID_MEAN_COEFF
+    BROKER_HYBRID_MAX_COEFF, BROKER_HYBRID_MEAN_COEFF,
+    LIB_FANOUT_GAMMA
 )
 from . import config
 
@@ -478,18 +479,25 @@ class Neo4jRepository:
             SET a.weight = coalesce({APP_HYBRID_MAX_COEFF} * max_w + {APP_HYBRID_MEAN_COEFF} * mean_w, 0.01)
         """)
 
-        # 2. Library Weight (propagated from consuming apps or direct topics)
-        # Note: Library remains max() because it's a passive dependency, 
-        # its criticality is the worst-case consumer.
-        self._run_query("""
+        # 2. Library Weight (propagated + fan-out multiplier)
+        # Formula: min(1.0, base_w * (1 + γ * log2(1 + DG_in)))
+        # Reflects simultaneous blast semantics: shared libraries are higher priority.
+        self._run_query(f"""
             MATCH (l:Library)
             OPTIONAL MATCH (l)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
-            WITH l, max(t.weight) as topic_max
+            WITH l, max(t.weight) as t_max
             OPTIONAL MATCH (app:Application)-[:USES]->(l)
-            WITH l, coalesce(topic_max, 0.0) as t_max, coalesce(max(app.weight), 0.0) as a_max
-            SET l.weight = CASE WHEN t_max > a_max THEN coalesce(t_max, 0.01) 
-                                WHEN a_max > 0 THEN a_max 
-                                ELSE 0.01 END
+            WITH l, t_max, max(app.weight) as a_max, count(app) as dg_in
+            WITH l, 
+                 CASE WHEN coalesce(t_max, 0.0) > coalesce(a_max, 0.0) 
+                      THEN coalesce(t_max, 0.0) 
+                      ELSE coalesce(a_max, 0.0) 
+                 END as base_w, 
+                 dg_in
+            WITH l, base_w, (1.0 + {LIB_FANOUT_GAMMA} * log(1 + dg_in) / log(2)) as multiplier
+            SET l.weight = CASE WHEN base_w <= 0 THEN 0.01
+                                WHEN base_w * multiplier > 1.0 THEN 1.0
+                                ELSE base_w * multiplier END
         """)
 
         # 3. Broker Weight (hybrid: 0.70 * max + 0.30 * mean)
