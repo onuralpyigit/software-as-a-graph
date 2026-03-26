@@ -36,37 +36,31 @@ class Client:
             "success": result.success,
         }
 
-    def analyze(self, layer: str = "system", use_ahp: bool = False, equal_weights: bool = False, **kwargs) -> AnalysisResult:
+    def analyze(self, layer: str = "app") -> AnalysisResult:
         """Analyze the structural graph topology."""
         from src.usecases.analyze_graph import AnalyzeGraphUseCase
         uc = AnalyzeGraphUseCase(self.repo)
         raw_analysis = uc.execute(layer=layer)
         return AnalysisResult(raw_analysis)
 
-    def predict(self, analysis: AnalysisResult, gnn_model: Optional[str] = None, equal_weights: bool = False, **kwargs) -> PredictionResult:
+    def predict(self, analysis: AnalysisResult, equal_weights: bool = False, ahp_shrinkage: float = 0.7) -> PredictionResult:
         """Predict quality metrics using the statistical quality analyser.
 
         Args:
-            analysis:   Result of a prior ``analyze()`` call.
-            gnn_model:  Reserved for future GNN checkpoint loading.
-                        Currently ignored; ``PredictionService`` is always used.
+            analysis:      Result of a prior ``analyze()`` call.
             equal_weights: If True, use equal 0.25 weights for all Q(v) dimensions.
+            ahp_shrinkage: Shrinkage factor for AHP weights (default: 0.7).
         """
-        import logging
-        logger = logging.getLogger(__name__)
-
-        if gnn_model:
-            logger.warning(
-                "gnn_model=%r supplied but GNN checkpoint loading is not yet "
-                "implemented; falling back to PredictionService.", gnn_model
-            )
-
         from src.prediction.service import PredictionService
-        service = PredictionService(use_ahp=False, equal_weights=equal_weights)
+        service = PredictionService(
+            use_ahp=True, 
+            equal_weights=equal_weights,
+            ahp_shrinkage=ahp_shrinkage
+        )
         from src.usecases.predict_graph import PredictGraphUseCase
         uc = PredictGraphUseCase(self.repo, prediction_service=service)
 
-        layer_str = analysis.raw.layer.value
+        layer_str = getattr(analysis.raw.layer, "value", str(analysis.raw.layer))
         quality, _ = uc.execute(
             layer=layer_str,
             structural_result=analysis.raw,

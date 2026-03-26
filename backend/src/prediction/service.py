@@ -27,12 +27,14 @@ class PredictionService:
         winsorize: bool = True,
         winsorize_limit: float = 0.05,
         equal_weights: bool = False,
+        ahp_shrinkage: float = 0.7,
     ):
         self.use_ahp = use_ahp
         self.normalization_method = normalization_method
         self.winsorize = winsorize
         self.winsorize_limit = winsorize_limit
         self.equal_weights = equal_weights
+        self.ahp_shrinkage = ahp_shrinkage
 
     def predict_quality(
         self, 
@@ -50,6 +52,7 @@ class PredictionService:
             winsorize_limit=self.winsorize_limit,
             use_ahp=self.use_ahp,
             equal_weights=self.equal_weights,
+            ahp_shrinkage=self.ahp_shrinkage,
         )
         
         return analyzer.analyze(

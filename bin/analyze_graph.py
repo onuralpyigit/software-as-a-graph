@@ -22,6 +22,7 @@ def main():
     # Specific args
     parser.add_argument("--use-ahp", action="store_true", help="Use AHP-derived weights instead of default fixed weights")
     parser.add_argument("--equal-weights", action="store_true", help="Use equal 0.25 weights for all Q(v) dimensions (baseline)")
+    parser.add_argument("--ahp-shrinkage", type=float, default=0.7, help="Shrinkage factor λ for AHP weights [0, 1] (default: 0.7)")
     
     add_neo4j_args(parser)
     add_common_args(parser)
@@ -30,7 +31,7 @@ def main():
     setup_logging(args)
 
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
-    result = client.analyze(layer=args.layer, use_ahp=args.use_ahp, equal_weights=args.equal_weights)
+    result = client.analyze(layer=args.layer, use_ahp=args.use_ahp, equal_weights=args.equal_weights, ahp_shrinkage=args.ahp_shrinkage)
     
     if args.output:
         result.save(args.output)

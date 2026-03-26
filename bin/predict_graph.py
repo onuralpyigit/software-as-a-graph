@@ -22,6 +22,7 @@ def main():
     )
     
     parser.add_argument("--equal-weights", action="store_true", help="Use equal 0.25 weights for all Q(v) dimensions (baseline)")
+    parser.add_argument("--ahp-shrinkage", type=float, default=0.7, help="Shrinkage factor λ for AHP weights [0, 1] (default: 0.7)")
     
     add_neo4j_args(parser)
     add_common_args(parser)
@@ -32,7 +33,7 @@ def main():
     
     # Predict relies on structural analysis
     analysis = client.analyze(layer=args.layer, equal_weights=args.equal_weights)
-    result = client.predict(analysis, equal_weights=args.equal_weights)
+    result = client.predict(analysis, equal_weights=args.equal_weights, ahp_shrinkage=args.ahp_shrinkage)
     
     if args.output:
         result.save(args.output)
