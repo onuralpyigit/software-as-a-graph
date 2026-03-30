@@ -2,12 +2,14 @@
 Component and edge query endpoints.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Dict, Any, Optional
 import logging
 
 from api.models import Neo4jCredentials
+from api.dependencies import get_repository
 from src.adapters import create_repository
+from src.core.ports.graph_repository import IGraphRepository
 from saag import Client
 
 router = APIRouter(prefix="/api/v1", tags=["components", "edges"])
@@ -164,4 +166,35 @@ async def get_critical_edges(
             repo.close()
     except Exception as e:
         logger.error(f"Critical edges query failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+
+
+@router.get("/apps/csms-names", response_model=Dict[str, Any])
+async def get_unique_csms_names(
+    repo: IGraphRepository = Depends(get_repository),
+):
+    """
+    Return the unique, non-empty values of the ``csms_name`` field
+    that exist on Application nodes in Neo4j.
+    """
+    try:
+        driver = repo.driver  # type: ignore[attr-defined]
+        database = repo.database  # type: ignore[attr-defined]
+        with driver.session(database=database) as session:
+            result = session.run(
+                """
+                MATCH (a:Application)
+                WHERE a.csms_name IS NOT NULL AND trim(a.csms_name) <> ''
+                RETURN DISTINCT a.csms_name AS csms_name
+                ORDER BY a.csms_name
+                """
+            )
+            csms_names = [record["csms_name"] for record in result]
+        return {
+            "success": True,
+            "count": len(csms_names),
+            "csms_names": csms_names,
+        }
+    except Exception as e:
+        logger.error(f"CSMS names query failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")

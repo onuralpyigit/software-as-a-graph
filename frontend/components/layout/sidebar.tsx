@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Brain,
   Cpu,
+  LayoutGrid,
 } from "lucide-react"
 
 const navigation = [
@@ -29,6 +30,11 @@ const navigation = [
     name: "Explorer",
     href: "/explorer",
     icon: Network,
+  },
+  {
+    name: "Browser",
+    href: "/browser",
+    icon: LayoutGrid,
   },
   {
     name: "Analysis",
