@@ -46,10 +46,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Otonom Araç İşletim Sistemi",
+        "domain_name": "Planlama (Planning)",
+        "config_item_name": "Araç Dinamikleri",
+        "component_name": "Hız Optimizasyonu"
       },
       "code_metrics": {
         "size": {
@@ -87,10 +87,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Data Persistence"
+        "system_name": "Otonom Araç İşletim Sistemi",
+        "domain_name": "Algılama (Perception)",
+        "config_item_name": "Kamera Modülü",
+        "component_name": "Trafik Levhası Tanıma"
       },
       "code_metrics": {
         "size": {
@@ -127,10 +127,10 @@
       "name": "WindowSupport",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Support Software",
-        "css_name": "Control Logic",
-        "csms_name": "Core Logic"
+        "system_name": "Otonom Araç İşletim Sistemi",
+        "domain_name": "Kontrol (Control)",
+        "config_item_name": "Gövde (Body)",
+        "component_name": "Cam Kontrolcüsü"
       },
       "code_metrics": {
         "size": {

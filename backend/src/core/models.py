@@ -174,7 +174,7 @@ class Application(GraphEntity):
     """A software service that publishes and/or subscribes to topics.
 
     Attributes:
-        system_hierarchy: MIL-STD-498 decomposition (CSC → CSCI → CSS → CSMS).
+        system_hierarchy: Decomposition (system_name, domain_name, config_item_name, component_name).
         code_metrics: Nested OO metrics (size, complexity, cohesion, coupling).
     """
     role: str = "pubsub"  # pub, sub, pubsub
@@ -288,7 +288,7 @@ class Library(GraphEntity):
     """A reusable code component (shared library, SDK, framework, driver, etc.).
 
     Attributes:
-        system_hierarchy: MIL-STD-498 decomposition (CSC → CSCI → CSS → CSMS).
+        system_hierarchy: Decomposition (system_name, domain_name, config_item_name, component_name).
         code_metrics: Nested OO metrics (size, complexity, cohesion, coupling).
     """
     version: Optional[str] = None

@@ -80,10 +80,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {
@@ -121,10 +121,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Data Persistence"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {
@@ -162,10 +162,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Support Software",
-        "css_name": "Control Logic",
-        "csms_name": "Core Logic"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Yaşam Bulguları",
+        "component_name": "Oksijen Seviye Sensörü"
       },
       "code_metrics": {
         "size": {
@@ -203,10 +203,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -244,10 +244,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Systems Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Logging Framework"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -284,10 +284,10 @@
       "name": "DdsUtils",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Yaşam Bulguları",
+        "component_name": "Kalp Atış Monitörü"
       },
       "code_metrics": {
         "size": {
@@ -322,10 +322,10 @@
       "name": "Types",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "User Interface",
-        "csms_name": "Core Logic"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Yaşam Bulguları",
+        "component_name": "Kalp Atış Monitörü"
       },
       "code_metrics": {
         "size": {
