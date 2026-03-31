@@ -11,7 +11,6 @@
         }
       ]
     },
-
     {
       "node_name": "freeport",
       "publishers": [
@@ -23,7 +22,6 @@
         }
       ]
     },
-
     {
       "node_name": "medellin",
       "publishers": [
@@ -35,7 +33,6 @@
         }
       ]
     },
-
     {
       "node_name": "portsmouth",
       "publishers": [
@@ -47,11 +44,13 @@
         }
       ]
     },
-
     {
       "node_name": "lyon",
       "subscribers": [
-        { "topic_name": "amazon", "msg_type": "stamped9_float32" }
+        {
+          "topic_name": "amazon",
+          "msg_type": "stamped9_float32"
+        }
       ],
       "publishers": [
         {
@@ -62,14 +61,25 @@
         }
       ]
     },
-
     {
       "node_name": "hamburg",
       "subscribers": [
-        { "topic_name": "nile", "msg_type": "stamped4_int32" },
-        { "topic_name": "tigris", "msg_type": "stamped4_float32" },
-        { "topic_name": "ganges", "msg_type": "stamped4_int32" },
-        { "topic_name": "danube", "msg_type": "stamped_int64" }
+        {
+          "topic_name": "nile",
+          "msg_type": "stamped4_int32"
+        },
+        {
+          "topic_name": "tigris",
+          "msg_type": "stamped4_float32"
+        },
+        {
+          "topic_name": "ganges",
+          "msg_type": "stamped4_int32"
+        },
+        {
+          "topic_name": "danube",
+          "msg_type": "stamped_int64"
+        }
       ],
       "publishers": [
         {
@@ -80,7 +90,6 @@
         }
       ]
     },
-
     {
       "node_name": "delhi",
       "publishers": [
@@ -92,10 +101,14 @@
         }
       ]
     },
-
     {
       "node_name": "taipei",
-      "subscribers": [{ "topic_name": "columbia", "msg_type": "stamped250kb" }],
+      "subscribers": [
+        {
+          "topic_name": "columbia",
+          "msg_type": "stamped250kb"
+        }
+      ],
       "publishers": [
         {
           "topic_name": "colorado",
@@ -105,12 +118,17 @@
         }
       ]
     },
-
     {
       "node_name": "osaka",
       "subscribers": [
-        { "topic_name": "parana", "msg_type": "stamped3_float32" },
-        { "topic_name": "colorado", "msg_type": "stamped4_int32" }
+        {
+          "topic_name": "parana",
+          "msg_type": "stamped3_float32"
+        },
+        {
+          "topic_name": "colorado",
+          "msg_type": "stamped4_int32"
+        }
       ],
       "publishers": [
         {
@@ -128,12 +146,17 @@
         }
       ]
     },
-
     {
       "node_name": "tripoli",
       "subscribers": [
-        { "topic_name": "columbia", "msg_type": "stamped250kb" },
-        { "topic_name": "godavari", "msg_type": "stamped_vector" }
+        {
+          "topic_name": "columbia",
+          "msg_type": "stamped250kb"
+        },
+        {
+          "topic_name": "godavari",
+          "msg_type": "stamped_vector"
+        }
       ],
       "publishers": [
         {
@@ -145,7 +168,6 @@
         }
       ]
     },
-
     {
       "node_name": "kingston",
       "publishers": [
@@ -157,7 +179,6 @@
         }
       ]
     },
-
     {
       "node_name": "hebron",
       "publishers": [
@@ -169,16 +190,33 @@
         }
       ]
     },
-
     {
       "node_name": "mandalay",
       "subscribers": [
-        { "topic_name": "salween", "msg_type": "stamped12_float32" },
-        { "topic_name": "danube", "msg_type": "stamped_int64" },
-        { "topic_name": "godavari", "msg_type": "stamped_vector" },
-        { "topic_name": "yamuna", "msg_type": "stamped4_int32" },
-        { "topic_name": "loire", "msg_type": "stamped_vector" },
-        { "topic_name": "chenab", "msg_type": "stamped1kb" }
+        {
+          "topic_name": "salween",
+          "msg_type": "stamped12_float32"
+        },
+        {
+          "topic_name": "danube",
+          "msg_type": "stamped_int64"
+        },
+        {
+          "topic_name": "godavari",
+          "msg_type": "stamped_vector"
+        },
+        {
+          "topic_name": "yamuna",
+          "msg_type": "stamped4_int32"
+        },
+        {
+          "topic_name": "loire",
+          "msg_type": "stamped_vector"
+        },
+        {
+          "topic_name": "chenab",
+          "msg_type": "stamped1kb"
+        }
       ],
       "publishers": [
         {
@@ -204,19 +242,45 @@
         }
       ]
     },
-
     {
       "node_name": "ponce",
       "subscribers": [
-        { "topic_name": "missouri", "msg_type": "stamped_vector" },
-        { "topic_name": "danube", "msg_type": "stamped_int64" },
-        { "topic_name": "volga", "msg_type": "stamped_int64" },
-        { "topic_name": "godavari", "msg_type": "stamped_vector" },
-        { "topic_name": "yamuna", "msg_type": "stamped4_int32" },
-        { "topic_name": "loire", "msg_type": "stamped_vector" },
-        { "topic_name": "tagus", "msg_type": "stamped_vector" },
-        { "topic_name": "brazos", "msg_type": "stamped_vector" },
-        { "topic_name": "ohio", "msg_type": "stamped100b" }
+        {
+          "topic_name": "missouri",
+          "msg_type": "stamped_vector"
+        },
+        {
+          "topic_name": "danube",
+          "msg_type": "stamped_int64"
+        },
+        {
+          "topic_name": "volga",
+          "msg_type": "stamped_int64"
+        },
+        {
+          "topic_name": "godavari",
+          "msg_type": "stamped_vector"
+        },
+        {
+          "topic_name": "yamuna",
+          "msg_type": "stamped4_int32"
+        },
+        {
+          "topic_name": "loire",
+          "msg_type": "stamped_vector"
+        },
+        {
+          "topic_name": "tagus",
+          "msg_type": "stamped_vector"
+        },
+        {
+          "topic_name": "brazos",
+          "msg_type": "stamped_vector"
+        },
+        {
+          "topic_name": "ohio",
+          "msg_type": "stamped100b"
+        }
       ],
       "publishers": [
         {
@@ -234,10 +298,14 @@
         }
       ]
     },
-
     {
       "node_name": "barcelona",
-      "subscribers": [{ "topic_name": "mekong", "msg_type": "stamped_vector" }],
+      "subscribers": [
+        {
+          "topic_name": "mekong",
+          "msg_type": "stamped_vector"
+        }
+      ],
       "publishers": [
         {
           "topic_name": "lena",
@@ -248,10 +316,14 @@
         }
       ]
     },
-
     {
       "node_name": "monaco",
-      "subscribers": [{ "topic_name": "congo", "msg_type": "stamped4_int32" }],
+      "subscribers": [
+        {
+          "topic_name": "congo",
+          "msg_type": "stamped4_int32"
+        }
+      ],
       "publishers": [
         {
           "topic_name": "ohio",
@@ -261,12 +333,17 @@
         }
       ]
     },
-
     {
       "node_name": "georgetown",
       "subscribers": [
-        { "topic_name": "lena", "msg_type": "stamped_vector" },
-        { "topic_name": "murray", "msg_type": "stamped_vector" }
+        {
+          "topic_name": "lena",
+          "msg_type": "stamped_vector"
+        },
+        {
+          "topic_name": "murray",
+          "msg_type": "stamped_vector"
+        }
       ],
       "publishers": [
         {
@@ -277,10 +354,14 @@
         }
       ]
     },
-
     {
       "node_name": "rotterdam",
-      "subscribers": [{ "topic_name": "mekong", "msg_type": "stamped_vector" }],
+      "subscribers": [
+        {
+          "topic_name": "mekong",
+          "msg_type": "stamped_vector"
+        }
+      ],
       "publishers": [
         {
           "topic_name": "murray",
@@ -291,14 +372,25 @@
         }
       ]
     },
-
     {
       "node_name": "geneva",
       "subscribers": [
-        { "topic_name": "congo", "msg_type": "stamped4_int32" },
-        { "topic_name": "danube", "msg_type": "stamped_int64" },
-        { "topic_name": "parana", "msg_type": "stamped3_float32" },
-        { "topic_name": "tagus", "msg_type": "stamped_vector" }
+        {
+          "topic_name": "congo",
+          "msg_type": "stamped4_int32"
+        },
+        {
+          "topic_name": "danube",
+          "msg_type": "stamped_int64"
+        },
+        {
+          "topic_name": "parana",
+          "msg_type": "stamped3_float32"
+        },
+        {
+          "topic_name": "tagus",
+          "msg_type": "stamped_vector"
+        }
       ],
       "publishers": [
         {
@@ -309,11 +401,13 @@
         }
       ]
     },
-
     {
       "node_name": "arequipa",
       "subscribers": [
-        { "topic_name": "arkansas", "msg_type": "stamped4_int32" }
+        {
+          "topic_name": "arkansas",
+          "msg_type": "stamped4_int32"
+        }
       ]
     }
   ]
