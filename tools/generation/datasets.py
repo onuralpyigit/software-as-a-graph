@@ -6,59 +6,59 @@ import random
 from src.core.models import QoSPolicy
 
 # --------------------------------------------------------------------------
-# System Hierarchy pools per domain (MIL-STD-498: CSC → CSCI → CSS → CSMS)
+# System Hierarchy pools per domain 
 # --------------------------------------------------------------------------
 SYSTEM_HIERARCHY_POOLS: Dict[str, Dict[str, List[str]]] = {
     "av": {
-        "csc": ["Autonomous Vehicle Platform", "Vehicle Computing System", "Robotic Systems"],
-        "csci": ["Navigation Software", "Perception Software", "Control Software", "Sensor Integration"],
-        "css": ["Path Planning", "Object Detection", "Motor Control", "SLAM", "Sensor Fusion", "Collision Avoidance", "State Estimation"],
-        "csms": ["Route Processing", "Control Logic", "Image Pipeline", "Point Cloud Processing", "Localization", "Obstacle Tracking"],
+        "component": ["Autonomous Vehicle Platform", "Vehicle Computing System", "Robotic Systems"],
+        "config_item": ["Navigation Software", "Perception Software", "Control Software", "Sensor Integration"],
+        "domain": ["Path Planning", "Object Detection", "Motor Control", "SLAM", "Sensor Fusion", "Collision Avoidance", "State Estimation"],
+        "system": ["Route Processing", "Control Logic", "Image Pipeline", "Point Cloud Processing", "Localization", "Obstacle Tracking"],
     },
     "iot": {
-        "csc": ["Smart City Platform", "IoT Infrastructure", "Edge Computing System"],
-        "csci": ["Monitoring Software", "Data Collection", "Control Systems", "Analytics Engine"],
-        "css": ["Traffic Management", "Environmental Sensing", "Lighting Control", "Power Monitoring", "Alert Management"],
-        "csms": ["Data Aggregation", "Event Processing", "Threshold Analysis", "Notification Logic", "Device Control"],
+        "component": ["Smart City Platform", "IoT Infrastructure", "Edge Computing System"],
+        "config_item": ["Monitoring Software", "Data Collection", "Control Systems", "Analytics Engine"],
+        "domain": ["Traffic Management", "Environmental Sensing", "Lighting Control", "Power Monitoring", "Alert Management"],
+        "system": ["Data Aggregation", "Event Processing", "Threshold Analysis", "Notification Logic", "Device Control"],
     },
     "finance": {
-        "csc": ["Trading Platform", "Financial Systems", "Capital Markets Infrastructure"],
-        "csci": ["Trade Execution Software", "Risk Management", "Market Data", "Ledger Systems"],
-        "css": ["Order Routing", "Matching Engine", "Risk Evaluation", "Market Feed", "Fraud Detection"],
-        "csms": ["Order Validation", "Price Matching", "Risk Calculation", "Quote Processing", "Anomaly Detection"],
+        "component": ["Trading Platform", "Financial Systems", "Capital Markets Infrastructure"],
+        "config_item": ["Trade Execution Software", "Risk Management", "Market Data", "Ledger Systems"],
+        "domain": ["Order Routing", "Matching Engine", "Risk Evaluation", "Market Feed", "Fraud Detection"],
+        "system": ["Order Validation", "Price Matching", "Risk Calculation", "Quote Processing", "Anomaly Detection"],
     },
     "healthcare": {
-        "csc": ["Health Information System", "Clinical Platform", "Medical Imaging System"],
-        "csci": ["Clinical Software", "Patient Management", "Diagnostics Software", "Lab Integration"],
-        "css": ["EMR Management", "PACS Integration", "Vitals Monitoring", "Lab Processing", "Billing"],
-        "csms": ["Patient Records", "Image Processing", "Signal Analysis", "Result Reporting", "Claim Processing"],
+        "component": ["Health Information System", "Clinical Platform", "Medical Imaging System"],
+        "config_item": ["Clinical Software", "Patient Management", "Diagnostics Software", "Lab Integration"],
+        "domain": ["EMR Management", "PACS Integration", "Vitals Monitoring", "Lab Processing", "Billing"],
+        "system": ["Patient Records", "Image Processing", "Signal Analysis", "Result Reporting", "Claim Processing"],
     },
     "hub-and-spoke": {
-        "csc": ["Integration Platform", "Enterprise Service Bus"],
-        "csci": ["Message Routing Software", "Spoke Services", "Hub Core"],
-        "css": ["Central Routing", "Spoke Integration", "Data Transformation"],
-        "csms": ["Message Dispatch", "Protocol Conversion", "Data Mapping", "Queue Management"],
+        "component": ["Integration Platform", "Enterprise Service Bus"],
+        "config_item": ["Message Routing Software", "Spoke Services", "Hub Core"],
+        "domain": ["Central Routing", "Spoke Integration", "Data Transformation"],
+        "system": ["Message Dispatch", "Protocol Conversion", "Data Mapping", "Queue Management"],
     },
     "microservices": {
-        "csc": ["Cloud Platform", "Microservices Architecture", "Distributed Services"],
-        "csci": ["Service Mesh", "API Gateway", "Backend Services", "Data Layer"],
-        "css": ["Authentication", "User Management", "Payment Processing", "Product Catalog", "Search Service"],
-        "csms": ["Token Validation", "Session Management", "Transaction Processing", "Index Management", "Cache Layer"],
+        "component": ["Cloud Platform", "Microservices Architecture", "Distributed Services"],
+        "config_item": ["Service Mesh", "API Gateway", "Backend Services", "Data Layer"],
+        "domain": ["Authentication", "User Management", "Payment Processing", "Product Catalog", "Search Service"],
+        "system": ["Token Validation", "Session Management", "Transaction Processing", "Index Management", "Cache Layer"],
     },
     "enterprise": {
-        "csc": ["Enterprise Platform", "Business Systems", "Corporate IT"],
-        "csci": ["ERP Integration", "CRM Software", "HR Systems", "Inventory Management"],
-        "css": ["Order Processing", "Customer Relations", "Employee Portal", "Stock Management", "Invoice Processing"],
-        "csms": ["Data Sync", "Report Generation", "Workflow Engine", "Notification Service", "Legacy Adapter"],
+        "component": ["Enterprise Platform", "Business Systems", "Corporate IT"],
+        "config_item": ["ERP Integration", "CRM Software", "HR Systems", "Inventory Management"],
+        "domain": ["Order Processing", "Customer Relations", "Employee Portal", "Stock Management", "Invoice Processing"],
+        "system": ["Data Sync", "Report Generation", "Workflow Engine", "Notification Service", "Legacy Adapter"],
     },
 }
 
 # Generic hierarchy pool (used when no domain is specified)
 GENERIC_HIERARCHY_POOL: Dict[str, List[str]] = {
-    "csc": ["Computer Science", "Information Systems", "Software Systems", "Computing Platform"],
-    "csci": ["Software Engineering", "Systems Engineering", "Application Software", "Infrastructure Software"],
-    "css": ["Software Design", "Data Management", "Communication", "Process Control", "Shared Platform", "User Interface"],
-    "csms": ["Core Logic", "Data Processing", "Messaging Utilities", "Configuration Management", "Error Handling", "Shared Services"],
+    "component": ["Computer Science", "Information Systems", "Software Systems", "Computing Platform"],
+    "config_item": ["Software Engineering", "Systems Engineering", "Application Software", "Infrastructure Software"],
+    "domain": ["Software Design", "Data Management", "Communication", "Process Control", "Shared Platform", "User Interface"],
+    "system": ["Core Logic", "Data Processing", "Messaging Utilities", "Configuration Management", "Error Handling", "Shared Services"],
 }
 
 # Predefined datasets for various domains mapping to scenario.md
@@ -232,20 +232,20 @@ class DomainDataset:
         """Generate a system_hierarchy dict using domain-specific pools."""
         pool = SYSTEM_HIERARCHY_POOLS.get(self.domain, GENERIC_HIERARCHY_POOL)
         return {
-            "csc_name": self.rng.choice(pool["csc"]),
-            "csci_name": self.rng.choice(pool["csci"]),
-            "css_name": self.rng.choice(pool["css"]),
-            "csms_name": self.rng.choice(pool["csms"]),
+            "component_name": self.rng.choice(pool["component"]),
+            "config_item_name": self.rng.choice(pool["config_item"]),
+            "domain_name": self.rng.choice(pool["domain"]),
+            "system_name": self.rng.choice(pool["system"]),
         }
 
 
 def get_generic_system_hierarchy(rng: random.Random) -> Dict[str, str]:
     """Generate a system_hierarchy dict from the generic pool."""
     return {
-        "csc_name": rng.choice(GENERIC_HIERARCHY_POOL["csc"]),
-        "csci_name": rng.choice(GENERIC_HIERARCHY_POOL["csci"]),
-        "css_name": rng.choice(GENERIC_HIERARCHY_POOL["css"]),
-        "csms_name": rng.choice(GENERIC_HIERARCHY_POOL["csms"]),
+        "component_name": rng.choice(GENERIC_HIERARCHY_POOL["component"]),
+        "config_item_name": rng.choice(GENERIC_HIERARCHY_POOL["config_item"]),
+        "domain_name": rng.choice(GENERIC_HIERARCHY_POOL["domain"]),
+        "system_name": rng.choice(GENERIC_HIERARCHY_POOL["system"]),
     }
 
 def get_app_type_for_name(app_name: str) -> str:

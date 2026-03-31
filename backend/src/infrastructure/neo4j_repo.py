@@ -234,10 +234,10 @@ class Neo4jRepository:
                 "criticality": a.get("criticality", "LOW"),
                 "version": a.get("version"),
                 # System hierarchy
-                "csc_name": sh.get("csc_name", ""),
-                "csci_name": sh.get("csci_name", ""),
-                "css_name": sh.get("css_name", ""),
-                "csms_name": sh.get("csms_name", ""),
+                "component_name": sh.get("component_name", ""),
+                "config_item_name": sh.get("config_item_name", ""),
+                "domain_name": sh.get("domain_name", ""),
+                "system_name": sh.get("system_name", ""),
                 # Code metrics — size
                 "cm_total_loc": size.get("total_loc", 0),
                 "cm_total_classes": size.get("total_classes", 0),
@@ -270,8 +270,8 @@ class Neo4jRepository:
             MERGE (a:Application {id: row.id})
             SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
                 a.criticality = row.criticality, a.version = row.version,
-                a.csc_name = row.csc_name, a.csci_name = row.csci_name,
-                a.css_name = row.css_name, a.csms_name = row.csms_name,
+                a.component_name = row.component_name, a.config_item_name = row.config_item_name,
+                a.domain_name = row.domain_name, a.system_name = row.system_name,
                 a.cm_total_loc = row.cm_total_loc, a.cm_total_classes = row.cm_total_classes,
                 a.cm_total_methods = row.cm_total_methods, a.cm_total_fields = row.cm_total_fields,
                 a.cm_total_wmc = row.cm_total_wmc, a.cm_avg_wmc = row.cm_avg_wmc, a.cm_max_wmc = row.cm_max_wmc,
@@ -301,10 +301,10 @@ class Neo4jRepository:
                 "name": l.get("name", l["id"]),
                 "version": l.get("version"),
                 # System hierarchy
-                "csc_name": sh.get("csc_name", ""),
-                "csci_name": sh.get("csci_name", ""),
-                "css_name": sh.get("css_name", ""),
-                "csms_name": sh.get("csms_name", ""),
+                "component_name": sh.get("component_name", ""),
+                "config_item_name": sh.get("config_item_name", ""),
+                "domain_name": sh.get("domain_name", ""),
+                "system_name": sh.get("system_name", ""),
                 # Code metrics — size
                 "cm_total_loc": size.get("total_loc", 0),
                 "cm_total_classes": size.get("total_classes", 0),
@@ -336,8 +336,8 @@ class Neo4jRepository:
         self._import_batch(libs, """
             MERGE (l:Library {id: row.id})
             SET l.name = row.name, l.version = row.version,
-                l.csc_name = row.csc_name, l.csci_name = row.csci_name,
-                l.css_name = row.css_name, l.csms_name = row.csms_name,
+                l.component_name = row.component_name, l.config_item_name = row.config_item_name,
+                l.domain_name = row.domain_name, l.system_name = row.system_name,
                 l.cm_total_loc = row.cm_total_loc, l.cm_total_classes = row.cm_total_classes,
                 l.cm_total_methods = row.cm_total_methods, l.cm_total_fields = row.cm_total_fields,
                 l.cm_total_wmc = row.cm_total_wmc, l.cm_avg_wmc = row.cm_avg_wmc, l.cm_max_wmc = row.cm_max_wmc,
