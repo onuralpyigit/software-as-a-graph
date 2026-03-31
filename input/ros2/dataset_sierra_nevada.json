@@ -164,10 +164,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Sipariş ve Ödeme",
-        "config_item_name": "Ödeme Ağ Geçidi",
-        "component_name": "POS Bağlantısı"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "Order and Payment",
+        "config_item_name": "Payment Gateway",
+        "component_name": "POS Connection"
       },
       "code_metrics": {
         "size": {
@@ -205,10 +205,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Arama Motoru",
-        "component_name": "Tavsiye Algoritması"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Search Engine",
+        "component_name": "Recommendation Algorithm"
       },
       "code_metrics": {
         "size": {
@@ -246,10 +246,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Sipariş ve Ödeme",
-        "config_item_name": "Ödeme Ağ Geçidi",
-        "component_name": "Sahtekarlık Önleme"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "Order and Payment",
+        "config_item_name": "Payment Gateway",
+        "component_name": "Fraud Protection"
       },
       "code_metrics": {
         "size": {
@@ -287,10 +287,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Sipariş ve Ödeme",
-        "config_item_name": "Sepet Yönetimi",
-        "component_name": "Stok Ayırma"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "Order and Payment",
+        "config_item_name": "Cart Management",
+        "component_name": "Stock Allocation"
       },
       "code_metrics": {
         "size": {
@@ -328,10 +328,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Müşteri Paneli",
-        "component_name": "Hesap Ayarları"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Customer Dashboard",
+        "component_name": "Account Settings"
       },
       "code_metrics": {
         "size": {
@@ -369,10 +369,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Sipariş ve Ödeme",
-        "config_item_name": "Sepet Yönetimi",
-        "component_name": "Stok Ayırma"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "Order and Payment",
+        "config_item_name": "Cart Management",
+        "component_name": "Stock Allocation"
       },
       "code_metrics": {
         "size": {
@@ -410,10 +410,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Arama Motoru",
-        "component_name": "Tavsiye Algoritması"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Search Engine",
+        "component_name": "Recommendation Algorithm"
       },
       "code_metrics": {
         "size": {
@@ -451,10 +451,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Müşteri Paneli",
-        "component_name": "Oturum Yönetimi"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Customer Dashboard",
+        "component_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -492,10 +492,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Müşteri Paneli",
-        "component_name": "Hesap Ayarları"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Customer Dashboard",
+        "component_name": "Account Settings"
       },
       "code_metrics": {
         "size": {
@@ -533,10 +533,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Arama Motoru",
-        "component_name": "Tavsiye Algoritması"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Search Engine",
+        "component_name": "Recommendation Algorithm"
       },
       "code_metrics": {
         "size": {
@@ -573,10 +573,10 @@
       "name": "montreal",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Müşteri Paneli",
-        "component_name": "Oturum Yönetimi"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Customer Dashboard",
+        "component_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -611,10 +611,10 @@
       "name": "lyon",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Müşteri Paneli",
-        "component_name": "Oturum Yönetimi"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Customer Dashboard",
+        "component_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -649,10 +649,10 @@
       "name": "hamburg",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Müşteri Paneli",
-        "component_name": "Hesap Ayarları"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Customer Dashboard",
+        "component_name": "Account Settings"
       },
       "code_metrics": {
         "size": {
@@ -687,10 +687,10 @@
       "name": "osaka",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Sipariş ve Ödeme",
-        "config_item_name": "Ödeme Ağ Geçidi",
-        "component_name": "POS Bağlantısı"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "Order and Payment",
+        "config_item_name": "Payment Gateway",
+        "component_name": "POS Connection"
       },
       "code_metrics": {
         "size": {
@@ -725,10 +725,10 @@
       "name": "mandalay",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Arama Motoru",
-        "component_name": "Ürün İndeksleyici"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Search Engine",
+        "component_name": "Product Indexer"
       },
       "code_metrics": {
         "size": {
@@ -763,10 +763,10 @@
       "name": "ponce",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Arama Motoru",
-        "component_name": "Tavsiye Algoritması"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Search Engine",
+        "component_name": "Recommendation Algorithm"
       },
       "code_metrics": {
         "size": {
@@ -801,10 +801,10 @@
       "name": "barcelona",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Müşteri Paneli",
-        "component_name": "Hesap Ayarları"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Customer Dashboard",
+        "component_name": "Account Settings"
       },
       "code_metrics": {
         "size": {
@@ -839,10 +839,10 @@
       "name": "georgetown",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Arama Motoru",
-        "component_name": "Tavsiye Algoritması"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Search Engine",
+        "component_name": "Recommendation Algorithm"
       },
       "code_metrics": {
         "size": {
@@ -877,10 +877,10 @@
       "name": "geneva",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Kullanıcı Deneyimi",
-        "config_item_name": "Müşteri Paneli",
-        "component_name": "Oturum Yönetimi"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "User Experience",
+        "config_item_name": "Customer Dashboard",
+        "component_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -915,10 +915,10 @@
       "name": "arequipa",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Mikroservis E-Ticaret",
-        "domain_name": "Sipariş ve Ödeme",
-        "config_item_name": "Sepet Yönetimi",
-        "component_name": "Fiyat Hesaplayıcı"
+        "system_name": "Modern Microservices E-Commerce",
+        "domain_name": "Order and Payment",
+        "config_item_name": "Cart Management",
+        "component_name": "Price Calculator"
       },
       "code_metrics": {
         "size": {
