@@ -491,13 +491,20 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
     group.add(sprite)
 
     if (isParent || isSelectedApp) {
-      const geo = new THREE.TorusGeometry(r + 3, 0.6, 6, 24)
-      const mat = new THREE.MeshBasicMaterial({
-        color: isParent ? 0xffffff : 0xfbbf24,
-        transparent: true,
-        opacity: 0.8,
-      })
-      group.add(new THREE.Mesh(geo, mat))
+      const hexColor = isParent ? '#ffffff' : '#fbbf24'
+      const tc = new THREE.Color(hexColor)
+      const rc = Math.round(tc.r * 255), gc = Math.round(tc.g * 255), bc = Math.round(tc.b * 255)
+      const cvs = document.createElement('canvas'); cvs.width = 128; cvs.height = 128
+      const ctx2d = cvs.getContext('2d')!
+      const grd = ctx2d.createRadialGradient(64, 64, r * 0.5, 64, 64, 64)
+      grd.addColorStop(0,   `rgba(${rc},${gc},${bc},0.55)`)
+      grd.addColorStop(0.4, `rgba(${rc},${gc},${bc},0.25)`)
+      grd.addColorStop(1,   `rgba(${rc},${gc},${bc},0)`)
+      ctx2d.fillStyle = grd; ctx2d.fillRect(0, 0, 128, 128)
+      const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cvs), transparent: true, depthWrite: false }))
+      const sz = (r + 2) * 5
+      glowSprite.scale.set(sz, sz, 1)
+      group.add(glowSprite)
     }
 
     return group
@@ -524,13 +531,19 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
     group.add(sprite)
 
     if (isCenter) {
-      const geo = new THREE.TorusGeometry(r + 3, 0.6, 6, 24)
-      const mat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(color),
-        transparent: true,
-        opacity: 0.85,
-      })
-      group.add(new THREE.Mesh(geo, mat))
+      const tc = new THREE.Color(color)
+      const rc = Math.round(tc.r * 255), gc = Math.round(tc.g * 255), bc = Math.round(tc.b * 255)
+      const cvs = document.createElement('canvas'); cvs.width = 128; cvs.height = 128
+      const ctx2d = cvs.getContext('2d')!
+      const grd = ctx2d.createRadialGradient(64, 64, r * 0.5, 64, 64, 64)
+      grd.addColorStop(0,   `rgba(${rc},${gc},${bc},0.6)`)
+      grd.addColorStop(0.4, `rgba(${rc},${gc},${bc},0.28)`)
+      grd.addColorStop(1,   `rgba(${rc},${gc},${bc},0)`)
+      ctx2d.fillStyle = grd; ctx2d.fillRect(0, 0, 128, 128)
+      const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cvs), transparent: true, depthWrite: false }))
+      const sz = (r + 2) * 4.5
+      glowSprite.scale.set(sz, sz, 1)
+      group.add(glowSprite)
     }
 
     return group
