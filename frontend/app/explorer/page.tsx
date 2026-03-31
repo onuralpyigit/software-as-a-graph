@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { useTheme } from "next-themes"
 import { AppLayout } from "@/components/layout/app-layout"
@@ -30,22 +31,28 @@ import {
 } from "lucide-react"
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false })
+const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), { ssr: false })
+
+// Polyfill GPUShaderStage to prevent errors when WebGPU is not available
+if (typeof window !== 'undefined' && typeof (window as any).GPUShaderStage === 'undefined') {
+  ;(window as any).GPUShaderStage = { VERTEX: 1, FRAGMENT: 2, COMPUTE: 4 }
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AppNode {
   id: string
   name?: string
-  csc_name?: string
-  csci_name?: string
-  csms_name?: string
-  css_name?: string
+  component_name?: string
+  config_item_name?: string
+  system_name?: string
+  domain_name?: string
   csu?: string
   weight?: number
   [key: string]: unknown
 }
 
-// Hierarchy: CSMS → CSS → CSCI → CSC → App (CSU)
+// Hierarchy: System (CSMS) → Domain (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)
 interface CscGroup  { name: string; apps: AppNode[] }
 interface CsciGroup { name: string; csc: Record<string, CscGroup> }
 interface CssGroup  { name: string; csci: Record<string, CsciGroup> }
@@ -81,10 +88,10 @@ const OTHER = "(Other)"
 function buildHierarchy(apps: AppNode[]): Record<string, CsmsGroup> {
   const root: Record<string, CsmsGroup> = {}
   for (const app of apps) {
-    const csmsKey = app.csms_name?.trim() || OTHER
-    const cssKey  = app.css_name?.trim()  || OTHER
-    const csciKey = app.csci_name?.trim() || OTHER
-    const cscKey  = app.csc_name?.trim()  || OTHER
+    const csmsKey = app.system_name?.trim() || OTHER
+    const cssKey  = app.domain_name?.trim()  || OTHER
+    const csciKey = app.config_item_name?.trim() || OTHER
+    const cscKey  = app.component_name?.trim()  || OTHER
 
     if (!root[csmsKey]) root[csmsKey] = { name: csmsKey, css: {} }
     const csms = root[csmsKey]
@@ -102,8 +109,8 @@ function buildHierarchy(apps: AppNode[]): Record<string, CsmsGroup> {
 function matches(app: AppNode, q: string): boolean {
   if (!q) return true
   const f = (v?: string) => v?.toLowerCase().includes(q) ?? false
-  return f(app.id) || f(app.name) || f(app.csc_name) || f(app.csci_name) ||
-         f(app.csms_name) || f(app.css_name) || f(app.csu)
+  return f(app.id) || f(app.name) || f(app.component_name) || f(app.config_item_name) ||
+         f(app.system_name) || f(app.domain_name) || f(app.csu)
 }
 
 function sortKeys(keys: string[]): string[] {
@@ -119,7 +126,7 @@ const NODE_SIZES: Record<HGLevel, number> = {
   csms: 14, css: 10, csci: 8, csc: 6, app: 3.5,
 }
 const LEVEL_LABELS: Record<HGLevel, string> = {
-  csms: "CSMS", css: "CSS", csci: "CSCI", csc: "CSC", app: "App (CSU)",
+  csms: "System (CSMS)", css: "Domain (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)",
 }
 
 // Node-type → color (matches Explorer page — theme-aware via isDark flag passed at callsite)
@@ -235,7 +242,7 @@ function buildDrillData(
   return { nodes, links }
 }
 
-function HierarchyGraph({ hierarchy, extraNodes = [] }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[] }) {
+function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
 
@@ -248,6 +255,17 @@ function HierarchyGraph({ hierarchy, extraNodes = [] }: { hierarchy: Record<stri
   const [drillStack, setDrillStack] = useState<HGNode[]>([])
   const [selectedApp, setSelectedApp] = useState<HGNode | null>(null)
   const [viewMode, setViewMode] = useState<"hierarchy" | "connections">("hierarchy")
+  const [is3D, setIs3D] = useState(false)
+  const [threeReady, setThreeReady] = useState(false)
+
+  // Load Three.js and SpriteText for 3D labels
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    Promise.all([
+      import('three-spritetext').then(m => { (window as any).__SpriteText = m.default }),
+      import('three').then(m => { (window as any).__THREE = m }),
+    ]).then(() => setThreeReady(true)).catch(() => {})
+  }, [])
 
   const [connData, setConnData] = useState<{ nodes: any[]; links: any[] } | null>(null)
   const [connLoading, setConnLoading] = useState(false)
@@ -343,6 +361,25 @@ function HierarchyGraph({ hierarchy, extraNodes = [] }: { hierarchy: Record<stri
     }
   }, [hierarchy])
 
+  // Auto-select node from URL ?node= param once flatNodes is populated
+  const autoJumpDone = useRef(false)
+  useEffect(() => {
+    if (!initialNodeId || autoJumpDone.current || flatNodes.length === 0) return
+    // Try hierarchy nodes first (app:${id})
+    const hierNode = flatNodes.find(n => n.level === "app" && n.pathKey === initialNodeId)
+    if (hierNode) {
+      autoJumpDone.current = true
+      jumpToNode(hierNode)
+      return
+    }
+    // Fall back to extraNodes (topics, infra nodes, brokers, etc.)
+    const extra = extraNodes.find((n: any) => n.id === initialNodeId)
+    if (extra) {
+      autoJumpDone.current = true
+      jumpToNode({ id: `extra:${extra.id}`, name: extra.name ?? extra.id, level: "app", nodeType: extra.type, appCount: 0, pathKey: extra.id })
+    }
+  }, [initialNodeId, flatNodes, extraNodes, jumpToNode])
+
   const graphData = useMemo(() => buildDrillData(hierarchy, drillNode), [hierarchy, drillNode])
 
   const filteredGraphData = useMemo(() => {
@@ -432,6 +469,72 @@ function HierarchyGraph({ hierarchy, extraNodes = [] }: { hierarchy: Record<stri
     setConnError(null)
     setSelectedLink(null)
   }, [])
+
+  // ── 3D node objects with in-scene labels + selection ring ─────────────────
+  const hierNodeThreeObj = useCallback((node: any) => {
+    const n = node as HGNode
+    const SpriteText = (window as any).__SpriteText
+    const THREE = (window as any).__THREE
+    if (!SpriteText || !THREE) return undefined
+
+    const isParent = drillNode !== null && n.id === drillNode.id
+    const isSelectedApp = selectedApp?.id === n.id
+    const r = isParent ? NODE_SIZES[n.level] * 1.5 : NODE_SIZES[n.level]
+
+    const group = new THREE.Group()
+
+    const label = n.name.length > 24 ? n.name.slice(0, 22) + '\u2026' : n.name
+    const sprite = new SpriteText(label)
+    sprite.color = isDark ? '#e5e7eb' : '#374151'
+    sprite.textHeight = Math.max(3, r * 0.85)
+    sprite.position.set(0, r + sprite.textHeight + 2, 0)
+    group.add(sprite)
+
+    if (isParent || isSelectedApp) {
+      const geo = new THREE.TorusGeometry(r + 3, 0.6, 6, 24)
+      const mat = new THREE.MeshBasicMaterial({
+        color: isParent ? 0xffffff : 0xfbbf24,
+        transparent: true,
+        opacity: 0.8,
+      })
+      group.add(new THREE.Mesh(geo, mat))
+    }
+
+    return group
+  }, [threeReady, drillNode, selectedApp, isDark])
+
+  const connNodeThreeObj = useCallback((node: any) => {
+    const n = node as any
+    const SpriteText = (window as any).__SpriteText
+    const THREE = (window as any).__THREE
+    if (!SpriteText || !THREE) return undefined
+
+    const isCenter = n.id === selectedApp?.pathKey
+    const r = isCenter ? 10 : 4
+    const color = nodeTypeColor(n.type, isDark)
+
+    const group = new THREE.Group()
+
+    const raw = n.label ?? n.id ?? '?'
+    const labelText = raw.length > 26 ? raw.slice(0, 24) + '\u2026' : raw
+    const sprite = new SpriteText(labelText)
+    sprite.color = isDark ? '#e5e7eb' : '#374151'
+    sprite.textHeight = Math.max(3, r * 0.8)
+    sprite.position.set(0, r + sprite.textHeight + 2, 0)
+    group.add(sprite)
+
+    if (isCenter) {
+      const geo = new THREE.TorusGeometry(r + 3, 0.6, 6, 24)
+      const mat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color),
+        transparent: true,
+        opacity: 0.85,
+      })
+      group.add(new THREE.Mesh(geo, mat))
+    }
+
+    return group
+  }, [threeReady, selectedApp, isDark])
 
   // Click handler — hierarchy mode
   const drillInto = useCallback((node: object) => {
@@ -684,8 +787,21 @@ function HierarchyGraph({ hierarchy, extraNodes = [] }: { hierarchy: Record<stri
           </>
         )}
 
+        {/* 3D toggle */}
+        <button
+          onClick={() => setIs3D(v => !v)}
+          className={cn(
+            "ml-auto h-7 px-2.5 text-xs rounded-md border font-medium transition-colors shrink-0",
+            is3D
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          {is3D ? "2D" : "3D"}
+        </button>
+
         {/* Search — always visible on the right */}
-        <div className="ml-auto relative shrink-0">
+        <div className="relative shrink-0">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
             <input
@@ -788,32 +904,61 @@ function HierarchyGraph({ hierarchy, extraNodes = [] }: { hierarchy: Record<stri
         {/* Canvas */}
         <div ref={containerRef} className="flex-1 overflow-hidden relative" style={{ background: bgColor }}>
           {viewMode === "hierarchy" ? (
-            <ForceGraph2D
-              key="hierarchy"
-              graphData={filteredGraphData as any}
-              width={dims.width}
-              height={dims.height}
-              nodeCanvasObject={nodeCanvasObject}
-              nodeCanvasObjectMode={() => "replace"}
-              nodePointerAreaPaint={(node: object, color: string, ctx: CanvasRenderingContext2D) => {
-                const n = node as HGNode
-                const hitR = Math.max(NODE_SIZES[n.level] * 2.5, 14)
-                ctx.beginPath(); ctx.arc(n.x!, n.y!, hitR, 0, 2 * Math.PI)
-                ctx.fillStyle = color; ctx.fill()
-              }}
-              onNodeClick={drillInto}
-              onBackgroundClick={() => { if (selectedApp) clearSelection() }}
-              linkColor={() => hierLinkColor}
-              linkWidth={2}
-              linkDirectionalArrowLength={8}
-              linkDirectionalArrowRelPos={0.85}
-              linkDirectionalArrowColor={() => hierLinkColor}
-              nodeRelSize={1}
-              cooldownTicks={150}
-              d3AlphaDecay={0.04}
-              d3VelocityDecay={0.5}
-              ref={fgRef}
-            />
+            is3D ? (
+              <ForceGraph3D
+                key="hierarchy-3d"
+                graphData={filteredGraphData as any}
+                width={dims.width}
+                height={dims.height}
+                backgroundColor={bgColor}
+                nodeColor={(n: any) => NODE_COLORS[(n as HGNode).level]}
+                nodeVal={(n: any) => {
+                  const hn = n as HGNode
+                  return drillNode && hn.id === drillNode.id ? NODE_SIZES[hn.level] * 1.5 : NODE_SIZES[hn.level]
+                }}
+                nodeLabel=""
+                nodeThreeObject={threeReady ? hierNodeThreeObj : undefined}
+                nodeThreeObjectExtend={true}
+                onNodeClick={drillInto}
+                onBackgroundClick={() => { if (selectedApp) clearSelection() }}
+                linkColor={() => hierLinkColor}
+                linkWidth={2}
+                linkDirectionalArrowLength={8}
+                linkDirectionalArrowRelPos={0.85}
+                linkDirectionalArrowColor={() => hierLinkColor}
+                cooldownTicks={150}
+                d3AlphaDecay={0.04}
+                d3VelocityDecay={0.5}
+                ref={fgRef}
+              />
+            ) : (
+              <ForceGraph2D
+                key="hierarchy"
+                graphData={filteredGraphData as any}
+                width={dims.width}
+                height={dims.height}
+                nodeCanvasObject={nodeCanvasObject}
+                nodeCanvasObjectMode={() => "replace"}
+                nodePointerAreaPaint={(node: object, color: string, ctx: CanvasRenderingContext2D) => {
+                  const n = node as HGNode
+                  const hitR = Math.max(NODE_SIZES[n.level] * 2.5, 14)
+                  ctx.beginPath(); ctx.arc(n.x!, n.y!, hitR, 0, 2 * Math.PI)
+                  ctx.fillStyle = color; ctx.fill()
+                }}
+                onNodeClick={drillInto}
+                onBackgroundClick={() => { if (selectedApp) clearSelection() }}
+                linkColor={() => hierLinkColor}
+                linkWidth={2}
+                linkDirectionalArrowLength={8}
+                linkDirectionalArrowRelPos={0.85}
+                linkDirectionalArrowColor={() => hierLinkColor}
+                nodeRelSize={1}
+                cooldownTicks={150}
+                d3AlphaDecay={0.04}
+                d3VelocityDecay={0.5}
+                ref={fgRef}
+              />
+            )
           ) : (
             <>
               {connLoading && !connData && (
@@ -826,33 +971,60 @@ function HierarchyGraph({ hierarchy, extraNodes = [] }: { hierarchy: Record<stri
                   <p className="text-sm text-destructive bg-background/90 px-4 py-2 rounded border">{connError}</p>
                 </div>
               )}
-              <ForceGraph2D
-                key={`conn-${selectedApp?.pathKey ?? ""}`}
-                graphData={connGraphData as any}
-                width={dims.width}
-                height={dims.height}
-                nodeCanvasObject={nodeCanvasObjectConn}
-                nodeCanvasObjectMode={() => "replace"}
-                nodePointerAreaPaint={(node: object, color: string, ctx: CanvasRenderingContext2D) => {
-                  const n = node as any
-                  const r = n.id === selectedApp?.pathKey ? 14 : 10
-                  ctx.beginPath(); ctx.arc(n.x!, n.y!, r, 0, 2 * Math.PI)
-                  ctx.fillStyle = color; ctx.fill()
-                }}
-                onNodeClick={(node, event) => { setSelectedLink(null); drillIntoConn(node) }}
-                onBackgroundClick={() => { setSelectedLink(null); clearSelection() }}
-                onLinkClick={handleLinkClick}
-                linkColor={connLinkColor}
-                linkWidth={connLinkWidth}
-                linkDirectionalArrowLength={9}
-                linkDirectionalArrowRelPos={0.85}
-                linkDirectionalArrowColor={connLinkColor}
-                nodeRelSize={1}
-                cooldownTicks={150}
-                d3AlphaDecay={0.03}
-                d3VelocityDecay={0.4}
-                ref={fgRef}
-              />
+              {is3D ? (
+                <ForceGraph3D
+                  key={`conn-3d-${selectedApp?.pathKey ?? ""}`}
+                  graphData={connGraphData as any}
+                  width={dims.width}
+                  height={dims.height}
+                  backgroundColor={bgColor}
+                  nodeColor={(n: any) => nodeTypeColor(n.type, isDark)}
+                  nodeVal={(n: any) => n.id === selectedApp?.pathKey ? 10 : 4}
+                  nodeLabel=""
+                  nodeThreeObject={threeReady ? connNodeThreeObj : undefined}
+                  nodeThreeObjectExtend={true}
+                  onNodeClick={(node: any) => { setSelectedLink(null); drillIntoConn(node) }}
+                  onBackgroundClick={() => { setSelectedLink(null); clearSelection() }}
+                  onLinkClick={handleLinkClick as any}
+                  linkColor={connLinkColor}
+                  linkWidth={connLinkWidth}
+                  linkDirectionalArrowLength={9}
+                  linkDirectionalArrowRelPos={0.85}
+                  linkDirectionalArrowColor={connLinkColor}
+                  cooldownTicks={150}
+                  d3AlphaDecay={0.03}
+                  d3VelocityDecay={0.4}
+                  ref={fgRef}
+                />
+              ) : (
+                <ForceGraph2D
+                  key={`conn-${selectedApp?.pathKey ?? ""}`}
+                  graphData={connGraphData as any}
+                  width={dims.width}
+                  height={dims.height}
+                  nodeCanvasObject={nodeCanvasObjectConn}
+                  nodeCanvasObjectMode={() => "replace"}
+                  nodePointerAreaPaint={(node: object, color: string, ctx: CanvasRenderingContext2D) => {
+                    const n = node as any
+                    const r = n.id === selectedApp?.pathKey ? 14 : 10
+                    ctx.beginPath(); ctx.arc(n.x!, n.y!, r, 0, 2 * Math.PI)
+                    ctx.fillStyle = color; ctx.fill()
+                  }}
+                  onNodeClick={(node, event) => { setSelectedLink(null); drillIntoConn(node) }}
+                  onBackgroundClick={() => { setSelectedLink(null); clearSelection() }}
+                  onLinkClick={handleLinkClick}
+                  linkColor={connLinkColor}
+                  linkWidth={connLinkWidth}
+                  linkDirectionalArrowLength={9}
+                  linkDirectionalArrowRelPos={0.85}
+                  linkDirectionalArrowColor={connLinkColor}
+                  nodeRelSize={1}
+                  cooldownTicks={150}
+                  d3AlphaDecay={0.03}
+                  d3VelocityDecay={0.4}
+                  ref={fgRef}
+                />
+              )}
               {/* Edge props popover */}
               {selectedLink && (() => {
                 const l = selectedLink.link
@@ -962,7 +1134,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [] }: { hierarchy: Record<stri
                       <tr><td colSpan={2} className="px-3 py-8 text-center text-muted-foreground text-[11px]">No properties available</td></tr>
                     )}
                     {(() => {
-                      const HIER_KEYS = new Set(["csms_name","csc_name","csci_name","css_name"])
+                      const HIER_KEYS = new Set(["system_name","component_name","config_item_name","domain_name"])
                       const isCmSize     = (k: string) => /^cm_total_|^loc$/.test(k)
                       const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
                       const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$/.test(k)
@@ -1038,7 +1210,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [] }: { hierarchy: Record<stri
 // ── Detail Panel (left) ──────────────────────────────────────────────────────
 
 const KIND_LABEL: Record<SelectedKind, string> = {
-  csms: "CSMS", css: "CSS", csci: "CSCI", csc: "CSC", app: "App", node: "Node", topic: "Topic",
+  csms: "System (CSMS)", css: "Domain (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)", node: "Node", topic: "Topic",
 }
 const KIND_COLOR: Record<SelectedKind, string> = {
   csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#8b5cf6", node: "#ef4444", topic: "#a855f7",
@@ -1095,7 +1267,7 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
       const appCount = Object.values(css.csci).flatMap(ci => Object.values(ci.csc)).flatMap(c => c.apps).length
       return [k, csciCount, cscCount, appCount]
     })
-    content = <DetailTable headers={["CSS", "CSCI Groups", "CSC Groups", "Apps"]} rows={rows} />
+    content = <DetailTable headers={["Domain", "Config Item Groups", "Component Groups", "Apps"]} rows={rows} />
   } else if (node.kind === "css") {
     const css = node.payload as CssGroup
     const rows = sortKeys(Object.keys(css.csci)).map((k) => {
@@ -1104,11 +1276,11 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
       const appCount = Object.values(csci.csc).flatMap(c => c.apps).length
       return [k, cscCount, appCount]
     })
-    content = <DetailTable headers={["CSCI", "CSC Groups", "Apps"]} rows={rows} />
+    content = <DetailTable headers={["Config Item", "Component Groups", "Apps"]} rows={rows} />
   } else if (node.kind === "csci") {
     const csci = node.payload as CsciGroup
     const rows = sortKeys(Object.keys(csci.csc)).map((k) => [k, csci.csc[k].apps.length])
-    content = <DetailTable headers={["CSC", "Apps"]} rows={rows} />
+    content = <DetailTable headers={["Component", "Apps"]} rows={rows} />
   } else if (node.kind === "csc") {
     const csc = node.payload as CscGroup
     const rows = csc.apps.map((a) => [a.id, a.csu ?? a.name ?? "—", a.weight])
@@ -1383,7 +1555,9 @@ function CsmsTreeNode({ name, csms, selectedKey, onSelect, openSet, toggle, q }:
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function BrowserPage() {
+function BrowserPageContent() {
+  const searchParams = useSearchParams()
+  const nodeId = searchParams?.get('node') ?? null
   const { status, initialLoadComplete } = useConnection()
   const isConnected = status === "connected"
 
@@ -1397,6 +1571,7 @@ export default function BrowserPage() {
   const [search, setSearch] = useState("")
   const [sideSearch, setSideSearch] = useState("")
   const [browseSearchOpen, setBrowseSearchOpen] = useState(false)
+  const [sideInitialTab, setSideInitialTab] = useState<"system" | "nodes" | "apps" | "topics">("system")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null)
@@ -1409,7 +1584,7 @@ export default function BrowserPage() {
     })
   }, [])
 
-  const fetchData = async () => {
+  const fetchData = async (targetNodeId: string | null) => {
     setLoading(true)
     setError(null)
     try {
@@ -1427,17 +1602,65 @@ export default function BrowserPage() {
       setTopicsList(topics)
       setBrokersList(brokers)
       setLibsList(libs)
-      const firstCsmsKey = sortKeys(Object.keys(h))[0]
-      if (firstCsmsKey) {
-        const firstCsms = h[firstCsmsKey]
-        setOpenSet(new Set([`csms:${firstCsmsKey}`]))
-        setSelectedNode({
-          kind: "csms",
-          key: `csms:${firstCsmsKey}`,
-          label: firstCsms.name,
-          path: [firstCsms.name],
-          payload: firstCsms,
-        })
+
+      // Auto-select node from URL ?node= param
+      if (targetNodeId) {
+        let found = false
+        outer: for (const [csmsKey, csms] of Object.entries(h)) {
+          for (const [cssKey, css] of Object.entries(csms.css)) {
+            for (const [csciKey, csci] of Object.entries(css.csci)) {
+              for (const [cscKey, csc] of Object.entries(csci.csc)) {
+                const app = csc.apps.find((a: AppNode) => a.id === targetNodeId)
+                if (app) {
+                  const label = app.csu ?? app.name ?? app.id ?? "?"
+                  const csmsOpenKey = `csms:${csmsKey}`
+                  const cssOpenKey  = `css:${csmsKey}/${cssKey}`
+                  const csciOpenKey = `csci:${csmsKey}/${cssKey}/${csciKey}`
+                  const cscOpenKey  = `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`
+                  setOpenSet(new Set([csmsOpenKey, cssOpenKey, csciOpenKey, cscOpenKey]))
+                  setSelectedNode({ kind: "app", key: `app:${app.id}`, label, path: [csmsKey, cssKey, csciKey, cscKey, label], payload: app })
+                  setSideInitialTab("system")
+                  found = true
+                  break outer
+                }
+              }
+            }
+          }
+        }
+        if (!found) {
+          // Fall back to nodesList / topicsList / brokersList / libsList
+          const allExtra: any[] = [...nodes, ...topics, ...brokers, ...libs]
+          const extra = allExtra.find((n: any) => n.id === targetNodeId)
+          if (extra) {
+            const kind: SelectedKind = topics.some((t: any) => t.id === targetNodeId) ? "topic" : "node"
+            const label = extra.name ?? extra.id ?? "?"
+            setSelectedNode({ kind, key: `${kind}:${extra.id}`, label, path: [label], payload: extra })
+            setSideInitialTab(kind === "topic" ? "topics" : "nodes")
+          } else {
+            // Unknown id — fall back to default first-CSMS selection
+            const firstCsmsKey = sortKeys(Object.keys(h))[0]
+            if (firstCsmsKey) {
+              const firstCsms = h[firstCsmsKey]
+              setOpenSet(new Set([`csms:${firstCsmsKey}`]))
+              setSelectedNode({ kind: "csms", key: `csms:${firstCsmsKey}`, label: firstCsms.name, path: [firstCsms.name], payload: firstCsms })
+              setSideInitialTab("system")
+            }
+          }
+        }
+      } else {
+        setSideInitialTab("system")
+        const firstCsmsKey = sortKeys(Object.keys(h))[0]
+        if (firstCsmsKey) {
+          const firstCsms = h[firstCsmsKey]
+          setOpenSet(new Set([`csms:${firstCsmsKey}`]))
+          setSelectedNode({
+            kind: "csms",
+            key: `csms:${firstCsmsKey}`,
+            label: firstCsms.name,
+            path: [firstCsms.name],
+            payload: firstCsms,
+          })
+        }
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e))
@@ -1447,9 +1670,9 @@ export default function BrowserPage() {
   }
 
   useEffect(() => {
-    if (isConnected) fetchData()
+    if (isConnected) fetchData(nodeId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected])
+  }, [isConnected, nodeId])
 
   // Flat list of all hierarchy nodes for the Browse tab jump-to dropdown
   type FlatBrowseEntry = { kind: SelectedKind; key: string; label: string; path: string[]; payload: CsmsGroup | CssGroup | CsciGroup | CscGroup | AppNode; appCount: number }
@@ -1519,7 +1742,7 @@ export default function BrowserPage() {
   return (
     <AppLayout
       title="Explorer"
-      description="CSMS → CSS → CSCI → CSC → App (CSU)"
+      description="System (CSMS) → Domain (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)"
     >
       <div className="flex flex-col gap-5 h-full">
         {error && (
@@ -1586,6 +1809,7 @@ export default function BrowserPage() {
                   search={sideSearch}
                   onSearchChange={setSideSearch}
                   loading={loading}
+                  initialTab={sideInitialTab}
                 />
               </div>
             </div>
@@ -1594,7 +1818,7 @@ export default function BrowserPage() {
           {/* ── Graph tab ── */}
           <TabsContent value="graph" className="flex-1 min-h-0 mt-0 h-full">
             {csmsKeys.length > 0
-              ? <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} />
+              ? <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} initialNodeId={nodeId} />
               : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
             }
           </TabsContent>
@@ -1604,10 +1828,22 @@ export default function BrowserPage() {
   )
 }
 
+export default function BrowserPage() {
+  return (
+    <Suspense fallback={
+      <AppLayout title="Explorer" description="System (CSMS) → Domain (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)">
+        <div className="flex items-center justify-center h-64"><LoadingSpinner /></div>
+      </AppLayout>
+    }>
+      <BrowserPageContent />
+    </Suspense>
+  )
+}
+
 // ── Side List Panel ───────────────────────────────────────────────────────────
 
 function SideListPanel({
-  nodesList, appsList, topicsList, hierarchy, openSet, toggle, expandPath, selectedKey, onSelect, search, onSearchChange, loading,
+  nodesList, appsList, topicsList, hierarchy, openSet, toggle, expandPath, selectedKey, onSelect, search, onSearchChange, loading, initialTab,
 }: {
   nodesList: any[]
   appsList: AppNode[]
@@ -1621,8 +1857,18 @@ function SideListPanel({
   search: string
   onSearchChange: (v: string) => void
   loading: boolean
+  initialTab?: "system" | "nodes" | "apps" | "topics"
 }) {
-  const [sideTab, setSideTab] = useState<"system" | "nodes" | "apps" | "topics">("system")
+  const [sideTab, setSideTab] = useState<"system" | "nodes" | "apps" | "topics">(initialTab ?? "system")
+
+  // Sync if parent changes the initial tab (e.g. via URL param auto-select)
+  const prevInitialTab = useRef(initialTab)
+  useEffect(() => {
+    if (initialTab && initialTab !== prevInitialTab.current) {
+      setSideTab(initialTab)
+      prevInitialTab.current = initialTab
+    }
+  }, [initialTab])
   const [suggestOpen, setSuggestOpen] = useState(false)
   const q = search.toLowerCase()
 
