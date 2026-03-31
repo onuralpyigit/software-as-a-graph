@@ -164,10 +164,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Sipariş ve Ödeme",
+        "config_item_name": "Ödeme Ağ Geçidi",
+        "component_name": "POS Bağlantısı"
       },
       "code_metrics": {
         "size": {
@@ -205,10 +205,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Data Persistence"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Arama Motoru",
+        "component_name": "Tavsiye Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -246,10 +246,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Sipariş ve Ödeme",
+        "config_item_name": "Ödeme Ağ Geçidi",
+        "component_name": "Sahtekarlık Önleme"
       },
       "code_metrics": {
         "size": {
@@ -287,10 +287,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Sipariş ve Ödeme",
+        "config_item_name": "Sepet Yönetimi",
+        "component_name": "Stok Ayırma"
       },
       "code_metrics": {
         "size": {
@@ -328,10 +328,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Core Logic"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Müşteri Paneli",
+        "component_name": "Hesap Ayarları"
       },
       "code_metrics": {
         "size": {
@@ -369,10 +369,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Support Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Sipariş ve Ödeme",
+        "config_item_name": "Sepet Yönetimi",
+        "component_name": "Stok Ayırma"
       },
       "code_metrics": {
         "size": {
@@ -410,10 +410,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Control Logic",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Arama Motoru",
+        "component_name": "Tavsiye Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -451,10 +451,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Müşteri Paneli",
+        "component_name": "Oturum Yönetimi"
       },
       "code_metrics": {
         "size": {
@@ -492,10 +492,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Müşteri Paneli",
+        "component_name": "Hesap Ayarları"
       },
       "code_metrics": {
         "size": {
@@ -533,10 +533,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Arama Motoru",
+        "component_name": "Tavsiye Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -573,10 +573,10 @@
       "name": "montreal",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Control Logic",
-        "csms_name": "Configuration Management"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Müşteri Paneli",
+        "component_name": "Oturum Yönetimi"
       },
       "code_metrics": {
         "size": {
@@ -611,10 +611,10 @@
       "name": "lyon",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Müşteri Paneli",
+        "component_name": "Oturum Yönetimi"
       },
       "code_metrics": {
         "size": {
@@ -649,10 +649,10 @@
       "name": "hamburg",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Müşteri Paneli",
+        "component_name": "Hesap Ayarları"
       },
       "code_metrics": {
         "size": {
@@ -687,10 +687,10 @@
       "name": "osaka",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Core Logic"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Sipariş ve Ödeme",
+        "config_item_name": "Ödeme Ağ Geçidi",
+        "component_name": "POS Bağlantısı"
       },
       "code_metrics": {
         "size": {
@@ -725,10 +725,10 @@
       "name": "mandalay",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Support Software",
-        "css_name": "Control Logic",
-        "csms_name": "Data Persistence"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Arama Motoru",
+        "component_name": "Ürün İndeksleyici"
       },
       "code_metrics": {
         "size": {
@@ -763,10 +763,10 @@
       "name": "ponce",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Core Logic"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Arama Motoru",
+        "component_name": "Tavsiye Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -801,10 +801,10 @@
       "name": "barcelona",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Communication",
-        "csms_name": "Data Persistence"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Müşteri Paneli",
+        "component_name": "Hesap Ayarları"
       },
       "code_metrics": {
         "size": {
@@ -839,10 +839,10 @@
       "name": "georgetown",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Arama Motoru",
+        "component_name": "Tavsiye Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -877,10 +877,10 @@
       "name": "geneva",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Kullanıcı Deneyimi",
+        "config_item_name": "Müşteri Paneli",
+        "component_name": "Oturum Yönetimi"
       },
       "code_metrics": {
         "size": {
@@ -915,10 +915,10 @@
       "name": "arequipa",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Application Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "system_name": "Modern Mikroservis E-Ticaret",
+        "domain_name": "Sipariş ve Ödeme",
+        "config_item_name": "Sepet Yönetimi",
+        "component_name": "Fiyat Hesaplayıcı"
       },
       "code_metrics": {
         "size": {

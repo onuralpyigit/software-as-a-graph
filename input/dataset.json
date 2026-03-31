@@ -149,10 +149,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Üretim",
+        "config_item_name": "Montaj Hattı",
+        "component_name": "Robot Kol Kontrolcüsü"
       },
       "code_metrics": {
         "size": {
@@ -190,10 +190,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Support Software",
-        "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Lojistik",
+        "config_item_name": "Depo Otomasyonu",
+        "component_name": "Barkod Okuyucu"
       },
       "code_metrics": {
         "size": {
@@ -231,10 +231,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Communication",
-        "csms_name": "Core Logic"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Bakım",
+        "config_item_name": "Kestirimci Bakım",
+        "component_name": "Titreşim Sensörü"
       },
       "code_metrics": {
         "size": {
@@ -272,10 +272,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Control Logic",
-        "csms_name": "Configuration Management"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Üretim",
+        "config_item_name": "Kalite Kontrol",
+        "component_name": "Paketleme Skalası"
       },
       "code_metrics": {
         "size": {
@@ -313,10 +313,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Logging Framework"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Üretim",
+        "config_item_name": "Kalite Kontrol",
+        "component_name": "Paketleme Skalası"
       },
       "code_metrics": {
         "size": {
@@ -354,10 +354,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Bakım",
+        "config_item_name": "Kestirimci Bakım",
+        "component_name": "Titreşim Sensörü"
       },
       "code_metrics": {
         "size": {
@@ -395,10 +395,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Üretim",
+        "config_item_name": "Montaj Hattı",
+        "component_name": "Robot Kol Kontrolcüsü"
       },
       "code_metrics": {
         "size": {
@@ -436,10 +436,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Lojistik",
+        "config_item_name": "Sevkiyat",
+        "component_name": "Araç Takip Birimi"
       },
       "code_metrics": {
         "size": {
@@ -477,10 +477,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Control Logic",
-        "csms_name": "Configuration Management"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Üretim",
+        "config_item_name": "Kalite Kontrol",
+        "component_name": "Paketleme Skalası"
       },
       "code_metrics": {
         "size": {
@@ -518,10 +518,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Control Logic",
-        "csms_name": "Configuration Management"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Lojistik",
+        "config_item_name": "Depo Otomasyonu",
+        "component_name": "Barkod Okuyucu"
       },
       "code_metrics": {
         "size": {
@@ -559,10 +559,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Support Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Üretim",
+        "config_item_name": "Kalite Kontrol",
+        "component_name": "Paketleme Skalası"
       },
       "code_metrics": {
         "size": {
@@ -600,10 +600,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Control Logic",
-        "csms_name": "Core Logic"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Lojistik",
+        "config_item_name": "Sevkiyat",
+        "component_name": "Araç Takip Birimi"
       },
       "code_metrics": {
         "size": {
@@ -641,10 +641,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Data Management",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Üretim",
+        "config_item_name": "Montaj Hattı",
+        "component_name": "Güvenlik Sensörü"
       },
       "code_metrics": {
         "size": {
@@ -682,10 +682,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Support Software",
-        "css_name": "Communication",
-        "csms_name": "Data Persistence"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Lojistik",
+        "config_item_name": "Sevkiyat",
+        "component_name": "Yükleme Platformu"
       },
       "code_metrics": {
         "size": {
@@ -723,10 +723,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Core Logic"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Bakım",
+        "config_item_name": "Kestirimci Bakım",
+        "component_name": "Titreşim Sensörü"
       },
       "code_metrics": {
         "size": {
@@ -763,10 +763,10 @@
       "name": "Lib-0",
       "version": "2.5.7",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Control Logic",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Lojistik",
+        "config_item_name": "Sevkiyat",
+        "component_name": "Araç Takip Birimi"
       },
       "code_metrics": {
         "size": {
@@ -801,10 +801,10 @@
       "name": "Lib-1",
       "version": "1.0.9",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Support Software",
-        "css_name": "User Interface",
-        "csms_name": "Core Logic"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Bakım",
+        "config_item_name": "Kestirimci Bakım",
+        "component_name": "Titreşim Sensörü"
       },
       "code_metrics": {
         "size": {
@@ -839,10 +839,10 @@
       "name": "Lib-2",
       "version": "2.0.3",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Support Software",
-        "css_name": "Data Management",
-        "csms_name": "Core Logic"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Lojistik",
+        "config_item_name": "Depo Otomasyonu",
+        "component_name": "Barkod Okuyucu"
       },
       "code_metrics": {
         "size": {
@@ -877,10 +877,10 @@
       "name": "Lib-3",
       "version": "0.4.7",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Support Software",
-        "css_name": "Communication",
-        "csms_name": "Configuration Management"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Bakım",
+        "config_item_name": "Kestirimci Bakım",
+        "component_name": "Titreşim Sensörü"
       },
       "code_metrics": {
         "size": {
@@ -915,10 +915,10 @@
       "name": "Lib-4",
       "version": "2.9.7",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Fabrika Yönetim Sistemi",
+        "domain_name": "Lojistik",
+        "config_item_name": "Sevkiyat",
+        "component_name": "Yükleme Platformu"
       },
       "code_metrics": {
         "size": {

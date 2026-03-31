@@ -268,10 +268,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -309,10 +309,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Data Persistence"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {
@@ -350,10 +350,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -391,10 +391,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -432,10 +432,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Core Logic"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -473,10 +473,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Support Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -514,10 +514,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Control Logic",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -555,10 +555,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {
@@ -596,10 +596,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -637,10 +637,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -678,10 +678,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Control Logic",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -719,10 +719,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Support Software",
-        "css_name": "User Interface",
-        "csms_name": "Core Logic"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -760,10 +760,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -801,10 +801,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Systems Engineering",
-        "css_name": "Control Logic",
-        "csms_name": "Data Persistence"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -842,10 +842,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Systems Engineering",
-        "css_name": "Control Logic",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -883,10 +883,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Data Persistence"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -924,10 +924,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -965,10 +965,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Communication",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Yaşam Bulguları",
+        "component_name": "Oksijen Seviye Sensörü"
       },
       "code_metrics": {
         "size": {
@@ -1006,10 +1006,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Communication",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Yaşam Bulguları",
+        "component_name": "Kalp Atış Monitörü"
       },
       "code_metrics": {
         "size": {
@@ -1047,10 +1047,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {
@@ -1087,10 +1087,10 @@
       "name": "cordoba",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -1125,10 +1125,10 @@
       "name": "freeport",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Control Logic",
-        "csms_name": "Logging Framework"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -1163,10 +1163,10 @@
       "name": "medellin",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Application Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {
@@ -1201,10 +1201,10 @@
       "name": "portsmouth",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Support Software",
-        "css_name": "Control Logic",
-        "csms_name": "Core Logic"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {
@@ -1239,10 +1239,10 @@
       "name": "lyon",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -1277,10 +1277,10 @@
       "name": "hamburg",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Support Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -1315,10 +1315,10 @@
       "name": "delhi",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Logging Framework"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {
@@ -1353,10 +1353,10 @@
       "name": "taipei",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Support Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -1391,10 +1391,10 @@
       "name": "osaka",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Yaşam Bulguları",
+        "component_name": "Oksijen Seviye Sensörü"
       },
       "code_metrics": {
         "size": {
@@ -1429,10 +1429,10 @@
       "name": "tripoli",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -1467,10 +1467,10 @@
       "name": "kingston",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Systems Engineering",
-        "css_name": "Communication",
-        "csms_name": "Core Logic"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {
@@ -1505,10 +1505,10 @@
       "name": "hebron",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Data Persistence"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -1543,10 +1543,10 @@
       "name": "mandalay",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Control Logic",
-        "csms_name": "Logging Framework"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -1581,10 +1581,10 @@
       "name": "ponce",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Support Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Logging Framework"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -1619,10 +1619,10 @@
       "name": "barcelona",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {
@@ -1657,10 +1657,10 @@
       "name": "monaco",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -1695,10 +1695,10 @@
       "name": "georgetown",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Data Persistence"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Kayıtlar",
+        "component_name": "Hasta Bilgi Tabanı"
       },
       "code_metrics": {
         "size": {
@@ -1733,10 +1733,10 @@
       "name": "rotterdam",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Kritik Değer Bildiricisi"
       },
       "code_metrics": {
         "size": {
@@ -1771,10 +1771,10 @@
       "name": "geneva",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Data Management",
-        "csms_name": "Data Persistence"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Hasta Verileri",
+        "config_item_name": "Yaşam Bulguları",
+        "component_name": "Oksijen Seviye Sensörü"
       },
       "code_metrics": {
         "size": {
@@ -1809,10 +1809,10 @@
       "name": "arequipa",
       "version": "1.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Sağlık Takip Sistemi",
+        "domain_name": "Uyarı Sistemi",
+        "config_item_name": "Servis Alarmları",
+        "component_name": "Hemşire Çağrı Butonu"
       },
       "code_metrics": {
         "size": {

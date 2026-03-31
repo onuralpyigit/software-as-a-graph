@@ -379,10 +379,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Hacim Analizcisi"
       },
       "code_metrics": {
         "size": {
@@ -420,10 +420,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Data Persistence"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Marjin Kontrol"
       },
       "code_metrics": {
         "size": {
@@ -461,10 +461,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Marjin Kontrol"
       },
       "code_metrics": {
         "size": {
@@ -502,10 +502,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Application Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -543,10 +543,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Systems Engineering",
-        "css_name": "User Interface",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -584,10 +584,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -625,10 +625,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Control Logic",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Fiyat Toplayıcı"
       },
       "code_metrics": {
         "size": {
@@ -666,10 +666,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Sıraya Koyucu"
       },
       "code_metrics": {
         "size": {
@@ -707,10 +707,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Sıraya Koyucu"
       },
       "code_metrics": {
         "size": {
@@ -748,10 +748,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -789,10 +789,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Control Logic",
-        "csms_name": "Data Persistence"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -830,10 +830,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -871,10 +871,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -912,10 +912,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Sıraya Koyucu"
       },
       "code_metrics": {
         "size": {
@@ -953,10 +953,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Support Software",
-        "css_name": "Communication",
-        "csms_name": "Data Persistence"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -994,10 +994,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Support Software",
-        "css_name": "User Interface",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -1035,10 +1035,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Marjin Kontrol"
       },
       "code_metrics": {
         "size": {
@@ -1076,10 +1076,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Communication",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Sıraya Koyucu"
       },
       "code_metrics": {
         "size": {
@@ -1117,10 +1117,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Communication",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Marjin Kontrol"
       },
       "code_metrics": {
         "size": {
@@ -1158,10 +1158,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Sıraya Koyucu"
       },
       "code_metrics": {
         "size": {
@@ -1199,10 +1199,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Support Software",
-        "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -1240,10 +1240,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Application Software",
-        "css_name": "User Interface",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Fiyat Toplayıcı"
       },
       "code_metrics": {
         "size": {
@@ -1281,10 +1281,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -1322,10 +1322,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Sıraya Koyucu"
       },
       "code_metrics": {
         "size": {
@@ -1363,10 +1363,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -1404,10 +1404,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Fiyat Toplayıcı"
       },
       "code_metrics": {
         "size": {
@@ -1445,10 +1445,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Support Software",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -1486,10 +1486,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Support Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -1527,10 +1527,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -1568,10 +1568,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -1609,10 +1609,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Hacim Analizcisi"
       },
       "code_metrics": {
         "size": {
@@ -1650,10 +1650,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Systems Engineering",
-        "css_name": "Data Management",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -1691,10 +1691,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Control Logic",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -1732,10 +1732,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Support Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Marjin Kontrol"
       },
       "code_metrics": {
         "size": {
@@ -1773,10 +1773,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Infrastructure Software",
-        "css_name": "User Interface",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -1814,10 +1814,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Sıraya Koyucu"
       },
       "code_metrics": {
         "size": {
@@ -1855,10 +1855,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Control Logic",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Marjin Kontrol"
       },
       "code_metrics": {
         "size": {
@@ -1896,10 +1896,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Sıraya Koyucu"
       },
       "code_metrics": {
         "size": {
@@ -1937,10 +1937,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Fiyat Toplayıcı"
       },
       "code_metrics": {
         "size": {
@@ -1978,10 +1978,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Support Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -2019,10 +2019,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Support Software",
-        "css_name": "User Interface",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Fiyat Toplayıcı"
       },
       "code_metrics": {
         "size": {
@@ -2060,10 +2060,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Communication",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -2101,10 +2101,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Application Software",
-        "css_name": "Control Logic",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -2142,10 +2142,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Support Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -2183,10 +2183,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -2224,10 +2224,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Systems Engineering",
-        "css_name": "Communication",
-        "csms_name": "Data Persistence"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -2265,10 +2265,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Application Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -2306,10 +2306,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Support Software",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Fiyat Toplayıcı"
       },
       "code_metrics": {
         "size": {
@@ -2347,10 +2347,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Support Software",
-        "css_name": "Data Management",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -2388,10 +2388,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Application Software",
-        "css_name": "User Interface",
-        "csms_name": "Data Persistence"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Sıraya Koyucu"
       },
       "code_metrics": {
         "size": {
@@ -2428,10 +2428,10 @@
       "name": "Lib-0",
       "version": "1.1.1",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Communication",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
@@ -2466,10 +2466,10 @@
       "name": "Lib-1",
       "version": "0.1.9",
       "system_hierarchy": {
-        "csc_name": "Computer Science",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Communication",
-        "csms_name": "Data Persistence"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -2504,10 +2504,10 @@
       "name": "Lib-2",
       "version": "2.0.7",
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Application Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Fiyat Toplayıcı"
       },
       "code_metrics": {
         "size": {
@@ -2542,10 +2542,10 @@
       "name": "Lib-3",
       "version": "2.8.3",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Support Software",
-        "css_name": "User Interface",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -2580,10 +2580,10 @@
       "name": "Lib-4",
       "version": "1.3.1",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Communication",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Haber Akışı",
+        "component_name": "Duyarlılık Analizi (NLP) Modülü"
       },
       "code_metrics": {
         "size": {
@@ -2618,10 +2618,10 @@
       "name": "Lib-5",
       "version": "2.9.4",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -2656,10 +2656,10 @@
       "name": "Lib-6",
       "version": "2.9.6",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Support Software",
-        "css_name": "User Interface",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -2694,10 +2694,10 @@
       "name": "Lib-7",
       "version": "1.3.9",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -2732,10 +2732,10 @@
       "name": "Lib-8",
       "version": "0.1.9",
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Application Software",
-        "css_name": "Communication",
-        "csms_name": "Messaging Utilities"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Hacim Analizcisi"
       },
       "code_metrics": {
         "size": {
@@ -2770,10 +2770,10 @@
       "name": "Lib-9",
       "version": "0.1.2",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Control Logic",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Marjin Kontrol"
       },
       "code_metrics": {
         "size": {
@@ -2808,10 +2808,10 @@
       "name": "Lib-10",
       "version": "2.4.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Application Software",
-        "css_name": "Data Management",
-        "csms_name": "Configuration Management"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -2846,10 +2846,10 @@
       "name": "Lib-11",
       "version": "0.0.0",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Systems Engineering",
-        "css_name": "Shared Platform",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Piyasa Verileri",
+        "config_item_name": "Borsa Akışı",
+        "component_name": "Fiyat Toplayıcı"
       },
       "code_metrics": {
         "size": {
@@ -2884,10 +2884,10 @@
       "name": "Lib-12",
       "version": "0.1.6",
       "system_hierarchy": {
-        "csc_name": "Mission Software",
-        "csci_name": "Support Software",
-        "css_name": "Communication",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Emir İletimi",
+        "config_item_name": "Alım/Satım Motoru",
+        "component_name": "Eşleştirme Algoritması"
       },
       "code_metrics": {
         "size": {
@@ -2922,10 +2922,10 @@
       "name": "Lib-13",
       "version": "2.2.8",
       "system_hierarchy": {
-        "csc_name": "Software Systems",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Shared Platform",
-        "csms_name": "Logging Framework"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Marjin Kontrol"
       },
       "code_metrics": {
         "size": {
@@ -2960,10 +2960,10 @@
       "name": "Lib-14",
       "version": "2.5.3",
       "system_hierarchy": {
-        "csc_name": "Platform Engineering",
-        "csci_name": "Infrastructure Software",
-        "css_name": "Control Logic",
-        "csms_name": "Core Logic"
+        "system_name": "Finansal Takas Platformu",
+        "domain_name": "Risk Yönetimi",
+        "config_item_name": "Portföy Limiti",
+        "component_name": "Aşırı Dalgalanma Koruyucusu"
       },
       "code_metrics": {
         "size": {
