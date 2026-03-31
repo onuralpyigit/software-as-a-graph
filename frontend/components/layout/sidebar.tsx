@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils"
 import Image from "next/image"
 import {
   LayoutDashboard,
-  Network,
   FileText,
   Settings,
   Database,
@@ -29,11 +28,6 @@ const navigation = [
   {
     name: "Explorer",
     href: "/explorer",
-    icon: Network,
-  },
-  {
-    name: "Browser",
-    href: "/browser",
     icon: LayoutGrid,
   },
   {
