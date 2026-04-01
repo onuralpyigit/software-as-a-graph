@@ -1299,6 +1299,21 @@ class GraphAnalysisAPI {
     return response.data;
   }
 
+  // Get all Application nodes (for hierarchy grouping)
+  async getAllApps(): Promise<any[]> {
+    return this.getComponentsByType('Application');
+  }
+
+  async getComponentsByType(type: string): Promise<any[]> {
+    const response = await this.client.post('/api/v1/components', {
+      ...this.credentials,
+      component_type: type,
+    }, {
+      params: { component_type: type, limit: 1000 },
+    });
+    return response.data.components ?? [];
+  }
+
   // Update base URL
   setBaseURL(url: string) {
     this.baseURL = url;
