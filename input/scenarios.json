@@ -1,93 +1,93 @@
 [
-    {
-        "dataset": "input/dataset.json",
-        "scenario": {
-            "system_name": "Fabrika Yönetim Sistemi",
-            "domains": [
-                "Üretim",
-                "Lojistik",
-                "Bakım"
-            ],
-            "description": "Akıllı fabrika sınırlarında IoT tabanlı üretim kontrol ve izleme."
-        }
-    },
-    {
-        "dataset": "input/system.json",
-        "scenario": {
-            "system_name": "Finansal Takas Platformu",
-            "domains": [
-                "Piyasa Verileri",
-                "Emir İletimi",
-                "Risk Yönetimi"
-            ],
-            "description": "Yüksek frekanslı alım-satım ve risk analiz sistemi."
-        }
-    },
-    {
-        "dataset": "input/ros2/dataset_cedar.json",
-        "scenario": {
-            "system_name": "Modern Mikroservis E-Ticaret",
-            "domains": [
-                "Kullanıcı Deneyimi",
-                "Sipariş ve Ödeme"
-            ],
-            "description": "E-Ticaret sepet, ödeme ve teslimat yönetimi."
-        }
-    },
-    {
-        "dataset": "input/ros2/dataset_mont_blanc.json",
-        "scenario": {
-            "system_name": "Sağlık Takip Sistemi",
-            "domains": [
-                "Hasta Verileri",
-                "Uyarı Sistemi"
-            ],
-            "description": "Hastane içi yaşam bulguları takip ağı."
-        }
-    },
-    {
-        "dataset": "input/ros2/dataset_rti_automotive.json",
-        "scenario": {
-            "system_name": "Otonom Araç İşletim Sistemi",
-            "domains": [
-                "Algılama (Perception)",
-                "Planlama (Planning)",
-                "Kontrol (Control)"
-            ],
-            "description": "DDS tabanlı güvenli otonom sürüş yazılım ekosistemi."
-        }
-    },
-    {
-        "dataset": "input/ros2/dataset_rti_medtech.json",
-        "scenario": {
-            "system_name": "Sağlık Takip Sistemi",
-            "domains": [
-                "Hasta Verileri",
-                "Uyarı Sistemi"
-            ],
-            "description": "Hastane içi yaşam bulguları takip ağı."
-        }
-    },
-    {
-        "dataset": "input/ros2/dataset_sierra_nevada.json",
-        "scenario": {
-            "system_name": "Modern Mikroservis E-Ticaret",
-            "domains": [
-                "Kullanıcı Deneyimi",
-                "Sipariş ve Ödeme"
-            ],
-            "description": "E-Ticaret sepet, ödeme ve teslimat yönetimi."
-        }
-    },
-    {
-        "dataset": "input/ros2/dataset_white_mountain.json",
-        "scenario": {
-            "system_name": "Sağlık Takip Sistemi",
-            "domains": [
-                "Hasta Verileri",
-                "Uyarı Sistemi"
-            ],
-            "description": "Hastane içi yaşam bulguları takip ağı."
-        }
+  {
+    "dataset": "input/dataset.json",
+    "scenario": {
+      "system_name": "Factory Management System",
+      "domains": [
+        "Production",
+        "Logistics",
+        "Maintenance"
+      ],
+      "description": "IoT-based production control and monitoring within smart factory boundaries."
     }
+  },
+  {
+    "dataset": "input/system.json",
+    "scenario": {
+      "system_name": "Financial Clearing Platform",
+      "domains": [
+        "Market Data",
+        "Order Transmission",
+        "Risk Management"
+      ],
+      "description": "High-frequency trading and risk analysis system."
+    }
+  },
+  {
+    "dataset": "input/ros2/dataset_cedar.json",
+    "scenario": {
+      "system_name": "Modern Microservices E-Commerce",
+      "domains": [
+        "User Experience",
+        "Order and Payment"
+      ],
+      "description": "E-Commerce cart, payment, and delivery management."
+    }
+  },
+  {
+    "dataset": "input/ros2/dataset_mont_blanc.json",
+    "scenario": {
+      "system_name": "Health Monitoring System",
+      "domains": [
+        "Patient Data",
+        "Alert System"
+      ],
+      "description": "In-hospital vital signs monitoring network."
+    }
+  },
+  {
+    "dataset": "input/ros2/dataset_rti_automotive.json",
+    "scenario": {
+      "system_name": "Autonomous Vehicle Operating System",
+      "domains": [
+        "Perception",
+        "Planning",
+        "Control"
+      ],
+      "description": "DDS based secure autonomous driving software ecosystem."
+    }
+  },
+  {
+    "dataset": "input/ros2/dataset_rti_medtech.json",
+    "scenario": {
+      "system_name": "Health Monitoring System",
+      "domains": [
+        "Patient Data",
+        "Alert System"
+      ],
+      "description": "In-hospital vital signs monitoring network."
+    }
+  },
+  {
+    "dataset": "input/ros2/dataset_sierra_nevada.json",
+    "scenario": {
+      "system_name": "Modern Microservices E-Commerce",
+      "domains": [
+        "User Experience",
+        "Order and Payment"
+      ],
+      "description": "E-Commerce cart, payment, and delivery management."
+    }
+  },
+  {
+    "dataset": "input/ros2/dataset_white_mountain.json",
+    "scenario": {
+      "system_name": "Health Monitoring System",
+      "domains": [
+        "Patient Data",
+        "Alert System"
+      ],
+      "description": "In-hospital vital signs monitoring network."
+    }
+  }
 ]

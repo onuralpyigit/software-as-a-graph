@@ -46,10 +46,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Otonom Araç İşletim Sistemi",
-        "domain_name": "Planlama (Planning)",
-        "config_item_name": "Araç Dinamikleri",
-        "component_name": "Hız Optimizasyonu"
+        "system_name": "Autonomous Vehicle Operating System",
+        "domain_name": "Planning",
+        "config_item_name": "Vehicle Dynamics",
+        "component_name": "Speed Optimization"
       },
       "code_metrics": {
         "size": {
@@ -87,10 +87,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "system_name": "Otonom Araç İşletim Sistemi",
-        "domain_name": "Algılama (Perception)",
-        "config_item_name": "Kamera Modülü",
-        "component_name": "Trafik Levhası Tanıma"
+        "system_name": "Autonomous Vehicle Operating System",
+        "domain_name": "Perception",
+        "config_item_name": "Camera Module",
+        "component_name": "Traffic Sign Recognition"
       },
       "code_metrics": {
         "size": {
@@ -127,10 +127,10 @@
       "name": "WindowSupport",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Otonom Araç İşletim Sistemi",
-        "domain_name": "Kontrol (Control)",
-        "config_item_name": "Gövde (Body)",
-        "component_name": "Cam Kontrolcüsü"
+        "system_name": "Autonomous Vehicle Operating System",
+        "domain_name": "Control",
+        "config_item_name": "Body",
+        "component_name": "Window Controller"
       },
       "code_metrics": {
         "size": {
