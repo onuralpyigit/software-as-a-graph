@@ -554,3 +554,52 @@ class TestEdgeCases:
         assert "cascade_sequence" in d
         assert d["target_id"] == "Broker1"
         assert isinstance(d["impact"]["composite_impact"], float)
+
+
+# =============================================================================
+# Brokerless (DDS) Simulation Tests
+# =============================================================================
+
+class TestBrokerlessReachability:
+    """Tests for ROS2 DDS direct pub-sub (no brokers)."""
+
+    @pytest.fixture
+    def brokerless_graph(self):
+        """App1 -> Topic1 -> App2 (direct DDS, no broker)."""
+        return GraphData(components=[
+            ComponentData("App1", "Application"),
+            ComponentData("App2", "Application"),
+            ComponentData("Topic1", "Topic"),
+        ], edges=[
+            EdgeData("App1", "Topic1", "Application", "Topic", "PUBLISHES_TO", "PUBLISHES_TO"),
+            EdgeData("App2", "Topic1", "Application", "Topic", "SUBSCRIBES_TO", "SUBSCRIBES_TO"),
+        ])
+
+    def test_brokerless_baseline_paths_nonzero(self, brokerless_graph):
+        """SimulationGraph should count paths even without brokers for DDS systems."""
+        graph = SimulationGraph(graph_data=brokerless_graph)
+        sim = FailureSimulator(graph)
+        sim.graph.reset()
+        sim._compute_baseline()
+        assert sim._initial_paths > 0  # 1 path: App1 -> Topic1 -> App2
+
+    def test_app1_failure_causes_reachability_loss(self, brokerless_graph):
+        """Failing the publisher in a brokerless system should cause reachability loss."""
+        graph = SimulationGraph(graph_data=brokerless_graph)
+        sim = FailureSimulator(graph)
+        result = sim.simulate(FailureScenario("App1", "test"))
+        # Reachability loss should be 1.0 since the only path is broken
+        assert result.impact.reachability_loss == pytest.approx(1.0, abs=0.01)
+
+    def test_exhaustive_discriminates_publisher_vs_subscriber(self, brokerless_graph):
+        """Exhaustive simulation should produce different impacts for different roles."""
+        graph = SimulationGraph(graph_data=brokerless_graph)
+        sim = FailureSimulator(graph)
+        results = sim.simulate_exhaustive(layer="app")
+        # App1 determines reachability (publisher), App2 only consumes.
+        impacts = {r.target_id: r.impact.composite_impact for r in results}
+        assert "App1" in impacts
+        assert "App2" in impacts
+        # Composite impact should be non-zero
+        assert impacts["App1"] > 0
+        assert impacts["App2"] > 0

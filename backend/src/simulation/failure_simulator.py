@@ -806,7 +806,7 @@ class FailureSimulator:
             brokers = self.graph.get_routing_brokers(topic_id)
             subscribers = self.graph.get_subscribers(topic_id)
             
-            if not publishers or not brokers or not subscribers:
+            if not publishers or not subscribers:
                 lost_weight += topic_weight
                 affected_topics += 1
         

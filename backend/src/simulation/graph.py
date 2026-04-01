@@ -39,6 +39,7 @@ class SimulationGraph:
             graph_data: Pre-loaded GraphData object containing components and edges.
         """
         self.logger = logging.getLogger(__name__)
+        self._graph_data = graph_data
         
         # NetworkX graph for structural queries
         self.graph = nx.DiGraph()
@@ -250,9 +251,12 @@ class SimulationGraph:
                     b_perf = self.components[b_id].performance
                     broker_capacities.append(b_perf * b_weight)
             
-            broker_segment_capacity = max(broker_capacities) if broker_capacities else 0.0
+            broker_segment_capacity = max(broker_capacities) if broker_capacities else 1.0  # DDS direct
             
-            if active_only and broker_segment_capacity <= 0:
+            if active_only and not broker_capacities:
+                # In brokerless mode (DDS), paths are direct
+                pass
+            elif active_only and broker_segment_capacity <= 0:
                 continue
                 
             for p_id, p_weight in pubs_raw:
@@ -268,10 +272,33 @@ class SimulationGraph:
                         continue
                         
                     capacity = min(path_prefix_capacity, s_weight, s_perf)
-                    
                     if not active_only or capacity > 0:
                         paths.append((p_id, topic_id, s_id, capacity))
                         
+        # 2. Virtual paths via DEPENDS_ON
+        # Rule 1: subscriber -[DEPENDS_ON {dependency_type: 'app_to_app'}]-> publisher
+        # These represent the functional flow from publisher to subscriber.
+        if self._graph_data:
+            for edge in self._graph_data.edges:
+                if edge.relation_type == "DEPENDS_ON" and getattr(edge, 'dependency_type', '') == "app_to_app":
+                    p_id = edge.target_id  # publisher is the target of dependency
+                    s_id = edge.source_id  # subscriber is the source of dependency
+                    
+                    if p_id not in self.components or s_id not in self.components:
+                        continue
+                    
+                    # Check performance (active_only)
+                    p_perf = self.components[p_id].performance
+                    s_perf = self.components[s_id].performance
+                    
+                    if active_only and (p_perf <= 0 or s_perf <= 0):
+                        continue
+                    
+                    # Capacity is minimum of performance and edge weight
+                    capacity = min(p_perf, s_perf, edge.weight)
+                    if not active_only or capacity > 0:
+                        paths.append((p_id, f"vtopic:{edge.dependency_type}", s_id, capacity))
+                    
         return paths
 
     def count_active_connected_components(self):  # -> int
@@ -308,23 +335,34 @@ class SimulationGraph:
         
         # CONNECTS_TO: node <-> node
         for node_id, connected in self._connections.items():
-            for neighbor_id in connected:
+            for neighbor_tuple in connected:
+                neighbor_id = neighbor_tuple[0]
                 if node_id in active_graph and neighbor_id in active_graph:
                     active_graph.add_edge(node_id, neighbor_id)
         
         # Pub/Sub paths through topics (app <-> app via shared topic)
         for topic_id in self.topics:
-            active_pubs = [p for p in self._publishers.get(topic_id, []) if p in active_graph]
-            active_subs = [s for s in self._subscribers.get(topic_id, []) if s in active_graph]
-            active_brokers = [b for b in self._routing.get(topic_id, []) if b in active_graph]
+            topic_pubs = self._publishers.get(topic_id, [])
+            topic_subs = self._subscribers.get(topic_id, [])
+            topic_brokers = self._routing.get(topic_id, [])
             
-            # Connect publishers and subscribers through brokers for this topic
-            for pub in active_pubs:
-                for broker in active_brokers:
-                    active_graph.add_edge(pub, broker)
-            for sub in active_subs:
-                for broker in active_brokers:
-                    active_graph.add_edge(sub, broker)
+            active_pubs = [p[0] for p in topic_pubs if p[0] in active_graph]
+            active_subs = [s[0] for s in topic_subs if s[0] in active_graph]
+            active_brokers = [b[0] for b in topic_brokers if b[0] in active_graph]
+            
+            if active_brokers:
+                # Connect publishers and subscribers through brokers
+                for pub in active_pubs:
+                    for broker in active_brokers:
+                        active_graph.add_edge(pub, broker)
+                for sub in active_subs:
+                    for broker in active_brokers:
+                        active_graph.add_edge(sub, broker)
+            else:
+                # Brokerless (DDS): Connect publishers and subscribers directly via topic abstraction
+                for pub in active_pubs:
+                    for sub in active_subs:
+                        active_graph.add_edge(pub, sub)
         
         return nx.number_connected_components(active_graph)
     

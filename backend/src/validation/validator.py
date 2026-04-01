@@ -161,17 +161,19 @@ class Validator:
         if n >= 20:
             pred_stats = self.classifier.compute_stats(pred_vals)
             actual_stats = self.classifier.compute_stats(actual_vals)
-            pred_crit = [v > pred_stats.upper_fence for v in pred_vals]
-            actual_crit = [v > actual_stats.upper_fence for v in actual_vals]
+            # Both use the 'Top' tier (>= Q3) to allow F1 to measure ranking alignment
+            # This is more robust than outlier detection for tight distributions
+            pred_crit = [v >= pred_stats.q3 for v in pred_vals]
+            actual_crit = [v >= actual_stats.q3 for v in actual_vals]
         else:
-            # Fallback classification for small n (top 10%)
-            def _get_top_10_mask(vals: List[float]) -> List[bool]:
+            # Fallback classification for small n (top 20% to avoid extreme sparsity)
+            def _get_top_20_mask(vals: List[float]) -> List[bool]:
                 if not vals: return []
-                threshold = self._percentile(vals, 90.0)
+                threshold = self._percentile(vals, 80.0)
                 return [v >= threshold for v in vals]
             
-            pred_crit = _get_top_10_mask(pred_vals)
-            actual_crit = _get_top_10_mask(actual_vals)
+            pred_crit = _get_top_20_mask(pred_vals)
+            actual_crit = _get_top_20_mask(actual_vals)
         
         classification = calculate_classification(pred_crit, actual_crit)
         classification.auc_pr = calculate_auc_pr(pred_vals, actual_crit)
