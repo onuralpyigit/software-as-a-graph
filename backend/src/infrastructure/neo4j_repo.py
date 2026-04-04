@@ -545,7 +545,7 @@ class Neo4jRepository:
         # Rule 1 (transitive): app depends on publisher via library chain
         # App-A -[USES]-> Lib-X -[SUBSCRIBES_TO]-> Topic-T <-[PUBLISHES_TO]- App-B
         self._run_query("""
-            MATCH (app:Application)-[:USES*1..]->(lib)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(publisher)
+            MATCH (app:Application)-[:USES*1..3]->(lib)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(publisher)
             WHERE app <> publisher
               AND (publisher:Application OR publisher:Library)
             WITH app, publisher, count(DISTINCT t) as path_count, max(t.weight) as max_weight
@@ -560,7 +560,7 @@ class Neo4jRepository:
         # Rule 1 (transitive, reverse): app publishes via library chain
         # App-A -[SUBSCRIBES_TO]-> Topic-T <-[PUBLISHES_TO]- Lib-Y <-[USES*]- App-B
         self._run_query("""
-            MATCH (subscriber)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(lib)<-[:USES*1..]-(app:Application)
+            MATCH (subscriber)-[:SUBSCRIBES_TO]->(t:Topic)<-[:PUBLISHES_TO]-(lib)<-[:USES*1..3]-(app:Application)
             WHERE subscriber <> app
               AND (subscriber:Application OR subscriber:Library)
             WITH subscriber, app, count(DISTINCT t) as path_count, max(t.weight) as max_weight
@@ -583,7 +583,7 @@ class Neo4jRepository:
 
         # Rule 2 (transitive): app depends on broker via library chain
         self._run_query("""
-            MATCH (app:Application)-[:USES*1..]->(lib)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
+            MATCH (app:Application)-[:USES*1..3]->(lib)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
             WITH app, broker, max(t.weight) as max_w, count(DISTINCT t) as path_count
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
             ON CREATE SET d.weight = coalesce(max_w, 0.01), d.path_count = path_count
