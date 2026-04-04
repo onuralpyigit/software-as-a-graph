@@ -576,38 +576,39 @@ class Neo4jRepository:
         self._run_query("""
             MATCH (app)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
             WHERE app:Application OR app:Library
-            WITH app, broker, count(t) as topic_count
+            WITH app, broker, max(t.weight) as max_w, count(t) as path_count
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
-            SET d.weight = topic_count
+            SET d.weight = coalesce(max_w, 0.01), d.path_count = path_count
         """)
-        
+
         # Rule 2 (transitive): app depends on broker via library chain
         self._run_query("""
             MATCH (app:Application)-[:USES*1..]->(lib)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
-            WITH app, broker, count(DISTINCT t) as topic_count
+            WITH app, broker, max(t.weight) as max_w, count(DISTINCT t) as path_count
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
-            ON CREATE SET d.weight = topic_count
-            ON MATCH SET d.weight = CASE WHEN topic_count > coalesce(d.weight, 0) THEN topic_count ELSE d.weight END
+            ON CREATE SET d.weight = coalesce(max_w, 0.01), d.path_count = path_count
+            ON MATCH SET d.weight = CASE WHEN coalesce(max_w, 0.01) > coalesce(d.weight, 0) THEN coalesce(max_w, 0.01) ELSE d.weight END,
+                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0) THEN path_count ELSE d.path_count END
         """)
-        
+
         # Rule 3: node_to_node — lifted from component dependencies
         self._run_query("""
-            MATCH (a)-[:DEPENDS_ON]->(b),
+            MATCH (a)-[d_ab:DEPENDS_ON]->(b),
                   (a)-[:RUNS_ON]->(n1:Node),
                   (b)-[:RUNS_ON]->(n2:Node)
             WHERE n1 <> n2
-            WITH n1, n2, count(*) as dep_count
+            WITH n1, n2, max(d_ab.weight) as lifted_max, count(*) as dep_count
             MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
-            SET d.weight = dep_count
+            SET d.weight = coalesce(lifted_max, 0.01), d.path_count = dep_count
         """)
-        
+
         # Rule 4: node_to_broker — lifted from hosted app broker usage
         self._run_query("""
             MATCH (app)-[dep:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker:Broker),
                   (app)-[:RUNS_ON]->(n:Node)
-            WITH n, broker, count(*) as dep_count
+            WITH n, broker, max(dep.weight) as lifted_max, count(*) as dep_count
             MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(broker)
-            SET d.weight = dep_count
+            SET d.weight = coalesce(lifted_max, 0.01), d.path_count = dep_count
         """)
 
         # Rule 5: app_to_lib — app depends on shared library
