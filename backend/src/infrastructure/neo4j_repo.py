@@ -612,12 +612,18 @@ class Neo4jRepository:
         """)
 
         # Rule 5: app_to_lib — app depends on shared library
+        # path_count = number of parallel USES edges between the same App–Library pair
+        # (duplicates are rare but counted consistently with Rule 1).
+        # Unlike Rule 1, path_count here does not represent topic-multiplicity; it feeds
+        # MPCI and path_complexity in Step 3 as a structural coupling-intensity signal only.
+        # Blast semantics for libraries are simultaneous multi-consumer, not sequential cascade.
+        # Weight is populated later during aggregate weights phase (inherits from App).
         self._run_query("""
             MATCH (app)-[:USES]->(lib:Library)
             WHERE app:Application OR app:Library
+            WITH app, lib, count(*) as path_count
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib)
-            SET d.path_count = 1
-            // Weight is populated later during aggregate weights phase
+            SET d.path_count = path_count
         """)
 
     # ==========================================
