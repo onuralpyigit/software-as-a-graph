@@ -46,7 +46,7 @@ Pipeline scripts that can run independently or via the orchestrator:
 - `generate_graph.py` — Synthetic graph data generation
 - `import_graph.py` — Import graph data into Neo4j
 - `analyze_graph.py` — Structural and quality analysis (`--predict` for RMAV + Anti-Patterns)
-- `simulate_graph.py` — Cascade failure simulation (subcommands: `failure`, `event`, `report`)
+- `simulate_graph.py` — Cascade failure simulation (`--mode exhaustive|monte_carlo|single|pairwise`)
 - `validate_graph.py` — Statistical validation
 - `visualize_graph.py` — Static HTML dashboard generation
 - `detect_antipatterns.py` — Standalone anti-pattern analysis
@@ -151,7 +151,8 @@ pytest -k "test_name"  # Run by test name pattern
 - **SDK Entry Point:** Prefer `saag.Pipeline` for programmatic use. It handles repository lifecycle and stage orchestration.
 - **CLI scripts** in `bin/` import from `backend/src/` — they must be run from the repo root (e.g., `python bin/analyze_graph.py`).
 - **API routers** in `backend/api/routers/` follow a consistent pattern with dependency injection via `backend/api/dependencies.py`.
-- **Graph layers:** The system supports four graph layers: `app`, `infra`, `mw` (middleware), `system`.
+- **Graph layers:** The system supports four graph layers: `app`, `infra`, `mw` (middleware), `system`. The canonical definitions live in `backend/src/core/layers.py` (`LAYER_DEFINITIONS`). Key: the `app` layer includes both Application **and Library** nodes (`analyze_types = {Application, Library}`) — library blast-radius risk is visible at this layer. A mirror copy of the layer dict exists in `backend/src/infrastructure/neo4j_repo.py` and must be kept in sync with `layers.py`.
+- **Dependency types:** Six DEPENDS_ON subtypes are derived by `neo4j_repo._derive_dependencies()`: `app_to_app` (APP), `app_to_lib` (APP), `app_to_broker` (MW), `node_to_node` (INFRA), `node_to_broker` (MW), `broker_to_broker` (MW). All carry `weight ∈ [0,1]` (max QoS severity) and `path_count` (coupling intensity). The canonical mapping is `DEPENDENCY_TO_LAYER` in `layers.py`.
 - **Examples:** 11 transitionary examples in `examples/` (`example_end_to_end.py` is the most comprehensive). 
 - **Input data:** Topology JSON files in `input/` (e.g., `system.json`, `dataset.json`) and YAML configs (`graph_config.yaml`)
 - **Scenarios:** 8 domain scenarios under `input/scenario_0N_*.yaml` (autonomous vehicle, IoT, financial trading, healthcare, hub-and-spoke, microservices, enterprise XL, tiny regression)
@@ -174,13 +175,28 @@ Architecture → Graph → Metrics → Scores → Simulation → Validation → 
    (input)     Step 1   Step 2    Step 3    Step 4       Step 5       Step 6
 ```
 
-1. **Graph Model** — Converts topology JSON to a weighted directed graph in Neo4j.
+1. **Graph Model** — Converts topology JSON to a weighted directed graph in Neo4j; derives DEPENDS_ON edges via six rules (see below).
 2. **Structural Analysis** — Computes centrality metrics (Reverse PageRank, Betweenness, Bridge Ratio, etc.).
 3. **Prediction** — Maps metrics to RMAV dimensions (AHP weights) and detects anti-patterns.
 3.5 **GNN Refinement** — (Optional) Trains/Runs GNN on topology to refine RMAV scores via Ensemble blending.
 4. **Failure Simulation** — Injects faults; runs four parallel ground-truth simulators.
 5. **Validation** — Per-dimension statistical comparison: Q(v) vs I(v).
 6. **Visualization** — Generates interactive dashboards (web or static HTML).
+
+### DEPENDS_ON Derivation Rules
+
+`neo4j_repo._derive_dependencies()` reads structural edges and emits DEPENDS_ON edges. Direction: **dependent → dependency**. All rules set `weight ∈ [0,1]` (max QoS severity) and `path_count` (coupling intensity).
+
+| Rule | `dependency_type` | Source pattern | Weight |
+|------|-------------------|----------------|--------|
+| 1 | `app_to_app` | App_sub → App_pub via shared Topic; also transitive via `USES*1..3` chain | `max(t.weight)` |
+| 2 | `app_to_broker` | App → Broker routing its topics; also transitive via `USES*1..3` chain | `max(t.weight)` |
+| 3 | `node_to_node` | Lifted from Rule 1: Node_B → Node_A when hosted apps share an app_to_app edge | lifted `max(d.weight)` |
+| 4 | `node_to_broker` | Lifted from Rule 2: Node → Broker when a hosted app has an app_to_broker edge | lifted `max(dep.weight)` |
+| 5 | `app_to_lib` | App → Library (USES). Simultaneous multi-consumer blast, not sequential cascade. | `app.weight` (set in aggregate phase) |
+| 6 | `broker_to_broker` | Bidirectional colocation edge between brokers sharing a physical Node. Symmetric shared-fate risk. | `node.weight` |
+
+Simulation operates on **G_structural** (raw edges), not on DEPENDS_ON. Library cascade (`CascadeRule.LIBRARY`) and physical cascade (`CascadeRule.PHYSICAL`) in `failure_simulator.py` already cover Rules 5 and 6 semantics correctly without additional cascade rules.
 
 ## RMAV Prediction Formulas
 
@@ -337,7 +353,17 @@ Validation also reports statistical power tables and Spearman–Kendall gap diag
 ├── backend/                    # Python backend (hexagonal architecture)
 │   ├── api/                    #   FastAPI application (routers & presenters)
 │   ├── src/                    #   Core business logic (analysis, simulation, etc.)
+│   │   ├── core/               #     Domain models, ports, layer definitions
+│   │   │   ├── layers.py       #       Canonical LAYER_DEFINITIONS & DEPENDENCY_TO_LAYER
+│   │   │   └── neo4j_repo.py   #       Mirror LAYER_DEFINITIONS + 6 derivation rules
+│   │   └── simulation/         #     failure_simulator.py, graph.py (G_structural only)
 │   └── tests/                  #   Unit and integration tests (pytest)
+├── tools/                      # Standalone tooling (no Neo4j dependency)
+│   └── generation/             #   Statistical pub-sub topology generator
+│       ├── generator.py        #     Produces structural edges only (no DEPENDS_ON)
+│       ├── service.py          #     GenerationService wrapper
+│       ├── models.py           #     SCALE_PRESETS & statistical config
+│       └── datasets.py         #     Domain-specific naming & QoS mappings
 ├── frontend/                   # Next.js web application (Genieus)
 │   ├── app/                    #   Pages and layout
 │   └── components/             #   UI components (Radix + shadcn)
