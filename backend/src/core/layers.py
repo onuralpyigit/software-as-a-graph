@@ -9,10 +9,10 @@ Corresponds to Definition 3 (Layer Projection) in docs/graph-model.md:
     π_l(G) = G_l = (V_l, E_l, τ_V|_l, τ_E|_l, w|_l)
 
 Analysis Layers project DEPENDS_ON relationships:
-    π_app    → {app_to_app, app_to_lib}            Analyse Applications and Libraries
-    π_infra  → {node_to_node}                      Analyse Nodes
-    π_mw     → {app_to_broker, node_to_broker}     Analyse Brokers
-    π_system → all five subtypes                   Analyse all components
+    π_app    → {app_to_app, app_to_lib}                        Analyse Applications and Libraries
+    π_infra  → {node_to_node}                                  Analyse Nodes
+    π_mw     → {app_to_broker, node_to_broker, broker_to_broker}  Analyse Brokers
+    π_system → all six subtypes                                Analyse all components
 
 Scope constraint (§1.5): The app layer includes app_to_lib edges so that shared-library
 blast-radius risk is visible when running --layer app. Without this, a Library used by
@@ -173,21 +173,23 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     AnalysisLayer.MW: LayerDefinition(
         name="Middleware Layer",
         description=(
-            "π_mw: Analyse Brokers via app_to_broker and node_to_broker dependencies "
-            "for maintainability. Includes Application and Node vertices in the subgraph "
-            "to preserve incoming edges, but only Broker components appear in results."
+            "π_mw: Analyse Brokers via app_to_broker, node_to_broker, and broker_to_broker "
+            "dependencies for maintainability. Includes Application and Node vertices in the "
+            "subgraph to preserve incoming edges, but only Broker components appear in results. "
+            "broker_to_broker edges capture colocation risk: two brokers sharing a physical node "
+            "have symmetric shared-fate dependency; both get elevated DG_in."
         ),
         component_types=frozenset({"Application", "Broker", "Node"}),
-        dependency_types=frozenset({"app_to_broker", "node_to_broker"}),
+        dependency_types=frozenset({"app_to_broker", "node_to_broker", "broker_to_broker"}),
         focus_metrics=("in_degree", "pagerank", "betweenness", "clustering"),
         quality_focus="maintainability",
         analyze_types=frozenset({"Broker"}),
     ),
     AnalysisLayer.SYSTEM: LayerDefinition(
         name="Complete System",
-        description="π_system: Analyse all components across all five dependency subtypes",
+        description="π_system: Analyse all components across all six dependency subtypes",
         component_types=frozenset({"Application", "Broker", "Node", "Topic", "Library"}),
-        dependency_types=frozenset({"app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker"}),
+        dependency_types=frozenset({"app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker", "broker_to_broker"}),
         focus_metrics=("pagerank", "betweenness", "articulation_point", "clustering"),
         quality_focus="overall",
     ),
@@ -303,6 +305,7 @@ DEPENDENCY_TO_LAYER: Dict[str, AnalysisLayer] = {
     "node_to_node": AnalysisLayer.INFRA,
     "app_to_broker": AnalysisLayer.MW,
     "node_to_broker": AnalysisLayer.MW,
+    "broker_to_broker": AnalysisLayer.MW,
 }
 
 

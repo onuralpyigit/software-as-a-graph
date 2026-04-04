@@ -56,12 +56,12 @@ LAYER_DEFINITIONS = {
     "mw": {
         "name": "Middleware Layer",
         "component_types": ["Application", "Broker", "Node"],
-        "dependency_types": ["app_to_broker", "node_to_broker"],
+        "dependency_types": ["app_to_broker", "node_to_broker", "broker_to_broker"],
     },
     "system": {
         "name": "Complete System",
         "component_types": ["Application", "Broker", "Node", "Topic", "Library"],
-        "dependency_types": ["app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker"],
+        "dependency_types": ["app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker", "broker_to_broker"],
     },
 }
 
@@ -611,6 +611,22 @@ class Neo4jRepository:
             SET d.weight = coalesce(lifted_max, 0.01), d.path_count = dep_count
         """)
 
+        # Rule 6: broker_to_broker — colocation dependency via shared node
+        # When two brokers share the same physical node, they have implicit shared-fate risk:
+        # a single node failure removes both simultaneously. Without this rule, DG_in(broker)
+        # carries no signal about co-located broker risk.
+        # Direction: bidirectional (b1→b2 AND b2→b1) — colocation risk is symmetric;
+        # both brokers get elevated DG_in, which is correct.
+        # Weight: inherits from the shared node (w(n)), analogous to how app_to_lib inherits
+        # from the app. path_count = number of shared nodes (virtually always 1).
+        self._run_query("""
+            MATCH (b1:Broker)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2:Broker)
+            WHERE b1 <> b2
+            WITH b1, b2, max(n.weight) as node_w, count(DISTINCT n) as path_count
+            MERGE (b1)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2)
+            SET d.weight = coalesce(node_w, 0.01), d.path_count = path_count
+        """)
+
         # Rule 5: app_to_lib — app depends on shared library
         # path_count = number of parallel USES edges between the same App–Library pair
         # (duplicates are rare but counted consistently with Rule 1).
@@ -735,7 +751,7 @@ class Neo4jRepository:
         """Retrieve counts of components and dependencies by type."""
         all_component_types = ["Application", "Broker", "Node", "Topic", "Library"]
         all_relationship_types = ["RUNS_ON", "ROUTES", "PUBLISHES_TO", "SUBSCRIBES_TO", "CONNECTS_TO", "USES"]
-        all_dependency_types = ["app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker"]
+        all_dependency_types = ["app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker", "broker_to_broker"]
         
         stats = {}
         with self.driver.session(database=self.database) as session:
