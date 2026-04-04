@@ -9,10 +9,18 @@ Corresponds to Definition 3 (Layer Projection) in docs/graph-model.md:
     π_l(G) = G_l = (V_l, E_l, τ_V|_l, τ_E|_l, w|_l)
 
 Analysis Layers project DEPENDS_ON relationships:
-    π_app    → {app_to_app}                        Analyse Applications
+    π_app    → {app_to_app, app_to_lib}            Analyse Applications and Libraries
     π_infra  → {node_to_node}                      Analyse Nodes
     π_mw     → {app_to_broker, node_to_broker}     Analyse Brokers
-    π_system → all four subtypes                   Analyse all components
+    π_system → all five subtypes                   Analyse all components
+
+Scope constraint (§1.5): The app layer includes app_to_lib edges so that shared-library
+blast-radius risk is visible when running --layer app. Without this, a Library used by
+N applications has DG_in = 0 in the app projection and R(Library) ≈ 0 regardless of
+fan-out. Engineers running --layer app (not --layer system) would receive no signal about
+library SPOFs. Library nodes appear in both component_types and analyze_types for the app
+layer; they are not pure pub-sub participants but their failure semantics (simultaneous
+multi-consumer blast) are distinct from app_to_app sequential cascades.
 
 Simulation Layers use RAW structural relationships (PUBLISHES_TO, RUNS_ON, etc.)
 for failure cascade and event propagation simulation. This implements the
@@ -141,11 +149,18 @@ class LayerDefinition:
 LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     AnalysisLayer.APP: LayerDefinition(
         name="Application Layer",
-        description="π_app: Analyse Applications via app_to_app dependencies for reliability",
-        component_types=frozenset({"Application"}),
-        dependency_types=frozenset({"app_to_app"}),
+        description=(
+            "π_app: Analyse Applications and Libraries via app_to_app and app_to_lib "
+            "dependencies for reliability. Library nodes are included so that shared-library "
+            "blast-radius risk (simultaneous multi-consumer failure) is visible at this layer. "
+            "Scope constraint: app_to_lib blast semantics differ from app_to_app sequential "
+            "cascades — Library RMAV scores reflect fan-out severity, not propagation depth."
+        ),
+        component_types=frozenset({"Application", "Library"}),
+        dependency_types=frozenset({"app_to_app", "app_to_lib"}),
         focus_metrics=("pagerank", "reverse_pagerank", "in_degree", "betweenness"),
         quality_focus="reliability",
+        analyze_types=frozenset({"Application", "Library"}),
     ),
     AnalysisLayer.INFRA: LayerDefinition(
         name="Infrastructure Layer",
@@ -170,9 +185,9 @@ LAYER_DEFINITIONS: Dict[AnalysisLayer, LayerDefinition] = {
     ),
     AnalysisLayer.SYSTEM: LayerDefinition(
         name="Complete System",
-        description="π_system: Analyse all components across all dependency types",
+        description="π_system: Analyse all components across all five dependency subtypes",
         component_types=frozenset({"Application", "Broker", "Node", "Topic", "Library"}),
-        dependency_types=frozenset({"app_to_app", "app_to_broker", "node_to_node", "node_to_broker"}),
+        dependency_types=frozenset({"app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker"}),
         focus_metrics=("pagerank", "betweenness", "articulation_point", "clustering"),
         quality_focus="overall",
     ),
@@ -284,6 +299,7 @@ SIMULATION_LAYERS: Dict[AnalysisLayer, SimulationLayerDefinition] = {
 #: Used by validators and reporters to associate dependencies with layers.
 DEPENDENCY_TO_LAYER: Dict[str, AnalysisLayer] = {
     "app_to_app": AnalysisLayer.APP,
+    "app_to_lib": AnalysisLayer.APP,
     "node_to_node": AnalysisLayer.INFRA,
     "app_to_broker": AnalysisLayer.MW,
     "node_to_broker": AnalysisLayer.MW,

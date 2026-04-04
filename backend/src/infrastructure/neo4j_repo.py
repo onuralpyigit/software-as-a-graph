@@ -45,8 +45,8 @@ from . import config
 LAYER_DEFINITIONS = {
     "app": {
         "name": "Application Layer",
-        "component_types": ["Application"],
-        "dependency_types": ["app_to_app"],
+        "component_types": ["Application", "Library"],
+        "dependency_types": ["app_to_app", "app_to_lib"],
     },
     "infra": {
         "name": "Infrastructure Layer",
@@ -61,7 +61,7 @@ LAYER_DEFINITIONS = {
     "system": {
         "name": "Complete System",
         "component_types": ["Application", "Broker", "Node", "Topic", "Library"],
-        "dependency_types": ["app_to_app", "node_to_node", "app_to_broker", "node_to_broker"],
+        "dependency_types": ["app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker"],
     },
 }
 
@@ -735,7 +735,7 @@ class Neo4jRepository:
         """Retrieve counts of components and dependencies by type."""
         all_component_types = ["Application", "Broker", "Node", "Topic", "Library"]
         all_relationship_types = ["RUNS_ON", "ROUTES", "PUBLISHES_TO", "SUBSCRIBES_TO", "CONNECTS_TO", "USES"]
-        all_dependency_types = ["app_to_app", "node_to_node", "app_to_broker", "node_to_broker", "app_to_lib"]
+        all_dependency_types = ["app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker"]
         
         stats = {}
         with self.driver.session(database=self.database) as session:
