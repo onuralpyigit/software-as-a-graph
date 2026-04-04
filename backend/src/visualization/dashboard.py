@@ -635,6 +635,22 @@ class DashboardGenerator:
                             'line-style': 'dotted'
                         }}
                     }},
+                    {{
+                        selector: '.edge-app-to-lib',
+                        style: {{
+                            'line-color': '#e67e22',
+                            'target-arrow-color': '#e67e22',
+                            'line-style': 'dashed'
+                        }}
+                    }},
+                    {{
+                        selector: '.edge-broker-to-broker',
+                        style: {{
+                            'line-color': '#1abc9c',
+                            'target-arrow-color': '#1abc9c',
+                            'line-style': 'dotted'
+                        }}
+                    }},
                     // Raw structural edge styles
                     {{
                         selector: '.edge-publishes-to',
@@ -793,9 +809,9 @@ class DashboardGenerator:
             
             let selectors = [];
             if (edgeType === 'depends') {{
-                selectors = ['.edge-app-to-app', '.edge-node-to-node', '.edge-default'];
+                selectors = ['.edge-app-to-app', '.edge-app-to-lib', '.edge-node-to-node', '.edge-default'];
             }} else if (edgeType === 'raw') {{
-                selectors = ['.edge-app-to-broker', '.edge-node-to-broker'];
+                selectors = ['.edge-app-to-broker', '.edge-node-to-broker', '.edge-broker-to-broker'];
             }}
             
             selectors.forEach(function(sel) {{
