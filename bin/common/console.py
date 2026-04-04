@@ -614,7 +614,7 @@ class ConsoleDisplay:
                 print(f"    - {formatted_rel:<18} {count}")
                 
         print(f"\n  {'Derived Dependencies:':<20}")
-        deps = ["app_to_app", "node_to_node", "app_to_broker", "node_to_broker", "app_to_lib"]
+        deps = ["app_to_app", "app_to_lib", "app_to_broker", "node_to_node", "node_to_broker", "broker_to_broker"]
         for dep in deps:
             count = stats.get(f"{dep}_count", 0)
             if count > 0:
