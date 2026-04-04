@@ -182,7 +182,7 @@ python bin/train_graph.py --layer system
 python bin/predict_graph.py --layer system
 
 # Step 4 — Simulation: failure simulation (produces per-dimension ground-truth scores)
-python bin/simulate_graph.py failure --layer system --exhaustive
+python bin/simulate_graph.py --mode exhaustive --layer system
 
 # Step 5 — Validation: statistical validation (Spearman ρ, F1-score, per-RMAV metrics)
 python bin/validate_graph.py --layer system
@@ -191,7 +191,7 @@ python bin/validate_graph.py --layer system
 python bin/visualize_graph.py --layer system --output output/dashboard.html --open
 ```
 
-The `--layer` flag accepts `app`, `infra`, `mw`, or `system` (all layers combined).
+The `--layer` flag accepts `app`, `infra`, `mw`, or `system` (all layers combined). The `app` layer includes both Application and Library nodes — library blast-radius risk (a shared library used by N applications is a SPOF for all N) is visible at this layer, not only at `system`.
 
 Additional utility scripts:
 
@@ -305,24 +305,39 @@ Architecture JSON
 
 | Step | What It Does | Key Output |
 |------|-------------|------------|
-| **1. [Modeling](docs/graph-model.md)** | Converts topology JSON to a weighted directed graph G(V, E, w); derives DEPENDS_ON edges from pub-sub relationships | G_structural and G_analysis(l) |
+| **1. [Modeling](docs/graph-model.md)** | Converts topology JSON to a weighted directed graph G(V, E, w); derives DEPENDS_ON edges via six rules (see below) | G_structural and G_analysis(l) |
 | **2. [Analysis](docs/structural-analysis.md)** | Computes Reverse PageRank, betweenness, closeness, eigenvector centralities, bridge ratio, articulation points, clustering | Metric vector M(v) per component |
 | **3. [Prediction](docs/prediction.md)** | Maps M(v) to RMAV dimensions using AHP-derived weights; optional GNN refinement; classifies criticality via box-plot adaptive thresholds; detects anti-patterns | Q*(v) composite score, Q(v) ∈ {MINIMAL, LOW, MEDIUM, HIGH, CRITICAL}, structural smell report |
 | **4. [Simulation](docs/failure-simulation.md)** | Runs four parallel simulators (cascade, change-propagation, connectivity-loss, compromise-propagation) | Per-dimension ground-truth scores IR(v), IM(v), IA(v), IV(v) and composite I*(v) |
 | **5. [Validation](docs/validation.md)** | Computes Spearman ρ and Kendall τ between Q*(v) and I*(v) and per-dimension pairs; evaluates F1, NDCG@K, Top-K overlap, and specialist metrics | Statistical evidence of predictive validity |
 | **6. [Visualization](docs/visualization.md)** | Renders interactive dashboards with network graphs, dependency matrices, and layer comparison views | `dashboard.html` (fully self-contained) |
 
+### Dependency Derivation — The Six Rules
+
+Step 1 reads structural edges (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO, USES) and derives DEPENDS_ON edges. Edge direction is always **dependent → dependency** (the node that loses functionality points at the node whose failure causes that loss). Each edge carries a `weight ∈ [0, 1]` (max QoS severity) and a `path_count` (coupling intensity).
+
+| Rule | Type | Derivation |
+|------|------|------------|
+| **1** | `app_to_app` | Subscriber → Publisher via shared Topic. Weight = max topic weight; path_count = shared topic count. |
+| **2** | `app_to_broker` | App → Broker that routes its topics (direct or via library chain, depth ≤ 3). |
+| **3** | `node_to_node` | Lifted from Rule 1: if App_sub runs on Node_B and App_pub on Node_A, then Node_B → Node_A. |
+| **4** | `node_to_broker` | Lifted from Rule 2: if App runs on Node and App → Broker, then Node → Broker. |
+| **5** | `app_to_lib` | App → Library (USES). Blast semantics: simultaneous multi-consumer failure, not sequential cascade. Weight = app weight. |
+| **6** | `broker_to_broker` | Bidirectional colocation edge between brokers sharing a physical node. Weight = node weight. |
+
+Rules 1–4 map to the APP, INFRA, and MW layers respectively. Rules 5–6 extend the APP and MW layers: `app_to_lib` makes shared-library SPOFs visible in `--layer app`; `broker_to_broker` makes broker colocation risk visible in `--layer mw`.
+
 ### Scale Presets
 
 The synthetic generator supports five scale presets for rapid experimentation:
 
-| Preset | Apps | Topics | Brokers | Nodes | Typical Use |
-|--------|------|--------|---------|-------|-------------|
-| `tiny` | 5–8 | 3–5 | 1 | 2–3 | Unit tests |
-| `small` | 10–15 | 8–12 | 2 | 3–4 | Quick checks |
-| `medium` | 20–35 | 15–25 | 3–5 | 5–8 | Development |
-| `large` | 50–80 | 30–50 | 5–8 | 8–12 | Integration tests |
-| `xlarge` | 100–200 | 60–100 | 8–15 | 15–25 | Performance benchmarks |
+| Preset | Apps | Topics | Brokers | Nodes | Libs | Typical Use |
+|--------|------|--------|---------|-------|------|-------------|
+| `tiny` | 5 | 5 | 1 | 2 | 2 | Unit tests |
+| `small` | 15 | 10 | 2 | 4 | 5 | Quick checks |
+| `medium` | 50 | 30 | 3 | 8 | 10 | Development |
+| `large` | 150 | 100 | 6 | 20 | 30 | Integration tests |
+| `xlarge` | 500 | 300 | 10 | 50 | 100 | Performance benchmarks |
 
 ---
 
@@ -482,18 +497,26 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 ├── bin/                        # CLI pipeline scripts
 │   ├── run.py                  #   Master pipeline orchestrator (--all flag)
 │   ├── generate_graph.py       #   Synthetic topology generator
-│   ├── import_graph.py         #   Step 1: Modeling — Neo4j import
-│   ├── analyze_graph.py        #   Step 2: Analysis
-│   ├── train_graph.py          #   Step 3: GNN training (optional)
-│   ├── predict_graph.py        #   Step 3: GNN inference on a new graph
+│   ├── import_graph.py         #   Step 1: Modeling — Neo4j import & dependency derivation
+│   ├── analyze_graph.py        #   Step 2/3: Analysis & RMAV prediction
+│   ├── train_graph.py          #   Step 3.5: GNN training (optional)
+│   ├── predict_graph.py        #   Step 3.5: GNN inference on a new graph
 │   ├── detect_antipatterns.py  #   Standalone anti-pattern / CI gate
-│   ├── simulate_graph.py       #   Step 4: Simulation
+│   ├── simulate_graph.py       #   Step 4: Simulation (--mode exhaustive|monte_carlo|single|pairwise)
 │   ├── validate_graph.py       #   Step 5: Validation
 │   ├── visualize_graph.py      #   Step 6: Visualization
 │   ├── export_graph.py         #   Export graph data from Neo4j
 │   ├── benchmark.py            #   Benchmark across scale presets
 │   ├── run_scenarios.sh        #   Full pipeline across 8 domain scenarios
 │   └── ground_threshold.py     #   Empirical SPOF threshold grounding
+│
+│
+├── tools/                      # Standalone tooling (no Neo4j dependency)
+│   └── generation/             #   Statistical pub-sub topology generator
+│       ├── generator.py        #     Core generator (structural edges only)
+│       ├── service.py          #     High-level GenerationService wrapper
+│       ├── models.py           #     Scale presets & statistical config
+│       └── datasets.py         #     Domain-specific naming & QoS mappings
 │
 ├── saag/                       # Public Python SDK (fluent pipeline API)
 │   ├── pipeline.py             #   saag.Pipeline — fluent builder
