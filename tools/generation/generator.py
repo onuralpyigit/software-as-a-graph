@@ -402,6 +402,18 @@ class StatisticalGraphGenerator:
                     secondary_broker = self.rng.choice(other_brokers)
                     routes.append(self._make_edge(secondary_broker, topic))
 
+        # Guard: ensure every broker routes at least one topic so that no broker
+        # is invisible to betweenness and ROUTES-based metrics (which would
+        # produce anomalously low RMAV scores).  This can happen when the topic
+        # count is small relative to the broker count (e.g. custom YAML configs
+        # with many brokers and few topics).  Assign each stranded broker to a
+        # topic in round-robin order so the result is deterministic given the seed.
+        routed_broker_ids = {edge["from"] for edge in routes}
+        unrouted_brokers = [b for b in brokers if b.id not in routed_broker_ids]
+        for idx, broker in enumerate(unrouted_brokers):
+            topic = topics[idx % len(topics)]
+            routes.append(self._make_edge(broker, topic))
+
         publishes = []
         subscribes = []
         uses = []
