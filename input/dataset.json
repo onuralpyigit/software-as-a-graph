@@ -8,7 +8,9 @@
       "libs": 5
     },
     "seed": 42,
-    "generation_mode": "random"
+    "generation_mode": "random",
+    "domain": null,
+    "scenario": null
   },
   "nodes": [
     {
@@ -144,615 +146,615 @@
     {
       "id": "A0",
       "name": "App-0",
-      "version": "3.4.9",
+      "version": "2.3.4",
       "app_type": "gateway",
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Production",
-        "config_item_name": "Assembly Line",
-        "component_name": "Robotic Arm Controller"
+        "component_name": "Software Systems",
+        "config_item_name": "Systems Engineering",
+        "domain_name": "Software Design",
+        "system_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1112,
-          "total_classes": 11,
-          "total_methods": 65,
-          "total_fields": 28
+          "total_loc": 1311,
+          "total_classes": 18,
+          "total_methods": 149,
+          "total_fields": 84
         },
         "complexity": {
-          "total_wmc": 360,
-          "avg_wmc": 32.8,
-          "max_wmc": 34
+          "total_wmc": 455,
+          "avg_wmc": 25.27,
+          "max_wmc": 64
         },
         "cohesion": {
-          "avg_lcom": 10.74,
-          "max_lcom": 22.0
+          "avg_lcom": 58.78,
+          "max_lcom": 202.4
         },
         "coupling": {
-          "avg_cbo": 13.1,
-          "max_cbo": 13,
-          "avg_rfc": 36.13,
-          "max_rfc": 70,
-          "avg_fanin": 4.52,
-          "max_fanin": 11,
-          "avg_fanout": 10.07,
-          "max_fanout": 10
+          "avg_cbo": 13.05,
+          "max_cbo": 20,
+          "avg_rfc": 26.84,
+          "max_rfc": 48,
+          "avg_fanin": 2.48,
+          "max_fanin": 6,
+          "avg_fanout": 5.01,
+          "max_fanout": 11
         }
       }
     },
     {
       "id": "A1",
       "name": "App-1",
-      "version": "2.1.3",
-      "app_type": "processor",
-      "role": "sub",
+      "version": "2.6.7",
+      "app_type": "gateway",
+      "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Logistics",
-        "config_item_name": "Warehouse Automation",
-        "component_name": "Barcode Scanner"
+        "component_name": "Software Systems",
+        "config_item_name": "Systems Engineering",
+        "domain_name": "Data Management",
+        "system_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 3357,
-          "total_classes": 10,
-          "total_methods": 160,
-          "total_fields": 122
+          "total_loc": 1500,
+          "total_classes": 17,
+          "total_methods": 127,
+          "total_fields": 75
         },
         "complexity": {
-          "total_wmc": 174,
-          "avg_wmc": 17.42,
-          "max_wmc": 29
+          "total_wmc": 277,
+          "avg_wmc": 16.32,
+          "max_wmc": 47
         },
         "cohesion": {
-          "avg_lcom": 23.41,
-          "max_lcom": 84.7
+          "avg_lcom": 50.97,
+          "max_lcom": 129.9
         },
         "coupling": {
-          "avg_cbo": 17.07,
-          "max_cbo": 18,
-          "avg_rfc": 47.84,
-          "max_rfc": 81,
-          "avg_fanin": 1.62,
-          "max_fanin": 4,
-          "avg_fanout": 6.18,
-          "max_fanout": 10
+          "avg_cbo": 9.24,
+          "max_cbo": 21,
+          "avg_rfc": 21.68,
+          "max_rfc": 50,
+          "avg_fanin": 6.83,
+          "max_fanin": 21,
+          "avg_fanout": 4.66,
+          "max_fanout": 14
         }
       }
     },
     {
       "id": "A2",
       "name": "App-2",
-      "version": "2.5.3",
-      "app_type": "controller",
+      "version": "2.8.4",
+      "app_type": "actuator",
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Maintenance",
-        "config_item_name": "Predictive Maintenance",
-        "component_name": "Vibration Sensor"
+        "component_name": "Computing Platform",
+        "config_item_name": "Infrastructure Software",
+        "domain_name": "Communication",
+        "system_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2870,
-          "total_classes": 26,
-          "total_methods": 156,
-          "total_fields": 118
+          "total_loc": 226,
+          "total_classes": 3,
+          "total_methods": 17,
+          "total_fields": 10
         },
         "complexity": {
-          "total_wmc": 1540,
-          "avg_wmc": 59.26,
-          "max_wmc": 88
+          "total_wmc": 18,
+          "avg_wmc": 6.14,
+          "max_wmc": 15
         },
         "cohesion": {
-          "avg_lcom": 105.31,
-          "max_lcom": 258.0
+          "avg_lcom": 10.43,
+          "max_lcom": 46.9
         },
         "coupling": {
-          "avg_cbo": 14.07,
-          "max_cbo": 27,
-          "avg_rfc": 31.42,
-          "max_rfc": 54,
-          "avg_fanin": 2.42,
-          "max_fanin": 4,
-          "avg_fanout": 13.83,
-          "max_fanout": 34
+          "avg_cbo": 2.41,
+          "max_cbo": 5,
+          "avg_rfc": 15.56,
+          "max_rfc": 37,
+          "avg_fanin": 1.31,
+          "max_fanin": 3,
+          "avg_fanout": 4.04,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "A3",
       "name": "App-3",
-      "version": "1.8.3",
+      "version": "1.8.8",
       "app_type": "processor",
       "role": "pubsub",
-      "criticality": false,
+      "criticality": true,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Production",
-        "config_item_name": "Quality Control",
-        "component_name": "Packaging Scale"
+        "component_name": "Information Systems",
+        "config_item_name": "Systems Engineering",
+        "domain_name": "Process Control",
+        "system_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2811,
-          "total_classes": 11,
-          "total_methods": 286,
-          "total_fields": 73
+          "total_loc": 2076,
+          "total_classes": 18,
+          "total_methods": 186,
+          "total_fields": 77
         },
         "complexity": {
-          "total_wmc": 708,
-          "avg_wmc": 64.44,
-          "max_wmc": 145
+          "total_wmc": 388,
+          "avg_wmc": 21.53,
+          "max_wmc": 48
         },
         "cohesion": {
-          "avg_lcom": 93.2,
-          "max_lcom": 191.0
+          "avg_lcom": 26.74,
+          "max_lcom": 64.1
         },
         "coupling": {
-          "avg_cbo": 11.49,
+          "avg_cbo": 5.03,
           "max_cbo": 11,
-          "avg_rfc": 25.31,
-          "max_rfc": 26,
-          "avg_fanin": 5.03,
-          "max_fanin": 11,
-          "avg_fanout": 9.02,
-          "max_fanout": 15
+          "avg_rfc": 37.43,
+          "max_rfc": 93,
+          "avg_fanin": 5.57,
+          "max_fanin": 18,
+          "avg_fanout": 3.96,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "A4",
       "name": "App-4",
-      "version": "3.3.5",
+      "version": "3.6.3",
       "app_type": "monitor",
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Production",
-        "config_item_name": "Quality Control",
-        "component_name": "Packaging Scale"
+        "component_name": "Information Systems",
+        "config_item_name": "Application Software",
+        "domain_name": "Shared Platform",
+        "system_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1234,
-          "total_classes": 12,
-          "total_methods": 132,
-          "total_fields": 17
+          "total_loc": 319,
+          "total_classes": 3,
+          "total_methods": 19,
+          "total_fields": 15
         },
         "complexity": {
-          "total_wmc": 99,
-          "avg_wmc": 8.33,
-          "max_wmc": 19
+          "total_wmc": 43,
+          "avg_wmc": 14.45,
+          "max_wmc": 30
         },
         "cohesion": {
-          "avg_lcom": 35.0,
-          "max_lcom": 75.5
+          "avg_lcom": 17.23,
+          "max_lcom": 58.9
         },
         "coupling": {
-          "avg_cbo": 9.6,
-          "max_cbo": 18,
-          "avg_rfc": 20.78,
-          "max_rfc": 27,
-          "avg_fanin": 9.98,
-          "max_fanin": 13,
-          "avg_fanout": 4.57,
-          "max_fanout": 5
+          "avg_cbo": 4.47,
+          "max_cbo": 10,
+          "avg_rfc": 28.69,
+          "max_rfc": 71,
+          "avg_fanin": 3.13,
+          "max_fanin": 7,
+          "avg_fanout": 6.3,
+          "max_fanout": 19
         }
       }
     },
     {
       "id": "A5",
       "name": "App-5",
-      "version": "3.5.3",
-      "app_type": "sensor",
-      "role": "pub",
+      "version": "1.4.7",
+      "app_type": "processor",
+      "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Maintenance",
-        "config_item_name": "Predictive Maintenance",
-        "component_name": "Vibration Sensor"
+        "component_name": "Software Systems",
+        "config_item_name": "Software Engineering",
+        "domain_name": "User Interface",
+        "system_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1776,
-          "total_classes": 16,
-          "total_methods": 172,
-          "total_fields": 18
+          "total_loc": 1238,
+          "total_classes": 13,
+          "total_methods": 117,
+          "total_fields": 41
         },
         "complexity": {
-          "total_wmc": 293,
-          "avg_wmc": 18.36,
-          "max_wmc": 32
+          "total_wmc": 305,
+          "avg_wmc": 23.49,
+          "max_wmc": 55
         },
         "cohesion": {
-          "avg_lcom": 44.68,
-          "max_lcom": 175.5
+          "avg_lcom": 24.92,
+          "max_lcom": 53.8
         },
         "coupling": {
-          "avg_cbo": 17.63,
-          "max_cbo": 17,
-          "avg_rfc": 37.21,
-          "max_rfc": 44,
-          "avg_fanin": 5.77,
-          "max_fanin": 13,
-          "avg_fanout": 9.51,
-          "max_fanout": 19
+          "avg_cbo": 5.19,
+          "max_cbo": 11,
+          "avg_rfc": 33.89,
+          "max_rfc": 51,
+          "avg_fanin": 5.25,
+          "max_fanin": 11,
+          "avg_fanout": 3.61,
+          "max_fanout": 7
         }
       }
     },
     {
       "id": "A6",
       "name": "App-6",
-      "version": "1.8.8",
-      "app_type": "monitor",
-      "role": "pubsub",
-      "criticality": false,
+      "version": "1.8.7",
+      "app_type": "processor",
+      "role": "pub",
+      "criticality": true,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Production",
-        "config_item_name": "Assembly Line",
-        "component_name": "Robotic Arm Controller"
+        "component_name": "Computer Science",
+        "config_item_name": "Systems Engineering",
+        "domain_name": "Software Design",
+        "system_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1228,
-          "total_classes": 9,
-          "total_methods": 15,
-          "total_fields": 54
+          "total_loc": 2407,
+          "total_classes": 29,
+          "total_methods": 227,
+          "total_fields": 126
         },
         "complexity": {
-          "total_wmc": 307,
-          "avg_wmc": 34.13,
-          "max_wmc": 82
+          "total_wmc": 641,
+          "avg_wmc": 22.11,
+          "max_wmc": 45
         },
         "cohesion": {
-          "avg_lcom": 13.18,
-          "max_lcom": 49.8
+          "avg_lcom": 18.88,
+          "max_lcom": 58.1
         },
         "coupling": {
-          "avg_cbo": 13.32,
+          "avg_cbo": 8.81,
           "max_cbo": 17,
-          "avg_rfc": 34.93,
-          "max_rfc": 66,
-          "avg_fanin": 6.48,
-          "max_fanin": 8,
-          "avg_fanout": 3.62,
-          "max_fanout": 5
+          "avg_rfc": 37.69,
+          "max_rfc": 82,
+          "avg_fanin": 6.9,
+          "max_fanin": 15,
+          "avg_fanout": 6.62,
+          "max_fanout": 15
         }
       }
     },
     {
       "id": "A7",
       "name": "App-7",
-      "version": "1.8.7",
-      "app_type": "gateway",
-      "role": "sub",
+      "version": "1.6.4",
+      "app_type": "actuator",
+      "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Logistics",
-        "config_item_name": "Shipping",
-        "component_name": "Vehicle Tracking Unit"
+        "component_name": "Computer Science",
+        "config_item_name": "Systems Engineering",
+        "domain_name": "Data Management",
+        "system_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2361,
-          "total_classes": 7,
-          "total_methods": 122,
-          "total_fields": 54
+          "total_loc": 242,
+          "total_classes": 3,
+          "total_methods": 20,
+          "total_fields": 6
         },
         "complexity": {
-          "total_wmc": 73,
-          "avg_wmc": 10.43,
-          "max_wmc": 12
+          "total_wmc": 24,
+          "avg_wmc": 8.04,
+          "max_wmc": 23
         },
         "cohesion": {
-          "avg_lcom": 15.88,
-          "max_lcom": 43.1
+          "avg_lcom": 6.47,
+          "max_lcom": 23.5
         },
         "coupling": {
-          "avg_cbo": 5.25,
-          "max_cbo": 9,
-          "avg_rfc": 44.93,
-          "max_rfc": 52,
-          "avg_fanin": 5.96,
-          "max_fanin": 13,
-          "avg_fanout": 4.98,
-          "max_fanout": 12
+          "avg_cbo": 3.62,
+          "max_cbo": 5,
+          "avg_rfc": 8.93,
+          "max_rfc": 20,
+          "avg_fanin": 1.47,
+          "max_fanin": 4,
+          "avg_fanout": 3.44,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "A8",
       "name": "App-8",
-      "version": "2.9.1",
-      "app_type": "sensor",
-      "role": "pub",
-      "criticality": true,
+      "version": "1.6.1",
+      "app_type": "monitor",
+      "role": "sub",
+      "criticality": false,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Production",
-        "config_item_name": "Quality Control",
-        "component_name": "Packaging Scale"
+        "component_name": "Computer Science",
+        "config_item_name": "Software Engineering",
+        "domain_name": "Communication",
+        "system_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1994,
-          "total_classes": 12,
-          "total_methods": 122,
-          "total_fields": 57
+          "total_loc": 869,
+          "total_classes": 13,
+          "total_methods": 90,
+          "total_fields": 33
         },
         "complexity": {
-          "total_wmc": 437,
-          "avg_wmc": 36.49,
-          "max_wmc": 64
+          "total_wmc": 127,
+          "avg_wmc": 9.74,
+          "max_wmc": 18
         },
         "cohesion": {
-          "avg_lcom": 14.08,
-          "max_lcom": 29.0
+          "avg_lcom": 32.07,
+          "max_lcom": 69.0
         },
         "coupling": {
-          "avg_cbo": 8.75,
-          "max_cbo": 17,
-          "avg_rfc": 32.16,
-          "max_rfc": 46,
-          "avg_fanin": 1.05,
-          "max_fanin": 1,
-          "avg_fanout": 4.29,
-          "max_fanout": 4
+          "avg_cbo": 5.88,
+          "max_cbo": 9,
+          "avg_rfc": 22.58,
+          "max_rfc": 55,
+          "avg_fanin": 3.12,
+          "max_fanin": 7,
+          "avg_fanout": 5.54,
+          "max_fanout": 16
         }
       }
     },
     {
       "id": "A9",
       "name": "App-9",
-      "version": "1.1.8",
+      "version": "1.8.4",
       "app_type": "gateway",
-      "role": "sub",
-      "criticality": false,
+      "role": "pubsub",
+      "criticality": true,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Logistics",
-        "config_item_name": "Warehouse Automation",
-        "component_name": "Barcode Scanner"
+        "component_name": "Computer Science",
+        "config_item_name": "Software Engineering",
+        "domain_name": "Process Control",
+        "system_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2155,
-          "total_classes": 12,
-          "total_methods": 201,
-          "total_fields": 77
+          "total_loc": 962,
+          "total_classes": 11,
+          "total_methods": 94,
+          "total_fields": 52
         },
         "complexity": {
-          "total_wmc": 367,
-          "avg_wmc": 30.65,
-          "max_wmc": 76
+          "total_wmc": 224,
+          "avg_wmc": 20.36,
+          "max_wmc": 59
         },
         "cohesion": {
-          "avg_lcom": 94.07,
-          "max_lcom": 275.4
+          "avg_lcom": 29.19,
+          "max_lcom": 110.6
         },
         "coupling": {
-          "avg_cbo": 12.51,
-          "max_cbo": 24,
-          "avg_rfc": 32.34,
-          "max_rfc": 58,
-          "avg_fanin": 3.14,
-          "max_fanin": 3,
-          "avg_fanout": 10.91,
-          "max_fanout": 21
+          "avg_cbo": 8.39,
+          "max_cbo": 16,
+          "avg_rfc": 40.15,
+          "max_rfc": 72,
+          "avg_fanin": 3.9,
+          "max_fanin": 15,
+          "avg_fanout": 4.73,
+          "max_fanout": 12
         }
       }
     },
     {
       "id": "A10",
       "name": "App-10",
-      "version": "3.4.8",
+      "version": "3.3.5",
       "app_type": "sensor",
-      "role": "sub",
+      "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Production",
-        "config_item_name": "Quality Control",
-        "component_name": "Packaging Scale"
+        "component_name": "Information Systems",
+        "config_item_name": "Application Software",
+        "domain_name": "Shared Platform",
+        "system_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1589,
-          "total_classes": 6,
-          "total_methods": 35,
-          "total_fields": 61
+          "total_loc": 225,
+          "total_classes": 2,
+          "total_methods": 9,
+          "total_fields": 7
         },
         "complexity": {
-          "total_wmc": 198,
-          "avg_wmc": 33.02,
-          "max_wmc": 39
+          "total_wmc": 16,
+          "avg_wmc": 8.22,
+          "max_wmc": 21
         },
         "cohesion": {
-          "avg_lcom": 23.65,
-          "max_lcom": 46.7
+          "avg_lcom": 24.74,
+          "max_lcom": 89.9
         },
         "coupling": {
-          "avg_cbo": 10.63,
-          "max_cbo": 16,
-          "avg_rfc": 17.34,
-          "max_rfc": 31,
-          "avg_fanin": 2.75,
-          "max_fanin": 2,
-          "avg_fanout": 6.43,
-          "max_fanout": 19
+          "avg_cbo": 2.03,
+          "max_cbo": 5,
+          "avg_rfc": 11.59,
+          "max_rfc": 25,
+          "avg_fanin": 3.82,
+          "max_fanin": 9,
+          "avg_fanout": 2.35,
+          "max_fanout": 5
         }
       }
     },
     {
       "id": "A11",
       "name": "App-11",
-      "version": "1.2.5",
-      "app_type": "processor",
+      "version": "3.8.2",
+      "app_type": "gateway",
       "role": "pub",
-      "criticality": true,
+      "criticality": false,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Logistics",
-        "config_item_name": "Shipping",
-        "component_name": "Vehicle Tracking Unit"
+        "component_name": "Information Systems",
+        "config_item_name": "Software Engineering",
+        "domain_name": "User Interface",
+        "system_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 3929,
-          "total_classes": 8,
-          "total_methods": 171,
-          "total_fields": 46
+          "total_loc": 2801,
+          "total_classes": 27,
+          "total_methods": 309,
+          "total_fields": 85
         },
         "complexity": {
-          "total_wmc": 301,
-          "avg_wmc": 37.74,
-          "max_wmc": 50
+          "total_wmc": 598,
+          "avg_wmc": 22.15,
+          "max_wmc": 62
         },
         "cohesion": {
-          "avg_lcom": 114.03,
-          "max_lcom": 428.3
+          "avg_lcom": 21.98,
+          "max_lcom": 62.3
         },
         "coupling": {
-          "avg_cbo": 8.29,
-          "max_cbo": 8,
-          "avg_rfc": 59.34,
-          "max_rfc": 75,
-          "avg_fanin": 5.63,
-          "max_fanin": 12,
-          "avg_fanout": 9.28,
-          "max_fanout": 26
+          "avg_cbo": 7.31,
+          "max_cbo": 18,
+          "avg_rfc": 24.85,
+          "max_rfc": 48,
+          "avg_fanin": 6.23,
+          "max_fanin": 21,
+          "avg_fanout": 5.12,
+          "max_fanout": 15
         }
       }
     },
     {
       "id": "A12",
       "name": "App-12",
-      "version": "2.4.3",
-      "app_type": "gateway",
-      "role": "pub",
+      "version": "1.5.6",
+      "app_type": "sensor",
+      "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Production",
-        "config_item_name": "Assembly Line",
-        "component_name": "Safety Sensor"
+        "component_name": "Information Systems",
+        "config_item_name": "Infrastructure Software",
+        "domain_name": "Software Design",
+        "system_name": "Core Logic"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 899,
-          "total_classes": 10,
-          "total_methods": 44,
-          "total_fields": 89
+          "total_loc": 257,
+          "total_classes": 3,
+          "total_methods": 23,
+          "total_fields": 12
         },
         "complexity": {
-          "total_wmc": 394,
-          "avg_wmc": 39.41,
-          "max_wmc": 42
+          "total_wmc": 13,
+          "avg_wmc": 4.24,
+          "max_wmc": 9
         },
         "cohesion": {
-          "avg_lcom": 12.61,
-          "max_lcom": 33.9
+          "avg_lcom": 18.64,
+          "max_lcom": 68.4
         },
         "coupling": {
-          "avg_cbo": 20.55,
-          "max_cbo": 36,
-          "avg_rfc": 18.77,
-          "max_rfc": 34,
-          "avg_fanin": 2.48,
-          "max_fanin": 3,
-          "avg_fanout": 3.82,
-          "max_fanout": 4
+          "avg_cbo": 3.41,
+          "max_cbo": 7,
+          "avg_rfc": 18.5,
+          "max_rfc": 46,
+          "avg_fanin": 3.25,
+          "max_fanin": 14,
+          "avg_fanout": 2.71,
+          "max_fanout": 6
         }
       }
     },
     {
       "id": "A13",
       "name": "App-13",
-      "version": "1.8.2",
-      "app_type": "gateway",
-      "role": "pub",
+      "version": "3.6.8",
+      "app_type": "controller",
+      "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Logistics",
-        "config_item_name": "Shipping",
-        "component_name": "Loading Dock"
+        "component_name": "Software Systems",
+        "config_item_name": "Application Software",
+        "domain_name": "Data Management",
+        "system_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 725,
+          "total_loc": 726,
           "total_classes": 11,
-          "total_methods": 178,
-          "total_fields": 91
+          "total_methods": 61,
+          "total_fields": 51
         },
         "complexity": {
-          "total_wmc": 374,
-          "avg_wmc": 34.01,
-          "max_wmc": 60
+          "total_wmc": 204,
+          "avg_wmc": 18.59,
+          "max_wmc": 38
         },
         "cohesion": {
-          "avg_lcom": 68.48,
-          "max_lcom": 199.5
+          "avg_lcom": 43.03,
+          "max_lcom": 135.6
         },
         "coupling": {
-          "avg_cbo": 9.69,
-          "max_cbo": 13,
-          "avg_rfc": 20.78,
-          "max_rfc": 30,
-          "avg_fanin": 3.43,
+          "avg_cbo": 7.75,
+          "max_cbo": 18,
+          "avg_rfc": 21.46,
+          "max_rfc": 33,
+          "avg_fanin": 1.97,
           "max_fanin": 6,
-          "avg_fanout": 4.57,
-          "max_fanout": 8
+          "avg_fanout": 9.05,
+          "max_fanout": 27
         }
       }
     },
     {
       "id": "A14",
       "name": "App-14",
-      "version": "2.3.8",
-      "app_type": "gateway",
-      "role": "pub",
-      "criticality": false,
+      "version": "1.5.9",
+      "app_type": "sensor",
+      "role": "sub",
+      "criticality": true,
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Maintenance",
-        "config_item_name": "Predictive Maintenance",
-        "component_name": "Vibration Sensor"
+        "component_name": "Information Systems",
+        "config_item_name": "Application Software",
+        "domain_name": "Communication",
+        "system_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1219,
-          "total_classes": 18,
-          "total_methods": 189,
-          "total_fields": 87
+          "total_loc": 233,
+          "total_classes": 2,
+          "total_methods": 16,
+          "total_fields": 5
         },
         "complexity": {
-          "total_wmc": 199,
-          "avg_wmc": 11.08,
-          "max_wmc": 17
+          "total_wmc": 9,
+          "avg_wmc": 4.65,
+          "max_wmc": 11
         },
         "cohesion": {
-          "avg_lcom": 54.54,
-          "max_lcom": 99.9
+          "avg_lcom": 19.57,
+          "max_lcom": 54.5
         },
         "coupling": {
-          "avg_cbo": 10.28,
-          "max_cbo": 11,
-          "avg_rfc": 49.81,
-          "max_rfc": 72,
-          "avg_fanin": 3.71,
-          "max_fanin": 6,
-          "avg_fanout": 13.0,
-          "max_fanout": 35
+          "avg_cbo": 4.42,
+          "max_cbo": 9,
+          "avg_rfc": 12.62,
+          "max_rfc": 26,
+          "avg_fanin": 1.76,
+          "max_fanin": 7,
+          "avg_fanout": 2.01,
+          "max_fanout": 6
         }
       }
     }
@@ -761,190 +763,190 @@
     {
       "id": "L0",
       "name": "Lib-0",
-      "version": "2.5.7",
+      "version": "1.9.9",
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Logistics",
-        "config_item_name": "Shipping",
-        "component_name": "Vehicle Tracking Unit"
+        "component_name": "Computer Science",
+        "config_item_name": "Application Software",
+        "domain_name": "Communication",
+        "system_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 572,
-          "total_classes": 5,
-          "total_methods": 44,
-          "total_fields": 21
+          "total_loc": 5934,
+          "total_classes": 66,
+          "total_methods": 776,
+          "total_fields": 277
         },
         "complexity": {
-          "total_wmc": 135,
-          "avg_wmc": 27.02,
-          "max_wmc": 62
+          "total_wmc": 1069,
+          "avg_wmc": 16.19,
+          "max_wmc": 37
         },
         "cohesion": {
-          "avg_lcom": 9.46,
-          "max_lcom": 20.9
+          "avg_lcom": 33.11,
+          "max_lcom": 90.7
         },
         "coupling": {
-          "avg_cbo": 4.74,
-          "max_cbo": 6,
-          "avg_rfc": 11.11,
-          "max_rfc": 21,
-          "avg_fanin": 5.26,
-          "max_fanin": 13,
-          "avg_fanout": 4.42,
-          "max_fanout": 4
+          "avg_cbo": 6.4,
+          "max_cbo": 12,
+          "avg_rfc": 47.97,
+          "max_rfc": 104,
+          "avg_fanin": 11.13,
+          "max_fanin": 39,
+          "avg_fanout": 3.81,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "L1",
       "name": "Lib-1",
-      "version": "1.0.9",
+      "version": "0.7.9",
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Maintenance",
-        "config_item_name": "Predictive Maintenance",
-        "component_name": "Vibration Sensor"
+        "component_name": "Information Systems",
+        "config_item_name": "Systems Engineering",
+        "domain_name": "Software Design",
+        "system_name": "Core Logic"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 635,
-          "total_classes": 2,
-          "total_methods": 95,
-          "total_fields": 54
+          "total_loc": 1519,
+          "total_classes": 16,
+          "total_methods": 115,
+          "total_fields": 42
         },
         "complexity": {
-          "total_wmc": 40,
-          "avg_wmc": 20.2,
-          "max_wmc": 28
+          "total_wmc": 210,
+          "avg_wmc": 13.15,
+          "max_wmc": 38
         },
         "cohesion": {
-          "avg_lcom": 9.76,
-          "max_lcom": 25.4
+          "avg_lcom": 37.86,
+          "max_lcom": 91.8
         },
         "coupling": {
-          "avg_cbo": 11.17,
-          "max_cbo": 19,
-          "avg_rfc": 5.29,
-          "max_rfc": 5,
-          "avg_fanin": 5.73,
-          "max_fanin": 7,
-          "avg_fanout": 4.82,
-          "max_fanout": 9
+          "avg_cbo": 4.68,
+          "max_cbo": 9,
+          "avg_rfc": 26.56,
+          "max_rfc": 49,
+          "avg_fanin": 6.91,
+          "max_fanin": 27,
+          "avg_fanout": 4.69,
+          "max_fanout": 10
         }
       }
     },
     {
       "id": "L2",
       "name": "Lib-2",
-      "version": "2.0.3",
+      "version": "0.7.2",
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Logistics",
-        "config_item_name": "Warehouse Automation",
-        "component_name": "Barcode Scanner"
+        "component_name": "Computing Platform",
+        "config_item_name": "Software Engineering",
+        "domain_name": "Shared Platform",
+        "system_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 263,
-          "total_classes": 11,
-          "total_methods": 103,
-          "total_fields": 55
+          "total_loc": 299,
+          "total_classes": 3,
+          "total_methods": 25,
+          "total_fields": 9
         },
         "complexity": {
-          "total_wmc": 299,
-          "avg_wmc": 27.27,
-          "max_wmc": 40
+          "total_wmc": 34,
+          "avg_wmc": 11.47,
+          "max_wmc": 26
         },
         "cohesion": {
-          "avg_lcom": 34.74,
-          "max_lcom": 110.0
+          "avg_lcom": 14.99,
+          "max_lcom": 35.5
         },
         "coupling": {
-          "avg_cbo": 6.6,
-          "max_cbo": 12,
-          "avg_rfc": 34.22,
-          "max_rfc": 43,
-          "avg_fanin": 5.63,
-          "max_fanin": 8,
-          "avg_fanout": 7.05,
-          "max_fanout": 19
+          "avg_cbo": 6.44,
+          "max_cbo": 15,
+          "avg_rfc": 25.49,
+          "max_rfc": 61,
+          "avg_fanin": 5.89,
+          "max_fanin": 15,
+          "avg_fanout": 4.22,
+          "max_fanout": 11
         }
       }
     },
     {
       "id": "L3",
       "name": "Lib-3",
-      "version": "0.4.7",
+      "version": "1.7.1",
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Maintenance",
-        "config_item_name": "Predictive Maintenance",
-        "component_name": "Vibration Sensor"
+        "component_name": "Software Systems",
+        "config_item_name": "Infrastructure Software",
+        "domain_name": "User Interface",
+        "system_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2843,
-          "total_classes": 12,
-          "total_methods": 115,
-          "total_fields": 56
+          "total_loc": 1101,
+          "total_classes": 15,
+          "total_methods": 134,
+          "total_fields": 48
         },
         "complexity": {
-          "total_wmc": 315,
-          "avg_wmc": 26.33,
-          "max_wmc": 41
+          "total_wmc": 203,
+          "avg_wmc": 13.55,
+          "max_wmc": 39
         },
         "cohesion": {
-          "avg_lcom": 14.81,
-          "max_lcom": 51.4
+          "avg_lcom": 20.32,
+          "max_lcom": 77.2
         },
         "coupling": {
-          "avg_cbo": 3.41,
-          "max_cbo": 3,
-          "avg_rfc": 30.76,
-          "max_rfc": 44,
-          "avg_fanin": 2.0,
-          "max_fanin": 5,
-          "avg_fanout": 3.45,
-          "max_fanout": 6
+          "avg_cbo": 5.52,
+          "max_cbo": 13,
+          "avg_rfc": 19.86,
+          "max_rfc": 48,
+          "avg_fanin": 5.72,
+          "max_fanin": 18,
+          "avg_fanout": 2.04,
+          "max_fanout": 5
         }
       }
     },
     {
       "id": "L4",
       "name": "Lib-4",
-      "version": "2.9.7",
+      "version": "1.4.6",
       "system_hierarchy": {
-        "system_name": "Factory Management System",
-        "domain_name": "Logistics",
-        "config_item_name": "Shipping",
-        "component_name": "Loading Dock"
+        "component_name": "Computer Science",
+        "config_item_name": "Infrastructure Software",
+        "domain_name": "Process Control",
+        "system_name": "Core Logic"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 384,
-          "total_classes": 12,
-          "total_methods": 81,
-          "total_fields": 60
+          "total_loc": 735,
+          "total_classes": 7,
+          "total_methods": 40,
+          "total_fields": 27
         },
         "complexity": {
-          "total_wmc": 349,
-          "avg_wmc": 29.11,
-          "max_wmc": 46
+          "total_wmc": 40,
+          "avg_wmc": 5.73,
+          "max_wmc": 11
         },
         "cohesion": {
-          "avg_lcom": 18.86,
-          "max_lcom": 52.3
+          "avg_lcom": 14.58,
+          "max_lcom": 34.7
         },
         "coupling": {
-          "avg_cbo": 10.83,
-          "max_cbo": 18,
-          "avg_rfc": 14.93,
-          "max_rfc": 14,
-          "avg_fanin": 1.58,
-          "max_fanin": 2,
-          "avg_fanout": 2.25,
-          "max_fanout": 4
+          "avg_cbo": 4.07,
+          "max_cbo": 8,
+          "avg_rfc": 15.96,
+          "max_rfc": 31,
+          "avg_fanin": 2.31,
+          "max_fanin": 9,
+          "avg_fanout": 2.56,
+          "max_fanout": 7
         }
       }
     }
@@ -953,11 +955,11 @@
     "runs_on": [
       {
         "from": "A0",
-        "to": "N1"
+        "to": "N3"
       },
       {
         "from": "A1",
-        "to": "N3"
+        "to": "N1"
       },
       {
         "from": "A2",
@@ -969,11 +971,11 @@
       },
       {
         "from": "A4",
-        "to": "N0"
+        "to": "N2"
       },
       {
         "from": "A5",
-        "to": "N0"
+        "to": "N3"
       },
       {
         "from": "A6",
@@ -981,7 +983,7 @@
       },
       {
         "from": "A7",
-        "to": "N2"
+        "to": "N0"
       },
       {
         "from": "A8",
@@ -989,7 +991,7 @@
       },
       {
         "from": "A9",
-        "to": "N3"
+        "to": "N2"
       },
       {
         "from": "A10",
@@ -997,23 +999,23 @@
       },
       {
         "from": "A11",
-        "to": "N0"
+        "to": "N1"
       },
       {
         "from": "A12",
-        "to": "N0"
-      },
-      {
-        "from": "A13",
-        "to": "N0"
-      },
-      {
-        "from": "A14",
         "to": "N3"
       },
       {
+        "from": "A13",
+        "to": "N1"
+      },
+      {
+        "from": "A14",
+        "to": "N0"
+      },
+      {
         "from": "B0",
-        "to": "N2"
+        "to": "N3"
       },
       {
         "from": "B1",
@@ -1026,38 +1028,38 @@
         "to": "T0"
       },
       {
-        "from": "B1",
-        "to": "T0"
+        "from": "B0",
+        "to": "T1"
       },
       {
         "from": "B0",
-        "to": "T1"
+        "to": "T2"
       },
       {
         "from": "B1",
         "to": "T2"
       },
       {
-        "from": "B0",
+        "from": "B1",
         "to": "T3"
       },
       {
         "from": "B0",
-        "to": "T4"
+        "to": "T3"
       },
       {
         "from": "B1",
         "to": "T4"
+      },
+      {
+        "from": "B1",
+        "to": "T5"
       },
       {
         "from": "B0",
         "to": "T5"
       },
       {
-        "from": "B0",
-        "to": "T6"
-      },
-      {
         "from": "B1",
         "to": "T6"
       },
@@ -1070,16 +1072,12 @@
         "to": "T7"
       },
       {
+        "from": "B1",
+        "to": "T8"
+      },
+      {
         "from": "B0",
         "to": "T8"
-      },
-      {
-        "from": "B1",
-        "to": "T8"
-      },
-      {
-        "from": "B1",
-        "to": "T9"
       },
       {
         "from": "B0",
@@ -1088,51 +1086,59 @@
     ],
     "publishes_to": [
       {
-        "from": "A1",
+        "from": "A12",
         "to": "T0"
+      },
+      {
+        "from": "A0",
+        "to": "T0"
+      },
+      {
+        "from": "A7",
+        "to": "T0"
+      },
+      {
+        "from": "A7",
+        "to": "T1"
       },
       {
         "from": "A8",
-        "to": "T0"
+        "to": "T1"
       },
       {
-        "from": "A3",
-        "to": "T0"
+        "from": "A8",
+        "to": "T2"
       },
       {
-        "from": "A13",
-        "to": "T0"
+        "from": "A2",
+        "to": "T2"
       },
       {
         "from": "A14",
-        "to": "T1"
+        "to": "T2"
+      },
+      {
+        "from": "A6",
+        "to": "T2"
       },
       {
         "from": "A3",
-        "to": "T1"
-      },
-      {
-        "from": "A5",
-        "to": "T1"
+        "to": "T3"
       },
       {
         "from": "A9",
-        "to": "T2"
+        "to": "T3"
       },
       {
-        "from": "A12",
-        "to": "T2"
-      },
-      {
-        "from": "A10",
-        "to": "T2"
-      },
-      {
-        "from": "A8",
-        "to": "T2"
+        "from": "A1",
+        "to": "T3"
       },
       {
         "from": "A4",
+        "to": "T3"
+      },
+      {
+        "from": "A7",
         "to": "T3"
       },
       {
@@ -1140,15 +1146,7 @@
         "to": "T4"
       },
       {
-        "from": "A14",
-        "to": "T4"
-      },
-      {
-        "from": "A9",
-        "to": "T4"
-      },
-      {
-        "from": "A3",
+        "from": "A10",
         "to": "T4"
       },
       {
@@ -1156,27 +1154,27 @@
         "to": "T4"
       },
       {
+        "from": "A3",
+        "to": "T4"
+      },
+      {
+        "from": "A11",
+        "to": "T5"
+      },
+      {
+        "from": "A5",
+        "to": "T5"
+      },
+      {
         "from": "A4",
         "to": "T5"
       },
       {
-        "from": "A13",
+        "from": "A14",
         "to": "T5"
       },
       {
         "from": "A0",
-        "to": "T5"
-      },
-      {
-        "from": "A11",
-        "to": "T6"
-      },
-      {
-        "from": "A7",
-        "to": "T6"
-      },
-      {
-        "from": "A8",
         "to": "T6"
       },
       {
@@ -1185,56 +1183,76 @@
       },
       {
         "from": "A13",
-        "to": "T8"
+        "to": "T7"
       },
       {
-        "from": "A5",
-        "to": "T8"
-      },
-      {
-        "from": "A6",
-        "to": "T9"
-      },
-      {
-        "from": "A2",
-        "to": "T9"
-      },
-      {
-        "from": "A0",
-        "to": "T9"
+        "from": "A7",
+        "to": "T7"
       },
       {
         "from": "A4",
-        "to": "T9"
+        "to": "T7"
       },
       {
-        "from": "A5",
+        "from": "A6",
+        "to": "T7"
+      },
+      {
+        "from": "A2",
+        "to": "T8"
+      },
+      {
+        "from": "A0",
+        "to": "T8"
+      },
+      {
+        "from": "A9",
         "to": "T9"
       }
     ],
     "subscribes_to": [
       {
-        "from": "A4",
-        "to": "T0"
-      },
-      {
-        "from": "A2",
-        "to": "T0"
-      },
-      {
-        "from": "A4",
-        "to": "T1"
-      },
-      {
-        "from": "A2",
-        "to": "T1"
-      },
-      {
         "from": "A0",
-        "to": "T2"
+        "to": "T0"
       },
       {
-        "from": "A10",
+        "from": "A6",
+        "to": "T0"
+      },
+      {
+        "from": "A12",
+        "to": "T0"
+      },
+      {
+        "from": "A9",
+        "to": "T0"
+      },
+      {
+        "from": "A8",
+        "to": "T0"
+      },
+      {
+        "from": "A11",
+        "to": "T0"
+      },
+      {
+        "from": "A5",
+        "to": "T0"
+      },
+      {
+        "from": "A7",
+        "to": "T0"
+      },
+      {
+        "from": "A1",
+        "to": "T1"
+      },
+      {
+        "from": "A13",
+        "to": "T1"
+      },
+      {
+        "from": "A2",
         "to": "T2"
       },
       {
@@ -1242,7 +1260,15 @@
         "to": "T2"
       },
       {
-        "from": "A4",
+        "from": "A14",
+        "to": "T2"
+      },
+      {
+        "from": "A6",
+        "to": "T2"
+      },
+      {
+        "from": "A5",
         "to": "T2"
       },
       {
@@ -1250,51 +1276,63 @@
         "to": "T2"
       },
       {
-        "from": "A1",
-        "to": "T3"
+        "from": "A12",
+        "to": "T2"
       },
       {
-        "from": "A14",
-        "to": "T3"
-      },
-      {
-        "from": "A11",
+        "from": "A9",
         "to": "T3"
       },
       {
         "from": "A3",
-        "to": "T4"
-      },
-      {
-        "from": "A10",
-        "to": "T4"
+        "to": "T3"
       },
       {
         "from": "A13",
-        "to": "T4"
+        "to": "T3"
       },
       {
-        "from": "A1",
-        "to": "T5"
+        "from": "A8",
+        "to": "T3"
+      },
+      {
+        "from": "A12",
+        "to": "T3"
       },
       {
         "from": "A10",
-        "to": "T5"
-      },
-      {
-        "from": "A6",
-        "to": "T5"
+        "to": "T4"
       },
       {
         "from": "A4",
-        "to": "T5"
+        "to": "T4"
       },
       {
-        "from": "A0",
-        "to": "T5"
+        "from": "A5",
+        "to": "T4"
+      },
+      {
+        "from": "A12",
+        "to": "T4"
+      },
+      {
+        "from": "A11",
+        "to": "T4"
+      },
+      {
+        "from": "A6",
+        "to": "T4"
+      },
+      {
+        "from": "A8",
+        "to": "T4"
       },
       {
         "from": "A13",
+        "to": "T4"
+      },
+      {
+        "from": "A11",
         "to": "T5"
       },
       {
@@ -1302,11 +1340,23 @@
         "to": "T5"
       },
       {
-        "from": "A2",
+        "from": "A1",
         "to": "T5"
       },
       {
-        "from": "A11",
+        "from": "A13",
+        "to": "T5"
+      },
+      {
+        "from": "A3",
+        "to": "T5"
+      },
+      {
+        "from": "A6",
+        "to": "T5"
+      },
+      {
+        "from": "A0",
         "to": "T6"
       },
       {
@@ -1314,120 +1364,136 @@
         "to": "T6"
       },
       {
-        "from": "A8",
+        "from": "A5",
         "to": "T6"
+      },
+      {
+        "from": "A1",
+        "to": "T7"
+      },
+      {
+        "from": "A7",
+        "to": "T7"
+      },
+      {
+        "from": "A13",
+        "to": "T7"
       },
       {
         "from": "A14",
         "to": "T7"
       },
       {
-        "from": "A11",
+        "from": "A10",
         "to": "T7"
+      },
+      {
+        "from": "A14",
+        "to": "T8"
+      },
+      {
+        "from": "A8",
+        "to": "T8"
+      },
+      {
+        "from": "A2",
+        "to": "T8"
+      },
+      {
+        "from": "A12",
+        "to": "T8"
       },
       {
         "from": "A9",
         "to": "T8"
       },
       {
-        "from": "A14",
-        "to": "T9"
-      },
-      {
-        "from": "A12",
-        "to": "T9"
-      },
-      {
-        "from": "A0",
+        "from": "A9",
         "to": "T9"
       }
     ],
     "connects_to": [
       {
-        "from": "N0",
-        "to": "N2"
-      },
-      {
-        "from": "N0",
-        "to": "N3"
-      },
-      {
         "from": "N1",
         "to": "N2"
+      },
+      {
+        "from": "N2",
+        "to": "N3"
       }
     ],
     "uses": [
       {
-        "from": "L0",
-        "to": "L4"
-      },
-      {
-        "from": "L0",
-        "to": "L1"
-      },
-      {
-        "from": "A0",
+        "from": "L3",
         "to": "L0"
       },
       {
         "from": "A0",
-        "to": "L4"
+        "to": "L3"
       },
       {
         "from": "A1",
-        "to": "L4"
+        "to": "L2"
       },
       {
         "from": "A1",
         "to": "L1"
-      },
-      {
-        "from": "A1",
-        "to": "L0"
       },
       {
         "from": "A3",
-        "to": "L0"
+        "to": "L2"
       },
       {
-        "from": "A5",
+        "from": "A6",
+        "to": "L4"
+      },
+      {
+        "from": "A6",
         "to": "L3"
       },
       {
         "from": "A7",
-        "to": "L4"
-      },
-      {
-        "from": "A10",
-        "to": "L4"
-      },
-      {
-        "from": "A10",
-        "to": "L2"
-      },
-      {
-        "from": "A10",
         "to": "L1"
       },
       {
-        "from": "A11",
+        "from": "A7",
+        "to": "L0"
+      },
+      {
+        "from": "A7",
         "to": "L2"
+      },
+      {
+        "from": "A8",
+        "to": "L0"
+      },
+      {
+        "from": "A9",
+        "to": "L4"
+      },
+      {
+        "from": "A9",
+        "to": "L0"
+      },
+      {
+        "from": "A11",
+        "to": "L4"
+      },
+      {
+        "from": "A11",
+        "to": "L3"
+      },
+      {
+        "from": "A12",
+        "to": "L0"
       },
       {
         "from": "A12",
         "to": "L2"
       },
       {
-        "from": "A13",
-        "to": "L1"
-      },
-      {
-        "from": "A13",
-        "to": "L2"
-      },
-      {
-        "from": "A13",
-        "to": "L4"
+        "from": "A14",
+        "to": "L3"
       },
       {
         "from": "A14",
@@ -1435,7 +1501,7 @@
       },
       {
         "from": "A14",
-        "to": "L4"
+        "to": "L1"
       }
     ]
   }
