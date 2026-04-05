@@ -55,10 +55,15 @@ _CODE_METRICS_PARAMS: Dict[str, Dict[str, Any]] = {
                    "avg_wmc": (10, 25),  "avg_lcom": (15, 55),
                    "avg_cbo": (5, 14),   "avg_rfc": (18, 45),
                    "avg_fanin": (1, 7),  "avg_fanout": (3, 12)},
-    "service":    {"loc": (400, 2000),  "cls_per_kloc": (9, 16),  "meth_per_cls": (5, 10), "fld_per_cls": (2, 5),
-                   "avg_wmc": (8, 22),   "avg_lcom": (10, 50),
-                   "avg_cbo": (4, 12),   "avg_rfc": (14, 38),
-                   "avg_fanin": (1, 6),  "avg_fanout": (3, 10)},
+}
+# Fallback used when app_type is not in _CODE_METRICS_PARAMS (should not happen
+# in normal generation since APP_TYPE_OPTIONS is exhaustive, but guards against
+# future additions to APP_TYPE_OPTIONS that are not yet reflected here).
+_DEFAULT_CODE_METRICS_PARAMS: Dict[str, Any] = {
+    "loc": (400, 2000),  "cls_per_kloc": (9, 16),  "meth_per_cls": (5, 10), "fld_per_cls": (2, 5),
+    "avg_wmc": (8, 22),  "avg_lcom": (10, 50),
+    "avg_cbo": (4, 12),  "avg_rfc": (14, 38),
+    "avg_fanin": (1, 6), "avg_fanout": (3, 10),
 }
 
 # --- Code-metrics generation parameters by library archetype ---
@@ -151,7 +156,7 @@ class StatisticalGraphGenerator:
 
     def _generate_code_metrics(self, app_type: str) -> Dict[str, Any]:
         """Generate a full code_metrics dict for an Application."""
-        params = _CODE_METRICS_PARAMS.get(app_type, _CODE_METRICS_PARAMS["service"])
+        params = _CODE_METRICS_PARAMS.get(app_type, _DEFAULT_CODE_METRICS_PARAMS)
         return self._build_code_metrics(params)
 
     def _generate_lib_code_metrics(self, archetype: Optional[str] = None) -> Dict[str, Any]:
