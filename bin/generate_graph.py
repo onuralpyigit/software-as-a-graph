@@ -34,7 +34,7 @@ def main() -> None:
     config_group.add_argument(
         "--scale",
         default=None,
-        choices=["tiny", "small", "medium", "large", "xlarge"],
+        choices=["tiny", "small", "medium", "large", "jumbo", "xlarge"],
         help="Scale of the graph to generate (preset)",
     )
     config_group.add_argument(

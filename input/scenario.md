@@ -11,14 +11,21 @@ domain scenario for validating the six-step methodology.
 
 | File | Domain | Scale | Key Stress | Seed |
 |------|--------|-------|-----------|------|
-| `scenario_01_autonomous_vehicle.yaml`  | ROS 2 / AV     | Medium  | Sensor fan-out, RELIABLE+TRANSIENT_LOCAL QoS  | 1001 |
-| `scenario_02_iot_smart_city.yaml`      | IoT             | Large   | Massive node count, VOLATILE/BEST_EFFORT flood  | 2002 |
-| `scenario_03_financial_trading.yaml`   | HFT / Finance   | Medium  | PERSISTENT+CRITICAL priority, dense pubsub      | 3003 |
-| `scenario_04_healthcare.yaml`          | Clinical / HIS  | Medium  | PERSISTENT clinical data, PHI-scoped fan-out    | 4004 |
-| `scenario_05_hub_and_spoke.yaml`       | Anti-pattern    | Medium  | Only 2 brokers → deliberate SPOF                | 5005 |
-| `scenario_06_microservices.yaml`       | Cloud-native    | Medium  | Sparse topology, low coupling, precision check  | 6006 |
-| `scenario_07_enterprise_xlarge.yaml`   | Enterprise ESB  | XLarge  | 300 apps — scalability + performance benchmark  | 7007 |
-| `scenario_08_tiny_regression.yaml`     | Smoke test      | Tiny    | CI regression, fully deterministic, fast        | 8008 |
+| `scenario_01_autonomous_vehicle.yaml`  | ROS 2 / AV     | Medium  | Sensor fan-out, RELIABLE+TRANSIENT_LOCAL QoS        | 1001 |
+| `scenario_02_iot_smart_city.yaml`      | IoT             | Large   | Massive node count, VOLATILE/BEST_EFFORT flood      | 2002 |
+| `scenario_03_financial_trading.yaml`   | HFT / Finance   | Medium  | PERSISTENT+CRITICAL priority, dense pubsub          | 3003 |
+| `scenario_04_healthcare.yaml`          | Clinical / HIS  | Medium  | PERSISTENT clinical data, PHI-scoped fan-out        | 4004 |
+| `scenario_05_hub_and_spoke.yaml`       | Anti-pattern    | Medium  | Only 2 brokers → deliberate SPOF                    | 5005 |
+| `scenario_06_microservices.yaml`       | Cloud-native    | Medium  | Sparse topology, low coupling, precision check      | 6006 |
+| `scenario_07_enterprise_xlarge.yaml`   | Enterprise ESB  | **Jumbo** (300 apps) | Scalability + performance benchmark  | 7007 |
+| `scenario_08_tiny_regression.yaml`     | Smoke test      | Tiny    | CI regression, fully deterministic, fast            | 8008 |
+| `scenario_09_xlarge_stress.yaml`       | Cloud Platform  | XLarge (500 apps) | True xlarge validation, thesis coverage gap | 9009 |
+
+> **Scale note — scenario_07:** The enterprise scenario uses 300 applications, which sits between
+> the `large` preset (150 apps) and the `xlarge` preset (500 apps).  It must be run with
+> `--config` (not `--scale`).  The `jumbo` preset (`--scale jumbo`) targets the same counts
+> (300 apps / 120 topics / 10 brokers / 40 nodes / 50 libs) and can be used for quick
+> ad-hoc runs at this scale without a YAML config file.
 
 ---
 
@@ -43,11 +50,30 @@ done
 
 ---
 
+## Scale Presets Reference
+
+The named `--scale` presets and their component counts:
+
+| Preset   | Apps | Topics | Brokers | Nodes | Libs | Matches scenario |
+|----------|------|--------|---------|-------|------|-----------------|
+| `tiny`   | 5    | 5      | 1       | 2     | 2    | 08 (smoke test) |
+| `small`  | 15   | 10     | 2       | 4     | 5    | —               |
+| `medium` | 50   | 30     | 3       | 8     | 10   | 01, 03, 04, 05, 06 |
+| `large`  | 150  | 100    | 6       | 20    | 30   | 02              |
+| `jumbo`  | 300  | 120    | 10      | 40    | 50   | 07 (enterprise) |
+| `xlarge` | 500  | 300    | 10      | 50    | 100  | 09 (stress)     |
+
+`--scale jumbo` and `--scale xlarge` require `--config` to reproduce the full statistical
+distributions of scenarios 07 and 09 respectively; the preset alone gives the same counts
+with uniform random QoS and topology.
+
+---
+
 ## Design Rationale
 
 ### Topology Coverage
 
-The eight scenarios collectively cover the four major topology classes
+The nine scenarios collectively cover the four major topology classes
 identified in the thesis:
 
 1. **Fan-out dominated** (AV, IoT) — many subscribers per topic;

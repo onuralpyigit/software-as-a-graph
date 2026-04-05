@@ -6,10 +6,13 @@ from typing import Dict, Any, List, Optional
 from src.core.models import QoSPolicy
 
 SCALE_PRESETS: Dict[str, Dict[str, int]] = {
-    "tiny":   {"apps": 5,   "topics": 5,   "brokers": 1, "nodes": 2,  "libs": 2},
-    "small":  {"apps": 15,  "topics": 10,  "brokers": 2, "nodes": 4,  "libs": 5},
-    "medium": {"apps": 50,  "topics": 30,  "brokers": 3, "nodes": 8,  "libs": 10},
-    "large":  {"apps": 150, "topics": 100, "brokers": 6, "nodes": 20, "libs": 30},
+    "tiny":   {"apps": 5,   "topics": 5,   "brokers": 1,  "nodes": 2,  "libs": 2},
+    "small":  {"apps": 15,  "topics": 10,  "brokers": 2,  "nodes": 4,  "libs": 5},
+    "medium": {"apps": 50,  "topics": 30,  "brokers": 3,  "nodes": 8,  "libs": 10},
+    "large":  {"apps": 150, "topics": 100, "brokers": 6,  "nodes": 20, "libs": 30},
+    # "jumbo" matches scenario_07_enterprise_xlarge.yaml counts exactly, giving
+    # --scale jumbo a named, reproducible approximation of that scenario.
+    "jumbo":  {"apps": 300, "topics": 120, "brokers": 10, "nodes": 40, "libs": 50},
     "xlarge": {"apps": 500, "topics": 300, "brokers": 10, "nodes": 50, "libs": 100},
 }
 

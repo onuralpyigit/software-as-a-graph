@@ -36,7 +36,7 @@ def main():
     # Stage-specific options
     opts = parser.add_argument_group("Stage Options")
     opts.add_argument("--config", type=Path, help="Path to graph configuration YAML file (for generation)")
-    opts.add_argument("--scale", choices=["tiny", "small", "medium", "large", "xlarge"], help="Preset graph scale (for generation)")
+    opts.add_argument("--scale", choices=["tiny", "small", "medium", "large", "jumbo", "xlarge"], help="Preset graph scale (for generation)")
     opts.add_argument("--output-dir", metavar="DIR", help="Directory for all intermediate and final outputs")
     opts.add_argument("--clear", "--clean", action="store_true", dest="clear", help="Clear Neo4j DB before import")
     opts.add_argument("--use-ahp", action="store_true", help="Use AHP-derived weights instead of default fixed weights")
