@@ -46,7 +46,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        required=True,
+        default=Path("output/graph.json"),
         help="Path to output JSON file",
     )
     
@@ -68,7 +68,8 @@ def main() -> None:
         "--scenario",
         type=str,
         default=None,
-        help="Scenario mapping for QoS generation (e.g. sensor_telemetry, events)",
+        choices=["av", "iot", "finance", "healthcare", "hub-and-spoke", "microservices", "enterprise"],
+        help="Scenario mapping for QoS generation",
     )
     
     add_common_arguments(parser)
