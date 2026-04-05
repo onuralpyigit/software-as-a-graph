@@ -1,0 +1,257 @@
+# =============================================================================
+# Scenario 09 — Hyper-Scale Cloud Platform (true xlarge)
+# =============================================================================
+# Domain   : Multi-tenant cloud-native event-streaming platform
+#            (control plane + data plane + tenant workloads co-hosted)
+# Scale    : XLarge — matches SCALE_PRESETS["xlarge"] exactly
+#              500 apps · 300 topics · 10 brokers · 50 nodes · 100 libs
+# Purpose  : Named, reproducible validation point at the full xlarge scale.
+#            Fills the gap between scenario_07 (300 apps) and the benchmark
+#            --full-suite.  Validates that ρ ≥ 0.70 and F1 ≥ 0.88 hold at
+#            500-component scale and that CRITICAL classification does not
+#            inflate beyond 10 % of the population.
+#
+# Topology fingerprint:
+#   • 50 physical/virtual nodes — mix of control-plane and data-plane hosts
+#   • 100 platform SDK libraries with high cross-tenant reuse (blast-radius risk)
+#   • Moderate pub count per app; high subscriber fan-out per topic (platform
+#     broadcast pattern: all tenants consume platform events)
+#   • ~10 % apps critical — control plane, identity, billing, routing core
+#   • Reliable QoS dominant (SLAs enforced by platform); a volatile tail for
+#     metrics and heartbeats
+#   • High broker load: 10 brokers share 300 topics; colocation risk (Rule 6)
+#     produces measurable broker-to-broker coupling
+#
+# Expected analysis outcomes:
+#   • Overall: ρ(Q, I) ≥ 0.70, F1 ≥ 0.88
+#   • CRITICAL tier ≤ 10 % of components (classifier must not over-flag at scale)
+#   • At least 2 platform SDK libraries in the CRITICAL reliability tier
+#     (high blast radius from wide fan-out)
+#   • Broker(s) routing platform-wide canonical topics confirmed as SPOF
+#   • Centrality computation completes in < 120 s on modern hardware
+#     (2× budget of scenario_07; validates thesis scalability claim)
+#   • SYSTEMIC_RISK anti-pattern must NOT fire (critical nodes < 20 % cap)
+#
+# Usage:
+#   python bin/generate_graph.py --config input/scenario_09_xlarge_stress.yaml \
+#          --output output/xlarge_platform.json
+# =============================================================================
+
+graph:
+  seed: 9009
+  domain: enterprise
+  scenario: enterprise
+
+  counts:
+    nodes: 50
+    applications: 500
+    libraries: 100
+    topics: 300
+    brokers: 10
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS — Mix of control-plane (denser) and data-plane (sparser)
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 10.0
+      median: 9.0
+      std: 4.0
+      min: 3
+      max: 22
+      q1: 7.0
+      q3: 13.0
+      iqr: 6.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS
+  # Publishing is moderate; subscribing is higher (platform broadcast pattern)
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 2.0
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 8
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    direct_subscribe_count:
+      mean: 3.5
+      median: 3.0
+      std: 2.0
+      min: 0
+      max: 12
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+    total_publish_count_including_libraries:
+      mean: 3.5
+      median: 3.0
+      std: 2.5
+      min: 0
+      max: 14
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+    total_subscribe_count_including_libraries:
+      mean: 5.5
+      median: 5.0
+      std: 3.0
+      min: 0
+      max: 18
+      q1: 3.0
+      q3: 8.0
+      iqr: 5.0
+
+    # Platform composition: majority are transformation/orchestration services
+    app_role_distribution:
+      total_count: 500
+      category_counts:
+        pub: 100      # Ingestors, data producers, legacy adapters
+        sub: 120      # Analytics workers, notification consumers, read models
+        pubsub: 280   # API services, orchestrators, transformation pipelines
+      mode: pubsub
+      mode_count: 280
+      mode_percentage: 56.0
+
+    # ~10 % critical — control plane, identity, billing, core routing
+    app_criticality_distribution:
+      total_count: 500
+      category_counts:
+        critical: 50
+        non_critical: 450
+      mode: non_critical
+      mode_count: 450
+      mode_percentage: 90.0
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS — Platform SDKs shared broadly across tenants
+  # High fan-out => high blast-radius for reliability dimension
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 5.0
+      median: 4.0
+      std: 5.0
+      min: 1
+      max: 25
+      q1: 2.0
+      q3: 8.0
+      iqr: 6.0
+
+    direct_publish_count:
+      mean: 1.5
+      median: 1.0
+      std: 1.0
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 2.0
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 6
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_publish_count_including_libraries:
+      mean: 2.5
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 8
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+    total_subscribe_count_including_libraries:
+      mean: 3.5
+      median: 3.0
+      std: 2.0
+      min: 0
+      max: 10
+      q1: 2.0
+      q3: 5.0
+      iqr: 3.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS — High subscriber fan-out (platform broadcast pattern)
+  # Publishers per topic are low; subscribers are high
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 2048.0
+      median: 1024.0
+      std: 3500.0
+      min: 64
+      max: 32768
+      q1: 256.0
+      q3: 4096.0
+      iqr: 3840.0
+
+    # Most topics have 1-2 publishers (owned by one service or shared pair)
+    applications_publishing_to_this_topic:
+      mean: 1.7
+      median: 1.0
+      std: 1.0
+      min: 1
+      max: 6
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    # High fan-out: platform events consumed by many tenant workloads
+    applications_subscribing_to_this_topic:
+      mean: 8.3
+      median: 7.0
+      std: 6.0
+      min: 1
+      max: 30
+      q1: 4.0
+      q3: 12.0
+      iqr: 8.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — SLA-enforced platform: RELIABLE dominant, volatile tail
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 300
+      category_counts:
+        volatile: 40        # Metrics, heartbeats, health-check streams
+        transient_local: 100 # Operational events (at-least-once, restartable)
+        transient: 90       # Cross-tenant integration events
+        persistent: 70      # Billing, audit, compliance streams
+      mode: transient_local
+      mode_count: 100
+      mode_percentage: 33.3
+
+    qos_reliability_distribution:
+      total_count: 300
+      category_counts:
+        best_effort: 60     # Metrics, non-transactional notifications
+        reliable: 240       # Business process events, platform control messages
+      mode: reliable
+      mode_count: 240
+      mode_percentage: 80.0
+
+    qos_transport_priority_distribution:
+      total_count: 300
+      category_counts:
+        low: 50
+        medium: 120
+        high: 90
+        critical: 40
+      mode: medium
+      mode_count: 120
+      mode_percentage: 40.0
