@@ -44,12 +44,17 @@ def load_config(path: Path) -> GraphConfig:
     return GraphConfig.from_yaml(data)
 
 
-def generate_graph(scale: str = "medium", **kwargs: Any) -> Dict[str, Any]:
-    """Convenience function to generate a graph."""
-    config = kwargs.get('config')
-    seed = kwargs.get('seed', 42)
-    domain = kwargs.get('domain')
-    scenario = kwargs.get('scenario')
-        
+def generate_graph(
+    scale: str = "medium",
+    seed: int = 42,
+    config: Optional[GraphConfig] = None,
+    domain: Optional[str] = None,
+    scenario: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Convenience function to generate a graph.
+
+    When *config* is provided it takes precedence: *scale* and *seed* are
+    ignored because the config already encodes those parameters.
+    """
     service = GenerationService(scale=scale, seed=seed, config=config, domain=domain, scenario=scenario)
     return service.generate()
