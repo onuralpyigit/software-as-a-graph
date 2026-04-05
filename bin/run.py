@@ -71,15 +71,20 @@ def main():
         
         # Default output if not provided
         gen_output = args.input or (Path(args.output_dir) / "graph.json" if args.output_dir else "output/graph.json")
-        args.output = str(gen_output) # dispatch_generate expects output in args.output
-        
+        gen_output = str(gen_output)
+
+        # Use a throw-away namespace so args.output (the user's final result path) is not clobbered.
+        import argparse as _ap
+        gen_args = _ap.Namespace(**vars(args))
+        gen_args.output = gen_output
+
         display.print_header("Stage 1/6: Graph Generation")
         display.print_step("Generating synthetic topology...")
-        data = dispatch_generate(args)
+        data = dispatch_generate(gen_args)
         display.display_graph_data_summary(data)
-        
+
         # Update input path for subsequent stages
-        args.input = args.output
+        args.input = gen_output
 
     # 1. Initialize Pipeline
     # If no input provided but analyze/simulate/etc was requested, we operate on existing DB
