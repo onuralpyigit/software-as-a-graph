@@ -21,7 +21,15 @@ from .models import (
     ROLE_OPTIONS,
     APP_TYPE_OPTIONS,
 )
-from .datasets import DomainDataset, get_qos_for_topic, get_app_type_for_name, get_lib_archetype_for_name, get_generic_system_hierarchy
+from .datasets import (
+    DomainDataset,
+    get_qos_for_topic,
+    get_app_type_for_name,
+    get_lib_archetype_for_name,
+    get_generic_system_hierarchy,
+    SYSTEM_HIERARCHY_POOLS,
+    GENERIC_HIERARCHY_POOL,
+)
 
 
 # --- Code-metrics generation parameters by app_type ---
@@ -166,6 +174,34 @@ class StatisticalGraphGenerator:
         params = _LIB_CODE_METRICS_PARAMS[archetype]
         return self._build_code_metrics(params)
 
+    def _sample_biased(
+        self,
+        count: int,
+        all_items: list,
+        cluster_items: list,
+        p_intra: float = 0.65,
+    ) -> list:
+        """Sample *count* items with intra-cluster bias.
+
+        Approximately *p_intra* of the samples come from *cluster_items* (when
+        available); the remainder are drawn from *all_items* without
+        replacement across the combined result.  Falls back to plain uniform
+        sampling when *cluster_items* is empty or *count* is zero.
+        """
+        if not cluster_items or count <= 0:
+            return self.rng.sample(all_items, k=min(count, len(all_items)))
+
+        intra_count = min(round(count * p_intra), len(cluster_items), count)
+        intra_sample = self.rng.sample(cluster_items, k=intra_count)
+
+        extra_count = count - intra_count
+        if extra_count > 0:
+            intra_ids = {id(x) for x in intra_sample}
+            extra_pool = [x for x in all_items if id(x) not in intra_ids]
+            extra_sample = self.rng.sample(extra_pool, k=min(extra_count, len(extra_pool)))
+            return intra_sample + extra_sample
+        return intra_sample
+
     def _build_code_metrics(self, p: Dict[str, Any]) -> Dict[str, Any]:
         """Build a code_metrics dict from parameter ranges."""
         rng = self.rng
@@ -299,6 +335,33 @@ class StatisticalGraphGenerator:
                 )
             ))
 
+        # === Pass 1: hierarchy cluster pre-assignment ===
+        # Partition apps and topics into clusters keyed by domain_name (the
+        # third level of the MIL-STD-498 hierarchy).  Apps in the same cluster
+        # share a domain_name and will preferentially pub/sub to topics in the
+        # same cluster (Pass 2 below, p_intra = 0.65), making the hierarchy
+        # signal structurally meaningful for coupling analysis instead of being
+        # an independently-sampled label with no topological effect.
+        _hier_pool = SYSTEM_HIERARCHY_POOLS.get(c.domain, GENERIC_HIERARCHY_POOL)
+        _cluster_domains: List[str] = _hier_pool["domain"]
+        _n_clusters = len(_cluster_domains)
+
+        # Round-robin assignment is deterministic given the seed.
+        _app_cluster_domain: List[str] = [
+            _cluster_domains[i % _n_clusters] for i in range(c.apps)
+        ]
+        _app_id_to_cluster: Dict[str, str] = {
+            f"A{i}": _app_cluster_domain[i] for i in range(c.apps)
+        }
+
+        # Assign topics to clusters and build the reverse lookup.
+        _cluster_to_topics: Dict[str, List[Topic]] = {d: [] for d in _cluster_domains}
+        _topic_id_to_cluster: Dict[str, str] = {}
+        for idx, topic in enumerate(topics):
+            cluster_d = _cluster_domains[idx % _n_clusters]
+            _cluster_to_topics[cluster_d].append(topic)
+            _topic_id_to_cluster[topic.id] = cluster_d
+
         apps: List[Application] = []
         role_pool = None
         criticality_pool = None
@@ -333,7 +396,14 @@ class StatisticalGraphGenerator:
                 app_type = self.rng.choice(APP_TYPE_OPTIONS)
                 
             code_metrics = self._generate_code_metrics(app_type)
-            hierarchy = domain_ds.get_system_hierarchy() if domain_ds else get_generic_system_hierarchy(self.rng)
+            # Use the pre-assigned cluster domain_name so hierarchy reflects
+            # actual structural grouping rather than an independent random draw.
+            hierarchy = {
+                "component_name": self.rng.choice(_hier_pool["component"]),
+                "config_item_name": self.rng.choice(_hier_pool["config_item"]),
+                "domain_name": _app_cluster_domain[i],
+                "system_name": self.rng.choice(_hier_pool["system"]),
+            }
             apps.append(Application(
                 id=f"A{i}",
                 name=app_name,
@@ -344,6 +414,11 @@ class StatisticalGraphGenerator:
                 system_hierarchy=hierarchy,
                 code_metrics=code_metrics,
             ))
+
+        # Build the cluster → apps map now that all app objects exist.
+        _cluster_to_apps: Dict[str, List[Application]] = {d: [] for d in _cluster_domains}
+        for i, app in enumerate(apps):
+            _cluster_to_apps[_app_cluster_domain[i]].append(app)
 
         libs: List[Library] = []
         for i in range(c.libs):
@@ -492,60 +567,66 @@ class StatisticalGraphGenerator:
                 
                 direct_pub_count = min(direct_pub_count, len(topics))
                 direct_sub_count = min(direct_sub_count, len(topics))
-                
+
+                # Pass 2: use cluster-biased sampling so apps in the same
+                # hierarchy cluster preferentially share topics (p_intra=0.65).
+                _app_cluster_topics = _cluster_to_topics[_app_id_to_cluster[app.id]]
                 if direct_pub_count > 0:
-                    pub_topics = self.rng.sample(topics, k=direct_pub_count)
+                    pub_topics = self._sample_biased(direct_pub_count, topics, _app_cluster_topics)
                     for t in pub_topics:
                         publishes.append(self._make_edge(app, t))
                     self._direct_pub_counts[app.id] = direct_pub_count
-                
+
                 if direct_sub_count > 0:
-                    sub_topics = self.rng.sample(topics, k=direct_sub_count)
+                    sub_topics = self._sample_biased(direct_sub_count, topics, _app_cluster_topics)
                     for t in sub_topics:
                         subscribes.append(self._make_edge(app, t))
                     self._direct_sub_counts[app.id] = direct_sub_count
                     
         elif c.application_stats and c.application_stats.direct_publish_count.mean > 0:
             for app in apps:
+                _app_cluster_topics = _cluster_to_topics[_app_id_to_cluster[app.id]]
                 pub_count = self._sample_from_distribution(c.application_stats.direct_publish_count)
                 pub_count = min(pub_count, len(topics))
                 if pub_count > 0:
-                    pub_topics = self.rng.sample(topics, k=pub_count)
+                    pub_topics = self._sample_biased(pub_count, topics, _app_cluster_topics)
                     for t in pub_topics:
                         publishes.append(self._make_edge(app, t))
                     self._direct_pub_counts[app.id] = pub_count
-                
+
                 sub_count = self._sample_from_distribution(c.application_stats.direct_subscribe_count)
                 sub_count = min(sub_count, len(topics))
                 if sub_count > 0:
-                    sub_topics = self.rng.sample(topics, k=sub_count)
+                    sub_topics = self._sample_biased(sub_count, topics, _app_cluster_topics)
                     for t in sub_topics:
                         subscribes.append(self._make_edge(app, t))
                     self._direct_sub_counts[app.id] = sub_count
                     
         elif c.topic_stats and c.topic_stats.applications_publishing_to_this_topic.mean > 0:
             for topic in topics:
+                _topic_cluster_apps = _cluster_to_apps[_topic_id_to_cluster[topic.id]]
                 pub_count = self._sample_from_distribution(c.topic_stats.applications_publishing_to_this_topic)
                 pub_count = min(pub_count, len(apps))
                 if pub_count > 0:
-                    pubs = self.rng.sample(apps, k=pub_count)
+                    pubs = self._sample_biased(pub_count, apps, _topic_cluster_apps)
                     for p in pubs:
                         publishes.append(self._make_edge(p, topic))
                         self._direct_pub_counts[p.id] = self._direct_pub_counts.get(p.id, 0) + 1
-                
+
                 sub_count = self._sample_from_distribution(c.topic_stats.applications_subscribing_to_this_topic)
                 sub_count = min(sub_count, len(apps))
                 if sub_count > 0:
-                    subs = self.rng.sample(apps, k=sub_count)
+                    subs = self._sample_biased(sub_count, apps, _topic_cluster_apps)
                     for s in subs:
                         subscribes.append(self._make_edge(s, topic))
                         self._direct_sub_counts[s.id] = self._direct_sub_counts.get(s.id, 0) + 1
         else:
             for topic in topics:
+                _topic_cluster_apps = _cluster_to_apps[_topic_id_to_cluster[topic.id]]
                 k_pubs = self.rng.randint(1, max(2, min(5, len(apps))))
                 k_subs = self.rng.randint(1, max(2, min(8, len(apps))))
-                pubs = self.rng.sample(apps, k=k_pubs)
-                subs = self.rng.sample(apps, k=k_subs)
+                pubs = self._sample_biased(k_pubs, apps, _topic_cluster_apps)
+                subs = self._sample_biased(k_subs, apps, _topic_cluster_apps)
                 for p in pubs:
                     publishes.append(self._make_edge(p, topic))
                 for s in subs:
