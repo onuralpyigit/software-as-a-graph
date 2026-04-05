@@ -29,6 +29,8 @@
 
 graph:
   seed: 4004
+  domain: healthcare
+  scenario: healthcare
 
   counts:
     nodes: 8

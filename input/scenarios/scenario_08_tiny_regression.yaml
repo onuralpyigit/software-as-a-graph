@@ -30,6 +30,8 @@
 
 graph:
   seed: 8008
+  domain: enterprise
+  scenario: enterprise
 
   counts:
     nodes: 3

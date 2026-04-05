@@ -26,6 +26,8 @@
 
 graph:
   seed: 1001
+  domain: av
+  scenario: av
 
   counts:
     nodes: 8

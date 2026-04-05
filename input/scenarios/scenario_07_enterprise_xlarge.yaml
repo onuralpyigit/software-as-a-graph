@@ -29,6 +29,8 @@
 
 graph:
   seed: 7007
+  domain: enterprise
+  scenario: enterprise
 
   counts:
     nodes: 40

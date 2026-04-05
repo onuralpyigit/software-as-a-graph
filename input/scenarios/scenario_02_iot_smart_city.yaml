@@ -28,6 +28,8 @@
 
 graph:
   seed: 2002
+  domain: iot
+  scenario: iot
 
   counts:
     nodes: 30

@@ -31,6 +31,8 @@
 
 graph:
   seed: 6006
+  domain: microservices
+  scenario: microservices
 
   counts:
     nodes: 15

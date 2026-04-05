@@ -28,6 +28,8 @@
 
 graph:
   seed: 3003
+  domain: finance
+  scenario: finance
 
   counts:
     nodes: 6

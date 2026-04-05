@@ -9,605 +9,605 @@
     },
     "seed": 8008,
     "generation_mode": "statistical",
-    "domain": null,
-    "scenario": null
+    "domain": "enterprise",
+    "scenario": "enterprise"
   },
   "nodes": [
     {
       "id": "N0",
-      "name": "Node-0"
+      "name": "warehouse-node"
     },
     {
       "id": "N1",
-      "name": "Node-1"
+      "name": "erp-node"
     },
     {
       "id": "N2",
-      "name": "Node-2"
+      "name": "warehouse-node-1"
     }
   ],
   "brokers": [
     {
       "id": "B0",
-      "name": "Broker-0"
+      "name": "ibm-mq"
     },
     {
       "id": "B1",
-      "name": "Broker-1"
+      "name": "ibm-mq-1"
     }
   ],
   "topics": [
     {
       "id": "T0",
-      "name": "Topic-0",
-      "size": 1437,
+      "name": "hr.onboarding",
+      "size": 1325,
       "qos": {
-        "durability": "volatile",
-        "reliability": "reliable",
-        "transport_priority": "low"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       }
     },
     {
       "id": "T1",
-      "name": "Topic-1",
-      "size": 1494,
+      "name": "hr.onboarding-1",
+      "size": 716,
       "qos": {
-        "durability": "persistent",
-        "reliability": "best_effort",
-        "transport_priority": "medium"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       }
     },
     {
       "id": "T2",
-      "name": "Topic-2",
-      "size": 1806,
+      "name": "invoice.generated",
+      "size": 571,
       "qos": {
-        "durability": "persistent",
-        "reliability": "reliable",
-        "transport_priority": "medium"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       }
     },
     {
       "id": "T3",
-      "name": "Topic-3",
-      "size": 1329,
+      "name": "erp.updates",
+      "size": 1139,
       "qos": {
-        "durability": "transient_local",
-        "reliability": "best_effort",
-        "transport_priority": "low"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       }
     },
     {
       "id": "T4",
-      "name": "Topic-4",
-      "size": 1325,
+      "name": "crm.leads",
+      "size": 377,
       "qos": {
-        "durability": "transient",
-        "reliability": "best_effort",
-        "transport_priority": "high"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       }
     },
     {
       "id": "T5",
-      "name": "Topic-5",
-      "size": 716,
+      "name": "hr.onboarding-2",
+      "size": 641,
       "qos": {
-        "durability": "volatile",
-        "reliability": "best_effort",
-        "transport_priority": "high"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       }
     },
     {
       "id": "T6",
-      "name": "Topic-6",
-      "size": 769,
+      "name": "invoice.generated-1",
+      "size": 1245,
       "qos": {
-        "durability": "transient",
-        "reliability": "reliable",
-        "transport_priority": "critical"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       }
     },
     {
       "id": "T7",
-      "name": "Topic-7",
-      "size": 1532,
+      "name": "hr.onboarding-3",
+      "size": 563,
       "qos": {
-        "durability": "transient_local",
-        "reliability": "reliable",
-        "transport_priority": "critical"
+        "durability": "TRANSIENT_LOCAL",
+        "reliability": "RELIABLE",
+        "transport_priority": "MEDIUM"
       }
     }
   ],
   "applications": [
     {
       "id": "A0",
-      "name": "App-0",
-      "version": "1.3.8",
-      "app_type": "monitor",
+      "name": "esb-router",
+      "version": "3.2.9",
+      "app_type": "gateway",
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Software Design",
-        "system_name": "Shared Services"
+        "component_name": "Enterprise Platform",
+        "config_item_name": "ERP Integration",
+        "domain_name": "Order Processing",
+        "system_name": "Legacy Adapter"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 447,
-          "total_classes": 6,
-          "total_methods": 49,
-          "total_fields": 13
+          "total_loc": 1649,
+          "total_classes": 17,
+          "total_methods": 193,
+          "total_fields": 82
         },
         "complexity": {
-          "total_wmc": 68,
-          "avg_wmc": 11.32,
-          "max_wmc": 30
+          "total_wmc": 210,
+          "avg_wmc": 12.35,
+          "max_wmc": 35
         },
         "cohesion": {
-          "avg_lcom": 36.67,
-          "max_lcom": 124.0
+          "avg_lcom": 60.07,
+          "max_lcom": 262.0
         },
         "coupling": {
-          "avg_cbo": 9.5,
-          "max_cbo": 16,
-          "avg_rfc": 28.51,
-          "max_rfc": 53,
-          "avg_fanin": 2.37,
-          "max_fanin": 8,
-          "avg_fanout": 4.46,
-          "max_fanout": 13
+          "avg_cbo": 14.99,
+          "max_cbo": 36,
+          "avg_rfc": 45.34,
+          "max_rfc": 101,
+          "avg_fanin": 3.43,
+          "max_fanin": 15,
+          "avg_fanout": 13.97,
+          "max_fanout": 42
         }
       }
     },
     {
       "id": "A1",
-      "name": "App-1",
-      "version": "2.9.0",
-      "app_type": "actuator",
-      "role": "pubsub",
+      "name": "hr-portal",
+      "version": "3.5.4",
+      "app_type": "service",
+      "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Software Engineering",
-        "domain_name": "Data Management",
-        "system_name": "Messaging Utilities"
+        "component_name": "Corporate IT",
+        "config_item_name": "Inventory Management",
+        "domain_name": "Customer Relations",
+        "system_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 260,
-          "total_classes": 2,
-          "total_methods": 11,
-          "total_fields": 4
+          "total_loc": 1090,
+          "total_classes": 15,
+          "total_methods": 78,
+          "total_fields": 50
         },
         "complexity": {
-          "total_wmc": 13,
-          "avg_wmc": 6.61,
-          "max_wmc": 18
+          "total_wmc": 125,
+          "avg_wmc": 8.32,
+          "max_wmc": 20
         },
         "cohesion": {
-          "avg_lcom": 13.67,
-          "max_lcom": 38.9
+          "avg_lcom": 25.67,
+          "max_lcom": 78.6
         },
         "coupling": {
-          "avg_cbo": 2.7,
-          "max_cbo": 5,
-          "avg_rfc": 16.34,
-          "max_rfc": 38,
-          "avg_fanin": 2.19,
-          "max_fanin": 6,
-          "avg_fanout": 2.32,
-          "max_fanout": 7
+          "avg_cbo": 7.86,
+          "max_cbo": 13,
+          "avg_rfc": 16.84,
+          "max_rfc": 30,
+          "avg_fanin": 1.18,
+          "max_fanin": 4,
+          "avg_fanout": 7.8,
+          "max_fanout": 21
         }
       }
     },
     {
       "id": "A2",
-      "name": "App-2",
-      "version": "1.9.1",
-      "app_type": "gateway",
+      "name": "erp-sync",
+      "version": "2.6.0",
+      "app_type": "processor",
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Application Software",
-        "domain_name": "Communication",
-        "system_name": "Shared Services"
+        "component_name": "Enterprise Platform",
+        "config_item_name": "Inventory Management",
+        "domain_name": "Employee Portal",
+        "system_name": "Data Sync"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2774,
-          "total_classes": 34,
-          "total_methods": 357,
-          "total_fields": 181
+          "total_loc": 1841,
+          "total_classes": 19,
+          "total_methods": 156,
+          "total_fields": 42
         },
         "complexity": {
-          "total_wmc": 943,
-          "avg_wmc": 27.74,
-          "max_wmc": 75
+          "total_wmc": 192,
+          "avg_wmc": 10.12,
+          "max_wmc": 25
         },
         "cohesion": {
-          "avg_lcom": 52.64,
-          "max_lcom": 207.2
+          "avg_lcom": 36.44,
+          "max_lcom": 135.6
         },
         "coupling": {
-          "avg_cbo": 9.48,
-          "max_cbo": 20,
-          "avg_rfc": 31.07,
-          "max_rfc": 54,
-          "avg_fanin": 3.79,
-          "max_fanin": 13,
-          "avg_fanout": 4.72,
-          "max_fanout": 9
+          "avg_cbo": 10.32,
+          "max_cbo": 16,
+          "avg_rfc": 27.39,
+          "max_rfc": 67,
+          "avg_fanin": 6.7,
+          "max_fanin": 26,
+          "avg_fanout": 11.84,
+          "max_fanout": 27
         }
       }
     },
     {
       "id": "A3",
-      "name": "App-3",
-      "version": "3.2.6",
-      "app_type": "sensor",
-      "role": "sub",
-      "criticality": true,
+      "name": "esb-router-1",
+      "version": "2.3.7",
+      "app_type": "gateway",
+      "role": "pub",
+      "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Process Control",
-        "system_name": "Core Logic"
+        "component_name": "Corporate IT",
+        "config_item_name": "CRM Software",
+        "domain_name": "Stock Management",
+        "system_name": "Legacy Adapter"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 383,
-          "total_classes": 4,
-          "total_methods": 31,
-          "total_fields": 16
+          "total_loc": 2318,
+          "total_classes": 22,
+          "total_methods": 190,
+          "total_fields": 117
         },
         "complexity": {
-          "total_wmc": 34,
-          "avg_wmc": 8.49,
-          "max_wmc": 25
+          "total_wmc": 268,
+          "avg_wmc": 12.16,
+          "max_wmc": 32
         },
         "cohesion": {
-          "avg_lcom": 10.59,
-          "max_lcom": 43.5
+          "avg_lcom": 64.29,
+          "max_lcom": 242.4
         },
         "coupling": {
-          "avg_cbo": 4.87,
-          "max_cbo": 12,
-          "avg_rfc": 11.28,
-          "max_rfc": 27,
-          "avg_fanin": 3.62,
-          "max_fanin": 8,
-          "avg_fanout": 3.11,
-          "max_fanout": 8
+          "avg_cbo": 7.26,
+          "max_cbo": 13,
+          "avg_rfc": 30.24,
+          "max_rfc": 49,
+          "avg_fanin": 4.82,
+          "max_fanin": 19,
+          "avg_fanout": 6.58,
+          "max_fanout": 16
         }
       }
     },
     {
       "id": "A4",
-      "name": "App-4",
-      "version": "3.5.7",
-      "app_type": "actuator",
-      "role": "sub",
+      "name": "inventory-tracker",
+      "version": "1.4.0",
+      "app_type": "monitor",
+      "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Shared Platform",
-        "system_name": "Core Logic"
+        "component_name": "Corporate IT",
+        "config_item_name": "CRM Software",
+        "domain_name": "Invoice Processing",
+        "system_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 274,
-          "total_classes": 3,
-          "total_methods": 20,
-          "total_fields": 9
+          "total_loc": 719,
+          "total_classes": 9,
+          "total_methods": 69,
+          "total_fields": 28
         },
         "complexity": {
-          "total_wmc": 22,
-          "avg_wmc": 7.41,
-          "max_wmc": 16
+          "total_wmc": 108,
+          "avg_wmc": 11.95,
+          "max_wmc": 22
         },
         "cohesion": {
-          "avg_lcom": 19.69,
-          "max_lcom": 81.6
+          "avg_lcom": 30.14,
+          "max_lcom": 107.6
         },
         "coupling": {
-          "avg_cbo": 3.59,
-          "max_cbo": 6,
-          "avg_rfc": 11.64,
-          "max_rfc": 28,
-          "avg_fanin": 2.39,
-          "max_fanin": 8,
-          "avg_fanout": 2.81,
-          "max_fanout": 8
+          "avg_cbo": 6.98,
+          "max_cbo": 11,
+          "avg_rfc": 27.41,
+          "max_rfc": 65,
+          "avg_fanin": 2.04,
+          "max_fanin": 5,
+          "avg_fanout": 7.18,
+          "max_fanout": 18
         }
       }
     },
     {
       "id": "A5",
-      "name": "App-5",
-      "version": "3.9.8",
-      "app_type": "actuator",
-      "role": "pubsub",
+      "name": "invoice-service",
+      "version": "2.0.7",
+      "app_type": "service",
+      "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "User Interface",
-        "system_name": "Error Handling"
+        "component_name": "Corporate IT",
+        "config_item_name": "HR Systems",
+        "domain_name": "Order Processing",
+        "system_name": "Report Generation"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 141,
-          "total_classes": 2,
-          "total_methods": 14,
-          "total_fields": 8
+          "total_loc": 1086,
+          "total_classes": 11,
+          "total_methods": 75,
+          "total_fields": 43
         },
         "complexity": {
-          "total_wmc": 15,
-          "avg_wmc": 7.28,
-          "max_wmc": 20
+          "total_wmc": 111,
+          "avg_wmc": 10.07,
+          "max_wmc": 27
         },
         "cohesion": {
-          "avg_lcom": 15.02,
-          "max_lcom": 63.0
+          "avg_lcom": 31.61,
+          "max_lcom": 78.5
         },
         "coupling": {
-          "avg_cbo": 3.95,
-          "max_cbo": 7,
-          "avg_rfc": 15.84,
-          "max_rfc": 38,
-          "avg_fanin": 1.55,
-          "max_fanin": 7,
-          "avg_fanout": 3.01,
-          "max_fanout": 8
+          "avg_cbo": 10.79,
+          "max_cbo": 23,
+          "avg_rfc": 23.3,
+          "max_rfc": 40,
+          "avg_fanin": 4.0,
+          "max_fanin": 9,
+          "avg_fanout": 7.15,
+          "max_fanout": 15
         }
       }
     },
     {
       "id": "A6",
-      "name": "App-6",
-      "version": "1.3.5",
-      "app_type": "sensor",
+      "name": "hr-portal-1",
+      "version": "1.9.0",
+      "app_type": "service",
       "role": "pubsub",
-      "criticality": false,
+      "criticality": true,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "Software Design",
-        "system_name": "Configuration Management"
+        "component_name": "Corporate IT",
+        "config_item_name": "HR Systems",
+        "domain_name": "Customer Relations",
+        "system_name": "Data Sync"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 199,
-          "total_classes": 3,
-          "total_methods": 18,
-          "total_fields": 12
+          "total_loc": 604,
+          "total_classes": 8,
+          "total_methods": 51,
+          "total_fields": 25
         },
         "complexity": {
-          "total_wmc": 19,
-          "avg_wmc": 6.21,
-          "max_wmc": 18
+          "total_wmc": 175,
+          "avg_wmc": 21.82,
+          "max_wmc": 43
         },
         "cohesion": {
-          "avg_lcom": 7.7,
-          "max_lcom": 24.1
+          "avg_lcom": 44.59,
+          "max_lcom": 107.3
         },
         "coupling": {
-          "avg_cbo": 2.3,
-          "max_cbo": 4,
-          "avg_rfc": 19.86,
-          "max_rfc": 35,
-          "avg_fanin": 2.35,
-          "max_fanin": 7,
-          "avg_fanout": 2.3,
-          "max_fanout": 6
+          "avg_cbo": 6.19,
+          "max_cbo": 9,
+          "avg_rfc": 17.48,
+          "max_rfc": 39,
+          "avg_fanin": 5.52,
+          "max_fanin": 24,
+          "avg_fanout": 9.45,
+          "max_fanout": 23
         }
       }
     },
     {
       "id": "A7",
-      "name": "App-7",
-      "version": "1.4.5",
-      "app_type": "actuator",
+      "name": "invoice-service-1",
+      "version": "3.9.1",
+      "app_type": "service",
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Data Management",
-        "system_name": "Core Logic"
+        "component_name": "Corporate IT",
+        "config_item_name": "HR Systems",
+        "domain_name": "Employee Portal",
+        "system_name": "Report Generation"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 240,
-          "total_classes": 3,
-          "total_methods": 20,
-          "total_fields": 11
+          "total_loc": 1921,
+          "total_classes": 24,
+          "total_methods": 192,
+          "total_fields": 80
         },
         "complexity": {
-          "total_wmc": 14,
-          "avg_wmc": 4.82,
-          "max_wmc": 14
+          "total_wmc": 508,
+          "avg_wmc": 21.15,
+          "max_wmc": 38
         },
         "cohesion": {
-          "avg_lcom": 18.45,
-          "max_lcom": 74.8
+          "avg_lcom": 23.18,
+          "max_lcom": 72.9
         },
         "coupling": {
-          "avg_cbo": 4.69,
-          "max_cbo": 11,
-          "avg_rfc": 17.84,
-          "max_rfc": 40,
-          "avg_fanin": 2.68,
-          "max_fanin": 7,
-          "avg_fanout": 4.26,
-          "max_fanout": 12
+          "avg_cbo": 6.35,
+          "max_cbo": 13,
+          "avg_rfc": 36.09,
+          "max_rfc": 66,
+          "avg_fanin": 4.7,
+          "max_fanin": 11,
+          "avg_fanout": 9.45,
+          "max_fanout": 24
         }
       }
     },
     {
       "id": "A8",
-      "name": "App-8",
-      "version": "2.2.2",
-      "app_type": "processor",
-      "role": "pub",
+      "name": "invoice-service-2",
+      "version": "3.4.5",
+      "app_type": "service",
+      "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Application Software",
-        "domain_name": "Communication",
-        "system_name": "Messaging Utilities"
+        "component_name": "Business Systems",
+        "config_item_name": "HR Systems",
+        "domain_name": "Stock Management",
+        "system_name": "Report Generation"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 1539,
-          "total_classes": 17,
-          "total_methods": 91,
-          "total_fields": 39
+          "total_loc": 1138,
+          "total_classes": 13,
+          "total_methods": 122,
+          "total_fields": 33
         },
         "complexity": {
-          "total_wmc": 314,
-          "avg_wmc": 18.48,
-          "max_wmc": 40
+          "total_wmc": 134,
+          "avg_wmc": 10.28,
+          "max_wmc": 22
         },
         "cohesion": {
-          "avg_lcom": 23.89,
-          "max_lcom": 81.0
+          "avg_lcom": 48.81,
+          "max_lcom": 203.4
         },
         "coupling": {
-          "avg_cbo": 5.27,
-          "max_cbo": 10,
-          "avg_rfc": 34.45,
-          "max_rfc": 76,
-          "avg_fanin": 6.56,
-          "max_fanin": 26,
-          "avg_fanout": 11.67,
-          "max_fanout": 35
+          "avg_cbo": 7.02,
+          "max_cbo": 11,
+          "avg_rfc": 19.14,
+          "max_rfc": 33,
+          "avg_fanin": 2.31,
+          "max_fanin": 5,
+          "avg_fanout": 7.76,
+          "max_fanout": 18
         }
       }
     },
     {
       "id": "A9",
-      "name": "App-9",
-      "version": "1.2.8",
-      "app_type": "actuator",
-      "role": "pubsub",
-      "criticality": true,
+      "name": "erp-sync-1",
+      "version": "1.0.3",
+      "app_type": "processor",
+      "role": "pub",
+      "criticality": false,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Process Control",
-        "system_name": "Data Processing"
+        "component_name": "Business Systems",
+        "config_item_name": "Inventory Management",
+        "domain_name": "Invoice Processing",
+        "system_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 368,
-          "total_classes": 4,
-          "total_methods": 28,
-          "total_fields": 15
+          "total_loc": 2108,
+          "total_classes": 31,
+          "total_methods": 229,
+          "total_fields": 68
         },
         "complexity": {
-          "total_wmc": 24,
-          "avg_wmc": 5.89,
-          "max_wmc": 11
+          "total_wmc": 547,
+          "avg_wmc": 17.64,
+          "max_wmc": 41
         },
         "cohesion": {
-          "avg_lcom": 8.21,
-          "max_lcom": 21.5
+          "avg_lcom": 38.31,
+          "max_lcom": 118.5
         },
         "coupling": {
-          "avg_cbo": 2.79,
-          "max_cbo": 4,
-          "avg_rfc": 14.79,
-          "max_rfc": 26,
-          "avg_fanin": 1.87,
-          "max_fanin": 4,
-          "avg_fanout": 4.59,
-          "max_fanout": 11
+          "avg_cbo": 9.29,
+          "max_cbo": 18,
+          "avg_rfc": 38.09,
+          "max_rfc": 76,
+          "avg_fanin": 2.41,
+          "max_fanin": 7,
+          "avg_fanout": 11.4,
+          "max_fanout": 29
         }
       }
     },
     {
       "id": "A10",
-      "name": "App-10",
-      "version": "2.6.7",
-      "app_type": "monitor",
-      "role": "pub",
-      "criticality": false,
+      "name": "invoice-service-3",
+      "version": "1.8.0",
+      "app_type": "service",
+      "role": "pubsub",
+      "criticality": true,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Software Engineering",
-        "domain_name": "Shared Platform",
-        "system_name": "Core Logic"
+        "component_name": "Enterprise Platform",
+        "config_item_name": "ERP Integration",
+        "domain_name": "Order Processing",
+        "system_name": "Data Sync"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 936,
-          "total_classes": 14,
-          "total_methods": 95,
-          "total_fields": 48
+          "total_loc": 652,
+          "total_classes": 6,
+          "total_methods": 38,
+          "total_fields": 27
         },
         "complexity": {
-          "total_wmc": 156,
-          "avg_wmc": 11.15,
-          "max_wmc": 30
+          "total_wmc": 85,
+          "avg_wmc": 14.13,
+          "max_wmc": 26
         },
         "cohesion": {
-          "avg_lcom": 24.58,
-          "max_lcom": 63.6
+          "avg_lcom": 14.56,
+          "max_lcom": 48.5
         },
         "coupling": {
-          "avg_cbo": 5.75,
-          "max_cbo": 14,
-          "avg_rfc": 23.57,
-          "max_rfc": 53,
-          "avg_fanin": 2.36,
-          "max_fanin": 10,
-          "avg_fanout": 4.69,
-          "max_fanout": 10
+          "avg_cbo": 7.85,
+          "max_cbo": 13,
+          "avg_rfc": 34.77,
+          "max_rfc": 65,
+          "avg_fanin": 1.23,
+          "max_fanin": 5,
+          "avg_fanout": 5.08,
+          "max_fanout": 11
         }
       }
     },
     {
       "id": "A11",
-      "name": "App-11",
-      "version": "1.0.7",
-      "app_type": "sensor",
-      "role": "sub",
+      "name": "esb-router-2",
+      "version": "1.4.8",
+      "app_type": "gateway",
+      "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "User Interface",
-        "system_name": "Error Handling"
+        "component_name": "Corporate IT",
+        "config_item_name": "HR Systems",
+        "domain_name": "Customer Relations",
+        "system_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 172,
-          "total_classes": 2,
-          "total_methods": 12,
-          "total_fields": 6
+          "total_loc": 2614,
+          "total_classes": 34,
+          "total_methods": 204,
+          "total_fields": 102
         },
         "complexity": {
-          "total_wmc": 9,
-          "avg_wmc": 4.58,
-          "max_wmc": 13
+          "total_wmc": 806,
+          "avg_wmc": 23.72,
+          "max_wmc": 45
         },
         "cohesion": {
-          "avg_lcom": 12.35,
-          "max_lcom": 26.1
+          "avg_lcom": 28.28,
+          "max_lcom": 122.1
         },
         "coupling": {
-          "avg_cbo": 5.13,
-          "max_cbo": 9,
-          "avg_rfc": 9.43,
-          "max_rfc": 23,
-          "avg_fanin": 1.43,
-          "max_fanin": 6,
-          "avg_fanout": 4.14,
-          "max_fanout": 12
+          "avg_cbo": 10.01,
+          "max_cbo": 19,
+          "avg_rfc": 24.63,
+          "max_rfc": 53,
+          "avg_fanin": 7.12,
+          "max_fanin": 21,
+          "avg_fanout": 7.69,
+          "max_fanout": 20
         }
       }
     }
@@ -615,153 +615,153 @@
   "libraries": [
     {
       "id": "L0",
-      "name": "Lib-0",
-      "version": "2.5.1",
+      "name": "enterprise-auth",
+      "version": "2.4.8",
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Application Software",
-        "domain_name": "Shared Platform",
-        "system_name": "Shared Services"
+        "component_name": "Enterprise Platform",
+        "config_item_name": "Inventory Management",
+        "domain_name": "Order Processing",
+        "system_name": "Legacy Adapter"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 150,
-          "total_classes": 2,
-          "total_methods": 16,
-          "total_fields": 8
+          "total_loc": 97,
+          "total_classes": 1,
+          "total_methods": 7,
+          "total_fields": 2
         },
         "complexity": {
-          "total_wmc": 12,
-          "avg_wmc": 6.18,
-          "max_wmc": 17
+          "total_wmc": 4,
+          "avg_wmc": 3.84,
+          "max_wmc": 8
         },
         "cohesion": {
-          "avg_lcom": 14.4,
-          "max_lcom": 36.6
+          "avg_lcom": 4.22,
+          "max_lcom": 11.9
         },
         "coupling": {
-          "avg_cbo": 3.4,
-          "max_cbo": 8,
-          "avg_rfc": 11.41,
-          "max_rfc": 27,
-          "avg_fanin": 5.09,
-          "max_fanin": 17,
-          "avg_fanout": 2.56,
-          "max_fanout": 6
+          "avg_cbo": 3.35,
+          "max_cbo": 5,
+          "avg_rfc": 6.34,
+          "max_rfc": 11,
+          "avg_fanin": 2.0,
+          "max_fanin": 9,
+          "avg_fanout": 2.02,
+          "max_fanout": 5
         }
       }
     },
     {
       "id": "L1",
-      "name": "Lib-1",
-      "version": "2.2.7",
+      "name": "soap-client",
+      "version": "0.8.1",
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Application Software",
-        "domain_name": "Shared Platform",
-        "system_name": "Core Logic"
+        "component_name": "Business Systems",
+        "config_item_name": "Inventory Management",
+        "domain_name": "Employee Portal",
+        "system_name": "Notification Service"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 2454,
-          "total_classes": 19,
-          "total_methods": 140,
-          "total_fields": 75
+          "total_loc": 723,
+          "total_classes": 7,
+          "total_methods": 45,
+          "total_fields": 27
         },
         "complexity": {
-          "total_wmc": 229,
-          "avg_wmc": 12.04,
-          "max_wmc": 26
+          "total_wmc": 60,
+          "avg_wmc": 8.6,
+          "max_wmc": 21
         },
         "cohesion": {
-          "avg_lcom": 50.32,
-          "max_lcom": 104.5
+          "avg_lcom": 7.25,
+          "max_lcom": 15.4
         },
         "coupling": {
-          "avg_cbo": 6.64,
-          "max_cbo": 11,
-          "avg_rfc": 16.02,
-          "max_rfc": 38,
-          "avg_fanin": 6.07,
-          "max_fanin": 16,
-          "avg_fanout": 7.17,
-          "max_fanout": 16
+          "avg_cbo": 2.3,
+          "max_cbo": 4,
+          "avg_rfc": 18.0,
+          "max_rfc": 28,
+          "avg_fanin": 5.57,
+          "max_fanin": 12,
+          "avg_fanout": 2.62,
+          "max_fanout": 7
         }
       }
     },
     {
       "id": "L2",
-      "name": "Lib-2",
-      "version": "2.1.7",
+      "name": "enterprise-auth-1",
+      "version": "1.8.3",
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Software Engineering",
-        "domain_name": "User Interface",
-        "system_name": "Messaging Utilities"
+        "component_name": "Corporate IT",
+        "config_item_name": "CRM Software",
+        "domain_name": "Customer Relations",
+        "system_name": "Notification Service"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 483,
-          "total_classes": 5,
-          "total_methods": 38,
-          "total_fields": 12
+          "total_loc": 370,
+          "total_classes": 4,
+          "total_methods": 25,
+          "total_fields": 5
         },
         "complexity": {
-          "total_wmc": 38,
-          "avg_wmc": 7.63,
-          "max_wmc": 14
+          "total_wmc": 15,
+          "avg_wmc": 3.74,
+          "max_wmc": 7
         },
         "cohesion": {
-          "avg_lcom": 12.35,
-          "max_lcom": 46.7
+          "avg_lcom": 7.27,
+          "max_lcom": 29.1
         },
         "coupling": {
-          "avg_cbo": 4.48,
-          "max_cbo": 11,
-          "avg_rfc": 12.78,
-          "max_rfc": 24,
-          "avg_fanin": 5.41,
-          "max_fanin": 17,
-          "avg_fanout": 5.97,
-          "max_fanout": 14
+          "avg_cbo": 1.79,
+          "max_cbo": 4,
+          "avg_rfc": 13.32,
+          "max_rfc": 20,
+          "avg_fanin": 3.54,
+          "max_fanin": 13,
+          "avg_fanout": 3.77,
+          "max_fanout": 9
         }
       }
     },
     {
       "id": "L3",
-      "name": "Lib-3",
-      "version": "0.3.1",
+      "name": "xml-parser",
+      "version": "2.6.6",
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Application Software",
-        "domain_name": "User Interface",
-        "system_name": "Error Handling"
+        "component_name": "Business Systems",
+        "config_item_name": "ERP Integration",
+        "domain_name": "Employee Portal",
+        "system_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
-          "total_loc": 463,
-          "total_classes": 5,
-          "total_methods": 15,
-          "total_fields": 9
+          "total_loc": 284,
+          "total_classes": 4,
+          "total_methods": 30,
+          "total_fields": 10
         },
         "complexity": {
-          "total_wmc": 35,
-          "avg_wmc": 6.99,
+          "total_wmc": 22,
+          "avg_wmc": 5.52,
           "max_wmc": 15
         },
         "cohesion": {
-          "avg_lcom": 10.54,
-          "max_lcom": 45.5
+          "avg_lcom": 20.19,
+          "max_lcom": 58.4
         },
         "coupling": {
-          "avg_cbo": 1.04,
-          "max_cbo": 2,
-          "avg_rfc": 11.14,
-          "max_rfc": 27,
-          "avg_fanin": 5.05,
-          "max_fanin": 17,
-          "avg_fanout": 3.23,
-          "max_fanout": 7
+          "avg_cbo": 4.01,
+          "max_cbo": 9,
+          "avg_rfc": 27.09,
+          "max_rfc": 62,
+          "avg_fanin": 3.61,
+          "max_fanin": 15,
+          "avg_fanout": 4.71,
+          "max_fanout": 10
         }
       }
     }
@@ -778,23 +778,23 @@
       },
       {
         "from": "A2",
-        "to": "N0"
+        "to": "N1"
       },
       {
         "from": "A3",
-        "to": "N0"
+        "to": "N1"
       },
       {
         "from": "A4",
-        "to": "N0"
+        "to": "N2"
       },
       {
         "from": "A5",
-        "to": "N1"
+        "to": "N2"
       },
       {
         "from": "A6",
-        "to": "N1"
+        "to": "N2"
       },
       {
         "from": "A7",
@@ -806,7 +806,7 @@
       },
       {
         "from": "A9",
-        "to": "N2"
+        "to": "N0"
       },
       {
         "from": "A10",
@@ -814,7 +814,7 @@
       },
       {
         "from": "A11",
-        "to": "N2"
+        "to": "N0"
       },
       {
         "from": "B0",
@@ -827,7 +827,7 @@
     ],
     "routes": [
       {
-        "from": "B1",
+        "from": "B0",
         "to": "T0"
       },
       {
@@ -855,6 +855,10 @@
         "to": "T4"
       },
       {
+        "from": "B0",
+        "to": "T5"
+      },
+      {
         "from": "B1",
         "to": "T5"
       },
@@ -864,25 +868,41 @@
       },
       {
         "from": "B1",
+        "to": "T6"
+      },
+      {
+        "from": "B0",
         "to": "T7"
       }
     ],
     "publishes_to": [
       {
         "from": "L0",
-        "to": "T1"
+        "to": "T3"
+      },
+      {
+        "from": "L0",
+        "to": "T6"
       },
       {
         "from": "L1",
-        "to": "T3"
+        "to": "T5"
+      },
+      {
+        "from": "L2",
+        "to": "T4"
       },
       {
         "from": "L3",
-        "to": "T3"
+        "to": "T0"
       },
       {
         "from": "L3",
-        "to": "T1"
+        "to": "T6"
+      },
+      {
+        "from": "A1",
+        "to": "T6"
       },
       {
         "from": "A1",
@@ -890,15 +910,7 @@
       },
       {
         "from": "A1",
-        "to": "T7"
-      },
-      {
-        "from": "A2",
-        "to": "T2"
-      },
-      {
-        "from": "A2",
-        "to": "T3"
+        "to": "T4"
       },
       {
         "from": "A3",
@@ -906,31 +918,23 @@
       },
       {
         "from": "A3",
-        "to": "T5"
+        "to": "T0"
       },
       {
         "from": "A3",
-        "to": "T6"
-      },
-      {
-        "from": "A4",
         "to": "T4"
       },
       {
-        "from": "A4",
+        "from": "A6",
+        "to": "T1"
+      },
+      {
+        "from": "A6",
         "to": "T6"
       },
       {
-        "from": "A5",
-        "to": "T5"
-      },
-      {
-        "from": "A5",
-        "to": "T4"
-      },
-      {
-        "from": "A5",
-        "to": "T7"
+        "from": "A6",
+        "to": "T3"
       },
       {
         "from": "A6",
@@ -938,27 +942,35 @@
       },
       {
         "from": "A7",
-        "to": "T1"
+        "to": "T2"
+      },
+      {
+        "from": "A7",
+        "to": "T7"
       },
       {
         "from": "A7",
         "to": "T0"
       },
       {
-        "from": "A8",
-        "to": "T2"
+        "from": "A7",
+        "to": "T1"
       },
       {
         "from": "A9",
-        "to": "T3"
+        "to": "T4"
       },
       {
         "from": "A9",
-        "to": "T5"
+        "to": "T6"
       },
       {
         "from": "A9",
         "to": "T7"
+      },
+      {
+        "from": "A9",
+        "to": "T3"
       },
       {
         "from": "A9",
@@ -966,7 +978,11 @@
       },
       {
         "from": "A10",
-        "to": "T4"
+        "to": "T5"
+      },
+      {
+        "from": "A10",
+        "to": "T0"
       },
       {
         "from": "A10",
@@ -974,25 +990,21 @@
       },
       {
         "from": "A11",
-        "to": "T5"
+        "to": "T6"
       },
       {
         "from": "A11",
-        "to": "T7"
-      },
-      {
-        "from": "A11",
-        "to": "T0"
-      },
-      {
-        "from": "A11",
-        "to": "T3"
+        "to": "T1"
       }
     ],
     "subscribes_to": [
       {
+        "from": "L0",
+        "to": "T1"
+      },
+      {
         "from": "L1",
-        "to": "T6"
+        "to": "T2"
       },
       {
         "from": "L2",
@@ -1000,15 +1012,15 @@
       },
       {
         "from": "L3",
-        "to": "T1"
+        "to": "T2"
       },
       {
         "from": "A0",
-        "to": "T0"
+        "to": "T5"
       },
       {
-        "from": "A1",
-        "to": "T7"
+        "from": "A0",
+        "to": "T4"
       },
       {
         "from": "A1",
@@ -1016,7 +1028,7 @@
       },
       {
         "from": "A1",
-        "to": "T0"
+        "to": "T5"
       },
       {
         "from": "A2",
@@ -1024,15 +1036,7 @@
       },
       {
         "from": "A2",
-        "to": "T0"
-      },
-      {
-        "from": "A2",
         "to": "T1"
-      },
-      {
-        "from": "A2",
-        "to": "T4"
       },
       {
         "from": "A3",
@@ -1040,71 +1044,43 @@
       },
       {
         "from": "A3",
+        "to": "T0"
+      },
+      {
+        "from": "A3",
         "to": "T2"
       },
       {
-        "from": "A4",
+        "from": "A3",
         "to": "T4"
       },
       {
-        "from": "A4",
+        "from": "A3",
         "to": "T1"
       },
       {
-        "from": "A5",
-        "to": "T5"
-      },
-      {
-        "from": "A5",
-        "to": "T1"
-      },
-      {
-        "from": "A5",
-        "to": "T3"
-      },
-      {
-        "from": "A5",
+        "from": "A6",
         "to": "T6"
       },
       {
-        "from": "A5",
-        "to": "T4"
-      },
-      {
         "from": "A6",
-        "to": "T0"
-      },
-      {
-        "from": "A6",
-        "to": "T2"
-      },
-      {
-        "from": "A7",
-        "to": "T7"
-      },
-      {
-        "from": "A7",
         "to": "T1"
       },
       {
-        "from": "A7",
-        "to": "T0"
-      },
-      {
-        "from": "A7",
+        "from": "A6",
         "to": "T3"
       },
       {
-        "from": "A8",
+        "from": "A6",
+        "to": "T4"
+      },
+      {
+        "from": "A7",
         "to": "T2"
       },
       {
-        "from": "A9",
-        "to": "T3"
-      },
-      {
-        "from": "A9",
-        "to": "T0"
+        "from": "A7",
+        "to": "T4"
       },
       {
         "from": "A9",
@@ -1112,94 +1088,102 @@
       },
       {
         "from": "A9",
+        "to": "T3"
+      },
+      {
+        "from": "A9",
+        "to": "T0"
+      },
+      {
+        "from": "A10",
+        "to": "T0"
+      },
+      {
+        "from": "A10",
+        "to": "T5"
+      },
+      {
+        "from": "A10",
         "to": "T7"
       },
       {
         "from": "A10",
-        "to": "T4"
-      },
-      {
-        "from": "A10",
         "to": "T6"
       },
       {
+        "from": "A10",
+        "to": "T3"
+      },
+      {
         "from": "A11",
-        "to": "T5"
+        "to": "T1"
+      },
+      {
+        "from": "A11",
+        "to": "T6"
       },
       {
         "from": "A11",
         "to": "T0"
-      },
-      {
-        "from": "A11",
-        "to": "T6"
-      },
-      {
-        "from": "A11",
-        "to": "T2"
       }
     ],
     "connects_to": [
       {
         "from": "N0",
         "to": "N1"
-      },
-      {
-        "from": "N0",
-        "to": "N2"
       }
     ],
     "uses": [
       {
-        "from": "A2",
-        "to": "L0"
-      },
-      {
-        "from": "A6",
-        "to": "L0"
-      },
-      {
-        "from": "A0",
-        "to": "L0"
-      },
-      {
-        "from": "A0",
-        "to": "L1"
-      },
-      {
-        "from": "A3",
-        "to": "L1"
-      },
-      {
-        "from": "A4",
-        "to": "L1"
-      },
-      {
-        "from": "A4",
-        "to": "L2"
-      },
-      {
-        "from": "A9",
-        "to": "L2"
-      },
-      {
-        "from": "A7",
-        "to": "L2"
-      },
-      {
-        "from": "A6",
+        "from": "L0",
         "to": "L3"
+      },
+      {
+        "from": "L0",
+        "to": "L2"
+      },
+      {
+        "from": "L1",
+        "to": "L2"
+      },
+      {
+        "from": "L1",
+        "to": "L3"
+      },
+      {
+        "from": "A0",
+        "to": "L0"
       },
       {
         "from": "A8",
-        "to": "L3"
+        "to": "L0"
       },
       {
-        "from": "A10",
-        "to": "L3"
+        "from": "A5",
+        "to": "L1"
+      },
+      {
+        "from": "A4",
+        "to": "L1"
+      },
+      {
+        "from": "A1",
+        "to": "L2"
       },
       {
         "from": "A0",
+        "to": "L2"
+      },
+      {
+        "from": "A2",
+        "to": "L2"
+      },
+      {
+        "from": "A4",
+        "to": "L3"
+      },
+      {
+        "from": "A2",
         "to": "L3"
       }
     ]

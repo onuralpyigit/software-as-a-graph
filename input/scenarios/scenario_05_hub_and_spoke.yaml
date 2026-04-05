@@ -29,6 +29,8 @@
 
 graph:
   seed: 5005
+  domain: hub-and-spoke
+  scenario: hub-and-spoke
 
   counts:
     nodes: 12
