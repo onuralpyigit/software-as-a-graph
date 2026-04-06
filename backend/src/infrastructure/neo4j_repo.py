@@ -541,6 +541,7 @@ class Neo4jRepository:
             Broker:      w(b) = 0.70 * max(w(t)) + 0.30 * mean(w(t))
             Node:        w(n) = max w(c) for hosted components
             app_to_lib:  w(e) = w(App)
+            broker_to_broker: w(e) = w(Node)
         """
         # 1. Application Weight (hybrid: 0.80 * max + 0.20 * mean)
         self._run_query(f"""
@@ -591,6 +592,15 @@ class Neo4jRepository:
         self._run_query("""
             MATCH (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib:Library)
             SET d.weight = coalesce(app.weight, 0.01)
+        """)
+
+        # 6. broker_to_broker Edge Weights (inherits from Node)
+        # Step 6: Population of Rule 6 weights computed in Phase 5 from finalized Node weights.
+        self._run_query("""
+            MATCH (b1:Broker)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2:Broker)
+            MATCH (b1)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2)
+            WITH d, max(n.weight) as node_w
+            SET d.weight = coalesce(node_w, 0.01)
         """)
 
     def _derive_dependencies(self) -> None:
@@ -683,19 +693,15 @@ class Neo4jRepository:
         """)
 
         # Rule 6: broker_to_broker — colocation dependency via shared node
-        # When two brokers share the same physical node, they have implicit shared-fate risk:
-        # a single node failure removes both simultaneously. Without this rule, DG_in(broker)
-        # carries no signal about co-located broker risk.
-        # Direction: bidirectional (b1→b2 AND b2→b1) — colocation risk is symmetric;
-        # both brokers get elevated DG_in, which is correct.
-        # Weight: inherits from the shared node (w(n)), analogous to how app_to_lib inherits
-        # from the app. path_count = number of shared nodes (virtually always 1).
+        # When two brokers share the same physical node, they have implicit shared-fate risk.
+        # Weight inherits from the shared node (w(n)).
+        # NOTE: Weight is populated in Phase 5 aggregate step after n.weight is computed.
         self._run_query("""
             MATCH (b1:Broker)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2:Broker)
             WHERE b1 <> b2
-            WITH b1, b2, max(n.weight) as node_w, count(DISTINCT n) as path_count
+            WITH b1, b2, count(DISTINCT n) as path_count
             MERGE (b1)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2)
-            SET d.weight = coalesce(node_w, 0.01), d.path_count = path_count
+            SET d.path_count = path_count
         """)
 
         # Rule 5: app_to_lib — app depends on shared library
