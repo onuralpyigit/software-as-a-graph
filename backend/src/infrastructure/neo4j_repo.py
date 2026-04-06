@@ -17,7 +17,7 @@ Import performs the four construction phases:
 from __future__ import annotations
 import logging
 import os
-from typing import Dict, Any, List, Optional, Set
+from typing import Dict, Any, List, Optional, Set, Tuple
 
 from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, AuthError
@@ -139,49 +139,79 @@ class Neo4jRepository:
 
     def save_graph(self, data: Dict[str, Any], clear: bool = False) -> None:
         """
-        Import graph data into the repository.
+        Import graph data into the repository within a single transaction.
         
         Orchestrates all five construction phases:
             1. Import entities (V) — Apps, Brokers, Nodes, Topics, Libraries
             2. Import structural relationships (E_S) — USES, RUNS_ON, etc.
-            3. Compute intrinsic weights from QoS (Phase 3) — Topic λ/β
-            4. Derive DEPENDS_ON dependencies (Phase 4) — Rules 1–4
-            5. Compute aggregate component weights (Phase 5) — Hybrid w(v)
+            3. Compute intrinsic weights from QoS (Phase 3)
+            4. Derive DEPENDS_ON dependencies (Phase 4)
+            5. Compute aggregate component weights (Phase 5)
         """
         self.logger.info(f"Starting import. Clear DB: {clear}")
         
-        if clear: 
-            self._run_query("MATCH (n) DETACH DELETE n")
-            self._create_constraints()
+        # 0. Schema: Constraints run in their own transaction (Neo4j requirement)
+        self._create_constraints()
         
-        # 1. Import entities
-        self._import_entities(data)
-        
-        # 2. Import structural relationships
-        self._import_relationships(data)
-        
-        # 3. Compute intrinsic weights (Phase 3)
-        # Note: Uses TOPIC_QOS_WEIGHT_BETA (β)
-        self._calculate_intrinsic_weights()
-        
-        # 4. Derive dependencies (Phase 4, Rules 1–4)
-        # Direction: dependent -> dependency
-        self._derive_dependencies()
-        
-        # 5. Compute aggregate component weights (Phase 5)
-        # Hybrid w(v) propagated from topics to apps/brokers/nodes
-        self._calculate_aggregate_weights()
+        with self.driver.session(database=self.database) as session:
+            session.execute_write(self._save_graph_tx, data, clear)
 
-    def _run_query(self, query: str, parameters: Dict = None) -> Any:
-        """Execute a Cypher query."""
+    def _save_graph_tx(self, tx: Any, data: Dict[str, Any], clear: bool) -> None:
+        """Internal unit of work for save_graph transaction."""
+        try:
+            # 0. Clear
+            if clear: 
+                tx.run("MATCH (n) DETACH DELETE n")
+            
+            # 1. Import entities
+            self._import_entities(data, tx)
+            
+            # 2. Import structural relationships
+            self._import_relationships(data, tx)
+            
+            # 3. Compute intrinsic weights
+            self._calculate_intrinsic_weights(tx)
+            
+            # 4. Derive dependencies
+            self._derive_dependencies(tx)
+            
+            # 5. Compute aggregate component weights (Phase 5)
+            self._calculate_aggregate_weights(tx)
+            
+            self.logger.info("Import completed successfully.")
+            
+        except Exception as e:
+            self.logger.error(f"Import failed during phase orchestration: {e}")
+            self.logger.critical(
+                "Database may be in an inconsistent state. "
+                "Recommendation: Re-run with clear=True to ensure reproducibility."
+            )
+            # Transaction will be rolled back by the session.execute_write context manager
+            raise
+
+    def _run_query(self, query: str, parameters: Dict = None, tx: Any = None) -> Any:
+        """Execute a Cypher query, optionally within an existing transaction."""
+        if tx:
+            result = tx.run(query, parameters or {})
+            return result.consume()
+            
         with self.driver.session(database=self.database) as session:
             result = session.run(query, parameters or {})
             return result.consume()
 
-    def _import_batch(self, data: List[Dict], query: str) -> int:
-        """Import a batch of records using UNWIND."""
+    def _import_batch(self, data: List[Dict], query: str, tx: Any = None) -> int:
+        """Import a batch of records using UNWIND, optionally within a transaction."""
         if not data:
             return 0
+            
+        if tx:
+            result = tx.run(
+                f"UNWIND $rows AS row {query}",
+                {"rows": data}
+            )
+            summary = result.consume()
+            return summary.counters.nodes_created + summary.counters.relationships_created
+
         with self.driver.session(database=self.database) as session:
             result = session.run(
                 f"UNWIND $rows AS row {query}",
@@ -190,25 +220,26 @@ class Neo4jRepository:
             summary = result.consume()
             return summary.counters.nodes_created + summary.counters.relationships_created
 
-    def _create_constraints(self) -> None:
+    def _create_constraints(self, tx: Any = None) -> None:
         """Create uniqueness constraints for all entity types."""
         for label in ["Application", "Broker", "Node", "Topic", "Library"]:
             try:
                 self._run_query(
-                    f"CREATE CONSTRAINT IF NOT EXISTS FOR (n:{label}) REQUIRE n.id IS UNIQUE"
+                    f"CREATE CONSTRAINT IF NOT EXISTS FOR (n:{label}) REQUIRE n.id IS UNIQUE",
+                    tx=tx
                 )
             except Exception as e:
                 self.logger.warning(f"Could not create constraint for {label}: {e}")
 
-    def _import_entities(self, data: Dict[str, Any]) -> None:
+    def _import_entities(self, data: Dict[str, Any], tx: Any = None) -> None:
         """Import all entity types (Phase 1)."""
-        self._import_nodes(data.get("nodes", []))
-        self._import_brokers(data.get("brokers", []))
-        self._import_topics(data.get("topics", []))
-        self._import_applications(data.get("applications", []))
-        self._import_libraries(data.get("libraries", []))
+        self._import_nodes(data.get("nodes", []), tx=tx)
+        self._import_brokers(data.get("brokers", []), tx=tx)
+        self._import_topics(data.get("topics", []), tx=tx)
+        self._import_applications(data.get("applications", []), tx=tx)
+        self._import_libraries(data.get("libraries", []), tx=tx)
 
-    def _import_nodes(self, nodes_data: List[Dict[str, Any]]) -> None:
+    def _import_nodes(self, nodes_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import compute nodes with infrastructure metadata."""
         nodes = []
         for n in nodes_data:
@@ -227,9 +258,9 @@ class Neo4jRepository:
                 n.cpu_cores = row.cpu_cores,
                 n.memory_gb = row.memory_gb,
                 n.os_type = row.os_type
-        """)
+        """, tx=tx)
 
-    def _import_brokers(self, brokers_data: List[Dict[str, Any]]) -> None:
+    def _import_brokers(self, brokers_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import message brokers with middleware metadata."""
         brokers = []
         for b in brokers_data:
@@ -246,9 +277,9 @@ class Neo4jRepository:
                 b.type = row.type,
                 b.max_connections = row.max_connections,
                 b.host = row.host
-        """)
+        """, tx=tx)
 
-    def _import_topics(self, topics_data: List[Dict[str, Any]]) -> None:
+    def _import_topics(self, topics_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import topics with QoS policies."""
         topics = []
         for t in topics_data:
@@ -267,9 +298,9 @@ class Neo4jRepository:
                 t.qos_reliability = row.qos_reliability,
                 t.qos_durability = row.qos_durability,
                 t.qos_transport_priority = row.qos_transport_priority
-        """)
+        """, tx=tx)
 
-    def _import_applications(self, apps_data: List[Dict[str, Any]]) -> None:
+    def _import_applications(self, apps_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import applications with code metrics and hierarchy."""
         apps = []
         for a in apps_data:
@@ -349,9 +380,9 @@ class Neo4jRepository:
                 a.coupling_afferent = row.coupling_afferent,
                 a.coupling_efferent = row.coupling_efferent,
                 a.lcom = row.lcom
-        """)
+        """, tx=tx)
 
-    def _import_libraries(self, libs_data: List[Dict[str, Any]]) -> None:
+    def _import_libraries(self, libs_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import libraries with code metrics and hierarchy."""
         libs = []
         for l in libs_data:
@@ -425,42 +456,88 @@ class Neo4jRepository:
                 l.coupling_afferent = row.coupling_afferent,
                 l.coupling_efferent = row.coupling_efferent,
                 l.lcom = row.lcom
-        """)
+        """, tx=tx)
 
 
-    def _import_relationships(self, data: Dict[str, Any]) -> None:
-        """Import structural relationships (Phase 2)."""
+    def _import_relationships(self, data: Dict[str, Any], tx: Any = None) -> None:
+        """
+        Import structural relationships (Phase 2) with entity validation.
+        
+        Validates that referenced source and target entities exist before
+        creating edges. Missing entities raise ValueError to trigger rollback.
+        """
         rels = data.get("relationships", {})
         
-        rel_mapping = {
-            "runs_on": "RUNS_ON",
-            "routes": "ROUTES",
-            "publishes_to": "PUBLISHES_TO",
-            "subscribes_to": "SUBSCRIBES_TO",
-            "connects_to": "CONNECTS_TO",
-            "uses": "USES",
+        # Mapping: key -> (RelationType, SourceLabels, TargetLabels)
+        # Labels are used for performance optimization (matching indexed constraints)
+        rel_config = {
+            "runs_on": ("RUNS_ON", "Application|Broker", "Node"),
+            "routes": ("ROUTES", "Broker", "Topic"),
+            "publishes_to": ("PUBLISHES_TO", "Application|Library", "Topic"),
+            "subscribes_to": ("SUBSCRIBES_TO", "Application|Library", "Topic"),
+            "connects_to": ("CONNECTS_TO", "Node", "Node"),
+            "uses": ("USES", "Application|Library", "Library"),
         }
         
-        for key, rel_type in rel_mapping.items():
+        for key, (rel_type, src_labels, tgt_labels) in rel_config.items():
             items = rels.get(key, [])
-            if items:
-                batch = [{"from": r.get("from", r.get("source")), 
-                          "to": r.get("to", r.get("target"))} for r in items]
-                self._import_batch(batch, f"""
-                    MATCH (a {{id: row.from}}), (b {{id: row.to}})
-                    MERGE (a)-[:{rel_type}]->(b)
-                """)
+            if not items:
+                continue
+
+            batch = [{"from": r.get("from", r.get("source")), 
+                      "to": r.get("to", r.get("target"))} for r in items]
+            
+            # 1. Validate existence
+            # OPTIONAL MATCH allows identifying precisely which rows refer to missing nodes
+            validation_query = """
+                UNWIND $rows AS row
+                OPTIONAL MATCH (src {id: row.from})
+                OPTIONAL MATCH (tgt {id: row.to})
+                WITH row, src, tgt
+                WHERE src IS NULL OR tgt IS NULL
+                RETURN row.from as src_id, src IS NOT NULL as src_exists,
+                       row.to as tgt_id, tgt IS NOT NULL as tgt_exists
+                LIMIT 100
+            """
+            res = self._run_query(validation_query, {"rows": batch}, tx=tx)
+            # res for a tx run returns a Result object or something we can iterate if it's run via tx.run
+            # Wait, my _run_query returns result.consume() which is a ResultSummary.
+            # I should use tx.run directly here to get the records.
+            
+            # Re-running validation manually since _run_query consumes the result
+            if tx:
+                res = tx.run(validation_query, {"rows": batch})
+                errors = []
+                for record in res:
+                    if not record["src_exists"]:
+                        errors.append(f"Source entity missing (id='{record['src_id']}')")
+                    if not record["tgt_exists"]:
+                        errors.append(f"Target entity missing (id='{record['tgt_id']}')")
+                
+                if errors:
+                    example_errs = "; ".join(errors[:5])
+                    raise ValueError(
+                        f"Structural integrity violation in '{key}' ('{rel_type}') relationship: "
+                        f"Referenced entities must exist. Found {len(errors)} errors including: {example_errs}"
+                    )
+
+            # 2. Create edges using label-optimized match
+            query = f"""
+                MATCH (a:{src_labels} {{id: row.from}}), (b:{tgt_labels} {{id: row.to}})
+                MERGE (a)-[:{rel_type}]->(b)
+            """
+            self._import_batch(batch, query, tx=tx)
 
         # Phase 2 post-step: Fan-out augmentation for Topic
         self._run_query("""
             MATCH (t:Topic)
-            OPTIONAL MATCH (sub:Application)-[:SUBSCRIBES_TO]->(t)
+            OPTIONAL MATCH (sub)-[:SUBSCRIBES_TO]->(t) WHERE sub:Application OR sub:Library
             WITH t, count(DISTINCT sub) as sub_count
-            OPTIONAL MATCH (pub:Application)-[:PUBLISHES_TO]->(t)
+            OPTIONAL MATCH (pub)-[:PUBLISHES_TO]->(t) WHERE pub:Application OR pub:Library
             WITH t, sub_count, count(DISTINCT pub) as pub_count
             SET t.subscriber_count = sub_count,
                 t.publisher_count = pub_count
-        """)
+        """, tx=tx)
 
     def _get_qos_weight_cypher(self, topic_var: str) -> str:
         """
@@ -508,7 +585,7 @@ class Neo4jRepository:
         END
         """
 
-    def _calculate_intrinsic_weights(self) -> None:
+    def _calculate_intrinsic_weights(self, tx: Any = None) -> None:
         """
         Step 3: Compute intrinsic weights for Topic nodes.
         
@@ -519,15 +596,15 @@ class Neo4jRepository:
         qos_calc = self._get_qos_weight_cypher("t")
 
         # 1. Topic Weight
-        self._run_query(f"MATCH (t:Topic) SET t.weight = {qos_calc}")
+        self._run_query(f"MATCH (t:Topic) SET t.weight = {qos_calc}", tx=tx)
 
         # 2. Edge Weights (Inherit from Topic)
-        self._run_query("MATCH ()-[r:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic) SET r.weight = t.weight")
+        self._run_query("MATCH ()-[r:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic) SET r.weight = t.weight", tx=tx)
         
         # 3. ROUTES Edge Weights
-        self._run_query("MATCH ()-[r:ROUTES]->(t:Topic) SET r.weight = t.weight")
+        self._run_query("MATCH ()-[r:ROUTES]->(t:Topic) SET r.weight = t.weight", tx=tx)
 
-    def _calculate_aggregate_weights(self) -> None:
+    def _calculate_aggregate_weights(self, tx: Any = None) -> None:
         """
         Step 5: Compute aggregate weights for secondary infrastructure components.
         
@@ -549,7 +626,7 @@ class Neo4jRepository:
             OPTIONAL MATCH (a)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)
             WITH a, max(t.weight) as max_w, avg(t.weight) as mean_w
             SET a.weight = coalesce({APP_HYBRID_MAX_COEFF} * max_w + {APP_HYBRID_MEAN_COEFF} * mean_w, 0.01)
-        """)
+        """, tx=tx)
 
         # 2. Library Weight (propagated + fan-out multiplier)
         # Formula: min(1.0, base_w * (1 + γ * log2(1 + DG_in)))
@@ -570,7 +647,7 @@ class Neo4jRepository:
             SET l.weight = CASE WHEN base_w <= 0 THEN 0.01
                                 WHEN base_w * multiplier > 1.0 THEN 1.0
                                 ELSE base_w * multiplier END
-        """)
+        """, tx=tx)
 
         # 3. Broker Weight (hybrid: 0.70 * max + 0.30 * mean)
         self._run_query(f"""
@@ -578,7 +655,7 @@ class Neo4jRepository:
             OPTIONAL MATCH (b)-[:ROUTES]->(t:Topic)
             WITH b, max(t.weight) as max_w, avg(t.weight) as mean_w
             SET b.weight = coalesce({BROKER_HYBRID_MAX_COEFF} * max_w + {BROKER_HYBRID_MEAN_COEFF} * mean_w, 0.01)
-        """)
+        """, tx=tx)
 
         # 4. Node Weight (max hosted component weight)
         self._run_query("""
@@ -586,13 +663,13 @@ class Neo4jRepository:
             OPTIONAL MATCH (c)-[:RUNS_ON]->(n) WHERE c:Application OR c:Broker
             WITH n, max(c.weight) as hosted_max
             SET n.weight = coalesce(hosted_max, 0.01)
-        """)
+        """, tx=tx)
         
         # 5. app_to_lib Edge Weights (inherits from App)
         self._run_query("""
             MATCH (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib:Library)
             SET d.weight = coalesce(app.weight, 0.01)
-        """)
+        """, tx=tx)
 
         # 6. broker_to_broker Edge Weights (inherits from Node)
         # Step 6: Population of Rule 6 weights computed in Phase 5 from finalized Node weights.
@@ -601,9 +678,9 @@ class Neo4jRepository:
             MATCH (b1)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2)
             WITH d, max(n.weight) as node_w
             SET d.weight = coalesce(node_w, 0.01)
-        """)
+        """, tx=tx)
 
-    def _derive_dependencies(self) -> None:
+    def _derive_dependencies(self, tx: Any = None) -> None:
         """
         Derive DEPENDS_ON relationships from structural edges (Phase 4).
         
@@ -621,7 +698,7 @@ class Neo4jRepository:
             MERGE (subscriber)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(publisher)
             SET d.weight = coalesce(max_weight, 0.01),
                 d.path_count = path_count
-        """)
+        """, tx=tx)
         
         # Rule 1 (transitive): app depends on publisher via library chain
         # App-A -[USES]-> Lib-X -[SUBSCRIBES_TO]-> Topic-T <-[PUBLISHES_TO]- App-B
@@ -636,7 +713,7 @@ class Neo4jRepository:
                                          THEN max_weight ELSE d.weight END,
                          d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0) 
                                              THEN path_count ELSE d.path_count END
-        """)
+        """, tx=tx)
         
         # Rule 1 (transitive, reverse): app publishes via library chain
         # App-A -[SUBSCRIBES_TO]-> Topic-T <-[PUBLISHES_TO]- Lib-Y <-[USES*]- App-B
@@ -651,7 +728,7 @@ class Neo4jRepository:
                                          THEN max_weight ELSE d.weight END,
                          d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0) 
                                              THEN path_count ELSE d.path_count END
-        """)
+        """, tx=tx)
         
         # Rule 2: app_to_broker — app depends on broker that routes its topics
         self._run_query("""
@@ -660,8 +737,8 @@ class Neo4jRepository:
             WITH app, broker, max(t.weight) as max_w, count(t) as path_count
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
             SET d.weight = coalesce(max_w, 0.01), d.path_count = path_count
-        """)
-
+        """, tx=tx)
+ 
         # Rule 2 (transitive): app depends on broker via library chain
         self._run_query("""
             MATCH (app:Application)-[:USES*1..3]->(lib)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
@@ -670,8 +747,8 @@ class Neo4jRepository:
             ON CREATE SET d.weight = coalesce(max_w, 0.01), d.path_count = path_count
             ON MATCH SET d.weight = CASE WHEN coalesce(max_w, 0.01) > coalesce(d.weight, 0) THEN coalesce(max_w, 0.01) ELSE d.weight END,
                          d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0) THEN path_count ELSE d.path_count END
-        """)
-
+        """, tx=tx)
+ 
         # Rule 3: node_to_node — lifted from component dependencies
         self._run_query("""
             MATCH (a)-[d_ab:DEPENDS_ON]->(b),
@@ -681,8 +758,8 @@ class Neo4jRepository:
             WITH n1, n2, max(d_ab.weight) as lifted_max, count(*) as dep_count
             MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
             SET d.weight = coalesce(lifted_max, 0.01), d.path_count = dep_count
-        """)
-
+        """, tx=tx)
+ 
         # Rule 4: node_to_broker — lifted from hosted app broker usage
         self._run_query("""
             MATCH (app)-[dep:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker:Broker),
@@ -690,34 +767,25 @@ class Neo4jRepository:
             WITH n, broker, max(dep.weight) as lifted_max, count(*) as dep_count
             MERGE (n)-[d:DEPENDS_ON {dependency_type: 'node_to_broker'}]->(broker)
             SET d.weight = coalesce(lifted_max, 0.01), d.path_count = dep_count
-        """)
-
+        """, tx=tx)
+ 
         # Rule 6: broker_to_broker — colocation dependency via shared node
-        # When two brokers share the same physical node, they have implicit shared-fate risk.
-        # Weight inherits from the shared node (w(n)).
-        # NOTE: Weight is populated in Phase 5 aggregate step after n.weight is computed.
         self._run_query("""
             MATCH (b1:Broker)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2:Broker)
             WHERE b1 <> b2
             WITH b1, b2, count(DISTINCT n) as path_count
             MERGE (b1)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2)
             SET d.path_count = path_count
-        """)
-
+        """, tx=tx)
+ 
         # Rule 5: app_to_lib — app depends on shared library
-        # path_count = number of parallel USES edges between the same App–Library pair
-        # (duplicates are rare but counted consistently with Rule 1).
-        # Unlike Rule 1, path_count here does not represent topic-multiplicity; it feeds
-        # MPCI and path_complexity in Step 3 as a structural coupling-intensity signal only.
-        # Blast semantics for libraries are simultaneous multi-consumer, not sequential cascade.
-        # Weight is populated later during aggregate weights phase (inherits from App).
         self._run_query("""
             MATCH (app)-[:USES]->(lib:Library)
             WHERE app:Application OR app:Library
             WITH app, lib, count(*) as path_count
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib)
             SET d.path_count = path_count
-        """)
+        """, tx=tx)
 
     # ==========================================
     # Query Methods (Read)
