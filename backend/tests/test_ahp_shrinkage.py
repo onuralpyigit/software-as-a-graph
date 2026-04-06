@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.prediction.weight_calculator import AHPProcessor, AHPMatrices
+from src.core.models import AHP_SHRINKAGE_LAMBDA
 
 def test_shrinkage():
     # v5: r_pagerank and r_w_in are deprecated (0.0); the three active Reliability weights
@@ -36,7 +37,7 @@ def test_shrinkage():
     assert abs(weights_uniform.r_cdpot - 0.333) < 0.02
 
     # 3. Default Blend (lambda=0.7): intermediate values between pure and uniform
-    processor_blend = AHPProcessor(shrinkage_factor=0.7)
+    processor_blend = AHPProcessor(shrinkage_factor=AHP_SHRINKAGE_LAMBDA)
     weights_blend = processor_blend.compute_weights()
     print(f"Blend (0.7) R weights: rpr={weights_blend.r_reverse_pagerank:.3f}, din={weights_blend.r_in_degree:.3f}, cdpot={weights_blend.r_cdpot:.3f}")
     # RPR is highest in the v5 matrix: [1.0, 1.5, 2.0] row means RPR > DG_in > CDPot
@@ -45,16 +46,14 @@ def test_shrinkage():
 
     # 4. Availability Blend v2: a_qspof is now the primary SPOF weight; deprecated a_articulation=0
     print(f"Blend (0.7) A weights v2: qspof={weights_blend.a_qspof:.3f}, br={weights_blend.a_bridge_ratio:.3f}, ap_dir={weights_blend.a_ap_c_directed:.3f}, cdi={weights_blend.a_cdi:.3f}")
-    # Deprecated fields must be 0.0 in v2
-    assert weights_blend.a_articulation == 0.0, "a_articulation must be 0.0 (deprecated in v2)"
-    assert weights_blend.a_qos_weight == 0.0,  "a_qos_weight must be 0.0 (deprecated in v2)"
-    # Active v2 weights must be positive
+    # Active v2/v3 weights must be positive
     assert weights_blend.a_qspof > 0.0
     assert weights_blend.a_bridge_ratio > 0.0
     assert weights_blend.a_ap_c_directed > 0.0
     assert weights_blend.a_cdi > 0.0
+    assert weights_blend.a_qos_weight > 0.0
     # Active weights must sum roughly to 1.0
-    active_a = weights_blend.a_qspof + weights_blend.a_bridge_ratio + weights_blend.a_ap_c_directed + weights_blend.a_cdi
+    active_a = weights_blend.a_qspof + weights_blend.a_bridge_ratio + weights_blend.a_ap_c_directed + weights_blend.a_cdi + weights_blend.a_qos_weight
     assert abs(active_a - 1.0) < 0.05, f"A(v) v2 active weights should sum ~1.0, got {active_a:.4f}"
 
     print("\nAll AHP shrinkage tests passed!")

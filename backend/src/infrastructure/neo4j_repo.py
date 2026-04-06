@@ -141,11 +141,12 @@ class Neo4jRepository:
         """
         Import graph data into the repository.
         
-        Orchestrates all four construction phases:
-            1. Clear + constraints (optional)
-            2. Import entities (V) and structural edges (E_S)
-            3. Compute intrinsic weights from QoS (w)
-            4. Derive DEPENDS_ON dependencies (E_D)
+        Orchestrates all five construction phases:
+            1. Import entities (V) — Apps, Brokers, Nodes, Topics, Libraries
+            2. Import structural relationships (E_S) — USES, RUNS_ON, etc.
+            3. Compute intrinsic weights from QoS (Phase 3) — Topic λ/β
+            4. Derive DEPENDS_ON dependencies (Phase 4) — Rules 1–4
+            5. Compute aggregate component weights (Phase 5) — Hybrid w(v)
         """
         self.logger.info(f"Starting import. Clear DB: {clear}")
         
@@ -159,13 +160,16 @@ class Neo4jRepository:
         # 2. Import structural relationships
         self._import_relationships(data)
         
-        # 3. Compute weights (Phase 3)
+        # 3. Compute intrinsic weights (Phase 3)
+        # Note: Uses TOPIC_QOS_WEIGHT_BETA (β)
         self._calculate_intrinsic_weights()
         
         # 4. Derive dependencies (Phase 4, Rules 1–4)
+        # Direction: dependent -> dependency
         self._derive_dependencies()
         
-        # 5. Compute aggregate component weights
+        # 5. Compute aggregate component weights (Phase 5)
+        # Hybrid w(v) propagated from topics to apps/brokers/nodes
         self._calculate_aggregate_weights()
 
     def _run_query(self, query: str, parameters: Dict = None) -> Any:
@@ -506,10 +510,11 @@ class Neo4jRepository:
 
     def _calculate_intrinsic_weights(self) -> None:
         """
-        Calculate weights for Topics based on QoS and Size (Phase 3).
+        Step 3: Compute intrinsic weights for Topic nodes.
         
-        Implements §1.5 Weight Calculation:
-            W_topic = max(ε, S_reliability + S_durability + S_priority + S_size)
+        Implements Equation 1 (Topic Weight):
+            w(topic) = β * QoS_score + (1-β) * Size_Norm
+        Where β = TOPIC_QOS_WEIGHT_BETA (0.85).
         """
         qos_calc = self._get_qos_weight_cypher("t")
 
@@ -524,11 +529,15 @@ class Neo4jRepository:
 
     def _calculate_aggregate_weights(self) -> None:
         """
-        Propagate weights from topics up through the component hierarchy.
+        Step 5: Compute aggregate weights for secondary infrastructure components.
         
-        Implements §1.5 Weight Propagation:
+        Propagates weights from topics up the dependency chain using max/hybrid 
+        blending. This ensures that a node or broker's importance reflects 
+        the most critical data it carries.
+        
+        Aggregation Rules:
             Application: w(a) = max w(t) for direct topics
-            Library:     w(l) = max w(app) for consuming apps (and max w(t) for direct topics if any)
+            Library:     w(l) = max w(app) for consuming apps
             Broker:      w(b) = 0.70 * max(w(t)) + 0.30 * mean(w(t))
             Node:        w(n) = max w(c) for hosted components
             app_to_lib:  w(e) = w(App)

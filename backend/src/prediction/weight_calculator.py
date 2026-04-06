@@ -18,6 +18,8 @@ import math
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
+from src.core.models import AHP_SHRINKAGE_LAMBDA
+
 
 @dataclass
 class QualityWeights:
@@ -237,14 +239,14 @@ class AHPProcessor:
     reconciling pure AHP weights with a uniform prior.
     """
     
-    def __init__(self, matrices: AHPMatrices = None, shrinkage_factor: float = 0.7):
+    def __init__(self, matrices: AHPMatrices = None, shrinkage_factor: float = AHP_SHRINKAGE_LAMBDA):
         self.matrices = matrices or AHPMatrices()
         self.shrinkage_factor = shrinkage_factor
 
     def _shrink_weights(self, weights: List[float]) -> List[float]:
         """
-        Blends AHP weights with a uniform prior using mixing coefficient lambda.
-        w_final = lambda * w_ahp + (1 - lambda) * w_uniform
+        Blends AHP weights with a uniform prior using mixing coefficient lambda (λ).
+        w_final = λ * w_ahp + (1 - λ) * w_uniform
         """
         n = len(weights)
         if n == 0:

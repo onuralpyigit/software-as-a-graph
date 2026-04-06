@@ -15,7 +15,13 @@ MIN_TOPIC_WEIGHT: float = 0.01
 
 #: Convex combination factor (β) for topic weight: 0.85 QoS + 0.15 Size.
 #: Rationale: QoS semantics are the primary signal; payload size is a secondary amplifier.
+#: Note: Distinguish from AHP_SHRINKAGE_LAMBDA (λ) used for weight blending.
 TOPIC_QOS_WEIGHT_BETA: float = 0.85
+
+#: AHP Shrinkage Factor (λ) for weight distribution smoothing.
+#: Applied as: w_final = λ * w_ahp + (1 - λ) * w_uniform.
+#: Rationale: Blends expert AHP judgment with a uniform prior to reduce over-fitting/bias.
+AHP_SHRINKAGE_LAMBDA: float = 0.70
 
 #: Hybrid weight coefficients for aggregate components
 APP_HYBRID_MAX_COEFF: float = 0.80
