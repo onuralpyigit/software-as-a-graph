@@ -17,7 +17,7 @@ class Client:
             from src.infrastructure import create_repository
             self.repo = create_repository(uri=neo4j_uri, user=user, password=password)
         
-    def import_topology(self, filepath: Optional[str] = None, graph_data: Optional[Dict[str, Any]] = None, clear: bool = False) -> Dict[str, Any]:
+    def import_topology(self, filepath: Optional[str] = None, graph_data: Optional[Dict[str, Any]] = None, clear: bool = False, dry_run: bool = False) -> Dict[str, Any]:
         """Import a JSON topology into the graph database, either from a file or raw dict."""
         if not graph_data:
             if not filepath:
@@ -28,7 +28,8 @@ class Client:
         from src.usecases.model_graph import ModelGraphUseCase
         uc = ModelGraphUseCase(self.repo)
         
-        result = uc.execute(graph_data, clear=clear)
+        result = uc.execute(graph_data, clear=clear, dry_run=dry_run)
+
         stats = {
             "nodes_imported": result.nodes_imported,
             "edges_imported": result.edges_imported,

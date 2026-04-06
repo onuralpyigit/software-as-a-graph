@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse
 from saag import Client
-from bin._shared import add_neo4j_args, setup_logging
+from bin._shared import add_neo4j_args, add_common_args, setup_logging
 from bin.common.console import ConsoleDisplay
 
 def main():
@@ -21,8 +21,10 @@ def main():
     )
     parser.add_argument("--input", required=True, help="Input JSON file")
     parser.add_argument("--clear", action="store_true", help="Clear existing DB before import")
+    parser.add_argument("--dry-run", action="store_true", help="Validate input without importing")
     
     add_neo4j_args(parser)
+    add_common_args(parser)
     args = parser.parse_args()
     setup_logging(args)
     console = ConsoleDisplay()
@@ -34,16 +36,37 @@ def main():
         console.print_error(f"Input file '{args.input}' not found.")
         sys.exit(1)
 
-    console.print_header("Graph Import")
-    if args.clear:
+    if args.dry_run:
+        console.print_header("Graph Import (Dry Run)")
+    else:
+        console.print_header("Graph Import")
+
+    if args.clear and not args.dry_run:
         console.print_step("Clearing existing database...")
-    console.print_step(f"Importing {input_path.name} into Neo4j at {args.uri}...")
+    
+    if args.dry_run:
+        console.print_step(f"Validating {input_path.name} (simulated import)...")
+    else:
+        console.print_step(f"Importing {input_path.name} into Neo4j at {args.uri}...")
     
     try:
-        stats = client.import_topology(filepath=args.input, clear=args.clear)
-        console.print_success("Import & Derivation Complete!")
+        stats = client.import_topology(filepath=args.input, clear=args.clear, dry_run=args.dry_run)
+        
+        if args.dry_run:
+            console.print_success("Dry Run Validation Complete!")
+        else:
+            console.print_success("Import & Derivation Complete!")
+            
         console.display_import_summary(stats)
+        
+        if args.output:
+            import json
+            with open(args.output, "w") as f:
+                json.dump(stats, f, indent=2)
+            console.print_step(f"Import stats saved to: {args.output}")
+
     except Exception as e:
+
         console.print_error(f"Import failed: {e}")
         if getattr(args, 'verbose', False):
             import traceback
