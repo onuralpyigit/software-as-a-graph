@@ -72,11 +72,12 @@ async def import_graph(
     """Import graph data into Neo4j database."""
     try:
         logger.info(f"Importing graph data (clear={request.clear_database})")
-        # client.import_topology returns a dict of stats
-        stats_dict = client.import_topology(graph_data=request.graph_data, clear=request.clear_database)
+        # client.import_topology returns an ImportStats object
+        stats = client.import_topology(graph_data=request.graph_data, clear=request.clear_database)
         
-        # Format expects the details dictionary directly wrapper
-        return graph_presenter.format_import_response(stats_dict)
+        # Format expects the details dictionary directly wrapped
+        return graph_presenter.format_import_response(stats.to_dict())
+
     except Exception as e:
         logger.error(f"Graph import failed: {e}")
         raise HTTPException(status_code=500, detail=f"Graph import failed: {e}")

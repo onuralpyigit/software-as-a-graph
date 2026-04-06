@@ -12,6 +12,20 @@ class ImportStats:
     success: bool = True
     message: str = ""
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to a flat dictionary for display/JSON serialization."""
+        d = {
+            "nodes_imported": self.nodes_imported,
+            "edges_imported": self.edges_imported,
+            "duration_ms": self.duration_ms,
+            "success": self.success,
+            "message": self.message,
+        }
+        if self.details:
+            d.update(self.details)
+        return d
+
+
 class SimulationMode(Enum):
     EXHAUSTIVE = "exhaustive"
     MONTE_CARLO = "monte_carlo"

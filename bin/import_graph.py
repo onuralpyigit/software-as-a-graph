@@ -62,8 +62,9 @@ def main():
         if args.output:
             import json
             with open(args.output, "w") as f:
-                json.dump(stats, f, indent=2)
+                json.dump(stats.to_dict(), f, indent=2)
             console.print_step(f"Import stats saved to: {args.output}")
+
 
     except Exception as e:
 
