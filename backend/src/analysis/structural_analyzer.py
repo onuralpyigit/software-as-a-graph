@@ -332,6 +332,14 @@ class StructuralAnalyzer:
                 fan_out_criticality=foc.get(nid, 0.0),
                 mpci=mpci.get(nid, 0.0),
                 path_complexity=path_complexity.get(nid, 0.0),
+                # Infrastructure Metrics
+                ip_address=G.nodes[nid].get("ip_address", ""),
+                cpu_cores=G.nodes[nid].get("cpu_cores", 0),
+                memory_gb=G.nodes[nid].get("memory_gb", 0),
+                os_type=G.nodes[nid].get("os_type", ""),
+                broker_type=G.nodes[nid].get("type", ""),
+                max_connections=G.nodes[nid].get("max_connections", 0),
+                host=G.nodes[nid].get("host", ""),
                 # Code quality — raw stored temporarily; post-loop normalisation fills them
                 # loc_norm / complexity_norm / lcom_norm hold RAW values until the pass
                 loc_norm=float(raw_loc),
@@ -339,6 +347,11 @@ class StructuralAnalyzer:
                 lcom_norm=raw_lcom,
                 instability_code=instability_val,
                 code_quality_penalty=0.0,  # filled by _compute_code_quality_metrics
+                # SonarQube / Quality Metrics
+                sqale_debt_ratio=float(G.nodes[nid].get("sqale_debt_ratio", 0.0)),
+                bugs=int(G.nodes[nid].get("bugs", 0)),
+                vulnerabilities=int(G.nodes[nid].get("vulnerabilities", 0)),
+                duplicated_lines_density=float(G.nodes[nid].get("duplicated_lines_density", 0.0)),
                 # Weights
                 weight=G.nodes[nid].get("weight", 1.0),
                 dependency_weight_in=dep_weight_in.get(nid, 0.0),

@@ -198,17 +198,56 @@ class Neo4jRepository:
 
     def _import_entities(self, data: Dict[str, Any]) -> None:
         """Import all entity types (Phase 1)."""
-        # Nodes
-        nodes = [{"id": n["id"], "name": n.get("name", n["id"])} for n in data.get("nodes", [])]
-        self._import_batch(nodes, "MERGE (n:Node {id: row.id}) SET n.name = row.name")
-        
-        # Brokers
-        brokers = [{"id": b["id"], "name": b.get("name", b["id"])} for b in data.get("brokers", [])]
-        self._import_batch(brokers, "MERGE (b:Broker {id: row.id}) SET b.name = row.name")
-        
-        # Topics (with QoS properties)
+        self._import_nodes(data.get("nodes", []))
+        self._import_brokers(data.get("brokers", []))
+        self._import_topics(data.get("topics", []))
+        self._import_applications(data.get("applications", []))
+        self._import_libraries(data.get("libraries", []))
+
+    def _import_nodes(self, nodes_data: List[Dict[str, Any]]) -> None:
+        """Import compute nodes with infrastructure metadata."""
+        nodes = []
+        for n in nodes_data:
+            nodes.append({
+                "id": n["id"],
+                "name": n.get("name", n["id"]),
+                "ip_address": n.get("ip_address", ""),
+                "cpu_cores": n.get("cpu_cores", 0),
+                "memory_gb": n.get("memory_gb", 0),
+                "os_type": n.get("os_type", "linux"),
+            })
+        self._import_batch(nodes, """
+            MERGE (n:Node {id: row.id})
+            SET n.name = row.name,
+                n.ip_address = row.ip_address,
+                n.cpu_cores = row.cpu_cores,
+                n.memory_gb = row.memory_gb,
+                n.os_type = row.os_type
+        """)
+
+    def _import_brokers(self, brokers_data: List[Dict[str, Any]]) -> None:
+        """Import message brokers with middleware metadata."""
+        brokers = []
+        for b in brokers_data:
+            brokers.append({
+                "id": b["id"],
+                "name": b.get("name", b["id"]),
+                "type": b.get("type", "mqtt"),
+                "max_connections": b.get("max_connections", 0),
+                "host": b.get("host", ""),
+            })
+        self._import_batch(brokers, """
+            MERGE (b:Broker {id: row.id})
+            SET b.name = row.name,
+                b.type = row.type,
+                b.max_connections = row.max_connections,
+                b.host = row.host
+        """)
+
+    def _import_topics(self, topics_data: List[Dict[str, Any]]) -> None:
+        """Import topics with QoS policies."""
         topics = []
-        for t in data.get("topics", []):
+        for t in topics_data:
             qos = t.get("qos", t.get("qos_policy", {}))
             topics.append({
                 "id": t["id"],
@@ -225,16 +264,20 @@ class Neo4jRepository:
                 t.qos_durability = row.qos_durability,
                 t.qos_transport_priority = row.qos_transport_priority
         """)
-        
-        # Applications
+
+    def _import_applications(self, apps_data: List[Dict[str, Any]]) -> None:
+        """Import applications with code metrics and hierarchy."""
         apps = []
-        for a in data.get("applications", []):
+        for a in apps_data:
             cm = a.get("code_metrics") or {}
             sh = a.get("system_hierarchy") or {}
             size = cm.get("size", {})
             complexity = cm.get("complexity", {})
             cohesion = cm.get("cohesion", {})
             coupling = cm.get("coupling", {})
+            # SonarQube / Quality metrics
+            quality = cm.get("quality", cm)  # Support both nested and flat for flexibility
+            
             apps.append({
                 "id": a["id"],
                 "name": a.get("name", a["id"]),
@@ -268,6 +311,11 @@ class Neo4jRepository:
                 "cm_max_fanin": coupling.get("max_fanin", 0),
                 "cm_avg_fanout": float(coupling.get("avg_fanout", 0.0)),
                 "cm_max_fanout": coupling.get("max_fanout", 0),
+                # Quality Metrics (SonarQube)
+                "sqale_debt_ratio": float(quality.get("sqale_debt_ratio", 0.0)),
+                "bugs": int(quality.get("bugs", 0)),
+                "vulnerabilities": int(quality.get("vulnerabilities", 0)),
+                "duplicated_lines_density": float(quality.get("duplicated_lines_density", 0.0)),
                 # Analysis-compatible aliases
                 "loc": size.get("total_loc", 0),
                 "cyclomatic_complexity": float(complexity.get("avg_wmc", 0.0)),
@@ -275,6 +323,7 @@ class Neo4jRepository:
                 "coupling_efferent": int(coupling.get("avg_fanout", 0)),
                 "lcom": float(cohesion.get("avg_lcom", 0.0)),
             })
+
         self._import_batch(apps, """
             MERGE (a:Application {id: row.id})
             SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
@@ -289,22 +338,27 @@ class Neo4jRepository:
                 a.cm_avg_rfc = row.cm_avg_rfc, a.cm_max_rfc = row.cm_max_rfc,
                 a.cm_avg_fanin = row.cm_avg_fanin, a.cm_max_fanin = row.cm_max_fanin,
                 a.cm_avg_fanout = row.cm_avg_fanout, a.cm_max_fanout = row.cm_max_fanout,
+                a.sqale_debt_ratio = row.sqale_debt_ratio, a.bugs = row.bugs,
+                a.vulnerabilities = row.vulnerabilities, a.duplicated_lines_density = row.duplicated_lines_density,
                 a.loc = row.loc,
                 a.cyclomatic_complexity = row.cyclomatic_complexity,
                 a.coupling_afferent = row.coupling_afferent,
                 a.coupling_efferent = row.coupling_efferent,
                 a.lcom = row.lcom
         """)
-        
-        # Libraries
+
+    def _import_libraries(self, libs_data: List[Dict[str, Any]]) -> None:
+        """Import libraries with code metrics and hierarchy."""
         libs = []
-        for l in data.get("libraries", []):
+        for l in libs_data:
             cm = l.get("code_metrics") or {}
             sh = l.get("system_hierarchy") or {}
             size = cm.get("size", {})
             complexity = cm.get("complexity", {})
             cohesion = cm.get("cohesion", {})
             coupling = cm.get("coupling", {})
+            quality = cm.get("quality", cm)
+            
             libs.append({
                 "id": l["id"],
                 "name": l.get("name", l["id"]),
@@ -335,6 +389,11 @@ class Neo4jRepository:
                 "cm_max_fanin": coupling.get("max_fanin", 0),
                 "cm_avg_fanout": float(coupling.get("avg_fanout", 0.0)),
                 "cm_max_fanout": coupling.get("max_fanout", 0),
+                # Quality Metrics (SonarQube)
+                "sqale_debt_ratio": float(quality.get("sqale_debt_ratio", 0.0)),
+                "bugs": int(quality.get("bugs", 0)),
+                "vulnerabilities": int(quality.get("vulnerabilities", 0)),
+                "duplicated_lines_density": float(quality.get("duplicated_lines_density", 0.0)),
                 # Analysis-compatible aliases
                 "loc": size.get("total_loc", 0),
                 "cyclomatic_complexity": float(complexity.get("avg_wmc", 0.0)),
@@ -355,12 +414,15 @@ class Neo4jRepository:
                 l.cm_avg_rfc = row.cm_avg_rfc, l.cm_max_rfc = row.cm_max_rfc,
                 l.cm_avg_fanin = row.cm_avg_fanin, l.cm_max_fanin = row.cm_max_fanin,
                 l.cm_avg_fanout = row.cm_avg_fanout, l.cm_max_fanout = row.cm_max_fanout,
+                l.sqale_debt_ratio = row.sqale_debt_ratio, l.bugs = row.bugs,
+                l.vulnerabilities = row.vulnerabilities, l.duplicated_lines_density = row.duplicated_lines_density,
                 l.loc = row.loc,
                 l.cyclomatic_complexity = row.cyclomatic_complexity,
                 l.coupling_afferent = row.coupling_afferent,
                 l.coupling_efferent = row.coupling_efferent,
                 l.lcom = row.lcom
         """)
+
 
     def _import_relationships(self, data: Dict[str, Any]) -> None:
         """Import structural relationships (Phase 2)."""

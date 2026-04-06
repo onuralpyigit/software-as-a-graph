@@ -64,6 +64,15 @@ class StructuralMetrics:
     mpci: float = 0.0                    # Multi-path coupling intensity
     path_complexity: float = 0.0         # Efferent path count complexity: mean(log2(1+path_count))
 
+    # === Infrastructure Metrics (Node and Broker nodes only) ===
+    ip_address: str = ""
+    cpu_cores: int = 0
+    memory_gb: int = 0
+    os_type: str = ""
+    broker_type: str = ""      # renamed from 'type' to avoid collision with 'type' field
+    max_connections: int = 0
+    host: str = ""
+
     # === Code Quality Metrics (Application nodes only; 0.0 for all other types) ===
     # Populated from optional JSON fields (loc, cyclomatic_complexity, coupling_*, lcom).
     # When fields are absent or zero, these remain 0.0 and contribute nothing to M(v).
@@ -72,6 +81,12 @@ class StructuralMetrics:
     instability_code: float = 0.0      # Martin instability Ce/(Ca+Ce) ∈ [0,1] (raw, not normalised)
     lcom_norm: float = 0.0             # Normalised Lack of Cohesion of Methods ∈ [0,1]
     code_quality_penalty: float = 0.0  # CQP = 0.40·complexity_norm + 0.35·instability_code + 0.25·lcom_norm
+    
+    # SonarQube / Quality Metrics
+    sqale_debt_ratio: float = 0.0
+    bugs: int = 0
+    vulnerabilities: int = 0
+    duplicated_lines_density: float = 0.0
 
     # === Weights ===
     weight: float = 1.0                  # Intrinsic component weight
