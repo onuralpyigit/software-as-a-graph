@@ -5,9 +5,9 @@ from src.analysis.models import StructuralAnalysisResult
 class AnalyzeGraphUseCase:
     """Use case for running structural analysis on a graph."""
     
-    def __init__(self, repository: IGraphRepository):
-        self.repository = repository
-        self.service = AnalysisService(repository)
+    def __init__(self, service: AnalysisService):
+        self.service = service
+
         
     def execute(self, layer: str) -> StructuralAnalysisResult:
         result = self.service.analyze_layer(layer)

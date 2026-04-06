@@ -8,11 +8,45 @@ class ModelGraphUseCase:
     def __init__(self, repository: IGraphRepository):
         self.repository = repository
         
+    def _validate_graph_data(self, data: Dict[str, Any]) -> None:
+        """Lightweight structural validation of input graph data."""
+        if not isinstance(data, dict):
+            raise ValueError("Input data must be a dictionary.")
+
+        # Validate nodes, brokers etc. have IDs
+        for key in ["nodes", "brokers", "topics", "applications", "libraries"]:
+            items = data.get(key, [])
+            if not isinstance(items, list):
+                 raise ValueError(f"Section '{key}' must be a list of dictionaries.")
+            for i, item in enumerate(items):
+                if not isinstance(item, dict):
+                     raise ValueError(f"Item {i} in '{key}' must be a dictionary.")
+                if "id" not in item or not item["id"]:
+                     raise ValueError(f"Item {i} in '{key}' is missing a required non-empty 'id'.")
+
+        # Validate relationships
+        rels = data.get("relationships", {})
+        if not isinstance(rels, dict):
+             raise ValueError("Section 'relationships' must be a dictionary of lists.")
+        for rel_type, items in rels.items():
+            if not isinstance(items, list):
+                 raise ValueError(f"Relationship type '{rel_type}' must be a list of dictionaries.")
+            for i, item in enumerate(items):
+                if not isinstance(item, dict):
+                     raise ValueError(f"Item {i} in relationship type '{rel_type}' must be a dictionary.")
+                if "source" not in item or not item["source"]:
+                     raise ValueError(f"Item {i} in relationship type '{rel_type}' is missing 'source'.")
+                if "target" not in item or not item["target"]:
+                     raise ValueError(f"Item {i} in relationship type '{rel_type}' is missing 'target'.")
+
     def execute(self, graph_data: Dict[str, Any], clear: bool = False, dry_run: bool = False) -> ImportStats:
         import time
         start_time = time.time()
         
+        self._validate_graph_data(graph_data)
+        
         if dry_run:
+
             # Simulate counts from input data
             nodes_count = (
                 len(graph_data.get("nodes", [])) +

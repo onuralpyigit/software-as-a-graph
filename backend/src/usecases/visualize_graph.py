@@ -9,26 +9,9 @@ from .models import VisOptions
 class VisualizeGraphUseCase:
     """Use case for generating the visualization dashboard."""
     
-    def __init__(self, repository: IGraphRepository):
-        self.repository = repository
-        
-        # Instantiate services needed by VisualizationService
-        from src.analysis.service import AnalysisService
-        from src.prediction.service import PredictionService
-        from src.simulation.service import SimulationService
-        
-        analysis_service = AnalysisService(repository)
-        prediction_service = PredictionService()
-        simulation_service = SimulationService(repository)
-        validation_service = ValidationService(analysis_service, prediction_service, simulation_service)
-        
-        self.service = VisualizationService(
-            analysis_service=analysis_service,
-            prediction_service=prediction_service,
-            simulation_service=simulation_service,
-            validation_service=validation_service,
-            repository=repository
-        )
+    def __init__(self, service: VisualizationService):
+        self.service = service
+
         
     def execute(self, layers: List[str], output_file: str, options: VisOptions) -> str:
         return self.service.generate_dashboard(

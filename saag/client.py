@@ -34,57 +34,34 @@ class Client:
     def analyze(self, layer: str = "app", **kwargs) -> AnalysisResult:
         """Analyze the structural graph topology."""
         from src.usecases.analyze_graph import AnalyzeGraphUseCase
-        uc = AnalyzeGraphUseCase(self.repo)
-        raw_analysis = uc.execute(layer=layer)
-        return AnalysisResult(raw_analysis)
+        from src.analysis.service import AnalysisService
+        
+        service = AnalysisService(self.repo)
+        uc = AnalyzeGraphUseCase(service)
+        result = uc.execute(layer=layer)
+        return AnalysisResult(result)
 
-    def predict(self, analysis: AnalysisResult, equal_weights: bool = False, ahp_shrinkage: float = 0.7, **kwargs) -> PredictionResult:
-        """Predict quality metrics using the statistical quality analyser.
-
-        Args:
-            analysis:      Result of a prior ``analyze()`` call.
-            equal_weights: If True, use equal 0.25 weights for all Q(v) dimensions.
-            ahp_shrinkage: Shrinkage factor for AHP weights (default: 0.7).
-            gnn_model:     Optional path to a trained GNN model checkpoint.
-        """
+    def predict(self, layer: str = "app", detect_problems: bool = False, **kwargs) -> PredictionResult:
+        """Predict criticality scores and optionally detect anti-patterns."""
+        from src.usecases.analyze_graph import AnalyzeGraphUseCase
+        from src.analysis.service import AnalysisService
+        from src.usecases.predict_graph import PredictGraphUseCase
         from src.prediction.service import PredictionService
         
-        gnn_model = kwargs.get("gnn_model")
+        # We need structural analysis first
+        analysis_service = AnalysisService(self.repo)
+        analyze_uc = AnalyzeGraphUseCase(analysis_service)
+        structural_result = analyze_uc.execute(layer=layer)
         
-        service = PredictionService(
-            use_ahp=True, 
-            equal_weights=equal_weights,
-            ahp_shrinkage=ahp_shrinkage
-        )
-        from src.usecases.predict_graph import PredictGraphUseCase
-        uc = PredictGraphUseCase(self.repo, prediction_service=service)
-
-        layer_str = getattr(analysis.raw.layer, "value", str(analysis.raw.layer))
-        quality, _ = uc.execute(
-            layer=layer_str,
-            structural_result=analysis.raw,
-            detect_problems=False,
+        prediction_service = PredictionService()
+        predict_uc = PredictGraphUseCase(prediction_service)
+        quality, problems = predict_uc.execute(
+            layer=layer, 
+            structural_result=structural_result,
+            detect_problems=detect_problems
         )
         
-        # GNN integration
-        if gnn_model:
-            from src.prediction.gnn_service import GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict
-            try:
-                # Initialize GNN service from checkpoint
-                gs = GNNService.from_checkpoint(gnn_model, graph=analysis.raw.graph)
-                
-                # Run GNN prediction
-                gnn_res = gs.predict(
-                    graph=analysis.raw.graph,
-                    structural_metrics=extract_structural_metrics_dict(analysis.raw),
-                    rmav_scores=extract_rmav_scores_dict(quality)
-                )
-                return PredictionResult(gnn_res)
-            except Exception as e:
-                import logging
-                logging.error(f"GNN prediction failed (falling back to statistical): {e}")
-
-        return PredictionResult(quality)
+        return PredictionResult(quality, problems)
 
     def detect_antipatterns(self, prediction: PredictionResult) -> List[Any]:
         """Detect architectural anti-patterns from the GNN prediction results."""
@@ -92,28 +69,43 @@ class Client:
         service = PredictionService()
         return service.detect_problems(prediction.raw)
 
-    def simulate(self, layer: str = "system", mode: str = "exhaustive", **kwargs) -> Any:
-        """Simulate resilience scenarios (e.g. cascading failures)."""
+    def simulate(self, layer: str = "system", mode: str = "exhaustive", target_id: Optional[str] = None, **kwargs) -> Any:
+        """Run graph simulations (failure analysis, event propagation)."""
         from src.usecases.simulate_graph import SimulateGraphUseCase
+        from src.simulation.service import SimulationService
         from src.usecases.models import SimulationMode
         
-        uc = SimulateGraphUseCase(self.repo)
+        service = SimulationService(self.repo)
+        uc = SimulateGraphUseCase(service)
         
-        sim_mode_enum = SimulationMode.EXHAUSTIVE
-        for m in SimulationMode:
-            if m.value.lower() == mode.lower():
-                sim_mode_enum = m
-                break
-                
-        return uc.execute(layer=layer, mode=sim_mode_enum, **kwargs)
+        try:
+            mode_enum = SimulationMode(mode)
+        except ValueError:
+            mode_enum = SimulationMode.EXHAUSTIVE
+            
+        return uc.execute(layer=layer, mode=mode_enum, target_id=target_id, **kwargs)
 
-    def validate(self, layers: Optional[List[str]] = None) -> ValidationPipelineFacade:
-        """Validate pipeline accuracy across specified layers."""
+    def validate(self, layers: Optional[List[str]] = None, **kwargs) -> ValidationResult:
+        """Validate the criticality model against ground truth simulation results."""
         if layers is None:
-            layers = ["system"]
+            layers = ["app", "infra", "mw", "system"]
             
         from src.usecases.validate_graph import ValidateGraphUseCase
-        uc = ValidateGraphUseCase(self.repo)
+        from src.analysis.service import AnalysisService
+        from src.prediction.service import PredictionService
+        from src.simulation.service import SimulationService
+        from src.validation.service import ValidationService
+        
+        analysis_service = AnalysisService(self.repo)
+        prediction_service = PredictionService()
+        simulation_service = SimulationService(self.repo)
+        validation_service = ValidationService(
+            analysis_service=analysis_service,
+            prediction_service=prediction_service,
+            simulation_service=simulation_service
+        )
+        
+        uc = ValidateGraphUseCase(validation_service)
         pipeline_result = uc.execute(layers=layers)
         
         return ValidationPipelineFacade(pipeline_result)
@@ -125,8 +117,26 @@ class Client:
             
         from src.usecases.visualize_graph import VisualizeGraphUseCase
         from src.usecases.models import VisOptions
+        from src.analysis.service import AnalysisService
+        from src.prediction.service import PredictionService
+        from src.simulation.service import SimulationService
+        from src.validation.service import ValidationService
+        from src.visualization.service import VisualizationService
         
-        uc = VisualizeGraphUseCase(self.repo)
+        analysis_service = AnalysisService(self.repo)
+        prediction_service = PredictionService()
+        simulation_service = SimulationService(self.repo)
+        validation_service = ValidationService(analysis_service, prediction_service, simulation_service)
+        
+        viz_service = VisualizationService(
+            analysis_service=analysis_service,
+            prediction_service=prediction_service,
+            simulation_service=simulation_service,
+            validation_service=validation_service,
+            repository=self.repo
+        )
+        
+        uc = VisualizeGraphUseCase(viz_service)
         
         options = VisOptions()
         if "include_network" in kwargs: options.include_network = kwargs["include_network"]
@@ -136,3 +146,4 @@ class Client:
         if "multi_seed" in kwargs: options.multi_seed = kwargs["multi_seed"]
         
         return uc.execute(layers=layers, output_file=output, options=options)
+

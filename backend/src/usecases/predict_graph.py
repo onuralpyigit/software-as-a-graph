@@ -14,13 +14,9 @@ class PredictGraphUseCase:
     This enforces the pre-deployment claim in code.
     """
     
-    def __init__(self, repository: IGraphRepository, prediction_service: Optional[Any] = None):
-        self.repository = repository
-        if prediction_service:
-            self.service = prediction_service
-        else:
-            from src.prediction.service import PredictionService
-            self.service = PredictionService()
+    def __init__(self, prediction_service: Any):
+        self.service = prediction_service
+
         
     def execute(
         self, 

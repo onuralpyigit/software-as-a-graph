@@ -7,9 +7,9 @@ from .models import SimulationMode
 class SimulateGraphUseCase:
     """Use case for running graph simulations (primarily failure analysis)."""
     
-    def __init__(self, repository: IGraphRepository):
-        self.repository = repository
-        self.service = SimulationService(repository)
+    def __init__(self, service: SimulationService):
+        self.service = service
+
         
     def execute(self, layer: str = "system", mode: SimulationMode = SimulationMode.EXHAUSTIVE, target_id: str = None, **kwargs) -> Any:
         if mode == SimulationMode.EXHAUSTIVE:
