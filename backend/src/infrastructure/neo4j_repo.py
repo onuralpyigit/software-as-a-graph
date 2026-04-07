@@ -233,6 +233,10 @@ class Neo4jRepository:
 
     def _import_entities(self, data: Dict[str, Any], tx: Any = None) -> None:
         """Import all entity types (Phase 1)."""
+        # 0. Import metadata provenance
+        self._import_metadata(data.get("metadata", {}), tx=tx)
+        
+        # 1. Import components
         self._import_nodes(data.get("nodes", []), tx=tx)
         self._import_brokers(data.get("brokers", []), tx=tx)
         self._import_topics(data.get("topics", []), tx=tx)
@@ -259,6 +263,33 @@ class Neo4jRepository:
                 n.memory_gb = row.memory_gb,
                 n.os_type = row.os_type
         """, tx=tx)
+
+    def _import_metadata(self, metadata: Dict[str, Any], tx: Any = None) -> None:
+        """
+        Store graph metadata (scale, seed, etc.) in a singleton :Metadata node.
+        """
+        if not metadata:
+            return
+            
+        # Flatten scale object for storage
+        scale = metadata.get("scale", {})
+        params = {
+            "seed": metadata.get("seed"),
+            "generation_mode": metadata.get("generation_mode", "unknown"),
+            "domain": metadata.get("domain"),
+            "scenario": metadata.get("scenario"),
+            "scale_apps": scale.get("apps", 0),
+            "scale_topics": scale.get("topics", 0),
+            "scale_brokers": scale.get("brokers", 0),
+            "scale_nodes": scale.get("nodes", 0),
+            "scale_libs": scale.get("libs", 0),
+        }
+        
+        query = """
+        MERGE (m:Metadata)
+        SET m += $params
+        """
+        self._run_query(query, {"params": params}, tx=tx)
 
     def _import_brokers(self, brokers_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import message brokers with middleware metadata."""
@@ -1005,6 +1036,32 @@ class Neo4jRepository:
         
         return res
 
+    def _get_metadata_dict(self) -> Dict[str, Any]:
+        """
+        Retrieve graph metadata from the :Metadata node and reconstruct the nested structure.
+        """
+        query = "MATCH (m:Metadata) RETURN properties(m) as props"
+        with self.driver.session(database=self.database) as session:
+            result = session.run(query)
+            record = result.single()
+            if not record:
+                return {}
+            
+            props = record["props"]
+            return {
+                "scale": {
+                    "apps": props.get("scale_apps", 0),
+                    "topics": props.get("scale_topics", 0),
+                    "brokers": props.get("scale_brokers", 0),
+                    "nodes": props.get("scale_nodes", 0),
+                    "libs": props.get("scale_libs", 0)
+                },
+                "seed": props.get("seed"),
+                "generation_mode": props.get("generation_mode"),
+                "domain": props.get("domain"),
+                "scenario": props.get("scenario")
+            }
+
     def export_json(self) -> Dict[str, Any]:
         """
         Export graph as JSON (compatible with data generation format).
@@ -1014,6 +1071,7 @@ class Neo4jRepository:
         graph_data = self.get_graph_data(include_raw=True)
         
         data = {
+            "metadata": self._get_metadata_dict(),
             "nodes": [], "brokers": [], "topics": [], 
             "applications": [], "libraries": [],
             "relationships": {
