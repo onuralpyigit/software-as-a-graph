@@ -151,8 +151,8 @@ class Client:
         
         return uc.execute(layers=layers, output_file=output, options=options)
 
-    def export_json(self) -> Dict[str, Any]:
-        """Export the complete graph in nested persistence format."""
+    def export_topology(self) -> Dict[str, Any]:
+        """Export the current graph back to the canonical nested input format."""
         return self.repo.export_json()
 
     def get_graph_data(

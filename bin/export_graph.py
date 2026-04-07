@@ -60,7 +60,7 @@ def main() -> None:
             data = graph_data.to_dict()
         else:
             console.print_step("Exporting graph in nested persistence format...")
-            data = client.export_json()
+            data = client.export_topology()
 
         # Ensure output directory exists
         output_path = Path(args.output)
