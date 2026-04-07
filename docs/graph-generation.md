@@ -31,7 +31,8 @@
    - 8.4 [QoS assignment](#84-qos-assignment)
 9. [Output Format](#9-output-format)
 10. [Programmatic API](#10-programmatic-api)
-11. [Known Limitations and Open Issues](#11-known-limitations-and-open-issues)
+11. [REST API Export Formats](#11-rest-api-export-formats)
+12. [Known Limitations and Open Issues](#12-known-limitations-and-open-issues)
 
 ---
 
@@ -569,5 +570,32 @@ result = pipeline.analyze().simulate().validate().run()
 ```
 
 ---
+
+## 11. REST API Export Formats
+
+The Software-as-a-Graph REST API provides several ways to export graph data. These exports are categorized into two distinct views:
+
+### 11.1 Persistence View (Re-importable)
+
+This view provides a high-fidelity representation of the graph structure that can be used for backup, migration, or as input to the `import_graph.py` tool.
+
+- **Endpoints**: `POST /api/v1/graph/export-neo4j-data`, `POST /api/v1/graph/export-persistence`
+- **Response Label**: `"export_format": "persistence"`
+- **Shape**: Nested structure containing keys like `nodes`, `brokers`, `topics`, `applications`, `libraries`, and `relationships`.
+- **Best for**: Backing up the database, migrating between instances, or programmatically modifying the graph and re-importing it.
+
+### 11.2 Analysis View (Visualization only)
+
+This view provides a flattened, derived representation of the graph optimized for visualization and external graph analysis tools.
+
+- **Endpoints**: `POST /api/v1/graph/export`, `POST /api/v1/graph/export-limited`
+- **Response Label**: `"export_format": "analysis"`
+- **Warning**: This format **CANNOT** be re-imported into Software-as-a-Graph. It lacks the internal nesting required by the import pipeline.
+- **Shape**: Flat lists of `components` and `edges`.
+- **Best for**: D3.js visualization, NetworkX analysis, or CSV exports for spreadsheets.
+
+---
+
+## 12. Known Limitations and Open Issues
 
 *Document last updated: April 2026. Maintained alongside `tools/generation/` and `bin/generate_graph.py`.*

@@ -136,10 +136,13 @@ async def export_graph(
     repo: IGraphRepository = Depends(get_repository)
 ):
     """
-    Export the complete graph from Neo4j in flat analysis format.
+    Export the complete graph from Neo4j in flat ANALYSIS format.
     
-    Returns a JSON with 'components' and 'edges' lists. 
-    Ideal for visualization (D3, NetworkX) and downstream analysis.
+    WARNING: This format is for visualization (D3, NetworkX) and downstream 
+    analysis ONLY. It is a flat list of components and edges. It CANNOT 
+    be re-imported into Software-as-a-Graph.
+    
+    Returns a JSON with 'export_format': 'analysis', 'components' and 'edges'.
     """
     try:
         logger.info(f"Exporting graph data (include_structural={include_structural})")
@@ -160,7 +163,12 @@ async def export_limited_graph(
     node_types: Optional[List[str]] = Query(default=None, description="Node types"),
     repo: IGraphRepository = Depends(get_repository)
 ):
-    """Export limited graph subset optimized for performance."""
+    """
+    Export limited graph subset in ANALYSIS format.
+    
+    WARNING: This format is for visualization ONLY and cannot be re-imported.
+    It returns a truncated flat list of components and edges.
+    """
     try:
         logger.info(f"Exporting limited graph: nodes={node_limit}")
         if hasattr(repo, 'get_limited_graph_data'):
@@ -187,11 +195,13 @@ async def export_neo4j_data(
     repo: IGraphRepository = Depends(get_repository)
 ):
     """
-    Export complete Neo4j graph data in nested persistence format.
+    Export complete Neo4j graph data in nested PERSISTENCE format.
     
-    Returns a JSON structure compatible with the import format (nodes, brokers, topics, etc).
-    Includes pre-computed DEPENDS_ON relationships as of the latest analysis.
-    Ideal for backups, migration, or external dataset sharing.
+    This is the primary way to backup or migrate graph data. The output 
+    is a high-fidelity JSON structure (nodes, brokers, topics, etc.) that 
+    maintains 100% Roundtrip Fidelity for re-import into Software-as-a-Graph.
+    
+    Returns a JSON with 'export_format': 'persistence' and the 'graph_data' envelope.
     """
     try:
         logger.info("Exporting Neo4j graph data to file format")
@@ -200,6 +210,18 @@ async def export_neo4j_data(
     except Exception as e:
         logger.error(f"Neo4j data export failed: {e}")
         raise HTTPException(status_code=500, detail=f"Neo4j data export failed: {e}")
+
+
+@router.post("/export-persistence", response_model=Neo4jExportResponse)
+async def export_persistence_data(
+    credentials: Neo4jCredentials,
+    repo: IGraphRepository = Depends(get_repository)
+):
+    """
+    Alias for /export-neo4j-data. 
+    Explicitly provides the PERSISTENCE view for re-import fidelity.
+    """
+    return await export_neo4j_data(credentials, repo)
 
 
 @router.get("/search-nodes", response_model=SearchNodesResponse)

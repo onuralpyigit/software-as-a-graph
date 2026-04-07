@@ -4,6 +4,7 @@ Pydantic models for API requests and responses.
 
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
+from enum import Enum
 
 
 from src.adapters import config
@@ -549,8 +550,15 @@ class GraphGenerateImportResponse(BaseModel):
     import_stats: Dict[str, Any]
 
 
+class ExportFormat(str, Enum):
+    """Format type for exported data."""
+    ANALYSIS = "analysis"      # Flat components/edges format (visualization)
+    PERSISTENCE = "persistence" # Nested nodes/brokers/topics format (re-import)
+
+
 class GraphExportResponse(BaseModel):
     success: bool
+    export_format: ExportFormat = Field(default=ExportFormat.ANALYSIS)
     components: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
     stats: Dict[str, Any]
@@ -566,6 +574,7 @@ class LimitedGraphExportStats(BaseModel):
 
 class LimitedGraphExportResponse(BaseModel):
     success: bool
+    export_format: ExportFormat = Field(default=ExportFormat.ANALYSIS)
     components: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
     stats: LimitedGraphExportStats
@@ -581,6 +590,7 @@ class Neo4jExportStats(BaseModel):
 
 class Neo4jExportResponse(BaseModel):
     success: bool
+    export_format: ExportFormat = Field(default=ExportFormat.PERSISTENCE)
     message: str
     graph_data: Dict[str, Any]
     stats: Neo4jExportStats

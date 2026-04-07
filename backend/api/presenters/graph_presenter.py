@@ -41,6 +41,7 @@ def format_export_response(graph_data: Any, stats: Dict[str, Any]) -> Dict[str, 
     """Format the response for graph export."""
     return {
         "success": True,
+        "export_format": "analysis",
         "components": [c.to_dict() for c in graph_data.components],
         "edges": [e.to_dict() for e in graph_data.edges],
         "stats": stats
@@ -50,6 +51,7 @@ def format_limited_export_response(components: List[Any], edges: List[Any], node
     """Format the response for limited graph export."""
     return {
         "success": True,
+        "export_format": "analysis",
         "components": [c.to_dict() for c in components],
         "edges": [e.to_dict() for e in edges],
         "stats": {
@@ -65,6 +67,7 @@ def format_neo4j_export_response(graph_data: Dict[str, Any]) -> Dict[str, Any]:
     """Format the response for Neo4j JSON export."""
     return {
         "success": True,
+        "export_format": "persistence",
         "message": "Graph data exported successfully",
         "graph_data": graph_data,
         "stats": {
