@@ -130,7 +130,12 @@ async def export_graph(
     include_structural: bool = Query(default=True, description="Include structural relationships"),
     repo: IGraphRepository = Depends(get_repository)
 ):
-    """Export the complete graph from Neo4j."""
+    """
+    Export the complete graph from Neo4j in flat analysis format.
+    
+    Returns a JSON with 'components' and 'edges' lists. 
+    Ideal for visualization (D3, NetworkX) and downstream analysis.
+    """
     try:
         logger.info(f"Exporting graph data (include_structural={include_structural})")
         graph_data = repo.get_graph_data(include_raw=include_structural)
@@ -176,7 +181,13 @@ async def export_neo4j_data(
     credentials: Neo4jCredentials,
     repo: IGraphRepository = Depends(get_repository)
 ):
-    """Export complete Neo4j graph data in input file format."""
+    """
+    Export complete Neo4j graph data in nested persistence format.
+    
+    Returns a JSON structure compatible with the import format (nodes, brokers, topics, etc).
+    Includes pre-computed DEPENDS_ON relationships as of the latest analysis.
+    Ideal for backups, migration, or external dataset sharing.
+    """
     try:
         logger.info("Exporting Neo4j graph data to file format")
         graph_data = repo.export_json()

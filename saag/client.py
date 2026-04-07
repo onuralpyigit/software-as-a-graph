@@ -125,7 +125,11 @@ class Client:
         
         analysis_service = AnalysisService(self.repo)
         prediction_service = PredictionService()
-        simulation_service = SimulationService(self.repo)
+        if hasattr(self.repo, 'driver'):
+             simulation_service = SimulationService(self.repo)
+        else:
+             simulation_service = None # or some fallback
+             
         validation_service = ValidationService(analysis_service, prediction_service, simulation_service)
         
         viz_service = VisualizationService(
@@ -146,4 +150,21 @@ class Client:
         if "multi_seed" in kwargs: options.multi_seed = kwargs["multi_seed"]
         
         return uc.execute(layers=layers, output_file=output, options=options)
+
+    def export_json(self) -> Dict[str, Any]:
+        """Export the complete graph in nested persistence format."""
+        return self.repo.export_json()
+
+    def get_graph_data(
+        self, 
+        component_types: Optional[List[str]] = None, 
+        dependency_types: Optional[List[str]] = None, 
+        include_raw: bool = False
+    ) -> Any:
+        """Export graph data in flat analysis format (components/edges lists)."""
+        return self.repo.get_graph_data(
+            component_types=component_types, 
+            dependency_types=dependency_types, 
+            include_raw=include_raw
+        )
 

@@ -818,10 +818,14 @@ class Neo4jRepository:
                 )
                 for record in result:
                     props = dict(record["props"])
-                    # Keep name in properties for later use in analysis
-                    props["name"] = record["name"]
+                    # Ensure name is present, fallback to ID
+                    name = record["name"] or record["id"]
+                    props["name"] = name
+                    
+                    # Clean up props to avoid duplication
                     for key in ["id", "weight"]:
                         props.pop(key, None)
+                        
                     components.append(ComponentData(
                         id=record["id"],
                         component_type=record["type"],
@@ -921,88 +925,83 @@ class Neo4jRepository:
         return stats
 
     def export_json(self) -> Dict[str, Any]:
-        """Export graph as JSON (compatible with data generation format)."""
+        """
+        Export graph as JSON (compatible with data generation format).
+        Consolidated via get_graph_data to ensure logic consistency.
+        """
+        # Fetch everything: all component types, all dependency types, and raw structural edges
+        graph_data = self.get_graph_data(include_raw=True)
+        
         data = {
             "nodes": [], "brokers": [], "topics": [], 
             "applications": [], "libraries": [],
             "relationships": {
                 "runs_on": [], "routes": [], "publishes_to": [],
-                "subscribes_to": [], "connects_to": [], "uses": []
+                "subscribes_to": [], "connects_to": [], "uses": [],
+                "depends_on": [] # include pre-computed dependencies
             }
         }
         
-        with self.driver.session(database=self.database) as session:
-            # Nodes
-            result = session.run("MATCH (n:Node) RETURN n.id as id, n.name as name")
-            for record in result:
-                data["nodes"].append({"id": record["id"], "name": record["name"] or record["id"]})
+        # Category mapping for components
+        type_to_category = {
+            "Node": "nodes",
+            "Broker": "brokers",
+            "Topic": "topics",
+            "Application": "applications",
+            "Library": "libraries"
+        }
+        
+        # Process components
+        for comp in graph_data.components:
+            category = type_to_category.get(comp.component_type)
+            if not category:
+                continue
+                
+            comp_dict = {"id": comp.id, "name": comp.properties.get("name", comp.id)}
             
-            # Brokers
-            result = session.run("MATCH (b:Broker) RETURN b.id as id, b.name as name")
-            for record in result:
-                data["brokers"].append({"id": record["id"], "name": record["name"] or record["id"]})
-            
-            # Topics
-            result = session.run("""
-                MATCH (t:Topic)
-                RETURN t.id as id, t.name as name, t.size as size,
-                       t.qos_reliability as reliability, t.qos_durability as durability,
-                       t.qos_transport_priority as transport_priority
-            """)
-            for record in result:
-                data["topics"].append({
-                    "id": record["id"],
-                    "name": record["name"] or record["id"],
-                    "size": record["size"] or 256,
+            # Type-specific field mapping
+            if comp.component_type == "Topic":
+                comp_dict.update({
+                    "size": comp.properties.get("size", 256),
                     "qos": {
-                        "reliability": record["reliability"] or "BEST_EFFORT",
-                        "durability": record["durability"] or "VOLATILE",
-                        "transport_priority": record["transport_priority"] or "MEDIUM",
+                        "reliability": comp.properties.get("qos_reliability", "BEST_EFFORT"),
+                        "durability": comp.properties.get("qos_durability", "VOLATILE"),
+                        "transport_priority": comp.properties.get("qos_transport_priority", "MEDIUM"),
                     }
                 })
+            elif comp.component_type == "Application":
+                comp_dict.update({
+                    "role": comp.properties.get("role", "pubsub"),
+                    "app_type": comp.properties.get("app_type", "service"),
+                })
+                if comp.properties.get("criticality") is not None:
+                    comp_dict["criticality"] = comp.properties.get("criticality")
+                if comp.properties.get("version"):
+                    comp_dict["version"] = comp.properties.get("version")
+            elif comp.component_type == "Library":
+                if comp.properties.get("version"):
+                    comp_dict["version"] = comp.properties.get("version")
             
-            # Applications
-            result = session.run("""
-                MATCH (a:Application)
-                RETURN a.id as id, a.name as name, a.role as role, 
-                       a.app_type as app_type, a.criticality as criticality, a.version as version
-            """)
-            for record in result:
-                app = {
-                    "id": record["id"],
-                    "name": record["name"] or record["id"],
-                    "role": record["role"] or "pubsub",
-                    "app_type": record["app_type"] or "service",
-                }
-                if record["criticality"] is not None:
-                    app["criticality"] = record["criticality"]
-                if record["version"]:
-                    app["version"] = record["version"]
-                data["applications"].append(app)
+            # Include weight for all components
+            comp_dict["weight"] = comp.weight
             
-            # Libraries
-            result = session.run("""
-                MATCH (l:Library)
-                RETURN l.id as id, l.name as name, l.version as version
-            """)
-            for record in result:
-                lib = {"id": record["id"], "name": record["name"] or record["id"]}
-                if record["version"]:
-                    lib["version"] = record["version"]
-                data["libraries"].append(lib)
+            data[category].append(comp_dict)
             
-            # Relationships
-            rels = {
-                "runs_on": "RUNS_ON", "routes": "ROUTES", 
-                "publishes_to": "PUBLISHES_TO", "subscribes_to": "SUBSCRIBES_TO",
-                "connects_to": "CONNECTS_TO", "uses": "USES"
-            }
-            
-            for key, rel_type in rels.items():
-                result = session.run(f"MATCH (s)-[:{rel_type}]->(t) RETURN s.id as src, t.id as tgt")
-                for r in result:
-                    data["relationships"][key].append({"from": r["src"], "to": r["tgt"]})
-        
+        # Process edges
+        for edge in graph_data.edges:
+            rel_key = edge.relation_type.lower()
+            if rel_key in data["relationships"]:
+                edge_dict = {"from": edge.source_id, "to": edge.target_id, "weight": edge.weight}
+                
+                # Include metadata for DEPENDS_ON
+                if edge.relation_type == "DEPENDS_ON":
+                    edge_dict.update({
+                        "dependency_type": edge.dependency_type,
+                        "path_count": edge.path_count
+                    })
+                
+                data["relationships"][rel_key].append(edge_dict)
+                
         return data
 
     def get_library_usage(self) -> Dict[str, int]:
