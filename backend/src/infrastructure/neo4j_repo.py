@@ -924,6 +924,87 @@ class Neo4jRepository:
                 stats[f"{dep_type}_count"] = result.single()["c"]
         return stats
 
+    def _reconstruct_component_dict(self, comp: ComponentData) -> Dict[str, Any]:
+        """
+        Reconstruct a component dictionary with nested sub-objects (system_hierarchy, code_metrics)
+        from flattened Neo4j properties.
+        """
+        props = comp.properties
+        # Base fields
+        res = {"id": comp.id, "name": props.get("name", comp.id), "weight": comp.weight}
+        
+        # 1. System Hierarchy reconstruction
+        sh = {}
+        for key in ["system_name", "domain_name", "component_name", "config_item_name"]:
+            if val := props.get(key):
+                if val != "": # Don't export empty strings
+                    sh[key] = val
+        if sh:
+            res["system_hierarchy"] = sh
+
+        # 2. Code Metrics reconstruction (Size, Complexity, Cohesion, Coupling, Quality)
+        cm = {"size": {}, "complexity": {}, "cohesion": {}, "coupling": {}, "quality": {}}
+        
+        # Mapping definition for un-flattening
+        metrics_mapping = {
+            "size": {
+                "cm_total_loc": "total_loc", "cm_total_classes": "total_classes", 
+                "cm_total_methods": "total_methods", "cm_total_fields": "total_fields"
+            },
+            "complexity": {
+                "cm_total_wmc": "total_wmc", "cm_avg_wmc": "avg_wmc", "cm_max_wmc": "max_wmc"
+            },
+            "cohesion": {
+                "cm_avg_lcom": "avg_lcom", "cm_max_lcom": "max_lcom"
+            },
+            "coupling": {
+                "cm_avg_cbo": "avg_cbo", "cm_max_cbo": "max_cbo", "cm_avg_rfc": "avg_rfc",
+                "cm_max_rfc": "max_rfc", "cm_avg_fanin": "avg_fanin", "cm_max_fanin": "max_fanin",
+                "cm_avg_fanout": "avg_fanout", "cm_max_fanout": "max_fanout"
+            },
+            "quality": {
+                "sqale_debt_ratio": "sqale_debt_ratio", "bugs": "bugs", 
+                "vulnerabilities": "vulnerabilities", "duplicated_lines_density": "duplicated_lines_density"
+            }
+        }
+        
+        for section, fields in metrics_mapping.items():
+            for flat_key, nest_key in fields.items():
+                if flat_key in props:
+                    cm[section][nest_key] = props[flat_key]
+        
+        # Filter out empty sections
+        cm = {k: v for k, v in cm.items() if v}
+        if cm:
+            res["code_metrics"] = cm
+
+        # 3. Type-specific logic and property normalization
+        if comp.component_type == "Topic":
+            res["size"] = props.get("size", 256)
+            # Canonical lowercase for QoS keys to match input expectations
+            res["qos"] = {
+                "reliability": str(props.get("qos_reliability", "best_effort")).lower(),
+                "durability": str(props.get("qos_durability", "volatile")).lower(),
+                "transport_priority": str(props.get("qos_transport_priority", "medium")).lower(),
+            }
+        elif comp.component_type == "Application":
+            res.update({
+                "role": props.get("role", "pubsub"),
+                "app_type": props.get("app_type", "service"),
+                "criticality": props.get("criticality", "LOW"),
+            })
+            if props.get("version"): res["version"] = props["version"]
+        elif comp.component_type == "Library":
+            if props.get("version"): res["version"] = props["version"]
+        elif comp.component_type == "Node":
+            for key in ["ip_address", "cpu_cores", "memory_gb", "os_type"]:
+                if key in props: res[key] = props[key]
+        elif comp.component_type == "Broker":
+            for key in ["type", "max_connections", "host"]:
+                if key in props: res[key] = props[key]
+        
+        return res
+
     def export_json(self) -> Dict[str, Any]:
         """
         Export graph as JSON (compatible with data generation format).
@@ -957,34 +1038,7 @@ class Neo4jRepository:
             if not category:
                 continue
                 
-            comp_dict = {"id": comp.id, "name": comp.properties.get("name", comp.id)}
-            
-            # Type-specific field mapping
-            if comp.component_type == "Topic":
-                comp_dict.update({
-                    "size": comp.properties.get("size", 256),
-                    "qos": {
-                        "reliability": comp.properties.get("qos_reliability", "BEST_EFFORT"),
-                        "durability": comp.properties.get("qos_durability", "VOLATILE"),
-                        "transport_priority": comp.properties.get("qos_transport_priority", "MEDIUM"),
-                    }
-                })
-            elif comp.component_type == "Application":
-                comp_dict.update({
-                    "role": comp.properties.get("role", "pubsub"),
-                    "app_type": comp.properties.get("app_type", "service"),
-                })
-                if comp.properties.get("criticality") is not None:
-                    comp_dict["criticality"] = comp.properties.get("criticality")
-                if comp.properties.get("version"):
-                    comp_dict["version"] = comp.properties.get("version")
-            elif comp.component_type == "Library":
-                if comp.properties.get("version"):
-                    comp_dict["version"] = comp.properties.get("version")
-            
-            # Include weight for all components
-            comp_dict["weight"] = comp.weight
-            
+            comp_dict = self._reconstruct_component_dict(comp)
             data[category].append(comp_dict)
             
         # Process edges
