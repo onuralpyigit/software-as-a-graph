@@ -56,7 +56,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # Path setup
 # ---------------------------------------------------------------------------
 _HERE = Path(__file__).resolve().parent
-_ROOT = _HERE.parent if _HERE.name == "bin" else _HERE
+_ROOT = _HERE.parent.parent
 for _p in [str(_ROOT), str(_ROOT / "backend")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -637,11 +637,7 @@ def print_summary(report: TopologyReport) -> None:
 # CLI
 # ===========================================================================
 
-def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="Topology-class validation harness for the SaG methodology.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
+def add_validation_arguments(p: argparse.ArgumentParser) -> None:
     mode = p.add_mutually_exclusive_group()
     mode.add_argument("--from-results", type=Path, metavar="DIR",
                       help="Read pre-existing validation JSON files from DIR")
@@ -664,16 +660,13 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--neo4j-user",     default="neo4j")
     p.add_argument("--neo4j-password", default="password")
     p.add_argument("-v", "--verbose", action="store_true")
-    return p.parse_args()
 
 
 # ===========================================================================
-# Main
+# Main Routine for Validation
 # ===========================================================================
 
-def main() -> int:
-    args = _parse_args()
-
+def run_dataset_validation(args: argparse.Namespace) -> int:
     # Filter to requested class(es)
     active_classes = (
         {args.topo_class: TOPOLOGY_CLASSES[args.topo_class]}
@@ -788,7 +781,3 @@ def main() -> int:
 
     print_summary(report)
     return 0 if report.overall_passed else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

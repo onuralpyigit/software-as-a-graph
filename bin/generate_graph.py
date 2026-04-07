@@ -21,6 +21,8 @@ if str(backend_path) not in sys.path:
 from bin.common.dispatcher import dispatch_generate
 from bin.common.arguments import add_common_arguments
 from bin.common.console import ConsoleDisplay
+from bin.common.batch_generation import run_batch_generation, add_batch_arguments
+from bin.common.dataset_validation import run_dataset_validation, add_validation_arguments
 
 
 def main() -> None:
@@ -74,7 +76,21 @@ def main() -> None:
     
     add_common_arguments(parser)
     
+    subparsers = parser.add_subparsers(dest="command", help="Optional command mode")
+    
+    batch_parser = subparsers.add_parser("batch", help="Batch generate datasets for scenarios", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    add_batch_arguments(batch_parser)
+    
+    validate_parser = subparsers.add_parser("validate", help="Topology-class validation for scenarios", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    add_validation_arguments(validate_parser)
+    
     args = parser.parse_args()
+    
+    if getattr(args, "command", None) == "batch":
+        sys.exit(run_batch_generation(args))
+    elif getattr(args, "command", None) == "validate":
+        sys.exit(run_dataset_validation(args))
+
     console = ConsoleDisplay()
     
     try:

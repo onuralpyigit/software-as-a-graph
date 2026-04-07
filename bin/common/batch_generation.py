@@ -36,7 +36,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # Path setup — works whether run from project root or bin/
 # ---------------------------------------------------------------------------
 _HERE = Path(__file__).resolve().parent
-_PROJECT_ROOT = _HERE.parent if _HERE.name == "bin" else _HERE
+_PROJECT_ROOT = _HERE.parent.parent
 for _p in [str(_PROJECT_ROOT), str(_PROJECT_ROOT / "backend")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -468,11 +468,7 @@ def _write_manifest(records: List[DatasetRecord], manifest_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
-def _parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="Batch-generate SaG scenario datasets.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
+def add_batch_arguments(p: argparse.ArgumentParser) -> None:
     p.add_argument("--input-dir",      type=Path, default=_PROJECT_ROOT / "input",
                    help="Directory containing scenario_*.yaml files")
     p.add_argument("--output-dir",     type=Path, default=_PROJECT_ROOT / "output",
@@ -494,14 +490,12 @@ def _parse_args() -> argparse.Namespace:
                    help="Print plan without writing any files")
     p.add_argument("-v", "--verbose",  action="store_true",
                    help="Print topology details per scenario")
-    return p.parse_args()
 
 
 # ---------------------------------------------------------------------------
-# Main
+# Main Routine for Batch
 # ---------------------------------------------------------------------------
-def main() -> int:
-    args    = _parse_args()
+def run_batch_generation(args: argparse.Namespace) -> int:
     records: List[DatasetRecord] = []
 
     seeds = [int(s.strip()) for s in args.seeds.split(",") if s.strip()]
@@ -601,7 +595,3 @@ def main() -> int:
 
     err_count = sum(1 for r in records if r.status == "error")
     return 1 if err_count else 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
