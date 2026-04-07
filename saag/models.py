@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from src.analysis.models import StructuralAnalysisResult as _StructuralAnalysisResult
 from src.prediction.models import QualityAnalysisResult as _QualityAnalysisResult, ComponentQuality as _ComponentQuality, DetectedProblem as _DetectedProblem
 from src.validation.models import LayerValidationResult as _LayerValidationResult
+from src.usecases.models import ImportStats as _ImportStats
 
 
 class ComponentFacade:
@@ -251,3 +252,46 @@ class PipelineExecutionResult:
             
         with out.open("w") as f:
             json.dump(data, f, indent=2, default=str)
+class ImportResult:
+    """Result of a graph import operation."""
+    def __init__(self, inner: _ImportStats):
+        self._inner = inner
+
+    @property
+    def nodes_imported(self) -> int:
+        """Number of nodes created or updated."""
+        return self._inner.nodes_imported
+
+    @property
+    def edges_imported(self) -> int:
+        """Number of relationships created or updated."""
+        return self._inner.edges_imported
+
+    @property
+    def duration_ms(self) -> float:
+        """Time taken for the import in milliseconds."""
+        return self._inner.duration_ms
+
+    @property
+    def success(self) -> bool:
+        """Whether the import was successful."""
+        return self._inner.success
+
+    @property
+    def message(self) -> str:
+        """Status message from the import process."""
+        return self._inner.message
+
+    @property
+    def details(self) -> dict:
+        """Additional raw statistics from the repository."""
+        return self._inner.details
+
+    def to_dict(self) -> dict:
+        """Convert to a standardized dictionary representation."""
+        return self._inner.to_dict()
+
+    @property
+    def raw(self) -> _ImportStats:
+        """Access the underlying internal model."""
+        return self._inner

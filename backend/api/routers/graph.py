@@ -99,10 +99,15 @@ async def generate_and_import_graph(
         gen_service = GenerationService(scale=scale, seed=seed, domain=domain, scenario=scenario)
         graph_data = gen_service.generate()
         
-        repo.save_graph(graph_data, clear=clear_database)
-        stats = repo.get_statistics()
+        client = Client(repo=repo)
+        import_result = client.import_topology(graph_data=graph_data, clear=clear_database)
         
-        return graph_presenter.format_generate_import_response(graph_data, stats, scale, seed)
+        return graph_presenter.format_generate_import_response(
+            graph_data, 
+            import_result.to_dict(), 
+            scale, 
+            seed
+        )
     except Exception as e:
         logger.error(f"Generate and import failed: {e}")
         raise HTTPException(status_code=500, detail=f"Operation failed: {e}")

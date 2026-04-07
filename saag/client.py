@@ -4,7 +4,7 @@ saag/client.py
 import json
 from typing import Optional, List, Dict, Any
 
-from .models import AnalysisResult, PredictionResult, ValidationResult, ValidationPipelineFacade
+from .models import AnalysisResult, PredictionResult, ValidationResult, ValidationPipelineFacade, ImportResult
 
 class Client:
     """
@@ -28,7 +28,8 @@ class Client:
         from src.usecases.model_graph import ModelGraphUseCase
         uc = ModelGraphUseCase(self.repo)
         
-        return uc.execute(graph_data, clear=clear, dry_run=dry_run)
+        stats = uc.execute(graph_data, clear=clear, dry_run=dry_run)
+        return ImportResult(stats)
 
 
     def analyze(self, layer: str = "app", **kwargs) -> AnalysisResult:
