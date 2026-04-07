@@ -39,7 +39,9 @@ def test_generate_graph(mock_gen_service):
 
 def test_import_graph():
     mock_client = MagicMock()
-    mock_client.import_topology.return_value = {"node_count": 10, "edge_count": 5}
+    mock_stats = MagicMock()
+    mock_stats.to_dict.return_value = {"node_count": 10, "edge_count": 5}
+    mock_client.import_topology.return_value = mock_stats
     
     app.dependency_overrides[get_client] = lambda: mock_client
     

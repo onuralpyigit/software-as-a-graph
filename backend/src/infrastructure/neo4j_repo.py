@@ -31,6 +31,7 @@ from src.core.models import (
     LIB_FANOUT_GAMMA
 )
 from . import config
+from src.core.utils import serialization
 
 # ---------------------------------------------------------------------------
 # Layer Definitions for Neo4j Queries
@@ -245,16 +246,7 @@ class Neo4jRepository:
 
     def _import_nodes(self, nodes_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import compute nodes with infrastructure metadata."""
-        nodes = []
-        for n in nodes_data:
-            nodes.append({
-                "id": n["id"],
-                "name": n.get("name", n["id"]),
-                "ip_address": n.get("ip_address", ""),
-                "cpu_cores": n.get("cpu_cores", 0),
-                "memory_gb": n.get("memory_gb", 0),
-                "os_type": n.get("os_type", "linux"),
-            })
+        nodes = [serialization.flatten_component(n, "Node") for n in nodes_data]
         self._import_batch(nodes, """
             MERGE (n:Node {id: row.id})
             SET n.name = row.name,
@@ -271,19 +263,7 @@ class Neo4jRepository:
         if not metadata:
             return
             
-        # Flatten scale object for storage
-        scale = metadata.get("scale", {})
-        params = {
-            "seed": metadata.get("seed"),
-            "generation_mode": metadata.get("generation_mode", "unknown"),
-            "domain": metadata.get("domain"),
-            "scenario": metadata.get("scenario"),
-            "scale_apps": scale.get("apps", 0),
-            "scale_topics": scale.get("topics", 0),
-            "scale_brokers": scale.get("brokers", 0),
-            "scale_nodes": scale.get("nodes", 0),
-            "scale_libs": scale.get("libs", 0),
-        }
+        params = serialization.flatten_metadata(metadata)
         
         query = """
         MERGE (m:Metadata)
@@ -293,15 +273,7 @@ class Neo4jRepository:
 
     def _import_brokers(self, brokers_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import message brokers with middleware metadata."""
-        brokers = []
-        for b in brokers_data:
-            brokers.append({
-                "id": b["id"],
-                "name": b.get("name", b["id"]),
-                "type": b.get("type", "mqtt"),
-                "max_connections": b.get("max_connections", 0),
-                "host": b.get("host", ""),
-            })
+        brokers = [serialization.flatten_component(b, "Broker") for b in brokers_data]
         self._import_batch(brokers, """
             MERGE (b:Broker {id: row.id})
             SET b.name = row.name,
@@ -312,17 +284,7 @@ class Neo4jRepository:
 
     def _import_topics(self, topics_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import topics with QoS policies."""
-        topics = []
-        for t in topics_data:
-            qos = t.get("qos", t.get("qos_policy", {}))
-            topics.append({
-                "id": t["id"],
-                "name": t.get("name", t["id"]),
-                "size": t.get("size", 256),
-                "qos_reliability": qos.get("reliability", "BEST_EFFORT"),
-                "qos_durability": qos.get("durability", "VOLATILE"),
-                "qos_transport_priority": qos.get("transport_priority", "MEDIUM"),
-            })
+        topics = [serialization.flatten_component(t, "Topic") for t in topics_data]
         self._import_batch(topics, """
             MERGE (t:Topic {id: row.id})
             SET t.name = row.name, t.size = row.size,
@@ -333,63 +295,7 @@ class Neo4jRepository:
 
     def _import_applications(self, apps_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import applications with code metrics and hierarchy."""
-        apps = []
-        for a in apps_data:
-            cm = a.get("code_metrics") or {}
-            sh = a.get("system_hierarchy") or {}
-            size = cm.get("size", {})
-            complexity = cm.get("complexity", {})
-            cohesion = cm.get("cohesion", {})
-            coupling = cm.get("coupling", {})
-            # SonarQube / Quality metrics
-            quality = cm.get("quality", cm)  # Support both nested and flat for flexibility
-            
-            apps.append({
-                "id": a["id"],
-                "name": a.get("name", a["id"]),
-                "role": a.get("role", "pubsub"),
-                "app_type": a.get("app_type", "service"),
-                "criticality": a.get("criticality", "LOW"),
-                "version": a.get("version"),
-                # System hierarchy
-                "component_name": sh.get("component_name", ""),
-                "config_item_name": sh.get("config_item_name", ""),
-                "domain_name": sh.get("domain_name", ""),
-                "system_name": sh.get("system_name", ""),
-                # Code metrics — size
-                "cm_total_loc": size.get("total_loc", 0),
-                "cm_total_classes": size.get("total_classes", 0),
-                "cm_total_methods": size.get("total_methods", 0),
-                "cm_total_fields": size.get("total_fields", 0),
-                # Code metrics — complexity
-                "cm_total_wmc": complexity.get("total_wmc", 0),
-                "cm_avg_wmc": float(complexity.get("avg_wmc", 0.0)),
-                "cm_max_wmc": complexity.get("max_wmc", 0),
-                # Code metrics — cohesion
-                "cm_avg_lcom": float(cohesion.get("avg_lcom", 0.0)),
-                "cm_max_lcom": float(cohesion.get("max_lcom", 0.0)),
-                # Code metrics — coupling
-                "cm_avg_cbo": float(coupling.get("avg_cbo", 0.0)),
-                "cm_max_cbo": coupling.get("max_cbo", 0),
-                "cm_avg_rfc": float(coupling.get("avg_rfc", 0.0)),
-                "cm_max_rfc": coupling.get("max_rfc", 0),
-                "cm_avg_fanin": float(coupling.get("avg_fanin", 0.0)),
-                "cm_max_fanin": coupling.get("max_fanin", 0),
-                "cm_avg_fanout": float(coupling.get("avg_fanout", 0.0)),
-                "cm_max_fanout": coupling.get("max_fanout", 0),
-                # Quality Metrics (SonarQube)
-                "sqale_debt_ratio": float(quality.get("sqale_debt_ratio", 0.0)),
-                "bugs": int(quality.get("bugs", 0)),
-                "vulnerabilities": int(quality.get("vulnerabilities", 0)),
-                "duplicated_lines_density": float(quality.get("duplicated_lines_density", 0.0)),
-                # Analysis-compatible aliases
-                "loc": size.get("total_loc", 0),
-                "cyclomatic_complexity": float(complexity.get("avg_wmc", 0.0)),
-                "coupling_afferent": int(coupling.get("avg_fanin", 0)),
-                "coupling_efferent": int(coupling.get("avg_fanout", 0)),
-                "lcom": float(cohesion.get("avg_lcom", 0.0)),
-            })
-
+        apps = [serialization.flatten_component(a, "Application") for a in apps_data]
         self._import_batch(apps, """
             MERGE (a:Application {id: row.id})
             SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
@@ -415,58 +321,7 @@ class Neo4jRepository:
 
     def _import_libraries(self, libs_data: List[Dict[str, Any]], tx: Any = None) -> None:
         """Import libraries with code metrics and hierarchy."""
-        libs = []
-        for l in libs_data:
-            cm = l.get("code_metrics") or {}
-            sh = l.get("system_hierarchy") or {}
-            size = cm.get("size", {})
-            complexity = cm.get("complexity", {})
-            cohesion = cm.get("cohesion", {})
-            coupling = cm.get("coupling", {})
-            quality = cm.get("quality", cm)
-            
-            libs.append({
-                "id": l["id"],
-                "name": l.get("name", l["id"]),
-                "version": l.get("version"),
-                # System hierarchy
-                "component_name": sh.get("component_name", ""),
-                "config_item_name": sh.get("config_item_name", ""),
-                "domain_name": sh.get("domain_name", ""),
-                "system_name": sh.get("system_name", ""),
-                # Code metrics — size
-                "cm_total_loc": size.get("total_loc", 0),
-                "cm_total_classes": size.get("total_classes", 0),
-                "cm_total_methods": size.get("total_methods", 0),
-                "cm_total_fields": size.get("total_fields", 0),
-                # Code metrics — complexity
-                "cm_total_wmc": complexity.get("total_wmc", 0),
-                "cm_avg_wmc": float(complexity.get("avg_wmc", 0.0)),
-                "cm_max_wmc": complexity.get("max_wmc", 0),
-                # Code metrics — cohesion
-                "cm_avg_lcom": float(cohesion.get("avg_lcom", 0.0)),
-                "cm_max_lcom": float(cohesion.get("max_lcom", 0.0)),
-                # Code metrics — coupling
-                "cm_avg_cbo": float(coupling.get("avg_cbo", 0.0)),
-                "cm_max_cbo": coupling.get("max_cbo", 0),
-                "cm_avg_rfc": float(coupling.get("avg_rfc", 0.0)),
-                "cm_max_rfc": coupling.get("max_rfc", 0),
-                "cm_avg_fanin": float(coupling.get("avg_fanin", 0.0)),
-                "cm_max_fanin": coupling.get("max_fanin", 0),
-                "cm_avg_fanout": float(coupling.get("avg_fanout", 0.0)),
-                "cm_max_fanout": coupling.get("max_fanout", 0),
-                # Quality Metrics (SonarQube)
-                "sqale_debt_ratio": float(quality.get("sqale_debt_ratio", 0.0)),
-                "bugs": int(quality.get("bugs", 0)),
-                "vulnerabilities": int(quality.get("vulnerabilities", 0)),
-                "duplicated_lines_density": float(quality.get("duplicated_lines_density", 0.0)),
-                # Analysis-compatible aliases
-                "loc": size.get("total_loc", 0),
-                "cyclomatic_complexity": float(complexity.get("avg_wmc", 0.0)),
-                "coupling_afferent": int(coupling.get("avg_fanin", 0)),
-                "coupling_efferent": int(coupling.get("avg_fanout", 0)),
-                "lcom": float(cohesion.get("avg_lcom", 0.0)),
-            })
+        libs = [serialization.flatten_component(l, "Library") for l in libs_data]
         self._import_batch(libs, """
             MERGE (l:Library {id: row.id})
             SET l.name = row.name, l.version = row.version,
@@ -1047,20 +902,7 @@ class Neo4jRepository:
             if not record:
                 return {}
             
-            props = record["props"]
-            return {
-                "scale": {
-                    "apps": props.get("scale_apps", 0),
-                    "topics": props.get("scale_topics", 0),
-                    "brokers": props.get("scale_brokers", 0),
-                    "nodes": props.get("scale_nodes", 0),
-                    "libs": props.get("scale_libs", 0)
-                },
-                "seed": props.get("seed"),
-                "generation_mode": props.get("generation_mode"),
-                "domain": props.get("domain"),
-                "scenario": props.get("scenario")
-            }
+            return serialization.reconstruct_metadata_dict(record["props"])
 
     def export_json(self) -> Dict[str, Any]:
         """
@@ -1069,52 +911,9 @@ class Neo4jRepository:
         """
         # Fetch everything: all component types, all dependency types, and raw structural edges
         graph_data = self.get_graph_data(include_raw=True)
+        metadata = self._get_metadata_dict()
         
-        data = {
-            "metadata": self._get_metadata_dict(),
-            "nodes": [], "brokers": [], "topics": [], 
-            "applications": [], "libraries": [],
-            "relationships": {
-                "runs_on": [], "routes": [], "publishes_to": [],
-                "subscribes_to": [], "connects_to": [], "uses": [],
-                "depends_on": [] # include pre-computed dependencies
-            }
-        }
-        
-        # Category mapping for components
-        type_to_category = {
-            "Node": "nodes",
-            "Broker": "brokers",
-            "Topic": "topics",
-            "Application": "applications",
-            "Library": "libraries"
-        }
-        
-        # Process components
-        for comp in graph_data.components:
-            category = type_to_category.get(comp.component_type)
-            if not category:
-                continue
-                
-            comp_dict = self._reconstruct_component_dict(comp)
-            data[category].append(comp_dict)
-            
-        # Process edges
-        for edge in graph_data.edges:
-            rel_key = edge.relation_type.lower()
-            if rel_key in data["relationships"]:
-                edge_dict = {"from": edge.source_id, "to": edge.target_id, "weight": edge.weight}
-                
-                # Include metadata for DEPENDS_ON
-                if edge.relation_type == "DEPENDS_ON":
-                    edge_dict.update({
-                        "dependency_type": edge.dependency_type,
-                        "path_count": edge.path_count
-                    })
-                
-                data["relationships"][rel_key].append(edge_dict)
-                
-        return data
+        return serialization.reconstruct_export_payload(graph_data, metadata)
 
     def get_library_usage(self) -> Dict[str, int]:
         """Get library usage counts."""

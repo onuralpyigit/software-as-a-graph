@@ -9,6 +9,7 @@ import copy
 
 from src.core.ports.graph_repository import IGraphRepository
 from src.core.models import GraphData, ComponentData, EdgeData
+from src.core.utils import serialization
 
 
 class MemoryRepository:
@@ -43,16 +44,51 @@ class MemoryRepository:
         pass
 
     def save_graph(self, data: Dict[str, Any], clear: bool = False) -> None:
-        """Save graph data to in-memory storage."""
+        """
+        Save graph data to in-memory storage, performing normalization/flattening
+        to simulate Neo4j persistence behavior.
+        """
         if clear:
-            self.data = copy.deepcopy(data)
-        else:
-            # Simple merge logic for testing
-            for key in ["nodes", "brokers", "topics", "applications", "libraries"]:
-                self.data[key].extend(data.get(key, []))
-            
-            for key in self.data["relationships"]:
-                self.data["relationships"][key].extend(data.get("relationships", {}).get(key, []))
+            # We initialize with empty structures but preserve metadata handling
+            self.data = {
+                "metadata": {},
+                "nodes": [], "brokers": [], "topics": [], "applications": [], "libraries": [],
+                "relationships": {
+                    "runs_on": [], "routes": [], "publishes_to": [],
+                    "subscribes_to": [], "connects_to": [], "uses": [],
+                },
+            }
+
+        # 1. Normalize and store Metadata
+        if "metadata" in data:
+            self.data["metadata"] = serialization.flatten_metadata(data["metadata"])
+
+        # 2. Normalize and store Components
+        mapping = {
+            "nodes": "Node", "brokers": "Broker", "topics": "Topic", 
+            "applications": "Application", "libraries": "Library"
+        }
+        for key, comp_type in mapping.items():
+            for item in data.get(key, []):
+                flattened = serialization.flatten_component(item, comp_type)
+                # MERGE behavior (simple overwrite for memory)
+                existing = next((x for x in self.data[key] if x["id"] == flattened["id"]), None)
+                if existing:
+                    existing.update(flattened)
+                else:
+                    self.data[key].append(flattened)
+        
+        # 3. Store Relationships (simple copy for memory)
+        for key in self.data["relationships"]:
+            items = data.get("relationships", {}).get(key, [])
+            for item in items:
+                # Basic normalization for source/target keys
+                rel = {
+                    "from": item.get("from", item.get("source")),
+                    "to": item.get("to", item.get("target")),
+                    "weight": item.get("weight", 1.0)
+                }
+                self.data["relationships"][key].append(rel)
 
     def get_graph_data(
         self,
@@ -134,5 +170,12 @@ class MemoryRepository:
         return stats
 
     def export_json(self) -> Dict[str, Any]:
-        """Export graph as JSON."""
-        return copy.deepcopy(self.data)
+        """
+        Export graph as JSON (compatible with data generation format).
+        Consolidated via get_graph_data to ensure logic consistency and fidelity parity
+        with the Neo4j persistence layer.
+        """
+        graph_data = self.get_graph_data(include_raw=True)
+        # MemoryRepository stores metadata in a format already compatible with reconstruction
+        # but we pass it through anyway for future-proofing and consistency.
+        return serialization.reconstruct_export_payload(graph_data, self.data["metadata"])
