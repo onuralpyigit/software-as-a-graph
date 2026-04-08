@@ -16,8 +16,10 @@ from api.models import (
     EdgeWeightDistributionResponse
 )
 from src.analysis.statistics_service import StatisticsService
-from api.dependencies import get_statistics_service
+from src.core.ports.graph_repository import IGraphRepository
+from api.dependencies import get_statistics_service, get_repository
 from api.presenters import statistics_presenter
+from api.statistics import extract_cross_cutting_data, compute_all_extras_statistics
 
 router = APIRouter(prefix="/api/v1/stats", tags=["statistics"])
 logger = logging.getLogger(__name__)
@@ -207,3 +209,39 @@ async def get_edge_weight_distribution_stats(
             statistics_presenter.get_weight_distribution_defaults(),
             error=str(e)
         )
+
+
+def _serialise_extras(obj: Any) -> Any:
+    """Recursively convert numpy types to JSON-safe Python types."""
+    import numpy as np
+
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, dict):
+        return {k: _serialise_extras(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_serialise_extras(i) for i in obj]
+    if isinstance(obj, set):
+        return list(obj)
+    return obj
+
+
+@router.post("/extras")
+async def get_extras_statistics(
+    credentials: Neo4jCredentials,
+    repo: IGraphRepository = Depends(get_repository),
+):
+    """Cross-cutting extras chart statistics computed from full graph export."""
+    try:
+        logger.info("Computing extras statistics")
+        raw_data = repo.export_json()
+        cc = extract_cross_cutting_data(raw_data)
+        stats = compute_all_extras_statistics(cc)
+        return {"success": True, "stats": _serialise_extras(stats)}
+    except Exception as e:
+        logger.error(f"Extras statistics failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Computation failed: {e}")
