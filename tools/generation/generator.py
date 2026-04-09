@@ -471,8 +471,8 @@ class StatisticalGraphGenerator:
                 host = self.rng.choice(nodes)
                 runs_on.append(self._make_edge(app, host))
 
-        for broker in brokers:
-            host = self.rng.choice(nodes)
+        for idx, broker in enumerate(brokers):
+            host = nodes[idx % len(nodes)]
             runs_on.append(self._make_edge(broker, host))
 
         routes = []
@@ -557,7 +557,8 @@ class StatisticalGraphGenerator:
             for app in apps:
                 _app_cluster_libs = _cluster_to_libs[_app_id_to_cluster[app.id]]
                 if libs:
-                    n_uses = self.rng.randint(0, min(3, len(libs)))
+                    max_uses = min(max(3, int(0.1 * len(libs))), len(libs))
+                    n_uses = self.rng.randint(0, max_uses)
                     targets = self._sample_biased(n_uses, libs, _app_cluster_libs, p_intra=c.intra_cluster_coupling)
                     for t in targets:
                         if t.id not in self._uses_graph[app.id]:
@@ -581,6 +582,10 @@ class StatisticalGraphGenerator:
                 
                 direct_pub_count = min(direct_pub_count, len(topics))
                 direct_sub_count = min(direct_sub_count, len(topics))
+                
+                # Enforce application role constraint
+                if app.role == "sub": direct_pub_count = 0
+                if app.role == "pub": direct_sub_count = 0
 
                 # Pass 2: use cluster-biased sampling so apps in the same
                 # hierarchy cluster preferentially share topics (p_intra=0.65).
@@ -602,6 +607,8 @@ class StatisticalGraphGenerator:
                 _app_cluster_topics = _cluster_to_topics[_app_id_to_cluster[app.id]]
                 pub_count = self._sample_from_distribution(c.application_stats.direct_publish_count)
                 pub_count = min(pub_count, len(topics))
+                if app.role == "sub": pub_count = 0
+                
                 if pub_count > 0:
                     pub_topics = self._sample_biased(pub_count, topics, _app_cluster_topics, p_intra=c.intra_cluster_coupling)
                     for t in pub_topics:
@@ -610,6 +617,8 @@ class StatisticalGraphGenerator:
 
                 sub_count = self._sample_from_distribution(c.application_stats.direct_subscribe_count)
                 sub_count = min(sub_count, len(topics))
+                if app.role == "pub": sub_count = 0
+                
                 if sub_count > 0:
                     sub_topics = self._sample_biased(sub_count, topics, _app_cluster_topics, p_intra=c.intra_cluster_coupling)
                     for t in sub_topics:
@@ -617,30 +626,40 @@ class StatisticalGraphGenerator:
                     self._direct_sub_counts[app.id] = sub_count
                     
         elif c.topic_stats and c.topic_stats.applications_publishing_to_this_topic.mean > 0:
+            valid_pubs_all = [a for a in apps if a.role in ("pub", "pubsub")]
+            valid_subs_all = [a for a in apps if a.role in ("sub", "pubsub")]
             for topic in topics:
                 _topic_cluster_apps = _cluster_to_apps[_topic_id_to_cluster[topic.id]]
+                _topic_cluster_pubs = [a for a in _topic_cluster_apps if a.role in ("pub", "pubsub")]
+                _topic_cluster_subs = [a for a in _topic_cluster_apps if a.role in ("sub", "pubsub")]
+                
                 pub_count = self._sample_from_distribution(c.topic_stats.applications_publishing_to_this_topic)
-                pub_count = min(pub_count, len(apps))
+                pub_count = min(pub_count, len(valid_pubs_all))
                 if pub_count > 0:
-                    pubs = self._sample_biased(pub_count, apps, _topic_cluster_apps, p_intra=c.intra_cluster_coupling)
+                    pubs = self._sample_biased(pub_count, valid_pubs_all, _topic_cluster_pubs, p_intra=c.intra_cluster_coupling)
                     for p in pubs:
                         publishes.append(self._make_edge(p, topic))
                         self._direct_pub_counts[p.id] = self._direct_pub_counts.get(p.id, 0) + 1
 
                 sub_count = self._sample_from_distribution(c.topic_stats.applications_subscribing_to_this_topic)
-                sub_count = min(sub_count, len(apps))
+                sub_count = min(sub_count, len(valid_subs_all))
                 if sub_count > 0:
-                    subs = self._sample_biased(sub_count, apps, _topic_cluster_apps, p_intra=c.intra_cluster_coupling)
+                    subs = self._sample_biased(sub_count, valid_subs_all, _topic_cluster_subs, p_intra=c.intra_cluster_coupling)
                     for s in subs:
                         subscribes.append(self._make_edge(s, topic))
                         self._direct_sub_counts[s.id] = self._direct_sub_counts.get(s.id, 0) + 1
         else:
+            valid_pubs_all_fb = [a for a in apps if a.role in ("pub", "pubsub")]
+            valid_subs_all_fb = [a for a in apps if a.role in ("sub", "pubsub")]
             for topic in topics:
                 _topic_cluster_apps = _cluster_to_apps[_topic_id_to_cluster[topic.id]]
-                k_pubs = self.rng.randint(1, max(2, min(5, len(apps))))
-                k_subs = self.rng.randint(1, max(2, min(8, len(apps))))
-                pubs = self._sample_biased(k_pubs, apps, _topic_cluster_apps, p_intra=c.intra_cluster_coupling)
-                subs = self._sample_biased(k_subs, apps, _topic_cluster_apps, p_intra=c.intra_cluster_coupling)
+                _topic_cluster_pubs = [a for a in _topic_cluster_apps if a.role in ("pub", "pubsub")]
+                _topic_cluster_subs = [a for a in _topic_cluster_apps if a.role in ("sub", "pubsub")]
+                
+                k_pubs = self.rng.randint(1, max(2, min(5, len(valid_pubs_all_fb))))
+                k_subs = self.rng.randint(1, max(2, min(8, len(valid_subs_all_fb))))
+                pubs = self._sample_biased(k_pubs, valid_pubs_all_fb, _topic_cluster_pubs, p_intra=c.intra_cluster_coupling)
+                subs = self._sample_biased(k_subs, valid_subs_all_fb, _topic_cluster_subs, p_intra=c.intra_cluster_coupling)
                 for p in pubs:
                     publishes.append(self._make_edge(p, topic))
                 for s in subs:
@@ -651,6 +670,34 @@ class StatisticalGraphGenerator:
             for j in range(i + 1, len(nodes)):
                 if self.rng.random() < 0.3:
                     connects.append(self._make_edge(nodes[i], nodes[j]))
+        
+        # Guard against zero-mesh tiny topologies explicitly
+        if len(nodes) >= 2 and not connects:
+            i, j = self.rng.sample(range(len(nodes)), 2)
+            connects.append(self._make_edge(nodes[i], nodes[j]))
+            
+        # Ensure zero-degree apps receive at least 1 edge mapping to prevent inflated F1s
+        connected_apps = {e["from"] for e in publishes}.union(e["from"] for e in subscribes)
+        isolated_apps = [a for a in apps if a.id not in connected_apps]
+        for app in isolated_apps:
+            t = self.rng.choice(topics)
+            if app.role in ("pub", "pubsub"):
+                publishes.append(self._make_edge(app, t))
+            elif app.role == "sub":
+                subscribes.append(self._make_edge(app, t))
+                
+        def _deduplicate_edges(edge_list: List[Dict[str, str]]) -> List[Dict[str, str]]:
+            seen = set()
+            dedup = []
+            for e in edge_list:
+                tup = (e["from"], e["to"])
+                if tup not in seen:
+                    seen.add(tup)
+                    dedup.append(e)
+            return dedup
+            
+        publishes = _deduplicate_edges(publishes)
+        subscribes = _deduplicate_edges(subscribes)
 
         return {
             "metadata": {
