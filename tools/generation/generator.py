@@ -169,10 +169,11 @@ class StatisticalGraphGenerator:
         params = _CODE_METRICS_PARAMS.get(app_type, _DEFAULT_CODE_METRICS_PARAMS)
         return self._build_code_metrics(params)
 
-    def _generate_lib_code_metrics(self, archetype: Optional[str] = None) -> Dict[str, Any]:
+    def _generate_lib_code_metrics(self, archetype: Optional[str] = None, name_rng: Optional[random.Random] = None) -> Dict[str, Any]:
         """Generate a full code_metrics dict for a Library."""
         if not archetype or archetype not in _LIB_CODE_METRICS_PARAMS:
-            archetype = self.rng.choice(_LIB_ARCHETYPE_WEIGHTS)
+            rng_to_use = name_rng if name_rng else self.rng
+            archetype = rng_to_use.choice(_LIB_ARCHETYPE_WEIGHTS)
         params = _LIB_CODE_METRICS_PARAMS[archetype]
         return self._build_code_metrics(params)
 
@@ -261,11 +262,12 @@ class StatisticalGraphGenerator:
 
     def generate(self) -> Dict[str, Any]:
         c = self.config
+        name_rng = random.Random(c.seed + 12345)
         
         # 1. Generate base entities using Core Models
         domain_ds = None
         if c.domain:
-            domain_ds = DomainDataset(c.domain, self.rng)
+            domain_ds = DomainDataset(c.domain, name_rng)
             
         nodes = [
             Node(id=f"N{i}", name=domain_ds.get_node_name() if domain_ds else f"Node-{i}") 
@@ -308,23 +310,23 @@ class StatisticalGraphGenerator:
                 if durability_pool and i < len(durability_pool):
                     durability = durability_pool[i]
                 elif durability_pool:
-                    durability = self.rng.choice(durability_pool)
+                    durability = name_rng.choice(durability_pool)
                 else:
-                    durability = self.rng.choice(DURABILITY_OPTIONS)
+                    durability = name_rng.choice(DURABILITY_OPTIONS)
                 
                 if reliability_pool and i < len(reliability_pool):
                     reliability = reliability_pool[i]
                 elif reliability_pool:
-                    reliability = self.rng.choice(reliability_pool)
+                    reliability = name_rng.choice(reliability_pool)
                 else:
-                    reliability = self.rng.choice(RELIABILITY_OPTIONS)
+                    reliability = name_rng.choice(RELIABILITY_OPTIONS)
                 
                 if priority_pool and i < len(priority_pool):
                     transport_priority = priority_pool[i]
                 elif priority_pool:
-                    transport_priority = self.rng.choice(priority_pool)
+                    transport_priority = name_rng.choice(priority_pool)
                 else:
-                    transport_priority = self.rng.choice(PRIORITY_OPTIONS)
+                    transport_priority = name_rng.choice(PRIORITY_OPTIONS)
             
             topics.append(Topic(
                 id=f"T{i}",
@@ -401,16 +403,16 @@ class StatisticalGraphGenerator:
             if domain_ds:
                 app_type = get_app_type_for_name(app_name)
             else:
-                app_type = self.rng.choice(APP_TYPE_OPTIONS)
+                app_type = name_rng.choice(APP_TYPE_OPTIONS)
                 
             code_metrics = self._generate_code_metrics(app_type)
             # Use the pre-assigned cluster domain_name so hierarchy reflects
             # actual structural grouping rather than an independent random draw.
             hierarchy = {
-                "component_name": self.rng.choice(_hier_pool["component"]),
-                "config_item_name": self.rng.choice(_hier_pool["config_item"]),
+                "component_name": name_rng.choice(_hier_pool["component"]),
+                "config_item_name": name_rng.choice(_hier_pool["config_item"]),
                 "domain_name": _app_cluster_domain[i],
-                "system_name": self.rng.choice(_hier_pool["system"]),
+                "system_name": name_rng.choice(_hier_pool["system"]),
             }
             apps.append(Application(
                 id=f"A{i}",
@@ -433,11 +435,11 @@ class StatisticalGraphGenerator:
             lib_name = domain_ds.get_library_name() if domain_ds else f"Lib-{i}"
             if domain_ds:
                 archetype = get_lib_archetype_for_name(lib_name)
-                lib_code_metrics = self._generate_lib_code_metrics(archetype)
+                lib_code_metrics = self._generate_lib_code_metrics(archetype, name_rng)
             else:
-                lib_code_metrics = self._generate_lib_code_metrics()
+                lib_code_metrics = self._generate_lib_code_metrics(None, name_rng)
 
-            lib_hierarchy = domain_ds.get_system_hierarchy() if domain_ds else get_generic_system_hierarchy(self.rng)
+            lib_hierarchy = domain_ds.get_system_hierarchy() if domain_ds else get_generic_system_hierarchy(name_rng)
             if not domain_ds:
                 lib_hierarchy["domain_name"] = _lib_cluster_domain[i]
                 
