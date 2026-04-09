@@ -101,11 +101,12 @@ def _count_nodes(data: Dict) -> Dict[str, int]:
 
 
 def _count_edges(data: Dict) -> Dict[str, int]:
-    pub_edges  = data.get("publish_edges",   data.get("publishes",   []))
-    sub_edges  = data.get("subscribe_edges", data.get("subscribes",  []))
-    runs_on    = data.get("runs_on",         [])
-    routes     = data.get("routes",          [])
-    lib_edges  = data.get("library_edges",   data.get("uses_library", []))
+    rels       = data.get("relationships", {})
+    pub_edges  = rels.get("publishes_to", data.get("publish_edges", []))
+    sub_edges  = rels.get("subscribes_to", data.get("subscribe_edges", []))
+    runs_on    = rels.get("runs_on", data.get("runs_on", []))
+    routes     = rels.get("routes", data.get("routes", []))
+    lib_edges  = rels.get("uses", data.get("library_edges", []))
     return {
         "publish":   len(pub_edges),
         "subscribe": len(sub_edges),

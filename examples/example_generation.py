@@ -38,8 +38,9 @@ def summarise_graph(data: dict, label: str = "") -> None:
     brokers   = data.get("brokers", [])
     topics    = data.get("topics", [])
     nodes     = data.get("nodes", [])
-    pub_edges = data.get("publish_edges", [])
-    sub_edges = data.get("subscribe_edges", [])
+    rels      = data.get("relationships", {})
+    pub_edges = rels.get("publishes_to", data.get("publish_edges", []))
+    sub_edges = rels.get("subscribes_to", data.get("subscribe_edges", []))
 
     if label:
         print(f"\n  [{label}]")
