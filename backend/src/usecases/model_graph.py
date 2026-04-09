@@ -34,10 +34,12 @@ class ModelGraphUseCase:
             for i, item in enumerate(items):
                 if not isinstance(item, dict):
                      raise ValueError(f"Item {i} in relationship type '{rel_type}' must be a dictionary.")
-                if "source" not in item or not item["source"]:
-                     raise ValueError(f"Item {i} in relationship type '{rel_type}' is missing 'source'.")
-                if "target" not in item or not item["target"]:
-                     raise ValueError(f"Item {i} in relationship type '{rel_type}' is missing 'target'.")
+                src = item.get("source") or item.get("from")
+                tgt = item.get("target") or item.get("to")
+                if not src:
+                     raise ValueError(f"Item {i} in relationship type '{rel_type}' is missing 'source' (or 'from').")
+                if not tgt:
+                     raise ValueError(f"Item {i} in relationship type '{rel_type}' is missing 'target' (or 'to').")
 
     def execute(self, graph_data: Dict[str, Any], clear: bool = False, dry_run: bool = False) -> ImportStats:
         import time

@@ -10,8 +10,9 @@ from types import SimpleNamespace
 
 from api.dependencies import get_client
 from saag import Client
-from saag.models import AnalysisResult as SaagAnalysisResult
+from saag.models import AnalysisResult as SaagAnalysisResult, PredictionResult as SaagPredictionResult
 from src.prediction import ProblemDetector, PredictionService, DetectedProblem
+from src.usecases.predict_graph import PredictGraphUseCase as _PredictGraphUseCase
 from src.analysis.structural_analyzer import StructuralAnalyzer
 from src.analysis.antipattern_detector import AntiPatternDetector
 from src.core.layers import AnalysisLayer
@@ -32,6 +33,21 @@ def _structural_analyze(client: Client, layer: str) -> SaagAnalysisResult:
     layer_enum = AnalysisLayer.from_string(layer)
     raw = analyzer.analyze(graph_data, layer=layer_enum)
     return SaagAnalysisResult(raw)
+
+
+def _predict(analysis: SaagAnalysisResult) -> SaagPredictionResult:
+    """
+    Run quality prediction using an already-computed structural analysis result,
+    bypassing client.predict() which incorrectly expects a layer string.
+    """
+    prediction_service = PredictionService()
+    predict_uc = _PredictGraphUseCase(prediction_service)
+    quality, _ = predict_uc.execute(
+        layer="system",
+        structural_result=analysis.raw,
+        detect_problems=False,
+    )
+    return SaagPredictionResult(quality)
 
 
 def _detect_antipatterns(prediction) -> list:
@@ -66,7 +82,7 @@ async def analyze_full_system(
         
         # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
         analysis = _structural_analyze(client, "system")
-        prediction = client.predict(analysis)
+        prediction = _predict(analysis)
         problems = _detect_antipatterns(prediction)
         
         return analysis_presenter.build_analysis_response(
@@ -107,7 +123,7 @@ async def analyze_by_type(
 
         # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
         analysis = _structural_analyze(client, "system")
-        prediction = client.predict(analysis)
+        prediction = _predict(analysis)
         problems = _detect_antipatterns(prediction)
 
         return analysis_presenter.build_analysis_response(
@@ -151,7 +167,7 @@ async def analyze_layer(
         
         # SDK calls (bypassing AnalysisService to avoid SmellDetector type mismatch)
         analysis = _structural_analyze(client, layer)
-        prediction = client.predict(analysis)
+        prediction = _predict(analysis)
         problems = _detect_antipatterns(prediction)
         
         return analysis_presenter.build_analysis_response(

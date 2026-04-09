@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react"
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo, Suspense, useDeferredValue } from "react"
 import { useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { useTheme } from "next-themes"
@@ -13,6 +13,9 @@ import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
+import { forceCollide } from "d3-force-3d"
+import { ReactFlow, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
+import "@xyflow/react/dist/style.css"
 import { cn } from "@/lib/utils"
 import {
   ChevronDown,
@@ -129,6 +132,16 @@ const LEVEL_LABELS: Record<HGLevel, string> = {
   csms: "System (CSMS)", css: "Domain (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)",
 }
 
+// Hierarchical connections-view layout: assign a y-layer per node type
+const CONN_TYPE_LAYER: Record<string, number> = {
+  Node: 0, Broker: 1, Application: 2, Topic: 3, Library: 4,
+}
+// Fraction of canvas height for each layer (top → bottom)
+const CONN_LAYER_Y_FRACS = [0.10, 0.28, 0.50, 0.72, 0.90]
+const CONN_LAYER_LABEL: Record<number, string> = {
+  0: "Node", 1: "Broker", 2: "Application", 3: "Topic", 4: "Library",
+}
+
 // Node-type → color (matches Explorer page — theme-aware via isDark flag passed at callsite)
 // Dark variants used at runtime; light variants noted for reference.
 const CONN_NODE_TYPE_COLORS_DARK: Record<string, string> = {
@@ -179,6 +192,13 @@ function linkTypeColor(type: string | undefined, isDark = true): string {
   if (!type) return isDark ? "#a1a1aa" : "#71717a"
   return (isDark ? CONN_LINK_TYPE_COLORS_DARK : CONN_LINK_TYPE_COLORS_LIGHT)[type] ?? hashTypeColor(type)
 }
+
+// ── Shared ReactFlow prop constants (hoisted to avoid re-renders) ─────────────
+const RF_NODE_ORIGIN: [number, number] = [0.5, 0.5]
+const RF_FIT_VIEW_OPTIONS = { padding: 0.25 }
+const RF_STYLE_TRANSPARENT = { background: "transparent" }
+const RF_STYLE_CONN = { background: "transparent", position: "relative" as const, zIndex: 1 }
+const RF_PRO_OPTIONS = { hideAttribution: true }
 
 // ── Graph Explorer ────────────────────────────────────────────────────────────
 
@@ -242,9 +262,728 @@ function buildDrillData(
   return { nodes, links }
 }
 
-function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null }) {
+// ── SVG-based connections graph (replaces react-force-graph-2d for swimlane view) ──────────────
+function ConnSvgGraph({
+  graphData, positions, dims, isDark, populatedLayers,
+  selectedAppId, selectedLink, onNodeClick, onEdgeClick, onBackgroundClick,
+}: {
+  graphData: { nodes: any[]; links: any[] }
+  positions: Map<string, { x: number; y: number }>
+  dims: { width: number; height: number }
+  isDark: boolean
+  populatedLayers: Set<number>
+  selectedAppId: string | null
+  selectedLink: { link: any } | null
+  onNodeClick: (node: any) => void
+  onEdgeClick: (link: any, event: { clientX: number; clientY: number }) => void
+  onBackgroundClick: () => void
+}) {
+  const W = dims.width || 800
+  const H = dims.height || 600
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [vp, setVp] = useState({ x: 0, y: 0, k: 1 })
+  const dragRef = useRef<{ ox: number; oy: number; vx: number; vy: number } | null>(null)
+  const movedRef = useRef(false)
+
+  // Reset viewport when canvas size changes
+  useEffect(() => { setVp({ x: 0, y: 0, k: 1 }) }, [W, H])
+
+  // World coords (centered at 0,0) → screen pixel coords
+  const sx = (wx: number) => wx + W / 2
+  const sy = (wy: number) => wy + H / 2
+
+  // Edge weight → stroke width
+  const weightScale = useMemo(() => {
+    const weights = graphData.links.map((l: any) => Number(l.weight ?? 1)).filter((w: number) => isFinite(w))
+    if (!weights.length) return () => 1.5
+    const lo = Math.min(...weights), hi = Math.max(...weights)
+    if (lo === hi) return () => 2.0
+    return (w: number) => 0.8 + ((w - lo) / (hi - lo)) * 3.2
+  }, [graphData.links])
+
+  // One SVG arrowhead marker per unique link color
+  const markerColors = useMemo(() => {
+    const s = new Set<string>()
+    graphData.links.forEach((l: any) => s.add(linkTypeColor(l.type, isDark)))
+    s.add("#f59e0b") // selected highlight colour
+    return Array.from(s)
+  }, [graphData.links, isDark])
+
+  const mid = (color: string) => `arr-${color.replace(/[^0-9a-f]/gi, "x")}`
+
+  function handleWheel(e: React.WheelEvent) {
+    e.preventDefault()
+    const rect = svgRef.current!.getBoundingClientRect()
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12
+    setVp(v => {
+      const k = Math.max(0.15, Math.min(8, v.k * factor))
+      return { k, x: mx - (mx - v.x) * (k / v.k), y: my - (my - v.y) * (k / v.k) }
+    })
+  }
+  function handleMouseDown(e: React.MouseEvent) {
+    movedRef.current = false
+    dragRef.current = { ox: e.clientX, oy: e.clientY, vx: vp.x, vy: vp.y }
+  }
+  function handleMouseMove(e: React.MouseEvent) {
+    if (!dragRef.current) return
+    const dx = e.clientX - dragRef.current.ox, dy = e.clientY - dragRef.current.oy
+    if (Math.abs(dx) + Math.abs(dy) > 4) movedRef.current = true
+    setVp(v => ({ ...v, x: dragRef.current!.vx + dx, y: dragRef.current!.vy + dy }))
+  }
+  function handleMouseUp() { dragRef.current = null }
+
+  return (
+    <svg ref={svgRef} width={W} height={H}
+      style={{ display: "block", cursor: dragRef.current ? "grabbing" : "grab" }}
+      onWheel={handleWheel} onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+      onClick={e => { if (!movedRef.current && e.target === svgRef.current) onBackgroundClick() }}
+    >
+      <defs>
+        {markerColors.map(c => (
+          <marker key={c} id={mid(c)} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+            <path d="M0,0.5 L0,6.5 L6,3.5 z" fill={c} />
+          </marker>
+        ))}
+      </defs>
+      <g transform={`translate(${vp.x},${vp.y}) scale(${vp.k})`}>
+        {/* Swimlane bands */}
+        {CONN_LAYER_Y_FRACS.map((yFrac, layer) => {
+          if (!populatedLayers.has(layer)) return null
+          const yPx = yFrac * H, bandH = H * 0.16
+          const typeKey = Object.keys(CONN_TYPE_LAYER).find(t => CONN_TYPE_LAYER[t] === layer) ?? ""
+          const tc = (isDark ? CONN_NODE_TYPE_COLORS_DARK : CONN_NODE_TYPE_COLORS_LIGHT)[typeKey] ?? "#888"
+          return (
+            <g key={layer}>
+              <rect x={0} y={yPx - bandH / 2} width={W} height={bandH} fill={tc + "08"} />
+              <line x1={0} y1={yPx - bandH / 2} x2={W} y2={yPx - bandH / 2} stroke={tc + "22"} strokeWidth={1} />
+              <line x1={0} y1={yPx + bandH / 2} x2={W} y2={yPx + bandH / 2} stroke={tc + "22"} strokeWidth={1} />
+              <text x={10} y={yPx} dominantBaseline="middle" fontSize={9} fontWeight="600"
+                fill={tc + "aa"} style={{ userSelect: "none" as const, letterSpacing: "0.08em" }}>
+                {String(CONN_LAYER_LABEL[layer] ?? "").toUpperCase()}
+              </text>
+            </g>
+          )
+        })}
+        {/* Edges */}
+        {graphData.links.map((link: any, i: number) => {
+          const srcId = typeof link.source === "object" ? link.source.id : link.source
+          const tgtId = typeof link.target === "object" ? link.target.id : link.target
+          const sp = positions.get(srcId), ep = positions.get(tgtId)
+          if (!sp || !ep) return null
+          const x1 = sx(sp.x), y1 = sy(sp.y), x2 = sx(ep.x), y2 = sy(ep.y)
+          const len = Math.hypot(x2 - x1, y2 - y1)
+          if (len < 5) return null
+          const ux = (x2 - x1) / len, uy = (y2 - y1) / len
+          const sr = (srcId === selectedAppId ? 10 : 6) + 2
+          const tr = (tgtId === selectedAppId ? 10 : 6) + 14
+          const isHl = selectedLink?.link === link
+          const color = isHl ? "#f59e0b" : linkTypeColor(link.type, isDark)
+          const isAdj = srcId === selectedAppId || tgtId === selectedAppId
+          const sw = isHl ? 5 : Math.min(isAdj ? weightScale(Number(link.weight ?? 1)) + 0.8 : weightScale(Number(link.weight ?? 1)), 5)
+          return (
+            <line key={i}
+              x1={x1 + ux * sr} y1={y1 + uy * sr}
+              x2={x2 - ux * tr} y2={y2 - uy * tr}
+              stroke={color} strokeWidth={sw}
+              markerEnd={`url(#${mid(color)})`}
+              style={{ cursor: "pointer" }}
+              onClick={e => { e.stopPropagation(); if (!movedRef.current) onEdgeClick(link, e) }}
+            />
+          )
+        })}
+        {/* Nodes */}
+        {graphData.nodes.map((n: any) => {
+          const pos = positions.get(n.id)
+          if (!pos) return null
+          const nx = sx(pos.x), ny = sy(pos.y)
+          const isCenter = n.id === selectedAppId
+          const r = isCenter ? 10 : 6
+          const color = nodeTypeColor(n.type, isDark)
+          const strokeColor = isCenter ? (isDark ? "#ffffff" : "#111111") : (isDark ? "rgba(255,255,255,0.3)" : "rgba(30,41,59,0.35)")
+          const sw = isCenter ? 2.5 : 1
+          let shape: React.ReactNode
+          switch (n.type) {
+            case "Node":
+              shape = <rect x={nx - r} y={ny - r} width={r * 2} height={r * 2} fill={color} stroke={strokeColor} strokeWidth={sw} />
+              break
+            case "Topic":
+              shape = <polygon points={`${nx},${ny - r} ${nx + r},${ny} ${nx},${ny + r} ${nx - r},${ny}`} fill={color} stroke={strokeColor} strokeWidth={sw} />
+              break
+            case "Library":
+              shape = <polygon points={`${nx},${ny - r} ${nx + r},${ny + r * 0.6} ${nx - r},${ny + r * 0.6}`} fill={color} stroke={strokeColor} strokeWidth={sw} />
+              break
+            case "Broker": {
+              const pts = Array.from({ length: 6 }, (_, i) => {
+                const a = (Math.PI * 2 / 6) * i - Math.PI / 2
+                return `${nx + r * Math.cos(a)},${ny + r * Math.sin(a)}`
+              }).join(" ")
+              shape = <polygon points={pts} fill={color} stroke={strokeColor} strokeWidth={sw} />
+              break
+            }
+            default:
+              shape = <>{isCenter && <circle cx={nx} cy={ny} r={r + 7} fill={color + "33"} />}<circle cx={nx} cy={ny} r={r} fill={color} stroke={strokeColor} strokeWidth={sw} /></>
+          }
+          const label = String(n.label ?? n.id ?? "?")
+          const disp = label.length > 22 ? label.slice(0, 20) + "…" : label
+          return (
+            <g key={n.id} onClick={e => { e.stopPropagation(); if (!movedRef.current) onNodeClick(n) }} style={{ cursor: "pointer" }}>
+              {shape}
+              <text x={nx} y={ny + r + 11} textAnchor="middle" fontSize={10}
+                fontWeight={isCenter ? "bold" : "normal"} fill={isDark ? "#e5e7eb" : "#374151"}>
+                {disp}
+              </text>
+              <text x={nx} y={ny + r + 20} textAnchor="middle" fontSize={7} fill={isDark ? "#9ca3af" : "#6b7280"}>
+                {n.type}
+              </text>
+              <circle cx={nx} cy={ny} r={r + 10} fill="transparent" />
+            </g>
+          )
+        })}
+      </g>
+    </svg>
+  )
+}
+
+// ── React Flow connections graph ─────────────────────────────────────────────
+const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
+  const { n, isDark, isCenter } = data as any
+  // Uniform canvas size for all shapes so labels align consistently
+  const S  = isCenter ? 44 : 28   // bounding box side
+  const C  = S / 2                // center coord
+  const color = nodeTypeColor(n.type, isDark)
+  const label = String(n.label ?? n.id ?? "?")
+  const disp = label.length > 20 ? label.slice(0, 18) + "…" : label
+
+  // Shared style tokens
+  const fill   = color
+  const stroke = isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)"
+  const sw     = isCenter ? 2 : 1.5
+  const glow   = color + (isDark ? "40" : "28")
+
+
+  let shape: React.ReactNode
+  switch (n.type) {
+
+    // ── Application → Circle ─────────────────────────────────────────────────
+    case "Application":
+    default: {
+      const r = C
+      shape = <>
+        <circle cx={C} cy={C} r={r + (isCenter ? 8 : 5)} fill={glow} />
+        <circle cx={C} cy={C} r={r} fill={fill} stroke={stroke} strokeWidth={sw} />
+      </>
+      break
+    }
+
+    // ── Node → Square ────────────────────────────────────────────────────────
+    case "Node": {
+      // Squares appear optically larger than circles at same S — shrink by ~14%
+      const sq  = S * 0.86
+      const off = (S - sq) / 2
+      const r   = isCenter ? 5 : 3
+      shape = <>
+        <rect x={off - 5} y={off - 5} width={sq + 10} height={sq + 10} rx={r + 3} fill={glow} />
+        <rect x={off} y={off} width={sq} height={sq} rx={r} fill={fill} stroke={stroke} strokeWidth={sw} />
+      </>
+      break
+    }
+
+    // ── Topic → Rhombus ──────────────────────────────────────────────────────
+    case "Topic": {
+      shape = <>
+        <polygon points={`${C},${-4} ${S + 4},${C} ${C},${S + 4} ${-4},${C}`} fill={glow} />
+        <polygon points={`${C},0 ${S},${C} ${C},${S} 0,${C}`} fill={fill} stroke={stroke} strokeWidth={sw} />
+      </>
+      break
+    }
+
+    // ── Broker → Pentagon ────────────────────────────────────────────────────
+    case "Broker": {
+      const penta = (scale: number, ox = C, oy = C) =>
+        Array.from({ length: 5 }, (_, i) => {
+          const a = (Math.PI * 2 / 5) * i - Math.PI / 2
+          return `${ox + scale * Math.cos(a)},${oy + scale * Math.sin(a)}`
+        }).join(" ")
+      shape = <>
+        <polygon points={penta(C + 6)} fill={glow} />
+        <polygon points={penta(C)} fill={fill} stroke={stroke} strokeWidth={sw} />
+      </>
+      break
+    }
+
+    // ── Library → Triangle ───────────────────────────────────────────────────
+    case "Library": {
+      const h = S * 0.866
+      const yOff = (S - h) / 2
+      shape = <>
+        <polygon points={`${C},${yOff - 6} ${S + 7},${yOff + h + 4} ${-7},${yOff + h + 4}`} fill={glow} />
+        <polygon points={`${C},${yOff} ${S},${yOff + h} 0,${yOff + h}`} fill={fill} stroke={stroke} strokeWidth={sw} />
+      </>
+      break
+    }
+  }
+
+  const hs = { width: 1, height: 1, opacity: 0, border: "none", background: "transparent", minWidth: 0, minHeight: 0 }
+  const textBg    = isDark ? "rgba(14,14,22,0.85)" : "rgba(255,255,255,0.90)"
+  const textColor = isDark ? "#f1f5f9" : "#1e293b"
+  const subColor  = isDark ? "#94a3b8" : "#64748b"
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
+      <Handle type="target" position={Position.Top}    id="t-top" style={hs} />
+      <Handle type="source" position={Position.Top}    id="s-top" style={hs} />
+      <svg width={S} height={S} overflow="visible" style={{ display: "block" }}>
+        {shape}
+        {isCenter && (
+          <circle cx={C} cy={C} r={C + 10} fill="none"
+            stroke={isDark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.50)"}
+            strokeWidth={1.5} strokeDasharray="4 3" />
+        )}
+      </svg>
+      <div style={{
+        marginTop: 6,
+        padding: "2px 9px",
+        background: textBg,
+        border: `1px solid ${color}44`,
+        borderRadius: 20,
+        backdropFilter: "blur(8px)",
+        fontSize: isCenter ? 12 : 10,
+        fontWeight: isCenter ? 700 : 500,
+        color: textColor,
+        whiteSpace: "nowrap",
+        maxWidth: 160,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        lineHeight: "1.5",
+        letterSpacing: "0.01em",
+        boxShadow: `0 2px 6px ${isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.10)"}`,
+      }}>{disp}</div>
+      <div style={{
+        marginTop: 2,
+        fontSize: 8,
+        fontWeight: 600,
+        color: color,
+        opacity: 0.75,
+        whiteSpace: "nowrap",
+        letterSpacing: "0.10em",
+        textTransform: "uppercase",
+      }}>{n.type}</div>
+      <Handle type="source" position={Position.Bottom} id="s-bot" style={hs} />
+      <Handle type="target" position={Position.Bottom} id="t-bot" style={hs} />
+    </div>
+  )
+})
+
+// Swimlane background node — rendered inside RF so it moves with fitView
+const ConnLaneNode = memo(function ConnLaneNode({ data }: NodeProps) {
+  const { label, color, width, height, isDark } = data as any
+  return (
+    <div style={{
+      width, height,
+      borderTop: `1px solid ${color}1a`,
+      borderBottom: `1px solid ${color}1a`,
+      background: isDark
+        ? `linear-gradient(90deg, ${color}18 0%, ${color}08 25%, transparent 70%)`
+        : `linear-gradient(90deg, ${color}12 0%, ${color}05 25%, transparent 70%)`,
+      pointerEvents: "none",
+      display: "flex",
+      alignItems: "center",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, paddingLeft: 10 }}>
+        <div style={{ width: 3, height: 18, borderRadius: 2, background: color, opacity: 0.55 }} />
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
+          textTransform: "uppercase", color, opacity: 0.65, userSelect: "none" }}>
+          {label}
+        </span>
+      </div>
+    </div>
+  )
+})
+const cfNodeTypes = { conn: ConnFlowNode, lane: ConnLaneNode }
+
+// Custom edge: smooth bezier + clean fixed-size filled arrowhead
+const ConnFlowEdge = memo(function ConnFlowEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style }: EdgeProps) {
+  // Fixed arrowhead dimensions — same size on every edge
+  const AW = 5  // half-width
+  const AH = 8  // height
+  const color = (style?.stroke as string) ?? "#888"
+  const sw = Number(style?.strokeWidth ?? 2)
+  const opacity = Number(style?.opacity ?? 1)
+  const dashArray = (style as any)?.strokeDasharray as string | undefined
+  // Handles are always top/bottom — bezier arrives vertically at target
+  const goingDown = targetPosition === "top"
+  const dir = goingDown ? 1 : -1
+  // Shorten path so the line ends at arrowhead base, not tip — no overlap
+  const adjustedTY = targetY - dir * AH
+  const [edgePath] = getBezierPath({
+    sourceX, sourceY, sourcePosition,
+    targetX, targetY: adjustedTY,
+    targetPosition, curvature: 0.35,
+  })
+  const tipY  = targetY
+  const baseY = adjustedTY
+  const arrowPts = `${targetX},${tipY} ${targetX - AW},${baseY} ${targetX + AW},${baseY}`
+  return (
+    <g opacity={opacity}>
+      <path d={edgePath} fill="none" stroke="transparent" strokeWidth={Math.max(sw + 10, 14)} />
+      <path d={edgePath} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dashArray} />
+      <polygon points={arrowPts} fill={color} />
+    </g>
+  )
+})
+const cfEdgeTypes = { conn: ConnFlowEdge }
+
+// ── Hierarchy graph using @xyflow/react ──────────────────────────────────────
+
+const HIER_LEVEL_LABEL: Record<HGLevel, string> = {
+  csms: "System", css: "Domain", csci: "Config Item", csc: "Component", app: "App",
+}
+
+const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
+  const { n, isDark, isSelected, isParent } = data as any
+  const hn = n as HGNode
+  const color = NODE_COLORS[hn.level]
+  const levelLabel = HIER_LEVEL_LABEL[hn.level] ?? hn.level
+
+  // Parent (drilled-into) node is larger
+  const pad = isParent ? "8px 18px" : "6px 14px"
+  const fontSize = isParent ? 14 : 12
+  const maxLabelWidth = isParent ? 220 : 180
+  const dotSize = isParent ? 9 : 7
+
+  const bgAlpha = isDark ? (isParent ? "30" : "1a") : (isParent ? "20" : "12")
+  const borderAlpha = isSelected ? "" : (isParent ? "88" : "44")
+  const borderColor = isSelected ? color : `${color}${borderAlpha}`
+  const shadow = isSelected
+    ? `0 0 0 2.5px ${color}50, 0 4px 16px ${color}30`
+    : isParent
+    ? `0 2px 12px ${color}25`
+    : `0 1px 4px ${isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.08)"}`
+
+  const hiddenHandle = { opacity: 0, width: 0, height: 0, minWidth: 0 }
+
+  return (
+    <div
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+        padding: pad,
+        borderRadius: 12,
+        background: isDark ? `${color}${bgAlpha}` : `${color}${bgAlpha}`,
+        border: `1.5px solid ${borderColor}`,
+        boxShadow: shadow,
+        cursor: "pointer",
+        userSelect: "none",
+        whiteSpace: "nowrap",
+        backdropFilter: "blur(8px)",
+        transition: "box-shadow 0.15s, border-color 0.15s",
+      }}
+    >
+      <Handle type="target" position={Position.Top} id="t" style={hiddenHandle} />
+      {/* Level badge */}
+      <span style={{
+        fontSize: 8, fontWeight: 700, letterSpacing: "0.08em",
+        textTransform: "uppercase", color: isDark ? `${color}99` : `${color}aa`,
+        lineHeight: 1,
+      }}>{levelLabel}</span>
+      {/* Name row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{
+          width: dotSize, height: dotSize, borderRadius: "50%", background: color,
+          flexShrink: 0, display: "inline-block",
+          boxShadow: `0 0 6px ${color}66`,
+        }} />
+        <span style={{
+          maxWidth: maxLabelWidth, overflow: "hidden", textOverflow: "ellipsis",
+          fontSize, fontWeight: isParent ? 700 : isSelected ? 600 : 500,
+          color: isDark ? "#f1f5f9" : "#1e293b",
+          lineHeight: 1.3,
+        }}>{hn.name}</span>
+      </div>
+      {/* Count badge */}
+      {hn.appCount > 0 && hn.level !== "app" && (
+        <span style={{
+          fontSize: 9, fontWeight: 600,
+          color: isDark ? "#94a3b8" : "#64748b",
+          background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+          borderRadius: 6, padding: "1px 6px",
+          lineHeight: 1.4,
+        }}>{hn.appCount} {hn.appCount === 1 ? "app" : "apps"}</span>
+      )}
+      <Handle type="source" position={Position.Bottom} id="s" style={hiddenHandle} />
+    </div>
+  )
+})
+
+// Custom hierarchy edge with gradient stroke
+const HierFlowEdge = memo(function HierFlowEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps) {
+  const { isDark, sourceColor, targetColor } = (data ?? {}) as any
+  const sc = sourceColor ?? (isDark ? "#ffffff" : "#000000")
+  const tc = targetColor ?? (isDark ? "#ffffff" : "#000000")
+  const gradId = `hg-${Math.round(sourceX)}-${Math.round(targetX)}`
+
+  // Vertical tree edge: straight down from source, then curve to target
+  const midY = sourceY + (targetY - sourceY) * 0.5
+  const d = `M ${sourceX} ${sourceY} C ${sourceX} ${midY}, ${targetX} ${midY}, ${targetX} ${targetY}`
+
+  return (
+    <g>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={sc} stopOpacity={isDark ? 0.5 : 0.35} />
+          <stop offset="100%" stopColor={tc} stopOpacity={isDark ? 0.3 : 0.2} />
+        </linearGradient>
+      </defs>
+      <path d={d} fill="none" stroke={`url(#${gradId})`} strokeWidth={2} strokeLinecap="round" />
+    </g>
+  )
+})
+
+const cfHierNodeTypes = { hier: HierFlowNode }
+const cfHierEdgeTypes = { hier: HierFlowEdge }
+
+const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, selectedNodeId, onNodeClick }: {
+  graphData: { nodes: HGNode[]; links: HGLink[] }
+  dims: { width: number; height: number }
+  isDark: boolean
+  selectedNodeId: string | null
+  onNodeClick: (n: HGNode) => void
+}) {
+  const W = dims.width  || 800
+  const H = dims.height || 600
+  const LEVEL_ORDER: HGLevel[] = ["csms", "css", "csci", "csc", "app"]
+
+  // Find which node is the parent (drilled-into) node — first node that has children
+  const parentNodeId = useMemo(() => {
+    if (graphData.nodes.length <= 1) return null
+    const childIds = new Set(graphData.links.map(l => typeof l.target === "object" ? (l.target as any).id : l.target))
+    return graphData.nodes.find(n => !childIds.has(n.id))?.id ?? graphData.nodes[0]?.id ?? null
+  }, [graphData.nodes, graphData.links])
+
+  // Tree layout: parent centered at top, children spaced evenly below
+  const positions = useMemo(() => {
+    const map = new Map<string, { x: number; y: number }>()
+    const byLevel = new Map<HGLevel, HGNode[]>()
+    for (const n of graphData.nodes) {
+      if (!byLevel.has(n.level)) byLevel.set(n.level, [])
+      byLevel.get(n.level)!.push(n)
+    }
+
+    // Collect present levels in order
+    const presentLevels = LEVEL_ORDER.filter(l => byLevel.has(l))
+    if (presentLevels.length === 0) return map
+
+    // Vertical spacing: use fraction of height per tier
+    const yStep = presentLevels.length === 1 ? 0 : H / (presentLevels.length + 0.5)
+    const yStart = presentLevels.length === 1 ? H * 0.4 : yStep * 0.75
+
+    for (let li = 0; li < presentLevels.length; li++) {
+      const level = presentLevels[li]
+      const arr = byLevel.get(level) ?? []
+      const y = yStart + li * yStep
+
+      if (arr.length === 1) {
+        // Single node (root or only child) — center it
+        map.set(arr[0].id, { x: W / 2, y })
+      } else {
+        // Equal spacing with enough room for node cards (~200px wide)
+        const minGap = 200
+        const naturalWidth = (arr.length - 1) * minGap
+        const margin = Math.max(W * 0.12, 100)
+        const usable = Math.max(W - 2 * margin, naturalWidth)
+        // If children need more space than canvas, let fitView handle zoom
+        const startX = (W - usable) / 2
+        arr.forEach((n, i) => {
+          const x = arr.length === 1 ? W / 2 : startX + (i / (arr.length - 1)) * usable
+          map.set(n.id, { x, y })
+        })
+      }
+    }
+    return map
+  }, [graphData.nodes, W, H])
+
+  // Build node-to-color map for edge gradients
+  const nodeColorMap = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const n of graphData.nodes) m.set(n.id, NODE_COLORS[n.level] ?? "#888")
+    return m
+  }, [graphData.nodes])
+
+  const initialHierNodes = useMemo(() => graphData.nodes.map(n => ({
+    id: n.id,
+    type: "hier" as const,
+    position: positions.get(n.id) ?? { x: W / 2, y: H / 2 },
+    data: { n, isDark, isSelected: n.id === selectedNodeId, isParent: n.id === parentNodeId },
+    selectable: false,
+    draggable: true,
+  })), [graphData.nodes, positions, isDark, selectedNodeId, parentNodeId])
+
+  const [rfNodes, setRfNodes] = useState(initialHierNodes)
+  useEffect(() => { setRfNodes(initialHierNodes) }, [initialHierNodes])
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => setRfNodes(nds => applyNodeChanges(changes, nds) as any),
+    [],
+  )
+
+  const rfEdges = useMemo(() => graphData.links.map((l: any, i: number) => {
+    const srcId = typeof l.source === "object" ? l.source.id : l.source
+    const tgtId = typeof l.target === "object" ? l.target.id : l.target
+    return {
+      id: `he${i}`,
+      source: srcId,
+      target: tgtId,
+      type: "hier",
+      data: { isDark, sourceColor: nodeColorMap.get(srcId), targetColor: nodeColorMap.get(tgtId) },
+    }
+  }), [graphData.links, isDark, nodeColorMap])
+
+  const handleNodeClick = useCallback((_: any, rfNode: any) => onNodeClick(rfNode.data.n as HGNode), [onNodeClick])
+
+  return (
+    <ReactFlow
+      nodes={rfNodes}
+      edges={rfEdges}
+      nodeTypes={cfHierNodeTypes}
+      edgeTypes={cfHierEdgeTypes}
+      nodeOrigin={RF_NODE_ORIGIN}
+      fitView
+      fitViewOptions={RF_FIT_VIEW_OPTIONS}
+      nodesDraggable
+      onNodesChange={onNodesChange}
+      onNodeClick={handleNodeClick}
+      panOnDrag
+      zoomOnScroll
+      style={RF_STYLE_TRANSPARENT}
+      proOptions={RF_PRO_OPTIONS}
+    >
+      <Background variant={BackgroundVariant.Dots} gap={24} size={1}
+        color={isDark ? "#ffffff10" : "#00000010"} />
+    </ReactFlow>
+  )
+})
+
+const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, isDark, populatedLayers, selectedAppId, selectedLink, onNodeClick, onEdgeClick, onBackgroundClick }: {
+  graphData: { nodes: any[]; links: any[] }
+  positions: Map<string, { x: number; y: number }>
+  dims: { width: number; height: number }
+  isDark: boolean
+  populatedLayers: Set<number>
+  selectedAppId: string | null
+  selectedLink: { link: any } | null
+  onNodeClick: (n: any) => void
+  onEdgeClick: (link: any, event: React.MouseEvent) => void
+  onBackgroundClick: () => void
+}) {
+  const W = dims.width  || 800
+  const H = dims.height || 600
+  const bandH = H * 0.20
+
+  const initialNodes = useMemo(() => {
+    // Swimlane lane nodes (rendered behind, z-index -1 via RF zIndex)
+    const laneNodes = CONN_LAYER_Y_FRACS.map((yFrac, layer) => {
+      if (!populatedLayers.has(layer)) return null
+      const typeKey = Object.keys(CONN_TYPE_LAYER).find(t => CONN_TYPE_LAYER[t] === layer) ?? ""
+      const color = (isDark ? CONN_NODE_TYPE_COLORS_DARK : CONN_NODE_TYPE_COLORS_LIGHT)[typeKey] ?? "#888"
+      return {
+        id: `lane-${layer}`,
+        type: "lane" as const,
+        position: { x: 0, y: yFrac * H - bandH / 2 },
+        origin: [0, 0] as [number, number],
+        data: { label: CONN_LAYER_LABEL[layer] ?? "", color, width: W, height: bandH, isDark },
+        selectable: false,
+        draggable: false,
+        zIndex: -1,
+      }
+    }).filter(Boolean) as any[]
+
+    const connNodes = graphData.nodes.map((n: any) => {
+      const pos = positions.get(n.id) ?? { x: W / 2, y: H / 2 }
+      return {
+        id: n.id,
+        type: "conn" as const,
+        position: pos,
+        data: { n, isDark, isCenter: n.id === selectedAppId },
+        selectable: false,
+        draggable: true,
+        zIndex: 1,
+      }
+    })
+    return [...laneNodes, ...connNodes]
+  }, [graphData.nodes, positions, isDark, selectedAppId, dims, populatedLayers])
+
+  const [rfNodes, setRfNodes] = useState(initialNodes)
+  useEffect(() => { setRfNodes(initialNodes) }, [initialNodes])
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => setRfNodes(nds => applyNodeChanges(changes, nds) as any),
+    [],
+  )
+
+  const rfEdges = useMemo(() => {
+    const weights = graphData.links.map((l: any) => Number(l.weight ?? 1)).filter((w: number) => isFinite(w))
+    const lo = weights.length ? Math.min(...weights) : 0
+    const hi = weights.length ? Math.max(...weights) : 1
+    const wScale = lo === hi ? () => 2.0 : (w: number) => 1.0 + ((w - lo) / (hi - lo)) * 2.5
+    return graphData.links.map((l: any, i: number) => {
+      const srcId = typeof l.source === "object" ? l.source.id : l.source
+      const tgtId = typeof l.target === "object" ? l.target.id : l.target
+      const srcY = positions.get(srcId)?.y ?? 0
+      const tgtY = positions.get(tgtId)?.y ?? 0
+      const goingDown = tgtY >= srcY
+      const sourceHandle = goingDown ? "s-bot" : "s-top"
+      const targetHandle = goingDown ? "t-top" : "t-bot"
+      const isHl = selectedLink?.link === l
+      const isAdj = srcId === selectedAppId || tgtId === selectedAppId
+      const isDerived = l.type === "DEPENDS_ON"
+      const color = isHl ? "#f59e0b" : linkTypeColor(l.type, isDark)
+      const sw = isHl ? 6 : isAdj ? Math.min(wScale(Number(l.weight ?? 1)) + 0.5, 4) : 1
+      const opacity = isHl ? 1 : isAdj ? 0.88 : 0.2
+      return {
+        id: `e${i}`,
+        source: srcId,
+        target: tgtId,
+        sourceHandle,
+        targetHandle,
+        type: "conn",
+        style: { stroke: color, strokeWidth: sw, opacity, ...(isDerived ? { strokeDasharray: "6 4" } : {}) },
+        data: { link: l },
+        selectable: false,
+      }
+    })
+  }, [graphData.links, positions, isDark, selectedLink, selectedAppId])
+
+  const handleNodeClick = useCallback((_: any, node: any) => onNodeClick((node.data as any).n), [onNodeClick])
+  const handleEdgeClick = useCallback((event: any, edge: any) => onEdgeClick((edge.data as any).link, event), [onEdgeClick])
+
+  return (
+    <div style={{ width: dims.width, height: dims.height, position: "relative" }}>
+      <ReactFlow
+        nodes={rfNodes}
+        edges={rfEdges as any}
+        nodeTypes={cfNodeTypes}
+        edgeTypes={cfEdgeTypes}
+        nodeOrigin={RF_NODE_ORIGIN}
+        fitView
+        fitViewOptions={RF_FIT_VIEW_OPTIONS}
+        nodesDraggable
+        nodesConnectable={false}
+        elementsSelectable={false}
+        onNodesChange={onNodesChange}
+        onNodeClick={handleNodeClick}
+        onEdgeClick={handleEdgeClick}
+        onPaneClick={onBackgroundClick}
+        style={RF_STYLE_CONN}
+        proOptions={RF_PRO_OPTIONS}
+      >
+        <Background variant={BackgroundVariant.Dots} color={isDark ? "#3f3f46" : "#d4d4d8"} gap={28} size={1.5} />
+      </ReactFlow>
+    </div>
+  )
+})
+
+function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, syncKey = null, onNodeSelect }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null; syncKey?: string | null; onNodeSelect?: (key: string) => void }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
+
 
   const containerRef = useRef<HTMLDivElement>(null)
   const fgRef = useRef<any>(null)
@@ -273,9 +1012,11 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
   const [connTab, setConnTab] = useState<"out" | "in" | "props">("props")
   const [connDepth, setConnDepth] = useState(1)
 
+  const isSyncingRef = useRef(false)
+
   const [hiddenLevels, setHiddenLevels] = useState<Set<HGLevel>>(new Set())
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set())
-  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set())
+  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set(["DEPENDS_ON"]))
 
   const toggleLevel = (lvl: HGLevel) => setHiddenLevels(prev => { const s = new Set(prev); s.has(lvl) ? s.delete(lvl) : s.add(lvl); return s })
   const toggleNodeType = (t: string) => setHiddenNodeTypes(prev => { const s = new Set(prev); s.has(t) ? s.delete(t) : s.add(t); return s })
@@ -331,13 +1072,14 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
   const jumpToNode = useCallback((node: HGNode) => {
     setAppSearch("")
     setSearchOpen(false)
+    const wasSyncing = isSyncingRef.current
+    isSyncingRef.current = false
     if (node.level === "app") {
       setSelectedApp(node)
       setViewMode("connections")
       setConnTab("props")
       setConnData(null)
     } else {
-      // Clear connection state and drill into the hierarchy node
       setSelectedApp(null)
       setViewMode("hierarchy")
       setConnData(null)
@@ -359,26 +1101,37 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
       setDrillStack(stack)
       setDrillNode({ id: node.id, name: node.name, level: node.level, appCount: node.appCount, pathKey: node.pathKey })
     }
-  }, [hierarchy])
+    if (!wasSyncing) onNodeSelect?.(node.id)
+  }, [hierarchy, onNodeSelect])
 
-  // Auto-select node from URL ?node= param once flatNodes is populated
-  const autoJumpDone = useRef(false)
+  // Sync selection when syncKey changes (cross-view sync or URL param)
+  const prevSyncKeyRef = useRef<string | null | undefined>(undefined)
   useEffect(() => {
-    if (!initialNodeId || autoJumpDone.current || flatNodes.length === 0) return
-    // Try hierarchy nodes first (app:${id})
-    const hierNode = flatNodes.find(n => n.level === "app" && n.pathKey === initialNodeId)
-    if (hierNode) {
-      autoJumpDone.current = true
-      jumpToNode(hierNode)
-      return
+    // Resolve the effective key: prefer syncKey, fall back to initialNodeId (raw id)
+    const effectiveKey = syncKey ?? (initialNodeId ? `__raw:${initialNodeId}` : null)
+    if (effectiveKey === prevSyncKeyRef.current) return
+    if (effectiveKey === undefined) return
+    prevSyncKeyRef.current = effectiveKey
+    if (!effectiveKey || flatNodes.length === 0) return
+    isSyncingRef.current = true
+    if (effectiveKey.startsWith('__raw:')) {
+      // Legacy initialNodeId path: raw node id, search by pathKey
+      const rawId = effectiveKey.slice(6)
+      const hierNode = flatNodes.find(n => n.level === "app" && n.pathKey === rawId)
+      if (hierNode) { jumpToNode(hierNode); return }
+      const extra = extraNodes.find((n: any) => n.id === rawId)
+      if (extra) { jumpToNode({ id: `extra:${extra.id}`, name: extra.name ?? extra.id, level: "app", nodeType: extra.type, appCount: 0, pathKey: extra.id }); return }
+    } else if (effectiveKey.startsWith('extra:')) {
+      const rawId = effectiveKey.slice(6)
+      const extra = extraNodes.find((n: any) => n.id === rawId)
+      if (extra) { jumpToNode({ id: effectiveKey, name: extra.name ?? extra.id, level: "app", nodeType: extra.type, appCount: 0, pathKey: rawId }); return }
+    } else {
+      // app:id, csms:key, css:k/k, csci:k/k/k, csc:k/k/k/k
+      const hierNode = flatNodes.find(n => n.id === effectiveKey)
+      if (hierNode) { jumpToNode(hierNode); return }
     }
-    // Fall back to extraNodes (topics, infra nodes, brokers, etc.)
-    const extra = extraNodes.find((n: any) => n.id === initialNodeId)
-    if (extra) {
-      autoJumpDone.current = true
-      jumpToNode({ id: `extra:${extra.id}`, name: extra.name ?? extra.id, level: "app", nodeType: extra.type, appCount: 0, pathKey: extra.id })
-    }
-  }, [initialNodeId, flatNodes, extraNodes, jumpToNode])
+    isSyncingRef.current = false
+  }, [syncKey, initialNodeId, flatNodes, extraNodes, jumpToNode])
 
   const graphData = useMemo(() => buildDrillData(hierarchy, drillNode), [hierarchy, drillNode])
 
@@ -393,7 +1146,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
 
   const connGraphData = useMemo(() => {
     if (!connData) return { nodes: [], links: [] }
-    let links = connData.links.filter(l => l.type !== "DEPENDS_ON")
+    let links = [...connData.links]
     if (hiddenEdgeTypes.size > 0) links = links.filter(l => !hiddenEdgeTypes.has(l.type))
     // Keep only nodes that are still referenced by remaining links or are the selected app
     const referencedIds = new Set<string>([
@@ -421,42 +1174,134 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
       .map(l => l.source?.id ?? l.source)),
     [connData, selectedApp])
 
+  // Pre-compute target (x, y) for hierarchical connections layout (2D only)
+  const connTargetPositions = useMemo<Map<string, { x: number; y: number }>>(() => {
+    const map = new Map<string, { x: number; y: number }>()
+    if (connGraphData.nodes.length === 0) return map
+    const W = dims.width || 800
+    const H = dims.height || 600
+    const margin = W * 0.20
+    const centerType = connGraphData.nodes.find((n: any) => n.id === selectedApp?.pathKey)?.type ?? "Application"
+    const centerLayer = CONN_TYPE_LAYER[centerType] ?? 2
+    // Bucket non-center nodes per layer, sorted deterministically
+    const buckets = new Map<number, string[]>()
+    for (const n of connGraphData.nodes as any[]) {
+      if (n.id === selectedApp?.pathKey) continue
+      const layer = CONN_TYPE_LAYER[n.type] ?? 2
+      if (!buckets.has(layer)) buckets.set(layer, [])
+      buckets.get(layer)!.push(n.id)
+    }
+    buckets.forEach(arr => arr.sort())
+    // Assign absolute pixel positions
+    for (const n of connGraphData.nodes as any[]) {
+      const isCenter = n.id === selectedApp?.pathKey
+      const layer = CONN_TYPE_LAYER[n.type] ?? 2
+      const fy = CONN_LAYER_Y_FRACS[layer] * H
+      if (isCenter) {
+        map.set(n.id, { x: W / 2, y: fy })
+        continue
+      }
+      const bucket = buckets.get(layer) ?? []
+      const idx = bucket.indexOf(n.id)
+      const count = bucket.length
+      let fx: number
+      if (count === 1 && layer !== centerLayer) {
+        fx = W / 2
+      } else if (count === 1 && layer === centerLayer) {
+        fx = W / 2 + W * 0.22
+      } else {
+        fx = margin + (idx / (count - 1)) * (W - 2 * margin)
+        if (layer === centerLayer) {
+          const gap = W * 0.15
+          if (Math.abs(fx - W / 2) < gap) fx = fx < W / 2 ? W / 2 - gap : W / 2 + gap
+        }
+      }
+      map.set(n.id, { x: fx, y: fy })
+    }
+    return map
+  }, [connGraphData, selectedApp, dims])
+
+  // Which layers are actually populated (for swimlane rendering)
+  const connPopulatedLayers = useMemo(() => {
+    const layers = new Set<number>()
+    for (const n of connGraphData.nodes as any[]) {
+      layers.add(CONN_TYPE_LAYER[n.type] ?? 2)
+    }
+    return layers
+  }, [connGraphData])
+
   // Forces — hierarchy
   useEffect(() => {
     if (viewMode !== "hierarchy") return
     const fg = fgRef.current
     if (!fg) return
-    fg.d3Force("charge")?.strength(-120).distanceMax(200)
-    fg.d3Force("link")?.distance(60)
-  }, [graphData, viewMode])
+    fg.d3Force("x", null)
+    fg.d3Force("y", null)
+    fg.d3Force("charge")?.strength(-600).distanceMax(800)
+    fg.d3Force("link")?.distance(100)
+    fg.d3Force("collide", forceCollide((node: any) => {
+      const n = node as HGNode
+      const base = NODE_SIZES[n.level] ?? 6
+      const labelPad = { csms: 50, css: 40, csci: 35, csc: 30, app: 22 }[n.level as HGLevel] ?? 30
+      return base * (n.id === drillNode?.id ? 1.5 : 1) + labelPad
+    }).strength(1).iterations(4))
+    fg.d3ReheatSimulation()
+  }, [graphData, viewMode, drillNode])
 
-  // Forces — connections
+  // Forces — connections 3D only (2D is handled by ConnFlowGraph)
   useEffect(() => {
-    if (viewMode !== "connections") return
+    if (viewMode !== "connections" || !is3D) return
     const fg = fgRef.current
     if (!fg) return
-    fg.d3Force("charge")?.strength(-200).distanceMax(320)
-    fg.d3Force("link")?.distance(90)
-  }, [connGraphData, viewMode])
+    fg.d3Force("x", null)
+    fg.d3Force("y", null)
+    fg.d3Force("charge")?.strength(-800).distanceMax(800)
+    fg.d3Force("link")?.distance(150)
+    fg.d3Force("collide", forceCollide((node: any) => {
+      return (node.id === selectedApp?.pathKey ? 10 : 4) + 28
+    }).strength(1).iterations(4))
+    fg.d3ReheatSimulation()
+  }, [connGraphData, viewMode, selectedApp, is3D])
 
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => setDims({ width: el.clientWidth, height: el.clientHeight }))
+    let rafId: number | null = null
+    const ro = new ResizeObserver(() => {
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        setDims({ width: el.clientWidth, height: el.clientHeight })
+        rafId = null
+      })
+    })
     ro.observe(el)
     setDims({ width: el.clientWidth, height: el.clientHeight })
-    return () => ro.disconnect()
+    return () => { ro.disconnect(); if (rafId) cancelAnimationFrame(rafId) }
   }, [])
 
   // Fetch connections whenever selected app or depth changes
+  // Two parallel calls: structural (fetch_structural=true) + derived DEPENDS_ON (fetch_structural=false)
   useEffect(() => {
     if (!selectedApp) { setConnData(null); setConnError(null); return }
     let cancelled = false
     setConnLoading(true)
     setConnError(null)
     setConnData(null)
-    apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, true, connDepth)
-      .then(d => { if (!cancelled) setConnData({ nodes: d.nodes, links: d.links }) })
+    Promise.all([
+      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, true, connDepth),
+      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, false, connDepth),
+    ]).then(([structural, derived]) => {
+      if (cancelled) return
+      // Merge nodes (deduplicate by id)
+      const nodeMap = new Map<string, any>()
+      for (const n of [...structural.nodes, ...derived.nodes]) nodeMap.set(n.id, n)
+      // Merge links (structural first, then DEPENDS_ON from derived)
+      const linkKey = (l: any) => `${l.source?.id ?? l.source}→${l.target?.id ?? l.target}→${l.type}`
+      const linkMap = new Map<string, any>()
+      for (const l of structural.links) linkMap.set(linkKey(l), l)
+      for (const l of derived.links) { const k = linkKey(l); if (!linkMap.has(k)) linkMap.set(k, l) }
+      setConnData({ nodes: Array.from(nodeMap.values()), links: Array.from(linkMap.values()) })
+    })
       .catch(e => { if (!cancelled) setConnError(e instanceof Error ? e.message : String(e)) })
       .finally(() => { if (!cancelled) setConnLoading(false) })
     return () => { cancelled = true }
@@ -558,13 +1403,15 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
       setSelectedApp(n)
       setViewMode("connections")
       setConnTab("props")
+      onNodeSelect?.(n.id)
       return
     }
     clearSelection()
     const clean: HGNode = { id: n.id, name: n.name, level: n.level, appCount: n.appCount, pathKey: n.pathKey }
     setDrillStack(prev => drillNode ? [...prev, drillNode] : prev)
     setDrillNode(clean)
-  }, [drillNode, selectedApp, clearSelection])
+    onNodeSelect?.(n.id)
+  }, [drillNode, selectedApp, clearSelection, onNodeSelect])
 
   // Click handler — connections mode (re-center on clicked node)
   const drillIntoConn = useCallback((node: object) => {
@@ -573,13 +1420,18 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
     setSelectedApp({ id: `app:${n.id}`, name: n.label ?? n.id, level: "app", appCount: 1, pathKey: n.id })
     setConnTab("props")
     setConnData(null)
-  }, [selectedApp])
+    const key = n.type === 'Application' ? `app:${n.id}` : `extra:${n.id}`
+    onNodeSelect?.(key)
+  }, [selectedApp, onNodeSelect])
 
   const drillTo = useCallback((idx: number) => {
     clearSelection()
-    if (idx < 0) { setDrillNode(null); setDrillStack([]) }
-    else { setDrillNode(drillStack[idx]); setDrillStack(prev => prev.slice(0, idx)) }
-  }, [drillStack, clearSelection])
+    if (idx < 0) { setDrillNode(null); setDrillStack([]); return }
+    const target = drillStack[idx]
+    setDrillNode(target)
+    setDrillStack(prev => prev.slice(0, idx))
+    onNodeSelect?.(target.id)
+  }, [drillStack, clearSelection, onNodeSelect])
 
   // Canvas painters
   const nodeCanvasObject = useCallback(
@@ -612,73 +1464,6 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
         }
       }
     }, [drillNode, selectedApp, isDark])
-
-  const nodeCanvasObjectConn = useCallback(
-    (node: object, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const n = node as any
-      const isCenter = n.id === selectedApp?.pathKey
-      const color = nodeTypeColor(n.type, isDark)
-      const r = isCenter ? 10 : 6
-
-      // Glow halo for center node
-      if (isCenter) {
-        ctx.beginPath(); ctx.arc(n.x!, n.y!, r + 7, 0, 2 * Math.PI)
-        ctx.fillStyle = color + "33"; ctx.fill()
-      }
-
-      // Draw shape by type (matches Explorer)
-      ctx.fillStyle = color
-      ctx.beginPath()
-      switch (n.type) {
-        case "Node":
-          ctx.rect(n.x! - r, n.y! - r, r * 2, r * 2)
-          break
-        case "Topic":
-          ctx.moveTo(n.x!, n.y! - r); ctx.lineTo(n.x! + r, n.y!)
-          ctx.lineTo(n.x!, n.y! + r); ctx.lineTo(n.x! - r, n.y!)
-          ctx.closePath()
-          break
-        case "Library":
-          ctx.moveTo(n.x!, n.y! - r)
-          ctx.lineTo(n.x! + r, n.y! + r * 0.6)
-          ctx.lineTo(n.x! - r, n.y! + r * 0.6)
-          ctx.closePath()
-          break
-        case "Broker": {
-          const a = (Math.PI * 2) / 6
-          for (let i = 0; i < 6; i++) {
-            const x = n.x! + r * Math.cos(a * i - Math.PI / 2)
-            const y = n.y! + r * Math.sin(a * i - Math.PI / 2)
-            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
-          }
-          ctx.closePath()
-          break
-        }
-        default: // Application + unknown → circle
-          ctx.arc(n.x!, n.y!, r, 0, 2 * Math.PI)
-          break
-      }
-      ctx.fill()
-
-      // Border
-      ctx.strokeStyle = isCenter ? (isDark ? "#fff" : "#111") : (isDark ? "rgba(255,255,255,0.3)" : "rgba(30,41,59,0.35)")
-      ctx.lineWidth = isCenter ? 2.5 : 1 / globalScale
-      ctx.stroke()
-
-      // Labels
-      if (globalScale >= 0.4) {
-        const fontSize = Math.max(3, 10 / globalScale)
-        ctx.font = `${isCenter ? "bold " : ""}${fontSize}px sans-serif`
-        ctx.fillStyle = isDark ? "#e5e7eb" : "#374151"; ctx.textAlign = "center"
-        const raw = n.label ?? n.id ?? "?"
-        ctx.fillText(raw.length > 26 ? raw.slice(0, 24) + "…" : raw, n.x!, n.y! + r + fontSize + 1)
-        if (n.type && globalScale >= 0.7) {
-          ctx.font = `${Math.max(2, 7 / globalScale)}px sans-serif`
-          ctx.fillStyle = isDark ? "#9ca3af" : "#6b7280"
-          ctx.fillText(n.type, n.x!, n.y! + r + fontSize * 2 + 2)
-        }
-      }
-    }, [selectedApp, isDark])
 
   const connLinkColor = useCallback((link: any) => {
     if (selectedLink && link === selectedLink.link) return "#f59e0b"
@@ -773,48 +1558,36 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
           </>
         ) : (
           <>
-            <button className="flex items-center gap-1 text-foreground/60 hover:text-foreground transition-colors"
-              onClick={clearSelection}>
-              <ChevronRight className="h-3.5 w-3.5 rotate-180" />
-              <span className="text-xs font-medium">Hierarchy</span>
-            </button>
-            {selectedAppPath.length > 0
-              ? selectedAppPath.map(segment => (
-                  <span key={segment} className="flex items-center gap-1">
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-xs text-foreground/60 font-medium">{segment}</span>
-                  </span>
-                ))
-              : (appNode?.type ?? selectedApp?.nodeType) && (
-                  <span className="flex items-center gap-1">
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-xs text-foreground/60 font-medium">{appNode?.type ?? selectedApp?.nodeType}</span>
-                  </span>
-                )
-            }
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="h-2 w-2 rounded-full shrink-0" style={{ background: nodeTypeColor(appNode?.type ?? selectedApp?.nodeType, isDark) }} />
-            <span className="text-sm font-semibold text-foreground truncate max-w-64">{selectedApp?.name}</span>
+            {/* Reuse the same drillStack breadcrumbs as hierarchy mode — all clickable */}
+            {breadcrumbs.map((bc, i) => (
+              <span key={bc.idx} className="flex items-center gap-1">
+                {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                <button className="text-foreground/60 hover:text-foreground transition-colors hover:underline underline-offset-2 text-xs font-medium"
+                  onClick={() => drillTo(bc.idx)}>{bc.label}</button>
+              </span>
+            ))}
+            {/* drillNode (parent level) — clicking goes back to hierarchy at that level */}
+            {drillNode && (
+              <span className="flex items-center gap-1">
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: NODE_COLORS[drillNode.level] }} />
+                <button className="text-foreground/60 hover:text-foreground transition-colors hover:underline underline-offset-2 text-xs font-medium"
+                  onClick={clearSelection}>{drillNode.name}</button>
+              </span>
+            )}
+            {/* Current selected app/node — not clickable */}
+            <span className="flex items-center gap-1">
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: nodeTypeColor(appNode?.type ?? selectedApp?.nodeType, isDark) }} />
+              <span className="text-sm font-semibold text-foreground truncate max-w-64">{selectedApp?.name}</span>
+            </span>
             {connLoading && <LoadingSpinner className="h-3.5 w-3.5 ml-1 text-muted-foreground" />}
             {!connLoading && <span className="ml-2 text-xs text-muted-foreground">click a node to re-center</span>}
           </>
         )}
 
-        {/* 3D toggle */}
-        <button
-          onClick={() => setIs3D(v => !v)}
-          className={cn(
-            "ml-auto h-7 px-2.5 text-xs rounded-md border font-medium transition-colors shrink-0",
-            is3D
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}
-        >
-          {is3D ? "2D" : "3D"}
-        </button>
-
         {/* Search — always visible on the right */}
-        <div className="relative shrink-0">
+        <div className="relative shrink-0 ml-auto">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
             <input
@@ -866,21 +1639,15 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
 
       {/* Main row */}
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* Legend */}
-        <div className="flex flex-col gap-3 w-36 shrink-0">
-          <div className="space-y-1 text-xs">
-            <p className="font-medium text-muted-foreground uppercase tracking-wide text-[10px]">Filter</p>
-            {viewMode === "hierarchy" ? (
-              (["csms", "css", "csci", "csc", "app"] as HGLevel[]).map(lvl => (
-                <button key={lvl} onClick={() => toggleLevel(lvl)}
-                  className={cn("flex items-center gap-2 w-full text-left transition-opacity", hiddenLevels.has(lvl) ? "opacity-30" : "opacity-100")}>
-                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: NODE_COLORS[lvl] }} />
-                  <span className={hiddenLevels.has(lvl) ? "line-through" : ""}>{LEVEL_LABELS[lvl]}</span>
-                </button>
-              ))
-            ) : (
+        {/* Canvas */}
+        <div ref={containerRef} className="flex-1 overflow-hidden relative" style={{ background: bgColor }}>
+          {/* Filter overlay — connections mode only */}
+          {viewMode === "connections" && <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 rounded-lg border border-border/50 px-2.5 py-2 text-xs"
+            style={{ background: isDark ? "rgba(15,15,20,0.75)" : "rgba(255,255,255,0.80)", backdropFilter: "blur(8px)", minWidth: 96 }}>
+            <p className="font-medium text-muted-foreground uppercase tracking-wide text-[9px]">Filter</p>
+            {viewMode !== "hierarchy" && (
               <>
-                <p className="font-medium text-muted-foreground uppercase tracking-wide text-[10px] mt-1">Nodes</p>
+                <p className="font-medium text-muted-foreground uppercase tracking-wide text-[9px] mt-0.5">Nodes</p>
                 {Array.from(new Set((connData?.nodes as any[] ?? []).map(n => n.type).filter(Boolean))).map(t => (
                   <button key={t} onClick={() => toggleNodeType(t as string)}
                     className={cn("flex items-center gap-2 w-full text-left transition-opacity", hiddenNodeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
@@ -894,84 +1661,36 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
                     <span className={cn("truncate", hiddenNodeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
                   </button>
                 ))}
-                <p className="font-medium text-muted-foreground uppercase tracking-wide text-[10px] mt-2">Edges</p>
-                {Array.from(new Set((connData?.links as any[] ?? []).filter(l => l.type !== "DEPENDS_ON").map(l => l.type).filter(Boolean))).map(t => (
+                <p className="font-medium text-muted-foreground uppercase tracking-wide text-[9px] mt-1">Edges</p>
+                {Array.from(new Set((connData?.links as any[] ?? []).map(l => l.type).filter(Boolean))).map(t => (
                   <button key={t} onClick={() => toggleEdgeType(t as string)}
                     className={cn("flex items-center gap-2 w-full text-left transition-opacity", hiddenEdgeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
-                    <span className="h-0.5 w-4 shrink-0 rounded-full" style={{ background: linkTypeColor(t as string, isDark) }} />
+                    {t === "DEPENDS_ON" ? (
+                      <svg width="16" height="4" viewBox="0 0 16 4" className="shrink-0">
+                        <line x1="0" y1="2" x2="16" y2="2" stroke={linkTypeColor(t as string, isDark)} strokeWidth="1.5" strokeDasharray="4 2" />
+                      </svg>
+                    ) : (
+                      <span className="h-0.5 w-4 shrink-0 rounded-full" style={{ background: linkTypeColor(t as string, isDark) }} />
+                    )}
                     <span className={cn("truncate", hiddenEdgeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
                   </button>
                 ))}
               </>
             )}
-          </div>
-          <div className="mt-auto space-y-0.5 text-xs text-muted-foreground">
-            {viewMode === "hierarchy" ? (
-              <><p>{filteredGraphData.nodes.length} nodes</p><p>{filteredGraphData.links.length} edges</p></>
-            ) : connGraphData ? (
-              <><p>{connGraphData.nodes.length} nodes</p><p>{connGraphData.links.length} edges</p></>
-            ) : null}
-          </div>
-        </div>
-
-        {/* Canvas */}
-        <div ref={containerRef} className="flex-1 overflow-hidden relative" style={{ background: bgColor }}>
+            <div className="border-t border-border/40 mt-1 pt-1 space-y-0.5 text-[10px] text-muted-foreground">
+              {connGraphData ? (
+                <><p>{connGraphData.nodes.length} nodes</p><p>{connGraphData.links.length} edges</p></>
+              ) : null}
+            </div>
+          </div>}
           {viewMode === "hierarchy" ? (
-            is3D ? (
-              <ForceGraph3D
-                key="hierarchy-3d"
-                graphData={filteredGraphData as any}
-                width={dims.width}
-                height={dims.height}
-                backgroundColor={bgColor}
-                nodeColor={(n: any) => NODE_COLORS[(n as HGNode).level]}
-                nodeVal={(n: any) => {
-                  const hn = n as HGNode
-                  return drillNode && hn.id === drillNode.id ? NODE_SIZES[hn.level] * 1.5 : NODE_SIZES[hn.level]
-                }}
-                nodeLabel=""
-                nodeThreeObject={threeReady ? hierNodeThreeObj : undefined}
-                nodeThreeObjectExtend={true}
-                onNodeClick={drillInto}
-                onBackgroundClick={() => { if (selectedApp) clearSelection() }}
-                linkColor={() => hierLinkColor}
-                linkWidth={2}
-                linkDirectionalArrowLength={8}
-                linkDirectionalArrowRelPos={0.85}
-                linkDirectionalArrowColor={() => hierLinkColor}
-                cooldownTicks={150}
-                d3AlphaDecay={0.04}
-                d3VelocityDecay={0.5}
-                ref={fgRef}
-              />
-            ) : (
-              <ForceGraph2D
-                key="hierarchy"
-                graphData={filteredGraphData as any}
-                width={dims.width}
-                height={dims.height}
-                nodeCanvasObject={nodeCanvasObject}
-                nodeCanvasObjectMode={() => "replace"}
-                nodePointerAreaPaint={(node: object, color: string, ctx: CanvasRenderingContext2D) => {
-                  const n = node as HGNode
-                  const hitR = Math.max(NODE_SIZES[n.level] * 2.5, 14)
-                  ctx.beginPath(); ctx.arc(n.x!, n.y!, hitR, 0, 2 * Math.PI)
-                  ctx.fillStyle = color; ctx.fill()
-                }}
-                onNodeClick={drillInto}
-                onBackgroundClick={() => { if (selectedApp) clearSelection() }}
-                linkColor={() => hierLinkColor}
-                linkWidth={2}
-                linkDirectionalArrowLength={8}
-                linkDirectionalArrowRelPos={0.85}
-                linkDirectionalArrowColor={() => hierLinkColor}
-                nodeRelSize={1}
-                cooldownTicks={150}
-                d3AlphaDecay={0.04}
-                d3VelocityDecay={0.5}
-                ref={fgRef}
-              />
-            )
+            <HierFlowGraph
+              graphData={filteredGraphData}
+              dims={dims}
+              isDark={isDark}
+              selectedNodeId={drillNode?.id ?? null}
+              onNodeClick={drillInto}
+            />
           ) : (
             <>
               {connLoading && !connData && (
@@ -986,7 +1705,6 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
               )}
               {is3D ? (
                 <ForceGraph3D
-                  key={`conn-3d-${selectedApp?.pathKey ?? ""}`}
                   graphData={connGraphData as any}
                   width={dims.width}
                   height={dims.height}
@@ -997,45 +1715,35 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null }: { 
                   nodeThreeObject={threeReady ? connNodeThreeObj : undefined}
                   nodeThreeObjectExtend={true}
                   onNodeClick={(node: any) => { setSelectedLink(null); drillIntoConn(node) }}
-                  onBackgroundClick={() => { setSelectedLink(null); clearSelection() }}
+                  onBackgroundClick={() => { setSelectedLink(null) }}
                   onLinkClick={handleLinkClick as any}
                   linkColor={connLinkColor}
                   linkWidth={connLinkWidth}
                   linkDirectionalArrowLength={9}
                   linkDirectionalArrowRelPos={0.85}
                   linkDirectionalArrowColor={connLinkColor}
-                  cooldownTicks={150}
-                  d3AlphaDecay={0.03}
-                  d3VelocityDecay={0.4}
+                  cooldownTicks={200}
+                  d3AlphaDecay={0.02}
+                  d3VelocityDecay={0.3}
                   ref={fgRef}
                 />
               ) : (
-                <ForceGraph2D
-                  key={`conn-${selectedApp?.pathKey ?? ""}`}
-                  graphData={connGraphData as any}
-                  width={dims.width}
-                  height={dims.height}
-                  nodeCanvasObject={nodeCanvasObjectConn}
-                  nodeCanvasObjectMode={() => "replace"}
-                  nodePointerAreaPaint={(node: object, color: string, ctx: CanvasRenderingContext2D) => {
-                    const n = node as any
-                    const r = n.id === selectedApp?.pathKey ? 14 : 10
-                    ctx.beginPath(); ctx.arc(n.x!, n.y!, r, 0, 2 * Math.PI)
-                    ctx.fillStyle = color; ctx.fill()
+                <ConnFlowGraph
+                  graphData={connGraphData}
+                  positions={connTargetPositions}
+                  dims={dims}
+                  isDark={isDark}
+                  populatedLayers={connPopulatedLayers}
+                  selectedAppId={selectedApp?.pathKey ?? null}
+                  selectedLink={selectedLink}
+                  onNodeClick={(node: any) => { setSelectedLink(null); drillIntoConn(node) }}
+                  onEdgeClick={(link: any, event: React.MouseEvent) => {
+                    const rect = containerRef.current?.getBoundingClientRect()
+                    const x = rect ? event.clientX - rect.left : event.clientX
+                    const y = rect ? event.clientY - rect.top : event.clientY
+                    setSelectedLink(prev => (prev?.link === link ? null : { link, x, y }))
                   }}
-                  onNodeClick={(node, event) => { setSelectedLink(null); drillIntoConn(node) }}
-                  onBackgroundClick={() => { setSelectedLink(null); clearSelection() }}
-                  onLinkClick={handleLinkClick}
-                  linkColor={connLinkColor}
-                  linkWidth={connLinkWidth}
-                  linkDirectionalArrowLength={9}
-                  linkDirectionalArrowRelPos={0.85}
-                  linkDirectionalArrowColor={connLinkColor}
-                  nodeRelSize={1}
-                  cooldownTicks={150}
-                  d3AlphaDecay={0.03}
-                  d3VelocityDecay={0.4}
-                  ref={fgRef}
+                  onBackgroundClick={() => { setSelectedLink(null) }}
                 />
               )}
               {/* Edge props popover */}
@@ -1299,9 +2007,42 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
     const rows = csc.apps.map((a) => [a.id, a.csu ?? a.name ?? "—", a.weight])
     content = <DetailTable headers={["ID", "Name / CSU", "Weight"]} rows={rows} />
   } else {
-    // app — key-value table
+    // app — grouped key-value table (same grouping as graph view Props panel)
     const app = node.payload as AppNode
     const entries = Object.entries(app).filter(([, v]) => v !== undefined && v !== null && v !== "")
+
+    const HIER_KEYS = new Set(["system_name","component_name","config_item_name","domain_name"])
+    const isCmSize     = (k: string) => /^cm_total_|^loc$/.test(k)
+    const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
+    const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$/.test(k)
+    const isCmCoupling = (k: string) => /^cm_(avg_|max_)(cbo|rfc|fanin|fanout)$|^coupling_/.test(k)
+    const isCm         = (k: string) => /^cm_|^cyclomatic_complexity$|^coupling_|^loc$/.test(k)
+
+    const primitives = entries.filter(([k, v]) => typeof v !== "object" && !HIER_KEYS.has(k) && !isCm(k))
+    const hierarchyEntries = entries.filter(([k]) => HIER_KEYS.has(k))
+    const cmSize     = entries.filter(([k]) => isCmSize(k))
+    const cmComplex  = entries.filter(([k]) => isCmComplex(k))
+    const cmCohesion = entries.filter(([k]) => isCmCohesion(k))
+    const cmCoupling = entries.filter(([k]) => isCmCoupling(k))
+    const cmOther    = entries.filter(([k, v]) => isCm(k) && !isCmSize(k) && !isCmComplex(k) && !isCmCohesion(k) && !isCmCoupling(k))
+
+    const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => (
+      <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+        <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 font-medium text-foreground w-2/5`}>{k}</td>
+        <td className="px-4 py-2.5 font-mono text-muted-foreground break-all text-xs">{String(v as any)}</td>
+      </tr>
+    )
+    const GroupHeader = ({ label }: { label: string }) => (
+      <tr className="bg-muted/60 border-t border-border">
+        <td colSpan={2} className="px-4 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
+      </tr>
+    )
+    const SubHeader = ({ label }: { label: string }) => (
+      <tr className="bg-muted/30 border-t border-border/50">
+        <td colSpan={2} className="pl-7 pr-4 py-1 text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest">{label}</td>
+      </tr>
+    )
+
     content = (
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-background z-10">
@@ -1311,14 +2052,37 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
           </tr>
         </thead>
         <tbody>
-          {entries.map(([k, v]) => (
-            <tr key={k} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-              <td className="px-4 py-2.5 font-medium text-foreground">{k}</td>
-              <td className="px-4 py-2.5 font-mono text-muted-foreground break-all text-xs">
-                {typeof v === "object" ? JSON.stringify(v) : String(v)}
-              </td>
-            </tr>
-          ))}
+          {primitives.map(([k, v]) => <PrimRow key={k} k={k} v={v} />)}
+
+          {hierarchyEntries.length > 0 && <>
+            <GroupHeader label="System Hierarchy" />
+            {hierarchyEntries.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
+          </>}
+
+          {(cmSize.length + cmComplex.length + cmCohesion.length + cmCoupling.length + cmOther.length) > 0 && <>
+            <GroupHeader label="Code Metrics" />
+            {cmSize.length > 0 && <>
+              <SubHeader label="Size" />
+              {cmSize.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
+            </>}
+            {cmComplex.length > 0 && <>
+              <SubHeader label="Complexity" />
+              {cmComplex.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
+            </>}
+            {cmCohesion.length > 0 && <>
+              <SubHeader label="Cohesion" />
+              {cmCohesion.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
+            </>}
+            {cmCoupling.length > 0 && <>
+              <SubHeader label="Coupling" />
+              {cmCoupling.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
+            </>}
+            {cmOther.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
+          </>}
+
+          {entries.length === 0 && (
+            <tr><td colSpan={2} className="px-4 py-12 text-center text-muted-foreground text-sm">No properties</td></tr>
+          )}
         </tbody>
       </table>
     )
@@ -1687,6 +2451,16 @@ function BrowserPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, nodeId])
 
+  const appsList = useMemo(() =>
+    Object.values(hierarchy).flatMap(csms =>
+      Object.values(csms.css).flatMap(css =>
+        Object.values(css.csci).flatMap(csci =>
+          Object.values(csci.csc).flatMap(csc => csc.apps)
+        )
+      )
+    )
+  , [hierarchy])
+
   // Flat list of all hierarchy nodes for the Browse tab jump-to dropdown
   type FlatBrowseEntry = { kind: SelectedKind; key: string; label: string; path: string[]; payload: CsmsGroup | CssGroup | CsciGroup | CscGroup | AppNode; appCount: number }
   const flatBrowseNodes = useMemo<FlatBrowseEntry[]>(() => {
@@ -1742,6 +2516,47 @@ function BrowserPageContent() {
     })
   }, [])
 
+  // Derive the key in the graph's internal format for the currently selected list node
+  const graphSyncKey = useMemo(() => {
+    if (!selectedNode) return null
+    if (selectedNode.kind === 'node' || selectedNode.kind === 'topic') {
+      return `extra:${(selectedNode.payload as any).id}`
+    }
+    return selectedNode.key  // app:id, csms:k, css:k/k, csci:k/k/k, csc:k/k/k/k — already match graph ids
+  }, [selectedNode])
+
+  // Handle selection coming from the graph view — sync it into the list view
+  const handleGraphNodeSelect = useCallback((key: string) => {
+    if (!key) return
+    if (key.startsWith('app:') || key.startsWith('csms:') || key.startsWith('css:') || key.startsWith('csci:') || key.startsWith('csc:')) {
+      const entry = flatBrowseNodes.find(e => e.key === key)
+      if (!entry) return
+      if (selectedNode?.key === entry.key) return  // already selected
+      setSelectedNode({ kind: entry.kind, key: entry.key, label: entry.label, path: entry.path, payload: entry.payload })
+      // Expand tree ancestors
+      setOpenSet(prev => {
+        const next = new Set(prev)
+        const rawPath = key.replace(/^[^:]+:/, "").split("/")
+        const [k0, k1, k2] = rawPath
+        if (k0) next.add(`csms:${k0}`)
+        if (k1) next.add(`css:${k0}/${k1}`)
+        if (k2) next.add(`csci:${k0}/${k1}/${k2}`)
+        next.add(key)
+        return next
+      })
+    } else if (key.startsWith('extra:')) {
+      const rawId = key.slice(6)
+      const allExtra = [...nodesList, ...topicsList, ...brokersList, ...libsList]
+      const extra = allExtra.find((n: any) => n.id === rawId)
+      if (!extra) return
+      const kind: SelectedKind = topicsList.some((t: any) => t.id === rawId) ? 'topic' : 'node'
+      const newKey = `${kind}:${rawId}`
+      if (selectedNode?.key === newKey) return  // already selected
+      setSelectedNode({ kind, key: newKey, label: extra.name ?? rawId, path: [extra.name ?? rawId], payload: extra })
+      setSideInitialTab(kind === 'topic' ? 'topics' : 'nodes')
+    }
+  }, [flatBrowseNodes, nodesList, topicsList, brokersList, libsList, selectedNode])
+
   if (!initialLoadComplete) {
     return <AppLayout><div className="flex items-center justify-center h-64"><LoadingSpinner /></div></AppLayout>
   }
@@ -1781,7 +2596,7 @@ function BrowserPageContent() {
               <Badge variant="secondary" className="px-3 py-1">
                 <Cpu className="h-3.5 w-3.5 mr-1.5" />{totalApps} Apps
               </Badge>
-              <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+              <Button variant="outline" size="sm" onClick={() => fetchData(selectedNode?.payload?.id ?? nodeId)} disabled={loading}>
                 {loading ? <LoadingSpinner className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
                 <span className="ml-2">Refresh</span>
               </Button>
@@ -1805,13 +2620,7 @@ function BrowserPageContent() {
               <div className="w-72 flex flex-col overflow-hidden shrink-0">
                 <SideListPanel
                   nodesList={nodesList}
-                  appsList={Object.values(hierarchy).flatMap(csms =>
-                    Object.values(csms.css).flatMap(css =>
-                      Object.values(css.csci).flatMap(csci =>
-                        Object.values(csci.csc).flatMap(csc => csc.apps)
-                      )
-                    )
-                  )}
+                  appsList={appsList}
                   topicsList={topicsList}
                   hierarchy={hierarchy}
                   openSet={openSet}
@@ -1831,7 +2640,7 @@ function BrowserPageContent() {
           {/* ── Graph tab ── */}
           <TabsContent value="graph" className="flex-1 min-h-0 mt-0 h-full">
             {csmsKeys.length > 0
-              ? <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} initialNodeId={nodeId} />
+              ? <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} syncKey={graphSyncKey} onNodeSelect={handleGraphNodeSelect} />
               : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
             }
           </TabsContent>
@@ -1850,6 +2659,44 @@ export default function BrowserPage() {
     }>
       <BrowserPageContent />
     </Suspense>
+  )
+}
+
+// ── Simple Virtual List ───────────────────────────────────────────────────────
+// Renders only the rows visible in the scroll viewport — prevents thousands of
+// DOM nodes when apps/nodes/topics lists are large.
+function SimpleVirtualList({ items, renderItem, itemHeight = 34 }: {
+  items: any[]
+  renderItem: (item: any, index: number) => React.ReactNode
+  itemHeight?: number
+}) {
+  const outerRef = useRef<HTMLDivElement>(null)
+  const [scrollTop, setScrollTop] = useState(0)
+  const [viewHeight, setViewHeight] = useState(400)
+  const overscan = 8
+
+  useEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+    setViewHeight(el.clientHeight)
+    const ro = new ResizeObserver(() => setViewHeight(el.clientHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const totalHeight = items.length * itemHeight
+  const startIdx = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan)
+  const endIdx   = Math.min(items.length, Math.ceil((scrollTop + viewHeight) / itemHeight) + overscan)
+
+  return (
+    <div ref={outerRef} style={{ overflowY: "auto", height: "100%" }}
+      onScroll={e => setScrollTop((e.currentTarget).scrollTop)}>
+      <div style={{ height: totalHeight, position: "relative" }}>
+        <div style={{ position: "absolute", top: startIdx * itemHeight, width: "100%" }}>
+          {items.slice(startIdx, endIdx).map((item, i) => renderItem(item, startIdx + i))}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -1883,7 +2730,9 @@ function SideListPanel({
     }
   }, [initialTab])
   const [suggestOpen, setSuggestOpen] = useState(false)
-  const q = search.toLowerCase()
+  // Defer expensive filter/tree work so the search input stays responsive
+  const deferredSearch = useDeferredValue(search)
+  const q = deferredSearch.toLowerCase()
 
   const switchTab = (tab: "system" | "nodes" | "apps" | "topics") => {
     setSideTab(tab)
@@ -1937,9 +2786,9 @@ function SideListPanel({
     setSuggestOpen(false)
   }
 
-  const filteredNodes  = nodesList.filter(n => !q || (n.name ?? n.id ?? "").toLowerCase().includes(q) || (n.id ?? "").toLowerCase().includes(q))
-  const filteredApps   = appsList.filter(a  => !q || (a.csu ?? a.name ?? a.id ?? "").toLowerCase().includes(q) || (a.id ?? "").toLowerCase().includes(q))
-  const filteredTopics = topicsList.filter(t => !q || (t.name ?? t.id ?? "").toLowerCase().includes(q) || (t.id ?? "").toLowerCase().includes(q))
+  const filteredNodes  = useMemo(() => nodesList.filter(n => !q || (n.name ?? n.id ?? "").toLowerCase().includes(q) || (n.id ?? "").toLowerCase().includes(q)), [nodesList, q])
+  const filteredApps   = useMemo(() => appsList.filter(a  => !q || (a.csu ?? a.name ?? a.id ?? "").toLowerCase().includes(q) || (a.id ?? "").toLowerCase().includes(q)), [appsList, q])
+  const filteredTopics = useMemo(() => topicsList.filter(t => !q || (t.name ?? t.id ?? "").toLowerCase().includes(q) || (t.id ?? "").toLowerCase().includes(q)), [topicsList, q])
 
   const makeRow = (item: any, kind: "node" | "app" | "topic") => {
     const label = kind === "app"
@@ -2043,7 +2892,7 @@ function SideListPanel({
       </div>
 
       {/* List / Tree */}
-      <div className="flex-1 overflow-y-auto">
+      <div className={`flex-1 ${sideTab === "system" ? "overflow-y-auto" : "overflow-hidden"}`}>
         {sideTab === "system" && (
           csmsKeys.length > 0
             ? csmsKeys.map(k => (
@@ -2060,9 +2909,9 @@ function SideListPanel({
               ))
             : !loading && <p className="text-center text-muted-foreground py-8 text-xs px-4">No data loaded. Import a graph first.</p>
         )}
-        {sideTab === "nodes"  && (filteredNodes.length  > 0 ? filteredNodes.map(n  => makeRow(n, "node"))  : <p className="text-center text-muted-foreground py-8 text-xs px-4">No nodes found.</p>)}
-        {sideTab === "apps"   && (filteredApps.length   > 0 ? filteredApps.map(a   => makeRow(a, "app"))   : <p className="text-center text-muted-foreground py-8 text-xs px-4">No apps found.</p>)}
-        {sideTab === "topics" && (filteredTopics.length > 0 ? filteredTopics.map(t => makeRow(t, "topic")) : <p className="text-center text-muted-foreground py-8 text-xs px-4">No topics found.</p>)}
+        {sideTab === "nodes"  && (filteredNodes.length  > 0 ? <SimpleVirtualList items={filteredNodes}  renderItem={n => makeRow(n, "node")}  itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No nodes found.</p>)}
+        {sideTab === "apps"   && (filteredApps.length   > 0 ? <SimpleVirtualList items={filteredApps}   renderItem={a => makeRow(a, "app")}   itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No apps found.</p>)}
+        {sideTab === "topics" && (filteredTopics.length > 0 ? <SimpleVirtualList items={filteredTopics} renderItem={t => makeRow(t, "topic")} itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No topics found.</p>)}
       </div>
       {/* Tree legend (System tab only) */}
       {sideTab === "system" && (

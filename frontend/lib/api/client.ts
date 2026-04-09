@@ -1309,7 +1309,7 @@ class GraphAnalysisAPI {
       ...this.credentials,
       component_type: type,
     }, {
-      params: { component_type: type, limit: 1000 },
+      params: { component_type: type, limit: 100000 },
     });
     return response.data.components ?? [];
   }
