@@ -448,6 +448,7 @@ class Neo4jRepository:
              WHEN 'TRANSIENT_LOCAL' THEN {dur_scores['TRANSIENT_LOCAL']} 
              ELSE 0.0 END +
          {QoSPolicy.W_PRIORITY} * CASE {topic_var}.qos_transport_priority 
+             WHEN 'CRITICAL' THEN {pri_scores['CRITICAL']} 
              WHEN 'URGENT' THEN {pri_scores['URGENT']} 
              WHEN 'HIGH' THEN {pri_scores['HIGH']} 
              WHEN 'MEDIUM' THEN {pri_scores['MEDIUM']} 

@@ -305,6 +305,7 @@ class GraphConfig:
     # Realistic generation fields
     domain: Optional[str] = None
     scenario: Optional[str] = None
+    intra_cluster_coupling: float = 0.65
     
     @classmethod
     def from_scale(cls, scale: str, seed: int = 42) -> "GraphConfig":
@@ -319,6 +320,7 @@ class GraphConfig:
             use_statistics=False,
             domain=None,
             scenario=None,
+            intra_cluster_coupling=0.65,
         )
     
     @classmethod
@@ -343,6 +345,7 @@ class GraphConfig:
                 use_statistics=True,
                 domain=graph_data.get("domain"),
                 scenario=graph_data.get("scenario"),
+                intra_cluster_coupling=graph_data.get("intra_cluster_coupling", 0.65),
             )
         else:
             return cls(
@@ -355,6 +358,7 @@ class GraphConfig:
                 use_statistics=False,
                 domain=graph_data.get("domain"),
                 scenario=graph_data.get("scenario"),
+                intra_cluster_coupling=graph_data.get("intra_cluster_coupling", 0.65),
             )
     
     def to_scale_dict(self) -> Dict[str, int]:
@@ -375,5 +379,6 @@ class GraphConfig:
             "use_statistics": self.use_statistics,
             "domain": self.domain,
             "scenario": self.scenario,
+            "intra_cluster_coupling": self.intra_cluster_coupling,
         })
         return base

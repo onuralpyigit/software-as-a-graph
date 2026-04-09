@@ -2,6 +2,7 @@
 Statistical Graph Generator
 """
 import random
+import logging
 from typing import Dict, Any, List, Optional, Union, Tuple
 
 from src.core.models import (
@@ -114,6 +115,7 @@ class StatisticalGraphGenerator:
         self._direct_pub_counts: Dict[str, int] = {}
         self._direct_sub_counts: Dict[str, int] = {}
         self._uses_graph: Dict[str, List[str]] = {}  # entity_id -> [lib_ids it uses]
+        self.logger = logging.getLogger(__name__)
 
     def _sample_from_distribution(self, metric: StatisticalMetric, as_int: bool = True) -> float:
         """Sample a value from a statistical distribution."""
@@ -215,7 +217,7 @@ class StatisticalGraphGenerator:
 
         avg_wmc = round(rng.uniform(*p["avg_wmc"]), 2)
         total_wmc = int(round(avg_wmc * total_classes))
-        max_wmc = int(round(avg_wmc * rng.uniform(1.8, 3.0)))
+        max_wmc = max(int(round(avg_wmc)), int(round(avg_wmc * rng.lognormvariate(0.8, 0.5))))
 
         avg_lcom = round(rng.uniform(*p["avg_lcom"]), 2)
         max_lcom = round(avg_lcom * rng.uniform(2.0, 4.5), 1)
@@ -346,10 +348,10 @@ class StatisticalGraphGenerator:
         _cluster_domains: List[str] = _hier_pool["domain"]
         _n_clusters = len(_cluster_domains)
 
-        # Round-robin assignment is deterministic given the seed.
-        _app_cluster_domain: List[str] = [
-            _cluster_domains[i % _n_clusters] for i in range(c.apps)
-        ]
+        # Uses random weighted assignment to create natural cluster skew.
+        _app_cluster_domain: List[str] = self.rng.choices(_cluster_domains, k=c.apps)
+        _lib_cluster_domain: List[str] = self.rng.choices(_cluster_domains, k=c.libs)
+        
         _app_id_to_cluster: Dict[str, str] = {
             f"A{i}": _app_cluster_domain[i] for i in range(c.apps)
         }
@@ -374,10 +376,16 @@ class StatisticalGraphGenerator:
                 criticality_pool = c.application_stats.app_criticality_distribution.to_weighted_list()
                 self.rng.shuffle(criticality_pool)
         
+        _cluster_to_libs: Dict[str, List[Library]] = {d: [] for d in _cluster_domains}
+        role_warning_emitted = False
+        
         for i in range(c.apps):
             if role_pool and i < len(role_pool):
                 role = role_pool[i]
             elif role_pool:
+                if not role_warning_emitted:
+                    self.logger.warning("Role pool exhausted; falling back to random sampling for remaining apps.")
+                    role_warning_emitted = True
                 role = self.rng.choice(role_pool)
             else:
                 role = self.rng.choice(ROLE_OPTIONS)
@@ -430,6 +438,9 @@ class StatisticalGraphGenerator:
                 lib_code_metrics = self._generate_lib_code_metrics()
 
             lib_hierarchy = domain_ds.get_system_hierarchy() if domain_ds else get_generic_system_hierarchy(self.rng)
+            if not domain_ds:
+                lib_hierarchy["domain_name"] = _lib_cluster_domain[i]
+                
             libs.append(Library(
                 id=f"L{i}",
                 name=lib_name,
@@ -437,6 +448,7 @@ class StatisticalGraphGenerator:
                 system_hierarchy=lib_hierarchy,
                 code_metrics=lib_code_metrics,
             ))
+            _cluster_to_libs[_lib_cluster_domain[i]].append(libs[-1])
 
         # 2. Relationships
         runs_on = []
@@ -532,19 +544,21 @@ class StatisticalGraphGenerator:
 
         if c.library_stats and c.library_stats.applications_using_this_library.mean > 0:
             for lib in libs:
+                _lib_cluster_apps = _cluster_to_apps[_lib_cluster_domain[libs.index(lib)]]
                 usage_count = self._sample_from_distribution(c.library_stats.applications_using_this_library)
                 usage_count = min(usage_count, len(apps))
                 if usage_count > 0:
-                    using_apps = self.rng.sample(apps, k=usage_count)
+                    using_apps = self._sample_biased(usage_count, apps, _lib_cluster_apps, p_intra=c.intra_cluster_coupling)
                     for app in using_apps:
                         if lib.id not in self._uses_graph[app.id]:
                             uses.append(self._make_edge(app, lib))
                             self._uses_graph[app.id].append(lib.id)
         else:
             for app in apps:
+                _app_cluster_libs = _cluster_to_libs[_app_id_to_cluster[app.id]]
                 if libs:
                     n_uses = self.rng.randint(0, min(3, len(libs)))
-                    targets = self.rng.sample(libs, k=n_uses)
+                    targets = self._sample_biased(n_uses, libs, _app_cluster_libs, p_intra=c.intra_cluster_coupling)
                     for t in targets:
                         if t.id not in self._uses_graph[app.id]:
                             uses.append(self._make_edge(app, t))
@@ -572,13 +586,13 @@ class StatisticalGraphGenerator:
                 # hierarchy cluster preferentially share topics (p_intra=0.65).
                 _app_cluster_topics = _cluster_to_topics[_app_id_to_cluster[app.id]]
                 if direct_pub_count > 0:
-                    pub_topics = self._sample_biased(direct_pub_count, topics, _app_cluster_topics)
+                    pub_topics = self._sample_biased(direct_pub_count, topics, _app_cluster_topics, p_intra=c.intra_cluster_coupling)
                     for t in pub_topics:
                         publishes.append(self._make_edge(app, t))
                     self._direct_pub_counts[app.id] = direct_pub_count
 
                 if direct_sub_count > 0:
-                    sub_topics = self._sample_biased(direct_sub_count, topics, _app_cluster_topics)
+                    sub_topics = self._sample_biased(direct_sub_count, topics, _app_cluster_topics, p_intra=c.intra_cluster_coupling)
                     for t in sub_topics:
                         subscribes.append(self._make_edge(app, t))
                     self._direct_sub_counts[app.id] = direct_sub_count
@@ -589,7 +603,7 @@ class StatisticalGraphGenerator:
                 pub_count = self._sample_from_distribution(c.application_stats.direct_publish_count)
                 pub_count = min(pub_count, len(topics))
                 if pub_count > 0:
-                    pub_topics = self._sample_biased(pub_count, topics, _app_cluster_topics)
+                    pub_topics = self._sample_biased(pub_count, topics, _app_cluster_topics, p_intra=c.intra_cluster_coupling)
                     for t in pub_topics:
                         publishes.append(self._make_edge(app, t))
                     self._direct_pub_counts[app.id] = pub_count
@@ -597,7 +611,7 @@ class StatisticalGraphGenerator:
                 sub_count = self._sample_from_distribution(c.application_stats.direct_subscribe_count)
                 sub_count = min(sub_count, len(topics))
                 if sub_count > 0:
-                    sub_topics = self._sample_biased(sub_count, topics, _app_cluster_topics)
+                    sub_topics = self._sample_biased(sub_count, topics, _app_cluster_topics, p_intra=c.intra_cluster_coupling)
                     for t in sub_topics:
                         subscribes.append(self._make_edge(app, t))
                     self._direct_sub_counts[app.id] = sub_count
@@ -608,7 +622,7 @@ class StatisticalGraphGenerator:
                 pub_count = self._sample_from_distribution(c.topic_stats.applications_publishing_to_this_topic)
                 pub_count = min(pub_count, len(apps))
                 if pub_count > 0:
-                    pubs = self._sample_biased(pub_count, apps, _topic_cluster_apps)
+                    pubs = self._sample_biased(pub_count, apps, _topic_cluster_apps, p_intra=c.intra_cluster_coupling)
                     for p in pubs:
                         publishes.append(self._make_edge(p, topic))
                         self._direct_pub_counts[p.id] = self._direct_pub_counts.get(p.id, 0) + 1
@@ -616,7 +630,7 @@ class StatisticalGraphGenerator:
                 sub_count = self._sample_from_distribution(c.topic_stats.applications_subscribing_to_this_topic)
                 sub_count = min(sub_count, len(apps))
                 if sub_count > 0:
-                    subs = self._sample_biased(sub_count, apps, _topic_cluster_apps)
+                    subs = self._sample_biased(sub_count, apps, _topic_cluster_apps, p_intra=c.intra_cluster_coupling)
                     for s in subs:
                         subscribes.append(self._make_edge(s, topic))
                         self._direct_sub_counts[s.id] = self._direct_sub_counts.get(s.id, 0) + 1
@@ -625,8 +639,8 @@ class StatisticalGraphGenerator:
                 _topic_cluster_apps = _cluster_to_apps[_topic_id_to_cluster[topic.id]]
                 k_pubs = self.rng.randint(1, max(2, min(5, len(apps))))
                 k_subs = self.rng.randint(1, max(2, min(8, len(apps))))
-                pubs = self._sample_biased(k_pubs, apps, _topic_cluster_apps)
-                subs = self._sample_biased(k_subs, apps, _topic_cluster_apps)
+                pubs = self._sample_biased(k_pubs, apps, _topic_cluster_apps, p_intra=c.intra_cluster_coupling)
+                subs = self._sample_biased(k_subs, apps, _topic_cluster_apps, p_intra=c.intra_cluster_coupling)
                 for p in pubs:
                     publishes.append(self._make_edge(p, topic))
                 for s in subs:
