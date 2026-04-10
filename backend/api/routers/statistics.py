@@ -27,8 +27,7 @@ logger = logging.getLogger(__name__)
 
 # ── Endpoints ────────────────────────────────────────────────────────────
 
-@router.post("", response_model=GraphStatsResponse)
-@router.post("/", response_model=GraphStatsResponse)
+@router.post("/summary", response_model=GraphStatsResponse)
 async def get_graph_stats(
     credentials: Neo4jCredentials, 
     service: StatisticsService = Depends(get_statistics_service)
@@ -230,18 +229,19 @@ def _serialise_extras(obj: Any) -> Any:
     return obj
 
 
-@router.post("/extras")
-async def get_extras_statistics(
+@router.post("")
+@router.post("/")
+async def get_statistics(
     credentials: Neo4jCredentials,
     repo: IGraphRepository = Depends(get_repository),
 ):
-    """Cross-cutting extras chart statistics computed from full graph export."""
+    """Cross-cutting statistics computed from full graph export."""
     try:
-        logger.info("Computing extras statistics")
+        logger.info("Computing statistics")
         raw_data = repo.export_json()
         cc = extract_cross_cutting_data(raw_data)
         stats = compute_all_extras_statistics(cc)
         return {"success": True, "stats": _serialise_extras(stats)}
     except Exception as e:
-        logger.error(f"Extras statistics failed: {e}")
+        logger.error(f"Statistics failed: {e}")
         raise HTTPException(status_code=500, detail=f"Computation failed: {e}")
