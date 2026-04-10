@@ -27,7 +27,6 @@ from api.routers import (
     validation,
     prediction,
 )
-from api.routers.statistics import statistics_router
 
 # Configure logging
 logging.basicConfig(
@@ -58,7 +57,6 @@ app.include_router(graph.router)
 app.include_router(analysis.router)
 app.include_router(components.router)
 app.include_router(statistics.router)
-app.include_router(statistics_router)
 app.include_router(simulation.router)
 app.include_router(classification.router)
 app.include_router(validation.router)

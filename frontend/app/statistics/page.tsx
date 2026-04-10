@@ -667,7 +667,7 @@ export default function StatisticsPage() {
     try {
       const creds = apiClient.getCredentials()
       if (!creds) throw new Error("No credentials")
-      const response = await fetch(`${API_BASE_URL}/api/v1/statistics`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/stats`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(creds),

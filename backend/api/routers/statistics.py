@@ -27,8 +27,7 @@ logger = logging.getLogger(__name__)
 
 # ── Endpoints ────────────────────────────────────────────────────────────
 
-@router.post("", response_model=GraphStatsResponse)
-@router.post("/", response_model=GraphStatsResponse)
+@router.post("/summary", response_model=GraphStatsResponse)
 async def get_graph_stats(
     credentials: Neo4jCredentials, 
     service: StatisticsService = Depends(get_statistics_service)
@@ -230,10 +229,8 @@ def _serialise_extras(obj: Any) -> Any:
     return obj
 
 
-statistics_router = APIRouter(prefix="/api/v1", tags=["statistics"])
-
-
-@statistics_router.post("/statistics")
+@router.post("")
+@router.post("/")
 async def get_statistics(
     credentials: Neo4jCredentials,
     repo: IGraphRepository = Depends(get_repository),

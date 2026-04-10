@@ -88,7 +88,7 @@ class GraphAnalysisAPI {
       throw new Error('No credentials set. Please connect first.');
     }
     
-    const response = await this.client.post('/api/v1/stats', this.credentials);
+    const response = await this.client.post('/api/v1/stats/summary', this.credentials);
     const data = response.data;
     
     // Transform backend format to expected frontend format
