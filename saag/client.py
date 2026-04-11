@@ -37,7 +37,7 @@ class Client:
         from src.usecases.analyze_graph import AnalyzeGraphUseCase
         from src.analysis.service import AnalysisService
         
-        service = AnalysisService(self.repo)
+        service = AnalysisService(self.repo, **kwargs)
         uc = AnalyzeGraphUseCase(service)
         result = uc.execute(layer=layer)
         return AnalysisResult(result)
@@ -50,16 +50,17 @@ class Client:
         from src.prediction.service import PredictionService
         
         # We need structural analysis first
-        analysis_service = AnalysisService(self.repo)
+        analysis_service = AnalysisService(self.repo, **kwargs)
         analyze_uc = AnalyzeGraphUseCase(analysis_service)
         structural_result = analyze_uc.execute(layer=layer)
         
-        prediction_service = PredictionService()
+        prediction_service = PredictionService(**{k: v for k, v in kwargs.items() if k in ["use_ahp", "normalization_method", "winsorize", "winsorize_limit", "equal_weights", "ahp_shrinkage"]})
         predict_uc = PredictGraphUseCase(prediction_service)
         quality, problems = predict_uc.execute(
             layer=layer, 
             structural_result=structural_result,
-            detect_problems=detect_problems
+            detect_problems=detect_problems,
+            **{k: v for k, v in kwargs.items() if k in ["run_sensitivity", "sensitivity_perturbations", "sensitivity_noise"]}
         )
         
         return PredictionResult(quality, problems)

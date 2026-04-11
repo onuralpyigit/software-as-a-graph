@@ -18,6 +18,7 @@ class AnalysisService:
     def __init__(
         self,
         repository: IGraphRepository,
+        **kwargs
     ):
         self.repository = repository
         self._smell_detector = AntiPatternDetector()
@@ -26,8 +27,10 @@ class AnalysisService:
         from src.prediction.service import PredictionService
         from src.explanation.engine import ExplanationEngine
         
-        self._quality_analyzer = PredictionService()
+        pred_kwargs = {k: v for k, v in kwargs.items() if k in ["use_ahp", "normalization_method", "winsorize", "winsorize_limit", "equal_weights", "ahp_shrinkage"]}
+        self._quality_analyzer = PredictionService(**pred_kwargs)
         self._explanation_engine = ExplanationEngine()
+        self._analysis_kwargs = kwargs
 
     def analyze_all_layers(self) -> MultiLayerAnalysisResult:
         """Analyze all primary graph layers."""
@@ -63,7 +66,8 @@ class AnalysisService:
         struct_result = structural_analyzer.analyze(graph_data, layer=layer_enum)
         
         # Consolidation: Perform quality prediction and smell detection
-        quality_result = self._quality_analyzer.predict_quality(struct_result)
+        pred_quality_kwargs = {k: v for k, v in self._analysis_kwargs.items() if k in ["run_sensitivity", "sensitivity_perturbations", "sensitivity_noise"]}
+        quality_result = self._quality_analyzer.predict_quality(struct_result, **pred_quality_kwargs)
         problems = self._smell_detector.detect(quality_result, layer=layer)
         problem_summary = self._quality_analyzer.summarize_problems(problems)
         

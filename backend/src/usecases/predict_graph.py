@@ -22,9 +22,10 @@ class PredictGraphUseCase:
         self, 
         layer: str, 
         structural_result: StructuralAnalysisResult,
-        detect_problems: bool = False
+        detect_problems: bool = False,
+        **kwargs
     ) -> tuple[QualityAnalysisResult, Optional[List[DetectedProblem]]]:
-        quality = self.service.predict_quality(structural_result)
+        quality = self.service.predict_quality(structural_result, **kwargs)
         problems = None
         if detect_problems:
             problems = self.service.detect_problems(quality)
