@@ -228,6 +228,15 @@ def flatten_component(comp: Dict[str, Any], comp_type: str) -> Dict[str, Any]:
             if "avg" in nest_key or "ratio" in nest_key or "density" in nest_key:
                 res[flat_key] = float(res[flat_key])
 
+    # 3.1 Additional flat aliases for common analysis fields (Issue 7 hardening)
+    # These ensure compatibility with extract_layer_subgraph and basic Cypher queries.
+    if cm:
+        res["loc"] = cm.get("size", {}).get("total_loc", 0)
+        res["cyclomatic_complexity"] = float(cm.get("complexity", {}).get("avg_wmc", 0.0))
+        res["lcom"] = float(cm.get("cohesion", {}).get("avg_lcom", 0.0))
+        res["coupling_afferent"] = int(cm.get("coupling", {}).get("avg_fanin", 0))
+        res["coupling_efferent"] = int(cm.get("coupling", {}).get("avg_fanout", 0))
+
     # 4. Type-specific properties
     if comp_type == "Topic":
         qos = comp.get("qos", comp.get("qos_policy", {}))

@@ -12,13 +12,11 @@
      V*(v) = 0.40×REV  + 0.35×RCL  + 0.25×QADS              (Vulnerability v2)
      Q*(v) = w_R×R*(v) + w_M×M*(v) + w_A×A*(v) + w_V×V*(v) (Overall)
 
- M*(v) v6 change (from v5):
-     CQP (Code Quality Penalty) added as 5th Maintainability criterion.
-     CQP = 0.40·complexity_norm + 0.35·instability_code + 0.25·lcom_norm
-     CQP is sourced from optional Application node attributes (loc, cyclomatic_complexity,
-     coupling_afferent, coupling_efferent, lcom). When absent/zero, CQP = 0 and M*(v)
-     collapses to v5 behaviour (fully backward-compatible).
-     BT weight: 0.40 → 0.35; w_out weight: 0.35 → 0.30.
+ M*(v) v7 change (Hardening Phase):
+     CQP formula updated to include LOC:
+     CQP = 0.10·loc_norm + 0.35·complexity_norm + 0.30·instability_code + 0.25·lcom_norm
+     Library Ca/Ce clarified as internal static analysis coupling.
+     Single-node populations handle zero-span by returning 1.0 (most critical).
 
  R*(v) v5 change:
      w_in (QoS-weighted in-degree) removed from R*(v).

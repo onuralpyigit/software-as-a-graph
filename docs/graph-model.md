@@ -127,11 +127,11 @@ Each entity in the topology JSON becomes a vertex in G. Five vertex types are cr
 |-------|------|-------------|
 | `cm_total_loc` | int | Total lines of code |
 | `cm_avg_wmc` | float | Average Weighted Methods per Class |
-| `cm_avg_lcom` | float | Average Lack of Cohesion of Methods |
+| `cm_avg_lcom` | float | Average Lack of Cohesion of Methods (raw SonarQube scale) |
 | `cm_avg_cbo` | float | Average Coupling Between Objects |
 | `cm_avg_rfc` | float | Average Response for a Class |
-| `cm_avg_fanin` | float | Average fan-in (afferent coupling) |
-| `cm_avg_fanout` | float | Average fan-out (efferent coupling) |
+| `cm_avg_fanin` | float | Average afferent coupling (Library: internal static analysis) |
+| `cm_avg_fanout` | float | Average efferent coupling (Library: internal static analysis) |
 
 These attributes feed the **Code Quality Penalty (CQP)** composite used in Step 3's Maintainability M(v) term. When absent, M(v) falls back to the topology-only formula.
 

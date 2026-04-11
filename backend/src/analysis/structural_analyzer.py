@@ -420,21 +420,27 @@ class StructuralAnalyzer:
         population min-max passes) because their typical LOC / CC scales differ
         significantly.  Both use the same CQP formula:
 
-            CQP = 0.40 * complexity_norm + 0.35 * instability_code + 0.25 * lcom_norm
+            CQP = 0.10 * loc_norm + 0.35 * complexity_norm + 0.30 * instability_code + 0.25 * lcom_norm
 
         instability_code is already in [0,1] (Ce/(Ca+Ce)) — not re-normalised.
 
         All other component types (Broker, Node, Topic) are skipped; their
         code_quality_penalty stays 0.0.
         """
-        W_CC   = 0.40
-        W_INS  = 0.35
+        # CQP v7 weights (Hardening Phase)
+        W_LOC  = 0.10
+        W_CC   = 0.35
+        W_INS  = 0.30
         W_LCOM = 0.25
 
         def _mm(values: list, lo: float, hi: float) -> list:
+            """Min-max normalization with solitary population handling."""
             span = hi - lo
             if span == 0:
-                return [0.0] * len(values)
+                # Issue 5: If there's only one node in the population,
+                # we return 1.0 (most critical) to preserve complexity signal
+                # rather than zeroing it out.
+                return [1.0] * len(values)
             return [(v - lo) / span for v in values]
 
         # Process each qualifying node type as an independent population
@@ -465,7 +471,8 @@ class StructuralAnalyzer:
                 m.complexity_norm = norm_ccs[idx]
                 m.lcom_norm       = norm_lcoms[idx]
                 m.code_quality_penalty = (
-                    W_CC   * m.complexity_norm
+                    W_LOC  * m.loc_norm
+                    + W_CC   * m.complexity_norm
                     + W_INS  * m.instability_code
                     + W_LCOM * m.lcom_norm
                 )

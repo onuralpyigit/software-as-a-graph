@@ -100,6 +100,17 @@ Edge case: If all components have identical raw values → x_rank(v) = 0 for all
 
 Normalization is applied **independently per metric and per layer**. A component's rank score is relative to the population of the current analysis layer (app, infra, mw, or system).
 
+### Normalization Caveats (Hardening Phase)
+
+**1. Solitary Populations (Single-Node Layers):**
+If a layer or node type contains only a single component (e.g., one core Library), the min-max span is zero. To preserve the intrinsic complexity signal, the system defaults to a normalized value of **1.0** (most critical) for that component rather than zeroing it out. This ensures large singleton components are still flagged for maintenance risk.
+
+**2. Type-Split Normalization:**
+Applications and Libraries are normalized as separate populations before being mixed in the $M(v)$ Maintainability dimension. This prevents a massive legacy monolithic application from compressing the complexity signal of all libraries to near-zero. However, this means a "0.80 complexity" Application is not directly comparable to a "0.80 complexity" Library in absolute terms.
+
+**3. Library Ca/Ce Semantics:**
+For Library nodes, `instability_code` uses static analysis coupling (CBO/Fan-in/Fan-out) rather than topological `DEPENDS_ON` edges. This captures the internal stability of the package logic, whereas topological coupling captures system-level blast radius.
+
 **Optional winsorization:** Before rank normalization, raw values above the 95th percentile can be capped (`--winsorize`). This prevents a single extreme outlier from being ranked above all others while the 2nd–99th percentile occupy a single rank bucket.
 
 ---
@@ -363,11 +374,11 @@ Complete M(v) field listing. Every field has a tier, a RMAV dimension (or "—" 
 
 | Field | Tier | RMAV Dim | Description |
 |-------|------|----------|-------------|
-| `loc_norm` | 3 | M via CQP | Normalized lines of code |
+| `loc_norm` | 1→CQP | M | Normalized lines of code |
 | `complexity_norm` | 1→CQP | M | Normalized cyclomatic complexity |
 | `instability_code` | 1→CQP | M | Martin instability Ce/(Ca+Ce) |
 | `lcom_norm` | 1→CQP | M | Normalized lack of cohesion |
-| `code_quality_penalty` | 1 | M | CQP composite: 0.40·CC + 0.35·instability + 0.25·LCOM |
+| `code_quality_penalty` | 1 | M | CQP v7: 0.10·LOC + 0.35·CC + 0.30·instability + 0.25·LCOM |
 
 ---
 
