@@ -77,7 +77,7 @@ Section 2 describes the overall test strategy and schedule. Section 3 defines th
 | BR | Bridge Ratio — fraction of a vertex's incident edges that are bridges |
 | CDI | Connectivity Degradation Index — normalised path elongation upon vertex removal |
 | CDPot_enh | Enhanced Cascade Depth Potential — derived depth signal: `CDPot_base × (1 + MPCI)` |
-| CouplingRisk | `1 − |2·Instability − 1|` — afferent/efferent imbalance score (also denoted CR in some contexts) |
+| CouplingRisk_enh | `min(1.0, (1 - |2·Instability - 1|) * (1 + Δ·path_complexity))` — enriched imbalance score |
 | CR | Consistency Ratio in AHP (must be < 0.10) |
 | Fixture | Predefined test data created before a test runs |
 | Mock | Simulated object that isolates the code under test |
@@ -413,9 +413,10 @@ Tests that the RMAV formula inputs are correctly resolved, derived terms are com
 | UT-ANAL-33 | CDPot: absorber node (DG\_in >> DG\_out) | CDPot > 0.5; CDPot of fan-out hub (DG\_out >> DG\_in) ≈ 0.0 |
 | UT-ANAL-34 | CDPot: fan-out hub | CDPot ≈ 0.0 (DG\_out/DG\_in ≥ 1.0, term clipped to 1) |
 | UT-ANAL-35 | CDPot: division-by-zero guard | CDPot = 0.0 when DG\_in = 0 (ε denominator guard) |
-| UT-ANAL-36 | CouplingRisk: balanced node (Instability ≈ 0.5) | CouplingRisk ≈ 1.0 (maximum risk) |
-| UT-ANAL-37 | CouplingRisk: pure source (DG\_in = 0) | CouplingRisk = 0.0 |
-| UT-ANAL-38 | CouplingRisk: pure sink (DG\_out = 0) | CouplingRisk = 0.0 |
+| UT-ANAL-36 | CouplingRisk_enh: balanced node (Instability ≈ 0.5) | CouplingRisk_enh peak at 1.0 (capped) |
+| UT-ANAL-37 | CouplingRisk_enh: pure source (DG\_in\_raw = 0) | CouplingRisk_enh = 0.0 |
+| UT-ANAL-38 | CouplingRisk_enh: pure sink (DG\_out\_raw = 0) | CouplingRisk_enh = 0.0 |
+| UT-ANAL-44 | CouplingRisk_enh: 1.0 cap enforcement | Value never exceeds 1.0 despite high path\_complexity |
 | UT-ANAL-39 | QSPOF: AP node × high QoS weight | QSPOF > 0.0; non-AP node QSPOF = 0.0 |
 | UT-ANAL-40 | AP\_c\_directed: directed removal | AP\_c\_directed ≥ undirected AP\_c on graphs with asymmetric reachability |
 | UT-ANAL-41 | CDI: path elongation upon removal | CDI(bottleneck) > CDI(leaf) on path graph |
@@ -455,8 +456,12 @@ def test_coupling_risk_balanced(self):
     assert compute_coupling_risk(dg_in_raw=5, dg_out_raw=5) == pytest.approx(1.0, abs=0.01)
 
 def test_coupling_risk_pure_source(self):
-    # DG_in = 0 → Instability = 1.0 → CouplingRisk = 0.0
+    # DG_in_raw = 0 → Instability = 1.0 → CouplingRisk_enh = 0.0
     assert compute_coupling_risk(dg_in_raw=0, dg_out_raw=5) == pytest.approx(0.0, abs=0.01)
+
+def test_coupling_risk_cap_enforcement(self):
+    # Base CR = 1.0, path_complexity = 10.0 -> Enriched = 1.0 * (1 + 0.1*10) = 2.0 -> Capped at 1.0
+    assert compute_coupling_risk(dg_in_raw=5, dg_out_raw=5, path_complexity=10.0) == 1.0
 
 def test_rev_roles_reversed_vs_ev(self, star_graph):
     """REV is eigenvector on G^T; source hubs in G become sink hubs in G^T."""

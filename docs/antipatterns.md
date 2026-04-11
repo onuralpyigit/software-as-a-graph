@@ -205,7 +205,7 @@ The RMAV framework maps structural metrics to four quality dimensions. These dim
 
 ```
 R(v) = 0.45 × RPR(v) + 0.30 × DG_in(v) + 0.25 × CDPot(v)
-M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CR(v) + 0.08 × (1 − CC(v))
+M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk_enh(v) + 0.08 × (1 − CC(v))
 A(v) = 0.45 × QSPOF(v) + 0.30 × BR(v) + 0.15 × AP_c_dir(v) + 0.10 × CDI(v)
 V(v) = 0.40 × REV(v) + 0.35 × RCL(v) + 0.25 × QADS(v)
 
@@ -693,20 +693,22 @@ The two orphan subtypes represent different classes of architectural debt:
 
 #### Specification
 
-An Unstable Interface is a component with extreme coupling imbalance, operationalized through the **CouplingRisk** metric. CouplingRisk is derived from Martin's *Instability* metric, adapted for the publish-subscribe domain:
+An Unstable Interface is a component with extreme coupling imbalance, operationalized through the **CouplingRisk_enh** metric. CouplingRisk enriches Martin's *Instability* signal with topological path complexity:
 
 ```
 Instability(v) = DG_out_raw(v) / (DG_in_raw(v) + DG_out_raw(v) + ε)
 
-CouplingRisk(v) = 1 − |2 × Instability(v) − 1|
+CouplingRisk_base(v) = 1 − |2 × Instability(v) − 1|
+
+CouplingRisk_enh(v) = min(1.0, CouplingRisk_base(v) × (1 + Δ × path_complexity(v)))
 ```
 
-CouplingRisk ∈ [0, 1], where 0 indicates either a perfectly stable component (all incoming dependencies, no outgoing) or a perfectly unstable one (all outgoing, no incoming), and 1 indicates a component with equal incoming and outgoing coupling — maximum change sensitivity.
+`CouplingRisk_enh ∈ [0, 1]`, where 0 indicates either a perfectly stable component or a perfectly unstable one, and 1 indicates a component with equal incoming and outgoing coupling AND high path complexity — maximum change sensitivity.
 
 Detection targets components with high maintainability scores driven primarily by high CouplingRisk:
 
 ```
-UNSTABLE_INTERFACE(v) ↔ M(v) > 0.80  ∧  CouplingRisk(v) > 0.80
+UNSTABLE_INTERFACE(v) ↔ M(v) > 0.80  ∧  CouplingRisk_enh(v) > 0.80
 ```
 
 #### Topological Signature
@@ -793,7 +795,7 @@ The following table summarizes the primary RMAV dimension affected by each patte
 | CHATTY_PAIR | Maintainability (M) | Edge score product |
 | QOS_MISMATCH | Reliability (R) | QADS (w_in) gap |
 | ORPHANED_TOPIC | Maintainability (M) | Topic in/out degree |
-| UNSTABLE_INTERFACE | Maintainability (M) | CouplingRisk |
+| UNSTABLE_INTERFACE | Maintainability (M) | CouplingRisk_enh |
 
 A practical implication of this mapping is that the **RMAV dimension breakdown for a flagged component can guide pattern selection for investigation**. A component with high `A(v)` but moderate `M(v)` and `R(v)` should be investigated first for SPOF, BOTTLENECK_EDGE, or BROKER_OVERLOAD. A component with high `M(v)` and high `Q(v)` is a candidate for GOD_COMPONENT or CYCLIC_DEPENDENCY.
 

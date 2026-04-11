@@ -543,11 +543,11 @@ CDPot_enh(v) captures the cascade potential based on follower count, topic fan-o
 ### A.3 Maintainability Score
 
 ```
-M(v) = w₁ × BT(v) + w₂ × w_out(v) + w₃ × CQP(v) + w₄ × CouplingRisk(v) + w₅ × (1 − CC(v))
+M(v) = w₁ × BT(v) + w₂ × w_out(v) + w₃ × CQP(v) + w₄ × CouplingRisk_enh(v) + w₅ × (1 − CC(v))
 ```
 
 Default intra-dimension weights: w₁ = 0.35, w₂ = 0.30, w₃ = 0.15, w₄ = 0.12, w₅ = 0.08.
-CouplingRisk(v) is derived from Martin instability; CC is the clustering coefficient representing local redundancy. CQP is code-level maintainability penalty.
+CouplingRisk_enh(v) is derived from Martin instability enriched by path complexity; CC is the clustering coefficient representing local redundancy. CQP is code-level maintainability penalty.
 
 ### A.4 Availability Score
 

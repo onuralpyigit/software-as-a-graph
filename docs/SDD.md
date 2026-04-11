@@ -666,7 +666,7 @@ The `AntiPatternDetector` (consolidated from the legacy `SmellDetector` and `Pro
 | **Arch.** | **Cycle** | Circular dependency path of length ≥ 2 | HIGH |
 | **Arch.** | **Chain** | Linear sequence of ≥ 4 nodes with in/out degree ≤ 1 | MEDIUM |
 | **Arch.** | **Isolated** | Node with zero in-layer dependencies | MEDIUM |
-| **Arch.** | **Systemic Risk** | > 20% of all components are classified as CRITICAL | CRITICAL |
+| **Maint.** | **Unstable Intf.** | `coupling_risk_enh_level >= HIGH` | MEDIUM |
 
 Each detected problem is returned as a `DetectedProblem` dataclass (defined in `src.prediction.models`):
 
@@ -959,24 +959,22 @@ Interpretation:
 
 CDPot_enh is a Tier 1 derived signal that feeds exclusively into R(v) (§6.19).
 
-### 6.14 Coupling Risk
+### 6.14 Coupling Risk (Enhanced)
 
-Measures the structural coupling imbalance — components that are deeply embedded on both afferent and efferent sides are hardest to modify safely.
+Measures the structural coupling imbalance enriched by topological path complexity. Components that are deeply embedded on both afferent and efferent sides and have complex communication paths are hardest to modify safely.
 
 ```
 Input:  DG_in_raw(v), DG_out_raw(v)  [raw integer counts]
-Output: CouplingRisk(v) ∈ [0, 1]
+Output: CouplingRisk_enh(v) ∈ [0, 1]
 
 Instability(v) = DG_out_raw(v) / (DG_in_raw(v) + DG_out_raw(v) + ε)
-CouplingRisk(v) = 1 − |2 × Instability(v) − 1|
 
-Interpretation:
-  - Pure source (DG_in=0):      Instability=1.0 → CouplingRisk=0
-  - Pure sink (DG_out=0):       Instability=0.0 → CouplingRisk=0
-  - Balanced (DG_in≈DG_out):    Instability≈0.5 → CouplingRisk=1.0 (maximum risk)
+CouplingRisk_base(v) = 1 − |2 × Instability(v) − 1|
+
+CouplingRisk_enh(v) = min(1.0, CouplingRisk_base(v) × (1 + Δ × path_complexity(v)))
 ```
 
-CouplingRisk is computed inline in QualityAnalyzer and feeds exclusively into M(v) (§6.20).
+`CouplingRisk_enh` is computed inline in `QualityAnalyzer` and feeds exclusively into $M(v)$ (§6.20).
 
 ### 6.15 QoS-Weighted SPOF Severity (QSPOF)
 
@@ -1066,7 +1064,7 @@ A component with high R(v) is one whose failure would propagate both broadly and
 ### 6.20 Maintainability Score M(v)
 
 ```
-M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk(v) + 0.08 × (1 − CC(v))
+M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk_enh(v) + 0.08 × (1 − CC(v))
 ```
 
 | Term | Weight | Rationale |
@@ -1074,7 +1072,7 @@ M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk(
 | BT(v) | 0.35 | Betweenness — structural bottleneck position; v lies on many dependency paths |
 | w_out(v) | 0.30 | QoS-weighted efferent coupling — counts outgoing dependencies weighted by SLA priority |
 | CQP(v) | 0.15 | Code Quality Penalty — composite of complexity, instability, and LCOM |
-| CouplingRisk(v) | 0.12 | Afferent/efferent imbalance — components embedded on both sides are hardest to change safely |
+| CouplingRisk_enh(v) | 0.12 | Afferent/efferent imbalance enriched by path complexity — components embedded on both sides are hardest to change safely |
 | (1 − CC(v)) | 0.08 | Inverse clustering — low local redundancy means connection is a unique structural link |
 
 A component with high M(v) is a structural bottleneck that has many tightly-contracted outgoing dependencies and sits at an unstable coupling boundary.

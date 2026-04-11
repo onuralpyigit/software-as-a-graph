@@ -238,7 +238,7 @@ A dedicated dashboard section surfacing the results of `detect_antipatterns.py`.
 | CHATTY_PAIR | Chatty Pair | Two components share ≥ 3 DEPENDS_ON edge paths (MPCI-derived) | Over-coupling via multiple shared topics; each is a separate failure vector |
 | QOS_MISMATCH | QoS Mismatch | Publisher w_out(v) < subscriber w_in(v) by > threshold | High-reliability subscriber receives data from low-reliability publisher |
 | ORPHANED_TOPIC | Orphaned Topic | Topic has SUBSCRIBES_TO but no active PUBLISHES_TO | Subscriber permanently starved — data source removed |
-| UNSTABLE_INTERFACE | Unstable Interface | CouplingRisk(v) > upper_fence | Component deeply embedded on both afferent and efferent sides; hardest to change safely |
+| UNSTABLE_INTERFACE | Unstable Interface | CouplingRisk_enh(v) > upper_fence | Component deeply embedded on both afferent and efferent sides; hardest to change safely |
 
 For each detected instance the section shows: pattern name and severity badge, the component(s) involved (clickable to highlight in network graph), the specific metric evidence (e.g., "AP_c_directed = 0.62, w(v) = 0.71"), and the recommended remediation.
 
