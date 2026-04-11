@@ -1080,15 +1080,16 @@ A component with high M(v) is a structural bottleneck that has many tightly-cont
 ### 6.21 Availability Score A(v)
 
 ```
-A(v) = 0.45 × QSPOF(v) + 0.30 × BR(v) + 0.15 × AP_c_directed(v) + 0.10 × CDI(v)
+A(v) = 0.35 × AP_c_directed(v) + 0.25 × QSPOF(v) + 0.25 × BR(v) + 0.10 × CDI(v) + 0.05 × w(v)
 ```
 
 | Term | Weight | Rationale |
 |------|--------|-----------|
-| QSPOF(v) | 0.45 | QoS-weighted SPOF severity — AP_c_directed × w(v); highly-contracted structural SPOF components dominate availability risk |
-| BR(v) | 0.30 | Bridge ratio — fraction of incident edges that are bridges; high BR means connections are irreplaceable structural foundations |
-| AP\_c\_directed(v) | 0.15 | Directed articulation score — directional path disruption beyond the undirected SPOF |
+| AP_c_directed(v) | 0.35 | Directed articulation score — primary structural SPOF baseline; identifies bottlenecks regardless of operational priority |
+| QSPOF(v) | 0.25 | QoS-weighted SPOF severity — `AP_c_directed × w(v)`; highlights high-priority structural SPOFs |
+| BR(v) | 0.25 | Bridge ratio — fraction of incident edges that are bridges; identifies irreplaceable structural foundations |
 | CDI(v) | 0.10 | Connectivity degradation — path elongation upon removal catches non-SPOF availability risk |
+| w(v) | 0.05 | Component QoS weight — direct operational priority focus for availability focus |
 
 ### 6.22 Vulnerability Score V(v)
 

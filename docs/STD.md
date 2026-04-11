@@ -392,7 +392,7 @@ Tests that the RMAV formula inputs are correctly resolved, derived terms are com
 **RMAV formula inputs reference (SDD v2.2 §6.19–§6.23):**
 - R(v) = 0.45 × RPR + 0.30 × DG_in + 0.25 × CDPot_enh
 - M(v) = 0.35 × BT + 0.30 × w_out + 0.15 × CQP + 0.12 × CouplingRisk + 0.08 × (1 − CC)
-- A(v) = 0.45 × QSPOF + 0.30 × BR + 0.15 × AP_c_dir + 0.10 × CDI
+- A(v) = 0.35 × AP_c_directed + 0.25 × QSPOF + 0.25 × BR + 0.10 × CDI + 0.05 × w(v)
 - V(v) = 0.40 × REV + 0.35 × RCL + 0.25 × QADS
 
 | Test ID | Description | Expected Result |

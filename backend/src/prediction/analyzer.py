@@ -8,7 +8,7 @@
  Formulas (per component v):
      R*(v) = 0.45×RPR + 0.30×DG_in + 0.25×CDPot             (Reliability v5)
      M*(v) = 0.35×BT  + 0.30×w_out + 0.15×CQP + 0.12×CR + 0.08×(1–CC) (Maintainability v6)
-     A*(v) = 0.45×QSPOF + 0.30×BR + 0.15×AP_c + 0.10×CDI   (Availability v2)
+     A*(v) = 0.35×AP_c_directed + 0.25×QSPOF + 0.25×BR + 0.10×CDI + 0.05×w(v) (Availability v3)
      V*(v) = 0.40×REV  + 0.35×RCL  + 0.25×QADS              (Vulnerability v2)
      Q*(v) = w_R×R*(v) + w_M×M*(v) + w_A×A*(v) + w_V×V*(v) (Overall)
 

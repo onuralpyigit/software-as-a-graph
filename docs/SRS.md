@@ -552,10 +552,10 @@ CouplingRisk_enh(v) is derived from Martin instability enriched by path complexi
 ### A.4 Availability Score
 
 ```
-A(v) = w₁ × QSPOF(v) + w₂ × BR(v) + w₃ × AP_c_directed(v) + w₄ × CDI(v)
+A(v) = w₁ × AP_c_directed(v) + w₂ × QSPOF(v) + w₃ × BR(v) + w₄ × CDI(v) + w₅ × w(v)
 ```
 
-Default intra-dimension weights: w₁ = 0.45, w₂ = 0.30, w₃ = 0.15, w₄ = 0.10.
+Default intra-dimension weights: w₁ = 0.35, w₂ = 0.25, w₃ = 0.25, w₄ = 0.10, w₅ = 0.05.
 QSPOF is the QoS-weighted articulation point score; CDI is the connectivity degradation index.
 
 ### A.5 Vulnerability Score
