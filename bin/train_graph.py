@@ -231,7 +231,7 @@ def main() -> None:
         display.display_training_metrics(result.gnn_metrics.to_dict())
 
     # Display Top 10 using specialized method
-    display.display_critical_components(result.top_critical_nodes(10), n=10)
+    display.display_top_critical_components(result.top_critical_nodes(10), n=10)
 
     if args.output:
         out_path = Path(args.output)

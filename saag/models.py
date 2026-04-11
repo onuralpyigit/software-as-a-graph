@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 # We use TYPE_CHECKING or direct imports since saag/__init__.py 
 # will have injected the backend into sys.path before this is imported.
-from src.analysis.models import StructuralAnalysisResult as _StructuralAnalysisResult
+from src.analysis.models import LayerAnalysisResult as _LayerAnalysisResult, StructuralAnalysisResult as _StructuralAnalysisResult
 from src.prediction.models import QualityAnalysisResult as _QualityAnalysisResult, ComponentQuality as _ComponentQuality, DetectedProblem as _DetectedProblem
 from src.validation.models import LayerValidationResult as _LayerValidationResult
 from src.usecases.models import ImportStats as _ImportStats
@@ -87,11 +87,11 @@ class ComponentFacade:
 
 class AnalysisResult:
     """Result of the structural graph analysis step."""
-    def __init__(self, inner: _StructuralAnalysisResult):
+    def __init__(self, inner: _LayerAnalysisResult):
         self._inner = inner
     
     @property
-    def raw(self) -> _StructuralAnalysisResult:
+    def raw(self) -> _LayerAnalysisResult:
         """Access the underlying internal model."""
         return self._inner
 
@@ -102,14 +102,8 @@ class AnalysisResult:
         out = Path(filepath)
         out.parent.mkdir(parents=True, exist_ok=True)
         
-        data = {
-            "layer": getattr(self._inner.layer, "value", str(self._inner.layer)),
-            "graph_summary": self._inner.graph_summary.to_dict() if hasattr(self._inner.graph_summary, "to_dict") else {},
-            "components": {k: c.to_dict() for k, c in self._inner.components.items()},
-            "edges": {f"{k[0]}->{k[1]}": e.to_dict() for k, e in self._inner.edges.items()},
-            "qos_profile": self._inner.qos_profile,
-            "rcm_order": self._inner.rcm_order
-        }
+        # Using the comprehensive dictionary representation
+        data = self._inner.to_dict()
         with out.open("w") as f:
             json.dump(data, f, indent=2, default=str)
 

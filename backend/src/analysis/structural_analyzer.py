@@ -681,7 +681,21 @@ class StructuralAnalyzer:
         # Optimization: Sample BFS for large graphs
         use_sampling = n > 300
         sample_size = 50 if use_sampling else n
-        random_nodes = random.sample(list(G_dir.nodes), sample_size) if use_sampling else list(G_dir.nodes)
+        
+        if use_sampling:
+            # Prioritize "core" component types to avoid downward bias from leaf-node sampling (Topics/Libraries)
+            core_types = {"Application", "Broker", "Node"}
+            core_nodes = [n for n in G_dir.nodes if G_dir.nodes[n].get("component_type") in core_types]
+            
+            if len(core_nodes) >= sample_size:
+                random_nodes = random.sample(core_nodes, sample_size)
+            else:
+                # If not enough core nodes, take all of them and fill the rest from other nodes
+                other_nodes = [n for n in G_dir.nodes if G_dir.nodes[n].get("component_type") not in core_types]
+                fill_size = min(sample_size - len(core_nodes), len(other_nodes))
+                random_nodes = core_nodes + random.sample(other_nodes, fill_size)
+        else:
+            random_nodes = list(G_dir.nodes)
         
         # Pre-compute baseline average shortest path length (undirected)
         # Using largest CC to avoid infinity issues

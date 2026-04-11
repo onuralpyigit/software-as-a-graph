@@ -158,7 +158,7 @@ class ConsoleDisplay:
                     bar = "█" * min(count * 2, 40)
                     print(f"    {level_name:10} {self.colored(bar, self.level_color(level_name))} {count}")
 
-    def display_critical_components(self, result: "LayerAnalysisResult", limit: int = 15) -> None:
+    def display_layer_critical_components(self, result: "LayerAnalysisResult", limit: int = 15) -> None:
         """Display top critical components."""
         self.print_subheader("Top Components by Criticality", width=96)
         components = result.quality.components[:limit]
@@ -394,9 +394,16 @@ class ConsoleDisplay:
         """Display complete analysis result for a single layer."""
         self.print_header(f"{result.layer_name} Analysis")
         print(f"  {self.colored(result.description, Colors.GRAY)}")
+        
+        # Check for FOC visibility warning (Phase 3 audit fix)
+        # FOC is only non-zero for Topic nodes, which are only included in 'system' layer
+        has_topics = any(c.type == "Topic" for c in result.structural.components.values())
+        if not has_topics and result.layer in ("app", "mw"):
+            self.print_warning(f"fan_out_criticality (FOC) is restricted in {result.layer} layer. Use 'system' layer for topic fan-out analysis.")
+
         self.display_graph_summary(result)
         self.display_classification_summary(result)
-        self.display_critical_components(result)
+        self.display_layer_critical_components(result)
         self.display_sensitivity(result)
         if result.prediction:
             self.display_gnn_prediction(result.prediction)
@@ -630,7 +637,7 @@ class ConsoleDisplay:
                 print(f"    - {formatted_dep:<18} {count}")
 
 
-    def display_critical_components(self, components: List[Any], n: int = 10) -> None:
+    def display_top_critical_components(self, components: List[Any], n: int = 10) -> None:
         """Display top-N critical components with their RMAV breakdown."""
         if not components:
             return
@@ -731,7 +738,7 @@ class ConsoleDisplay:
 
         # Display Top 10
         sorted_comps = sorted(components, key=lambda c: getattr(c, "composite_score", getattr(c, "rmav_score", 0.0)), reverse=True)
-        self.display_critical_components(sorted_comps, n=10)
+        self.display_top_critical_components(sorted_comps, n=10)
 
     def display_simulation_summary(self, report: Any) -> None:
         """Display summary of failure simulation results."""

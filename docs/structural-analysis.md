@@ -26,6 +26,7 @@
    - [Reverse Eigenvector Centrality (REV)](#reverse-eigenvector-centrality-rev)
    - [Reverse Closeness Centrality (RCL)](#reverse-closeness-centrality-rcl)
    - [QoS-Weighted In-Degree (w_in / QADS)](#qos-weighted-in-degree-w_in--qads)
+   - [Path Complexity (PC)](#path-complexity-pc)
    - [Diagnostic Metrics](#diagnostic-metrics)
 6. [Metric Catalogue Reference](#metric-catalogue-reference)
 7. [Output: M(v)](#output-mv)
@@ -69,7 +70,7 @@ Every field in M(v) belongs to exactly one of three tiers. This taxonomy is the 
 
 | Tier | Purpose | Metrics |
 |------|---------|---------|
-| **Tier 1 — RMAV inputs** | Directly feed R(v), M(v), A(v), or V(v) in Step 3 | RPR, DG_in, MPCI, FOC, BT, w_out, CC, AP_c_directed, BR, CDI, REV, RCL, w_in |
+| **Tier 1 — RMAV inputs** | Directly feed R(v), M(v), A(v), or V(v) in Step 3 | RPR, DG_in, MPCI, FOC, BT, w_out, CC, AP_c_directed, BR, CDI, REV, RCL, w_in, PC |
 | **Tier 2 — Diagnostic** | Computed for visualization, output reports, and GNN features; do not feed RMAV formulas | PR, CL, EV, pubsub_degree, pubsub_betweenness, broker_exposure |
 | **Tier 3 — Raw / inline-derived** | Integer counts and inline-derived scalars used only within Step 3 formulas; not stored as normalized metrics | DG_in_raw, DG_out_raw, is_articulation_point, bridge_count, CDPot, CouplingRisk, QSPOF |
 
@@ -301,6 +302,17 @@ w_in(v) = Σ_{(u,v) ∈ InEdges(v)} weight(u,v)    (raw sum, then rank-normalize
 
 **High w_in(v) means:** Many high-SLA components directly depend on v. v is a high-value target because compromising it disrupts the most critical immediate consumers. The QoS weighting ensures that a dependency from an URGENT/PERSISTENT subscriber counts more than one from a LOW/BEST_EFFORT subscriber.
 
+### Path Complexity (PC)
+
+*Tier 1 → M(v)*
+
+```
+PC(v) = mean( log2(1 + path_count(e)) ) over e ∈ OutEdges(v)
+```
+
+**High PC(v) means:** v depends on other components through multiple redundant paths (shared topics). While this adds reliability, it increases the **Maintainability** risk (M) because change impact propagation follows all available paths. A change to v's logic may require complex re-synchronization across all paths mediating its efferent dependencies. PC serves as an intensifier for the **Coupling Risk** term in Step 3.
+
+
 ### Diagnostic Metrics
 
 *Tier 2 — computed for visualization and GNN features; do not feed RMAV formulas*
@@ -335,6 +347,7 @@ Complete M(v) field listing. Every field has a tier, a RMAV dimension (or "—" 
 | `reverse_eigenvector` | REV | 1 | V | ↑ | Strategic compromise reach |
 | `reverse_closeness` | RCL | 1 | V | ↑ | Adversarial propagation speed |
 | `dependency_weight_in` | w_in | 1 | V | ↑ | QoS-weighted afferent surface |
+| `path_complexity` | PC | 1 | M | ↑ | Efferent path count complexity |
 | `pagerank` | PR | 2 | — | — | Forward transitive importance |
 | `closeness` | CL | 2 | — | — | Forward propagation speed |
 | `eigenvector` | EV | 2 | — | — | Forward influence |

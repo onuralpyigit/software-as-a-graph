@@ -257,11 +257,11 @@ class TestLayerDefinitions:
             assert layer in SIMULATION_LAYERS
 
     def test_app_layer_projection(self):
-        """π_app: only Application components, only app_to_app dependencies."""
+        """π_app: only Application and Library components, along with their dependencies."""
         defn = LAYER_DEFINITIONS[AnalysisLayer.APP]
-        assert defn.component_types == frozenset({"Application"})
-        assert defn.dependency_types == frozenset({"app_to_app"})
-        assert defn.types_to_analyze == frozenset({"Application"})
+        assert defn.component_types == frozenset({"Application", "Library"})
+        assert defn.dependency_types == frozenset({"app_to_app", "app_to_lib"})
+        assert defn.types_to_analyze == frozenset({"Application", "Library"})
         assert defn.quality_focus == "reliability"
 
     def test_infra_layer_projection(self):
@@ -278,14 +278,14 @@ class TestLayerDefinitions:
         assert "Broker" in defn.component_types
         assert "Node" in defn.component_types
         assert defn.types_to_analyze == frozenset({"Broker"})
-        assert defn.dependency_types == frozenset({"app_to_broker", "node_to_broker"})
+        assert defn.dependency_types == frozenset({"app_to_broker", "node_to_broker", "broker_to_broker"})
         assert defn.quality_focus == "maintainability"
 
     def test_system_layer_projection(self):
         """π_system: all components, all dependency types."""
         defn = LAYER_DEFINITIONS[AnalysisLayer.SYSTEM]
         assert len(defn.component_types) == 5
-        assert len(defn.dependency_types) == 4
+        assert len(defn.dependency_types) == 6
 
     def test_canonical_layer_resolution(self):
         """Canonical names resolve correctly."""
@@ -314,6 +314,8 @@ class TestLayerDefinitions:
         assert DEPENDENCY_TO_LAYER["node_to_node"] == AnalysisLayer.INFRA
         assert DEPENDENCY_TO_LAYER["app_to_broker"] == AnalysisLayer.MW
         assert DEPENDENCY_TO_LAYER["node_to_broker"] == AnalysisLayer.MW
+        assert DEPENDENCY_TO_LAYER["app_to_lib"] == AnalysisLayer.APP
+        assert DEPENDENCY_TO_LAYER["broker_to_broker"] == AnalysisLayer.MW
 
 
 # =========================================================================
