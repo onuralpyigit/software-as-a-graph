@@ -51,6 +51,12 @@ SYSTEM_HIERARCHY_POOLS: Dict[str, Dict[str, List[str]]] = {
         "domain": ["Order Processing", "Customer Relations", "Employee Portal", "Stock Management", "Invoice Processing"],
         "system": ["Data Sync", "Report Generation", "Workflow Engine", "Notification Service", "Legacy Adapter"],
     },
+    "atm": {
+        "component": ["Air Traffic Control Platform", "Surveillance Data System", "Flight Data Processing System"],
+        "config_item": ["Radar Data Processing", "Flight Plan Management", "Conflict Alert Software", "Weather Integration"],
+        "domain": ["Surveillance", "Flight Planning", "Separation Assurance", "Airspace Management", "Meteorology"],
+        "system": ["Radar Correlation", "Track Fusion", "Trajectory Prediction", "Clearance Delivery", "Flow Control"],
+    },
 }
 
 # Generic hierarchy pool (used when no domain is specified)
@@ -111,6 +117,13 @@ DOMAIN_DATASETS: Dict[str, Dict[str, List[str]]] = {
         "topics": ["erp.updates", "crm.leads", "hr.onboarding", "warehouse.stock", "invoice.generated"],
         "libraries": ["soap-client", "xml-parser", "enterprise-auth", "legacy-db-driver"],
         "brokers": ["ibm-mq", "kafka-enterprise"]
+    },
+    "atm": {
+        "nodes": ["surveillance-server", "fdps-main", "radar-gateway", "controller-workstation", "weather-node"],
+        "apps": ["radar-tracker", "flight-plan-processor", "conflict-detector", "weather-analyzer", "clearance-router", "trajectory-predictor"],
+        "topics": ["radar.tracks", "flight.plans", "alert.conflict", "weather.updates", "clearance.cmd", "trajectory.predicted"],
+        "libraries": ["asterix-parser", "aero-math-lib", "icao-protocol", "spatial-index"],
+        "brokers": ["kafka-atm", "solace-surveillance"]
     }
 }
 
@@ -156,6 +169,14 @@ QOS_MAPPINGS = {
     ],
     "enterprise": [
         ("default", ("TRANSIENT_LOCAL", "RELIABLE", "MEDIUM"))
+    ],
+    "atm": [
+        ("tracks", ("VOLATILE", "BEST_EFFORT", "HIGH")),
+        ("plans", ("PERSISTENT", "RELIABLE", "HIGH")),
+        ("conflict", ("TRANSIENT_LOCAL", "RELIABLE", "CRITICAL")),
+        ("cmd", ("PERSISTENT", "RELIABLE", "CRITICAL")),
+        ("weather", ("TRANSIENT_LOCAL", "BEST_EFFORT", "MEDIUM")),
+        ("default", ("TRANSIENT_LOCAL", "RELIABLE", "HIGH"))
     ]
 }
 
