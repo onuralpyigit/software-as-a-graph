@@ -88,8 +88,8 @@ w : V → [0, 1]    (QoS-derived vertex weight, propagated from incident edges)
 
 | Vertex Type | Attribute | Description |
 |-------------|-----------|-------------|
-| Topic | `subscriber_count` | Number of distinct subscribing applications (fan-out) |
-| Topic | `publisher_count` | Number of distinct publishing applications (fan-in) |
+| Topic | `subscriber_count` | Number of distinct subscribing applications/libraries (fan-out) |
+| Topic | `publisher_count` | Number of distinct publishing applications/libraries (fan-in) |
 | Application | `weight` | Hybrid: 0.80 × max(w_topic) + 0.20 × mean(w_topic) |
 | Broker | `weight` | Hybrid: 0.70 × max(w_topic) + 0.30 × mean(w_topic) |
 | Node | `weight` | max(w) over all hosted applications and brokers |
@@ -147,20 +147,20 @@ Six structural edge types are imported directly from the topology JSON. Each edg
 
 | Edge Type | Direction | Meaning |
 |-----------|-----------|---------|
-| `PUBLISHES_TO` | Application → Topic | App sends messages to this topic |
-| `SUBSCRIBES_TO` | Application → Topic | App receives messages from this topic |
+| `PUBLISHES_TO` | Application / Library → Topic | Component sends messages to this topic |
+| `SUBSCRIBES_TO` | Application / Library → Topic | Component receives messages from this topic |
 | `ROUTES` | Broker → Topic | Broker is responsible for routing this topic |
 | `RUNS_ON` | Application / Broker → Node | Component is hosted on this infrastructure node |
 | `CONNECTS_TO` | Node → Node | Direct network connectivity between hosts |
-| `USES` | Application → Library | App depends on this shared code module |
+| `USES` | Application / Library → Library | Component depends on this shared code module |
 
 Together these six types form **G_structural**, which Step 4 (Simulation) uses for cascade propagation. They are never modified after import.
 
 **Fan-out augmentation (Phase 2 post-step):** After all structural edges are imported, each Topic vertex is updated with:
 
 ```
-subscriber_count(t) = |{ a ∈ V_app : (a, t) ∈ SUBSCRIBES_TO }|
-publisher_count(t)  = |{ a ∈ V_app : (a, t) ∈ PUBLISHES_TO  }|
+subscriber_count(t) = |{ a ∈ V_app ∪ V_lib : (a, t) ∈ SUBSCRIBES_TO }|
+publisher_count(t)  = |{ a ∈ V_app ∪ V_lib : (a, t) ∈ PUBLISHES_TO  }|
 ```
 
 `subscriber_count` is the primary fan-out signal for single-point-of-failure analysis — a Topic with high fan-out is a natural distribution bottleneck.
@@ -199,8 +199,6 @@ MIN_WEIGHT = 0.01
 | | `MEDIUM` | 0.33 |
 | | `LOW` | 0.0 |
 
-> **Note on `CRITICAL` priority:** Some real-world input files (e.g., ADVENT datasets) may contain `"transport_priority": "critical"`. This value is not currently in the scoring table and will silently fall through to `ELSE 0.0` in the Cypher weight expression, treating the topic as if priority were `LOW`. Map `CRITICAL` to the same score as `URGENT` (1.0) before import to avoid silent weight underestimation.
-
 **Edge weight inheritance:** After topic weights are computed, structural edge weights are updated by one-pass inheritance:
 
 ```
@@ -219,11 +217,11 @@ Six derivation rules are applied, producing six `dependency_type` values:
 
 | Rule | `dependency_type` | Source Pattern | Weight |
 |------|-------------------|----------------|--------|
-| 1 | `app_to_app` | App_sub `SUBSCRIBES_TO` → Topic ← `PUBLISHES_TO` App_pub; also transitive via `USES*1..3` library chains | `max(t.weight)` over shared topics |
-| 2 | `app_to_broker` | App `PUBLISHES_TO` or `SUBSCRIBES_TO` → Topic ← `ROUTES` Broker; also transitive via `USES*1..3` chains | `max(t.weight)` over routed topics |
+| 1 | `app_to_app` | App/Lib `SUBSCRIBES_TO` → Topic ← `PUBLISHES_TO` App/Lib; also transitive via `USES*1..3` library chains | `max(t.weight)` over shared topics |
+| 2 | `app_to_broker` | App/Lib `PUBLISHES_TO` or `SUBSCRIBES_TO` → Topic ← `ROUTES` Broker; also transitive via `USES*1..3` chains | `max(t.weight)` over routed topics |
 | 3 | `node_to_node` | Lifted from Rule 1: Node_B → Node_A when their hosted apps share an `app_to_app` edge | lifted `max(d.weight)` |
 | 4 | `node_to_broker` | Lifted from Rule 2: Node → Broker when a hosted app has an `app_to_broker` edge | lifted `max(dep.weight)` |
-| 5 | `app_to_lib` | App `USES` → Library | `app.weight` (set in Phase 5, after aggregate propagation) |
+| 5 | `app_to_lib` | App/Lib `USES` → Library | `src.weight` (set in Phase 5, after aggregate propagation) |
 | 6 | `broker_to_broker` | Bidirectional colocation edge between two Brokers sharing a physical Node | `node.weight` (set in Phase 5) |
 
 > **Phase ordering note for Rules 5 and 6:** `app_to_lib` edge weights are set from `app.weight` and `broker_to_broker` edge weights are set from `node.weight`. Both of those vertex weights are computed in **Phase 5**, which runs after Phase 4. Rules 5 and 6 derivation queries therefore read placeholder weights (≈ 0.01) at derivation time; a second-pass update query in Phase 5 corrects the edge weights once vertex weights are finalized.
@@ -289,7 +287,8 @@ The hybrid formula reflects that an application's criticality is primarily bound
 
 ```
 w(lib) = min(1.0, base_w × (1 + γ × log₂(1 + DG_in)))
-         where base_w = max{ w(app) : app USES lib }
+         where base_w = max( max{ w(t) : lib PUBLISHES_TO t OR lib SUBSCRIBES_TO t },
+                             max{ w(app) : app USES lib } )
                γ      = 0.15
 ```
 
@@ -324,7 +323,8 @@ SET d.weight = coalesce(app.weight, 0.01)
 // Rule 6: broker_to_broker edges inherit the shared node's weight
 MATCH (b1:Broker)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2:Broker)
 MATCH (b1)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2)
-SET d.weight = coalesce(n.weight, 0.01)
+WITH d, max(n.weight) as node_w
+SET d.weight = coalesce(node_w, 0.01)
 ```
 
 ---
@@ -621,7 +621,7 @@ python bin/import_graph.py \
 
 # Import against a non-default Neo4j instance
 python bin/import_graph.py \
-  --input input/advent_topology.json \
+  --input input/sample_topology.json \
   --clear \
   --uri bolt://neo4j-host:7687 \
   --user admin \
@@ -654,7 +654,7 @@ On success, the console prints an import summary. The returned statistics dict (
 
 **No transactional rollback.** If a phase fails mid-way (e.g., due to a Neo4j memory error on a large topology), the database is left in a partially constructed state: entities may be present but weights and DEPENDS_ON edges absent. Re-run with `--clear` to recover.
 
-**Input validation is minimal.** Structural errors in the JSON (e.g., a `PUBLISHES_TO` edge referencing a Topic ID that does not exist) will cause the Neo4j `MATCH` in Phase 2 to silently skip that edge rather than raising an error. Validate your topology JSON against the schema above before import, particularly for hand-authored ADVENT data.
+**Input validation is minimal.** Structural errors in the JSON (e.g., a `PUBLISHES_TO` edge referencing a Topic ID that does not exist) will cause the Neo4j `MATCH` in Phase 2 to silently skip that edge rather than raising an error. Validate your topology JSON against the schema above before import.
 
 **The REST API equivalent** is `POST /api/v1/graph/import` with `ImportGraphRequest` body. The CLI and REST path share the same `ModelGraphUseCase` and produce identical Neo4j state.
 
@@ -700,7 +700,7 @@ python bin/export_graph.py \
 
 # Export from a remote Neo4j instance with verbose output
 python bin/export_graph.py \
-  --output output/advent_snapshot.json \
+  --output output/sample_snapshot.json \
   --uri bolt://neo4j-host:7687 \
   --user admin \
   --password secret \
@@ -749,10 +749,6 @@ Running `export_graph.py` followed by `import_graph.py` on the output is not a p
 | Computed `weight` properties | All five construction phases must re-run on re-import; no snapshot-based workflow |
 | `DEPENDS_ON` edges | Re-derived automatically on re-import |
 | `metadata` block | Provenance (seed, scale, domain, generation mode) is not written to export output |
-
-### Implications for ADVENT Data
-
-If an ADVENT topology is imported (with full `code_metrics` and `system_hierarchy`), exported, then re-imported into a second environment, the second import will be missing all code metrics and hierarchy data. All Q(v) scores in the second environment will use the topology-only fallback path, producing different results from the original run. Always treat the original JSON topology file (not the exported snapshot) as the canonical artifact for ADVENT.
 
 ### Roundtrip Validation Test
 
