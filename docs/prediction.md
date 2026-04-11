@@ -136,7 +136,7 @@ CDPot_topic(v) = FOC(v) × (1 − min(publisher_count_norm(v), 1))
 M(v) measures how structurally embedded a component is, making it fragile to change.
 
 ```
-M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk(v) + 0.08 × (1 − CC(v))
+M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk_enh(v) + 0.08 × (1 − CC(v))
 ```
 
 | Term | Weight | Rationale |
@@ -144,7 +144,7 @@ M(v) = 0.35 × BT(v) + 0.30 × w_out(v) + 0.15 × CQP(v) + 0.12 × CouplingRisk(
 | BT(v) | 0.35 | Betweenness — fraction of shortest dependency paths through v; the defining structural bottleneck signal |
 | w_out(v) | 0.30 | QoS-weighted out-degree — efferent coupling weighted by SLA priority; high-priority outgoing dependencies amplify change risk |
 | CQP(v) | 0.15 | Code Quality Penalty — composite of complexity, instability, and LCOM; zero for non-Application/Library nodes (formula degrades gracefully) |
-| CouplingRisk(v) | 0.12 | Instability-based coupling imbalance — peaks at 1.0 when DG_in ≈ DG_out (see [Derived Terms](#derived-terms)) |
+| CouplingRisk_enh(v) | 0.12 | Instability-based coupling imbalance — peaks at 1.0 when DG_in ≈ DG_out; intensified by `path_complexity` (see [Derived Terms](#derived-terms)) |
 | 1 − CC(v) | 0.08 | Inverse clustering coefficient — low local redundancy means each of v's connections is a unique structural coupling path |
 
 **CQP formula** (Application and Library nodes only; CQP = 0 otherwise):
@@ -242,18 +242,38 @@ CDPot_base(v) = ((RPR(v) + DG_in(v)) / 2) × (1 − min(DG_out(v) / max(DG_in(v)
 | Fan-out hub | Low | High | 0 | ≈ 0 | ≈ 0 | Wide, shallow — cascade is absorbed |
 | Isolated leaf | 0 | 0 | 0 | 0 | 0 | No cascade potential |
 
-#### CouplingRisk
+#### CouplingRisk_enh
+
+Enriches the topological instability signal with the complexity of shared topics (paths).
 
 ```
-Instability(v) = DG_out_raw(v) / (DG_in_raw(v) + DG_out_raw(v) + ε)
-CouplingRisk(v) = 1 − |2 × Instability(v) − 1|
+Instability_topo(v) = DG_out_raw(v) / (DG_in_raw(v) + DG_out_raw(v) + ε)
 
-Pure source (DG_in=0):  Instability=1.0 → CouplingRisk=0
-Pure sink  (DG_out=0):  Instability=0.0 → CouplingRisk=0
-Balanced (DG_in≈DG_out): Instability≈0.5 → CouplingRisk=1.0  (maximum fragility)
+CouplingRisk_base(v) = 1 − |2 × Instability_topo(v) − 1|
+
+CouplingRisk_enh(v) = min(1.0, CouplingRisk_base(v) × (1 + Δ × path_complexity(v)))
+
+Δ = 0.10 (COUPLING_PATH_DELTA)
+ε = 1e-9 (division guard)
 ```
 
-CouplingRisk uses raw integer counts (DG_in_raw, DG_out_raw) from M(v), not normalized values. Normalization would destroy the ratio semantics that make the instability formula meaningful.
+**Interpretation:**
+- **Pure source (DG_in=0):**  Instability=1.0 → CouplingRisk=0
+- **Pure sink  (DG_out=0):**  Instability=0.0 → CouplingRisk=0
+- **Balanced (DG_in≈DG_out):** Instability≈0.5 → CouplingRisk=1.0  (maximum fragility)
+
+The `path_complexity` term acts as an intensifier: if a node is already balanced (fragile), having multiple redundant topics per dependency further increases the structural maintenance risk due to synchronization complexity. The final value is capped at 1.0 to preserve the RMAV [0, 1] normalization.
+
+---
+
+### Rationale for Dual Instability Signals (M(v) Hardening)
+
+M(v) includes two instability-related terms that may appear redundant but capture distinct architectural risks:
+
+1. **`instability_code` (inside CQP):** Measures efferent coupling at the **static code level** (e.g., package imports, class dependencies). It identifies components that are technically fragile because their implementation depends on many other modules.
+2. **`CouplingRisk_enh` (topological):** Measures efferent coupling in the **deployment/topology graph** (e.g., USES edges, pub-sub relationships). It identifies components that are structurally fragile due to their role in the system's runtime architecture.
+
+While often correlated, they can diverge significantly (e.g., a library with high static fan-out but only one consumer in the current deployment, or an app with simple code but hundreds of pub-sub topics). Including both ensures that maintenance risk is assessed from both the software engineering and the system architecture perspectives.
 
 #### QSPOF
 

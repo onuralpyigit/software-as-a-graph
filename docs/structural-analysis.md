@@ -72,7 +72,7 @@ Every field in M(v) belongs to exactly one of three tiers. This taxonomy is the 
 |------|---------|---------|
 | **Tier 1 — RMAV inputs** | Directly feed R(v), M(v), A(v), or V(v) in Step 3 | RPR, DG_in, MPCI, FOC, BT, w_out, CC, AP_c_directed, BR, CDI, REV, RCL, w_in, PC |
 | **Tier 2 — Diagnostic** | Computed for visualization, output reports, and GNN features; do not feed RMAV formulas | PR, CL, EV, pubsub_degree, pubsub_betweenness, broker_exposure |
-| **Tier 3 — Raw / inline-derived** | Integer counts and inline-derived scalars used only within Step 3 formulas; not stored as normalized metrics | DG_in_raw, DG_out_raw, is_articulation_point, bridge_count, CDPot, CouplingRisk, QSPOF |
+| **Tier 3 — Raw / inline-derived** | Integer counts and inline-derived scalars used only within Step 3 formulas; not stored as normalized metrics | DG_in_raw, DG_out_raw, is_articulation_point, bridge_count, CDPot, CouplingRisk_enh, QSPOF |
 
 **Why PR, CL, EV are Tier 2:** The *forward* variants (PageRank, Closeness, Eigenvector) measure how much a component itself is influenced by others — they are informative for dependency visualization but do not directly capture failure propagation outward. Their reverse counterparts (RPR, RCL, REV), computed on G^T, capture how failures at v spread to v's dependents — the reliability-relevant direction. Computing both gives the full picture for dashboards while the RMAV formulas use only the reverse variants.
 
@@ -365,8 +365,8 @@ Complete M(v) field listing. Every field has a tier, a RMAV dimension (or "—" 
 | `pubsub_degree` | — | 2 | — | — | Topic participation breadth |
 | `pubsub_betweenness` | — | 2 | — | — | Topic cluster bridging |
 | `broker_exposure` | — | 2 | — | — | Infrastructure blast surface |
-| `in_degree_raw` | — | 3 | — | — | Raw integer in-degree (for CDPot, CouplingRisk) |
-| `out_degree_raw` | — | 3 | — | — | Raw integer out-degree (for CouplingRisk) |
+| `in_degree_raw` | — | 3 | — | — | Raw integer in-degree (for CDPot, CouplingRisk_enh) |
+| `out_degree_raw` | — | 3 | — | — | Raw integer out-degree (for CouplingRisk_enh) |
 | `is_articulation_point` | — | 3 | — | — | Binary AP flag (derived from AP_c_directed) |
 | `weight` | w | — | A via QSPOF | ↑ | Component QoS weight from Step 1 |
 

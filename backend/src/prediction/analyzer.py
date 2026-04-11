@@ -368,9 +368,10 @@ class QualityAnalyzer:
             R = 0.50 * foc + 0.50 * cdpot_topic
         else:
             # Standard Reliability formula (Application, Broker, Node, Library)
-            _denom = max(id_n, 1e-9)
+            # CDPot_enh: Use raw counts for depth ratio to preserve ratio semantics (Issue 7/9)
+            _raw_id = max(m.in_degree_raw, 1e-9)
             _cdpot_reach = (rpr + id_n) / 2.0
-            _cdpot_depth = 1.0 - min(od_n / _denom, 1.0)
+            _cdpot_depth = 1.0 - min(m.out_degree_raw / _raw_id, 1.0)
             
             # Amplify CDPot depth estimate via MPCI (CDPot_enh)
             _cdpot_depth = min(1.0, _cdpot_depth * (1.0 + mpci))
@@ -386,10 +387,12 @@ class QualityAnalyzer:
         w_out_n = _n(m.dependency_weight_out, "w_out")
         cqp = m.code_quality_penalty
         _eps = 1e-9
-        _instability = od_n / (id_n + od_n + _eps)
+        # Instability based on raw counts (deployment graph)
+        _raw_total = float(m.in_degree_raw + m.out_degree_raw)
+        _instability = m.out_degree_raw / (_raw_total + _eps)
         coupling_risk = 1.0 - abs(2.0 * _instability - 1.0)
-        # Enrich coupling risk with path complexity (Issue 4)
-        coupling_risk *= (1.0 + COUPLING_PATH_DELTA * m.path_complexity)
+        # Enrich coupling risk with path complexity (Issue 4/7)
+        coupling_risk = min(1.0, coupling_risk * (1.0 + COUPLING_PATH_DELTA * m.path_complexity))
         M = (
             w.m_betweenness * bt
             + getattr(w, 'm_w_out', 0.30) * w_out_n
