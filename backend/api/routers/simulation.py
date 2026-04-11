@@ -19,6 +19,7 @@ from api.models import (
 from api.dependencies import get_client
 from saag import Client
 from src.usecases import SimulationMode
+from src.core.layers import AnalysisLayer
 from api.presenters import simulation_presenter
 
 router = APIRouter(prefix="/api/v1/simulation", tags=["simulation"])
@@ -64,19 +65,21 @@ async def simulate_failure(
     """
     Run failure simulation for a target component.
     """
-    valid_layers = ["app", "infra", "mw-app", "mw-infra", "system"]
-    if request.layer not in valid_layers:
+    try:
+        layer_enum = AnalysisLayer.from_string(request.layer)
+        layer_canonical = layer_enum.value
+    except ValueError as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid layer. Must be one of: {', '.join(valid_layers)}"
+            detail=str(e)
         )
     
     try:
-        logger.info(f"Running failure simulation: target={request.target_id}, layer={request.layer}")
+        logger.info(f"Running failure simulation: target={request.target_id}, layer={layer_canonical}")
         
         result = client.simulate(
             target_id=request.target_id,
-            layer=request.layer,
+            layer=layer_canonical,
             mode="single"
         )
         
@@ -94,19 +97,21 @@ async def simulate_exhaustive(
     """
     Run exhaustive failure analysis for all components in a layer.
     """
-    valid_layers = ["app", "infra", "mw-app", "mw-infra", "system"]
-    if request.layer not in valid_layers:
+    try:
+        layer_enum = AnalysisLayer.from_string(request.layer)
+        layer_canonical = layer_enum.value
+    except ValueError as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid layer. Must be one of: {', '.join(valid_layers)}"
+            detail=str(e)
         )
     
     try:
-        logger.info(f"Running exhaustive failure analysis: layer={request.layer}")
+        logger.info(f"Running exhaustive failure analysis: layer={layer_canonical}")
         
-        results = client.simulate(layer=request.layer, mode="exhaustive")
+        results = client.simulate(layer=layer_canonical, mode="exhaustive")
         
-        return simulation_presenter.format_exhaustive_simulation_response(results, request.layer)
+        return simulation_presenter.format_exhaustive_simulation_response(results, layer_canonical)
     except Exception as e:
         logger.error(f"Exhaustive simulation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Exhaustive simulation failed: {str(e)}")
@@ -130,26 +135,16 @@ async def generate_simulation_report(
     
     Valid layers: app, infra, mw, system (or legacy: application, infrastructure, complete)
     """
-    # Map legacy layer names to canonical names
-    layer_aliases = {
-        "application": "app",
-        "infrastructure": "infra",
-        "app_broker": "mw",
-        "complete": "system",
-    }
-    
-    valid_layers = ["app", "infra", "mw", "system"]
     mapped_layers = []
-    
     for layer in request.layers:
-        canonical_layer = layer_aliases.get(layer, layer)
-        
-        if canonical_layer not in valid_layers:
+        try:
+            layer_enum = AnalysisLayer.from_string(layer)
+            mapped_layers.append(layer_enum.value)
+        except ValueError as e:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid layer '{layer}'. Must be one of: {', '.join(valid_layers + list(layer_aliases.keys()))}"
+                detail=str(e)
             )
-        mapped_layers.append(canonical_layer)
     
     try:
         logger.info(f"Generating simulation report: layers={mapped_layers}")

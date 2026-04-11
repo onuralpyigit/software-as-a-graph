@@ -646,12 +646,12 @@ class EventSimulationRequest(GraphRequestWithCredentials):
 
 class FailureSimulationRequest(GraphRequestWithCredentials):
     target_id: str = Field(..., description="Target component ID to simulate failure")
-    layer: str = Field(default="system", description="Analysis layer: app, infra, mw-app, mw-infra, system")
+    layer: str = Field(default="system", description="Analysis layer: app, infra, mw, system (aliases supported)")
     cascade_probability: float = Field(default=1.0, description="Cascade propagation probability (0.0-1.0)")
 
 
 class ExhaustiveSimulationRequest(GraphRequestWithCredentials):
-    layer: str = Field(default="system", description="Analysis layer: app, infra, mw-app, mw-infra, system")
+    layer: str = Field(default="system", description="Analysis layer: app, infra, mw, system (aliases supported)")
     cascade_probability: float = Field(default=1.0, description="Cascade propagation probability (0.0-1.0)")
 
 
