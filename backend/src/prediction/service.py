@@ -62,11 +62,11 @@ class PredictionService:
             sensitivity_noise=sensitivity_noise,
         )
 
-    def detect_problems(self, quality_result: QualityAnalysisResult) -> List[DetectedProblem]:
+    def detect_problems(self, quality_result: QualityAnalysisResult, active_patterns: Optional[List[str]] = None) -> List[DetectedProblem]:
         """
         Detect architectural problems from quality results.
         """
-        detector = ProblemDetector()
+        detector = ProblemDetector(active_patterns=active_patterns)
         return detector.detect(quality_result)
 
     def summarize_problems(self, problems: List[DetectedProblem]) -> ProblemSummary:

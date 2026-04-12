@@ -43,7 +43,17 @@ class ComponentFacade:
     @property
     def name(self) -> str:
         """The logical name of the component."""
-        return getattr(self._inner.structural, 'name', self.id) if getattr(self._inner, 'structural', None) else self.id
+        return getattr(self._inner.structural, 'name', self.id) if hasattr(self._inner, 'structural') and self._inner.structural else self.id
+
+    @property
+    def blast_radius(self) -> int:
+        """How many nodes become unreachable if this node is removed."""
+        return getattr(self._inner.structural, 'blast_radius', 0) if hasattr(self._inner, 'structural') and self._inner.structural else 0
+
+    @property
+    def cascade_depth(self) -> int:
+        """Length of the longest reachable propagation path from this node."""
+        return getattr(self._inner.structural, 'cascade_depth', 0) if hasattr(self._inner, 'structural') and self._inner.structural else 0
 
     @property
     def criticality_level(self) -> str:
@@ -81,7 +91,9 @@ class ComponentFacade:
             "rmav_score": self.rmav_score,
             "criticality_level": self.criticality_level,
             "criticality_levels": self.criticality_levels,
-            "scores": self.scores
+            "scores": self.scores,
+            "blast_radius": self.blast_radius,
+            "cascade_depth": self.cascade_depth
         }
 
 

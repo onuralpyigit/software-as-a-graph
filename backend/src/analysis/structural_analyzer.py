@@ -238,8 +238,26 @@ class StructuralAnalyzer:
                 foc[n] = G.nodes[n].get("subscriber_count", 0) / max_sub if max_sub > 0 else 0.0
         # For non-topic nodes, FOC stays 0.0 by default in StructuralMetrics
 
-        # --- AP_c_directed & CDI (Tier 1 New - Migrated from QualityAnalyzer) ---
+        # --- Continuous AP & CDI & Propagation Metrics ---
         ap_scores = self._compute_continuous_ap_scores(G)
+        
+        # Blast radius and cascade depth
+        blast_radius: Dict[str, int] = {}
+        cascade_depth: Dict[str, int] = {}
+        for nid in G.nodes:
+            desc = nx.descendants(G, nid)
+            blast_radius[nid] = len(desc)
+            
+            # Ego-subgraph longest path (cascade depth)
+            ego_nodes = desc | {nid}
+            ego_G = G.subgraph(ego_nodes)
+            try:
+                # If it's a DAG, use the efficient method
+                cascade_depth[nid] = nx.dag_longest_path_length(ego_G)
+            except nx.NetworkXUnfeasible:
+                # If cycles exist, fall back to BFS-based depth (max shortest path from root)
+                depths = nx.single_source_shortest_path_length(ego_G, nid)
+                cascade_depth[nid] = max(depths.values()) if depths else 0
 
         # --- Resilience (on undirected view) ---
         U = G.to_undirected()
@@ -322,6 +340,8 @@ class StructuralAnalyzer:
                 is_articulation_point=nid in art_points,
                 ap_c_directed=ap_scores.get(nid, {}).get("ap_c_dir", 0.0),
                 cdi=ap_scores.get(nid, {}).get("cdi", 0.0),
+                blast_radius=blast_radius.get(nid, 0),
+                cascade_depth=cascade_depth.get(nid, 0),
                 is_isolated=(raw_in + raw_out) == 0,
                 bridge_count=bc,
                 bridge_ratio=bc / total_raw if total_raw > 0 else 0.0,

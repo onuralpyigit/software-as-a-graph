@@ -638,24 +638,25 @@ class ConsoleDisplay:
 
 
     def display_top_critical_components(self, components: List[Any], n: int = 10) -> None:
-        """Display top-N critical components with their RMAV breakdown."""
+        """Display top-N critical components with their RMAV breakdown and cascade metrics."""
         if not components:
             return
             
         self.print_subheader(f"Top {min(len(components), n)} Critical Components (Ensemble)")
         
-        header = f"  {'Rank':<5} {'Component':<30} {'Score':>7} {'Level':<10} {'R':>6} {'M':>6} {'A':>6} {'V':>6}"
+        header = f"  {'Rank':<5} {'Component':<25} {'Score':>7} {'Lvl':<9} {'R':>5} {'M':>5} {'A':>5} {'V':>5} {'Dom':<4} {'B/D':<6} {'S'}"
         print(self.colored(header, Colors.WHITE, bold=True))
-        print("  " + "-" * 79)
+        print("  " + "-" * 88)
         
         for i, s in enumerate(components[:n], 1):
             # Polymorphic attribute access (handles internal model and saag SDK facade)
             level = getattr(s, "criticality_level", "MINIMAL")
             color = self.level_color(level)
             
-            comp_name = getattr(s, "component", getattr(s, "id", "unknown"))
-            if len(comp_name) > 29:
-                comp_name = comp_name[:26] + "..."
+            comp_id = getattr(s, "id", "unknown")
+            comp_name = getattr(s, "component", comp_id)
+            if len(comp_name) > 24:
+                comp_name = comp_name[:21] + "..."
             
             # Scores (facade uses .scores dict, internal uses direct attributes)
             if hasattr(s, "scores") and isinstance(s.scores, dict):
@@ -670,13 +671,39 @@ class ConsoleDisplay:
                 m_s = getattr(s, "maintainability_score", 0.0)
                 a_s = getattr(s, "availability_score", 0.0)
                 v_s = getattr(s, "vulnerability_score", 0.0)
+            
+            # Dominant dimension logic
+            dims = {"R": r_s, "M": m_s, "A": a_s, "V": v_s}
+            dominant = max(dims, key=dims.get)
+            
+            # Structural info (blast radius, depth, SPOF)
+            blast = 0
+            depth = 0
+            is_spof = False
+            
+            if hasattr(s, "structural") and s.structural:
+                # saag facade
+                blast = getattr(s.structural, "blast_radius", 0)
+                depth = getattr(s.structural, "cascade_depth", 0)
+                is_spof = getattr(s.structural, "is_articulation_point", False)
+            elif hasattr(s, "blast_radius"):
+                # GNN NodeScore direct item
+                blast = s.blast_radius
+                depth = s.cascade_depth
+                is_spof = getattr(s, "is_articulation_point", False)
                 
+            spof_flag = self.colored("●", Colors.RED) if is_spof else " "
+            bd_str = f"{blast}/{depth}"
+
             print(
-                f"  {i:<5} {comp_name:<30} "
+                f"  {i:<5} {comp_name:<25} "
                 f"{self.colored(f'{comp_s:>7.4f}', color)} "
-                f"{self.colored(f'{level[:10]:<10}', color)} "
-                f"{r_s:>6.3f} {m_s:>6.3f} "
-                f"{a_s:>6.3f} {v_s:>6.3f}"
+                f"{self.colored(f'{level[:8]:<9}', color)} "
+                f"{r_s:>5.2f} {m_s:>5.2f} "
+                f"{a_s:>5.2f} {v_s:>5.2f} "
+                f"{self.colored(dominant, Colors.CYAN):<4} "
+                f"{bd_str:<6} "
+                f"{spof_flag}"
             )
 
     def display_training_summary(self, summary: Dict[str, Any]) -> None:

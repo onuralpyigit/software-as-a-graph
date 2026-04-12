@@ -25,27 +25,49 @@ def main():
     
     parser.add_argument("--equal-weights", action="store_true", help="Use equal 0.25 weights for all Q(v) dimensions (baseline)")
     parser.add_argument("--ahp-shrinkage", type=float, default=0.7, help="Shrinkage factor λ for AHP weights [0, 1] (default: 0.7)")
+    parser.add_argument("--detect-problems", action="store_true", default=True, help="Run anti-pattern detector on prediction results (default: True)")
+    parser.add_argument("--no-detect-problems", action="store_false", dest="detect_problems", help="Disable anti-pattern detection")
     
     add_neo4j_args(parser)
     add_common_args(parser)
     args = parser.parse_args()
-    display.print_header(f"GNN Prediction: {args.layer.upper()} Layer")
+    setup_logging(args)
+    
     client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
     
-    # Predict relies on structural analysis
-    display.print_step("Running structural analysis...")
-    analysis = client.analyze(layer=args.layer, equal_weights=args.equal_weights)
-    
-    display.print_step("Running GNN inference...")
-    result = client.predict(analysis, equal_weights=args.equal_weights, ahp_shrinkage=args.ahp_shrinkage)
-    
-    display.display_prediction_summary(result)
-    
-    if args.output:
-        result.save(args.output)
-        display.print_success(f"Prediction saved to {args.output}")
-    else:
-        display.print_success("Prediction completed successfully.")
+    layers = [args.layer]
+    if args.layer.lower() == "all":
+        layers = ["app", "infra", "mw", "system"]
+    elif "," in args.layer:
+        layers = [l.strip() for l in args.layer.split(",") if l.strip()]
+
+    for layer in layers:
+        display.print_header(f"GNN Prediction: {layer.upper()} Layer")
+        
+        # Predict relies on structural analysis
+        display.print_step(f"Running structural analysis for {layer}...")
+        client.analyze(layer=layer, equal_weights=args.equal_weights)
+        
+        display.print_step(f"Running GNN inference for {layer}...")
+        result = client.predict(layer=layer, equal_weights=args.equal_weights, ahp_shrinkage=args.ahp_shrinkage)
+        
+        display.display_prediction_summary(result)
+        
+        if args.detect_problems:
+            display.print_step(f"Scanning {layer} for architectural anti-patterns...")
+            problems = client.detect_antipatterns(result)
+            total_components = len(result.all_components)
+            display.display_antipatterns(problems, [layer], total_components)
+
+        if args.output:
+            out_path = args.output
+            if len(layers) > 1:
+                base, ext = out_path.rsplit('.', 1) if '.' in out_path else (out_path, 'json')
+                out_path = f"{base}_{layer}.{ext}"
+            result.save(out_path)
+            display.print_success(f"Prediction saved to {out_path}")
+        else:
+            display.print_success(f"Prediction for {layer} completed successfully.")
 
 if __name__ == "__main__":
     main()

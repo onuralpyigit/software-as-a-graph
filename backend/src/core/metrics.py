@@ -55,6 +55,8 @@ class StructuralMetrics:
     bridge_ratio: float = 0.0            # Fraction of edges that are bridges
     ap_c_directed: float = 0.0           # Directed SPOF severity
     cdi: float = 0.0                     # Connectivity Degradation Index
+    blast_radius: int = 0                # Number of nodes that become unreachable if this node is removed
+    cascade_depth: int = 0               # Longest failure propagation path from this node
     
     # === Pub-Sub Topology Metrics ===
     pubsub_degree: float = 0.0           # Topics this app publishes to OR subscribes to

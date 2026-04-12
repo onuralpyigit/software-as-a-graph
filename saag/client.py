@@ -65,11 +65,11 @@ class Client:
         
         return PredictionResult(quality, problems)
 
-    def detect_antipatterns(self, prediction: PredictionResult) -> List[Any]:
+    def detect_antipatterns(self, prediction: PredictionResult, active_patterns: Optional[List[str]] = None) -> List[Any]:
         """Detect architectural anti-patterns from the GNN prediction results."""
         from src.prediction.service import PredictionService
         service = PredictionService()
-        return service.detect_problems(prediction.raw)
+        return service.detect_problems(prediction.raw, active_patterns=active_patterns)
 
     def simulate(self, layer: str = "system", mode: str = "exhaustive", target_id: Optional[str] = None, **kwargs) -> Any:
         """Run graph simulations (failure analysis, event propagation)."""
