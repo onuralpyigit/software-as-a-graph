@@ -44,6 +44,8 @@ class LayerDataCollector:
         data = LayerData(layer=layer, name=layer_def["name"])
 
         # 1. Structural & Quality Analysis
+        # Cache the analysis result so downstream steps (anti-pattern detection)
+        # do not need to re-invoke the expensive analyze_layer() call.
         analysis = self._collect_analysis_data(data, layer)
 
         # 2. Simulation Results
@@ -53,8 +55,8 @@ class LayerDataCollector:
         if include_validation:
             self._collect_validation_data(data, layer)
 
-        # 4. Anti-Patterns
-        self._collect_antipattern_data(data, layer, antipatterns_file)
+        # 4. Anti-Patterns — pass cached analysis to avoid a second analyze call
+        self._collect_antipattern_data(data, layer, antipatterns_file, analysis)
 
         # 5. Build enriched network data
         if analysis:
@@ -62,51 +64,6 @@ class LayerDataCollector:
 
         return data
 
-    def _collect_component_details(self, result: Any, scatter_data: List[Tuple], smells: Dict[str, List[str]] = None) -> List[ComponentDetail]:
-        """Collect detailed component information."""
-        details = []
-        smells = smells or {}
-        
-        def safe_float(val: Any) -> float:
-            try:
-                # Handle MagicMocks in tests
-                if hasattr(val, '_mock_return_value') and not isinstance(val, (int, float)):
-                    return 0.0
-                return float(val) if val is not None else 0.0
-            except (TypeError, ValueError):
-                return 0.0
-
-        for comp in result.quality.components:
-            # Extract basic quality
-            overall = safe_float(comp.scores.overall)
-            impact = safe_float(getattr(comp, 'impact', 0.0))
-            
-            detail = ComponentDetail(
-                id=comp.id,
-                name=getattr(comp.structural, 'name', comp.id),
-                type=comp.type,
-                reliability=safe_float(comp.scores.reliability),
-                maintainability=safe_float(comp.scores.maintainability),
-                availability=safe_float(comp.scores.availability),
-                vulnerability=safe_float(comp.scores.vulnerability),
-                overall=overall,
-                level=getattr(comp.levels.overall, 'name', 'MINIMAL'),
-                impact=impact,
-                anti_patterns=smells.get(comp.id, [])
-            )
-            
-            # Enrich with MPCI, FOC, SPOF if available in analysis
-            detail.mpci = safe_float(getattr(comp.metrics, 'mpci', 0.0)) # Corrected from comp.scores to comp.metrics
-            detail.foc = safe_float(getattr(comp.metrics, 'foc', 0.0)) # Corrected from comp.scores to comp.metrics
-            detail.spof = bool(getattr(comp.structural, 'is_articulation_point', False)) # Corrected from is_spof to is_articulation_point
-            
-            details.append(detail)
-            
-            # Populate scatter data if Q > 0 and it has impact
-            if overall > 0:
-                scatter_data.append((detail.id, overall, impact, detail.level))
-                
-        return details
 
     def _collect_analysis_data(self, data: LayerData, layer: str) -> None:
         """
@@ -190,8 +147,10 @@ class LayerDataCollector:
                 )
                 data.component_details.append(detail)
                 
-                # Populate scatter data (Predicted Q vs Ground Truth I)
-                data.scatter_data.append([c.id, overall, 0.0, level])
+                # Populate scatter data (Predicted Q vs Ground Truth I) as tuples
+                # to guarantee immutable structure. Impact (index 2) is updated
+                # to the real simulation value in _collect_simulation_data().
+                data.scatter_data.append((c.id, overall, 0.0, level))
 
             data.component_names = {
                 c.id: c.structural.name
@@ -234,11 +193,12 @@ class LayerDataCollector:
                     if detail.id in impact_map:
                         detail.impact = impact_map[detail.id]
                 
-                # Update scatter data with actual impact (Ground Truth)
-                for i, scatter_item in enumerate(data.scatter_data):
-                    c_id = scatter_item[0]
-                    if c_id in impact_map:
-                        data.scatter_data[i][2] = impact_map[c_id]
+                # Update scatter data with actual simulation impact (Ground Truth).
+                # scatter_data items are tuples, so rebuild the entry.
+                data.scatter_data = [
+                    (cid, q, impact_map.get(cid, i_val), lvl)
+                    for cid, q, i_val, lvl in data.scatter_data
+                ]
 
         except Exception as e:
             self.logger.error(f"Simulation failed for layer {layer}: {e}")
@@ -299,9 +259,19 @@ class LayerDataCollector:
         except Exception as e:
             self.logger.error(f"Validation failed for layer {layer}: {e}")
 
-    def _collect_antipattern_data(self, data: LayerData, layer: str, antipatterns_file: Optional[str] = None) -> None:
+    def _collect_antipattern_data(
+        self,
+        data: LayerData,
+        layer: str,
+        antipatterns_file: Optional[str] = None,
+        cached_analysis: Any = None,
+    ) -> None:
         """
         Run anti-pattern detection or load from file.
+
+        cached_analysis: the LayerAnalysisResult already obtained by
+        _collect_analysis_data(). Passed in to avoid re-invoking
+        analyze_layer() (which is expensive) when no file is provided.
         """
         import json
         from pathlib import Path
@@ -326,11 +296,16 @@ class LayerDataCollector:
                 
                 data.anti_patterns = smells
             else:
-                # Real-time detection fallback
-                # Re-running analysis to get the full result for detector
-                analysis_result = self.analysis_service.analyze_layer(layer)
+                # Real-time detection fallback — use the cached analysis result
+                # to avoid a second round-trip through analyze_layer().
+                if cached_analysis is None:
+                    self.logger.warning(
+                        "No cached analysis for anti-pattern detection; "
+                        "re-running analyze_layer() as fallback."
+                    )
+                    cached_analysis = self.analysis_service.analyze_layer(layer)
                 detector = AntiPatternDetector()
-                detected = detector.detect(analysis_result.quality, layer)
+                detected = detector.detect(cached_analysis.quality, layer)
                 smells = [s.to_dict() for s in detected]
                 data.anti_patterns = smells
             data.problems_count = len(smells)
@@ -354,18 +329,6 @@ class LayerDataCollector:
         except Exception as e:
             self.logger.error(f"Anti-pattern detection failed for layer {layer}: {e}")
 
-    def _build_scatter_data(self, data: LayerData) -> None:
-        """
-        Build Q(v) vs I(v) scatter plot data from component details.
-        """
-        data.scatter_data = []
-        for detail in data.component_details:
-            q_score = detail.overall
-            i_score = detail.impact
-            if q_score == q_score and q_score > 0:  # NaN check
-                data.scatter_data.append(
-                    (detail.id, q_score, i_score, detail.level)
-                )
 
     def _build_network_data(self, data: LayerData, analysis: Any) -> None:
         """Build network nodes and edges for interactive visualization."""

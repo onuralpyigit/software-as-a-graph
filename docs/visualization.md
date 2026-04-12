@@ -14,11 +14,15 @@
    - [Section 1 — Executive Overview](#section-1--executive-overview)
    - [Section 2 — Layer Comparison](#section-2--layer-comparison)
    - [Section 3 — Component Details Table](#section-3--component-details-table)
-   - [Section 4 — Correlation Scatter Plots](#section-4--correlation-scatter-plots)
+   - [Section 3.5 — Architectural Explanations](#section-35--architectural-explanations)
+   - [Section 4 — Validation Diagnostics](#section-4--validation-diagnostics)
    - [Section 5 — Interactive Network Graph](#section-5--interactive-network-graph)
    - [Section 6 — Dependency Matrix](#section-6--dependency-matrix)
    - [Section 7 — Validation Report](#section-7--validation-report)
-   - [Section 8 — Anti-Pattern Catalog](#section-8--anti-pattern-catalog)
+   - [Section 8 — Multi-Seed Stability](#section-8--multi-seed-stability)
+   - [Section 9 — Anti-Pattern Catalog](#section-9--anti-pattern-catalog)
+   - [Section 9a — Cascade Risk / QoS Ablation](#section-9a--cascade-risk--qos-ablation)
+   - [Section 10 — MIL-STD-498 Hierarchy](#section-10--mil-std-498-hierarchy)
 4. [Visual Encoding Reference](#visual-encoding-reference)
 5. [Genieus: Live Web Application](#genieus-live-web-application)
 6. [Anti-Pattern Detection and CI/CD Integration](#anti-pattern-detection-and-cicd-integration)
@@ -61,7 +65,7 @@ Both surfaces share the same visual encoding, the same data source (Neo4j + pipe
 
 ## Static HTML Dashboard
 
-The dashboard is structured as eight sections. All sections except Section 5 (network graph) render quickly even at xlarge scale. Sections are navigable via a fixed top navbar.
+The dashboard is structured as ten sections (plus one conditional sub-section). All sections except Section 5 (network graph) render quickly even at xlarge scale. Sections are navigable via a fixed top navbar.
 
 ### Section 1 — Executive Overview
 
@@ -88,32 +92,41 @@ A sortable, filterable table with one row per component in the selected layer. C
 
 | Column | Content |
 |--------|---------|
-| Component ID | Unique identifier |
+| ID | Component identifier |
 | Name | Human-readable name |
 | Type | Application / Broker / Topic / Node / Library |
-| R(v) | Reliability score |
-| M(v) | Maintainability score |
-| A(v) | Availability score |
-| V(v) | Vulnerability score |
 | Q(v) | Composite criticality score |
 | Level | CRITICAL / HIGH / MEDIUM / LOW / MINIMAL (coloured badge) |
-| SPOF | ✓ if AP_c_directed > 0 |
-| MPCI | Multi-path coupling index value (non-zero = multi-channel coupling) |
-| Pattern | RMAV pattern name from CriticalityProfile (e.g. "Total Hub", "SPOF", "Bottleneck") |
-| Anti-patterns | Comma-separated list of detected catalog IDs (e.g. "SPOF, GOD") |
-| I(v) | Simulated impact score (when simulation has been run) |
+| Impact | Simulation-derived I(v) |
+| R | Reliability score |
+| M | Maintainability score |
+| A | Availability score |
+| V | Vulnerability score |
+| RMAV | AHP-weighted dimension bar |
+| SPOF | SPOF badge if AP_c_directed > 0 |
 
-**Filter controls:** Level dropdown (show only CRITICAL/HIGH), Type filter, SPOF-only toggle, anti-pattern filter. Default sort: descending Q(v).
+**Filter controls:** Level dropdown (show only CRITICAL/HIGH), Type filter, free-text search. Default sort: descending Q(v).
+
+Below the table, an **AHP-weighted RMAV stacked bar chart** shows the per-dimension contribution to Q(v) for the top-10 components.
 
 **MPCI column guidance:** A non-zero MPCI identifies the "Multi-path Sink" pattern introduced in Step 3. These components have multiple independent failure vectors from the same dependents. Sorting by MPCI descending surfaces the highest multi-channel coupling risk. Components with MPCI > 0.10 warrant investigation of their topic sharing structure.
 
-### Section 4 — Correlation Scatter Plots
+### Section 3.5 — Architectural Explanations
 
-**Primary scatter: Q(v) vs I(v)**
+Rendered only when the analysis service produces a system-level explanation (e.g. when `--explain` is passed to `analyze_graph.py`). Shows a card per component with automated risk narrative and triage guidance derived from the RMAV pattern match.
+
+
+### Section 4 — Validation Diagnostics
+
+**Composite scatter: Q*(v) vs I*(v)**
 
 The central visual proof of the methodology's claim. Each point is a component; horizontal axis = Q(v), vertical axis = I(v). Points near the diagonal indicate good prediction. Points in the upper-left quadrant (high I, low Q) are false negatives — critically impactful components the model underrated. Points in the lower-right (high Q, low I) are false positives.
 
-Components are colour-coded by their simulation-derived I-criticality level. The Spearman ρ and its bootstrap 95% CI are displayed on the chart.
+Components are colour-coded by their simulation-derived I-criticality level. The Spearman ρ, its bootstrap 95% CI band, and an optional CI ribbon around the diagonal are displayed on the chart.
+
+**Per-dimension ρ bars:**
+
+A horizontal progress-bar panel immediately below the main scatter. Shows Spearman ρ for each of A, R, M, V and optionally the Infrastructure dimension. Bars use RMAV semantic colours (A=coral, R=purple, M=teal, V=pink). Bars are clamped to [0, 100 %] — negative ρ is displayed as 0 % width with a red value label.
 
 **Per-dimension scatter plots (when simulation has been run):**
 
@@ -126,11 +139,7 @@ Four additional scatter plots, one per RMAV dimension, using the dimension-speci
 | Availability | A(v) | IA(v) | Do SPOF predictions match connectivity disruption? |
 | Vulnerability | V(v) | IV(v) | Do security exposure predictions match compromise reach? |
 
-The per-dimension scatter plots are the most diagnostic view for understanding which RMAV dimension is driving the overall correlation and which dimensions have systematic bias. A Reliability scatter that is tight but a Vulnerability scatter that is diffuse tells an architect that the topology is a good predictor of cascade risk but a weaker predictor of security exposure — useful for deciding where runtime monitoring would add the most complementary signal.
-
-**Composite scatter: Q*(v) vs I*(v)**
-
-A fifth scatter showing the composite prediction against the per-dimension composite ground truth (I*(v) = equal-weighted average of IR, IM, IA, IV). Displays the Predictive Gain PG alongside ρ.
+The per-dimension scatter plots are the most diagnostic view for understanding which RMAV dimension is driving the overall correlation and which dimensions have systematic bias.
 
 ### Section 5 — Interactive Network Graph
 
@@ -169,47 +178,36 @@ The colour intensity of each cell encodes the QoS-derived edge weight w(e): dark
 
 ### Section 7 — Validation Report
 
-The validation report answers: "Can I trust the Q(v) predictions in this dashboard?" It is organized in four sub-panels.
+The validation report answers: "Can I trust the Q(v) predictions in this dashboard?" It is organized in one metrics box.
 
-**Sub-panel 1 — Primary gates (all must pass for overall PASS):**
+**Methodology validation gates (G1–G4):**
 
 | Gate | Metric | Threshold | Result |
 |------|--------|-----------|--------|
-| G1 | Spearman ρ(Q, I) | ≥ 0.80 | ✓/✗ |
-| G2 | p-value | ≤ 0.05 | ✓/✗ |
-| G3 | F1-Score | ≥ 0.90 | ✓/✗ |
-| G4 | Top-5 Overlap | ≥ 0.60 | ✓/✗ |
-
-**Sub-panel 2 — Secondary gates and reported metrics:**
-
-All metrics from the validation output with their values. RMSE (≤ 0.25), Kendall τ, Pearson r, Precision, Recall, Cohen's κ, Top-10 Overlap, NDCG@K, MAE. Predictive Gain PG displayed prominently: a positive PG confirms the four-dimension RMAV decomposition adds value beyond any single dimension alone.
-
-**Sub-panel 3 — Per-dimension Spearman ρ:**
-
-A four-row table comparing each dimension's ρ against its target:
-
-| Dimension | ρ | Ground Truth | Target | Gate |
-|-----------|---|-------------|--------|------|
-| Reliability | ρ(R, IR) | IR(v) | ≥ 0.75 | ✓/✗ |
-| Maintainability | ρ(M, IM) | IM(v) | ≥ 0.72 | ✓/✗ |
-| Availability | ρ(A, IA) | IA(v) | ≥ 0.82 | ✓/✗ |
-| Vulnerability | ρ(V, IV) | IV(v) | ≥ 0.70 | ✓/✗ |
-
-**Sub-panel 4 — Specialist metrics:**
-
-Selected specialist metrics per dimension that reveal diagnostic patterns invisible in the overall ρ:
-
-| Metric | Value | Target | What it tests |
-|--------|-------|--------|--------------|
-| CCR@5 | — | ≥ 0.80 | Top-5 cascade propagators captured |
-| SPOF_F1 | — | ≥ 0.90 | SPOF classification accuracy |
-| AHCR@5 | — | ≥ 0.70 | Top-5 attack targets captured |
-| COCR@5 | — | ≥ 0.75 | Top-5 change-fragile components captured |
-| CDCC | — | ≤ 0.40 | A/V orthogonality (lower = more orthogonal) |
+| G1 | Spearman ρ(Q, I) | > 0.7 | ✓/✗ |
+| G2 | F1-Score | > 0.6 | ✓/✗ |
+| G3 | Top-K precision | > 0.5 | ✓/✗ |
+| G4 | Top-5 Overlap | > 0.6 | ✓/✗ |
 
 If any primary gate fails, each sub-panel provides an interpretation hint (e.g., "ρ(A, IA) below target — check AP_c_directed storage in Step 2").
 
-### Section 8 — Anti-Pattern Catalog
+### Section 8 — Multi-Seed Stability
+
+Rendered when `--multi-seed` is given (with one or more validation JSON paths). Shows:
+
+- **KPI cards**: Mean ρ, Min ρ, Max ρ, and seed count.
+- **Stability line chart**: Spearman ρ (solid purple) and optionally F1 (dashed green) over the seed labels. A tight range indicates the prediction is robust to graph topology variation.
+
+```bash
+# Generate stability panel from five pre-validated seeds
+python bin/visualize_graph.py --layer app \
+    --multi-seed results/val_s42.json results/val_s123.json results/val_s456.json \
+    --output output/dashboard_stability.html
+```
+
+> This section is the primary evidence for the multi-seed reproducibility claim in Definition G5 / §6.2 Section 8 of the thesis.
+
+### Section 9 — Anti-Pattern Catalog
 
 A dedicated dashboard section surfacing the results of `detect_antipatterns.py`. Organized in three expandable severity tiers.
 
@@ -245,6 +243,49 @@ For each detected instance the section shows: pattern name and severity badge, t
 > **Note on TOPIC_FANOUT:** This pattern is newly visible after Step 1's fan-out augmentation (subscriber_count on Topic nodes) and Step 2's FOC metric. Topics that were previously invisible in the DEPENDS_ON graph now carry a measurable blast relay signal. A TOPIC_FANOUT detection means the topic has more subscribers than its 75th-percentile peer — it is a structurally exceptional distribution point.
 
 > **Note on CHATTY_PAIR:** This pattern uses the `path_count` attribute on DEPENDS_ON edges introduced in Step 1. Two applications that share three or more topics have MPCI > 0 on each other's in-degree, identifying them as multi-channel coupled. The detection threshold is path_count ≥ 3 on any single DEPENDS_ON edge.
+
+### Section 9a — Cascade Risk / QoS Ablation
+
+Rendered when `--cascade-file` is given. Shows the QoS-enriched cascade risk contribution — the primary novel Middleware 2026 claim.
+
+**Stat cards:**
+
+| Card | Content |
+|------|---------|
+| QoS Gini coefficient | Heterogeneity of QoS reliability across all topics (higher = more diverse) |
+| Wilcoxon p-value | Statistical significance of QoS enrichment vs topology-only (p < 0.05 = significant) |
+| Δρ (enrichment) | Spearman ρ gain from adding QoS weighting to the cascade scorer |
+
+**Dual horizontal bar chart:** For each of the top-12 components, two bars side by side:
+- **Grey**: topology-only cascade risk baseline.
+- **Purple**: QoS-enriched cascade risk score.
+
+Components downstream of `RELIABLE` / tight-deadline topics appear with a larger purple-to-grey ratio, visually identifying where QoS topology amplifies blast radius beyond the structural prediction.
+
+```bash
+# Generate cascade ablation results then embed in dashboard
+python tools/qos_ablation_experiment.py --layer mw --output results/cascade.json
+python bin/visualize_graph.py --layer system \
+    --cascade-file results/cascade.json \
+    --output output/dashboard_cascade.html
+```
+
+### Section 10 — MIL-STD-498 Hierarchy
+
+Rendered when the analysis service produces hierarchy data (requires structurally grounded hierarchy assignment — not random pool selection). Shows a recursive tree:
+
+```
+CSS  (system)   BPA_β rollup
+├── CSCI A       CBCI: 0.42   Q = 0.731
+│   ├── CSC A1                 Q = 0.821
+│   │   └── CSU sensor_fusion  Q = 0.840
+│   └── CSC A2                 Q = 0.642
+└── CSCI B       CBCI: 0.18   Q = 0.581
+```
+
+**CBCI (Cross-Boundary Coupling Index)** at CSCI level quantifies how tightly coupled a subsystem is to its neighbours. High CBCI (> 0.5) signals an architectural modularity violation — the subsystem boundary does not provide effective isolation.
+
+This section is relevant for MIL-STD-498 compliance reviews and for projects that need to demonstrate subsystem independence to an airworthiness or certification authority.
 
 ---
 
@@ -458,6 +499,8 @@ For system-layer analysis with all five node types (Application, Library, Broker
 
 ```bash
 # ─── Standard dashboard generation ───────────────────────────────────────────
+# --layer accepts comma-separated values; --layers is an explicit alias
+python bin/visualize_graph.py --layer app,system --output output/dashboard.html
 python bin/visualize_graph.py --layers app,system --output output/dashboard.html
 
 # ─── With anti-pattern report ─────────────────────────────────────────────────
@@ -467,8 +510,14 @@ python bin/visualize_graph.py \
     --antipatterns results/antipatterns.json \
     --output output/dashboard.html
 
-# ─── Open immediately in browser ──────────────────────────────────────────────
-python bin/visualize_graph.py --layers app --open
+# ─── With QoS cascade risk (§9a) ──────────────────────────────────────────────
+python tools/qos_ablation_experiment.py --layer mw --output results/cascade.json
+python bin/visualize_graph.py --layer system \
+    --cascade-file results/cascade.json \
+    --output output/dashboard_cascade.html
+
+# ─── Open immediately in browser (-b, not -o which is --output) ───────────────
+python bin/visualize_graph.py --layer app --open
 
 # ─── Skip network graph (large systems, > 80 components) ─────────────────────
 python bin/visualize_graph.py --layers system --no-network --output output/dashboard.html
@@ -480,7 +529,7 @@ python bin/run.py --all --layer app --open
 python bin/detect_antipatterns.py --layer system --severity critical,high
 # exit code 2 → CI step fails → deployment blocked
 
-# ─── Multi-seed validation + dashboard ───────────────────────────────────────
+# ─── Multi-seed validation + dashboard (§8 stability panel) ───────────────────
 for seed in 42 123 456 789 2024; do
     python bin/generate_graph.py --scale medium --seed $seed --output input/s${seed}.json
     python bin/import_graph.py --input input/s${seed}.json --clear
@@ -492,8 +541,13 @@ for seed in 42 123 456 789 2024; do
                            --output results/val_s${seed}.json
 done
 python bin/multi_seed_summary.py results/val_s*.json
-python bin/visualize_graph.py --layers app --multi-seed results/val_s*.json \
+# Pass expanded glob paths to --multi-seed
+python bin/visualize_graph.py --layers app \
+    --multi-seed results/val_s42.json results/val_s123.json results/val_s456.json results/val_s789.json results/val_s2024.json \
     --output output/dashboard_multiseed.html
+
+# ─── Demo mode (no Neo4j) — smoke tests all chart paths ──────────────────────
+python bin/visualize_graph.py --demo --open
 ```
 
 ---
