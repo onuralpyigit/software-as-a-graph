@@ -1,608 +1,848 @@
-# Step 4: Simulation
+# Failure Simulation
 
-**Inject faults into the system graph to generate proxy ground-truth impact scores for validating the topology-based predictions from Step 3.**
-
-← [Step 3: Prediction](prediction.md) | → [Step 5: Validation](validation.md)
+This document describes the two simulation modes available in `simulate_graph.py` and the Python modules that back them: `src/simulation/fault_injector.py` and `src/simulation/message_flow_simulator.py`.
 
 ---
 
-## Table of Contents
+## Contents
 
-1. [What This Step Does](#what-this-step-does)
-2. [Why Simulate?](#why-simulate)
-3. [Independence Guarantee](#independence-guarantee)
-4. [Which Graph Each Simulator Uses](#which-graph-each-simulator-uses)
-5. [Execution Architecture](#execution-architecture)
-6. [Failure Modes](#failure-modes)
-7. [Cascade Propagation](#cascade-propagation)
-   - [Rule 1 — Physical Cascade](#rule-1--physical-cascade)
-   - [Rule 2 — Logical Cascade](#rule-2--logical-cascade)
-   - [Rule 3 — Application Cascade](#rule-3--application-cascade)
-   - [Rule 4 — Library Cascade (new)](#rule-4--library-cascade)
-   - [Fixed-Point Algorithm](#fixed-point-algorithm)
-8. [Ground-Truth Metrics](#ground-truth-metrics)
-   - [Base Metrics](#base-metrics)
-   - [I(v) — Composite Impact Score](#iv--composite-impact-score)
-   - [IR(v) — Reliability Ground Truth](#irv--reliability-ground-truth)
-   - [IM(v) — Maintainability Ground Truth](#imv--maintainability-ground-truth)
-   - [IA(v) — Availability Ground Truth](#iav--availability-ground-truth)
-   - [IV(v) — Vulnerability Ground Truth](#ivv--vulnerability-ground-truth)
-   - [Ground-Truth Summary](#ground-truth-summary)
-9. [Simulation Modes](#simulation-modes)
-10. [Worked Example](#worked-example)
-11. [Output Schema](#output-schema)
-12. [Performance](#performance)
-13. [Key Findings](#key-findings)
-14. [Commands](#commands)
-15. [What Comes Next](#what-comes-next)
-
----
-
-## What This Step Does
-
-Simulation removes each component from the system graph one at a time, propagates cascading failures through four structural cascade rules, measures damage across five dimensions, and packages the result as an empirical impact score. The output is five per-component ground-truth scalars — I(v), IR(v), IM(v), IA(v), IV(v) — one for each RMAV dimension plus the composite.
-
-```
-G_structural (all components + 6 structural edge types)
-        │
-        ▼  ── STEP A: Run event simulation to establish baseline flows FD(v)
-        │
-        ▼  ── STEP B: Main exhaustive loop (one iteration per component v)
-        │       1. Mark v as FAILED; remove from active graph
-        │       2. Propagate cascade (Rules 1–4)
-        │       3. Measure RL(v), FR(v), TL(v), FD(v) → store in ImpactMetrics
-        │       4. Reset graph to original state
-        │
-        ▼  ── STEP C: Four post-passes (each independent of Q(v))
-        │       Post-pass 1: IR(v) — cascade dynamics from main loop data
-        │       Post-pass 2: IM(v) — change propagation on G^T (G_analysis)
-        │       Post-pass 3: IA(v) — QoS-weighted connectivity on G_structural
-        │       Post-pass 4: IV(v) — compromise propagation on G^T (G_analysis)
-        │
-        ▼
-ImpactMetrics per component: I(v), IR(v), IM(v), IA(v), IV(v)
-```
+1. [Motivation and Design Rationale](#1-motivation-and-design-rationale)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Mode 1 — Fault Injection](#3-mode-1--fault-injection)
+   - [Algorithm](#31-algorithm)
+   - [I(v) Formula](#32-iv-formula)
+   - [Cascade Propagation](#33-cascade-propagation)
+   - [Broker Failure Semantics](#34-broker-failure-semantics)
+   - [Multi-Seed Stability](#35-multi-seed-stability)
+4. [Mode 2 — Message Flow Simulation](#4-mode-2--message-flow-simulation)
+   - [Discrete-Event Model](#41-discrete-event-model)
+   - [Fan-Out Queue Architecture](#42-fan-out-queue-architecture)
+   - [QoS Enforcement](#43-qos-enforcement)
+   - [Fault Injection at Runtime](#44-fault-injection-at-runtime)
+5. [CLI Reference — simulate\_graph.py](#5-cli-reference--simulate_graphpy)
+   - [fault-inject](#51-fault-inject)
+   - [message-flow](#52-message-flow)
+   - [combined](#53-combined)
+   - [Shared Flags](#54-shared-flags)
+6. [Output Files](#6-output-files)
+   - [impact\_scores.json](#61-impact_scoresjson)
+   - [message\_flow\_results.json](#62-message_flow_resultsjson)
+7. [Worked Examples — ATM Dataset](#7-worked-examples--atm-dataset)
+8. [Integration with the RMAV Validation Pipeline](#8-integration-with-the-rmav-validation-pipeline)
+9. [Input Graph Format Requirements](#9-input-graph-format-requirements)
+10. [Python API](#10-python-api)
+11. [Known Limitations](#11-known-limitations)
 
 ---
 
-## Why Simulate?
+## 1. Motivation and Design Rationale
 
-Steps 2–3 predict criticality purely from graph topology — fast, cheap, and pre-deployment. But predictions are only useful if they agree with what actually happens when failures occur. Simulation provides an empirical **proxy ground truth** for that comparison.
+The SaG framework predicts component criticality **before deployment** using topology-derived metrics (Q(v)). Validating those predictions requires a ground-truth impact score I(v) to correlate against. Because no runtime monitoring data is available pre-deployment, I(v) must itself be derived from simulation.
 
-> **Simulation vs. Reality (Methodological Note):** I(v) is a *proxy* because it is derived from the same structural graph used for analysis. Validation measures consistency between topological prediction Q(v) and rule-based propagation I(v). While this confirms the analysis engine correctly extracts the system's structural logic, it does not replace validation against real post-mortem reports. Simulation is the necessary intermediate step when runtime failure data is unavailable.
+Two complementary simulation strategies are provided:
 
-| Aspect | Predicted Q(v) | Simulated I(v) |
-|--------|---------------|----------------|
-| Source | Graph topology (structure only) | Rule-based cascade on G_structural |
-| Cost | Fast — O(\|V\| × \|E\|) | Slower — O(N × (\|V\| + \|E\|)) exhaustive |
-| Meaning | "This component *looks* critical" | "This component's failure *causes* damage (in-silico)" |
-| Role in pipeline | Input to Step 5 | Proxy ground truth for Step 5 |
+| Mode | When to use | Primary output |
+|------|-------------|----------------|
+| **Fault injection** | Producing I(v) ground truth for Spearman ρ validation | `impact_scores.json` |
+| **Message flow** | Observing timing, delivery rates, and QoS violations at runtime | `message_flow_results.json` |
 
-If Q(v) and I(v) rank the same components as most critical, the central claim is validated: **cheap topology-only analysis predicts failure impact without runtime monitoring**. The achieved Spearman ρ = 0.876 confirms this holds in practice.
+Both modes are **pre-deployment** — they require only the static graph JSON, never runtime monitoring data. This preserves the core claim of the SaG methodology: topology alone is sufficient to predict criticality.
 
 ---
 
-## Independence Guarantee
-
-**This is the most important methodological constraint in the entire pipeline.**
+## 2. Architecture Overview
 
 ```
-HARD RULE: I(v) must not read Q(v), R(v), M(v), A(v), V(v), or any
-           field derived from Step 3 (Prediction) as an input.
+simulate_graph.py  (CLI entry point)
+├── fault-inject  subcommand
+│   └── src/simulation/fault_injector.py
+│       ├── _PubSubIndex          (O(1) lookup structures over PUBLISHES_TO / SUBSCRIBES_TO / ROUTES)
+│       ├── FaultInjector.run()   (iterates over candidate nodes)
+│       └── FaultInjector._cascade()  (BFS wave propagation per node per seed)
+│
+├── message-flow  subcommand
+│   └── src/simulation/message_flow_simulator.py
+│       ├── TopicFanout           (per-topic fan-out manager)
+│       ├── SubscriberQueue       (per-(topic, subscriber) SimPy Store)
+│       ├── _publisher_process()  (SimPy generator: emits messages at rate_hz)
+│       ├── _subscriber_process() (SimPy generator: dequeues, checks QoS)
+│       └── MessageFlowSimulator.run()
+│
+└── combined  subcommand
+    (runs fault-inject then message-flow in sequence)
+
+src/simulation/simulation_results.py  (shared dataclasses for both modes)
+├── FaultInjectionResult / FaultInjectionRecord / CascadeWave
+└── MessageFlowResult / TopicFlowStats / SubscriberFlowStats / FaultEventRecord
 ```
 
-The independence guarantee is what makes Step 5 validation scientifically meaningful. If simulation used prediction scores to guide cascade propagation or to weight impact metrics, the correlation between Q(v) and I(v) would be circular — it would measure how consistently the method agrees with itself, not whether topology predicts impact.
-
-**What simulation IS allowed to use:**
-- G_structural (the raw structural graph from Step 1)
-- G_analysis as G^T (the DEPENDS_ON graph from Step 1, reversed, for IM and IV)
-- QoS edge weights (from Step 1 Phase 4 weight assignment)
-- Component type information (vertex type τ_V(v))
-
-**What simulation is NOT allowed to use:**
-- M(v) (metric vector from Step 2)
-- Q(v), R(v), M(v), A(v), V(v) (prediction scores from Step 3)
-- CDPot_enh, MPCI, FOC, or any derived term from Step 3
-
-Simulation and prediction are two **independent views** of the same graph. Step 5 measures the agreement between these views.
+The CLI uses a **subcommand pattern** so fault injection and message flow share a common `--input` / `--output` / `--export-json` / `--verbose` interface while each exposes its own mode-specific flags.
 
 ---
 
-## Which Graph Each Simulator Uses
+## 3. Mode 1 — Fault Injection
 
-Different simulators require different graph projections:
+### 3.1 Algorithm
 
-| Simulator | Graph Used | Justification |
-|-----------|-----------|---------------|
-| **Main loop (cascade)** | G_structural | Cascades follow physical structural edges (RUNS_ON, ROUTES, PUBLISHES_TO, USES) — not abstract DEPENDS_ON edges |
-| **IR(v) post-pass** | Main loop data | Derived from cascade_count and cascade_depth collected during the main loop |
-| **IM(v) post-pass** | G_analysis reversed (G^T) | Change propagation follows *dependency direction reversed* — if A depends on B, a change to B may force A to adapt |
-| **IA(v) post-pass** | G_structural | Connectivity disruption requires the full structural graph to measure QoS-weighted path loss |
-| **IV(v) post-pass** | G_analysis reversed (G^T) | Compromise propagates from dependency to dependent (reverse direction of DEPENDS_ON) |
+The fault injector runs a **BFS cascade simulation** on the pub-sub graph for every candidate node. The pub-sub graph is the projection of the SaG graph onto its PUBLISHES\_TO, SUBSCRIBES\_TO, and ROUTES edges — infrastructure (RUNS\_ON, CONNECTS\_TO) and derived (DEPENDS\_ON) edges are not used.
 
-> **G^T construction for IM and IV:** If edge `(A, B) ∈ DEPENDS_ON` (A depends on B), then G^T contains edge `(B, A)` — meaning "a change or compromise at B can reach A." This is the standard dependency inversion for change propagation analysis.
+Before any injection begins, `_PubSubIndex` builds six lookup dictionaries from the graph in O(E):
+
+| Dictionary | Maps |
+|---|---|
+| `topic_publishers` | topic → set of publisher application IDs |
+| `topic_subscribers` | topic → set of subscriber application IDs |
+| `app_publishes` | application → set of topic IDs it publishes to |
+| `app_subscribes` | application → set of topic IDs it subscribes to |
+| `broker_routes` | broker → set of topic IDs it routes |
+| `topic_routers` | topic → set of broker IDs that route it (inverse of `broker_routes`) |
+
+For each candidate node v the cascade runs as follows:
+
+**Wave 0 — direct orphaning.**
+The node v is added to `failed_nodes`. For each topic t that v published to (or routed, for brokers), the algorithm checks whether any other live publisher (or live broker router) still serves t. If none remains, t is orphaned. All subscribers of each orphaned topic lose that feed.
+
+**Waves 1, 2, … — cascade propagation.**
+A subscriber is added to the next wave's propagation set when:
+- it has lost a fraction of its feeds ≥ `propagation_threshold` (default 1.0), **and**
+- it was itself a publisher on at least one topic.
+
+In the next wave each propagation candidate is added to `failed_nodes`, then its published topics are re-evaluated for orphaning. This continues until no new orphaning occurs (fixpoint) or the `cascade_depth_limit` is reached.
+
+A **set-based pending queue** (not a list) is used for propagation candidates so that a subscriber losing feeds from two topics in the same wave is not processed twice.
+
+### 3.2 I(v) Formula
+
+For each subscriber application a, the **feed-loss fraction** is:
+
+```
+feed_loss_fraction(a) = |lost_feeds(a)| / |all_subscribed_feeds(a)|
+```
+
+The **proxy ground-truth impact score** I(v) is the mean over all subscriber applications:
+
+```
+I(v) = (1 / |Subscribers|) × Σ_{a ∈ Subscribers} feed_loss_fraction(a)
+```
+
+This is a graded score in [0, 1]. A subscriber that loses half its feeds contributes 0.5 to the sum, not 1.0. This more faithfully models partial degradation than a binary "is impacted?" measure.
+
+`Subscribers` is the set of Application nodes that have at least one SUBSCRIBES\_TO edge; this denominator is fixed across all injections so scores are comparable.
+
+> **Note.** The failed node v is excluded from the impacted subscriber count even if it also has subscriptions. This avoids self-referential inflation of the score.
+
+### 3.3 Cascade Propagation
+
+The `propagation_threshold` parameter (default 1.0, range [0.0, 1.0]) controls how much feed loss is required before a subscriber is considered failed and begins spreading the cascade.
+
+| `propagation_threshold` | Semantic |
+|---|---|
+| `1.0` (default) | A subscriber only cascades when it has lost **all** its feeds (completely starved). Conservative — minimises false cascades. |
+| `0.5` | A subscriber cascades when it has lost ≥ 50% of its feeds. |
+| `0.0` | Any single feed loss triggers a cascade. Aggressive — maximises spread. |
+
+For the ATM dataset, `ConflictDetector` requires both `T_radar` **and** `T_tracks` to function (both are mandatory inputs to the conflict algorithm). Setting `--propagation-threshold 0.5` will model this correctly: losing either feed alone is sufficient to silence `ConflictDetector`.
+
+### 3.4 Broker Failure Semantics
+
+When a Broker node fails, the injector uses the `topic_routers` inverse index to check whether any **other live broker** also routes each topic. A topic is only orphaned if all of its routing brokers are in `failed_nodes`.
+
+This correctly handles multi-broker redundancy: in a deployment where `Broker-A` and `Broker-B` both route `T_radar`, failing `Broker-A` alone does not orphan `T_radar`. In single-broker topologies (typical for the ATM dataset), the behaviour is unchanged — the broker is always the sole router and every topic it routes is orphaned.
+
+### 3.5 Multi-Seed Stability
+
+The cascade propagation order within a wave is non-deterministic when multiple nodes are eligible to propagate simultaneously (tie-breaking). Each seed produces a different shuffle of the wave candidates, testing whether I(v) depends on this ordering.
+
+With N seeds:
+- `impact_score` is the **mean** I(v) across all seeds.
+- `impact_score_std` is the **standard deviation** across seeds.
+- The cascade trace (waves, orphaned topics, impacted subscribers) in the JSON record is from the **seed whose impact score is closest to the mean** (median-representative seed), giving the most stable trace for human inspection.
+
+**Interpreting std values:**
+- `std = 0.0` on a deterministic topology (most real systems): each seed produces identical results.
+- `std > 0` indicates that I(v) is sensitive to the propagation order, typically at the boundary of a cascade — a signal of fragility that is itself worth reporting.
+
+Recommended seeds for thesis experiments: `42,123,456,789,2024`.
 
 ---
 
-## Execution Architecture
+## 4. Mode 2 — Message Flow Simulation
 
-The simulation step runs in five sequential stages. Each stage is independent from Q(v).
+### 4.1 Discrete-Event Model
 
-**Stage A — Event simulation (prerequisite for FD(v)):**
-Run discrete-event message flow simulation from all publishers. This establishes the set of baseline flows — (publisher, topic, subscriber) triples that succeed under normal conditions. These flows are stored and used in Stage B to compute FD(v): the fraction of baseline flows that are disrupted when v fails.
+The message flow simulator uses **SimPy** (https://simpy.readthedocs.io) — a process-based discrete-event simulation library. Simulated time is in seconds, mapping 1-to-1 to the real-world time units of the modelled system.
 
-**Stage B — Main exhaustive loop:**
-For each component v in the target layer, in O(|V| + |E|) per iteration:
-1. Remove v from the active graph
-2. Run cascade propagation (Rules 1–4) to fixed point
-3. Measure RL(v), FR(v), TL(v), FD(v)
-4. Record cascade_count(v), cascade_depth(v), cascade_sequence(v)
-5. Restore graph to original state
+Three types of SimPy process are spawned for each edge in the graph:
 
-**Stage C — Four post-passes (run once, over all N results):**
+**Publisher process** (one per PUBLISHES\_TO edge):
+1. `yield env.timeout(1.0 / rate_hz)` — wait one publish interval.
+2. If `app_id in failed_nodes`, stop.
+3. Optionally yield a processing delay (from the `processing_time` node attribute).
+4. Create a `Message(msg_id, topic_id, publisher_id, created_at=env.now)`.
+5. Call `fanout.publish(msg, failed_nodes)` to fan the message to all live subscriber queues.
+6. Increment the appropriate time-window publish counter (`pre` or `post` fault).
 
-Post-pass 1 (IR): Normalize cascade_count and cascade_depth across all N results to produce CascadeReach, WeightedCascadeImpact, NormalizedCascadeDepth.
+**Subscriber process** (one per SUBSCRIBES\_TO edge):
+1. Check `app_id in failed_nodes` **before** issuing a `get()`. Exit if failed.
+2. `msg = yield sq.get()` — block until a message arrives in the private queue.
+3. Check `app_id in failed_nodes` again (may have been faulted during the wait).
+4. Optionally yield a subscriber-side processing delay.
+5. Compute end-to-end latency: `(env.now - msg.created_at) × 1000 ms`.
+6. Apply QoS checks (lifespan, deadline) using the end-to-end latency.
+7. If delivered: increment `total_delivered`, store latency sample.
 
-Post-pass 2 (IM): Run ChangePropagationSimulator on G^T for all N components. For each v, BFS from v on G^T collecting components that must adapt, stopping at loose-coupling and stable-interface boundaries.
+**Fault process** (one per simulation, if `--fault-node` is set):
+1. `yield env.timeout(fault_time)`.
+2. Add `fault_node` to `failed_nodes`. Publisher and subscriber processes observe this on their next loop iteration.
 
-Post-pass 3 (IA): For each result, compute QoS-weighted reachability loss and fragmentation from the main loop's structural damage data.
+All three process types share the same `failed_nodes: Set[str]` object, which serves as the inter-process fault broadcast channel.
 
-Post-pass 4 (IV): Run CompromisePropagationSimulator on G^T for all N components. For each v, BFS from v on G^T collecting reachable components above the trust threshold θ_trust = 0.30.
+### 4.2 Fan-Out Queue Architecture
 
-Post-passes 2 and 4 use G^T and are fully independent from the main loop — they do not re-simulate failures, they analyze propagation paths over a different graph projection.
+Standard pub-sub semantics require that **every subscriber receives every message**. A naive single `simpy.Store` per topic would instead route each message to exactly one subscriber (first-come-first-served dequeue), halving — or worse — per-subscriber delivery counts.
 
----
-
-## Failure Modes
-
-| Mode | Meaning | Cascade Behavior |
-|------|---------|-----------------|
-| `CRASH` | Complete, instantaneous failure | All four cascade rules apply immediately |
-| `DEGRADED` | Partial failure — reduced throughput | Weighted cascade; starvation threshold SL < 0.30 |
-| `PARTITION` | Network split — component unreachable | Logical and application cascades only; physical still up |
-| `OVERLOAD` | Resource exhaustion — slow but alive | Probabilistic cascades with delay model |
-
-The default mode for ground-truth generation is **CRASH** — deterministic, reproducible, worst-case bound. Step 5 validation always uses CRASH-mode results.
-
----
-
-## Cascade Propagation
-
-Cascade propagation runs as a BFS from the initially failed component v, applying the four rules at each dequeued component until no new failures occur (fixed point).
-
-### Rule 1 — Physical Cascade
+The simulator uses a two-level architecture:
 
 ```
-Trigger: current ∈ F AND τ_V(current) = Node
-Action:  For each component c where (c −[RUNS_ON]→ current) AND c ∉ F:
-             F.add(c);  queue.append(c)
+Publisher
+    │
+    │  fanout.publish(msg, failed_nodes)
+    ▼
+TopicFanout
+    ├──▶ SubscriberQueue[Sub1]  (simpy.Store, capacity = queue_size)
+    ├──▶ SubscriberQueue[Sub2]
+    └──▶ SubscriberQueue[Sub3]
+              │
+              │  sq.get()
+              ▼
+         Subscriber process
 ```
 
-**Rationale:** A physical host failure takes down all co-located applications and brokers simultaneously. This is a broadcast failure — the number of hosted components is the immediate blast radius.
+`TopicFanout.publish()` iterates over every registered subscriber queue and places a copy of the message in each live subscriber's `SubscriberQueue`. Overflow policy (BEST_EFFORT drop vs. RELIABLE head-drop) is applied independently per subscriber queue.
 
-### Rule 2 — Logical Cascade
-
-```
-Trigger: current ∈ F AND τ_V(current) = Broker
-Action:  For each topic T where (current −[ROUTES]→ T):
-             If no other active broker routes T:
-                 mark T as UNREACHABLE
-                 For each subscriber S where (S −[SUBSCRIBES_TO]→ T):
-                     If ALL topics subscribed by S are UNREACHABLE AND S ∉ F:
-                         F.add(S);  queue.append(S)
-```
-
-**Rationale:** A broker failure makes all exclusively-routed topics unreachable. Subscribers that have lost all their data sources — no alternative topic remains — are starved and cascade. Subscribers with at least one surviving topic survive this rule.
-
-### Rule 3 — Application Cascade
+`TopicFlowStats.total_published` is incremented **once per message** (not once per subscriber that receives it). `total_delivered` counts individual (message × subscriber) deliveries. The system delivery rate is normalised accordingly:
 
 ```
-Trigger: current ∈ F AND τ_V(current) = Application (publisher role)
-Action:  For each topic T where (current −[PUBLISHES_TO]→ T):
-             If NO other active application publishes to T:
-                 For each subscriber S where (S −[SUBSCRIBES_TO]→ T):
-                     If ALL topics subscribed by S are now source-less AND S ∉ F:
-                         F.add(S);  queue.append(S)
+system_delivery_rate = total_delivered / (Σ_topic total_published(topic) × num_subscribers(topic))
 ```
 
-**Rationale:** A publisher failure orphans its topics only when no other active publisher exists. Subscribers with multiple publishers survive the loss of one. This rule encodes the pub-sub redundancy model: N-to-1 fan-in on a topic provides publisher fault tolerance.
+### 4.3 QoS Enforcement
 
-### Rule 4 — Library Cascade
+QoS attributes are read from two sources in priority order:
 
-```
-Trigger: current ∈ F AND τ_V(current) = Library
-Action:  For each application A where (A −[USES]→ current) AND A ∉ F:
-             F.add(A);  queue.append(A)
-```
+1. The SUBSCRIBES\_TO edge (`qos_profile` attribute) — subscriber-side policy.
+2. The Topic node (`qos_profile` attribute) — topic-level policy; `deadline_ms` takes precedence over the edge-level value when set.
 
-**Rationale:** A library failure produces a **simultaneous blast** — all consuming applications crash at once, immediately, because the library is a loaded in-process dependency. This is fundamentally different from Rules 1–3: there is no partial survival, no topic-level redundancy, and no host-level isolation. Every application that has loaded the library fails. After applications in F cascade, they are processed by Rules 2 and 3, potentially triggering further subscriber starvation.
-
-> **Library vs. Application cascade semantics:** Rule 3 (Application cascade) can be avoided if a topic has multiple publishers. Rule 4 (Library cascade) cannot — there is no "multiple library" redundancy mechanism in standard pub-sub systems. A library used by 15 applications has an immediate blast radius of 15.
-
-### Fixed-Point Algorithm
-
-```python
-F     = {v}         # initially failed set
-queue = deque([v])  # BFS frontier
-
-while queue:
-    current = queue.popleft()
-    apply Rule 1 if τ_V(current) = Node
-    apply Rule 2 if τ_V(current) = Broker
-    apply Rule 3 if τ_V(current) = Application (publisher)
-    apply Rule 4 if τ_V(current) = Library
-
-    for each newly failed component c:
-        F.add(c)
-        queue.append(c)
-
-# Terminates when no new failures are discovered
-cascade_count = |F| - 1    (excludes the initial failure v)
-cascade_depth = max BFS depth reached
-```
-
-Termination is guaranteed because the graph is finite and components can only transition from ACTIVE → FAILED (never back). The BFS explores at most |V| − 1 additional components.
-
-**Cascade depth:**
-```
-depth = 0   → initial failure (v)
-depth = 1   → directly triggered failures
-depth = k   → k-th hop in the BFS expansion
-```
-
----
-
-## Ground-Truth Metrics
-
-### Base Metrics
-
-These are measured directly in the main loop for each component v:
-
-**Reachability Loss RL(v):**
-```
-RL(v) = 1 − |reachable_pairs(G \ F)| / |reachable_pairs(G)|
-
-reachable_pairs(H) = |{(a,b) : a ≠ b, path(a→b) exists in H}|
-```
-Measures the fraction of component-to-component path connectivity destroyed by the failure and its cascade. RL = 0 means the surviving graph is fully connected; RL = 1 means all reachability is lost.
-
-**Fragmentation FR(v):**
-```
-FR(v) = 1 − max(|Cᵢ|) / (|V| − 1)    over connected components Cᵢ of G \ F
-```
-Measures how badly the failure shatters the graph. FR = 0 means the survivors form one connected component; FR → 1 means the graph is shattered into many isolated fragments.
-
-**Throughput Loss TL(v):**
-```
-TL(v) = Σ w(T) for topics T unreachable after F / Σ w(T) for all topics T
-```
-Measures the fraction of QoS-weighted message capacity eliminated. w(T) is the topic weight from Step 1 Phase 4.
-
-**Flow Disruption FD(v):**
-```
-FD(v) = |{(pub, topic, sub) ∈ baseline_flows : pub ∈ F OR topic unreachable}|
-         / |baseline_flows|
-```
-Measures what fraction of the event-simulation baseline flows are interrupted. Requires Stage A (event simulation) to run first to establish `baseline_flows`. FD = 0 if no baseline flows are disrupted; FD = 1 if all are.
-
----
-
-### I(v) — Composite Impact Score
-
-```
-I(v) = 0.35 × RL(v) + 0.25 × FR(v) + 0.25 × TL(v) + 0.15 × FD(v)
-```
-
-| Term | Weight | Rationale |
-|------|--------|-----------|
-| RL(v) | 0.35 | Reachability loss is the primary indicator of system-wide damage |
-| FR(v) | 0.25 | Fragmentation captures long-term partition effects beyond path loss |
-| TL(v) | 0.25 | Throughput loss measures business-level impact via QoS weights |
-| FD(v) | 0.15 | Flow disruption grounds the score in observed message delivery, not just topology |
-
-> **On FD(v) weight 0.15:** FD depends on Stage A event simulation completing first. When event simulation is skipped (e.g., `--no-event`), FD(v) = 0 and the I(v) formula effectively renormalizes: `I(v) ≈ (0.35·RL + 0.25·FR + 0.25·TL) / 0.85`. The pipeline handles this gracefully without requiring a separate code path.
-
----
-
-### IR(v) — Reliability Ground Truth
-
-IR(v) measures fault propagation dynamics — how rapidly and broadly v's failure cascades. It is the ground truth that validates R(v) from Step 3.
-
-```
-IR(v) = 0.45 × CascadeReach(v) + 0.35 × WeightedCascadeImpact(v) + 0.20 × NormalizedCascadeDepth(v)
-```
-
-| Sub-metric | Definition |
-|------------|-----------|
-| CascadeReach(v) | `cascade_count(v) / (|V| − 1)` — fraction of all other components that cascade-failed |
-| WeightedCascadeImpact(v) | `Σ w(c) for c ∈ cascaded_failures(v) / Σ w(all)` — importance-weighted cascade breadth |
-| NormalizedCascadeDepth(v) | `cascade_depth(v) / max_depth` — relative depth across all simulation runs |
-
-**IR(v) vs. IA(v) orthogonality:** IR(v) measures *propagation dynamics* (how the failure spreads step by step through the cascade). IA(v) measures *structural connectivity loss* (how removing v changes the graph's reachability structure). A component can have high IR but low IA (a publisher that starves many subscribers but does not partition the graph) or high IA but low IR (an articulation point that disconnects the graph but has no cascade chain). This orthogonality is intentional and mirrors the R/A distinction in the RMAV prediction model.
-
----
-
-### IM(v) — Maintainability Ground Truth
-
-IM(v) measures development-time change propagation — how many components would need to adapt if v's interface changed. It is computed by Post-pass 2 using G^T (reversed DEPENDS_ON graph) and is the ground truth that validates M(v).
-
-```
-IM(v) = 0.45 × ChangeReach(v) + 0.35 × WeightedChangeImpact(v) + 0.20 × NormalizedChangeDepth(v)
-```
-
-| Sub-metric | Definition |
-|------------|-----------|
-| ChangeReach(v) | Fraction of reachable components on G^T (with stop conditions) |
-| WeightedChangeImpact(v) | Importance-weighted adaptation cost |
-| NormalizedChangeDepth(v) | Relative BFS depth normalized across all components |
-
-**BFS stop conditions on G^T:**
-
-```
-Stop propagation at edge (v → u) on G^T if EITHER:
-  (a) edge_weight < θ_loose = 0.20    (loose coupling — dependent absorbs the change)
-  (b) Instability(u) < θ_stable = 0.20  (stable interface — u has many afferent dependents
-                                           and few efferent dependencies; it absorbs changes)
-```
-
-**Why BFS on G^T, not G_structural:** IM(v) models *change propagation*, not *runtime failure cascade*. If `A DEPENDS_ON B` (A depends on B), a change to B's interface may force A to adapt — so the change propagates from B to A, which is the reverse of the DEPENDS_ON edge. G^T is precisely the "change propagation graph" over the DEPENDS_ON structure.
-
-**Why stop conditions:** Not all downstream dependencies propagate changes. A low-weight (BEST_EFFORT, VOLATILE) dependency means the dependent is loosely contracted and can absorb the change without modification. A stable component (many dependents, few of its own dependencies) acts as an architectural boundary that absorbs change obligations.
-
----
-
-### IA(v) — Availability Ground Truth
-
-IA(v) measures QoS-weighted structural connectivity disruption — how much of the high-priority connectivity structure is lost when v is removed. It is the ground truth that validates A(v).
-
-```
-IA(v) = 0.50 × WeightedReachabilityLoss(v) + 0.35 × WeightedFragmentation(v) + 0.15 × PathBreakingThroughputLoss(v)
-```
-
-| Sub-metric | Definition |
-|------------|-----------|
-| WeightedReachabilityLoss(v) | RL(v) weighted by the QoS importance of lost paths |
-| WeightedFragmentation(v) | FR(v) weighted by the criticality of isolated fragments |
-| PathBreakingThroughputLoss(v) | Throughput lost specifically via PARTITION_LOSS events (structural path breaks, not cascade starvation) |
-
-**IA(v) vs. IR(v) orthogonality:** PathBreakingThroughputLoss is strictly the throughput lost because paths are structurally severed — it excludes throughput lost because publishers cascaded and starved subscribers. This separation ensures IR(v) and IA(v) measure complementary phenomena rather than the same effect with different weights.
-
----
-
-### IV(v) — Vulnerability Ground Truth
-
-IV(v) measures adversarial compromise propagation — how far a compromise at v would spread through the trusted dependency graph. It is computed by Post-pass 4 using G^T and is the ground truth that validates V(v).
-
-```
-IV(v) = 0.40 × AttackReach(v) + 0.35 × WeightedAttackImpact(v) + 0.25 × HighValueContamination(v)
-```
-
-| Sub-metric | Definition |
-|------------|-----------|
-| AttackReach(v) | Fraction of components reachable from v on G^T above trust threshold |
-| WeightedAttackImpact(v) | Importance-weighted sum of contaminated components |
-| HighValueContamination(v) | Distance-discounted sum of high-importance components reached |
-
-**Trust threshold θ_trust = 0.30:** A compromise propagates along G^T edges only when the edge weight exceeds 0.30 (i.e., the dependency is at least TRANSIENT or has some Priority weight). Low-QoS BEST_EFFORT / VOLATILE edges are not trusted as compromise vectors — they represent loose, unguaranteed dependencies that would not carry automated credential or state propagation.
-
-**Why G^T for IV(v):** If `A DEPENDS_ON B` (A depends on B, meaning B is a dependency of A), then compromising B can affect A. In G^T, this is an edge `B → A`, so BFS from B on G^T reaches A. This is the correct direction for adversarial propagation: the attack starts at the compromised component and spreads outward to everything that trusts it.
-
----
-
-### Ground-Truth Summary
-
-All five ground-truth scores and their RMAV correspondences:
-
-| Score | Formula | Measures | Validates | Graph |
-|-------|---------|---------|-----------|-------|
-| I(v) | 0.35·RL + 0.25·FR + 0.25·TL + 0.15·FD | Overall structural damage | Q(v) composite | G_structural |
-| IR(v) | 0.45·CascadeReach + 0.35·WCI + 0.20·NCD | Cascade propagation dynamics | R(v) | Main loop data |
-| IM(v) | 0.45·ChangeReach + 0.35·WChI + 0.20·NChD | Change propagation reach | M(v) | G^T (DEPENDS_ON reversed) |
-| IA(v) | 0.50·WRL + 0.35·WFR + 0.15·PBTL | QoS-weighted connectivity loss | A(v) | G_structural |
-| IV(v) | 0.40·AttackReach + 0.35·WAI + 0.25·HVC | Adversarial compromise spread | V(v) | G^T (DEPENDS_ON reversed) |
-
-**Weight justifications:**
-- **RL dominates I(v) at 0.35:** Reachability loss is the most direct proxy for "how broken is the system" — it measures whether components can communicate at all, which is more fundamental than how many fragments form or how much throughput is lost.
-- **CascadeReach leads IR(v) at 0.45:** The count of cascade-failed components is the clearest measure of blast radius, aligning directly with R(v)'s DG_in and RPR inputs.
-- **WeightedReachabilityLoss leads IA(v) at 0.50:** Availability is fundamentally about whether the system can route messages at all. QoS weighting ensures high-priority paths dominate the score, consistent with the QSPOF and w(v) terms in A(v).
-
----
-
-## Simulation Modes
-
-### Exhaustive Mode
-
-Every component in the target layer is failed individually. Produces all five ground-truth scores for all N components. Required for Step 5 validation.
-
-```bash
-python bin/simulate_graph.py failure --exhaustive --layer system
-# Time: O(N × (|V| + |E|))  e.g. ~12s for medium, ~8min for xlarge
-```
-
-Run event simulation first if FD(v) is needed:
-
-```bash
-python bin/simulate_graph.py event --all --messages 50 --layer system
-python bin/simulate_graph.py failure --exhaustive --layer system --output results/impact.json
-```
-
-### Targeted Mode
-
-Simulate a specific component's failure for interactive exploration. Returns all five impact scores plus the full cascade sequence.
-
-```bash
-python bin/simulate_graph.py failure --target MainBroker --layer system
-python bin/simulate_graph.py failure --target NavLib --layer system  # Library Rule 4 visible
-```
-
-### Monte Carlo Mode
-
-Samples a random subset with probabilistic cascade propagation. Produces distributions rather than point estimates. Not used for Step 5 validation (which requires deterministic CRASH-mode ground truth).
-
-```bash
-python bin/simulate_graph.py failure --monte-carlo --samples 500 --cascade-prob 0.85 --layer system
-```
-
-### Event Simulation
-
-Establishes baseline flows for FD(v) computation. Should be run before exhaustive simulation when FD(v) is desired in I(v).
-
-```bash
-python bin/simulate_graph.py event --all --messages 50 --layer system
-```
-
----
-
-## Worked Example
-
-**NavLib** failure — system from Step 2/3 worked example (SensorApp, MonitorApp, MainBroker, NavLib, /temperature).
-
-This example illustrates Rule 4 (Library cascade) which was absent from the original simulation document.
-
-**Cascade trace:**
-```
-Initialize: F = {NavLib}, queue = [NavLib]
-
-Process NavLib (Rule 4 — Library cascade):
-    NavLib is used by: SensorApp (USES), MonitorApp (USES)
-    Both applications in → F immediately (simultaneous blast)
-    F = {NavLib, SensorApp, MonitorApp}, queue = [SensorApp, MonitorApp]
-
-Process SensorApp (Rule 3 — Application cascade):
-    SensorApp PUBLISHES_TO /temperature.
-    No other active publisher for /temperature.
-    MonitorApp SUBSCRIBES_TO /temperature — but MonitorApp is already in F.
-    No new failures triggered.
-
-Process MonitorApp (Rule 3 — Application cascade):
-    MonitorApp has no publisher role. No cascade.
-
-Queue empty → Fixed point reached.
-
-cascade_count = 2  (SensorApp, MonitorApp)
-cascade_depth = 1
-F = {NavLib, SensorApp, MonitorApp}
-```
-
-**Impact metrics:**
-```
-RL(NavLib):  All paths through SensorApp and MonitorApp are severed
-              ≈ 0.80
-
-FR(NavLib):  Surviving graph = {MainBroker, /temperature} — mostly isolated
-              ≈ 0.60
-
-TL(NavLib):  /temperature unreachable after SensorApp fails
-              ≈ 0.71
-
-I(NavLib) = 0.35×0.80 + 0.25×0.60 + 0.25×0.71 + 0.15×FD
-           = 0.280 + 0.150 + 0.178 + 0.15×FD  ≈ 0.64–0.70  [CRITICAL]
-```
-
-**Post-pass IR(v):**
-```
-CascadeReach = 2 / (5−1) = 0.50
-NormalizedCascadeDepth = 1 / max_depth_in_system
-IR(NavLib) = 0.45×0.50 + 0.35×WCI + 0.20×NCD  ≈ 0.42+
-```
-
-**Cross-check with Step 3:** Step 3 predicted NavLib as HIGH/CRITICAL (R = 0.627). The simulation confirms cascade-count = 2, consistent with DG_in = 2 in the prediction model.
-
----
-
-## Output Schema
+Both sources follow the same structure:
 
 ```json
 {
-  "layer": "system",
-  "simulation_mode": "exhaustive",
-  "cascade_rules": ["physical", "logical", "application", "library"],
-  "component_count": 35,
-  "ranked_results": [
-    {
-      "target_id":           "NavLib",
-      "target_type":         "Library",
-      "composite_impact":    0.68,
-      "reachability_loss":   0.80,
-      "fragmentation":       0.60,
-      "throughput_loss":     0.71,
-      "flow_disruption":     0.65,
-      "cascade_count":       2,
-      "cascade_depth":       1,
-      "cascaded_failures":   ["SensorApp", "MonitorApp"],
-      "ir":                  0.44,
-      "im":                  0.38,
-      "ia":                  0.61,
-      "iv":                  0.29
-    }
-  ]
+  "reliability": "RELIABLE",
+  "durability":  "TRANSIENT_LOCAL",
+  "deadline_ms": 100,
+  "lifespan_ms": null,
+  "queue_size":  50,
+  "history_depth": 10
 }
 ```
 
+**Reliability** (`RELIABLE` / `BEST_EFFORT`) governs overflow behaviour in each `SubscriberQueue`:
+- `RELIABLE` — when the queue is full, the **oldest** message is dropped (head-drop) to make room for the newest. This models DDS KEEP\_LAST semantics with backpressure.
+- `BEST_EFFORT` — when the queue is full, the **incoming** message is dropped. The overflow event is counted in `total_dropped_best_effort`.
+
+**Deadline** (`deadline_ms`) is enforced as an **end-to-end** check, measured after the subscriber processing delay:
+```
+e2e_latency_ms = (env.now_after_processing - msg.created_at) × 1000
+if e2e_latency_ms > deadline_ms:
+    → deadline violation; message counted as missed
+```
+This matches the DDS definition: the deadline is the maximum acceptable age of a data sample at the point it is consumed by the application.
+
+**Lifespan** (`lifespan_ms`) is applied before the deadline check. Messages older than their lifespan at the time of dequeue are silently discarded.
+
+**Durability** (`TRANSIENT_LOCAL`) is noted in the QoS profile but is not fully modelled in the current simulator (no late-joiner history replay). This is documented in [Known Limitations](#11-known-limitations).
+
+### 4.4 Fault Injection at Runtime
+
+The `_fault_process` yields until `fault_time`, then adds `fault_node` to the shared `failed_nodes` set. Publishers and subscribers observe this lazily on their next loop iteration:
+
+- **Publisher**: checks `app_id in failed_nodes` at the top of the loop after each interval wait. The publisher silently exits, stopping all further messages to any topic it published to.
+- **Subscriber**: checks `app_id in failed_nodes` before issuing `get()` (fast exit), and again immediately after receiving a message (handles races where the fault was injected while the subscriber was blocked in the queue wait).
+
+Post-simulation, the cascade annotation identifies:
+- **Orphaned topics**: topics where the faulted node was the **sole** publisher (verified by checking remaining PUBLISHES\_TO edges for that topic).
+- **Impacted subscribers**: all subscribers of orphaned topics.
+- **Delivery rate before/after**: computed from per-topic time-window publish and delivery counters accumulated by publisher and subscriber processes respectively.
+
 ---
 
-## Performance
+## 5. CLI Reference — simulate_graph.py
 
-| Scale | Components | Exhaustive Time |
-|-------|-----------|-----------------|
-| tiny | 8 | < 1s |
-| small | 15 | ~2s |
-| medium | 35 | ~12s |
-| large | 80 | ~60s |
-| xlarge | 200 | ~8 min |
+### 5.1 `fault-inject`
 
-Post-passes add approximately 20–30% overhead on top of the main loop. For xlarge systems, use `--monte-carlo --samples 500` to reduce main loop time; post-passes still run on the sampled subset.
+Runs BFS cascade fault injection and produces `impact_scores.json`.
 
----
+```
+python simulate_graph.py fault-inject [options]
+```
 
-## Key Findings
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--input PATH` | *(required)* | Path to the graph JSON file. |
+| `--output DIR` | `output/simulation/` | Output directory; created if absent. |
+| `--export-json` | off | Write `impact_scores.json` and `impact_scores_summary.txt` to `--output`. |
+| `--nodes ID1,ID2,...` | all matching `--node-types` | Comma-separated node IDs to inject. Overrides `--node-types`. |
+| `--node-types TYPE1,TYPE2` | `Application,Broker` | Node types eligible for injection. |
+| `--seeds 42,123,...` | `42` | Comma-separated integer seeds for multi-seed stability. |
+| `--cascade-depth N` | `0` (unlimited) | Maximum cascade wave depth. |
+| `--verbose` / `-v` | off | Enable DEBUG logging. |
 
-Across all eight validated domain scenarios:
+> **Propagation threshold** is currently only configurable via the Python API (`FaultInjector(propagation_threshold=0.5)`), not the CLI. This is intentional — it is a research parameter that should be set deliberately, not accidentally via a flag.
 
-- **Application layer accuracy (ρ = 0.876):** Topology-based predictions agree strongly with simulation-derived ground truth.
-- **Scale benefit:** Large systems (150–300+ components) produce ρ = 0.943 — prediction accuracy improves with scale.
-- **Library cascades are high-impact:** Components failing via Rule 4 (Library cascade) consistently produce the highest I(v) values per cascade step — because the blast is simultaneous rather than sequential, all path metrics spike together rather than propagating gradually.
-- **Cascade depth ≥ 3:** Components whose failure reaches depth ≥ 3 are most likely to be missed by single-metric predictors. CDPot_enh (Step 3) is the primary predictor that captures these deep cascades.
-- **Infrastructure layer gap:** Infrastructure layer correlation (ρ ≈ 0.60–0.70) is lower because physical topology is more homogeneous than logical dependency structure.
-
----
-
-## Commands
+**Example — full ATM dataset, five seeds:**
 
 ```bash
-# ─── Recommended full sequence ───────────────────────────────────────────────
-# Step A: establish baseline flows for FD(v)
-python bin/simulate_graph.py event --all --messages 50 --layer system
+python simulate_graph.py fault-inject \
+    --input input/atm_system.json \
+    --output output/simulation/ \
+    --seeds 42,123,456,789,2024 \
+    --export-json
+```
 
-# Step B+C: exhaustive simulation + all four post-passes
-python bin/simulate_graph.py failure --exhaustive --layer system \
-    --output results/impact.json
+**Example — single node, unlimited cascade:**
 
-# ─── Targeted (interactive exploration) ──────────────────────────────────────
-python bin/simulate_graph.py failure --target NavLib --layer system
-python bin/simulate_graph.py failure --target MainBroker --layer mw \
-    --failure-mode PARTITION
+```bash
+python simulate_graph.py fault-inject \
+    --input input/atm_system.json \
+    --nodes ConflictDetector \
+    --output output/simulation/ \
+    --export-json -v
+```
 
-# ─── Monte Carlo (large systems) ─────────────────────────────────────────────
-python bin/simulate_graph.py failure --monte-carlo --samples 500 \
-    --cascade-prob 0.85 --layer system --output results/mc_impact.json
+**Example — brokers only, max two cascade waves:**
 
-# ─── Full pipeline: Prediction → Simulation → Validation ─────────────────────
-python bin/analyze_graph.py  --layer system --output results/prediction.json
-python bin/simulate_graph.py event --all --messages 50 --layer system
-python bin/simulate_graph.py failure --exhaustive --layer system \
-    --output results/impact.json
-python bin/validate_graph.py results/prediction.json results/impact.json
+```bash
+python simulate_graph.py fault-inject \
+    --input input/atm_system.json \
+    --node-types Broker \
+    --cascade-depth 2 \
+    --seeds 42,123,456 \
+    --export-json
+```
+
+### 5.2 `message-flow`
+
+Runs the SimPy discrete-event message flow simulation.
+
+```
+python simulate_graph.py message-flow [options]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--input PATH` | *(required)* | Path to the graph JSON file. |
+| `--output DIR` | `output/simulation/` | Output directory; created if absent. |
+| `--export-json` | off | Write `message_flow_results.json` and `message_flow_summary.txt`. |
+| `--duration SECONDS` | `100.0` | Simulation duration in simulated seconds. |
+| `--fault-node NODE_ID` | none | Node to fault during simulation. |
+| `--fault-time SECONDS` | `duration / 2` | When to inject the fault. |
+| `--seed INT` | `42` | Random seed for publish jitter and processing time variation. |
+| `--default-rate HZ` | `10.0` | Fallback publish rate when absent from graph metadata. |
+| `--default-queue-size N` | `100` | Fallback per-subscriber queue capacity. |
+| `--verbose` / `-v` | off | Enable DEBUG logging. |
+
+> `--fault-node` and `--fault-time` are independent: `--fault-node` controls **which** node is faulted; `--fault-time` controls **when**. Omitting `--fault-node` runs a clean baseline simulation with no fault.
+
+**Example — baseline, no fault:**
+
+```bash
+python simulate_graph.py message-flow \
+    --input input/atm_system.json \
+    --duration 300 \
+    --seed 42 \
+    --export-json
+```
+
+**Example — fault ConflictDetector at the midpoint:**
+
+```bash
+python simulate_graph.py message-flow \
+    --input input/atm_system.json \
+    --duration 300 \
+    --fault-node ConflictDetector \
+    --fault-time 150 \
+    --seed 42 \
+    --export-json
+```
+
+**Example — broker fault with custom queue size and rate:**
+
+```bash
+python simulate_graph.py message-flow \
+    --input input/atm_system.json \
+    --duration 200 \
+    --fault-node ASTERIX_Broker \
+    --fault-time 100 \
+    --default-queue-size 50 \
+    --default-rate 20.0 \
+    --seed 123 \
+    --export-json
+```
+
+### 5.3 `combined`
+
+Runs `fault-inject` and `message-flow` in sequence using a merged set of flags.
+
+```
+python simulate_graph.py combined [options]
+```
+
+All flags from both `fault-inject` and `message-flow` are available. The `--fault-node` flag serves both modes: it selects the node for the message-flow fault injection **and** can be combined with `--nodes` to restrict fault-inject to the same node.
+
+**Example — full combined run for ATM:**
+
+```bash
+python simulate_graph.py combined \
+    --input input/atm_system.json \
+    --output output/simulation/ \
+    --seeds 42,123,456,789,2024 \
+    --duration 300 \
+    --fault-node ASTERIX_Broker \
+    --fault-time 150 \
+    --export-json
+```
+
+### 5.4 Shared Flags
+
+All three subcommands accept these flags:
+
+| Flag | Description |
+|------|-------------|
+| `--input PATH` | Path to the input graph JSON file. Required. |
+| `--output DIR` | Output directory. Default: `output/simulation/`. |
+| `--export-json` | Write JSON result files to `--output`. |
+| `--verbose` / `-v` | Enable DEBUG-level logging (shows per-node I(v) and per-topic stats). |
+
+---
+
+## 6. Output Files
+
+### 6.1 `impact_scores.json`
+
+Written by `fault-inject`. This is the canonical I(v) ground-truth file consumed by the RMAV validation pipeline.
+
+```
+output/simulation/
+├── impact_scores.json          ← full result with all records
+└── impact_scores_summary.txt   ← human-readable ranked table
+```
+
+**Top-level structure:**
+
+```json
+{
+  "schema_version": "2.0",
+  "graph_id": "atm_system",
+  "total_nodes_injected": 6,
+  "total_application_nodes": 5,
+  "total_broker_nodes": 1,
+  "total_subscribers": 3,
+  "seeds_used": [42, 123, 456, 789, 2024],
+  "top_k_by_impact": [ ... ],
+  "records": { ... }
+}
+```
+
+**`top_k_by_impact`** — ranked list (top 20 by default):
+
+```json
+[
+  {
+    "rank": 1,
+    "node_id": "RadarTracker",
+    "node_type": "Application",
+    "node_name": "RadarTracker",
+    "impact_score": 1.0,
+    "cascade_depth": 1,
+    "orphaned_topics": 4,
+    "impacted_subscribers": 3,
+    "impact_score_std": 0.0
+  },
+  ...
+]
+```
+
+**`records`** — full detail per node:
+
+```json
+{
+  "RadarTracker": {
+    "node_id": "RadarTracker",
+    "node_type": "Application",
+    "impact_score": 1.0,
+    "total_orphaned_topics": 4,
+    "total_impacted_subscribers": 3,
+    "total_subscribers": 3,
+    "cascade_depth": 1,
+    "directly_orphaned_topics": ["T_radar", "T_tracks"],
+    "all_orphaned_topics": ["T_conflicts", "T_fpa", "T_radar", "T_tracks"],
+    "impacted_subscriber_ids": ["ATCWorkstation", "ConflictDetector", "FlightDataProcessor"],
+    "per_subscriber_feed_loss": {
+      "ATCWorkstation": 1.0,
+      "ConflictDetector": 1.0,
+      "FlightDataProcessor": 1.0
+    },
+    "cascade_waves": [
+      {
+        "wave_index": 0,
+        "newly_orphaned_topics": ["T_radar", "T_tracks"],
+        "newly_impacted_subscribers": ["ATCWorkstation", "ConflictDetector", "FlightDataProcessor"],
+        "newly_failed_publishers": ["RadarTracker"]
+      },
+      {
+        "wave_index": 1,
+        "newly_orphaned_topics": ["T_conflicts", "T_fpa"],
+        "newly_impacted_subscribers": [],
+        "newly_failed_publishers": ["ConflictDetector", "FlightDataProcessor"]
+      }
+    ],
+    "seed_impact_scores": {"42": 1.0, "123": 1.0, "456": 1.0, "789": 1.0, "2024": 1.0},
+    "impact_score_std": 0.0
+  }
+}
+```
+
+**Key fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `impact_score` | float [0,1] | Mean I(v) across seeds. Primary validation target. |
+| `impact_score_std` | float | Standard deviation across seeds. 0.0 = deterministic. |
+| `cascade_depth` | int | Number of cascade waves that fired (0 = no cascade). |
+| `directly_orphaned_topics` | list | Topics orphaned by removing v alone (wave 0). |
+| `all_orphaned_topics` | list | All topics orphaned, including cascaded waves. |
+| `per_subscriber_feed_loss` | dict | Per-subscriber feed-loss fraction contributing to I(v). |
+| `cascade_waves` | list | Full per-wave trace for debugging and visualisation. |
+
+### 6.2 `message_flow_results.json`
+
+Written by `message-flow`. Contains per-topic and per-subscriber statistics, plus a fault event record if a fault was injected.
+
+```
+output/simulation/
+├── message_flow_results.json    ← full result
+└── message_flow_summary.txt     ← human-readable table
+```
+
+**Top-level structure:**
+
+```json
+{
+  "schema_version": "2.0",
+  "graph_id": "atm_system",
+  "simulation_duration": 300.0,
+  "seed": 42,
+  "fault_event": { ... },
+  "system_delivery_rate": 0.9975,
+  "system_drop_rate": 0.0025,
+  "total_messages_published": 5820,
+  "total_messages_delivered": 9730,
+  "total_deadline_violations": 0,
+  "total_queue_overflows": 0,
+  "topic_stats": { ... },
+  "subscriber_stats": { ... }
+}
+```
+
+**`fault_event`** (null when no fault was injected):
+
+```json
+{
+  "fault_time": 150.0,
+  "faulted_node_id": "ConflictDetector",
+  "faulted_node_type": "Application",
+  "cascade_silenced_publishers": ["ConflictDetector"],
+  "cascade_orphaned_topics": ["T_conflicts"],
+  "cascade_impacted_subscribers": ["ATCWorkstation"],
+  "delivery_rate_before": 0.9977,
+  "delivery_rate_after": 0.9962
+}
+```
+
+**`topic_stats`** — per topic:
+
+```json
+{
+  "T_radar": {
+    "topic_id": "T_radar",
+    "topic_name": "T_radar",
+    "reliability_policy": "RELIABLE",
+    "deadline_ms": 100,
+    "durability_policy": "TRANSIENT_LOCAL",
+    "total_published": 2990,
+    "total_delivered": 5980,
+    "total_dropped_queue_full": 0,
+    "total_dropped_deadline": 0,
+    "total_dropped_best_effort": 0,
+    "delivery_rate": 1.0,
+    "drop_rate": 0.0,
+    "latency_p50_ms": 2.1,
+    "latency_p95_ms": 3.4,
+    "latency_p99_ms": 3.9
+  }
+}
+```
+
+**`subscriber_stats`** — per subscriber:
+
+```json
+{
+  "ATCWorkstation": {
+    "subscriber_id": "ATCWorkstation",
+    "subscribed_topics": ["T_tracks", "T_conflicts", "T_fpa"],
+    "received_per_topic": {"T_tracks": 1495, "T_conflicts": 148, "T_fpa": 599},
+    "missed_per_topic": {"T_tracks": 0, "T_conflicts": 0, "T_fpa": 0},
+    "deadline_violations_per_topic": {"T_tracks": 0, "T_conflicts": 0, "T_fpa": 0},
+    "total_received": 2242,
+    "total_missed": 0,
+    "overall_delivery_rate": 1.0,
+    "received_post_fault": 1050
+  }
+}
+```
+
+**Note.** `total_delivered` in `topic_stats` counts individual (message, subscriber) deliveries — i.e., for a topic with two subscribers, each message delivered to both counts as two deliveries. The per-topic `delivery_rate` is `total_delivered / (total_published × num_subscribers)`.
+
+---
+
+## 7. Worked Examples — ATM Dataset
+
+The ATM Air Traffic Management dataset has the following pub-sub topology:
+
+```
+RadarTracker  ──PUBLISHES_TO──▶  T_radar   ──SUBSCRIBES_TO──▶  ConflictDetector
+              ──PUBLISHES_TO──▶  T_tracks  ──SUBSCRIBES_TO──▶  ConflictDetector
+                                            ──SUBSCRIBES_TO──▶  ATCWorkstation
+                                            ──SUBSCRIBES_TO──▶  FlightDataProcessor
+
+FlightDataProcessor ──PUBLISHES_TO──▶  T_fpa  ──SUBSCRIBES_TO──▶  ATCWorkstation
+
+ConflictDetector ──PUBLISHES_TO──▶  T_conflicts ──SUBSCRIBES_TO──▶  ATCWorkstation
+
+MeteoService ──PUBLISHES_TO──▶  T_meteo  (no subscribers)
+
+ASTERIX_Broker ──ROUTES──▶  T_radar, T_tracks, T_conflicts, T_meteo, T_fpa
+```
+
+### Expected fault-inject results
+
+| Node | I(v) | Cascade depth | Why |
+|------|------|---------------|-----|
+| `RadarTracker` | 1.000 | 1 | Sole publisher of T_radar and T_tracks; ConflictDetector and FlightDataProcessor both lose all feeds → cascade → T_conflicts and T_fpa also orphaned; all 3 subscribers lose 100% of their feeds |
+| `ASTERIX_Broker` | 1.000 | 1 | Sole router of all 5 topics; same total loss |
+| `ConflictDetector` | 0.111 | 0 | Orphans only T_conflicts; ATCWorkstation loses 1/3 feeds (T_conflicts only); other subscribers unaffected |
+| `FlightDataProcessor` | 0.111 | 0 | Orphans only T_fpa; ATCWorkstation loses 1/3 feeds |
+| `ATCWorkstation` | 0.000 | 0 | Not a publisher; removing it harms no downstream subscriber |
+| `MeteoService` | 0.000 | 0 | Orphans T_meteo but T_meteo has no subscribers |
+
+> With `propagation_threshold=0.5`: ConflictDetector losing T_radar alone (1/2 feeds = 50%) would trigger a cascade to T_conflicts → ATCWorkstation also loses T_conflicts → ConflictDetector's I(v) rises.
+
+### Running the full validation workflow
+
+```bash
+# Step 1: Generate ground-truth I(v)
+python simulate_graph.py fault-inject \
+    --input input/atm_system.json \
+    --output output/simulation/ \
+    --seeds 42,123,456,789,2024 \
+    --export-json
+
+# Step 2: Run analysis to get Q(v) predictions
+python analyze_graph.py \
+    --input input/atm_system.json \
+    --output output/analysis/ \
+    --export-json
+
+# Step 3: Compute Spearman ρ between Q(v) and I(v)
+# (handled by ValidateUseCase / bin/validate_topology_classes.py,
+#  which reads output/analysis/analysis_results.json and
+#  output/simulation/impact_scores.json)
+python bin/validate_topology_classes.py \
+    --analysis output/analysis/analysis_results.json \
+    --impact   output/simulation/impact_scores.json
+```
+
+### Message flow: observing the ConflictDetector fault
+
+```bash
+python simulate_graph.py message-flow \
+    --input input/atm_system.json \
+    --duration 300 \
+    --fault-node ConflictDetector \
+    --fault-time 150 \
+    --seed 42 \
+    --export-json
+```
+
+Expected observations in `message_flow_results.json`:
+- `T_conflicts.delivery_rate` drops to ~0.5 (only pre-fault messages delivered).
+- `ATCWorkstation.received_per_topic.T_conflicts` is ~150 messages (rate 1 Hz × 150 s).
+- `ATCWorkstation.received_per_topic.T_tracks` and `.T_fpa` are unaffected (~full duration).
+- `fault_event.delivery_rate_after` is lower than `delivery_rate_before` due to loss of T_conflicts stream.
+
+---
+
+## 8. Integration with the RMAV Validation Pipeline
+
+The fault injector's `impact_scores.json` is designed to slot directly into the existing SaG validation pipeline:
+
+```
+impact_scores.json
+    │
+    │  records[node_id].impact_score  →  I(v) vector
+    │
+    ▼
+ValidateUseCase / validate_topology_classes.py
+    │
+    │  Spearman ρ(Q(v), I(v))   ← primary gate metric (threshold ρ ≥ 0.70)
+    │  F1 @ top-k               ← secondary gate
+    │  ICR@K, RCR, BCE          ← specialist metrics
+    │  Predictive Gain (PG)     ← must exceed 0.03 over degree baseline
+    │
+    ▼
+Validation report
+```
+
+**Pairing keys.** Both `analysis_results.json` and `impact_scores.json` use the node ID (string matching the graph node name) as the primary key. The validation script should inner-join on this key, discarding nodes present in only one file (e.g., Topic nodes that appear in analysis but are not injection candidates).
+
+**Node-type stratified reporting.** The `node_type` field in each record allows the Spearman ρ to be computed separately for Application nodes and Broker nodes, which is important because the infrastructure layer has historically shown weaker correlation (ρ ≈ 0.54) than the application layer (ρ = 0.876).
+
+**Multi-seed stability gate.** Before using I(v) for publication, verify that `impact_score_std` is below a threshold (suggested: 0.02) for all nodes. High std values indicate topology boundary fragility that should be investigated.
+
+---
+
+## 9. Input Graph Format Requirements
+
+The `--input` file must be a JSON file compatible with the SaG schema. The CLI loader handles two paths automatically:
+
+**Path 1 (preferred):** If `src/core/graph_builder.py` and `src/core/graph_exporter.py` are importable, they are used. This supports the full schema including MIL-STD-498 hierarchy metadata, Jira enrichment, and code metrics.
+
+**Path 2 (fallback):** A lightweight inline loader reads these keys directly from either the top-level of the JSON or a nested `"relationships"` object (to support exported schemas like the ATM dataset):
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `applications` | list | Each item: `{"id": "...", "name": "...", "processing_time": 0.002, ...}` |
+| `brokers` | list | Each item: `{"id": "...", "name": "..."}` |
+| `topics` | list | Each item: `{"id": "...", "name": "...", "qos_profile": {...}}` |
+| `nodes` | list | Infrastructure nodes (optional for simulation) |
+| `publishes_to` | list | Each: `{"from": "...", "to": "...", "rate_hz": 10.0, ...}` (also supports `publishes`, `publish_edges`, `source`/`target`) |
+| `subscribes_to` | list | Each: `{"from": "...", "to": "...", ...}` (also supports `subscribes`, `subscribe_edges`, `source`/`target`) |
+| `routes` | list | Each: `{"from": "...", "to": "..."}` (also supports legacy `broker_routes` dictionary) |
+| `runs_on` | list | Each: `{"from": "...", "to": "..."}` (Application/Broker mapping to Node) |
+
+**QoS profile fields:**
+
+```json
+{
+  "reliability":   "RELIABLE",
+  "durability":    "TRANSIENT_LOCAL",
+  "deadline_ms":   100,
+  "lifespan_ms":   null,
+  "queue_size":    50,
+  "history_depth": 10
+}
+```
+
+All QoS fields are optional; defaults are `RELIABLE`, `VOLATILE`, no deadline, no lifespan, `queue_size=100`.
+
+**`processing_time`** on Application nodes (seconds). Used by the message-flow simulator as the per-component compute latency. Set by `ProcessingTimeEnricher` as `base_latency × (1 + α × c_norm(v))` where `c_norm(v)` is the normalised cyclomatic complexity from SonarQube. Falls back to `--default-processing-time` (default 0.001 s) when absent.
+
+---
+
+## 10. Python API
+
+Both simulators can be used as Python libraries without going through the CLI.
+
+### FaultInjector
+
+```python
+from src.simulation.fault_injector import FaultInjector
+import networkx as nx
+
+# graph: NetworkX DiGraph with PUBLISHES_TO, SUBSCRIBES_TO, ROUTES edges
+injector = FaultInjector(
+    graph=graph,
+    seeds=[42, 123, 456, 789, 2024],
+    cascade_depth_limit=0,          # 0 = unlimited
+    propagation_threshold=1.0,      # 1.0 = completely starved
+)
+
+# Inject all Application and Broker nodes
+result = injector.run(node_types=["Application", "Broker"])
+
+# Inject specific nodes only
+result = injector.run(node_ids=["ConflictDetector", "ASTERIX_Broker"])
+
+# Save to disk
+from pathlib import Path
+result.save(Path("output/simulation/impact_scores.json"))
+
+# Access per-node records
+for node_id, rec in result.records.items():
+    print(f"{node_id}: I(v)={rec.impact_score:.4f}  depth={rec.cascade_depth}")
+
+# Access ranked summary
+for row in result.top_k_by_impact:
+    print(f"#{row['rank']}  {row['node_id']}  {row['impact_score']:.4f}")
+```
+
+### MessageFlowSimulator
+
+```python
+from src.simulation.message_flow_simulator import MessageFlowSimulator
+
+sim = MessageFlowSimulator(
+    graph=graph,
+    duration=300.0,
+    fault_node="ConflictDetector",  # None for baseline (no fault)
+    fault_time=150.0,               # defaults to duration / 2
+    seed=42,
+    default_queue_size=100,
+    default_publish_rate_hz=10.0,
+    default_processing_time_s=0.001,
+    max_latency_samples=10_000,
+)
+
+result = sim.run()
+result.save(Path("output/simulation/message_flow_results.json"))
+
+# Inspect per-topic stats
+for tid, ts in result.topic_stats.items():
+    print(f"{ts.topic_name}: delivery={ts.delivery_rate:.4f}  "
+          f"P50={ts.latency_p50:.1f}ms  deadline_viol={ts.total_dropped_deadline}")
+
+# Inspect fault event
+if result.fault_event:
+    fe = result.fault_event
+    print(f"Fault at t={fe.fault_time:.1f}s: {fe.faulted_node_id}")
+    print(f"  Orphaned:  {fe.cascade_orphaned_topics}")
+    print(f"  Impacted:  {fe.cascade_impacted_subscribers}")
+    print(f"  Rate before: {fe.delivery_rate_before:.4f}")
+    print(f"  Rate after:  {fe.delivery_rate_after:.4f}")
 ```
 
 ---
 
-## What Comes Next
+## 11. Known Limitations
 
-Simulation produces five ground-truth scores per component: I(v), IR(v), IM(v), IA(v), IV(v). Each is independent from Q(v) by construction.
+**L1 — Broker routing model is binary.** The fault injector models broker failure as "topic routed by the failed broker is orphaned if no other live broker routes it." In practice, DDS routing is more nuanced — a broker failure mid-message can cause partial delivery even with redundant routing. The current model is conservative and correct for single-broker topologies (ADVENT, ATM datasets).
 
-Step 5 (Validation) aligns Q(v) and I(v) by component ID and computes eleven statistical metrics per dimension: Spearman ρ and Kendall τ (rank correlation), F1-score (classification agreement), Top-K overlap and NDCG@K (ranking quality), RMSE/MAE (magnitude error), and dimension-specific specialist metrics (CCR@5 for Reliability, COCR@5 for Maintainability, SPOF_F1 for Availability, AHCR@5 for Vulnerability). A tiered gate system produces a definitive pass/fail verdict. The achieved Spearman ρ = 0.876 confirms the methodology's central claim.
+**L2 — TRANSIENT\_LOCAL durability not fully simulated.** The message flow simulator notes the `TRANSIENT_LOCAL` QoS policy but does not implement late-joiner history replay. A subscriber that joins after the publisher starts will not receive historical samples. This affects correctness for simulations modelling late-joining controllers.
 
----
+**L3 — Single fault per simulation run.** Both simulators model at most one node failure at a time. Correlated failures (e.g., a power loss taking down all nodes in a rack) require running the combined mode with explicit topology modifications or extending the fault injector with a `fault_group` parameter.
 
-← [Step 3: Prediction](prediction.md) | → [Step 5: Validation](validation.md)
+**L4 — Publisher-side processing time is not included in end-to-end latency.** The message `created_at` timestamp is set after the publisher's processing delay, meaning publisher processing is not part of the reported latency. Total pipeline latency = publisher processing + queue transit + subscriber processing; only the latter two are captured. This is consistent with DDS measurement conventions (publication timestamp is at the point of writing to the middleware).
+
+**L5 — Infrastructure layer metrics not used in cascade.** RUNS\_ON and CONNECTS\_TO edges are not used in the fault cascade. A network partition that isolates a set of physical nodes from each other is not modelled. This is consistent with the known weak correlation of infrastructure-layer Q(v) (ρ ≈ 0.54) and is flagged as a gap in the thesis.
+
+**L6 — No timeout / retry modelling.** For RELIABLE QoS, the head-drop policy prevents queue overflow but does not model TCP-style retransmission or DDS heartbeat/acknowledgement. The modelled delivery rates will be optimistic relative to real network conditions.
