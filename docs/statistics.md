@@ -83,11 +83,30 @@ All endpoints return a `{"success": bool, "stats": {...}, "computation_time_ms":
 | `/api/v1/stats/degree-distribution`| `POST` | `DegreeDistributionResponse` |
 | `/api/v1/stats/connectivity-density`| `POST` | `ConnectivityDensityResponse` |
 | `/api/v1/stats/dependency-depth` | `POST` | `DependencyDepthResponse` |
-| `/api/v1/stats/component-redundancy`| `POST` | SPOFs and Resilience Score |
+---
+
+## 4. CLI Usage
+
+The `bin/statistics_graph.py` script provides a command-line interface for both live and file-based analysis.
+
+### Examples
+
+| Usage | Command |
+|---|---|
+| **Live Analysis** | `python bin/statistics_graph.py` |
+| **File Analysis** | `python bin/statistics_graph.py --input output/dataset.json` |
+| **Filtered Charts** | `python bin/statistics_graph.py --chart topic_fanout qos_risk` |
+| **JSON Export** | `python bin/statistics_graph.py --format json --output stats.json` |
+
+### Key Flags
+- `--chart`: Select specific chart IDs (e.g., `topic_bandwidth`, `qos_risk`).
+- `--format`: Choose output format: `table` (rich), `minimal` (compact), or `json`.
+- `--input`: Read from a pre-exported JSON file instead of connecting to Neo4j.
+- `--output`: Save the resulting statistics as a JSON file.
 
 ---
 
-## Expected Input Format (Visualization)
+## 5. Expected Input Format (Visualization)
 
 `extract_cross_cutting_data` expects a JSON dict with:
 
