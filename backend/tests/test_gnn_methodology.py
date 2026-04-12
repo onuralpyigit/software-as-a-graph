@@ -2,8 +2,11 @@ import pytest
 import networkx as nx
 import torch
 import numpy as np
+from unittest.mock import MagicMock, patch
 from src.prediction.data_preparation import networkx_to_hetero_data
 from src.prediction.models import CriticalityLoss
+from src.prediction.gnn_service import GNNService
+from src.prediction.trainer import EvalMetrics
 
 def test_bridge_aware_edge_labels():
     """GNN-G3: Verify that edge labels are grounded in bridge property."""
@@ -82,3 +85,63 @@ def test_consistency_loss_logic():
     
     # Total = 0.04 + 0.5*0.04 + 0.1*0.04 + 0.3*ranking
     # We just want to ensure it's calculated using the correct masks.
+
+def test_best_seed_selection():
+    """GNN-G6: Verify that the best-performing seed is selected and restored."""
+    service = GNNService(checkpoint_dir="scratch/test_best_seed")
+    G = nx.DiGraph()
+    G.add_node("1", type="Application")
+    G.add_edge("1", "1", type="DEPENDS_ON") # Self-loop for minimal graph
+    
+    # Mock Trainer and evaluate
+    with patch("src.prediction.gnn_service.GNNTrainer") as MockTrainer, \
+         patch("src.prediction.gnn_service.evaluate") as MockEval:
+        
+        # Seed 1: poor performance (rho=0.5)
+        # Seed 2: best performance (rho=0.9)
+        # Seed 3: mediocre (rho=0.7)
+        
+        def mock_train_side_effect(*args, **kwargs):
+            trainer = MagicMock()
+            # We need to simulate different rho based on some state? 
+            # Actually GNNService.train creates a new trainer per seed.
+            pass
+
+        # Since GNNService creates a new trainer instance, we mock the class
+        mock_instances = [MagicMock(), MagicMock(), MagicMock()]
+        
+        # Mock Metrics
+        metrics_low = EvalMetrics(spearman_rho=0.5, f1_score=0.5, rmse=1.0, mae=1.0, top_5_overlap=0.0, top_10_overlap=0.0, ndcg_10=0.0)
+        metrics_high = EvalMetrics(spearman_rho=0.9, f1_score=0.9, rmse=0.1, mae=0.1, top_5_overlap=1.0, top_10_overlap=1.0, ndcg_10=1.0)
+        metrics_mid = EvalMetrics(spearman_rho=0.7, f1_score=0.7, rmse=0.5, mae=0.5, top_5_overlap=0.0, top_10_overlap=0.0, ndcg_10=0.0)
+        
+        mock_instances[0].train.return_value = ({}, metrics_low)
+        mock_instances[1].train.return_value = ({}, metrics_high)
+        mock_instances[2].train.return_value = ({}, metrics_mid)
+        
+        MockTrainer.side_effect = mock_instances
+        MockEval.return_value = metrics_low # simplified
+        
+        # We also need to mock model.state_dict() to return something identifying
+        service._init_models = MagicMock()
+        service._node_model = MagicMock()
+        service._edge_model = None
+        service.predict_edges = False # Simplify for test
+        
+        # Simplified state dicts with tensor-like values
+        states = [
+            {"w": MagicMock(spec=torch.Tensor)},
+            {"w": MagicMock(spec=torch.Tensor)},
+            {"w": MagicMock(spec=torch.Tensor)}
+        ]
+        for s in states:
+            s["w"].cpu.return_value = s["w"]
+            s["w"].clone.return_value = s["w"]
+            
+        service._node_model.state_dict.side_effect = states
+        
+        service.train(G, seeds=[1, 2, 3], simulation_results={"1": {}}, rmav_scores={"1": {}})
+        
+        # Check if load_state_dict was called with state[1] (seed 2)
+        # We check the content matches (it was cloned to cpu)
+        service._node_model.load_state_dict.assert_called_with(states[1])

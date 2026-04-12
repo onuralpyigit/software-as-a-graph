@@ -1,0 +1,14 @@
+{
+  "hidden_channels": 64,
+  "num_heads": 4,
+  "num_layers": 3,
+  "dropout": 0.2,
+  "predict_edges": false,
+  "node_feature_dims": {
+    "Application": 23,
+    "Library": 23,
+    "Broker": 18,
+    "Topic": 18,
+    "Node": 18
+  }
+}

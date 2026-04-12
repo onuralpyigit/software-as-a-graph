@@ -90,8 +90,12 @@ class GNNTrainer:
         self.device = next(model.parameters()).device
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    def train(self, data: 'HeteroData') -> Dict[str, List[float]]:
-        """Run the full training loop with early stopping."""
+    def train(self, data: 'HeteroData') -> Tuple[Dict[str, List[float]], Optional[EvalMetrics]]:
+        """Run the full training loop with early stopping.
+        
+        Returns:
+            Tuple of (history_dict, best_val_metrics).
+        """
         logger.info(
             "Starting training | epochs=%d | lr=%.2e | device=%s",
             self.num_epochs, self.lr, self.device
@@ -121,6 +125,7 @@ class GNNTrainer:
                     logger.info("  [%s] Train: %d | Val: %d", nt, n_train, n_val)
 
         best_val_rho = -1.0
+        best_val_metrics: Optional[EvalMetrics] = None
         epochs_without_improvement = 0
         history = {"train_loss": [], "val_loss": [], "val_rho": []}
 
@@ -184,6 +189,7 @@ class GNNTrainer:
 
             if val_rho > best_val_rho:
                 best_val_rho = val_rho
+                best_val_metrics = val_metrics
                 epochs_without_improvement = 0
                 self._save_checkpoint("best_model.pt")
             else:
@@ -204,8 +210,9 @@ class GNNTrainer:
         best_path = self.checkpoint_dir / "best_model.pt"
         if best_path.exists():
             self.model.load_state_dict(torch.load(best_path, map_location=self.device))
+            logger.info("Restored best model with validation rho: %.4f", best_val_rho)
 
-        return history
+        return history, best_val_metrics
 
     def _save_checkpoint(self, name: str):
         path = self.checkpoint_dir / name

@@ -627,6 +627,22 @@ L_consistency = Σ_{d} MSE(d̂(v), Q_d(v)) [unlabeled nodes]
 L_rank        = −(1/N) Σ log P(v-th position)   [ListMLE, labeled nodes]
 ```
 
+### Methodology and Validation
+
+#### Transductive vs. Inductive Learning (Issue G5)
+The primary training pipeline is **transductive**. During message passing, the embeddings of training nodes are influenced by their topological neighbors, including those in the test set. While label information does not leak, the model has structural context for the entire graph.
+*   **Transductive**: Standard mode. Neighborhood context includes all nodes.
+*   **Inductive**: Multi-graph mode. The model generalizes to genuinely unseen graphs (e.g., training on system A, deploying on system B). Generalization is validated via the `--multi-scenario` flag.
+
+#### Robustness via Multi-Seed Stability (Issue G6)
+To capture stochastic variance in initialization and splitting, the model supports multiple seeds. The system:
+1. Performs an independent train/val/test split per seed.
+2. Selects the **best candidate** based on validation Spearman rho.
+3. Restores the optimal weights and masks before proceeding to ensemble calibration.
+
+#### Ensemble Fine-Tuning (Issue G7)
+The ensemble blend ($\alpha$) is calibrated using the training set. Unlike a simple post-hoc average, this step allows **partial fine-tuning of GNN prediction heads**, enabling the model to correct systematic biases (e.g., node-type specific over-prediction) and achieve better alignment with simulation ground truth than either RMAV or GNN alone.
+
 **Optimizer:** AdamW, lr = 3×10⁻⁴, weight_decay = 10⁻⁴, cosine annealing, gradient clipping max_norm = 1.0.
 
 ---

@@ -329,7 +329,11 @@ class GNNService:
         )
         self._conversion_result = conv
         data = conv.hetero_data
-        create_node_splits(data, train_ratio, val_ratio)
+        
+        # Transductive bias acknowledgment (Issue G5)
+        logger.info("Training mode: Transductive (neighbourhood context includes test nodes).")
+        if inductive_graphs:
+            logger.info("Generality Validation: Inductive multi-graph training enabled (%d scenarios).", len(inductive_graphs))
 
         # Prepare DataLoader for training
         if inductive_graphs:
@@ -341,9 +345,12 @@ class GNNService:
         else:
             training_input = data
 
-        # Handle multi-seed training
+        # Handle multi-seed training (Issue G6)
         training_seeds = seeds if seeds else [42]
         all_metrics = []
+        best_val_rho = -1.0
+        best_state: Optional[Dict[str, Tensor]] = None
+        best_seed = training_seeds[0]
         
         for seed in training_seeds:
             if len(training_seeds) > 1:
@@ -353,6 +360,12 @@ class GNNService:
             np.random.seed(seed)
             random.seed(seed)
             
+            # Fresh split per seed (Issue G6/G8)
+            create_node_splits(data, train_ratio, val_ratio, seed=seed)
+            if inductive_graphs:
+                for ig in inductive_graphs:
+                     create_node_splits(ig, train_ratio, val_ratio, seed=seed)
+
             # Initialise models for this seed
             self._init_models(data.metadata())
 
@@ -365,11 +378,26 @@ class GNNService:
                 num_epochs=num_epochs,
                 patience=patience,
             )
-            trainer.train(training_input)
+            _, best_val_metrics = trainer.train(training_input)
 
-            # Evaluate on primary graph test set
+            # Track global best across seeds
+            if best_val_metrics and best_val_metrics.spearman_rho > best_val_rho:
+                best_val_rho = best_val_metrics.spearman_rho
+                best_state = {k: v.cpu().clone() for k, v in model_to_train.state_dict().items()}
+                best_seed = seed
+                logger.info("  [Best Seed Updated] Seed %d achieved Val Rho: %.4f", seed, best_val_rho)
+
+            # Evaluate on primary graph test set for this seed
             test_metrics = evaluate(model_to_train, data, "test_mask", self.device)
             all_metrics.append(test_metrics)
+
+        # Restore best model and masks before ensemble fine-tuning (Issue G6/G8)
+        if best_state is not None:
+            logger.info("Restoring best model from seed %d (Val Rho: %.4f)", best_seed, best_val_rho)
+            model_to_restore = self._edge_model if self.predict_edges else self._node_model
+            model_to_restore.load_state_dict(best_state)
+            # Re-apply best seed splits to ensure ensemble uses the correct training set
+            create_node_splits(data, train_ratio, val_ratio, seed=best_seed)
 
         # Average metrics across seeds if multiple
         if len(all_metrics) > 1:
@@ -551,24 +579,32 @@ class GNNService:
         """Fine-tune ensemble alpha on labelled training nodes."""
         if self._ensemble is None:
             return
-        logger.info("Fine-tuning ensemble weights…")
-        opt = torch.optim.Adam(self._ensemble.parameters(), lr=lr)
+        # Allow gradient flow through ensemble α AND GNN heads (Issue G7)
+        # Note: GNN backbone (HeteroConv) remains frozen to prevent catastrophic forgetting
+        gnn_params = []
+        if self._node_model and hasattr(self._node_model, "heads"):
+            gnn_params = list(self._node_model.heads.parameters())
+        
+        opt = torch.optim.Adam(
+            list(self._ensemble.parameters()) + gnn_params, 
+            lr=lr
+        )
         data = data.to(self.device)
 
         for epoch in range(num_epochs):
             self._ensemble.train()
+            if self._node_model: self._node_model.train() # Heads need training mode
             opt.zero_grad()
 
-            with torch.no_grad():
-                x_dict = {nt: data[nt].x for nt in data.node_types
-                          if hasattr(data[nt], "x")}
-                ei = {rel: data[rel].edge_index for rel in data.edge_types}
-                ea = {rel: data[rel].edge_attr for rel in data.edge_types
-                      if hasattr(data[rel], "edge_attr")}
-                if self._edge_model:
-                    pred_dict, _ = self._edge_model(x_dict, ei, ea)
-                else:
-                    pred_dict = self._node_model(x_dict, ei, ea)
+            x_dict = {nt: data[nt].x for nt in data.node_types
+                      if hasattr(data[nt], "x")}
+            ei = {rel: data[rel].edge_index for rel in data.edge_types}
+            ea = {rel: data[rel].edge_attr for rel in data.edge_types
+                  if hasattr(data[rel], "edge_attr")}
+            if self._edge_model:
+                pred_dict, _ = self._edge_model(x_dict, ei, ea)
+            else:
+                pred_dict = self._node_model(x_dict, ei, ea)
 
             total_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
             for nt in data.node_types:
@@ -587,6 +623,9 @@ class GNNService:
                 total_loss = total_loss + loss
 
             total_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self._ensemble.parameters(), max_norm=1.0)
+            if gnn_params:
+                torch.nn.utils.clip_grad_norm_(gnn_params, max_norm=1.0)
             opt.step()
 
         alpha_vals = self._ensemble.alpha.detach().cpu().tolist()
