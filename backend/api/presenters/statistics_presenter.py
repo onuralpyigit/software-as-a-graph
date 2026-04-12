@@ -4,6 +4,24 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def serialise_numpy(obj: Any) -> Any:
+    """Recursively convert numpy types to JSON-safe Python types."""
+    import numpy as np
+
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, dict):
+        return {k: serialise_numpy(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [serialise_numpy(i) for i in obj]
+    if isinstance(obj, set):
+        return list(obj)
+    return obj
+
 def format_statistics_response(stats: Dict[str, Any]) -> Dict[str, Any]:
     """Wrap a stats dict in a success envelope."""
     return {

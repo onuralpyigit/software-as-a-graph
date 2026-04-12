@@ -8,7 +8,7 @@ Can be used standalone with dataset.json to compute all statistics
 without needing the reporter module:
 
     import json
-    from statistics import extract_cross_cutting_data, compute_all_extras_statistics
+    from api.statistics import extract_cross_cutting_data, compute_all_extras_statistics
 
     with open("dataset.json") as f:
         data = json.load(f)
@@ -37,8 +37,7 @@ class DescriptiveStats:
     q1: float
     q3: float
     iqr: float
-    outlier_lower: float  # Alt limit (max 0 ile sınırlı)
-    outlier_upper: float  # Üst limit
+    outlier_upper: float  # Upper IQR fence
     
     def to_dict(self) -> Dict[str, float]:
         return {
@@ -51,7 +50,6 @@ class DescriptiveStats:
             "q1": round(self.q1, 4),
             "q3": round(self.q3, 4),
             "iqr": round(self.iqr, 4),
-            "outlier_lower": round(self.outlier_lower, 4),
             "outlier_upper": round(self.outlier_upper, 4),
         }
 
@@ -59,11 +57,11 @@ class DescriptiveStats:
 @dataclass
 class CategoricalStats:
     """Statistics for categorical (distribution) metrics."""
-    total_count: int        # Toplam öğe sayısı (tüm kategorilerdeki toplam)
-    category_count: int     # Kategori sayısı (kaç farklı değer var)
-    mode: str               # En sık görülen kategori
-    mode_count: int         # En sık kategorinin sayısı
-    mode_percentage: float  # En sık kategorinin yüzdesi
+    total_count: int        # Total number of items
+    category_count: int     # Number of distinct categories
+    mode: str               # Most frequent category
+    mode_count: int         # Count of most frequent category
+    mode_percentage: float  # Percentage of most frequent category
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -106,7 +104,7 @@ def calculate_descriptive_stats(values: List[float]) -> DescriptiveStats:
         return DescriptiveStats(
             count=0, mean=0, median=0, std=0,
             min_val=0, max_val=0, q1=0, q3=0, iqr=0,
-            outlier_lower=0, outlier_upper=0
+            outlier_upper=0
         )
     
     sorted_vals = sorted(values)
@@ -125,8 +123,6 @@ def calculate_descriptive_stats(values: List[float]) -> DescriptiveStats:
         q3 = _percentile(sorted_vals, 75)
     
     iqr = q3 - q1
-    # Outlier limits - lower bound can't be negative for count metrics
-    outlier_lower = max(0, q1 - 1.5 * iqr)
     outlier_upper = q3 + 1.5 * iqr
     
     return DescriptiveStats(
@@ -139,7 +135,6 @@ def calculate_descriptive_stats(values: List[float]) -> DescriptiveStats:
         q1=q1,
         q3=q3,
         iqr=iqr,
-        outlier_lower=outlier_lower,
         outlier_upper=outlier_upper
     )
 
@@ -150,30 +145,6 @@ def _percentile(data: List[float], p: float) -> float:
     f = int(k)
     c = f + 1 if f + 1 < len(data) else f
     return data[f] + (k - f) * (data[c] - data[f])
-
-
-def sort_entities_by_metric(
-    entities: List[Dict[str, Any]], 
-    metric_key: str,
-    descending: bool = True
-) -> List[Tuple[str, str, float]]:
-    """
-    Sort entities by a metric value.
-    
-    Returns:
-        List of (id, name, value) tuples sorted by value.
-    """
-    result = []
-    for entity in entities:
-        entity_id = entity.get("id", "")
-        entity_name = entity.get("name", "")
-        value = entity.get(metric_key, 0)
-        if value is None:
-            value = 0
-        result.append((entity_id, entity_name, float(value)))
-    
-    result.sort(key=lambda x: x[2], reverse=descending)
-    return result
 
 
 # ===================== OUTLIER DETECTION =====================
@@ -211,7 +182,6 @@ def calculate_outliers(
     if is_categorical or outlier_stats.count == 0:
         return []
 
-    lower_bound = outlier_stats.outlier_lower
     upper_bound = outlier_stats.outlier_upper
 
     outliers: List[Tuple[str, float]] = []
@@ -220,7 +190,7 @@ def calculate_outliers(
         name = item.get("name", item.get("id", "?"))
         version = item.get("version", "")
         display_name = f"{name} ({version})" if version and version != "NOT_FOUND" else str(name)
-        if value < lower_bound or value > upper_bound:
+        if value > upper_bound:
             outliers.append((display_name, value))
     return outliers
 

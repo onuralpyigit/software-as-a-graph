@@ -1,12 +1,16 @@
 # Statistics Calculator Module
 
-Computes descriptive and categorical statistics for distributed publish-subscribe system topologies. Operates on raw aggregated JSON data (e.g. `dataset.json`) and produces per-chart statistics used by the visualization layer.
+Comprises two distinct layers for analyzing system topology and communication patterns:
+1. **Visualization Statistics** (`api.statistics`): Operates on JSON exports to feed "Extras" charts.
+2. **Core Structural Statistics** (`src.analysis.statistics`): Operates on `GraphData` in the hexagonal core for topological analysis.
 
-## Quick Start
+---
+
+## Quick Start (Visualization Layer)
 
 ```python
 import json
-from statistics import extract_cross_cutting_data, compute_all_extras_statistics
+from backend.api.statistics import extract_cross_cutting_data, compute_all_extras_statistics
 
 with open("dataset.json") as f:
     data = json.load(f)
@@ -15,82 +19,102 @@ cc = extract_cross_cutting_data(data)
 stats = compute_all_extras_statistics(cc)
 ```
 
-## Module Structure
+## Module Ownership Policy
+
+| Module | Scope | Input | Typical Use Case |
+|---|---|---|---|
+| `backend/api/statistics.py` | Visualization | Raw JSON (`dataset.json`) | Populating scatter plots, heatmaps, and distribution charts in the dashboard. |
+| `backend/src/analysis/statistics.py` | Core Analysis | `GraphData` (Domain Models) | Identifying architectural smells, SPOFs, and computing graph-theoretic metrics. |
+
+---
+
+## 1. Visualization Statistics (API Layer)
 
 ### Data Classes
 
 | Class | Purpose |
 |---|---|
-| `DescriptiveStats` | Numeric statistics: count, mean, median, std, min/max, quartiles, IQR, outlier fences |
+| `DescriptiveStats` | Numeric statistics: count, mean, median, std, min/max, quartiles, IQR, upper fence |
 | `CategoricalStats` | Distribution statistics: total count, category count, mode, mode percentage |
-
-### Core Functions
-
-| Function | Description |
-|---|---|
-| `calculate_descriptive_stats(values)` | Computes `DescriptiveStats` for a list of floats |
-| `calculate_categorical_stats(category_counts)` | Computes `CategoricalStats` from a `{category: count}` dict |
-| `sort_entities_by_metric(entities, metric_key)` | Sorts entity dicts by a numeric field, returns `(id, name, value)` tuples |
-
-### Outlier Detection
-
-| Function | Description |
-|---|---|
-| `find_1d_outliers_iqr(values)` | Returns `(lower_fence, upper_fence, iqr)` using the 1.5×IQR method |
-| `calculate_outliers(ranked_list, outlier_stats)` | Identifies outlier entries from a ranked list given precomputed `DescriptiveStats` |
-
-### Data Extraction
-
-| Function | Description |
-|---|---|
-| `extract_cross_cutting_data(raw_data)` | Preprocesses raw JSON into lookup dictionaries (node/app/topic maps, pub/sub counts, criticality, domain, library relations) |
 
 ### Per-Chart Statistics
 
-Each function takes the cross-cutting data dict (`cc`) and returns a dict with chart-specific arrays, outlier lists, and a `summary` sub-dict.
-
 | Function | Chart | Key Outputs |
 |---|---|---|
-| `compute_topic_bandwidth_stats` | Topic Size × Subscribers | bandwidth per topic, IQR outliers |
-| `compute_qos_risk_stats` | QoS Risk Scatter | risk score per topic (durability × reliability × priority × log₂(size+1)), outliers |
-| `compute_app_balance_stats` | App Pub/Sub Balance | per-app I/O load, quadrant classification (high-I/O, consumer, producer, low) |
-| `compute_topic_fanout_stats` | Topic Fanout | publisher × subscriber fanout, pattern counts (1:N, N:1, N:M, orphan) |
-| `compute_cross_node_heatmap_stats` | Cross-Node Heatmap | NxN communication matrix, intra/inter-node traffic, outlier pairs |
-| `compute_node_comm_load_stats` | Node Communication Load | per-node pub/sub totals, coefficient of variation |
-| `compute_domain_comm_stats` | Domain Communication | domain-to-domain matrix, cross-domain pair counts |
-| `compute_criticality_io_stats` | Criticality × I/O | critical vs. normal app I/O comparison, critical/normal ratio |
-| `compute_lib_dependency_stats` | Library Dependency Density | in/out degree for apps and libraries in the USES graph |
-| `compute_node_critical_density_stats` | Node Critical Density | critical vs. normal app counts per node |
-| `compute_domain_diversity_stats` | Domain Diversity | app count, topic count, and I/O per domain |
+| `compute_topic_bandwidth` | Topic Size × Subscribers | bandwidth per topic, IQR outliers |
+| `compute_qos_risk_stats` | QoS Risk Scatter | **(Optional)** risk score per topic, outliers |
+| `compute_app_balance` | App Pub/Sub Balance | per-app I/O load, quadrant classification |
+| `compute_topic_fanout` | Topic Fanout | publisher × subscriber fanout, pattern counts |
+| `compute_cross_node_heatmap` | Cross-Node Heatmap | NxN communication matrix, intra/inter-node traffic |
+| `compute_node_comm_load` | Node Communication Load | per-node pub/sub totals, coefficient of variation |
+| `compute_domain_comm` | Domain Communication | domain-to-domain matrix, cross-domain pair counts |
+| `compute_criticality_io` | Criticality × I/O | critical vs. normal app I/O comparison |
+| `compute_lib_dependency` | Library Dependency | in/out degree for apps and libraries |
+| `compute_node_critical_density` | Node Critical Density| critical vs. normal app counts per node |
+| `compute_domain_diversity` | Domain Diversity | app count, topic count, and I/O per domain |
 
-### Top-Level Entry Point
+---
 
-```python
-compute_all_extras_statistics(cc, risk_weight_fn=None, w2name=None)
-```
+## 2. Core Structural Statistics (Analysis Layer)
 
-Runs all per-chart statistics in one call. The `qos_risk` chart is included only when `risk_weight_fn` is provided.
+Accessed via `src.analysis.statistics_service.StatisticsService`. These metrics operate on the live graph structure.
 
-**Parameters:**
-- `cc` — Cross-cutting data from `extract_cross_cutting_data`
-- `risk_weight_fn` — `Callable(dimension, value) -> float` for QoS risk weighting (optional)
-- `w2name` — `Dict[str, Dict[float, str]]` mapping weights to display names per QoS dimension (optional)
+### Topological Metrics
 
-## Expected Input Format
+| Metric | Function | Description |
+|---|---|---|
+| **Degree Distribution** | `get_degree_distribution` | Identifies Hubs (mean + 2σ) and isolated nodes. |
+| **Connectivity Density** | `get_connectivity_density` | System coupling factor (Sparse < 0.05 to Very Dense > 0.30). |
+| **Clustering Coefficient** | `get_clustering_coefficient`| Measures "triangle" formation (local interconnectedness). |
+| **Dependency Depth** | `get_dependency_depth` | BFS hierarchy analysis to find deepest components and roots/leaves. |
+| **Component Isolation** | `get_component_isolation`| Classifies components as Source, Sink, Bidirectional, or Isolated. |
+| **Redundancy & SPOF** | `get_component_redundancy`| Identifies Single Points of Failure and bridge components. |
+
+---
+
+## 3. REST API Reference
+
+All endpoints return a `{"success": bool, "stats": {...}, "computation_time_ms": float}` envelope.
+
+| Endpoint | Method | Response Model |
+|---|---|---|
+| `/api/v1/stats/` | `POST` | Full Visualization Statistics ("Extras") |
+| `/api/v1/stats/summary` | `POST` | Overall graph node/edge counts |
+| `/api/v1/stats/degree-distribution`| `POST` | `DegreeDistributionResponse` |
+| `/api/v1/stats/connectivity-density`| `POST` | `ConnectivityDensityResponse` |
+| `/api/v1/stats/dependency-depth` | `POST` | `DependencyDepthResponse` |
+| `/api/v1/stats/component-redundancy`| `POST` | SPOFs and Resilience Score |
+
+---
+
+## Expected Input Format (Visualization)
 
 `extract_cross_cutting_data` expects a JSON dict with:
 
-```
+```json
 {
-  "nodes": [{"id": ..., "name": ...}, ...],
-  "applications": [{"id": ..., "name": ..., "criticality": bool, "role": ..., "system_hierarchy": {"css_name": ...}}, ...],
-  "topics": [{"id": ..., "name": ..., "size": int, "qos": {"durability": ..., "reliability": ..., "transport_priority": ...}}, ...],
-  "libraries": [{"id": ..., "name": ...}, ...],
+  "nodes": [{"id": "node-1", "name": "Worker-A"}, ...],
+  "applications": [
+    {
+      "id": "app-1", 
+      "name": "Processor", 
+      "criticality": true, 
+      "role": "Publisher",
+      "system_hierarchy": {"css_name": "Domain-X"}
+    }, ...
+  ],
+  "topics": [
+    {
+      "id": "topic-1", 
+      "size": 1024, 
+      "qos": {"durability": "High", "reliability": "Reliable", "transport_priority": "High"}
+    }, ...
+  ],
   "relationships": {
-    "runs_on": [{"from": app_id, "to": node_id}, ...],
-    "publishes_to": [{"from": app_id, "to": topic_id}, ...],
-    "subscribes_to": [{"from": app_id, "to": topic_id}, ...],
-    "uses": [{"from": app_id, "to": lib_id}, ...]
+    "runs_on": [{"from": "app-1", "to": "node-1"}, ...],
+    "publishes_to": [{"from": "app-1", "to": "topic-1"}, ...],
+    "subscribes_to": [{"from": "app-2", "to": "topic-1"}, ...],
+    "uses": [{"from": "app-1", "to": "lib-1"}, ...]
   }
 }
 ```
@@ -98,4 +122,4 @@ Runs all per-chart statistics in one call. The `qos_risk` chart is included only
 ## Dependencies
 
 - `numpy` — array operations, percentiles
-- Python stdlib: `math`, `statistics`, `dataclasses`, `typing`
+- Python stdlib: `math`, `statistics`, `dataclasses`, `collections`

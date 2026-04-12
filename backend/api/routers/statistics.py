@@ -210,24 +210,6 @@ async def get_edge_weight_distribution_stats(
         )
 
 
-def _serialise_extras(obj: Any) -> Any:
-    """Recursively convert numpy types to JSON-safe Python types."""
-    import numpy as np
-
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, (np.integer,)):
-        return int(obj)
-    if isinstance(obj, (np.floating,)):
-        return float(obj)
-    if isinstance(obj, dict):
-        return {k: _serialise_extras(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_serialise_extras(i) for i in obj]
-    if isinstance(obj, set):
-        return list(obj)
-    return obj
-
 
 @router.post("")
 @router.post("/")
@@ -238,10 +220,20 @@ async def get_statistics(
     """Cross-cutting statistics computed from full graph export."""
     try:
         logger.info("Computing statistics")
+
+        def default_risk_weight_fn(_, value: str) -> float:
+            # Default weights for QoS risk scoring
+            mapping = {"High": 3.0, "Medium": 2.0, "Low": 1.0, "NOT_FOUND": 1.0}
+            return mapping.get(value, 1.0)
+
         raw_data = repo.export_json()
         cc = extract_cross_cutting_data(raw_data)
-        stats = compute_all_extras_statistics(cc)
-        return {"success": True, "stats": _serialise_extras(stats)}
+        stats = compute_all_extras_statistics(cc, risk_weight_fn=default_risk_weight_fn)
+        
+        return {
+            "success": True, 
+            "stats": statistics_presenter.serialise_numpy(stats)
+        }
     except Exception as e:
         logger.error(f"Statistics failed: {e}")
         raise HTTPException(status_code=500, detail=f"Computation failed: {e}")
