@@ -27,6 +27,8 @@ def main():
     parser.add_argument("--ahp-shrinkage", type=float, default=0.7, help="Shrinkage factor λ for AHP weights [0, 1] (default: 0.7)")
     parser.add_argument("--detect-problems", action="store_true", default=True, help="Run anti-pattern detector on prediction results (default: True)")
     parser.add_argument("--no-detect-problems", action="store_false", dest="detect_problems", help="Disable anti-pattern detection")
+    parser.add_argument("--mode", choices=["rmav", "gnn", "ensemble"], default="ensemble", help="Prediction path: RMAV only, GNN only, or Ensemble (default: ensemble)")
+    parser.add_argument("--checkpoint", type=str, default="output/gnn_checkpoints", help="GNN checkpoint directory (default: output/gnn_checkpoints)")
     
     add_neo4j_args(parser)
     add_common_args(parser)
@@ -48,8 +50,14 @@ def main():
         display.print_step(f"Running structural analysis for {layer}...")
         client.analyze(layer=layer, equal_weights=args.equal_weights)
         
-        display.print_step(f"Running GNN inference for {layer}...")
-        result = client.predict(layer=layer, equal_weights=args.equal_weights, ahp_shrinkage=args.ahp_shrinkage)
+        display.print_step(f"Running GNN inference for {layer} (mode: {args.mode})...")
+        result = client.predict(
+            layer=layer, 
+            mode=args.mode,
+            gnn_checkpoint=args.checkpoint,
+            equal_weights=args.equal_weights, 
+            ahp_shrinkage=args.ahp_shrinkage
+        )
         
         display.display_prediction_summary(result)
         

@@ -42,28 +42,63 @@ class Client:
         result = uc.execute(layer=layer)
         return AnalysisResult(result)
 
-    def predict(self, layer: str = "app", detect_problems: bool = False, **kwargs) -> PredictionResult:
-        """Predict criticality scores and optionally detect anti-patterns."""
+    def predict(self, layer: str = "app", mode: str = "ensemble", gnn_checkpoint: Optional[str] = None, detect_problems: bool = False, **kwargs) -> PredictionResult:
+        """Predict criticality scores and optionally detect anti-patterns.
+        
+        Parameters
+        ----------
+        layer: str
+        mode: 'rmav', 'gnn', or 'ensemble'
+        gnn_checkpoint: str, optional path to GNN models
+        detect_problems: bool
+        """
         from src.usecases.analyze_graph import AnalyzeGraphUseCase
         from src.analysis.service import AnalysisService
         from src.usecases.predict_graph import PredictGraphUseCase
-        from src.prediction.service import PredictionService
         
         # We need structural analysis first
         analysis_service = AnalysisService(self.repo, **kwargs)
         analyze_uc = AnalyzeGraphUseCase(analysis_service)
         structural_result = analyze_uc.execute(layer=layer)
         
-        prediction_service = PredictionService(**{k: v for k, v in kwargs.items() if k in ["use_ahp", "normalization_method", "winsorize", "winsorize_limit", "equal_weights", "ahp_shrinkage"]})
-        predict_uc = PredictGraphUseCase(prediction_service)
-        quality, problems = predict_uc.execute(
-            layer=layer, 
-            structural_result=structural_result.structural,
-            detect_problems=detect_problems,
-            **{k: v for k, v in kwargs.items() if k in ["run_sensitivity", "sensitivity_perturbations", "sensitivity_noise"]}
-        )
-        
-        return PredictionResult(quality, problems)
+        # Determine which service to use
+        if mode in ["gnn", "ensemble"] or gnn_checkpoint:
+            from src.prediction.gnn_service import GNNService
+            from src.prediction.data_preparation import extract_rmav_scores_dict
+            
+            # We still need RMAV scores for ensemble
+            from src.prediction.service import PredictionService
+            rmav_service = PredictionService(**{k: v for k, v in kwargs.items() if k in ["use_ahp", "normalization_method", "winsorize", "winsorize_limit", "equal_weights", "ahp_shrinkage"]})
+            rmav_result = rmav_service.predict_quality(structural_result.structural)
+            rmav_dict = extract_rmav_scores_dict(rmav_result)
+
+            checkpoint = gnn_checkpoint or "output/gnn_checkpoints"
+            service = GNNService.from_checkpoint(checkpoint, graph=structural_result.graph)
+            
+            # Predict
+            gnn_result = service.predict(
+                graph=structural_result.graph,
+                structural_metrics=structural_result.structural,
+                rmav_scores=rmav_dict,
+                mode=mode
+            )
+            
+            problems = None
+            if detect_problems:
+                problems = service.detect_problems(gnn_result)
+            return PredictionResult(gnn_result, problems)
+        else:
+            # Legacy RMAV path (rmav only)
+            from src.prediction.service import PredictionService
+            prediction_service = PredictionService(**{k: v for k, v in kwargs.items() if k in ["use_ahp", "normalization_method", "winsorize", "winsorize_limit", "equal_weights", "ahp_shrinkage"]})
+            predict_uc = PredictGraphUseCase(prediction_service)
+            quality, problems = predict_uc.execute(
+                layer=layer, 
+                structural_result=structural_result.structural,
+                detect_problems=detect_problems,
+                **{k: v for k, v in kwargs.items() if k in ["run_sensitivity", "sensitivity_perturbations", "sensitivity_noise"]}
+            )
+            return PredictionResult(quality, problems)
 
     def detect_antipatterns(self, prediction: PredictionResult, active_patterns: Optional[List[str]] = None) -> List[Any]:
         """Detect architectural anti-patterns from the GNN prediction results."""

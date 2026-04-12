@@ -252,32 +252,20 @@ def evaluate(
         else:
             node_preds = model(x_dict, ei_dict, ea_dict)
 
-    all_preds = []
-    all_targets = []
+    y_pred, y_true = _collect_samples(node_preds, data, mask_name)
+    return evaluate_scores(y_pred, y_true)
 
-    for nt, preds in node_preds.items():
-        store = data[nt]
-        if not (hasattr(store, "y") and hasattr(store, mask_name)):
-            continue
-        mask = getattr(store, mask_name)
-        if mask.sum() == 0:
-            continue
 
-        all_preds.append(preds[mask].cpu().numpy())
-        all_targets.append(store.y[mask].cpu().numpy())
-
-    if not all_preds:
+def evaluate_scores(y_pred: np.ndarray, y_true: np.ndarray) -> EvalMetrics:
+    """Compute metrics from pre-collected arrays (N, 5)."""
+    if y_pred.shape[0] == 0:
         return EvalMetrics(0, 0, 0, 0, 0, 0, 0)
-
-    y_pred = np.concatenate(all_preds, axis=0)  # (N, 5)
-    y_true = np.concatenate(all_targets, axis=0) # (N, 5)
-
+    
     # Composite scores (column 0)
     p_comp = y_pred[:, 0]
     t_comp = y_true[:, 0]
 
     # Spearman rho
-    # Silencing ConstantInputWarning if predictions or targets are constant
     if len(p_comp) > 1 and (np.all(p_comp == p_comp[0]) or np.all(t_comp == t_comp[0])):
         rho = 0.0
     else:
@@ -312,6 +300,32 @@ def evaluate(
         top_10_overlap=float(top_10_overlap),
         ndcg_10=float(ndcg),
     )
+
+
+def _collect_samples(
+    node_preds: Dict[str, Tensor], 
+    data: 'HeteroData', 
+    mask_name: str
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Helper to gather masked predictions and targets."""
+    all_preds = []
+    all_targets = []
+
+    for nt, preds in node_preds.items():
+        store = data[nt]
+        if not (hasattr(store, "y") and hasattr(store, mask_name)):
+            continue
+        mask = getattr(store, mask_name)
+        if mask.sum() == 0:
+            continue
+
+        all_preds.append(preds[mask].detach().cpu().numpy())
+        all_targets.append(store.y[mask].detach().cpu().numpy())
+
+    if not all_preds:
+        return np.empty((0, 5)), np.empty((0, 5))
+
+    return np.concatenate(all_preds, axis=0), np.concatenate(all_targets, axis=0)
 
 
 def _compute_ndcg(y_score, y_true, k=10):

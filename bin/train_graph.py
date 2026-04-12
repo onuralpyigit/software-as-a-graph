@@ -77,6 +77,7 @@ def parse_args() -> argparse.Namespace:
     gnn.add_argument("--no-edge-model", action="store_true", help="Skip edge model")
     gnn.add_argument("--seeds", type=int, nargs="+", help="Seed list for stability validation")
     gnn.add_argument("--multi-scenario", action="store_true", help="Inductive training on all domain scenarios")
+    gnn.add_argument("--mode", choices=["rmav", "gnn", "ensemble"], default="ensemble", help="Evaluation path for final summary (default: ensemble)")
 
     # Output
     output = parser.add_argument_group("Output")
@@ -219,6 +220,7 @@ def main() -> None:
         patience=args.patience,
         inductive_graphs=inductive_graphs if inductive_graphs else None,
         seeds=args.seeds,
+        mode=args.mode,
     )
 
     # ── Results ─────────────────────────────────────────────────────────────
