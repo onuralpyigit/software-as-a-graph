@@ -49,6 +49,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch import Tensor
+
+from src.core.metrics import ComponentQuality, EdgeQuality, QualityScores, QualityLevels, StructuralMetrics
+from src.core.criticality import CriticalityLevel
+
 import numpy as np
 import torch
 
@@ -166,6 +174,61 @@ class GNNAnalysisResult:
     stats: Dict[str, Any] = field(default_factory=dict)
     # Effective prediction mode (Literal["ensemble", "gnn_only", "rmav_only"])
     prediction_mode: str = "gnn_only"
+    # Internal: structural metadata for shimming
+    _structural_cache: Dict[str, Any] = field(default_factory=dict, repr=False)
+    layer: str = "system"
+
+    @property
+    def components(self) -> List[ComponentQuality]:
+        """Backward-compatibility shim for anti-pattern detection."""
+        from src.core.criticality import CriticalityLevel
+        comps = []
+        scores_map = self.ensemble_scores or self.node_scores
+        for node_id, score in scores_map.items():
+            qs = QualityScores(
+                reliability=score.reliability_score,
+                maintainability=score.maintainability_score,
+                availability=score.availability_score,
+                vulnerability=score.vulnerability_score,
+                overall=score.composite_score
+            )
+            def _to_level(val: float) -> CriticalityLevel:
+                if val >= 0.75: return CriticalityLevel.CRITICAL
+                if val >= 0.55: return CriticalityLevel.HIGH
+                if val >= 0.35: return CriticalityLevel.MEDIUM
+                return CriticalityLevel.LOW if val >= 0.15 else CriticalityLevel.MINIMAL
+
+            ql = QualityLevels(
+                reliability=_to_level(qs.reliability),
+                maintainability=_to_level(qs.maintainability),
+                availability=_to_level(qs.availability),
+                vulnerability=_to_level(qs.vulnerability),
+                overall=_to_level(qs.overall)
+            )
+            s_dict = self._structural_cache.get(node_id, {})
+            sm = StructuralMetrics(id=node_id, name=s_dict.get("name", node_id), type=s_dict.get("type", "Application"))
+            for k, v in s_dict.items():
+                if hasattr(sm, k): setattr(sm, k, v)
+            comps.append(ComponentQuality(id=node_id, type=sm.type, scores=qs, levels=ql, structural=sm))
+        return comps
+
+    @property
+    def edges(self) -> List[EdgeQuality]:
+        """Backward-compatibility shim for anti-pattern detection."""
+        from src.core.metrics import EdgeMetrics
+        from src.core.criticality import CriticalityLevel
+        eqs = []
+        for es in self.edge_scores:
+            qs = QualityScores(reliability=es.reliability_score, maintainability=es.maintainability_score, 
+                               availability=es.availability_score, vulnerability=es.vulnerability_score, 
+                               overall=es.composite_score)
+            def _to_level(val: float) -> CriticalityLevel:
+                if val >= 0.75: return CriticalityLevel.CRITICAL
+                if val >= 0.55: return CriticalityLevel.HIGH
+                return CriticalityLevel.MEDIUM if val >= 0.35 else CriticalityLevel.LOW
+            eqs.append(EdgeQuality(source=es.source_node, target=es.target_node, source_type="GNN_Node", 
+                                   target_type="GNN_Node", dependency_type=es.edge_type, scores=qs, level=_to_level(qs.overall)))
+        return eqs
 
     def top_critical_nodes(self, n: int = 10, use_ensemble: bool = True) -> List[GNNCriticalityScore]:
         scores = self.ensemble_scores if use_ensemble and self.ensemble_scores else self.node_scores
@@ -462,10 +525,23 @@ class GNNService:
             rmav_scores = extract_rmav_scores_dict(rmav_scores)
 
         conv = networkx_to_hetero_data(graph, structural_metrics, simulation_results, rmav_scores)
-        self._conversion_result = conv
-        return self.predict_from_data(conv.hetero_data, simulation_results, mode=mode)
+        # ── Run prediction ────────────────────────────────────────────────────
+        return self.predict_from_data(
+            conv.hetero_data, 
+            simulation_results, 
+            mode=mode, 
+            structural_metrics=structural_metrics,
+            layer=getattr(graph, "layer", "system") if hasattr(graph, "layer") else "system"
+        )
 
-    def predict_from_data(self, data, simulation_results=None, mode: str = "ensemble") -> GNNAnalysisResult:
+    def predict_from_data(
+        self, 
+        data, 
+        simulation_results=None, 
+        mode: str = "ensemble", 
+        structural_metrics: Optional[Dict[str, Any]] = None,
+        layer: str = "system"
+    ) -> GNNAnalysisResult:
         """Run inference directly on a HeteroData object.
         
         Parameters
@@ -598,6 +674,20 @@ class GNNService:
             for k, v in result.node_scores.items()
         ]
         classification = classifier.classify(node_data, metric_name="Criticality")
+        result.stats["classification"] = classification
+
+        # Attach context for shimming
+        result.layer = layer
+        if structural_metrics:
+            result._structural_cache = structural_metrics
+
+        return result
+
+    def detect_problems(self, result: GNNAnalysisResult) -> List[Any]:
+        """Unified SDK entry point for anti-pattern detection on GNN results."""
+        from .problem_detector import ProblemDetector
+        detector = ProblemDetector()
+        return detector.detect(result)
         lookup = {item.id: item.level.value for item in classification.items}
         for k, v in result.node_scores.items():
             v.criticality_level = lookup.get(k, "MINIMAL")

@@ -189,7 +189,7 @@ def compute_propagation_metrics(nx_graph) -> dict[str, dict]:
         sub = nx_graph.subgraph(reachable | {node})
         try:
             cascade_depth = nx.dag_longest_path_length(sub)
-        except nx.NetworkXError:
+        except (nx.NetworkXError, nx.NetworkXUnfeasible):
             # Graph has cycles in the ego subgraph — use simple BFS depth instead
             lengths = nx.single_source_shortest_path_length(nx_graph, node)
             cascade_depth = max(lengths.values()) if lengths else 0
@@ -260,7 +260,7 @@ def run_gnn_inference(client: Client, nx_graph, analysis, layer: str, gnn_model:
 
     try:
         structural_dict = extract_structural_metrics_dict(analysis.raw)
-        rmav_dict = extract_rmav_scores_dict(client.predict(layer=layer).raw)
+        rmav_dict = extract_rmav_scores_dict(client.predict(layer=layer, mode="rmav").raw)
 
         gnn_svc = GNNService.from_checkpoint(gnn_model, graph=nx_graph)
         return gnn_svc.predict(
@@ -434,6 +434,7 @@ def main() -> None:
         display.print_step(f"[{layer.upper()}] RMAV quality scoring…")
         prediction = client.predict(
             layer=layer,
+            mode="rmav",
             use_ahp=args.use_ahp,
             equal_weights=args.equal_weights,
             ahp_shrinkage=args.ahp_shrinkage,

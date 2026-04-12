@@ -107,7 +107,7 @@ class Pipeline:
             # 3. Predict & Detect Problems
             logger.info("Predicting quality metrics and detecting antipatterns...")
             predict_kwargs = getattr(self, "_predict_kwargs", {})
-            result.prediction = self.client.predict(result.analysis, **predict_kwargs)
+            result.prediction = self.client.predict(layer=self._layer, **predict_kwargs)
             result.problems = self.client.detect_antipatterns(result.prediction)
             
         # 4. Simulate

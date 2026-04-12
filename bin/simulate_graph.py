@@ -72,9 +72,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # ── Path bootstrap ────────────────────────────────────────────────────────────
-_SCRIPT_DIR = Path(__file__).resolve().parent
-if str(_SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPT_DIR))
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT))
+sys.path.insert(0, str(_REPO_ROOT / "backend"))
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(

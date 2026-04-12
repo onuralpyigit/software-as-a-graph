@@ -106,7 +106,7 @@ def main():
         pipeline.analyze(layer=args.layer, use_ahp=args.use_ahp)
         
     if args.predict or args.all:
-        pipeline.predict(gnn_model=args.gnn_model)
+        pipeline.predict(gnn_checkpoint=args.gnn_model)
         
     if args.simulate or args.all:
         pipeline.simulate(layer=args.layer, mode=args.sim_mode)
