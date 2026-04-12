@@ -354,6 +354,7 @@ class StructuralAnalyzer:
                 pubsub_degree=ps.get("pubsub_degree", 0.0),
                 pubsub_betweenness=ps.get("pubsub_betweenness", 0.0),
                 broker_exposure=ps.get("broker_exposure", 0.0),
+                publisher_spof=ps.get("publisher_spof", 0.0),
                 fan_out_criticality=foc.get(nid, 0.0),
                 mpci=mpci.get(nid, 0.0),
                 path_complexity=path_complexity.get(nid, 0.0),
@@ -521,7 +522,7 @@ class StructuralAnalyzer:
         Also resolves broker exposure via ROUTES edges.
 
         Returns:
-            Dict[app_id, {pubsub_degree, pubsub_betweenness, broker_exposure}]
+            Dict[app_id, {pubsub_degree, pubsub_betweenness, broker_exposure, publisher_spof}]
         """
         import networkx as nx
 
@@ -587,7 +588,41 @@ class StructuralAnalyzer:
                 "pubsub_degree": deg / max_deg if max_deg > 0 else 0.0,
                 "pubsub_betweenness": bt.get(node, 0.0),
                 "broker_exposure": avg_broker_exp / max_exp if max_exp > 0 else 0.0,
+                "publisher_spof": 0.0,  # placeholder, calculated below
             }
+
+        # --- Publisher SPOF calculation ---
+        # PSPOF(v) = max(qos_weight(t) * min(sub_count(t)/5, 1)) for topics where v is sole pub
+        topic_info: Dict[str, Dict[str, Any]] = {
+            c.id: {
+                "weight": c.weight,
+                "sub_count": c.properties.get("subscriber_count", 0),
+                "pub_count": c.properties.get("publisher_count", 0)
+            }
+            for c in graph_data.components if c.component_type == "Topic"
+        }
+
+        # Track which apps publish to which topics
+        app_to_topics: Dict[str, List[str]] = {}
+        for edge in graph_data.edges:
+            if edge.dependency_type.upper() == "PUBLISHES_TO":
+                app_to_topics.setdefault(edge.source_id, []).append(edge.target_id)
+
+        for app_id in result:
+            max_pspof = 0.0
+            for topic_id in app_to_topics.get(app_id, []):
+                ti = topic_info.get(topic_id)
+                if not ti:
+                    continue
+                # If this app is the sole publisher and there are subscribers
+                if ti["pub_count"] == 1 and ti["sub_count"] >= 1:
+                    # Formula from Middleware 2026 validation strategy:
+                    # qos_weight * min(sub_count / 5.0, 1.0)
+                    # Note: sub_count >= 2 is common for SPOF, but even 1 sub is a risk
+                    current_pspof = ti["weight"] * min(ti["sub_count"] / 5.0, 1.0)
+                    max_pspof = max(max_pspof, current_pspof)
+            
+            result[app_id]["publisher_spof"] = max_pspof
 
         return result
 

@@ -648,37 +648,26 @@ The single ordering discrepancy (PLC_Controller ranked 4th by Q but 3rd by I) is
 ## Commands
 
 ```bash
-# ─── Standard validation (application layer) ─────────────────────────────────
-python bin/validate_graph.py results/prediction.json results/impact.json
+# ─── Single run — topology-only baseline ─────────────────────────────────────
+python bin/validate_graph.py single --input input/scenarios/atm_system.json
 
-# ─── With all dimension-specific metrics ─────────────────────────────────────
-python bin/validate_graph.py results/prediction.json results/impact.json \
-    --layer app --dimensional --output results/validation.json
+# ─── Single run — QoS-enriched (v7/v4 formulas) ─────────────────────────────
+python bin/validate_graph.py single --input input/scenarios/atm_system.json --qos
 
-# ─── System layer (includes Library + Topic nodes) ───────────────────────────
-python bin/validate_graph.py results/pred_system.json results/sim_system.json \
-    --layer system --stratify-by-type
+# ─── Multi-seed stability sweep ──────────────────────────────────────────────
+python bin/validate_graph.py sweep --input input/scenarios/atm_system.json --qos
 
-# ─── Multi-seed stability protocol ───────────────────────────────────────────
-for seed in 42 123 456 789 2024; do
-    python bin/generate_graph.py --scale medium --seed $seed --output input/s${seed}.json
-    python bin/import_graph.py --input input/s${seed}.json --clear
-    python bin/analyze_graph.py  --layer app --use-ahp --output results/pred_s${seed}.json
-    python bin/simulate_graph.py event --all --messages 50 --layer app
-    python bin/simulate_graph.py failure --exhaustive --layer app \
-                                  --output results/sim_s${seed}.json
-    python bin/validate_graph.py results/pred_s${seed}.json results/sim_s${seed}.json \
-                           --output results/val_s${seed}.json
-done
-python bin/multi_seed_summary.py results/val_s*.json
+# ─── Full report (sweep + topology-class gates + node-type strata) ──────────
+python bin/validate_graph.py report --input input/scenarios/atm_system.json \
+    --output output/validation_report.json --qos
 
-# ─── Full validation matrix (all layers × scales) ────────────────────────────
-python bin/benchmark.py --scales small,medium,large \
-    --layers app,infra,system --runs 1 --seed 42 \
-    --output results/validation_matrix.json
+# ─── Ablation Study (Topo-only vs. QoS-enriched + LaTeX Export) ──────────────
+python bin/validate_graph.py compare --input input/scenarios/atm_system.json \
+    --seeds 42,123,456,789,2024 --latex
 
-# ─── Quick check during development ─────────────────────────────────────────
-python bin/validate_graph.py results/prediction.json results/impact.json --quick
+# ─── Advanced options ────────────────────────────────────────────────────────
+python bin/validate_graph.py report --input input/scenarios/atm_system.json \
+    --top-k 10 --cascade 10 --bootstrap 5000 --verbose
 ```
 
 ---

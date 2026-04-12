@@ -94,11 +94,12 @@ class _PubSubIndex:
         self.node_name: Dict[str, str] = {}
 
         for node, data in g.nodes(data=True):
-            self.node_type[node] = data.get("type", "Unknown")
-            self.node_name[node] = data.get("name", node)
+            # Check both 'type' (library) and 'ntype' (validation CLI)
+            self.node_type[node] = data.get("type") or data.get("ntype") or "Unknown"
+            self.node_name[node] = data.get("name") or data.get("label") or node
 
         for src, tgt, data in g.edges(data=True):
-            etype = data.get("type", "")
+            etype = (data.get("type") or data.get("etype") or "").upper()
             if etype == "PUBLISHES_TO":
                 self.topic_publishers[tgt].add(src)
                 self.app_publishes[src].add(tgt)
@@ -107,7 +108,7 @@ class _PubSubIndex:
                 self.app_subscribes[src].add(tgt)
             elif etype == "ROUTES":
                 self.broker_routes[src].add(tgt)
-                self.topic_routers[tgt].add(src)   # inverse index (BUG-FI-1)
+                self.topic_routers[tgt].add(src)
 
         self.all_subscribers: Set[str] = {
             a for a, subs in self.app_subscribes.items() if subs
@@ -285,99 +286,109 @@ class FaultInjector:
         )
 
     def _cascade(self, node_id: str, node_type: str, seed: int) -> "_SingleSeedResult":
-        """Run one cascade simulation with a specific seed."""
+        """
+        Run one cascade simulation with a specific seed using the two-phase model.
+        
+        Phase A: Stochastic propagation through DEPENDS_ON edges.
+        Phase B: Stochastic propagation through topics that lost all publishers.
+        """
         rng = random.Random(seed)
         idx = self._index
 
         failed_nodes: Set[str] = {node_id}
         orphaned_topics: Set[str] = set()
+        directly_orphaned: Set[str] = set()
         impacted_subscribers: Set[str] = set()
         subscriber_lost_feeds: Dict[str, Set[str]] = defaultdict(set)
         waves: List[CascadeWave] = []
         wave_idx = 0
 
-        # ── Wave 0: direct orphaning ──────────────────────────────────────
-
+        frontier = [node_id]
+        
+        # To compute mean feed loss, we need to track what topics are actually 'lost'
+        orphaned_topics: Set[str] = set()
         directly_orphaned: Set[str] = set()
 
-        if node_type == "Broker":
-            # BUG-FI-1 FIX: check for redundant routing paths.
-            # A topic is only orphaned if ALL of its routing brokers are failed.
-            for t in idx.topics_routed_by(node_id):
-                if not idx.live_routers_of(t, failed_nodes):
-                    directly_orphaned.add(t)
-        else:
-            for t in idx.app_publishes.get(node_id, set()):
-                if not (idx.publishers_of(t) - failed_nodes):
-                    directly_orphaned.add(t)
-
-        orphaned_topics.update(directly_orphaned)
-
-        newly_impacted_w0: Set[str] = set()
-        for t in directly_orphaned:
-            for sub in idx.subscribers_of(t):
-                if sub not in failed_nodes:
-                    subscriber_lost_feeds[sub].add(t)
-                    if sub not in impacted_subscribers:
-                        newly_impacted_w0.add(sub)
-                        impacted_subscribers.add(sub)
-
-        waves.append(
-            CascadeWave(
-                wave_index=0,
-                newly_orphaned_topics=sorted(directly_orphaned),
-                newly_impacted_subscribers=sorted(newly_impacted_w0),
-                newly_failed_publishers=[node_id],
-            )
-        )
-
-        # ── Cascade waves 1, 2, … ─────────────────────────────────────────
-
-        # BUG-FI-2 FIX: set-based pending queue eliminates duplicates.
-        propagation_pending: Set[str] = {
-            sub for sub in newly_impacted_w0
-            if self._should_propagate(sub, subscriber_lost_feeds, idx)
-        }
-
-        while propagation_pending:
-            wave_idx += 1
-            if self.cascade_depth_limit and wave_idx > self.cascade_depth_limit:
+        while frontier:
+            if self.cascade_depth_limit and wave_idx >= self.cascade_depth_limit:
                 break
+            
+            # Stochastic dampening factor based on depth
+            # depth_damp = max(0.25, 1.0 - wave_idx * 0.15)
+            # Reusing the validated dampening from validate_graph.py
+            depth_damp = max(0.25, 1.0 - wave_idx * 0.15)
 
-            wave_candidates = list(propagation_pending)
-            rng.shuffle(wave_candidates)
-            propagation_pending = set()
-
+            next_frontier = []
             wave_new_orphaned: Set[str] = set()
             wave_new_impacted: Set[str] = set()
             wave_new_failed: List[str] = []
 
-            for silenced_pub in wave_candidates:
-                if silenced_pub in failed_nodes:
-                    continue
-                failed_nodes.add(silenced_pub)
-                wave_new_failed.append(silenced_pub)
-
-                for t in idx.app_publishes.get(silenced_pub, set()):
-                    if t in orphaned_topics:
+            for u in frontier:
+                # --- Phase A: Direct DEPENDS_ON propagation ---
+                # We use the raw graph edges for this
+                for _, v, data in self.graph.out_edges(u, data=True):
+                    if v in failed_nodes:
                         continue
-                    if idx.publishers_of(t) - failed_nodes:
-                        continue  # still has live publishers
-                    wave_new_orphaned.add(t)
-                    orphaned_topics.add(t)
-                    for sub2 in idx.subscribers_of(t):
-                        if sub2 in failed_nodes:
-                            continue
-                        subscriber_lost_feeds[sub2].add(t)
-                        if sub2 not in impacted_subscribers:
-                            wave_new_impacted.add(sub2)
-                            impacted_subscribers.add(sub2)
-                        if self._should_propagate(sub2, subscriber_lost_feeds, idx):
-                            propagation_pending.add(sub2)
+                    
+                    # Only propagate through dependency edges (or equivalent)
+                    # We check 'type' and 'etype' (used in validation CLI)
+                    edge_type = (data.get("type") or data.get("etype") or "").upper()
+                    if edge_type != "DEPENDS_ON":
+                        continue
+                        
+                    # Stochastic check
+                    # Probability of failure = depth_damp * edge_weight
+                    prob = data.get("weight", 1.0) * depth_damp
+                    if rng.random() < prob:
+                        failed_nodes.add(v)
+                        wave_new_failed.append(v)
+                        next_frontier.append(v)
 
-            if not wave_new_orphaned and not wave_new_impacted:
+            # --- Phase B: Topic-mediated "Lost Source" propagation ---
+            # For each newly failed app, check topics they publish to
+            new_publishers = [n for n in (wave_new_failed + ([node_id] if wave_idx == 0 else [])) 
+                             if idx.node_type.get(n) in ("Application", "Library", "Broker")]
+            
+            for pub in new_publishers:
+                published_topics = idx.app_publishes.get(pub, set()) if idx.node_type.get(pub) != "Broker" else idx.broker_routes.get(pub, set())
+                
+                for topic in published_topics:
+                    if topic in orphaned_topics:
+                        continue
+                        
+                    # A topic is lost if all its publishers (or routers) have failed
+                    if idx.node_type.get(pub) == "Broker":
+                        remaining = idx.topic_routers.get(topic, set()) - failed_nodes
+                    else:
+                        remaining = idx.topic_publishers.get(topic, set()) - failed_nodes
+                        
+                    if not remaining:
+                        orphaned_topics.add(topic)
+                        wave_new_orphaned.add(topic)
+                        if wave_idx == 0:
+                            directly_orphaned.add(topic)
+                        
+                        # All subscribers of this lost topic are impacted
+                        for sub in idx.subscribers_of(topic):
+                            if sub in failed_nodes:
+                                continue
+                            
+                            subscriber_lost_feeds[sub].add(topic)
+                            if sub not in impacted_subscribers:
+                                wave_new_impacted.add(sub)
+                                impacted_subscribers.add(sub)
+                            
+                            # Stochastic failure due to feed loss
+                            # Phase B has a 0.5 reduction factor as discussed in Middleware 2026/Thesis
+                            # Probability = 0.5 * depth_damp
+                            if rng.random() < (0.5 * depth_damp):
+                                failed_nodes.add(sub)
+                                wave_new_failed.append(sub)
+                                next_frontier.append(sub)
+
+            if not next_frontier and not wave_new_orphaned:
                 break
-
+                
             waves.append(
                 CascadeWave(
                     wave_index=wave_idx,
@@ -386,9 +397,10 @@ class FaultInjector:
                     newly_failed_publishers=wave_new_failed,
                 )
             )
+            frontier = next_frontier
+            wave_idx += 1
 
-        # ── I(v) computation ─────────────────────────────────────────────
-
+        # --- I(v) computation: Mean feed loss across all subscribers ---
         per_sub_loss: Dict[str, float] = {}
         for sub in idx.all_subscribers:
             all_feeds = idx.app_subscribes.get(sub, set())

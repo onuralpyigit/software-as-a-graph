@@ -118,17 +118,17 @@ All inputs are normalized to [0, 1] by Step 2's rank normalization unless otherw
 
 R(v) measures how broadly and deeply a component's failure propagates through the DEPENDS_ON dependency graph.
 
-**Standard formula** — Application, Broker, Infrastructure Node, Library:
+**Standard formula (v7)** — Application, Broker, Infrastructure Node, Library:
 
 ```
-R(v) = 0.45 × RPR(v)  +  0.30 × DG_in(v)  +  0.25 × CDPot_enh(v)
+R(v) = 0.60 × PR(v) × (1 + MPCI(v))  +  0.40 × DG_in(v)
 ```
 
 | Term | Weight | What it captures |
 |------|:------:|-----------------|
-| RPR(v) | 0.45 | Reverse PageRank — *global* transitive cascade reach across the full dependency graph |
-| DG_in(v) | 0.30 | In-degree — count of direct dependents; *immediate* blast radius |
-| CDPot_enh(v) | 0.25 | Enhanced Cascade Depth Potential — absorber nodes score high; MPCI amplifies depth when multi-path couplings exist (see [Section 3.3](#33-derived-terms)) |
+| PR(v) | 0.60 | PageRank — global significance and reachability; higher score indicates the node is a more central propagator |
+| MPCI(v) | (Amp) | Multi-Path Coupling Intensity — amplifies PageRank importance when redundant or complex paths increase failure vector density |
+| DG_in(v) | 0.40 | In-degree — immediate blast radius; number of direct dependents |
 
 **Topic-type formula** — used exclusively for Topic nodes:
 
@@ -182,25 +182,19 @@ These two often diverge: a library can have high static fan-out but only one con
 
 ---
 
-#### Availability A(v) — SPOF Risk
+#### Availability A(v) — SPOF Risk (v4)
 
-A(v) measures whether a component is a structural single point of failure, weighted by operational priority.
+A(v) measures whether a component is a structural single point of failure, weighted by its sole-publisher risk and multi-path routing redundancy.
 
 ```
-A(v) = 0.35 × AP_c_directed(v)
-     + 0.25 × QSPOF(v)
-     + 0.25 × BR(v)
-     + 0.10 × CDI(v)
-     + 0.05 × w(v)
+A(v) = AP_c_directed(v) × (1 + 0.30 × QSPOF(v)) + 0.20 × PSPOF(v)
 ```
 
 | Term | Weight | What it captures |
 |------|:------:|-----------------|
-| AP_c_directed(v) | 0.35 | Directed articulation point score — primary SPOF signal; computed on the directed DEPENDS_ON graph (see [Section 3.3](#33-derived-terms)) |
-| QSPOF(v) | 0.25 | QoS-weighted SPOF severity — `AP_c_directed × w(v)`; high-priority SPOFs receive additional weight (see [Section 3.3](#33-derived-terms)) |
-| BR(v) | 0.25 | Bridge Ratio — fraction of v's incident edges that are structural bridges; losing any bridge disconnects a subgraph |
-| CDI(v) | 0.10 | Connectivity Degradation Index — average path-length increase upon v's removal; catches *soft SPOFs* that degrade service without fully disconnecting the graph |
-| w(v) | 0.05 | Component QoS weight — direct contribution of operational priority to availability risk |
+| AP_c_directed(v) | 1.00 | Directed articulation point score — primary SPOF signal; removal partitions the graph flows |
+| QSPOF(v) | (0.3) | QoS-weighted SPOF severity — `AP_c_directed × w(v)`; amplifies critical SPOFs |
+| PSPOF(v) | 0.20 | Publisher SPOF — risk of orphaning subscribers if this node is the last remaining publisher for a topic |
 
 > **AP_c_directed vs AP_c undirected.** The SPOF detection signal uses `AP_c_directed`, which is computed on the *directed* DEPENDS_ON graph using a worst-case out-reachability / in-reachability measure. This correctly captures directed cut vertices — nodes whose removal breaks directed reachability — rather than the undirected articulation point, which can both over-report (paths that are directionally irrelevant) and under-report (asymmetric directed SPOFs) in pub-sub systems.
 

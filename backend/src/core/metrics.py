@@ -58,6 +58,7 @@ class StructuralMetrics:
     cdi: float = 0.0                     # Connectivity Degradation Index
     blast_radius: int = 0                # Number of nodes that become unreachable if this node is removed
     cascade_depth: int = 0               # Longest failure propagation path from this node
+    publisher_spof: float = 0.0          # Sole-publisher risk: qos_weight * min(sub_count/5, 1) if sole pub
     
     # === Pub-Sub Topology Metrics ===
     pubsub_degree: float = 0.0           # Topics this app publishes to OR subscribes to

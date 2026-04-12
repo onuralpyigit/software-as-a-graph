@@ -370,19 +370,11 @@ class QualityAnalyzer:
             R = 0.50 * foc + 0.50 * cdpot_topic
         else:
             # Standard Reliability formula (Application, Broker, Node, Library)
-            # CDPot_enh: Use raw counts for depth ratio to preserve ratio semantics (Issue 7/9)
-            _raw_id = max(m.in_degree_raw, 1e-9)
-            _cdpot_reach = (rpr + id_n) / 2.0
-            _cdpot_depth = 1.0 - min(m.out_degree_raw / _raw_id, 1.0)
-            
-            # Amplify CDPot depth estimate via MPCI (CDPot_enh)
-            _cdpot_depth = min(1.0, _cdpot_depth * (1.0 + mpci))
-            cdpot_enh = _cdpot_reach * _cdpot_depth
-
+            # R(v) v7: 0.60 * PR * (1 + MPCI) + 0.40 * ID
+            # Rationale: Direct dependency count + reachability amplified by multi-path criticality.
             R = (
-                w.r_reverse_pagerank * rpr
-                + getattr(w, 'r_in_degree', 0.30) * id_n
-                + getattr(w, 'r_cdpot', 0.25) * cdpot_enh
+                0.60 * pr * (1.0 + mpci)
+                + 0.40 * id_n
             )
 
         # Maintainability: M(v) v6 — adds CQP as 5th signal
@@ -403,14 +395,13 @@ class QualityAnalyzer:
             + w.m_clustering * (1.0 - cc)
         )
 
-        # Availability: A(v) v3 — SPOF risk (decoupled Structural/QoS signals)
+        # Availability: A(v) v4 — SPOF risk (AP + QSPOF + PSPOF)
+        # Formula: AP * (1 + 0.30 * QSPOF) + 0.20 * PSPOF
         qspof = ap_c * qw
+        pspof = m.publisher_spof
         A = (
-            getattr(w, 'a_ap_c_directed', 0.35) * ap_c
-            + getattr(w, 'a_qspof',        0.25) * qspof
-            + w.a_bridge_ratio           * m.bridge_ratio
-            + getattr(w, 'a_cdi',           0.10) * cdi
-            + getattr(w, 'a_qos_weight',    0.05) * qw
+            ap_c * (1.0 + 0.30 * qspof)
+            + 0.20 * pspof
         )
 
         # Vulnerability: strategic dependent reach + propagation speed + QoS attack surface
