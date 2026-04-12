@@ -18,14 +18,15 @@ from src.prediction.data_preparation import (
     networkx_to_hetero_data,
     extract_structural_metrics_dict,
     TOPOLOGICAL_METRIC_KEYS,
-    NODE_FEATURE_DIM
+    NODE_TYPE_TO_DIM
 )
 from src.core.metrics import StructuralMetrics
 
 
-def test_node_feature_dimension_is_28():
-    """GNN-CQ-001: Verify NODE_FEATURE_DIM is 28."""
-    assert NODE_FEATURE_DIM == 28
+def test_node_feature_dimensions():
+    """GNN-CQ-001: Verify type-specific feature dimensions."""
+    assert NODE_TYPE_TO_DIM["Application"] == 23
+    assert NODE_TYPE_TO_DIM["Broker"] == 18
 
 
 def test_networkx_to_hetero_data_feature_mapping():
@@ -58,9 +59,9 @@ def test_networkx_to_hetero_data_feature_mapping():
     data = conv.hetero_data
 
     # Check widths
-    assert data["Application"].x.shape[1] == 28
-    assert data["Library"].x.shape[1] == 28
-    assert data["Broker"].x.shape[1] == 28
+    assert data["Application"].x.shape[1] == 23
+    assert data["Library"].x.shape[1] == 23
+    assert data["Broker"].x.shape[1] == 18
 
     # Check A1 features
     # Indices 18-22 should be CQ metrics
@@ -71,16 +72,11 @@ def test_networkx_to_hetero_data_feature_mapping():
     assert a1_x[21] == pytest.approx(0.8)  # lcom_norm
     assert a1_x[22] == pytest.approx(0.9)  # code_quality_penalty
 
-    # Index 23 should be Application one-hot (Application is index 0 in NODE_TYPES)
-    assert a1_x[23] == 1.0
-    assert np.all(a1_x[24:28] == 0.0)
-
-    # Check B1 features (Broker is index 1 in NODE_TYPES)
-    # CQ indices should be 0.0 for Broker
+    # Check B1 features (Broker)
+    # CQ indices should not exist for Broker (dim is 18)
     b1_x = data["Broker"].x[0].numpy()
-    assert np.all(b1_x[18:23] == 0.0)
-    assert b1_x[24] == 1.0  # Broker one-hot index 23 + 1 = 24
-    assert b1_x[23] == 0.0
+    assert b1_x.shape[0] == 18
+    assert b1_x[0] == pytest.approx(0.05) # pagerank
 
 
 def test_extract_structural_metrics_dict_includes_cq():

@@ -23,8 +23,12 @@ Design principles
   composite impact scores (max pooling), enabling link-level criticality
   prediction as a companion task.
 
-Node feature vector (dim = 27)
--------------------------------
+Node feature vector (heterogeneous)
+----------------------------------
+Each node type HAS ITS OWN feature dimension. Node-type one-hot is removed
+as the HeteroGAT architecture handles type specific projections.
+
+Base Topological Metrics (dim = 18) - all node types:
 Index  Metric
   0    PageRank (PR)
   1    Reverse PageRank (RPR)
@@ -40,15 +44,29 @@ Index  Metric
  11    QoS weighted in-degree (w_in)
  12    QoS weighted out-degree (w_out)
  13    MPCI
- 14    Fan-Out Criticality (FOC)
- 15    AP_c directed
- 16    CDI
- 17    Normalised LOC (loc_norm)
- 18    Normalised Complexity (complexity_norm)
- 19    Instability I = Ce/(Ca+Ce) (instability_code)
- 20    Normalised LCOM (lcom_norm)
- 21    Code Quality Penalty (CQP)
- 22-26 Node-type one-hot (Application, Broker, Topic, Node, Library)
+ 14    Path Complexity (path_complexity)
+ 15    Fan-Out Criticality (FOC)
+ 16    AP_c directed
+ 17    CDI
+
+Code Quality Metrics (dim = 5) - Application and Library ONLY:
+Index  Metric
+ 18    Normalised LOC (loc_norm)
+ 19    Normalised Complexity (complexity_norm)
+ 20    Instability I = Ce/(Ca+Ce) (instability_code)
+ 21    Normalised LCOM (lcom_norm)
+ 22    Code Quality Penalty (CQP)
+
+Total dimensions:
+- Application, Library: 23
+- Broker, Topic, Node: 18
+
+Edge feature vector (dim = 8)
+------------------------------
+Index  Feature
+  0    QoS-derived edge weight (normalised)
+  1-7  Edge-type one-hot (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES,
+                          RUNS_ON, CONNECTS_TO, USES, DEPENDS_ON)
 
 Edge feature vector (dim = 8)
 ------------------------------
@@ -89,7 +107,8 @@ EDGE_TYPE_INDEX: Dict[str, int] = {t: i for i, t in enumerate(EDGE_TYPES)}
 
 # The 22 topological metrics extracted from the structural analysis result.
 # Order matches Step 3: Prediction doc (indices 0-21)
-TOPOLOGICAL_METRIC_KEYS: List[str] = [
+# Base topological metrics applicable to all node types
+BASE_METRIC_KEYS: List[str] = [
     "pagerank",              # 0
     "reverse_pagerank",      # 1
     "betweenness_centrality", # 2
@@ -98,24 +117,37 @@ TOPOLOGICAL_METRIC_KEYS: List[str] = [
     "in_degree_centrality",   # 5
     "out_degree_centrality",  # 6
     "clustering_coefficient", # 7
-    "ap_c_score",            # 8: AP_c undirected (proxied in Step 2)
+    "ap_c_score",            # 8
     "bridge_ratio",          # 9
     "qos_weight",            # 10
-    "qos_weight_in",         # 11: w_in (QADS)
-    "qos_weight_out",        # 12: w_out
-    "mpci",                  # 13: New Tier 1
-    "path_complexity",       # 14: Issue 4 (Efferent path count complexity)
+    "qos_weight_in",         # 11
+    "qos_weight_out",        # 12
+    "mpci",                  # 13
+    "path_complexity",       # 14
     "fan_out_criticality",   # 15
     "ap_c_directed",         # 16
     "cdi",                   # 17
-    "loc_norm",              # 18: Code Quality
+]
+
+# Code quality metrics applicable only to code-bearing types
+CQ_METRIC_KEYS: List[str] = [
+    "loc_norm",              # 18 (absolute index)
     "complexity_norm",       # 19
     "instability_code",      # 20
     "lcom_norm",             # 21
     "code_quality_penalty",  # 22
 ]
 
-NODE_FEATURE_DIM = len(TOPOLOGICAL_METRIC_KEYS) + len(NODE_TYPES)  # 28 (23 metrics + 5 types)
+TOPOLOGICAL_METRIC_KEYS = BASE_METRIC_KEYS + CQ_METRIC_KEYS
+
+NODE_TYPE_TO_DIM: Dict[str, int] = {
+    "Application": 23,
+    "Library": 23,
+    "Broker": 18,
+    "Topic": 18,
+    "Node": 18,
+}
+
 EDGE_FEATURE_DIM = 1 + len(EDGE_TYPES)                              # 8
 
 # Label column indices in the (N, 5) label matrix
@@ -230,18 +262,19 @@ def networkx_to_hetero_data(
     for node_type in result.present_node_types:
         nodes = result.node_id_map[node_type]
         n = len(nodes)
-        feat_matrix = np.zeros((n, NODE_FEATURE_DIM), dtype=np.float32)
+        dim = NODE_TYPE_TO_DIM.get(node_type, 18)
+        feat_matrix = np.zeros((n, dim), dtype=np.float32)
+
+        # Identify which keys to use for this type
+        keys_to_use = BASE_METRIC_KEYS
+        if node_type in ["Application", "Library"]:
+            keys_to_use = TOPOLOGICAL_METRIC_KEYS # Base + CQ
 
         for local_idx, name in enumerate(nodes):
-            # Topological metrics (indices 0-12)
             if structural_metrics and name in structural_metrics:
                 metrics = structural_metrics[name]
-                for col, key in enumerate(TOPOLOGICAL_METRIC_KEYS):
+                for col, key in enumerate(keys_to_use):
                     feat_matrix[local_idx, col] = float(metrics.get(key, 0.0))
-
-            # Node type one-hot (indices 18-22)
-            type_col = len(TOPOLOGICAL_METRIC_KEYS) + NODE_TYPE_INDEX.get(node_type, 0)
-            feat_matrix[local_idx, type_col] = 1.0
 
         data[node_type].x = torch.from_numpy(feat_matrix)
         data[node_type].num_nodes = n
@@ -276,6 +309,12 @@ def networkx_to_hetero_data(
             data[node_type].y_rmav = torch.from_numpy(rmav_matrix)
 
     # ── 3. Build edge index and feature tensors per relation ──────────────────
+    # Pre-compute bridges for grounded edge labeling
+    try:
+        bridges = set(nx.bridges(graph.to_undirected()))
+    except Exception:
+        bridges = set()
+
     # Group edges by (src_type, edge_type, dst_type)
     rel_edges: Dict[Tuple[str, str, str], Tuple[List[int], List[int], List[List[float]]]] = {}
 
@@ -313,23 +352,27 @@ def networkx_to_hetero_data(
         data[rel].edge_index = edge_index
         data[rel].edge_attr = edge_attr
 
-        # Edge labels: max(I*(src), I*(dst)) — used for link criticality prediction
+        # Edge labels: grounded in structural bridge property (Issue G3)
         if simulation_results:
             src_nodes = result.node_id_map[src_type]
             dst_nodes = result.node_id_map[dst_type]
             edge_labels = np.zeros((len(srcs), 5), dtype=np.float32)
+            
             for i, (s_idx, d_idx) in enumerate(zip(srcs, dsts)):
                 s_name = src_nodes[s_idx]
                 d_name = dst_nodes[d_idx]
+                
+                # Check if this edge (s, d) is a structural bridge
+                is_bridge = (s_name, d_name) in bridges or (d_name, s_name) in bridges
+                bridge_multiplier = 1.0 if is_bridge else 0.1
+                
                 s_sim = simulation_results.get(s_name, {})
-                d_sim = simulation_results.get(d_name, {})
                 for col, key in enumerate(
                     ["composite", "reliability", "maintainability", "availability", "vulnerability"]
                 ):
-                    edge_labels[i, col] = max(
-                        float(s_sim.get(key, 0.0)),
-                        float(d_sim.get(key, 0.0)),
-                    )
+                    # Grounded label: I*(u) * bridge_indicator(e) + I*(u) * epsilon
+                    edge_labels[i, col] = float(s_sim.get(key, 0.0)) * bridge_multiplier
+
             data[rel].y_edge = torch.from_numpy(edge_labels)
 
     logger.info(

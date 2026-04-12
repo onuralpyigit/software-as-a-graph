@@ -643,6 +643,7 @@ class GNNService:
         d = save_dir or self.checkpoint_dir
         d.mkdir(parents=True, exist_ok=True)
         with open(d / "service_config.json", "w") as f:
+            from .models import NODE_TYPE_TO_DIM
             json.dump(
                 {
                     "hidden_channels": self.hidden_channels,
@@ -650,6 +651,7 @@ class GNNService:
                     "num_layers": self.num_layers,
                     "dropout": self.dropout,
                     "predict_edges": self.predict_edges,
+                    "node_feature_dims": NODE_TYPE_TO_DIM,
                 },
                 f, indent=2,
             )
@@ -693,6 +695,21 @@ class GNNService:
             checkpoint_dir=str(ckpt_dir),
             device=device,
         )
+
+        # ── Dimension Validation (Issue G1) ───────────────────────────────────
+        if "node_feature_dims" in cfg:
+            from .models import NODE_TYPE_TO_DIM
+            saved_dims = cfg["node_feature_dims"]
+            for nt, dim in NODE_TYPE_TO_DIM.items():
+                if nt in saved_dims and saved_dims[nt] != dim:
+                    raise ValueError(
+                        f"GNN Feature Dimension Mismatch for node type '{nt}': "
+                        f"Checkpoint has {saved_dims[nt]}, Code has {dim}. "
+                        "Re-training required."
+                    )
+        elif "hidden_channels" in cfg:
+             # Legacy checkpoint without node_feature_dims
+             logger.warning("Checkpoint lacks 'node_feature_dims'. Proceeding with risk.")
 
         if metadata is None and graph is not None:
             conv = networkx_to_hetero_data(graph)

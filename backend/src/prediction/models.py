@@ -121,17 +121,16 @@ def _require_pyg():
 
 # Node type / relation metadata
 NODE_TYPES: List[str] = ["Application", "Broker", "Topic", "Node", "Library"]
-EDGE_TYPES: List[str] = [
-    "PUBLISHES_TO",
-    "SUBSCRIBES_TO",
-    "ROUTES",
-    "RUNS_ON",
-    "CONNECTS_TO",
-    "USES",
-    "DEPENDS_ON",
-]
 
-NODE_FEATURE_DIM = 28   # Updated to match data_preparation.py logic (23 metrics + 5 types)
+# Type-specific input dimensions (Base=18, CQ=5)
+NODE_TYPE_TO_DIM: Dict[str, int] = {
+    "Application": 23,
+    "Library": 23,
+    "Broker": 18,
+    "Topic": 18,
+    "Node": 18,
+}
+
 EDGE_FEATURE_DIM = 8    # 1 weight + 7 edge-type one-hot
 NUM_LABEL_DIMS   = 5    # composite, reliability, maintainability, availability, vulnerability
 
@@ -183,7 +182,7 @@ class NodeCriticalityGNN(nn.Module):
         self.input_proj = nn.ModuleDict(
             {
                 nt: nn.Sequential(
-                    nn.Linear(NODE_FEATURE_DIM, hidden_channels),
+                    nn.Linear(NODE_TYPE_TO_DIM.get(nt, 18), hidden_channels),
                     nn.LayerNorm(hidden_channels),
                     nn.GELU(),
                 )
@@ -331,51 +330,75 @@ class EnsembleGNN(nn.Module):
 # ── Loss functions ─────────────────────────────────────────────────────────────
 
 class CriticalityLoss(nn.Module):
-    """Multi-task loss for criticality prediction."""
+    """Multi-task loss for criticality prediction with consistency regularization.
+    
+    Now implements Issue G2: 
+    - Directed loss for composite/rank/multitask on labeled nodes.
+    - Consistency regularization (against RMAV) on unlabeled nodes only.
+    """
 
     def __init__(
         self,
-        rmav_weight: float = 0.5,
+        multitask_weight: float = 0.5,
+        rmav_consistency_weight: float = 0.1, # Reduced per G2 fix
         ranking_weight: float = 0.3,
     ):
         super().__init__()
-        self.rmav_weight = rmav_weight
+        self.multitask_weight = multitask_weight
+        self.rmav_consistency_weight = rmav_consistency_weight
         self.ranking_weight = ranking_weight
         self.mse = nn.MSELoss(reduction="mean")
 
     def forward(
         self,
-        pred: Tensor,   # (N, 5)
-        target: Tensor, # (N, 5)
-        mask: Optional[Tensor] = None,
+        pred: Tensor,         # (N, 5)
+        target: Tensor,       # (N, 5) - Simulation ground truth
+        mask: Tensor,         # (N,)   - Training mask (labeled nodes)
+        rmav_target: Optional[Tensor] = None, # (N, 5) - RMAV scores (for consistency)
     ) -> Tuple[Tensor, Dict[str, float]]:
-        if mask is not None:
-            pred = pred[mask]
-            target = target[mask]
+        # 1. Supervised Loss (on labeled nodes only)
+        labeled_pred = pred[mask]
+        labeled_target = target[mask]
+        
+        if labeled_pred.shape[0] == 0:
+            supervised_loss = torch.tensor(0.0, device=pred.device)
+            loss_composite = supervised_loss
+            loss_multitask = supervised_loss
+            loss_ranking = supervised_loss
+        else:
+            # Composite MSE (col 0)
+            loss_composite = self.mse(labeled_pred[:, 0], labeled_target[:, 0])
+            
+            # Multi-task sub-score MSE (cols 1-4)
+            loss_multitask = self.mse(labeled_pred[:, 1:], labeled_target[:, 1:])
+            
+            # Ranking loss
+            loss_ranking = self._listmle_loss(labeled_pred[:, 0], labeled_target[:, 0])
+            
+            supervised_loss = (
+                loss_composite 
+                + self.multitask_weight * loss_multitask 
+                + self.ranking_weight * loss_ranking
+            )
 
-        if pred.shape[0] == 0:
-            dummy = torch.tensor(0.0, device=pred.device, requires_grad=True)
-            return dummy, {"composite": 0.0, "rmav": 0.0, "ranking": 0.0}
+        # 2. Consistency Regularization (on unlabeled nodes only)
+        loss_rmav_consistency = torch.tensor(0.0, device=pred.device)
+        if rmav_target is not None:
+            unlabeled_mask = ~mask
+            unlabeled_pred = pred[unlabeled_mask]
+            unlabeled_rmav = rmav_target[unlabeled_mask]
+            
+            if unlabeled_pred.shape[0] > 0:
+                # Compare GNN sub-scores with RMAV counterparts
+                loss_rmav_consistency = self.mse(unlabeled_pred[:, 1:], unlabeled_rmav[:, 1:])
 
-        # Composite MSE  (col 0)
-        loss_composite = self.mse(pred[:, 0], target[:, 0])
-
-        # Per-dimension RMAV MSE  (cols 1-4)
-        loss_rmav = self.mse(pred[:, 1:], target[:, 1:])
-
-        # Ranking loss: negative log-likelihood of the correct ordering
-        loss_ranking = self._listmle_loss(pred[:, 0], target[:, 0])
-
-        total = (
-            loss_composite
-            + self.rmav_weight * loss_rmav
-            + self.ranking_weight * loss_ranking
-        )
+        total = supervised_loss + self.rmav_consistency_weight * loss_rmav_consistency
 
         components = {
             "composite": loss_composite.item(),
-            "rmav": loss_rmav.item(),
+            "multitask": loss_multitask.item(),
             "ranking": loss_ranking.item(),
+            "consistency": loss_rmav_consistency.item(),
         }
         return total, components
 

@@ -515,9 +515,9 @@ HeteroGAT   (shared     +(1-α)·Q_RMAV
 
 ### Node Feature Construction
 
-Each node `v` is represented by a **27-dimensional feature vector**. The first 17 indices are topological metrics, followed by 4 new metrics from Step 2, then code-quality metrics, then the node-type one-hot.
+Each node type uses a specific feature dimension, focused on topological and code-quality metrics. The **node-type one-hot is removed** as the HeteroGAT architecture handles type identity through separate input projections.
 
-**Topological metrics (indices 0–12)** — unchanged from prior versions:
+**Base Topological Metrics (dim = 18) — all node types:**
 
 | Index | Metric | RMAV Role |
 |-------|--------|-----------|
@@ -534,35 +534,22 @@ Each node `v` is represented by a **27-dimensional feature vector**. The first 1
 | 10 | QoS aggregate weight (w) | QSPOF |
 | 11 | QoS weighted in-degree (w_in) | V(v) |
 | 12 | QoS weighted out-degree (w_out) | M(v) |
-
-**New Tier 1 metrics from Step 2 (indices 13–16):**
-
-| Index | Metric | RMAV Role |
-|-------|--------|-----------|
 | 13 | MPCI | R(v) via CDPot_enh |
-| 14 | FOC | R(v) for Topics |
-| 15 | AP_c_directed | A(v) directly |
-| 16 | CDI | A(v) directly |
+| 14 | Path Complexity | Maintainability (Issue G4) |
+| 15 | Fan-Out Criticality (FOC) | R(v) for Topics |
+| 16 | AP_c_directed | A(v) directly |
+| 17 | CDI | A(v) directly |
 
-**Code quality metrics (indices 17–21):**
+**Code Quality Metrics (dim = 5):**
+*Applied only to Application and Library nodes (total dim = 23).*
 
 | Index | Metric | RMAV Role |
 |-------|--------|-----------|
-| 17 | loc_norm | Diagnostic |
-| 18 | complexity_norm | M(v) via CQP |
-| 19 | instability_code | M(v) via CQP |
-| 20 | lcom_norm | M(v) via CQP |
-| 21 | code_quality_penalty (CQP) | M(v) directly |
-
-**Node-type one-hot (indices 22–26):**
-
-| Index | Type |
-|-------|------|
-| 22 | Application |
-| 23 | Broker |
-| 24 | Topic |
-| 25 | Node (infrastructure) |
-| 26 | Library |
+| 18 | loc_norm | Diagnostic |
+| 19 | complexity_norm | M(v) via CQP |
+| 20 | instability_code | M(v) via CQP |
+| 21 | lcom_norm | M(v) via CQP |
+| 22 | code_quality_penalty (CQP) | M(v) directly |
 
 **Edge features (indices 0–7):**
 
@@ -611,7 +598,9 @@ score(u,v) = MLP_E( h_u ‖ h_v ‖ e_{uv} )
 e_{uv} ∈ ℝ^8: QoS weight + 7-bit edge-type one-hot
 ```
 
-Edge labels for training: `I_edge(u,v) = max(I*(u), I*(v))`.
+Edge labels for training: `I_edge(u,v) = bridge_indicator(e) · I*(u) + (1 - bridge_indicator(e)) · 0.1 · I*(u)`.
+
+This grounds edge risk in actual structural criticality: an edge is only considered as critical as its source component if its loss would increase the number of connected components (a bridge).
 
 ### Ensemble: GNN + RMAV
 
@@ -630,11 +619,12 @@ Q_ens(v) = α · Q_GNN(v) + (1 − α) · Q_RMAV(v)
 
 **Loss:**
 ```
-L = L_composite + 0.5·L_RMAV + 0.3·L_rank
+L = L_composite + 0.5·L_multitask + 0.1·L_consistency + 0.3·L_rank
 
-L_composite = MSE(Î*(v), I*(v))
-L_RMAV      = Σ_{d} MSE(d̂(v), I_d(v))
-L_rank      = −(1/N) Σ log P(v-th position)   [ListMLE]
+L_composite   = MSE(Î*(v), I*(v))  [labeled nodes]
+L_multitask   = Σ_{d} MSE(d̂(v), I_d(v)) [labeled nodes]
+L_consistency = Σ_{d} MSE(d̂(v), Q_d(v)) [unlabeled nodes]
+L_rank        = −(1/N) Σ log P(v-th position)   [ListMLE, labeled nodes]
 ```
 
 **Optimizer:** AdamW, lr = 3×10⁻⁴, weight_decay = 10⁻⁴, cosine annealing, gradient clipping max_norm = 1.0.

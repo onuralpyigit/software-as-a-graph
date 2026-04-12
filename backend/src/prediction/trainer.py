@@ -156,7 +156,9 @@ class GNNTrainer:
                     if mask.sum() == 0:
                         continue
 
-                    loss, _ = self.loss_fn(preds, store.y, mask)
+                    # Pass both simulation labels (y) and RMAV scores (y_rmav)
+                    rmav_target = store.y_rmav if hasattr(store, "y_rmav") else None
+                    loss, _ = self.loss_fn(preds, store.y, mask, rmav_target)
                     batch_loss = batch_loss + loss
 
                 batch_loss.backward()
