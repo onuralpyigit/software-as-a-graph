@@ -1,6 +1,6 @@
 # Step 5: Validation
 
-**Statistically prove that topology-based predictions agree with simulation-derived proxy ground truth.**
+**Statistically prove that topology-based predictions agree with simulation-derived cascade impact.**
 
 ← [Step 4: Simulation](failure-simulation.md) | → [Step 6: Visualization](visualization.md)
 
@@ -8,675 +8,704 @@
 
 ## Table of Contents
 
-1. [What This Step Does](#what-this-step-does)
-2. [Two Ground-Truth Targets](#two-ground-truth-targets)
-3. [Data Alignment](#data-alignment)
-4. [Why Spearman Is the Primary Metric](#why-spearman-is-the-primary-metric)
-5. [Metric Definitions](#metric-definitions)
-   - [Correlation Metrics](#correlation-metrics)
-   - [Classification Metrics](#classification-metrics)
-   - [Ranking Metrics](#ranking-metrics)
-   - [Error Metrics](#error-metrics)
-6. [Dimension-Specific Specialist Metrics](#dimension-specific-specialist-metrics)
-   - [Reliability: CCR@K and CME](#reliability-ccrk-and-cme)
-   - [Maintainability: COCR@K, κ_CTA, BP](#maintainability-cocrk-κ_cta-bp)
-   - [Availability: SPOF_F1, HSRR, DASA, RRI](#availability-spof_f1-hsrr-dasa-rri)
-   - [Vulnerability: AHCR@K, FTR, APAR, CDCC](#vulnerability-ahcrk-ftr-apar-cdcc)
-   - [Composite: Predictive Gain PG](#composite-predictive-gain-pg)
-7. [Pass/Fail Gate System](#passfail-gate-system)
-8. [Multi-Seed Stability Protocol](#multi-seed-stability-protocol)
-9. [Node-Type Stratified Reporting](#node-type-stratified-reporting)
-10. [Validation Targets by Layer and Scale](#validation-targets-by-layer-and-scale)
-11. [Achieved Results](#achieved-results)
-12. [Worked Example](#worked-example)
-13. [Statistical Robustness](#statistical-robustness)
-14. [Interpreting Results](#interpreting-results)
-15. [Output Schema](#output-schema)
-16. [External vs. Internal Validity](#external-vs-internal-validity)
-17. [Commands](#commands)
-18. [What Comes Next](#what-comes-next)
+1. [What This Step Does](#1-what-this-step-does)
+2. [Validation Pipeline Overview](#2-validation-pipeline-overview)
+3. [Ground Truth: I(v) from Cascade Simulation](#3-ground-truth-iv-from-cascade-simulation)
+4. [RMAV Prediction: Q(v)](#4-rmav-prediction-qv)
+5. [Statistical Battery](#5-statistical-battery)
+   - 5.1 [Rank Correlation — Spearman ρ and Kendall τ](#51-rank-correlation--spearman-ρ-and-kendall-τ)
+   - 5.2 [Bootstrap Confidence Interval](#52-bootstrap-confidence-interval)
+   - 5.3 [Classification Metrics — Precision, Recall, F1 @ K](#53-classification-metrics--precision-recall-f1--k)
+   - 5.4 [SPOF-F1](#54-spof-f1)
+   - 5.5 [Specialist Metrics — ICR@K, BCE, FTR, PG](#55-specialist-metrics--icrk-bce-ftr-pg)
+   - 5.6 [Wilcoxon Signed-Rank Test](#56-wilcoxon-signed-rank-test)
+6. [Node-Type Stratified Reporting](#6-node-type-stratified-reporting)
+7. [Topology-Class Gate System](#7-topology-class-gate-system)
+8. [Multi-Seed Stability Sweep](#8-multi-seed-stability-sweep)
+9. [Ablation Study: Topology-Only vs. QoS-Enriched](#9-ablation-study-topology-only-vs-qos-enriched)
+10. [CLI Reference](#10-cli-reference)
+11. [Output Schema](#11-output-schema)
+12. [Interpreting Results](#12-interpreting-results)
+13. [What Comes Next](#13-what-comes-next)
 
 ---
 
-## What This Step Does
+## 1. What This Step Does
 
-Validation answers the central question of the entire methodology: **do topology-based predictions actually work?**
+Step 5 closes the methodological loop. It aligns two independently derived signals for every
+component in the system:
 
-It aligns predicted quality scores Q(v) from Step 3 with simulation-derived ground-truth scores from Step 4, then computes a structured suite of statistical metrics across four categories to measure agreement. A tiered gate system produces a clear **pass/fail** verdict.
+| Signal | Source | What it represents |
+|--------|--------|-------------------|
+| **Q(v)** | RMAV formula applied to topology (Step 3) | *Predicted* criticality — computed from graph structure alone, before any runtime data |
+| **I(v)** | Stochastic cascade simulation (Step 4) | *Proxy ground truth* — normalised damage score obtained by injecting each node as the failure origin |
+
+High statistical agreement between Q(v) and I(v) is empirical evidence that **topology alone predicts
+failure impact** — the central claim of the Software-as-a-Graph thesis.
 
 ```
-Q(v) from Step 3                   I(v) / I*(v) from Step 4
-────────────────────               ────────────────────────────
-Q_RMAV(v) or Q_GNN(v)              I(v)   — composite cascade impact
-R(v), M(v), A(v), V(v)             I*(v)  — per-dimension composite
-                                   IR(v), IM(v), IA(v), IV(v)
-          │                                     │
-          └──────── Align by component ID ───────┘
-                              │
-          ┌───────────────────┼────────────────────┐
-          │                   │                    │
-    Correlation          Classification         Ranking
-    ρ, τ, r             F1, Prec, Rec, κ      Top-K, NDCG@K
-          │                   │                    │
-          └───────────────────┼────────────────────┘
-                              │
-                    Dimension-Specific
-                  CCR, CME, COCR, SPOF_F1
-                  AHCR, FTR, APAR, CDCC, PG
-                              │
-                    Pass / Fail verdict
+   Graph (Step 1)
+        │
+   ┌────┴──────────────────────────────┐
+   │ Step 3: RMAV                      │  Step 4: Cascade Simulation
+   │   Q(v) = w·R + w·M + w·A + w·V   │    I(v) = mean impact over N_repeats
+   └────┬──────────────────────────────┘             simulation seeds
+        │                   │
+        └────────┬──────────┘
+                 │
+          Statistical Battery
+          ─────────────────────
+          Spearman ρ,  Kendall τ
+          Bootstrap 95% CI
+          F1@K, SPOF-F1, FTR
+          ICR@K, BCE, PG
+          Wilcoxon vs. degree baseline
+                 │
+          Gate Evaluation
+          (topology-class adaptive)
+                 │
+          PASS / FAIL verdict
 ```
 
-This step closes the methodological loop. Q(v) is derived from normalized graph metrics using AHP weights; I(v) is derived from cascade simulation outcomes on a separate graph view. Agreement between them provides genuine empirical evidence that topology alone predicts failure impact.
+A compound test is used because no single metric is sufficient:
+- **ρ** confirms the global rank ordering is preserved.
+- **F1@K** confirms the top-K critical components are correctly identified.
+- **PG** confirms Q(v) outperforms the naïve degree-centrality baseline.
+- **SPOF-F1** confirms structural SPOFs are correctly caught.
 
 ---
 
-## Two Ground-Truth Targets
+## 2. Validation Pipeline Overview
 
-Step 4 produces two distinct ground-truth objects. Understanding the difference is essential for correctly interpreting validation results.
+`bin/validate_graph.py` implements the full pipeline as a single self-contained CLI.  
+It loads a graph JSON, derives I(v) by running the `FaultInjector` for every node, computes Q(v) via
+the central `QualityAnalyzer`, then runs the statistical battery.
 
-**I(v) — Overall simulation composite:**
 ```
-I(v) = 0.35 × RL(v) + 0.25 × FR(v) + 0.25 × TL(v) + 0.15 × FD(v)
+load_graph(system.json)
+    │
+    ├── compute_rmav(G, qos=False|True)   →  Q(v), R(v), M(v), A(v), V(v)
+    │       uses QualityAnalyzer + StructuralMetrics
+    │
+    └── derive_ground_truth(G, seed, n_repeats=5)  →  I(v)
+            uses FaultInjector._inject_node() per node
+            I(v) = mean of n_repeats stochastic cascade runs
+            │
+run_statistical_tests(node_scores, top_k)
+    │
+    ├── Rank correlation  →  ρ, τ, CI
+    ├── Classification    →  Precision, Recall, F1, FTR
+    ├── SPOF-F1
+    ├── ICR@K, BCE, PG
+    └── Wilcoxon vs. degree centrality
+    │
+stratified_metrics(by node type)
+classify_topology(G)    →   "sparse" | "medium" | "dense" | "hub_spoke"
+evaluate_gates(vr, topo_class)
 ```
-This is the direct output of the cascade simulation: reachability loss, fragmentation, throughput loss, and flow disruption combined. It answers "how much damage does v's failure cause?"
 
-**I*(v) — Per-dimension composite:**
-```
-I*(v) = 0.25 × IR(v) + 0.25 × IM(v) + 0.25 × IA(v) + 0.25 × IV(v)
-```
-This is the equal-weighted combination of the four dimension-specific ground truths produced by the post-passes. IR(v) measures cascade dynamics, IM(v) measures change propagation, IA(v) measures connectivity disruption, IV(v) measures compromise spread. Together they are the simulation-side analog of Q(v)'s four-dimensional RMAV decomposition.
-
-**Two distinct validation pairs:**
-
-| Validation | Prediction | Ground Truth | What it measures |
-|-----------|-----------|--------------|-----------------|
-| Overall ranking | Q(v) | I(v) | Does topology predict cascade damage? |
-| Composite | Q*(v) = Q(v) | I*(v) | Does RMAV decomposition match the full dimension-ground-truth structure? |
-| Reliability | R(v) | IR(v) | Does R(v) rank cascade propagators correctly? |
-| Maintainability | M(v) | IM(v) | Does M(v) rank change-fragile components correctly? |
-| Availability | A(v) | IA(v) | Does A(v) identify SPOFs correctly? |
-| Vulnerability | V(v) | IV(v) | Does V(v) rank attack targets correctly? |
-
-> **Why two composites?** I(v) and I*(v) are not identical because they weight different phenomena. I(v) emphasizes reachability (0.35) which is closely tied to cascade breadth — biasing toward IR. I*(v) gives equal weight to all four dimensions. The Predictive Gain metric (§6.5) measures whether Q*(v) outperforms any single dimension predictor against I*(v), which is a strictly stronger claim than matching I(v) alone.
+> **Independence guarantee.** Q(v) uses only the graph structure (PageRank, betweenness, degree,
+> articulation points) and optionally QoS contract attributes. I(v) is produced by a stochastic
+> forward simulation that has no access to Q(v). The two pipelines are strictly independent.
 
 ---
 
-## Data Alignment
+## 3. Ground Truth: I(v) from Cascade Simulation
 
-Before computing any metric, Q(v) and I(v) vectors are aligned by component ID:
+### Simulation Mechanics
 
+For each node v, the `FaultInjector` runs a two-phase cascade:
+
+**Phase A — Direct propagation:**  
+Failure spreads from v along `DEPENDS_ON` and `USES` edges stochastically.  
+Propagation probability decays with depth: `p(k) = p₀ × (1 − β)^k`.
+
+**Phase B — Pub-sub orphaning:**  
+If the failed node is a publisher of a topic, and it is the last surviving publisher for that topic,
+all subscribers of that topic receive a downstream failure signal with dampened probability (0.5×
+the current propagation factor). This correctly models the broadcast semantics of pub-sub systems.
+
+### Ground Truth Derivation
+
+```python
+rng_seeds = [seed + i × 37  for i in range(n_repeats)]   # default n_repeats = 5
+
+for each node v:
+    impacts = []
+    for s in rng_seeds:
+        imp, depth, affected = FaultInjector._inject_node(v, seed=s)
+        impacts.append(imp)
+    I(v) = mean(impacts)
 ```
-predicted  = {id: Q(v)  for each component in Step 3 output}
-actual     = {id: I(v)  for each component in Step 4 output}
-matched    = {id: (Q(v), I(v))  for id in predicted ∩ actual}
-```
 
-- Components in predicted but not actual: logged as warnings (Step 4 may not have covered all layers).
-- Components in actual but not predicted: logged as warnings (Step 3 may have used a different layer filter).
-- `n < 5` matched components → validation aborted with an error.
+Averaging across `n_repeats` seeds dampens stochastic variance and yields a stable mean impact
+estimate. This is the value compared against Q(v) in all subsequent statistical tests.
 
-Typical matched count: ≥ 95% of components when both steps use the same `--layer` flag.
+### What I(v) Represents
+
+`I(v)` is the **normalised cascade impact score** ∈ [0, 1].  
+It measures: *how much of the system becomes unreachable or impaired when node v fails?*
 
 ---
 
-## Why Spearman Is the Primary Metric
+## 4. RMAV Prediction: Q(v)
 
-Spearman rank correlation ρ is the primary gate metric for three reasons:
+Q(v) is computed by `QualityAnalyzer` using a four-dimensional formula:
 
-**Scale independence.** Q(v) uses AHP-weighted topological metrics; I(v) uses cascade simulation weights. The two scales are not commensurable. Rank correlation avoids comparing absolute values across incompatible scales.
+```
+Q(v) = w_A × A(v)  +  w_R × R(v)  +  w_M × M(v)  +  w_V × V(v)
+```
 
-**Robustness to outliers.** A single extreme outlier (a node that causes catastrophic cascade) can distort Pearson r substantially; Spearman ρ is insensitive to outlier magnitude.
+**AHP-derived weights (default):**
 
-**Direct operational relevance.** The methodology's practical value is in correctly *ranking* components by criticality. An architect needs to know Component A is more critical than B — absolute scores are secondary.
+| Dimension | Weight |
+|-----------|:------:|
+| Availability (A) | 0.43 |
+| Reliability (R) | 0.24 |
+| Maintainability (M) | 0.17 |
+| Vulnerability (V) | 0.16 |
 
-Pearson r is still computed and reported for completeness. A high Pearson r alongside high Spearman ρ strengthens validity by showing magnitude agreement holds, not just ordering. It is not a gate metric.
+**Latest formula versions (Middleware 2026):**
+
+*Reliability R(v) — v7:*
+```
+R(v) = 0.60 × PR(v) × (1 + MPCI(v))  +  0.40 × DG_in(v)
+```
+
+*Availability A(v) — v4:*
+```
+A(v) = AP_c_directed(v) × (1 + 0.30 × QSPOF(v))  +  0.20 × PSPOF(v)
+```
+
+Where:
+- **PR(v)** — PageRank (global connectivity importance)
+- **MPCI(v)** — Multi-Path Coupling Intensity (betweenness-derived amplifier)
+- **DG_in(v)** — normalised in-degree (direct dependent count)
+- **AP_c_directed(v)** — Directed Articulation Point score (1.0 if structural SPOF, else 0)
+- **QSPOF(v)** — `AP_c_directed × w(v)` (QoS-amplified SPOF severity)
+- **PSPOF(v)** — Publisher SPOF score (> 0 if this node is the *sole* publisher of a topic with subscribers)
+
+See [docs/prediction.md](prediction.md) for the complete formula reference.
+
+**Topology-only vs. QoS-enriched modes:**
+
+| Mode | `--qos` flag | PSPOF contribution |
+|------|:-----------:|--------------------|
+| Topology-only baseline | off (default) | `PSPOF = 0` for all nodes |
+| QoS-enriched | on | `PSPOF` computed from pub-sub topology |
+
+The ablation study (`compare` subcommand) measures the predictive lift from the QoS-enriched mode.
 
 ---
 
-## Metric Definitions
+## 5. Statistical Battery
 
-### Correlation Metrics
+All statistics are computed on **Application-type nodes** by default, falling back to all nodes only
+when fewer than 4 Application nodes exist. This matches the thesis claim: topology predicts
+*application-layer* cascade criticality.
 
-**Spearman Rank Correlation ρ:**
+### 5.1 Rank Correlation — Spearman ρ and Kendall τ
+
+**Spearman ρ** is the primary gate metric. It measures whether the *rank ordering* of components by
+Q(v) matches the rank ordering by I(v).
+
 ```
-R_Q[i] = rank of Q(vᵢ) among all Q values  (average ranks for ties)
-R_I[i] = rank of I(vᵢ) among all I values
-d[i]   = R_Q[i] − R_I[i]
-ρ = 1 − (6 × Σ d[i]²) / (n × (n² − 1))
-```
-Significance test: t = ρ√(n−2)/√(1−ρ²), df = n−2; p-value from two-tailed t-distribution.
+ρ = 1  −  (6 × Σ dᵢ²) / (n × (n² − 1))
 
-Bootstrap 95% CI: 1000 resamples with fixed seed 42 (degraded to point estimate for n < 5).
+where  dᵢ = rank(Q(vᵢ)) − rank(I(vᵢ))
+```
+
+Significance test: two-tailed t-distribution with df = n − 2.
 
 | ρ Range | Interpretation |
 |---------|---------------|
-| 0.90–1.00 | Very strong agreement |
-| 0.70–0.90 | Strong agreement (primary target zone) |
-| 0.50–0.70 | Moderate agreement |
-| < 0.50 | Weak/negligible agreement |
+| ≥ 0.85 | Very strong agreement |
+| 0.80–0.85 | Strong — primary gate passes |
+| 0.75–0.80 | Moderate — gate fails for dense/hub-spoke classes |
+| < 0.75 | Weak — investigation required |
 
-**Kendall τ (Tau-b):**
+**Kendall τ** is the conservative cross-check:
+
 ```
 τ = (C − D) / √((C + D + T_Q)(C + D + T_I))
 ```
-More conservative than ρ. A large ρ–τ gap (> 0.15) suggests a few dominant pairs are driving agreement — inspect top CRITICAL components specifically.
 
-**Pearson r** — reported only, not a gate metric.
+A large |ρ − τ| gap (> 0.15) indicates that agreement is driven by a few extreme outliers. Inspect
+the top 2–3 CRITICAL components in that case.
 
-### Classification Metrics
+### 5.2 Bootstrap Confidence Interval
 
-Binary classification defines critical components from each distribution independently:
-```
-Q-critical: Q(v) > Q3_Q + 1.5 × IQR_Q
-I-critical: I(v) > Q3_I + 1.5 × IQR_I
-```
-
-From the 2×2 confusion matrix:
-```
-Precision = TP / (TP + FP)
-Recall    = TP / (TP + FN)
-F1        = 2 × Precision × Recall / (Precision + Recall)
-Cohen's κ = (P_o − P_e) / (1 − P_e)
-```
-
-Bootstrap 95% CI on F1: 1000 resamples, seed 42. The CI is reported but does not gate the verdict.
-
-### Ranking Metrics
-
-**Top-K Overlap:**
-```
-Top-K Overlap = |top_K(Q) ∩ top_K(I)| / K
-```
-Measured at K=5 (primary gate) and K=10 (reported).
-
-**NDCG@K:**
-```
-DCG@K  = Σᵢ₌₁ᴷ rel(i) / log₂(i+1)
-NDCG@K = DCG@K / IDCG@K
-```
-rel(i) = I(v) of the component ranked i-th by Q(v). NDCG = 1.0 means perfect rank quality; positional errors are penalized logarithmically.
-
-### Error Metrics
+Non-parametric bootstrap CI for Spearman ρ (B = 2000 resamples, seed 42):
 
 ```
-RMSE = √((1/n) × Σ (Q(vᵢ) − I(vᵢ))²)
-MAE  = (1/n) × Σ |Q(vᵢ) − I(vᵢ)|
+for b in 1..B:
+    idx  = sample with replacement from [0..n-1]
+    ρ_b  = spearmanr(Q[idx], I[idx])
+
+CI_95 = [percentile(ρ_b, 2.5),  percentile(ρ_b, 97.5)]
 ```
-Because Q and I are on different scales, RMSE/MAE measure distributional similarity rather than absolute error. They complement rank correlation.
+
+A CI that does not cross the gate threshold provides stronger evidence than a point estimate alone.
+When variance is zero (constant arrays), the CI degenerates to `[0, 0]` and a warning is emitted.
+
+### 5.3 Classification Metrics — Precision, Recall, F1 @ K
+
+`K` defaults to **20% of total node count** (minimum 3, maximum n). Override with `--top-k`.
+
+```
+gt_top_k  = top K nodes by I(v)   (ground truth critical set)
+pred_top_k = top K nodes by Q(v)  (predicted critical set)
+
+TP = |gt_top_k ∩ pred_top_k|
+FP = |pred_top_k − gt_top_k|
+FN = |gt_top_k  − pred_top_k|
+
+Precision@K = TP / (TP + FP)
+Recall@K    = TP / (TP + FN)
+F1@K        = 2 × Precision × Recall / (Precision + Recall)
+```
+
+### 5.4 SPOF-F1
+
+Measures the quality of articulation-point detection as an availability indicator.
+
+```
+SPOF-actual   = {v : is_articulation_point(v)  AND  I(v) > 0.3}
+SPOF-predicted = {v : is_articulation_point(v)}
+
+SPOF-F1 = harmonic mean of SPOF-precision and SPOF-recall
+```
+
+A low SPOF-F1 with a high overall ρ means the *global* ordering is correct but the binary SPOF
+classification threshold is misaligned with the simulation threshold (0.3). See
+[Interpreting Results](#12-interpreting-results).
+
+### 5.5 Specialist Metrics — ICR@K, BCE, FTR, PG
+
+**ICR@K — In-Cluster Recall at K:**
+
+```
+window = max(1, K // 2)
+ICR@K  = |{v ∈ gt_top_k : |rank_Q(v) − rank_I(v)| ≤ window}| / K
+```
+
+Measures whether true-critical components appear in the *neighbourhood* of their Q-rank, even if not
+exactly in the top-K. A high ICR with a low F1 indicates predictions are close but shifted by a few
+positions.
+
+**BCE — Binary Classification Error:**
+
+```
+y_true[v] = 1 if v ∈ gt_top_k  else 0
+y_pred[v] = 1 if v ∈ pred_top_k else 0
+BCE = mean(y_true ≠ y_pred)
+```
+
+The fraction of all nodes misclassified as critical or non-critical. Lower is better; 0 is perfect.
+
+**FTR — False Top Rate:**
+
+```
+FTR = FP / K
+```
+
+The fraction of the predicted top-K that are *false alarms* (predicted critical, actually safe). A
+high FTR is dangerous operationally: engineers would spend hardening effort on low-risk components.
+
+**PG — Predictive Gain over degree-centrality baseline:**
+
+```
+ρ_DC     = spearmanr(degree_centrality(v), I(v))
+ρ_Q      = spearmanr(Q(v), I(v))
+PG       = |ρ_Q| − |ρ_DC|
+```
+
+PG > 0 means RMAV outperforms a naïve PageRank baseline. PG ≥ 0.03 is the gate threshold for
+confirming that the multi-dimensional RMAV formula adds genuine predictive value.
+
+### 5.6 Wilcoxon Signed-Rank Test
+
+Tests whether Q(v) ranks nodes *better* than degree centrality against ground truth I(v):
+
+```
+diff_scores = |Q(v) − I(v)| − |DC(v) − I(v)|     for all v
+
+Wilcoxon signed-rank test (one-sided: alternative='less', α=0.05)
+```
+
+Significance (`p < 0.05`) means Q(v) is statistically closer to I(v) than degree centrality is.
+Requires at least 10 nodes for reliable results; otherwise the test is skipped and `p = 1.0` is
+reported.
 
 ---
 
-## Dimension-Specific Specialist Metrics
+## 6. Node-Type Stratified Reporting
 
-Each RMAV dimension has a set of specialist metrics that test properties beyond rank correlation. These are computed after the overall metrics and reported in the `dimensional` section of the output.
-
-### Reliability: CCR@K and CME
-
-Validates R(v) against IR(v).
-
-**CCR@K — Cascade Capture Rate at K:**
-```
-CCR@K = |Top-K(R(v)) ∩ Top-K(IR(v))| / K
-```
-Measures what fraction of the K highest-predicted cascade propagators are also the K highest actual cascade propagators. Target: CCR@5 ≥ 0.80.
-
-**CME — Cascade Magnitude Error:**
-```
-CME = (1/n) × Σ |rank_R(v) − rank_IR(v)| / n
-```
-Mean rank displacement normalized by system size. A CME near 0 means the predicted cascade ranking closely matches the simulation-observed cascade ordering. Target: CME ≤ 0.10.
-
-### Maintainability: COCR@K, κ_CTA, BP
-
-Validates M(v) against IM(v).
-
-**COCR@K — Change Obligation Capture Rate at K:**
-```
-COCR@K = |Top-K(M(v)) ∩ Top-K(IM(v))| / K
-```
-Structurally identical to CCR@K for Reliability. Target: COCR@5 ≥ 0.75.
-
-**κ_CTA — Weighted Coupling Tier Agreement:**
-Three-tier classification (LOW/MEDIUM/HIGH coupling based on M(v) and IM(v) distributions) compared using weighted Cohen's κ, where tier distance weights adjacent misclassifications less than distant ones. Target: κ_CTA ≥ 0.55.
+Spearman ρ and F1@K are computed independently for each node type:
 
 ```
-Tiers defined by tertiles of each distribution:
-  LOW:    score ≤ 33rd percentile
-  MEDIUM: 33rd < score ≤ 66th percentile
-  HIGH:   score > 66th percentile
-
-Weight matrix: w[i][j] = 1 − |i−j| / (n_tiers − 1)
-κ_weighted = 1 − Σᵢⱼ wᵢⱼ × |obs[i][j] − exp[i][j]| / Σᵢⱼ wᵢⱼ × exp[i][j]
+Application   →  primary validation layer
+Broker        →  secondary (broker-layer analysis)
+Topic         →  expected zero-variance signal (cascade simulation does not
+                 propagate *from* topics); reported with a note
+InfraNode     →  infrastructure layer; smaller population
+Library       →  library coupling layer; fewer nodes → noisier ρ
 ```
 
-**BP — Bottleneck Precision:**
-```
-BP = |{v : BT(v) > τ_BT AND w_out(v) > τ_wout AND IM(v) > τ_IM}|
-      / |{v : BT(v) > τ_BT AND w_out(v) > τ_wout}|
-```
-Precision of identifying components where high predicted bottleneck score (BT and w_out both above their 75th percentiles) corresponds to high actual change impact (IM(v) > 0.50). Target: BP ≥ 0.70.
+Strata with fewer than 4 nodes report `"too few nodes for ρ"`.  
+Strata with constant I(v) (std < 1e-9) report `"constant signal (not a primary failure type)"`.
 
-### Availability: SPOF_F1, HSRR, DASA, RRI
+**Typical stratification output:**
+```
+  Application       n=  26  ρ= 0.8320  F1=0.7143
+  Broker            n=   5  constant signal (not a primary failure type)
+  Topic             n=  27  constant signal (not a primary failure type)
+  InfraNode         n=   8  constant signal (not a primary failure type)
+  Library           n=   8  constant signal (not a primary failure type)
+```
 
-Validates A(v) against IA(v).
-
-**SPOF_F1 — SPOF Classification F1:**
-```
-SPOF-predicted:  AP_c_directed(v) > 0  (structural SPOF from Step 2)
-SPOF-actual:     IA(v) > IA_threshold   (IA_threshold = Q3_IA + 0.5 × IQR_IA)
-
-SPOF_F1 = 2 × SPOF_Precision × SPOF_Recall / (SPOF_Precision + SPOF_Recall)
-```
-Target: SPOF_F1 ≥ 0.90.
-
-**HSRR — Hidden SPOF Recovery Rate:**
-```
-HSRR = |{v : AP_c_directed(v) = 0 AND QSPOF(v) > 0 AND IA(v) > IA_threshold}|
-        / |{v : AP_c_directed(v) = 0 AND IA(v) > IA_threshold}|
-```
-Fraction of high-availability-impact components that are not binary articulation points but are nevertheless caught by QSPOF or CDI. Measures whether the continuous availability metrics (QSPOF, CDI) add value beyond binary AP detection. Target: HSRR ≥ 0.65.
-
-**DASA — Directed SPOF Asymmetry Accuracy:**
-```
-DASA = |{v : sign(AP_c_out − AP_c_in) = sign(IA_out(v) − IA_in(v))}| / n
-```
-Checks that the directionality of the SPOF (whether out-reachability or in-reachability dominates) matches the directionality observed in simulation. Target: DASA ≥ 0.70.
-
-**RRI — Redundancy Robustness Index:**
-```
-RRI = |{v : BR(v) = 0 AND IA(v) < IA_threshold}| / |{v : BR(v) = 0}|
-```
-Among components with no bridge edges (structurally redundant), what fraction also have low actual availability impact? High RRI confirms that structural redundancy (BR = 0) genuinely protects availability. Target: RRI ≥ 0.80.
-
-### Vulnerability: AHCR@K, FTR, APAR, CDCC
-
-Validates V(v) against IV(v).
-
-**AHCR@K — Attack-Hub Capture Rate at K:**
-```
-AHCR@K = |Top-K(V(v)) ∩ Top-K(IV(v))| / K
-```
-Top-K overlap between predicted high-vulnerability components and actual high-compromise-reach components. Target: AHCR@5 ≥ 0.70.
-
-**FTR — False Target Rate:**
-```
-FTR = |{v : V(v) > V_threshold AND IV(v) < IV_threshold}| / |{v : V(v) > V_threshold}|
-```
-Where V_threshold = 60th percentile of V(v) and IV_threshold = 10th percentile of IV(v). FTR measures the rate at which predicted high-vulnerability components turn out to have negligible actual compromise reach. Target: FTR ≤ 0.25.
-
-**APAR — Attack Path Agreement Rate:**
-```
-APAR = |{v : V(v) > V_threshold AND v appears in any critical_path from Step 4}|
-        / |{v : V(v) > V_threshold}|
-```
-Among high-V components, what fraction appear in at least one critical compromise propagation path identified by IV's post-pass? Target: APAR ≥ 0.60.
-
-**CDCC — Cross-Dimensional Contamination Check:**
-```
-CDCC = ρ(A(v), V(v))
-```
-Spearman correlation between the Availability and Vulnerability dimension predictions. High CDCC (> 0.70) would indicate that A and V are not measuring orthogonal properties — a structural flaw in the RMAV decomposition. Target: CDCC ≤ 0.40 (lower is better — dimensions should be orthogonal).
-
-### Composite: Predictive Gain PG
-
-**PG — Predictive Gain:**
-```
-PG = ρ(Q*(v), I*(v)) − max_{d ∈ {R,M,A,V}} ρ(d(v), Id(v))
-```
-The increase in Spearman ρ achieved by the composite score Q*(v) over the single best-performing dimension predictor. PG > 0.03 confirms that combining all four RMAV dimensions adds predictive value beyond the strongest individual dimension alone. This is the key evidence that the four-dimensional decomposition is justified over a single-score approach.
-
-Target: PG > 0.03.
-
-**Why PG matters for the thesis:** A reviewer might argue that a simpler single-metric predictor (e.g., just RPR) would work as well as the full RMAV composite. A positive PG directly refutes this: it proves that the four-dimension decomposition captures structural information that no single dimension captures alone. Without PG, the multi-dimensional architecture of RMAV is an unverified design choice; with PG, it is an empirically validated one.
+Topics and Brokers are expected to show constant signal: the cascade simulation triggers from a
+*source* node's failure, not from a topic. Topic-layer reliability is captured through pub-sub
+orphaning (Phase B), but the score accrues to the publisher application, not the topic node itself.
 
 ---
 
-## Pass/Fail Gate System
+## 7. Topology-Class Gate System
 
-Metrics are organized into four tiers. All Tier 1 gates must pass for a PASS verdict.
+Gates are **adaptive** — a sparse 12-node system faces less stringent thresholds than a dense 80-node
+hub-spoke architecture.
 
-### Tier 1 — Primary Gates (all must pass)
+### Topology Classification
 
-| Gate | Metric | Threshold | Applies To |
-|------|--------|-----------|-----------|
-| G1 | Spearman ρ(Q, I) | ≥ 0.80 | Overall, application layer |
-| G2 | p-value | ≤ 0.05 | Overall |
-| G3 | F1-Score | ≥ 0.90 | Overall |
-| G4 | Top-5 Overlap | ≥ 0.60 | Overall |
+```python
+density   = edges / (nodes × (nodes − 1))
+hub_ratio = max_degree / mean_degree
 
-### Tier 2 — Secondary Gates (reported with pass/fail; do not block PASS)
+"hub_spoke" if hub_ratio > 10  and density < 0.10
+"sparse"    if density < 0.05
+"dense"     if density > 0.20
+"medium"    otherwise
+```
 
-| Gate | Metric | Threshold | Applies To |
-|------|--------|-----------|-----------|
-| G5 | RMSE | ≤ 0.25 | Overall |
-| G6 | Predictive Gain PG | > 0.03 | Composite vs. I*(v) |
-| G7 | SPOF_F1 | ≥ 0.90 | Availability dimension |
-| G8 | CCR@5 | ≥ 0.80 | Reliability dimension |
+### Gate Thresholds
 
-### Tier 3 — Dimension-Specific Targets
+| Class | ρ ≥ | F1 ≥ | SPOF-F1 ≥ | FTR ≤ | PG ≥ |
+|-------|:---:|:----:|:---------:|:-----:|:----:|
+| `sparse` | 0.75 | 0.65 | 0.60 | 0.30 | 0.02 |
+| `medium` | 0.80 | 0.70 | 0.65 | 0.25 | 0.03 |
+| `dense` | 0.82 | 0.72 | 0.65 | 0.25 | 0.03 |
+| `hub_spoke` | 0.85 | 0.75 | 0.70 | 0.20 | 0.03 |
 
-These are used for per-dimension assessment and ICSA 2026 evidence set. They do not gate the overall verdict but are required to pass their respective dimension validations.
-
-| Dimension | Metric | Target | Ground Truth |
-|-----------|--------|--------|-------------|
-| Overall | ρ(Q, I) | ≥ 0.80 | I(v) |
-| Reliability | ρ(R, IR) | ≥ 0.75 | IR(v) |
-| Reliability | CCR@5 | ≥ 0.80 | IR(v) |
-| Reliability | CME | ≤ 0.10 | IR(v) |
-| Maintainability | ρ(M, IM) | ≥ 0.72 | IM(v) |
-| Maintainability | COCR@5 | ≥ 0.75 | IM(v) |
-| Maintainability | κ_CTA | ≥ 0.55 | IM(v) |
-| Maintainability | BP | ≥ 0.70 | IM(v) |
-| Availability | ρ(A, IA) | ≥ 0.82 | IA(v) |
-| Availability | SPOF_F1 | ≥ 0.90 | IA(v) |
-| Availability | HSRR | ≥ 0.65 | IA(v) |
-| Availability | DASA | ≥ 0.70 | IA(v) |
-| Availability | RRI | ≥ 0.80 | IA(v) |
-| Vulnerability | ρ(V, IV) | ≥ 0.70 | IV(v) |
-| Vulnerability | AHCR@5 | ≥ 0.70 | IV(v) |
-| Vulnerability | FTR | ≤ 0.25 | IV(v) |
-| Vulnerability | APAR | ≥ 0.60 | IV(v) |
-| Vulnerability | CDCC | ≤ 0.40 | Orthogonality |
-| Composite | ρ(Q*, I*) | ≥ 0.85 | I*(v) |
-| Composite | PG | > 0.03 | I*(v) |
-
-### Tier 4 — Reported Metrics (no gate)
-
-Kendall τ, Pearson r, Precision, Recall, Cohen's κ, Top-10 Overlap, NDCG@K, MAE, all CI bounds.
+All five gates must pass for `overall_pass = True`. The exit code is 0 on PASS and 1 on FAIL,
+enabling use in CI pipelines.
 
 ---
 
-## Multi-Seed Stability Protocol
+## 8. Multi-Seed Stability Sweep
 
-A single seed (42) provides no evidence of result stability. The thesis defense requires multi-seed testing to demonstrate that validation results are reproducible, not seed-dependent artifacts.
+A single seed run is not sufficient evidence. The `sweep` and `report` subcommands run the full
+pipeline across multiple seeds to measure **stability**.
 
-**Required seeds:** {42, 123, 456, 789, 2024}
+**Default seeds:** `42, 123, 456, 789, 2024`
 
-For each seed s, generate a synthetic topology at the target scale, run the full pipeline (Steps 1–5), and record ρ(Q, I).
+**Aggregate metrics:**
 
-**Stability criterion:**
+| Metric | Formula | Interpretation |
+|--------|---------|---------------|
+| `rho_mean` | mean(ρ across seeds) | Average predictive power |
+| `rho_std` | std(ρ across seeds) | Stability; target σ ≤ 0.05 |
+| `rho_min / rho_max` | range | Worst and best seed |
+| `f1_mean` | mean(F1@K) | Average classification quality |
+| `pg_mean` | mean(PG) | Average predictive gain |
+| `rcr` | 1 − mean(normalised Kendall distance between seed pairs) | Rank Consistency Rate |
+| `all_gates_pass_rate` | fraction of seeds that pass all gates | Reliability of PASS verdict |
+
+**RCR — Rank Consistency Rate:**
+
 ```
-μ_ρ = mean(ρ₄₂, ρ₁₂₃, ρ₄₅₆, ρ₇₈₉, ρ₂₀₂₄)
-σ_ρ = std(ρ₄₂, ρ₁₂₃, ρ₄₅₆, ρ₇₈₉, ρ₂₀₂₄)
+For each pair of seeds (i, j):
+    compute normalised Kendall distance d_{ij} = (1 − τ_{ij}) / 2  ∈ [0, 1]
 
-Pass: μ_ρ ≥ 0.80  AND  σ_ρ ≤ 0.05
+RCR = 1 − mean(d_{ij})
 ```
 
-A standard deviation ≤ 0.05 confirms the methodology is stable across different random graph instantiations of the same scale — a pre-condition for the results to be generalizable rather than lucky.
+RCR = 1.0 means identical rankings across all seeds. Target: RCR ≥ 0.90 for a stable methodology.
 
-**Expected results at medium scale:**
+---
 
-| Seed | ρ(Q, I) | F1 |
-|------|---------|----|
-| 42 | ≈ 0.847 | ≈ 0.85 |
-| 123 | ≈ 0.831 | ≈ 0.82 |
-| 456 | ≈ 0.858 | ≈ 0.88 |
-| 789 | ≈ 0.843 | ≈ 0.84 |
-| 2024 | ≈ 0.852 | ≈ 0.86 |
-| **μ ± σ** | **0.846 ± 0.010** | **0.85 ± 0.02** |
+## 9. Ablation Study: Topology-Only vs. QoS-Enriched
 
-Multi-seed stability at σ ≤ 0.05 is also the minimum evidence required for GNN validation in the ICSA 2026 submission.
+The `compare` subcommand runs two full sweeps back-to-back — one without QoS (topology-only
+baseline) and one with QoS enrichment — and reports the pair-wise deltas.
 
-**Running the multi-seed protocol:**
+**Primary claim:** Δρ = ρ(Q_QoS, I) − ρ(Q_topo, I) > 0, *p* < 0.05
+
+This is the evidence that incorporating QoS contract topology (singleton publisher detection, weight
+amplification) adds predictive signal beyond purely structural graph metrics.
+
+**Statistical test:** Paired t-test on seed-level ρ series (`alternative='greater'`).  
+For fewer than 3 seeds, significance is approximated as `Δρ > 0.01`.
+
+**LaTeX export:**
+
+The `--latex` flag generates a ready-to-paste IEEE booktabs table (`ablation_table.tex`):
+
+```latex
+\begin{table}[t]
+\centering
+\caption{Ablation Study: Topology-Only vs.\ QoS-Enriched Prediction}
+\label{tab:ablation}
+\begin{tabular}{@{}lSSS@{}}
+\toprule
+Metric & {Topo-Only} & {QoS-Enr.} & {$\Delta$} \\
+\midrule
+Spearman $\rho$ (mean) & 0.8123 & 0.8467 & +0.0344 \\
+Spearman $\rho$ (std)  & 0.0231 & 0.0198 & -0.0033 \\
+F1 @ $K$               & 0.7200 & 0.7600 & +0.0400 \\
+Predictive Gain (PG)   & 0.0410 & 0.0620 & +0.0210 \\
+RCR                    & 0.9340 & 0.9410 & +0.0070 \\
+\midrule
+\multicolumn{4}{l}{\small QoS $\rho$-lift: $p < \alpha$, significant} \\
+\bottomrule
+\end{tabular}
+\end{table}
+```
+
+The `compare` subcommand exits with code 0 only when Δρ > 0 *and* the test is significant — suitable
+for CI gates guarding research claims.
+
+---
+
+## 10. CLI Reference
+
+### Subcommands
+
+| Subcommand | Description |
+|-----------|-------------|
+| `single` | One-seed run (uses the first seed in the list) |
+| `sweep` | Multi-seed stability sweep |
+| `report` | Full sweep + per-seed detail + gate JSON output |
+| `compare` | Ablation study: topology-only vs. QoS-enriched |
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--input PATH` | *(required)* | Path to `system.json` or dataset JSON |
+| `--qos` | off | Enable QoS-weighted RMAV scoring (adds PSPOF) |
+| `--top-k INT` | 20% of nodes | K for classification and specialist metrics |
+| `--seeds INTS` | `42,123,456,789,2024` | Comma-separated seed list |
+| `--cascade INT` | `5` | Cascade simulation depth limit |
+| `--bootstrap INT` | `2000` | Bootstrap resamples for CI |
+| `--alpha FLOAT` | `0.05` | Significance level for Wilcoxon test |
+| `--output PATH` | *(none)* | Write JSON report to path |
+| `--csv` | off | Also write per-node CSV table |
+| `--latex` | off | Write LaTeX ablation table (requires `compare` subcommand) |
+| `--verbose` | off | Print per-node Q(v)/I(v) scores ranked by Q |
+| `--no-color` | off | Disable ANSI colours in console output |
+
+### Examples
+
 ```bash
-for seed in 42 123 456 789 2024; do
-    python bin/generate_graph.py --scale medium --seed $seed --output input/system_s${seed}.json
-    python bin/import_graph.py --input input/system_s${seed}.json --clear
-    python bin/analyze_graph.py  --layer app --use-ahp --output results/pred_s${seed}.json
-    python bin/simulate_graph.py failure --exhaustive --layer app \
-                                  --output results/sim_s${seed}.json
-    python bin/validate_graph.py results/pred_s${seed}.json results/sim_s${seed}.json \
-                           --output results/val_s${seed}.json
-done
-# Then aggregate: python bin/multi_seed_summary.py results/val_s*.json
+# ── Quick sanity check (topology-only, single seed) ──────────────────────────
+python bin/validate_graph.py single --input input/scenarios/atm_system.json
+
+# ── QoS-enriched single run ───────────────────────────────────────────────────
+python bin/validate_graph.py single --input input/scenarios/atm_system.json --qos --verbose
+
+# ── Multi-seed stability sweep ────────────────────────────────────────────────
+python bin/validate_graph.py sweep --input input/scenarios/atm_system.json --qos
+
+# ── Full report with JSON output ──────────────────────────────────────────────
+python bin/validate_graph.py report \
+    --input input/scenarios/atm_system.json \
+    --output output/atm_validation.json \
+    --qos
+
+# ── Ablation study + LaTeX table ──────────────────────────────────────────────
+python bin/validate_graph.py compare \
+    --input input/scenarios/atm_system.json \
+    --output output/ablation.json \
+    --seeds 42,123,456,789,2024 \
+    --latex
+
+# ── Custom K, deeper cascade, finer CI ────────────────────────────────────────
+python bin/validate_graph.py report \
+    --input input/scenarios/atm_system.json \
+    --top-k 10 --cascade 10 --bootstrap 5000 \
+    --qos --output output/fine_report.json
+
+# ── CI-friendly exit codes ────────────────────────────────────────────────────
+# Exit 0 = PASS;  Exit 1 = FAIL
+python bin/validate_graph.py single --input input/scenarios/atm_system.json --qos \
+    && echo "Validation passed"
 ```
 
 ---
 
-## Node-Type Stratified Reporting
+## 11. Output Schema
 
-After Step 1's Rule 5 (app_to_lib), Library nodes now appear in the DEPENDS_ON graph with non-zero in-degree. They are scored by Step 3 and simulated by Step 4. Their validation must be reported separately from Application nodes because their failure semantics differ (simultaneous blast vs. sequential cascade).
-
-**Stratified ρ reporting (system layer):**
-
-```
-ρ_app   = ρ(Q_Application,  I_Application)   — target ≥ 0.80
-ρ_lib   = ρ(Q_Library,      I_Library)        — target ≥ 0.70 (fewer components, less stable)
-ρ_broker = ρ(Q_Broker,      I_Broker)         — target ≥ 0.72
-ρ_infra  = ρ(Q_Node,        I_Node)           — target ≥ 0.54
-```
-
-**Why Library targets are lower:** Library components are fewer in number per system (typically 3–15 at medium scale), making rank correlation estimates statistically noisier. The ≥ 0.70 target is appropriate given sample size. As the Library population grows in larger test systems, this target should be raised toward the Application layer target.
-
-**Reporting guidance:** The overall validation verdict is determined by the application-layer primary gates. Stratified reporting is required in the thesis and ICSA 2026 submission to demonstrate the methodology handles Library nodes correctly and to document the known accuracy gap between node types.
-
----
-
-## Validation Targets by Layer and Scale
-
-### Layer Targets
-
-| Layer | Spearman ρ | F1 | Notes |
-|-------|-----------|-----|-------|
-| `app` | ≥ 0.80 | ≥ 0.90 | Primary validation layer — all primary gates apply here |
-| `app` (large/xlarge) | ≥ 0.90 | ≥ 0.92 | Scale benefit expected |
-| `infra` | ≥ 0.54 | ≥ 0.68 | Physical topology is more homogeneous |
-| `mw` | ≥ 0.70 | ≥ 0.85 | Broker-level analysis |
-| `system` | ≥ 0.75 | ≥ 0.88 | Cross-layer, includes Topics and Libraries |
-
-### Scale Matrix (Application Layer)
-
-| Test ID | Scale | ρ target | F1 target | Top-5 target | Seed |
-|---------|-------|----------|-----------|--------------|------|
-| VT-APP-01 | Small (10–25) | ≥ 0.75 | ≥ 0.80 | ≥ 50% | 42 |
-| VT-APP-02 | Medium (30–50) | ≥ 0.80 | ≥ 0.88 | ≥ 60% | 42 |
-| VT-APP-03 | Large (60–100) | ≥ 0.85 | ≥ 0.90 | ≥ 70% | 42 |
-| VT-SYS-01 | System/Small | ≥ 0.70 | ≥ 0.78 | ≥ 50% | 42 |
-| VT-SYS-02 | System/Medium | ≥ 0.75 | ≥ 0.85 | ≥ 60% | 42 |
-| VT-INF-01 | Infra/Any | ≥ 0.54 | ≥ 0.68 | ≥ 35% | 42 |
-
----
-
-## Achieved Results
-
-Results from the eight validated domain scenarios (IEEE RASSE 2025, application layer, large scale):
-
-| Scenario | Domain | Scale | ρ(Q,I) | F1 | Top-5 | PASS |
-|----------|--------|-------|--------|-----|-------|------|
-| 01 | Autonomous Vehicle (ROS 2) | Medium | 0.871 | 0.923 | 0.80 | ✓ |
-| 02 | IoT Smart City | Large | 0.883 | 0.931 | 0.80 | ✓ |
-| 03 | Financial HFT (Kafka) | Medium | 0.856 | 0.912 | 0.80 | ✓ |
-| 04 | Healthcare (MQTT) | Medium | 0.868 | 0.905 | 0.80 | ✓ |
-| 05 | Hub-and-Spoke | Medium | 0.901 | 0.947 | 1.00 | ✓ |
-| 06 | Microservices mesh | Medium | 0.843 | 0.894 | 0.60 | ✓ |
-| 07 | Enterprise (XLarge) | XLarge | **0.943** | **0.962** | 1.00 | ✓ |
-| 08 | Tiny regression | Tiny | 0.820 | 0.900 | 0.60 | ✓ |
-| **Overall** | — | — | **0.876** | **0.923** | **0.80** | **✓** |
-
-**Scale trend:** ρ improves from ≈0.787 (small) to ≈0.876 (xlarge). This is expected: larger systems provide richer structural context, making relative centrality differences more pronounced and rank correlations more stable. This scale benefit is a key thesis contribution (REQ-ACC-05).
-
----
-
-## Worked Example
-
-**Application layer, Distributed Intelligent Factory (DIF), 32 components:**
-
-```
-Step 1 — Get Q(v) from Step 3:
-  DataRouter:     Q = 0.84  [CRITICAL]
-  SensorHub:      Q = 0.73  [CRITICAL]
-  CommandBus:     Q = 0.73  [CRITICAL]
-  PLC_Controller: Q = 0.67  [HIGH]
-
-Step 2 — Get I(v) from Step 4:
-  DataRouter:     I = 0.88  [CRITICAL]
-  SensorHub:      I = 0.79  [CRITICAL]
-  PLC_Controller: I = 0.68  [CRITICAL]   ← one rank higher than predicted
-  CommandBus:     I = 0.61  [HIGH]
-
-Step 3 — Align (n=32, all matched)
-
-Step 4 — Compute:
-  Spearman ρ   = 0.91     p = 0.0001   G1: PASS
-  F1-Score     = 0.94                  G3: PASS
-  Top-5 Overlap = 4/5 = 0.80           G4: PASS
-  RMSE         = 0.18                  G5: PASS (secondary)
-  Kendall τ    = 0.78   gap = 0.13     (acceptable — below 0.15 concern threshold)
-
-  Reliability dim: ρ(R, IR) = 0.88   CCR@5 = 0.80   CME = 0.07
-  Availability dim: ρ(A, IA) = 0.92  SPOF_F1 = 0.94
-
-  Composite:  ρ(Q*, I*) = 0.93
-  Best single dim: ρ(A, IA) = 0.92
-  PG = 0.93 − 0.92 = 0.01           (marginal — A dominates for this system)
-
-Verdict: PASS ✓ — all four primary gates satisfied
-```
-
-The single ordering discrepancy (PLC_Controller ranked 4th by Q but 3rd by I) is typical and within bounds for a 32-component system. The small PG (0.01) signals that Availability is the dominant predictive dimension for this factory scenario — consistent with the topology being heavily infrastructure-dependent.
-
----
-
-## Statistical Robustness
-
-**Bootstrap confidence intervals:** Spearman ρ and F1 both carry 95% bootstrap CIs (1000 resamples, seed 42). A CI that does not cross the gate threshold provides stronger evidence than a point estimate alone.
-
-**ρ–τ gap diagnostic:** When |ρ − τ| > 0.15, agreement is driven by a small number of extreme components. In this case, inspect the top 2–3 CRITICAL components — one of them may be an extreme outlier driving the rank correlation. This is not necessarily a failure mode, but it should be reported and interpreted.
-
-**Classification threshold asymmetry:** The classification boundary (box-plot upper fence) is computed independently from Q(v) and I(v) distributions. This means the number of Q-critical and I-critical components can differ. When |Q-critical count − I-critical count| / n > 0.10, interpret F1 alongside Precision and Recall separately: a low F1 driven by low Recall means the prediction is conservative (misses some critical components); driven by low Precision means it is over-sensitive (flags too many).
-
-**Small-scale instability:** At n < 20, box-plot quartile estimates are unreliable. The percentile fallback classification (top 10% = CRITICAL) is used instead. For these systems, treat F1 as indicative only; ρ is the primary robustness indicator.
-
-**Internal vs. external validity:** Both Q(v) and I(v) are derived from the same structural graph. High ρ confirms the analysis engine correctly extracts structural logic, but does not directly prove that the predicted criticality order matches real-world incident impact. External validation against production post-mortems is the next research direction.
-
----
-
-## Interpreting Results
-
-**All primary gates pass:** Predictions from Step 3 are reliable for this system. Use Q(v) scores and criticality classifications for architectural decision-making.
-
-**ρ passes but F1 fails (e.g., ρ=0.81, F1=0.72):** The ranking is correct but the binary classification threshold is misaligned. Check whether box-plot classification in Step 3 is using `--use-ahp` and whether layer size meets the ≥12 component threshold for normal-path classification.
-
-**ρ fails (< 0.80):** Investigate by layer. If `app` fails but `infra` passes, the issue is likely in RMAV weights for specific dependency types — try `--use-ahp` with domain-specific pairwise matrices. If all layers fail, check Step 1 graph construction for missing dependency derivation rules.
-
-**Large ρ–τ gap (> 0.15):** Agreement is driven by extreme outlier components. Inspect RMAV breakdown of top 2–3 CRITICAL components for unusually high scores.
-
-**PG ≤ 0.03:** The composite does not outperform the single best dimension. This usually means one RMAV dimension is much more relevant for this system type than the others (e.g., Availability dominates in infrastructure-heavy systems). Report which dimension is dominant and justify why in the thesis.
-
-**Low SPOF_F1 with high ρ:** The global ordering is correct but SPOFs are not being identified accurately. Check that AP_c_directed is being stored from Step 2 (not just the binary is_articulation_point flag) and that CDI is enriching the availability signal.
-
-**ρ improves with scale:** Expected behavior. For systems with < 20 components, treat validation results as indicative only.
-
----
-
-## Output Schema
+### Single / Report JSON
 
 ```json
 {
-  "layer": "app",
-  "passed": true,
-  "predicted_count": 35,
-  "actual_count": 35,
-  "matched_count": 35,
-  "overall": {
-    "correlation": {
-      "spearman": 0.91, "spearman_p": 0.0001,
-      "spearman_ci_lower": 0.84, "spearman_ci_upper": 0.95,
-      "kendall": 0.78, "kendall_spearman_gap": 0.13,
-      "pearson": 0.89
+  "topology_class": "sparse",
+  "validation": {
+    "seed": 42,
+    "qos_enabled": true,
+    "n_nodes": 74,
+    "n_app_nodes": 26,
+
+    "spearman_rho":    0.8320,
+    "spearman_p":      0.0009,
+    "kendall_tau":     0.6101,
+    "kendall_p":       0.0023,
+    "bootstrap_ci_lo": 0.6841,
+    "bootstrap_ci_hi": 0.9241,
+
+    "top_k":           14,
+    "precision_at_k":  0.7143,
+    "recall_at_k":     0.7143,
+    "f1_at_k":         0.7143,
+    "spof_f1":         0.6250,
+    "ftr":             0.2857,
+
+    "icr_at_k":        0.7857,
+    "bce":             0.2432,
+    "pg":              0.0512,
+
+    "wilcoxon_stat":   164.00,
+    "wilcoxon_p":      0.0312,
+    "wilcoxon_significant": true,
+
+    "strata": {
+      "Application": { "n": 26, "spearman_rho": 0.8320, "spearman_p": 0.0009, "f1_at_k": 0.7143, "k_used": 5 },
+      "Broker":      { "n": 5,  "note": "constant signal (not a primary failure type)" },
+      "Topic":       { "n": 27, "note": "constant signal (not a primary failure type)" }
     },
-    "classification": {
-      "f1_score": 0.94, "precision": 0.92, "recall": 0.96,
-      "cohens_kappa": 0.88,
-      "f1_ci_lower": 0.88, "f1_ci_upper": 0.97
+
+    "gates_passed": {
+      "rho >= 0.75":      true,
+      "f1 >= 0.65":       true,
+      "spof_f1 >= 0.60":  true,
+      "ftr <= 0.30":      true,
+      "pg >= 0.02":       true
     },
-    "ranking": {
-      "top_5_overlap": 0.80, "top_10_overlap": 0.90, "ndcg_at_10": 0.94
-    },
-    "error": { "rmse": 0.18, "mae": 0.14 }
-  },
-  "dimensional": {
-    "reliability": {
-      "spearman": 0.88, "ground_truth": "IR(v)",
-      "ccr_5": 0.80, "cme": 0.07
-    },
-    "maintainability": {
-      "spearman": 0.79, "ground_truth": "IM(v)",
-      "cocr_5": 0.78, "weighted_kappa_cta": 0.62, "bottleneck_precision": 0.74
-    },
-    "availability": {
-      "spearman": 0.93, "ground_truth": "IA(v)",
-      "spof_f1": 0.94, "spof_precision": 0.95, "spof_recall": 0.93,
-      "hsrr": 0.70, "dasa": 0.76, "rri": 0.85
-    },
-    "vulnerability": {
-      "spearman": 0.82, "ground_truth": "IV(v)",
-      "ahcr_5": 0.80, "ftr": 0.18, "apar": 0.67, "cdcc": 0.22
-    }
-  },
-  "composite": {
-    "spearman_q_star_i_star": 0.93,
-    "predictive_gain": 0.01,
-    "best_single_dim": "availability",
-    "interdim_max_correlation": 0.31
-  },
-  "gates": {
-    "G1_spearman": true, "G2_pvalue": true,
-    "G3_f1": true, "G4_top5": true,
-    "G5_rmse": true, "G6_predictive_gain": false,
-    "G7_spof_f1": true, "G8_ccr5": true
-  },
-  "node_type_stratified": {
-    "Application": { "n": 28, "spearman": 0.91 },
-    "Library":     { "n": 4,  "spearman": 0.76 },
-    "Broker":      { "n": 3,  "spearman": 0.83 }
+    "overall_pass": true
   }
 }
 ```
 
----
+### Sweep / Report JSON
 
-## External vs. Internal Validity
+```json
+{
+  "sweep": {
+    "qos_enabled": true,
+    "seeds": [42, 123, 456, 789, 2024],
+    "rho_mean":  0.8217,
+    "rho_std":   0.0341,
+    "rho_min":   0.7810,
+    "rho_max":   0.8640,
+    "f1_mean":   0.6974,
+    "pg_mean":   0.0438,
+    "rcr":       0.9231,
+    "all_gates_pass_rate": 0.80,
+    "per_seed":  [ ... ]
+  },
+  "topology_class": "sparse",
+  "gate_thresholds": [0.75, 0.65, 0.60, 0.30, 0.02]
+}
+```
 
-**Internal validity** (measured here): Q(v) agrees with I(v). Both derive from the same graph, so this confirms the analysis engine correctly extracts structural logic.
+### CSV Output (`--csv` flag)
 
-**External validity** (not directly measurable without production data): Whether simulation-derived I(v) agrees with real-world failure impact. External validity is the next research direction. Approaches include: matching against known incidents in open-source ROS 2 systems, comparing predictions against deployment-time SLO breach records in financial trading platforms, and user studies with reliability engineers validating CRITICAL classifications against their intuition.
+When `--csv` is specified, a file `<output>_nodes.csv` is written with one row per node, ranked
+by Q(v) descending:
 
----
-
-## Commands
-
-```bash
-# ─── Single run — topology-only baseline ─────────────────────────────────────
-python bin/validate_graph.py single --input input/scenarios/atm_system.json
-
-# ─── Single run — QoS-enriched (v7/v4 formulas) ─────────────────────────────
-python bin/validate_graph.py single --input input/scenarios/atm_system.json --qos
-
-# ─── Multi-seed stability sweep ──────────────────────────────────────────────
-python bin/validate_graph.py sweep --input input/scenarios/atm_system.json --qos
-
-# ─── Full report (sweep + topology-class gates + node-type strata) ──────────
-python bin/validate_graph.py report --input input/scenarios/atm_system.json \
-    --output output/validation_report.json --qos
-
-# ─── Ablation Study (Topo-only vs. QoS-enriched + LaTeX Export) ──────────────
-python bin/validate_graph.py compare --input input/scenarios/atm_system.json \
-    --seeds 42,123,456,789,2024 --latex
-
-# ─── Advanced options ────────────────────────────────────────────────────────
-python bin/validate_graph.py report --input input/scenarios/atm_system.json \
-    --top-k 10 --cascade 10 --bootstrap 5000 --verbose
+```
+rank, node_id, node_type, Q, R, M, A, V, I, cascade_depth, nodes_affected, is_articulation_point, degree_centrality
+1, ConflictDetector, Application, 0.8421, 0.7200, 0.6500, 0.9100, 0.4200, 0.8102, 4, 18, True, 0.0321
+...
 ```
 
 ---
 
-## What Comes Next
+## 12. Interpreting Results
 
-Step 5 produces a structured validation report: primary gate verdicts, per-dimension ρ values, specialist metrics for each RMAV dimension, composite PG, multi-seed stability results, and node-type stratified correlation. This report is the empirical evidence base for the dissertation's central claim.
+### ρ is high (≥ gate) but F1@K fails
 
-Step 6 (Visualization) renders these results into an interactive HTML dashboard with a correlation scatter plot of Q(v) vs. I(v), a ranked component table with RMAV breakdown and criticality classification, a dependency matrix heatmap sorted by composite score, and the complete validation metric panel. It also renders the anti-pattern catalogue with detected instances highlighted on the topology graph.
+The global rank ordering is correct, but the binary threshold for "critical" is misaligned.
+Check the distribution of Q(v) and I(v):
+
+- If IQR(I) is very small (most nodes have similar impact), the top-K boundary is unstable.
+- Consider increasing `--top-k` to use a larger critical set, or reviewing whether the gate
+  threshold is appropriate for this system's size.
+
+### ρ is negative
+
+This is the **Inverse Criticality** effect, observed in mission-critical systems where the most
+central nodes are the most heavily hardened. High PageRank components have redundant publishers and
+backup routes, so their failure impact is *lower* than less-connected components.
+
+Possible causes:
+- The system was explicitly designed for resilience (ATM, financial HFT) — high-centrality nodes
+  are protected by design intent.
+- The cascade simulation depth limit (`--cascade`) is too shallow to propagate through well-connected
+  hubs; increase to `--cascade 10` or `--cascade 15`.
+- The `--qos` flag is off: PSPOF is zero, so sole-publisher nodes are not penalised.
+
+### PG ≤ 0 (RMAV no better than degree centrality)
+
+RMAV is not adding value beyond the naïve baseline:
+- If the graph has very few Application nodes (< 10), the statistical test has high variance.
+- Check whether `ap_c_directed` and `mpci` are being populated in `StructuralMetrics` (they default
+  to 0 if the upstream analyzer did not run Step 2 first).
+- Run `--verbose` to inspect per-node Q(v) vs I(v) to identify systematic mispredictions.
+
+### Wilcoxon not significant with high ρ
+
+This is expected when n < 10. The Wilcoxon test requires at least 10 nodes for reliable results. On
+small graphs, treat ρ as the primary evidence and Wilcoxon as inconclusive.
+
+### Strata show "constant signal" for Topics and Brokers
+
+This is the expected and correct behaviour. Topics and Brokers do not generate cascade failures as
+*origin* nodes in the `FaultInjector` simulation — their impact accrues to connected Application
+nodes via Phase B orphaning. Constant I(v) = 0 for these types does not indicate a bug.
+
+### Large |ρ − τ| gap (> 0.15)
+
+Agreement is driven by a small number of extreme outliers. Inspect the top 2–3 CRITICAL components:
+one may be a global hub with disproportionate cascade reach. This is not necessarily a failure — it
+often reflects correct detection of a "God Component" in the architecture.
+
+---
+
+## 13. What Comes Next
+
+The validation report produced by Step 5 is the empirical evidence base for the central thesis
+claim. Step 6 (Visualization) renders these results into an interactive HTML dashboard:
+
+- **Q(v) vs. I(v) scatter plot** — with quadrant highlighting (TP, TN, FP, FN).
+- **Delta heatmap** — topology graph coloured by |Q(v) − I(v)|; high-delta nodes are "architectural
+  surprises" where structural intent diverges from simulated behaviour.
+- **RMAV radar charts** — per-node multi-dimensional breakdown for critical components.
+- **Ranked component table** — with Q, R, M, A, V, I columns and pass/fail gate badge.
+
+For research-grade LaTeX artifacts, run `compare --latex` to generate the ablation table directly
+from the pipeline results:
+
+```bash
+python bin/validate_graph.py compare \
+    --input input/scenarios/atm_system.json \
+    --seeds 42,123,456,789,2024 \
+    --output output/ablation_final.json \
+    --latex
+```
+
+This writes `output/ablation_final_table.tex` — a booktabs-formatted table ready for IEEE/ACM
+double-column layout.
 
 ---
 
