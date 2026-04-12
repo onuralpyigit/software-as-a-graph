@@ -164,6 +164,8 @@ class GNNAnalysisResult:
     ensemble_alpha: Optional[List[float]] = None
     # Adaptive classification stats
     stats: Dict[str, Any] = field(default_factory=dict)
+    # Effective prediction mode (Literal["ensemble", "gnn_only", "rmav_only"])
+    prediction_mode: str = "gnn_only"
 
     def top_critical_nodes(self, n: int = 10, use_ensemble: bool = True) -> List[GNNCriticalityScore]:
         scores = self.ensemble_scores if use_ensemble and self.ensemble_scores else self.node_scores
@@ -181,7 +183,7 @@ class GNNAnalysisResult:
             "gnn_metrics": self.gnn_metrics.to_dict() if self.gnn_metrics else None,
             "ensemble_metrics": self.ensemble_metrics.to_dict() if self.ensemble_metrics else None,
             "ensemble_alpha": self.ensemble_alpha,
-            "mode": getattr(self, "mode", "ensemble"),
+            "prediction_mode": self.prediction_mode,
         }
 
     def summary(self) -> dict:
@@ -248,6 +250,7 @@ class GNNService:
         self._edge_model = None
         self._ensemble = None
         self._best_seed = 42
+        self.layer = "unknown"
         self._conversion_result: Optional[GraphConversionResult] = None
 
         logger.info(
@@ -289,6 +292,7 @@ class GNNService:
         inductive_graphs: Optional[List['HeteroData']] = None,
         seeds: Optional[List[int]] = None,
         mode: str = "ensemble",
+        layer: str = "app",
     ) -> GNNAnalysisResult:
         """Process graphs and train the GNN model using a multi-seed approach.
 
@@ -334,6 +338,8 @@ class GNNService:
         
         # Transductive bias acknowledgment (Issue G5)
         logger.info("Training mode: Transductive (neighbourhood context includes test nodes).")
+        self.layer = layer
+        logger.info("Training GNNService for layer '%s'.", layer)
         if inductive_graphs:
             logger.info("Generality Validation: Inductive multi-graph training enabled (%d scenarios).", len(inductive_graphs))
 
@@ -534,26 +540,33 @@ class GNNService:
                     )
                 )
 
-        # ── Assemble Results based on Mode (Issue G11) ───────────────────────
+        # ── Assemble Results based on Mode (Issue G11, G12) ───────────────────
         has_rmav = any(hasattr(data_dev[nt], "y_rmav") for nt in data_dev.node_types)
         
         if mode == "rmav":
             if not has_rmav:
                 logger.warning("Mode 'rmav' requested but no RMAV scores available. Falling back to GNN.")
+                result.prediction_mode = "gnn_only"
                 self._populate_node_scores(result, pred_dict, conv)
             else:
+                result.prediction_mode = "rmav_only"
                 self._populate_scores_from_rmav(result, data_dev, conv)
         elif mode == "gnn":
+            result.prediction_mode = "gnn_only"
             self._populate_node_scores(result, pred_dict, conv)
         else: # ensemble
-            self._populate_node_scores(result, pred_dict, conv)
             if self._ensemble is not None and has_rmav:
+                result.prediction_mode = "ensemble"
+                self._populate_node_scores(result, pred_dict, conv)
                 result.ensemble_scores = self._compute_ensemble_scores(data_dev, pred_dict, conv)
                 result.ensemble_alpha = self._ensemble.alpha.detach().cpu().tolist()
                 # Overwrite primary node_scores with ensemble if in ensemble mode
                 result.node_scores = result.ensemble_scores
             else:
-                logger.info("Ensemble mode selected but RMAV or Ensemble model missing. Using GNN only.")
+                result.prediction_mode = "gnn_only"
+                self._populate_node_scores(result, pred_dict, conv)
+                if mode == "ensemble":
+                    logger.warning("Ensemble mode selected but RMAV or Ensemble model missing. Falling back to GNN-only.")
 
         # ── Edge scores (always GNN) ──────────────────────────────────────────
         self._populate_edge_scores(result, edge_pred_dict, conv)
@@ -792,6 +805,7 @@ class GNNService:
                     "predict_edges": self.predict_edges,
                     "node_feature_dims": NODE_TYPE_TO_DIM,
                     "best_seed": self._best_seed,
+                    "layer": self.layer,
                 },
                 f, indent=2,
             )
@@ -803,6 +817,7 @@ class GNNService:
         metadata: Optional[Tuple] = None,
         graph=None,
         device: Optional[torch.device] = None,
+        layer: Optional[str] = None,
     ) -> "GNNService":
         """Load a previously trained GNNService from disk.
 
@@ -815,6 +830,11 @@ class GNNService:
             Required if ``graph`` is not provided.
         graph:
             NetworkX DiGraph used to reconstruct metadata automatically.
+        device:
+            Optional device override.
+        layer:
+            Requested inference layer. If provided, it is validated against
+            the training layer recorded in the checkpoint.
         """
         ckpt_dir = Path(checkpoint_dir)
         cfg_path = ckpt_dir / "service_config.json"
@@ -822,9 +842,17 @@ class GNNService:
         if cfg_path.exists():
             with open(cfg_path) as f:
                 cfg = json.load(f)
-            print(f"DEBUG: Loaded GNN config from {cfg_path}: {cfg}")
         else:
             cfg = {}
+
+        # ── Layer Validation (Issue G13) ──────────────────────────────────────
+        ckpt_layer = cfg.get("layer", "unknown")
+        if layer and ckpt_layer != "unknown" and layer != ckpt_layer:
+            raise ValueError(
+                f"GNN Layer Mismatch: Checkpoint was trained for '{ckpt_layer}', "
+                f"but inference requested for '{layer}'. Loading across layers "
+                "is unsafe due to different node/edge type distributions."
+            )
 
         service = cls(
             hidden_channels=cfg.get("hidden_channels", 64),
@@ -836,6 +864,7 @@ class GNNService:
             device=device,
         )
         service._best_seed = cfg.get("best_seed", 42)
+        service.layer = ckpt_layer
 
         # ── Dimension Validation (Issue G1) ───────────────────────────────────
         if "node_feature_dims" in cfg:

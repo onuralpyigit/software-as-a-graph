@@ -73,7 +73,7 @@ class Client:
             rmav_dict = extract_rmav_scores_dict(rmav_result)
 
             checkpoint = gnn_checkpoint or "output/gnn_checkpoints"
-            service = GNNService.from_checkpoint(checkpoint, graph=structural_result.graph)
+            service = GNNService.from_checkpoint(checkpoint, graph=structural_result.graph, layer=layer)
             
             # Predict
             gnn_result = service.predict(

@@ -221,6 +221,7 @@ def main() -> None:
         inductive_graphs=inductive_graphs if inductive_graphs else None,
         seeds=args.seeds,
         mode=args.mode,
+        layer=args.layer,
     )
 
     # ── Results ─────────────────────────────────────────────────────────────
