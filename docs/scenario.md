@@ -20,6 +20,7 @@ domain scenario for validating the six-step methodology.
 | `scenario_07_enterprise_xlarge.yaml`   | Enterprise ESB  | **Jumbo** (300 apps) | Scalability + performance benchmark  | 7007 |
 | `scenario_08_tiny_regression.yaml`     | Smoke test      | Tiny    | CI regression, fully deterministic, fast            | 8008 |
 | `scenario_09_xlarge_stress.yaml`       | Cloud Platform  | XLarge (500 apps) | True xlarge validation, thesis coverage gap | 9009 |
+| `scenario_10_atm_system.yaml`          | ATM / Aviation  | Medium  | Critical surveillance, high reliability focus       | 0042 |
 
 > **Scale note — scenario_07:** The enterprise scenario uses 300 applications, which sits between
 > the `large` preset (150 apps) and the `xlarge` preset (500 apps).  It must be run with
@@ -73,7 +74,7 @@ with uniform random QoS and topology.
 
 ### Topology Coverage
 
-The nine scenarios collectively cover the four major topology classes
+The ten scenarios collectively cover the five major topology classes
 identified in the thesis:
 
 1. **Fan-out dominated** (AV, IoT) — many subscribers per topic;
@@ -89,6 +90,9 @@ identified in the thesis:
 4. **Sparse / well-distributed** (Microservices) — challenges the
    box-plot classifier to avoid over-flagging; validates precision.
 
+5. **Safety-Critical Real-time** (ATM) — ultra-reliable, high-priority
+   surveillance feeds; validates criticality modulation for transport priority.
+
 ### QoS Weight Variation
 
 | Scenario | Dominant Durability | Dominant Reliability | Dominant Priority |
@@ -101,6 +105,7 @@ identified in the thesis:
 | 06 µSvc  | TRANSIENT_LOCAL    | RELIABLE           | MEDIUM           |
 | 07 Enterprise | mixed         | RELIABLE           | MEDIUM           |
 | 08 Tiny  | balanced           | balanced           | balanced         |
+| 10 ATM   | VOLATILE           | RELIABLE           | HIGH/CRITICAL    |
 
 ### Expected Validation Thresholds
 

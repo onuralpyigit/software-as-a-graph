@@ -1,0 +1,908 @@
+{
+  "metadata": {
+    "name": "Air Traffic Management System",
+    "description": "Full ATM system modeled from ICAO Global ATM Operational Concept specifications. Covers surveillance, flight data management, conflict detection, ATFM, CNS, airspace management, SAR, and regional integration subsystems.",
+    "scale": { "apps": 26, "topics": 27, "brokers": 5, "nodes": 8, "libs": 8 },
+    "seed": 42,
+    "generation_mode": "manual",
+    "domain": "air_traffic_management",
+    "scenario": "icao_global_atm_concept",
+    "version": "1.0.0"
+  },
+
+  "nodes": [
+    { "id": "N01", "name": "Primary_DataCenter" },
+    { "id": "N02", "name": "Backup_DataCenter" },
+    { "id": "N03", "name": "ATC_Tower_Server" },
+    { "id": "N04", "name": "RADAR_Server_Primary" },
+    { "id": "N05", "name": "RADAR_Server_Secondary" },
+    { "id": "N06", "name": "DataLink_Server" },
+    { "id": "N07", "name": "ATFM_Server" },
+    { "id": "N08", "name": "SAR_Server" }
+  ],
+
+  "brokers": [
+    { "id": "B01", "name": "ASTERIX_Broker" },
+    { "id": "B02", "name": "FDP_Broker" },
+    { "id": "B03", "name": "SWIM_Broker" },
+    { "id": "B04", "name": "DataLink_Broker" },
+    { "id": "B05", "name": "ATFM_Broker" }
+  ],
+
+  "topics": [
+    {
+      "id": "T01", "name": "/surveillance/radar/tracks", "size": 512,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "critical" }
+    },
+    {
+      "id": "T02", "name": "/surveillance/ads/position_reports", "size": 256,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "high" }
+    },
+    {
+      "id": "T03", "name": "/surveillance/adsb/broadcasts", "size": 128,
+      "qos": { "reliability": "best_effort", "durability": "volatile", "transport_priority": "medium" }
+    },
+    {
+      "id": "T04", "name": "/surveillance/ssr/returns", "size": 256,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "high" }
+    },
+    {
+      "id": "T05", "name": "/separation/conflict_alerts", "size": 64,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "critical" }
+    },
+    {
+      "id": "T06", "name": "/separation/trajectory_predictions", "size": 1024,
+      "qos": { "reliability": "best_effort", "durability": "transient_local", "transport_priority": "medium" }
+    },
+    {
+      "id": "T07", "name": "/collision/avoidance/advisories", "size": 32,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "critical" }
+    },
+    {
+      "id": "T08", "name": "/flight/plans", "size": 2048,
+      "qos": { "reliability": "reliable", "durability": "transient_local", "transport_priority": "high" }
+    },
+    {
+      "id": "T09", "name": "/flight/clearances", "size": 256,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "high" }
+    },
+    {
+      "id": "T10", "name": "/flight/position_reports", "size": 128,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "high" }
+    },
+    {
+      "id": "T11", "name": "/datalink/cpdlc_messages", "size": 512,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "high" }
+    },
+    {
+      "id": "T12", "name": "/datalink/dfis_broadcasts", "size": 4096,
+      "qos": { "reliability": "best_effort", "durability": "transient_local", "transport_priority": "low" }
+    },
+    {
+      "id": "T13", "name": "/navigation/gnss_corrections", "size": 256,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "high" }
+    },
+    {
+      "id": "T14", "name": "/navigation/rnp_alerts", "size": 64,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "high" }
+    },
+    {
+      "id": "T15", "name": "/atfm/flow_regulations", "size": 1024,
+      "qos": { "reliability": "reliable", "durability": "transient_local", "transport_priority": "medium" }
+    },
+    {
+      "id": "T16", "name": "/atfm/slot_allocations", "size": 512,
+      "qos": { "reliability": "reliable", "durability": "transient_local", "transport_priority": "medium" }
+    },
+    {
+      "id": "T17", "name": "/atfm/messages", "size": 256,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "low" }
+    },
+    {
+      "id": "T18", "name": "/airspace/notams", "size": 4096,
+      "qos": { "reliability": "reliable", "durability": "persistent", "transport_priority": "medium" }
+    },
+    {
+      "id": "T19", "name": "/airspace/restrictions", "size": 2048,
+      "qos": { "reliability": "reliable", "durability": "persistent", "transport_priority": "medium" }
+    },
+    {
+      "id": "T20", "name": "/weather/grids", "size": 8192,
+      "qos": { "reliability": "best_effort", "durability": "transient_local", "transport_priority": "low" }
+    },
+    {
+      "id": "T21", "name": "/weather/sigmets", "size": 1024,
+      "qos": { "reliability": "reliable", "durability": "transient_local", "transport_priority": "high" }
+    },
+    {
+      "id": "T22", "name": "/strips/electronic_updates", "size": 512,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "medium" }
+    },
+    {
+      "id": "T23", "name": "/handoffs/sector_transfers", "size": 256,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "high" }
+    },
+    {
+      "id": "T24", "name": "/safety/incident_reports", "size": 2048,
+      "qos": { "reliability": "reliable", "durability": "persistent", "transport_priority": "medium" }
+    },
+    {
+      "id": "T25", "name": "/sar/alerts", "size": 256,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "critical" }
+    },
+    {
+      "id": "T26", "name": "/regional/atm_coordination", "size": 4096,
+      "qos": { "reliability": "best_effort", "durability": "transient_local", "transport_priority": "medium" }
+    },
+    {
+      "id": "T27", "name": "/voice/position_reports", "size": 128,
+      "qos": { "reliability": "reliable", "durability": "volatile", "transport_priority": "high" }
+    }
+  ],
+
+  "applications": [
+    {
+      "id": "A01", "name": "RadarDataProcessingSystem", "role": "pub",
+      "app_type": "processor", "version": "4.2.1", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Surveillance_Subsystem",
+        "config_item_name": "RadarProcessing_CSC",
+        "component_name": "RadarDataProcessingSystem"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 18500, "total_classes": 82, "total_methods": 640, "total_fields": 195 },
+        "complexity": { "total_wmc": 1980, "avg_wmc": 24.1, "max_wmc": 68 },
+        "cohesion": { "avg_lcom": 22.4, "max_lcom": 61.0 },
+        "coupling": { "avg_cbo": 9.1, "max_cbo": 18, "avg_rfc": 38.4, "max_rfc": 72, "avg_fanin": 2.3, "max_fanin": 5, "avg_fanout": 12.6, "max_fanout": 28 }
+      }
+    },
+    {
+      "id": "A02", "name": "ADSProcessor", "role": "pub",
+      "app_type": "processor", "version": "3.1.0", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Surveillance_Subsystem",
+        "config_item_name": "ADSProcessing_CSC",
+        "component_name": "ADSProcessor"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 9800, "total_classes": 41, "total_methods": 310, "total_fields": 98 },
+        "complexity": { "total_wmc": 860, "avg_wmc": 20.9, "max_wmc": 52 },
+        "cohesion": { "avg_lcom": 18.7, "max_lcom": 44.0 },
+        "coupling": { "avg_cbo": 7.4, "max_cbo": 14, "avg_rfc": 29.6, "max_rfc": 56, "avg_fanin": 1.8, "max_fanin": 4, "avg_fanout": 9.3, "max_fanout": 19 }
+      }
+    },
+    {
+      "id": "A03", "name": "ADSBProcessor", "role": "pub",
+      "app_type": "processor", "version": "2.3.4", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Surveillance_Subsystem",
+        "config_item_name": "ADSProcessing_CSC",
+        "component_name": "ADSBProcessor"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 7200, "total_classes": 28, "total_methods": 215, "total_fields": 67 },
+        "complexity": { "total_wmc": 580, "avg_wmc": 20.7, "max_wmc": 47 },
+        "cohesion": { "avg_lcom": 15.3, "max_lcom": 38.0 },
+        "coupling": { "avg_cbo": 6.2, "max_cbo": 12, "avg_rfc": 24.1, "max_rfc": 43, "avg_fanin": 1.4, "max_fanin": 3, "avg_fanout": 7.8, "max_fanout": 16 }
+      }
+    },
+    {
+      "id": "A04", "name": "SSRProcessor", "role": "pubsub",
+      "app_type": "processor", "version": "3.0.2", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Surveillance_Subsystem",
+        "config_item_name": "RadarProcessing_CSC",
+        "component_name": "SSRProcessor"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 6400, "total_classes": 24, "total_methods": 188, "total_fields": 55 },
+        "complexity": { "total_wmc": 492, "avg_wmc": 20.5, "max_wmc": 44 },
+        "cohesion": { "avg_lcom": 14.1, "max_lcom": 33.0 },
+        "coupling": { "avg_cbo": 5.8, "max_cbo": 11, "avg_rfc": 22.3, "max_rfc": 38, "avg_fanin": 1.2, "max_fanin": 3, "avg_fanout": 6.9, "max_fanout": 14 }
+      }
+    },
+    {
+      "id": "A05", "name": "FlightDataProcessingSystem", "role": "pubsub",
+      "app_type": "processor", "version": "5.1.3", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "FlightDataManagement_Subsystem",
+        "config_item_name": "FlightPlanning_CSC",
+        "component_name": "FlightDataProcessingSystem"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 22400, "total_classes": 95, "total_methods": 740, "total_fields": 230 },
+        "complexity": { "total_wmc": 2350, "avg_wmc": 24.7, "max_wmc": 74 },
+        "cohesion": { "avg_lcom": 26.1, "max_lcom": 72.0 },
+        "coupling": { "avg_cbo": 11.2, "max_cbo": 22, "avg_rfc": 44.8, "max_rfc": 85, "avg_fanin": 3.4, "max_fanin": 8, "avg_fanout": 15.3, "max_fanout": 32 }
+      }
+    },
+    {
+      "id": "A06", "name": "ConflictDetector", "role": "pubsub",
+      "app_type": "analyzer", "version": "6.0.1", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "FlightDataManagement_Subsystem",
+        "config_item_name": "ConflictManagement_CSC",
+        "component_name": "ConflictDetector"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 19800, "total_classes": 88, "total_methods": 695, "total_fields": 214 },
+        "complexity": { "total_wmc": 2640, "avg_wmc": 30.0, "max_wmc": 91 },
+        "cohesion": { "avg_lcom": 31.4, "max_lcom": 88.0 },
+        "coupling": { "avg_cbo": 13.6, "max_cbo": 26, "avg_rfc": 52.1, "max_rfc": 98, "avg_fanin": 5.2, "max_fanin": 11, "avg_fanout": 18.4, "max_fanout": 38 }
+      }
+    },
+    {
+      "id": "A07", "name": "TrajectoryPredictor", "role": "pubsub",
+      "app_type": "analyzer", "version": "4.3.0", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "FlightDataManagement_Subsystem",
+        "config_item_name": "TrajectoryManagement_CSC",
+        "component_name": "TrajectoryPredictor"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 14200, "total_classes": 61, "total_methods": 480, "total_fields": 148 },
+        "complexity": { "total_wmc": 1560, "avg_wmc": 25.5, "max_wmc": 67 },
+        "cohesion": { "avg_lcom": 23.8, "max_lcom": 58.0 },
+        "coupling": { "avg_cbo": 9.8, "max_cbo": 19, "avg_rfc": 39.2, "max_rfc": 74, "avg_fanin": 3.1, "max_fanin": 7, "avg_fanout": 13.4, "max_fanout": 27 }
+      }
+    },
+    {
+      "id": "A08", "name": "CollisionAvoidanceSystem", "role": "pubsub",
+      "app_type": "safety", "version": "7.1.0", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Surveillance_Subsystem",
+        "config_item_name": "CollisionAvoidance_CSC",
+        "component_name": "CollisionAvoidanceSystem"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 16900, "total_classes": 72, "total_methods": 560, "total_fields": 172 },
+        "complexity": { "total_wmc": 2100, "avg_wmc": 29.1, "max_wmc": 82 },
+        "cohesion": { "avg_lcom": 28.6, "max_lcom": 78.0 },
+        "coupling": { "avg_cbo": 12.1, "max_cbo": 23, "avg_rfc": 47.3, "max_rfc": 89, "avg_fanin": 4.4, "max_fanin": 9, "avg_fanout": 16.8, "max_fanout": 34 }
+      }
+    },
+    {
+      "id": "A09", "name": "CPDLCGateway", "role": "pubsub",
+      "app_type": "gateway", "version": "3.4.2", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "ControllerWorkingPosition_Subsystem",
+        "config_item_name": "DataLinkManagement_CSC",
+        "component_name": "CPDLCGateway"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 11200, "total_classes": 48, "total_methods": 374, "total_fields": 115 },
+        "complexity": { "total_wmc": 1120, "avg_wmc": 23.3, "max_wmc": 58 },
+        "cohesion": { "avg_lcom": 19.4, "max_lcom": 47.0 },
+        "coupling": { "avg_cbo": 8.3, "max_cbo": 16, "avg_rfc": 33.6, "max_rfc": 63, "avg_fanin": 2.6, "max_fanin": 6, "avg_fanout": 11.2, "max_fanout": 23 }
+      }
+    },
+    {
+      "id": "A10", "name": "DataLinkFIS", "role": "pubsub",
+      "app_type": "service", "version": "2.2.1", "criticality": false,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "ControllerWorkingPosition_Subsystem",
+        "config_item_name": "DataLinkManagement_CSC",
+        "component_name": "DataLinkFIS"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 5800, "total_classes": 22, "total_methods": 172, "total_fields": 52 },
+        "complexity": { "total_wmc": 398, "avg_wmc": 18.0, "max_wmc": 38 },
+        "cohesion": { "avg_lcom": 11.6, "max_lcom": 27.0 },
+        "coupling": { "avg_cbo": 5.1, "max_cbo": 9, "avg_rfc": 20.4, "max_rfc": 36, "avg_fanin": 1.1, "max_fanin": 2, "avg_fanout": 6.2, "max_fanout": 13 }
+      }
+    },
+    {
+      "id": "A11", "name": "GNSSProcessor", "role": "pub",
+      "app_type": "processor", "version": "3.3.0", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Navigation_Subsystem",
+        "config_item_name": "GNSSProcessing_CSC",
+        "component_name": "GNSSProcessor"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 8900, "total_classes": 36, "total_methods": 278, "total_fields": 85 },
+        "complexity": { "total_wmc": 724, "avg_wmc": 20.1, "max_wmc": 49 },
+        "cohesion": { "avg_lcom": 16.3, "max_lcom": 40.0 },
+        "coupling": { "avg_cbo": 6.7, "max_cbo": 13, "avg_rfc": 26.8, "max_rfc": 50, "avg_fanin": 1.6, "max_fanin": 4, "avg_fanout": 8.9, "max_fanout": 18 }
+      }
+    },
+    {
+      "id": "A12", "name": "RNPMonitor", "role": "pubsub",
+      "app_type": "monitor", "version": "2.5.1", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Navigation_Subsystem",
+        "config_item_name": "RNPMonitoring_CSC",
+        "component_name": "RNPMonitor"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 6100, "total_classes": 25, "total_methods": 195, "total_fields": 60 },
+        "complexity": { "total_wmc": 440, "avg_wmc": 17.6, "max_wmc": 41 },
+        "cohesion": { "avg_lcom": 12.8, "max_lcom": 31.0 },
+        "coupling": { "avg_cbo": 5.4, "max_cbo": 10, "avg_rfc": 21.7, "max_rfc": 40, "avg_fanin": 1.3, "max_fanin": 3, "avg_fanout": 7.1, "max_fanout": 15 }
+      }
+    },
+    {
+      "id": "A13", "name": "ATFMSystem", "role": "pubsub",
+      "app_type": "manager", "version": "4.0.2", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "ATFM_Subsystem",
+        "config_item_name": "FlowManagement_CSC",
+        "component_name": "ATFMSystem"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 17600, "total_classes": 74, "total_methods": 582, "total_fields": 178 },
+        "complexity": { "total_wmc": 1860, "avg_wmc": 25.1, "max_wmc": 69 },
+        "cohesion": { "avg_lcom": 24.2, "max_lcom": 63.0 },
+        "coupling": { "avg_cbo": 10.3, "max_cbo": 20, "avg_rfc": 41.3, "max_rfc": 78, "avg_fanin": 3.8, "max_fanin": 8, "avg_fanout": 14.1, "max_fanout": 29 }
+      }
+    },
+    {
+      "id": "A14", "name": "SlotAllocator", "role": "pubsub",
+      "app_type": "service", "version": "3.1.1", "criticality": false,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "ATFM_Subsystem",
+        "config_item_name": "SlotManagement_CSC",
+        "component_name": "SlotAllocator"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 8400, "total_classes": 33, "total_methods": 258, "total_fields": 79 },
+        "complexity": { "total_wmc": 666, "avg_wmc": 20.1, "max_wmc": 48 },
+        "cohesion": { "avg_lcom": 15.7, "max_lcom": 38.0 },
+        "coupling": { "avg_cbo": 6.4, "max_cbo": 12, "avg_rfc": 25.6, "max_rfc": 48, "avg_fanin": 1.9, "max_fanin": 4, "avg_fanout": 8.6, "max_fanout": 17 }
+      }
+    },
+    {
+      "id": "A15", "name": "ATFMFlowOptimizer", "role": "pubsub",
+      "app_type": "optimizer", "version": "2.8.0", "criticality": false,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "ATFM_Subsystem",
+        "config_item_name": "FlowManagement_CSC",
+        "component_name": "ATFMFlowOptimizer"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 10200, "total_classes": 43, "total_methods": 336, "total_fields": 103 },
+        "complexity": { "total_wmc": 928, "avg_wmc": 21.5, "max_wmc": 55 },
+        "cohesion": { "avg_lcom": 17.9, "max_lcom": 44.0 },
+        "coupling": { "avg_cbo": 7.8, "max_cbo": 15, "avg_rfc": 31.2, "max_rfc": 59, "avg_fanin": 2.4, "max_fanin": 5, "avg_fanout": 10.4, "max_fanout": 21 }
+      }
+    },
+    {
+      "id": "A16", "name": "FlightPlanningSystem", "role": "pubsub",
+      "app_type": "service", "version": "5.2.0", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "FlightDataManagement_Subsystem",
+        "config_item_name": "FlightPlanning_CSC",
+        "component_name": "FlightPlanningSystem"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 12800, "total_classes": 54, "total_methods": 422, "total_fields": 130 },
+        "complexity": { "total_wmc": 1190, "avg_wmc": 22.0, "max_wmc": 57 },
+        "cohesion": { "avg_lcom": 20.1, "max_lcom": 49.0 },
+        "coupling": { "avg_cbo": 8.7, "max_cbo": 17, "avg_rfc": 34.9, "max_rfc": 66, "avg_fanin": 2.8, "max_fanin": 6, "avg_fanout": 11.7, "max_fanout": 24 }
+      }
+    },
+    {
+      "id": "A17", "name": "SafetyManagementSystem", "role": "pubsub",
+      "app_type": "safety", "version": "3.5.0", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Safety_Subsystem",
+        "config_item_name": "SafetyManagement_CSC",
+        "component_name": "SafetyManagementSystem"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 9600, "total_classes": 40, "total_methods": 312, "total_fields": 96 },
+        "complexity": { "total_wmc": 840, "avg_wmc": 21.0, "max_wmc": 53 },
+        "cohesion": { "avg_lcom": 17.2, "max_lcom": 42.0 },
+        "coupling": { "avg_cbo": 7.2, "max_cbo": 14, "avg_rfc": 28.9, "max_rfc": 54, "avg_fanin": 2.2, "max_fanin": 5, "avg_fanout": 9.6, "max_fanout": 19 }
+      }
+    },
+    {
+      "id": "A18", "name": "IncidentReporter", "role": "pubsub",
+      "app_type": "service", "version": "2.1.0", "criticality": false,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Safety_Subsystem",
+        "config_item_name": "SafetyManagement_CSC",
+        "component_name": "IncidentReporter"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 4200, "total_classes": 17, "total_methods": 134, "total_fields": 41 },
+        "complexity": { "total_wmc": 302, "avg_wmc": 17.7, "max_wmc": 36 },
+        "cohesion": { "avg_lcom": 9.8, "max_lcom": 24.0 },
+        "coupling": { "avg_cbo": 4.4, "max_cbo": 8, "avg_rfc": 17.6, "max_rfc": 31, "avg_fanin": 0.9, "max_fanin": 2, "avg_fanout": 5.3, "max_fanout": 11 }
+      }
+    },
+    {
+      "id": "A19", "name": "SearchAndRescueSystem", "role": "pubsub",
+      "app_type": "safety", "version": "4.0.0", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Safety_Subsystem",
+        "config_item_name": "SearchAndRescue_CSC",
+        "component_name": "SearchAndRescueSystem"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 7800, "total_classes": 31, "total_methods": 242, "total_fields": 74 },
+        "complexity": { "total_wmc": 614, "avg_wmc": 19.8, "max_wmc": 46 },
+        "cohesion": { "avg_lcom": 14.6, "max_lcom": 36.0 },
+        "coupling": { "avg_cbo": 5.9, "max_cbo": 11, "avg_rfc": 23.7, "max_rfc": 44, "avg_fanin": 1.5, "max_fanin": 3, "avg_fanout": 7.9, "max_fanout": 16 }
+      }
+    },
+    {
+      "id": "A20", "name": "AirspaceManager", "role": "pubsub",
+      "app_type": "manager", "version": "3.2.1", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "AirspaceManagement_Subsystem",
+        "config_item_name": "StrategicAirspace_CSC",
+        "component_name": "AirspaceManager"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 11400, "total_classes": 47, "total_methods": 368, "total_fields": 113 },
+        "complexity": { "total_wmc": 1012, "avg_wmc": 21.5, "max_wmc": 54 },
+        "cohesion": { "avg_lcom": 18.6, "max_lcom": 46.0 },
+        "coupling": { "avg_cbo": 8.1, "max_cbo": 16, "avg_rfc": 32.4, "max_rfc": 61, "avg_fanin": 2.5, "max_fanin": 6, "avg_fanout": 10.8, "max_fanout": 22 }
+      }
+    },
+    {
+      "id": "A21", "name": "CivilMilitaryCoordinator", "role": "pubsub",
+      "app_type": "coordinator", "version": "2.6.0", "criticality": false,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "AirspaceManagement_Subsystem",
+        "config_item_name": "TacticalAirspace_CSC",
+        "component_name": "CivilMilitaryCoordinator"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 5600, "total_classes": 23, "total_methods": 180, "total_fields": 55 },
+        "complexity": { "total_wmc": 414, "avg_wmc": 18.0, "max_wmc": 40 },
+        "cohesion": { "avg_lcom": 12.1, "max_lcom": 29.0 },
+        "coupling": { "avg_cbo": 5.3, "max_cbo": 10, "avg_rfc": 21.2, "max_rfc": 38, "avg_fanin": 1.3, "max_fanin": 3, "avg_fanout": 7.1, "max_fanout": 14 }
+      }
+    },
+    {
+      "id": "A22", "name": "RegionalATMIntegrator", "role": "pubsub",
+      "app_type": "integrator", "version": "3.0.1", "criticality": false,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "RegionalIntegration_Subsystem",
+        "config_item_name": "SWIMIntegration_CSC",
+        "component_name": "RegionalATMIntegrator"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 8100, "total_classes": 33, "total_methods": 258, "total_fields": 79 },
+        "complexity": { "total_wmc": 660, "avg_wmc": 20.0, "max_wmc": 47 },
+        "cohesion": { "avg_lcom": 15.3, "max_lcom": 37.0 },
+        "coupling": { "avg_cbo": 6.2, "max_cbo": 12, "avg_rfc": 24.8, "max_rfc": 47, "avg_fanin": 1.8, "max_fanin": 4, "avg_fanout": 8.4, "max_fanout": 17 }
+      }
+    },
+    {
+      "id": "A23", "name": "ATCWorkstation", "role": "sub",
+      "app_type": "hmi", "version": "8.4.0", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "ControllerWorkingPosition_Subsystem",
+        "config_item_name": "DisplayManagement_CSC",
+        "component_name": "ATCWorkstation"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 31200, "total_classes": 138, "total_methods": 1080, "total_fields": 336 },
+        "complexity": { "total_wmc": 3456, "avg_wmc": 25.0, "max_wmc": 78 },
+        "cohesion": { "avg_lcom": 34.8, "max_lcom": 98.0 },
+        "coupling": { "avg_cbo": 15.2, "max_cbo": 29, "avg_rfc": 60.9, "max_rfc": 115, "avg_fanin": 6.8, "max_fanin": 14, "avg_fanout": 22.4, "max_fanout": 45 }
+      }
+    },
+    {
+      "id": "A24", "name": "AutomatedDisplaySystem", "role": "sub",
+      "app_type": "hmi", "version": "5.3.2", "criticality": true,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "ControllerWorkingPosition_Subsystem",
+        "config_item_name": "DisplayManagement_CSC",
+        "component_name": "AutomatedDisplaySystem"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 18900, "total_classes": 82, "total_methods": 640, "total_fields": 198 },
+        "complexity": { "total_wmc": 2050, "avg_wmc": 25.0, "max_wmc": 71 },
+        "cohesion": { "avg_lcom": 27.4, "max_lcom": 76.0 },
+        "coupling": { "avg_cbo": 12.4, "max_cbo": 24, "avg_rfc": 49.6, "max_rfc": 94, "avg_fanin": 5.1, "max_fanin": 11, "avg_fanout": 17.8, "max_fanout": 36 }
+      }
+    },
+    {
+      "id": "A25", "name": "StripManager", "role": "pubsub",
+      "app_type": "manager", "version": "4.1.0", "criticality": false,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "ControllerWorkingPosition_Subsystem",
+        "config_item_name": "DisplayManagement_CSC",
+        "component_name": "StripManager"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 6900, "total_classes": 28, "total_methods": 218, "total_fields": 67 },
+        "complexity": { "total_wmc": 532, "avg_wmc": 19.0, "max_wmc": 43 },
+        "cohesion": { "avg_lcom": 13.4, "max_lcom": 32.0 },
+        "coupling": { "avg_cbo": 5.6, "max_cbo": 10, "avg_rfc": 22.4, "max_rfc": 41, "avg_fanin": 1.4, "max_fanin": 3, "avg_fanout": 7.5, "max_fanout": 15 }
+      }
+    },
+    {
+      "id": "A26", "name": "MeteoService", "role": "pub",
+      "app_type": "service", "version": "2.4.1", "criticality": false,
+      "system_hierarchy": {
+        "system_name": "ATC_System",
+        "domain_name": "Meteorology_Subsystem",
+        "config_item_name": "WeatherServices_CSC",
+        "component_name": "MeteoService"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 5400, "total_classes": 21, "total_methods": 164, "total_fields": 50 },
+        "complexity": { "total_wmc": 362, "avg_wmc": 17.2, "max_wmc": 35 },
+        "cohesion": { "avg_lcom": 10.8, "max_lcom": 26.0 },
+        "coupling": { "avg_cbo": 4.8, "max_cbo": 9, "avg_rfc": 19.3, "max_rfc": 34, "avg_fanin": 1.0, "max_fanin": 2, "avg_fanout": 6.1, "max_fanout": 12 }
+      }
+    }
+  ],
+
+  "libraries": [
+    {
+      "id": "L01", "name": "ASTERIXParser", "version": "6.1.0",
+      "system_hierarchy": {
+        "system_name": "ATC_System", "domain_name": "Surveillance_Subsystem",
+        "config_item_name": "RadarProcessing_CSC", "component_name": "ASTERIXParser"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 12400, "total_classes": 58, "total_methods": 452, "total_fields": 138 },
+        "complexity": { "avg_wmc": 16.8, "max_wmc": 44 },
+        "cohesion": { "avg_lcom": 14.2, "max_lcom": 36.0 },
+        "coupling": { "avg_cbo": 5.8, "avg_rfc": 23.2, "avg_fanin": 12.4, "avg_fanout": 3.2 }
+      }
+    },
+    {
+      "id": "L02", "name": "ICAOMessageLib", "version": "4.3.0",
+      "system_hierarchy": {
+        "system_name": "ATC_System", "domain_name": "FlightDataManagement_Subsystem",
+        "config_item_name": "FlightPlanning_CSC", "component_name": "ICAOMessageLib"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 24800, "total_classes": 112, "total_methods": 876, "total_fields": 270 },
+        "complexity": { "avg_wmc": 14.2, "max_wmc": 38 },
+        "cohesion": { "avg_lcom": 18.6, "max_lcom": 52.0 },
+        "coupling": { "avg_cbo": 7.1, "avg_rfc": 28.4, "avg_fanin": 21.3, "avg_fanout": 4.8 }
+      }
+    },
+    {
+      "id": "L03", "name": "CryptoLib", "version": "3.0.2",
+      "system_hierarchy": {
+        "system_name": "ATC_System", "domain_name": "Safety_Subsystem",
+        "config_item_name": "SafetyManagement_CSC", "component_name": "CryptoLib"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 8600, "total_classes": 38, "total_methods": 296, "total_fields": 90 },
+        "complexity": { "avg_wmc": 12.4, "max_wmc": 31 },
+        "cohesion": { "avg_lcom": 9.6, "max_lcom": 24.0 },
+        "coupling": { "avg_cbo": 3.9, "avg_rfc": 15.6, "avg_fanin": 8.7, "avg_fanout": 2.1 }
+      }
+    },
+    {
+      "id": "L04", "name": "FlightStripLib", "version": "5.2.1",
+      "system_hierarchy": {
+        "system_name": "ATC_System", "domain_name": "ControllerWorkingPosition_Subsystem",
+        "config_item_name": "DisplayManagement_CSC", "component_name": "FlightStripLib"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 6200, "total_classes": 27, "total_methods": 210, "total_fields": 64 },
+        "complexity": { "avg_wmc": 13.8, "max_wmc": 34 },
+        "cohesion": { "avg_lcom": 11.2, "max_lcom": 28.0 },
+        "coupling": { "avg_cbo": 4.6, "avg_rfc": 18.4, "avg_fanin": 5.9, "avg_fanout": 2.8 }
+      }
+    },
+    {
+      "id": "L05", "name": "ATFMLib", "version": "3.4.0",
+      "system_hierarchy": {
+        "system_name": "ATC_System", "domain_name": "ATFM_Subsystem",
+        "config_item_name": "FlowManagement_CSC", "component_name": "ATFMLib"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 9800, "total_classes": 43, "total_methods": 336, "total_fields": 102 },
+        "complexity": { "avg_wmc": 15.6, "max_wmc": 41 },
+        "cohesion": { "avg_lcom": 13.4, "max_lcom": 33.0 },
+        "coupling": { "avg_cbo": 5.4, "avg_rfc": 21.6, "avg_fanin": 6.8, "avg_fanout": 3.6 }
+      }
+    },
+    {
+      "id": "L06", "name": "GNSSLib", "version": "4.1.0",
+      "system_hierarchy": {
+        "system_name": "ATC_System", "domain_name": "Navigation_Subsystem",
+        "config_item_name": "GNSSProcessing_CSC", "component_name": "GNSSLib"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 11200, "total_classes": 49, "total_methods": 382, "total_fields": 117 },
+        "complexity": { "avg_wmc": 17.4, "max_wmc": 46 },
+        "cohesion": { "avg_lcom": 15.8, "max_lcom": 39.0 },
+        "coupling": { "avg_cbo": 6.2, "avg_rfc": 24.8, "avg_fanin": 7.4, "avg_fanout": 3.9 }
+      }
+    },
+    {
+      "id": "L07", "name": "DataLinkProtocolLib", "version": "2.8.0",
+      "system_hierarchy": {
+        "system_name": "ATC_System", "domain_name": "ControllerWorkingPosition_Subsystem",
+        "config_item_name": "DataLinkManagement_CSC", "component_name": "DataLinkProtocolLib"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 7400, "total_classes": 32, "total_methods": 250, "total_fields": 76 },
+        "complexity": { "avg_wmc": 14.6, "max_wmc": 37 },
+        "cohesion": { "avg_lcom": 12.4, "max_lcom": 31.0 },
+        "coupling": { "avg_cbo": 5.1, "avg_rfc": 20.4, "avg_fanin": 6.2, "avg_fanout": 3.1 }
+      }
+    },
+    {
+      "id": "L08", "name": "SARLib", "version": "2.2.0",
+      "system_hierarchy": {
+        "system_name": "ATC_System", "domain_name": "Safety_Subsystem",
+        "config_item_name": "SearchAndRescue_CSC", "component_name": "SARLib"
+      },
+      "code_metrics": {
+        "size": { "total_loc": 4800, "total_classes": 21, "total_methods": 164, "total_fields": 50 },
+        "complexity": { "avg_wmc": 12.1, "max_wmc": 29 },
+        "cohesion": { "avg_lcom": 8.7, "max_lcom": 22.0 },
+        "coupling": { "avg_cbo": 3.6, "avg_rfc": 14.4, "avg_fanin": 3.8, "avg_fanout": 2.2 }
+      }
+    }
+  ],
+
+  "relationships": {
+    "runs_on": [
+      { "from": "A01", "to": "N04" },
+      { "from": "A02", "to": "N04" },
+      { "from": "A03", "to": "N04" },
+      { "from": "A04", "to": "N04" },
+      { "from": "A05", "to": "N01" },
+      { "from": "A06", "to": "N01" },
+      { "from": "A07", "to": "N01" },
+      { "from": "A08", "to": "N01" },
+      { "from": "A09", "to": "N06" },
+      { "from": "A10", "to": "N06" },
+      { "from": "A11", "to": "N01" },
+      { "from": "A12", "to": "N01" },
+      { "from": "A13", "to": "N07" },
+      { "from": "A14", "to": "N07" },
+      { "from": "A15", "to": "N07" },
+      { "from": "A16", "to": "N01" },
+      { "from": "A17", "to": "N01" },
+      { "from": "A18", "to": "N01" },
+      { "from": "A19", "to": "N08" },
+      { "from": "A20", "to": "N01" },
+      { "from": "A21", "to": "N01" },
+      { "from": "A22", "to": "N07" },
+      { "from": "A23", "to": "N03" },
+      { "from": "A24", "to": "N03" },
+      { "from": "A25", "to": "N03" },
+      { "from": "A26", "to": "N01" },
+      { "from": "B01", "to": "N04" },
+      { "from": "B02", "to": "N01" },
+      { "from": "B03", "to": "N01" },
+      { "from": "B04", "to": "N06" },
+      { "from": "B05", "to": "N07" }
+    ],
+
+    "connects_to": [
+      { "from": "N01", "to": "N02" },
+      { "from": "N01", "to": "N03" },
+      { "from": "N01", "to": "N04" },
+      { "from": "N01", "to": "N06" },
+      { "from": "N01", "to": "N07" },
+      { "from": "N01", "to": "N08" },
+      { "from": "N04", "to": "N05" },
+      { "from": "N03", "to": "N04" }
+    ],
+
+    "routes": [
+      { "from": "B01", "to": "T01" },
+      { "from": "B01", "to": "T02" },
+      { "from": "B01", "to": "T03" },
+      { "from": "B01", "to": "T04" },
+      { "from": "B01", "to": "T07" },
+      { "from": "B02", "to": "T05" },
+      { "from": "B02", "to": "T06" },
+      { "from": "B02", "to": "T08" },
+      { "from": "B02", "to": "T09" },
+      { "from": "B02", "to": "T10" },
+      { "from": "B02", "to": "T14" },
+      { "from": "B02", "to": "T22" },
+      { "from": "B02", "to": "T23" },
+      { "from": "B02", "to": "T24" },
+      { "from": "B03", "to": "T18" },
+      { "from": "B03", "to": "T19" },
+      { "from": "B03", "to": "T20" },
+      { "from": "B03", "to": "T21" },
+      { "from": "B03", "to": "T26" },
+      { "from": "B04", "to": "T11" },
+      { "from": "B04", "to": "T12" },
+      { "from": "B04", "to": "T13" },
+      { "from": "B04", "to": "T27" },
+      { "from": "B05", "to": "T15" },
+      { "from": "B05", "to": "T16" },
+      { "from": "B05", "to": "T17" },
+      { "from": "B05", "to": "T25" }
+    ],
+
+    "publishes_to": [
+      { "from": "A01", "to": "T01" },
+      { "from": "A01", "to": "T04" },
+      { "from": "A02", "to": "T02" },
+      { "from": "A03", "to": "T03" },
+      { "from": "A04", "to": "T04" },
+      { "from": "A05", "to": "T08" },
+      { "from": "A05", "to": "T10" },
+      { "from": "A06", "to": "T05" },
+      { "from": "A07", "to": "T06" },
+      { "from": "A08", "to": "T07" },
+      { "from": "A09", "to": "T11" },
+      { "from": "A10", "to": "T12" },
+      { "from": "A11", "to": "T13" },
+      { "from": "A12", "to": "T14" },
+      { "from": "A13", "to": "T15" },
+      { "from": "A13", "to": "T17" },
+      { "from": "A14", "to": "T16" },
+      { "from": "A15", "to": "T15" },
+      { "from": "A16", "to": "T08" },
+      { "from": "A17", "to": "T24" },
+      { "from": "A18", "to": "T24" },
+      { "from": "A19", "to": "T25" },
+      { "from": "A20", "to": "T18" },
+      { "from": "A20", "to": "T19" },
+      { "from": "A21", "to": "T19" },
+      { "from": "A22", "to": "T26" },
+      { "from": "A23", "to": "T09" },
+      { "from": "A23", "to": "T23" },
+      { "from": "A23", "to": "T27" },
+      { "from": "A25", "to": "T22" },
+      { "from": "A26", "to": "T20" },
+      { "from": "A26", "to": "T21" }
+    ],
+
+    "subscribes_to": [
+      { "from": "A04", "to": "T01" },
+      { "from": "A05", "to": "T01" },
+      { "from": "A05", "to": "T02" },
+      { "from": "A05", "to": "T03" },
+      { "from": "A05", "to": "T13" },
+      { "from": "A06", "to": "T01" },
+      { "from": "A06", "to": "T06" },
+      { "from": "A06", "to": "T08" },
+      { "from": "A06", "to": "T13" },
+      { "from": "A07", "to": "T01" },
+      { "from": "A07", "to": "T02" },
+      { "from": "A07", "to": "T08" },
+      { "from": "A07", "to": "T13" },
+      { "from": "A07", "to": "T20" },
+      { "from": "A08", "to": "T01" },
+      { "from": "A08", "to": "T02" },
+      { "from": "A08", "to": "T03" },
+      { "from": "A08", "to": "T06" },
+      { "from": "A09", "to": "T09" },
+      { "from": "A09", "to": "T12" },
+      { "from": "A10", "to": "T18" },
+      { "from": "A10", "to": "T20" },
+      { "from": "A12", "to": "T02" },
+      { "from": "A12", "to": "T13" },
+      { "from": "A13", "to": "T08" },
+      { "from": "A13", "to": "T10" },
+      { "from": "A13", "to": "T17" },
+      { "from": "A14", "to": "T08" },
+      { "from": "A14", "to": "T15" },
+      { "from": "A15", "to": "T08" },
+      { "from": "A15", "to": "T10" },
+      { "from": "A15", "to": "T15" },
+      { "from": "A15", "to": "T20" },
+      { "from": "A16", "to": "T16" },
+      { "from": "A16", "to": "T18" },
+      { "from": "A16", "to": "T19" },
+      { "from": "A16", "to": "T20" },
+      { "from": "A17", "to": "T05" },
+      { "from": "A17", "to": "T07" },
+      { "from": "A17", "to": "T24" },
+      { "from": "A18", "to": "T05" },
+      { "from": "A18", "to": "T07" },
+      { "from": "A18", "to": "T14" },
+      { "from": "A19", "to": "T08" },
+      { "from": "A19", "to": "T25" },
+      { "from": "A19", "to": "T27" },
+      { "from": "A20", "to": "T15" },
+      { "from": "A20", "to": "T20" },
+      { "from": "A20", "to": "T26" },
+      { "from": "A21", "to": "T08" },
+      { "from": "A21", "to": "T19" },
+      { "from": "A22", "to": "T08" },
+      { "from": "A22", "to": "T15" },
+      { "from": "A22", "to": "T17" },
+      { "from": "A23", "to": "T05" },
+      { "from": "A23", "to": "T06" },
+      { "from": "A23", "to": "T07" },
+      { "from": "A23", "to": "T08" },
+      { "from": "A23", "to": "T11" },
+      { "from": "A23", "to": "T14" },
+      { "from": "A23", "to": "T18" },
+      { "from": "A23", "to": "T19" },
+      { "from": "A23", "to": "T21" },
+      { "from": "A23", "to": "T22" },
+      { "from": "A23", "to": "T23" },
+      { "from": "A23", "to": "T27" },
+      { "from": "A24", "to": "T01" },
+      { "from": "A24", "to": "T02" },
+      { "from": "A24", "to": "T03" },
+      { "from": "A24", "to": "T05" },
+      { "from": "A24", "to": "T08" },
+      { "from": "A24", "to": "T20" },
+      { "from": "A25", "to": "T08" },
+      { "from": "A25", "to": "T09" },
+      { "from": "A25", "to": "T23" }
+    ],
+
+    "uses": [
+      { "from": "A01", "to": "L01" },
+      { "from": "A01", "to": "L02" },
+      { "from": "A02", "to": "L01" },
+      { "from": "A02", "to": "L02" },
+      { "from": "A02", "to": "L07" },
+      { "from": "A03", "to": "L01" },
+      { "from": "A03", "to": "L07" },
+      { "from": "A04", "to": "L01" },
+      { "from": "A05", "to": "L02" },
+      { "from": "A05", "to": "L04" },
+      { "from": "A06", "to": "L02" },
+      { "from": "A07", "to": "L02" },
+      { "from": "A07", "to": "L06" },
+      { "from": "A08", "to": "L02" },
+      { "from": "A08", "to": "L07" },
+      { "from": "A09", "to": "L02" },
+      { "from": "A09", "to": "L03" },
+      { "from": "A09", "to": "L07" },
+      { "from": "A10", "to": "L02" },
+      { "from": "A10", "to": "L07" },
+      { "from": "A11", "to": "L06" },
+      { "from": "A12", "to": "L02" },
+      { "from": "A12", "to": "L06" },
+      { "from": "A13", "to": "L02" },
+      { "from": "A13", "to": "L05" },
+      { "from": "A14", "to": "L05" },
+      { "from": "A15", "to": "L02" },
+      { "from": "A15", "to": "L05" },
+      { "from": "A16", "to": "L02" },
+      { "from": "A16", "to": "L04" },
+      { "from": "A17", "to": "L02" },
+      { "from": "A17", "to": "L03" },
+      { "from": "A18", "to": "L02" },
+      { "from": "A19", "to": "L02" },
+      { "from": "A19", "to": "L03" },
+      { "from": "A19", "to": "L08" },
+      { "from": "A20", "to": "L02" },
+      { "from": "A21", "to": "L02" },
+      { "from": "A21", "to": "L03" },
+      { "from": "A22", "to": "L02" },
+      { "from": "A22", "to": "L03" },
+      { "from": "A23", "to": "L02" },
+      { "from": "A23", "to": "L04" },
+      { "from": "A24", "to": "L02" },
+      { "from": "A25", "to": "L02" },
+      { "from": "A25", "to": "L04" },
+      { "from": "A26", "to": "L02" }
+    ]
+  }
+}

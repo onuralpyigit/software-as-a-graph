@@ -1,0 +1,188 @@
+# =============================================================================
+# Scenario 10 — Air Traffic Management (ATM) / ICAO SWIM
+# =============================================================================
+# Domain   : Safety-critical Air Traffic Management (ICAO Global Concept)
+# Scale    : Medium (26 apps, 27 topics, 5 brokers, 8 nodes)
+# Purpose  : Validate criticality prediction in ultra-reliable real-time
+#            surveillance and separation management systems.
+#
+# Topology fingerprint:
+#   • Ultra-high RELIABLE QoS (90%+ of traffic)
+#   • Many-to-few consumer ratio (HMI and FDP nodes consume many sensor streams)
+#   • High criticality density (70% of nodes are mission-critical)
+#   • Large message sizes for weather and flight plans
+#
+# Expected analysis outcomes:
+#   • Surveillance processors (Radar/ADS-B) score in the TOP percentile
+#   • Conflict Detection acts as a primary architectural hub
+#   • High QoS weight due to "critical" transport priority distribution
+#
+# Usage:
+#   python bin/generate_graph.py --config input/scenarios/scenario_10_atm_system.yaml \
+#          --output output/atm_system.json
+# =============================================================================
+
+graph:
+  seed: 42
+  domain: air_traffic_management
+  scenario: icao_global_atm_concept
+
+  counts:
+    nodes: 8
+    applications: 26
+    libraries: 8
+    topics: 27
+    brokers: 5
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 3.25
+      median: 3.0
+      std: 1.5
+      min: 1
+      max: 8
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS
+  # ---------------------------------------------------------------------------
+  application_stats:
+    direct_publish_count:
+      mean: 1.2
+      median: 1.0
+      std: 0.8
+      min: 0
+      max: 3
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 2.9
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 6
+      q1: 2.0
+      q3: 4.0
+      iqr: 2.0
+
+    total_publish_count_including_libraries:
+      mean: 2.0
+      median: 2.0
+      std: 1.0
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_subscribe_count_including_libraries:
+      mean: 4.0
+      median: 3.0
+      std: 2.0
+      min: 0
+      max: 8
+      q1: 3.0
+      q3: 5.0
+      iqr: 2.0
+
+    app_role_distribution:
+      total_count: 26
+      category_counts:
+        pub: 5
+        sub: 2
+        pubsub: 19
+      mode: pubsub
+      mode_count: 19
+      mode_percentage: 73.0
+
+    app_criticality_distribution:
+      total_count: 26
+      category_counts:
+        critical: 18
+        non_critical: 8
+      mode: critical
+      mode_count: 18
+      mode_percentage: 69.2
+
+  # ---------------------------------------------------------------------------
+  # LIBRARY STATISTICS
+  # ---------------------------------------------------------------------------
+  library_stats:
+    applications_using_this_library:
+      mean: 4.0
+      median: 3.0
+      std: 2.0
+      min: 1
+      max: 10
+      q1: 2.0
+      q3: 6.0
+      iqr: 4.0
+
+  # ---------------------------------------------------------------------------
+  # TOPIC STATISTICS
+  # ---------------------------------------------------------------------------
+  topic_stats:
+    topic_size_bytes:
+      mean: 1262.0
+      median: 512.0
+      std: 1500.0
+      min: 32
+      max: 8192
+      q1: 256.0
+      q3: 2048.0
+      iqr: 1792.0
+
+    applications_publishing_to_this_topic:
+      mean: 1.2
+      median: 1.0
+      std: 0.5
+      min: 1
+      max: 3
+
+    applications_subscribing_to_this_topic:
+      mean: 2.8
+      median: 2.0
+      std: 1.5
+      min: 1
+      max: 8
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 27
+      category_counts:
+        volatile: 16
+        transient_local: 8
+        persistent: 3
+      mode: volatile
+      mode_count: 16
+      mode_percentage: 59.2
+
+    qos_reliability_distribution:
+      total_count: 27
+      category_counts:
+        best_effort: 5
+        reliable: 22
+      mode: reliable
+      mode_count: 22
+      mode_percentage: 81.4
+
+    qos_transport_priority_distribution:
+      total_count: 27
+      category_counts:
+        low: 3
+        medium: 9
+        high: 11
+        critical: 4
+      mode: high
+      mode_count: 11
+      mode_percentage: 40.7
