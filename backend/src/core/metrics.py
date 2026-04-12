@@ -50,6 +50,7 @@ class StructuralMetrics:
     # === Resilience Metrics ===
     clustering_coefficient: float = 0.0  # Local redundancy (higher = more alternatives)
     is_articulation_point: bool = False  # Removal disconnects graph (SPOF)
+    is_directed_ap: bool = False         # Removal disconnects reachable set from sources
     is_isolated: bool = False            # No connections
     bridge_count: int = 0                # Number of bridges touching this node
     bridge_ratio: float = 0.0            # Fraction of edges that are bridges

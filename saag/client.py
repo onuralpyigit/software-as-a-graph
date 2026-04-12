@@ -58,7 +58,7 @@ class Client:
         predict_uc = PredictGraphUseCase(prediction_service)
         quality, problems = predict_uc.execute(
             layer=layer, 
-            structural_result=structural_result,
+            structural_result=structural_result.structural,
             detect_problems=detect_problems,
             **{k: v for k, v in kwargs.items() if k in ["run_sensitivity", "sensitivity_perturbations", "sensitivity_noise"]}
         )

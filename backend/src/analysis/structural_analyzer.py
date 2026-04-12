@@ -263,6 +263,10 @@ class StructuralAnalyzer:
         U = G.to_undirected()
         clustering = nx.clustering(U)
         art_points = set(nx.articulation_points(U)) if nx.is_connected(U) else self._art_points_disconnected(U)
+        
+        # Directed articulation points (SPOFs)
+        directed_aps = self._compute_directed_articulation_points(G)
+        
         bridges = set(nx.bridges(U)) if nx.is_connected(U) else self._bridges_disconnected(U)
 
         # --- Bridge count per node ---
@@ -338,6 +342,7 @@ class StructuralAnalyzer:
                 # Resilience
                 clustering_coefficient=clustering.get(nid, 0.0),
                 is_articulation_point=nid in art_points,
+                is_directed_ap=nid in directed_aps,
                 ap_c_directed=ap_scores.get(nid, {}).get("ap_c_dir", 0.0),
                 cdi=ap_scores.get(nid, {}).get("cdi", 0.0),
                 blast_radius=blast_radius.get(nid, 0),
@@ -415,8 +420,15 @@ class StructuralAnalyzer:
         # --- Graph-level summary ---
         summary = self._build_summary(G, layer, art_points, bridges)
 
+        from src.core.layers import AnalysisLayer
+        try:
+            enum_layer = AnalysisLayer.from_string(layer)
+        except:
+            # Fallback for unexpected layer strings
+            enum_layer = AnalysisLayer.SYSTEM
+
         return StructuralAnalysisResult(
-            layer=layer,
+            layer=enum_layer,
             components=components,
             edges=edge_metrics,
             graph_summary=summary,
@@ -684,6 +696,47 @@ class StructuralAnalyzer:
             if len(sub) >= 2:
                 br.update(nx.bridges(sub))
         return br
+
+    def _compute_directed_articulation_points(self, G: nx.DiGraph) -> Set[str]:
+        """
+        Identify directed articulation points (SPOFs).
+        A node v is a directed AP if its removal makes any other node 
+        unreachable from the system 'roots' (in-degree 0 nodes).
+        """
+        roots = [n for n in G.nodes if n in G and G.in_degree(n) == 0]
+        if not roots:
+            return set()
+            
+        # Initial reachable set from all roots
+        def get_reachable(graph, root_nodes):
+            reachable = set()
+            for r in root_nodes:
+                if r in graph:
+                    reachable.update(nx.descendants(graph, r) | {r})
+            return reachable
+
+        base_reachable = get_reachable(G, roots)
+        directed_aps = set()
+        
+        for v in G.nodes:
+            # We only care about nodes that are themselves reachable from roots
+            if v not in base_reachable:
+                continue
+                
+            # Copy graph and remove node v
+            H = G.copy()
+            H.remove_node(v)
+            
+            # New roots are old roots minus v
+            current_roots = [r for r in roots if r != v]
+            new_reachable = get_reachable(H, current_roots)
+            
+            # If removing v makes ANY other node unreachable, it's a directed AP
+            # (Note: len(base_reachable - {v}) is the max possible new size)
+            if len(new_reachable) < len(base_reachable - {v}):
+                directed_aps.add(v)
+                
+        return directed_aps
 
     def _compute_continuous_ap_scores(
         self, G_dir: nx.DiGraph

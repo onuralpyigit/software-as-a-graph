@@ -194,7 +194,9 @@ class QualityAnalyzer:
             5. Build classification summary
             6. (Optional) Run weight sensitivity analysis
         """
-        layer_name = structural_result.layer.value
+        # Handle both Enum and string for backward/internal compatibility
+        layer_val = structural_result.layer.value if hasattr(structural_result.layer, "value") else str(structural_result.layer)
+        layer_name = layer_val
         ctx = context or f"{layer_name} layer analysis"
 
         # --- QoS-aware weight adjustment ----------------------------------

@@ -1,8 +1,8 @@
 """
 Anti-Pattern Detector for Pub-Sub Architectural Systems
 
-Implements 12 specific anti-pattern detection rules across three severity tiers
-(CRITICAL, HIGH, MEDIUM) using graph topology analysis and quality scores.
+[DEPRECATED] This module is preserved for backward compatibility. 
+New implementations should use src.analysis.antipattern_detector.
 """
 
 from __future__ import annotations
@@ -30,6 +30,28 @@ class AntiPatternDetector:
         self.components = {c.id: c for c in quality_result.components}
         self.edges = quality_result.edges
         self.graph = self._build_graph()
+        self.stats = self._compute_stats()
+
+    def _compute_stats(self) -> Dict[str, Any]:
+        """Compute relative thresholds (aligned with canonical engine)."""
+        import statistics
+        pts = [c.structural.pagerank for c in self.components.values()]
+        bts = [c.structural.betweenness for c in self.components.values()]
+        ids = [c.structural.in_degree_raw for c in self.components.values()]
+        
+        def _fence(v):
+            if not v: return 0.0
+            sv = sorted(v)
+            n = len(sv)
+            q1, q3 = sv[n // 4], sv[min(3 * n // 4, n - 1)]
+            return q3 + 1.5 * (q3 - q1)
+
+        return {
+            "pagerank_fence": _fence(pts),
+            "betweenness_fence": _fence(bts),
+            "in_degree_fence": _fence(ids),
+            "avg_pr": statistics.mean(pts) if pts else 0.0
+        }
 
     def _build_graph(self) -> nx.DiGraph:
         """Build a NetworkX directed graph from analysis edges."""
@@ -69,14 +91,14 @@ class AntiPatternDetector:
         """SPOF: Single Point of Failure — structural graph cut vertex."""
         problems = []
         for c in self.components.values():
-            if c.structural.is_articulation_point:
+            if getattr(c.structural, 'is_directed_ap', False) or c.structural.is_articulation_point:
                 problems.append(DetectedProblem(
                     entity_id=c.id, entity_type="Component",
                     category="Availability", severity="CRITICAL",
                     name="SPOF",
-                    description=f"'{c.id}' is an articulation point. Removing it partitions the dependency graph.",
+                    description=f"'{c.id}' is a single point of failure (cut vertex).",
                     recommendation="Introduce redundancy: backup instances, alternative paths, or event-driven decoupling.",
-                    evidence={"is_articulation_point": True, "availability_score": c.scores.availability}
+                    evidence={"is_directed": getattr(c.structural, 'is_directed_ap', False), "availability_score": c.scores.availability}
                 ))
         return problems
 
@@ -122,14 +144,17 @@ class AntiPatternDetector:
     def _detect_god_component(self) -> List[DetectedProblem]:
         """GOD_COMPONENT: Dependency magnet — absorbs too many responsibilities."""
         problems = []
+        # Issue #8: Use relative fences instead of absolute 0.3/10
+        bt_fence = self.stats["betweenness_fence"]
+        id_fence = self.stats["in_degree_fence"]
+        
         for c in self.components.values():
-            # God component criteria: high betweenness and high degree
-            if c.structural.betweenness > 0.3 and c.structural.in_degree_raw > 10:
+            if c.structural.betweenness > bt_fence and c.structural.in_degree_raw > id_fence:
                 problems.append(DetectedProblem(
                     entity_id=c.id, entity_type="Component",
                     category="Maintainability", severity="HIGH",
                     name="GOD_COMPONENT",
-                    description=f"'{c.id}' acts as a dependency magnet with extremely high centrality.",
+                    description=f"'{c.id}' acts as a dependency magnet (centrality > fence).",
                     recommendation="Apply the Single Responsibility Principle: decompose into smaller, focused services.",
                     evidence={"betweenness": c.structural.betweenness, "in_degree": c.structural.in_degree_raw}
                 ))
@@ -156,9 +181,12 @@ class AntiPatternDetector:
         brokers = [c for c in self.components.values() if c.type.lower() == "broker"]
         if not brokers: return []
         
-        avg_pr = sum(b.structural.pagerank for b in brokers) / len(brokers)
+        # Issue #9: Aligned gate using PageRank fence
+        pr_fence = self.stats["pagerank_fence"]
+        avg_pr = self.stats["avg_pr"]
+        
         for b in brokers:
-            if b.structural.pagerank > avg_pr * 2 and b.structural.pagerank > 0.5:
+            if b.structural.pagerank > pr_fence:
                 problems.append(DetectedProblem(
                     entity_id=b.id, entity_type="Component",
                     category="Availability", severity="HIGH",

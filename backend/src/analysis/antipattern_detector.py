@@ -165,6 +165,15 @@ CATALOG: Dict[str, PatternSpec] = {
         risk="Fundamental architectural issues require comprehensive review.",
         recommendation="Architecture review and remediation roadmap."
     ),
+    "COMPOUND_RISK": PatternSpec(
+        id="COMPOUND_RISK",
+        name="Compound Architectural Risk",
+        severity="CRITICAL",
+        category="Architecture",
+        description="Component is simultaneously a structural SPOF and a high-criticality God Component or Failure Hub.",
+        risk="Extremely dangerous: the component is critical, hard to change, and its failure isolates the system.",
+        recommendation="Urgent: Prioritize decoupling and redundancy for this specific component."
+    ),
 }
 
 
@@ -218,6 +227,10 @@ class AntiPatternDetector:
             except Exception as exc:
                 logger.warning("Detector %s failed: %s", pid, exc, exc_info=True)
 
+        # Issue #13: Compound risk post-pass
+        if "COMPOUND_RISK" in self._active:
+            problems.extend(self._detect_compound_risk(problems))
+
         _severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
         problems.sort(key=lambda p: (_severity_order.get(p.severity, 9), p.entity_id))
         return problems
@@ -259,18 +272,23 @@ class AntiPatternDetector:
 
         overall_scores = [c.scores.overall for c in components]
         avail_scores = [c.scores.availability for c in components]
+        rel_scores = [c.scores.reliability for c in components]
         vuln_scores = [c.scores.vulnerability for c in components]
         total_degrees = [getattr(c.structural, 'in_degree_raw', 0) + getattr(c.structural, 'out_degree_raw', 0) for c in components]
+        out_degrees = [getattr(c.structural, 'out_degree_raw', 0) for c in components]
 
         _, _, q3_q, fence_q = _boxplot_fence(overall_scores)
         _, _, q3_deg, fence_deg = _boxplot_fence(total_degrees)
+        _, _, q3_rel, fence_rel = _boxplot_fence(rel_scores)
         _, _, q3_avail, fence_avail = _boxplot_fence(avail_scores)
         _, _, q3_vuln, fence_vuln = _boxplot_fence(vuln_scores)
+        
+        median_out = statistics.median(out_degrees) if out_degrees else 0
 
         return {
             "fence_q": fence_q, "q3_degree": q3_deg, "fence_degree": fence_deg,
-            "fence_avail": fence_avail, "fence_vuln": fence_vuln,
-            "total_count": len(components)
+            "fence_rel": fence_rel, "fence_avail": fence_avail, "fence_vuln": fence_vuln,
+            "median_out": median_out, "total_count": len(components)
         }
 
     # ── Detectors ────────────────────────────────────────────────────
@@ -278,8 +296,12 @@ class AntiPatternDetector:
     def _detect_spof(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
         for c in lr.components:
-            if getattr(c.structural, 'is_articulation_point', False):
-                out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value}))
+            # Issue #10: Use directed AP if available
+            is_spof = getattr(c.structural, 'is_directed_ap', False)
+            if is_spof:
+                out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value, "is_directed": True}))
+            elif getattr(c.structural, 'is_articulation_point', False):
+                 out.append(self._make_problem("SPOF", c.id, {"availability_level": c.levels.availability.value, "is_directed": False}))
         return out
 
     def _detect_bridge_edge(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -291,10 +313,16 @@ class AntiPatternDetector:
 
     def _detect_failure_hub(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
-        from src.core.criticality import CriticalityLevel
+        # Issue #12: Failure Hub should be based on Reliability R(v) and out-degree
+        rel_fence = stats.get("fence_rel", 0.8)
+        median_out = stats.get("median_out", 1)
+        
         for c in lr.components:
-            if c.levels.reliability >= CriticalityLevel.CRITICAL:
-                out.append(self._make_problem("FAILURE_HUB", c.id, {"reliability": c.scores.reliability}))
+            if c.scores.reliability > rel_fence and c.structural.out_degree_raw > median_out:
+                out.append(self._make_problem("FAILURE_HUB", c.id, {
+                    "reliability": c.scores.reliability, 
+                    "out_degree": c.structural.out_degree_raw
+                }))
         return out
 
     def _detect_concentration_risk(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -352,12 +380,18 @@ class AntiPatternDetector:
     def _detect_cycle(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
         out = []
         import networkx as nx
-        G = nx.DiGraph()
-        for e in getattr(lr, "edges", []):
-            G.add_edge(e.source, e.target)
+        # Issue #11: Use original graph if available to catch cycles lost in closure
+        G = getattr(lr, "graph", None)
+        if G is None:
+            G = nx.DiGraph()
+            for e in getattr(lr, "edges", []):
+                G.add_edge(e.source, e.target)
+        
         for scc in nx.strongly_connected_components(G):
             if len(scc) >= 2:
-                out.append(self._make_problem("CYCLE", " -> ".join(sorted(scc)), {"size": len(scc)}, entity_type="Architecture"))
+                # Filter for non-trivial cycles (NetworkX might return single apps if they have self-loops)
+                if len(scc) > 1 or G.has_edge(list(scc)[0], list(scc)[0]):
+                    out.append(self._make_problem("CYCLE", " -> ".join(sorted(scc)), {"size": len(scc)}, entity_type="Architecture"))
         return out
 
     def _detect_chain(self, lr, layer: str, stats: Dict) -> List[DetectedProblem]:
@@ -387,3 +421,24 @@ class AntiPatternDetector:
         if total > 0 and (crit_count / total) > 0.2:
             return [self._make_problem("SYSTEMIC_RISK", "SYSTEM", {"critical_ratio": crit_count/total}, entity_type="System")]
         return []
+
+    def _detect_compound_risk(self, problems: List[DetectedProblem]) -> List[DetectedProblem]:
+        """Issue #13: Post-pass to identify nodes with multiple critical problems."""
+        by_entity: Dict[str, List[str]] = {}
+        for p in problems:
+            if p.entity_type == "Component":
+                by_entity.setdefault(p.entity_id, []).append(p.name)
+        
+        out = []
+        for eid, names in by_entity.items():
+            is_spof = any("SPOF" in n for n in names)
+            is_god = any("God" in n for n in names) or any("Hub" in n for n in names)
+            
+            if is_spof and is_god:
+                out.append(self._make_problem(
+                    "COMPOUND_RISK", 
+                    eid, 
+                    {"risks": names}, 
+                    entity_type="Component"
+                ))
+        return out

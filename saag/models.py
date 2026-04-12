@@ -122,8 +122,14 @@ class AnalysisResult:
 
 class PredictionResult:
     """Result of the quality prediction step (Statistical or GNN)."""
-    def __init__(self, inner: Any):
+    def __init__(self, inner: Any, problems: Optional[List[_DetectedProblem]] = None):
         self._inner = inner
+        self._problems = problems or []
+
+    @property
+    def problems(self) -> List[_DetectedProblem]:
+        """Detected anti-patterns and architectural smells."""
+        return self._problems
 
     @property
     def critical_components(self) -> List[ComponentFacade]:
