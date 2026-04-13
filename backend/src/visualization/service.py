@@ -127,58 +127,77 @@ class VisualizationService:
             self._load_cascade_data(primary_data, cascade_file)
 
         # ── Phase 2: Dashboard Assembly ───────────────────────────────────
-        # Section 1
+        
+        # 1. Overview Tab
+        dash.add_tab("Overview", "overview")
         self._add_executive_overview(dash, layer_data_list)
-
-        # Section 2
+        dash.add_top5_bars(primary_data.component_details)
         if len(layer_data_list) > 1:
             self._add_layer_comparison(dash, layer_data_list)
+        dash.end_tab()
 
-        # Section 3
+        # 2. Component Table Tab
+        dash.add_tab("Component table", "components")
         self._add_component_details(dash, primary_data)
-
-        # Section 3.5
         if primary_data.explanation:
             self._add_explanation_section(dash, primary_data)
+        dash.end_tab()
 
-        # Section 4
+        # 3. Validation Tab
+        dash.add_tab("Validation", "validation")
         if include_validation:
+            # Add Validation KPIs
+            dash.add_kpis({
+                "Spearman \u03c1": f"{primary_data.spearman:.3f}",
+                "F1 (top-k)": f"{primary_data.f1_score:.3f}",
+                "Precision": f"{primary_data.precision:.3f}",
+                "Recall": f"{primary_data.recall:.3f}"
+            }, {
+                "Spearman \u03c1": "success" if primary_data.spearman > 0.8 else "warning",
+                "F1 (top-k)": "success" if primary_data.f1_score > 0.8 else "warning",
+            })
             self._add_validation_plots(dash, primary_data, include_per_dim_scatter)
+            if primary_data.has_validation:
+                self._add_validation_report(dash, primary_data)
+            if n_seeds > 0 and primary_data.multiseed_rho:
+                self._add_multiseed_stability(dash, primary_data)
+        dash.end_tab()
 
-        # Section 5
+        # 4. Cascade Risk Tab
+        dash.add_tab("Cascade risk", "cascade")
+        if primary_data.has_cascade:
+            self._add_cascade_risk_section(dash, primary_data)
+        else:
+            dash.start_section("Cascade Risk Unavailable")
+            dash.add_subsection("Run QoS ablation experiment to populate this panel.")
+            dash.end_section()
+        dash.end_tab()
+
+        # 5. Topology Tab (Network + Matrix)
+        dash.add_tab("Topology", "topology")
         if include_network and primary_data.nodes <= 500:
             self._add_network_section(dash, primary_data)
         elif include_network:
             dash.start_section("Network Graph (omitted — too large)", "network")
-            dash.add_subsection(
-                f"Graph has {primary_data.nodes} nodes. "
-                f"Use --no-network to suppress, or open the live Genieus interface."
-            )
+            dash.add_subsection(f"Graph has {primary_data.nodes} nodes. Too large for live rendering.")
             dash.end_section()
-
-        # Section 6 — dependency matrix (re-enabled)
+        
         if include_matrix and primary_data.network_nodes:
             self._add_matrix_section(dash, primary_data)
-
-        # Section 7
-        if include_validation and primary_data.has_validation:
-            self._add_validation_report(dash, primary_data)
-
-        # Section 8 — multi-seed stability
-        if n_seeds > 0 and primary_data.multiseed_rho:
-            self._add_multiseed_stability(dash, primary_data)
-
-        # Section 9 — anti-patterns
+        
         if primary_data.anti_patterns:
             self._add_antipattern_section(dash, primary_data)
+        dash.end_tab()
 
-        # Section 9a — cascade risk (new)
-        if primary_data.has_cascade:
-            self._add_cascade_risk_section(dash, primary_data)
-
-        # Section 10 — MIL-STD-498 hierarchy (new)
+        # 6. MIL-STD-498 Tab
+        dash.add_tab("MIL-STD-498", "hierarchy")
         if primary_data.has_hierarchy:
             self._add_hierarchy_section(dash, primary_data)
+        else:
+            dash.start_section("Hierarchy Documentation")
+            dash.add_subsection("MIL-STD-498 hierarchy mapping is currently offline.")
+            dash.end_section()
+        dash.end_tab()
 
         # ── Phase 3: Write Output ─────────────────────────────────────────
         output_path = Path(output_file)
@@ -222,14 +241,14 @@ class VisualizationService:
         gen.add_kpis(kpis, styles)
 
         charts = []
-        chart = self.charts.criticality_distribution(
+        c1 = self.charts.criticality_distribution(
             primary.classification_distribution, "Criticality distribution"
         )
-        if chart:
-            charts.append(chart)
-        chart = self.charts.pie_chart(primary.component_counts, "Composition by type")
-        if chart:
-            charts.append(chart)
+        if c1: charts.append(c1)
+        
+        c2 = self.charts.rmav_breakdown(primary.component_details, "RMAV dimension comparison — top 6", top_n=6)
+        if c2: charts.append(c2)
+        
         if charts:
             gen.add_charts(charts)
         gen.end_section()

@@ -111,6 +111,25 @@ def run_demo(output_file: str, open_browser: bool) -> int:
         (c.id, c.overall, c.impact, c.level)
         for c in demo_data.component_details
     ]
+    # Hierarchy data (Section 10)
+    demo_data.hierarchy_data = {
+        "id": "ATM_System", "label": "ATM System (CSS)", "level": "CSS",
+        "children": [
+            {
+                "id": "Surveillance", "label": "Surveillance CSCI", "level": "CSCI", "q": 0.76, "cbci": 0.42,
+                "children": [
+                    {"id": "sf", "label": "Sensor Fusion (CSU)", "level": "CSU", "q": 0.84, "spof": True},
+                    {"id": "nl", "label": "NavLib (CSU)", "level": "CSU", "q": 0.61},
+                ]
+            },
+            {
+                "id": "Planning", "label": "Planning CSCI", "level": "CSCI", "q": 0.72, "cbci": 0.38,
+                "children": [
+                    {"id": "pe", "label": "Planning Engine (CSU)", "level": "CSU", "q": 0.72},
+                ]
+            }
+        ]
+    }
     # Cascade results (§6.4.5)
     demo_data.cascade_results = [
         {
@@ -124,84 +143,104 @@ def run_demo(output_file: str, open_browser: bool) -> int:
     demo_data.cascade_wilcoxon_p = 0.031
     demo_data.cascade_delta_rho = 0.052
 
-    # ── Section 1: Executive Overview ────────────────────────────────────────
-    dash.start_section("📊 Demo Overview", "overview")
+    # ── Tab 1: Executive Overview ──────────────────────────────────────────
+    dash.add_tab("Overview", "overview")
+    dash.start_section("📊 Demo Overview")
     dash.add_kpis(
-        {"Nodes": 48, "Edges": 127, "Critical": 5, "SPOFs": 3, "Anti-Patterns": 2,
-         "Validation ρ": "0.876"},
-        {"Critical": "danger", "SPOFs": "warning"},
+        {"Total components": 14, "Critical / SPOFs": "2 / 2", "Validation \u03c1": 0.876, "F1 score": 0.893},
+        {"Critical / SPOFs": "danger", "Validation \u03c1": "success"}
     )
 
     display.print_step("Assembling interactive charts...")
-    chart_list = []
+    charts_main = []
     if c := charts.criticality_distribution(demo_data.classification_distribution):
-        chart_list.append(c)
-    if c := charts.rmav_breakdown(demo_data.component_details, "RMAV Breakdown"):
-        chart_list.append(c)
-    if c := charts.correlation_scatter(
-        demo_data.scatter_data, spearman=0.876,
-        ci_lower=demo_data.composite_ci[0],
-        ci_upper=demo_data.composite_ci[1],
-    ):
-        chart_list.append(c)
-    dash.add_charts(chart_list)
+        charts_main.append(c)
+    if c := charts.rmav_breakdown(demo_data.component_details, "RMAV dimension comparison — top 6", top_n=6):
+        charts_main.append(c)
+    dash.add_charts(charts_main)
+    
+    dash.add_top5_bars(demo_data.component_details)
     dash.end_section()
+    dash.end_tab()
 
-    # ── Section 2: Validation Diagnostics ────────────────────────────────────
-    dash.start_section("Validation Diagnostics", "validation-plots")
+    # ── Tab 2: Component Table ─────────────────────────────────────────────
+    dash.add_tab("Component table", "components")
+    dash.start_section("Detailed component analysis")
+    headers = ["Component", "Type", "R", "M", "A", "V", "Q(v)", "Impact", "Level", "SPOF"]
+    rows = []
+    for c in demo_data.component_details:
+        rows.append([
+            c.name, c.type, f"{c.reliability:.2f}", f"{c.maintainability:.2f}", 
+            f"{c.availability:.2f}", f"{c.vulnerability:.2f}", f"{c.overall:.3f}", 
+            f"{c.impact:.3f}", f'<span class="badge badge-{c.level.lower()}">{c.level}</span>',
+            '<span class="badge badge-spof">SPOF</span>' if c.spof else ""
+        ])
+    dash.add_interactive_table(headers, rows, title="ATM System Components", type_col=1, level_col=8)
+    dash.end_section()
+    dash.end_tab()
+
+    # ── Tab 3: Validation ──────────────────────────────────────────────────
+    dash.add_tab("Validation", "validation")
+    dash.start_section("Prediction Correlation & Stability")
+    dash.add_kpis({
+        "Spearman \u03c1": 0.876, "F1 (top-k)": 0.893, "Precision": 0.912, "Recall": 0.857
+    }, {"Spearman \u03c1": "success", "F1 (top-k)": "success"})
+    
+    if sc := charts.correlation_scatter(demo_data.scatter_data, spearman=0.876):
+        dash.add_charts([sc])
+    
     dim_rho_html = charts.dim_rho_bars(demo_data.dim_rho)
-    seed_chart = charts.multiseed_line_chart(
-        demo_data.multiseed_seeds,
-        demo_data.multiseed_rho,
-        demo_data.multiseed_f1,
-    )
+    seed_chart = charts.multiseed_line_chart(demo_data.multiseed_seeds, demo_data.multiseed_rho, demo_data.multiseed_f1)
     dash.add_dim_rho_panel(dim_rho_html, seed_chart)
     dash.end_section()
+    dash.end_tab()
 
-    # ── Section 3: Cascade Risk ───────────────────────────────────────────────
-    display.print_step("Rendering cascade risk panel...")
-    dash.start_section("Cascade Risk — QoS Ablation", "cascade")
-
+    # ── Tab 4: Cascade Risk ───────────────────────────────────────────────
+    dash.add_tab("Cascade risk", "cascade")
+    dash.start_section("QoS-enriched failure propagation")
     class _CProxy:
         def __init__(self, d):
-            self.name = d["name"]
-            self.cascade_risk = d["cascade_risk"]
-            self.cascade_risk_topo = d["cascade_risk_topo"]
-
+            self.name = d["name"]; self.cascade_risk = d["cascade_risk"]; self.cascade_risk_topo = d["cascade_risk_topo"]
     proxies = [_CProxy(r) for r in demo_data.cascade_results]
     proxies.sort(key=lambda x: x.cascade_risk, reverse=True)
     cascade_chart = charts.cascade_risk_chart(proxies)
     dash.add_cascade_risk_panel(
-        cascade_chart_html=cascade_chart,
-        qos_gini=demo_data.qos_gini,
-        wilcoxon_p=demo_data.cascade_wilcoxon_p,
-        delta_rho=demo_data.cascade_delta_rho,
-        note=(
-            "Cascade risk enriched by QoS contract topology. "
-            "Purple bars include QoS weighting; grey bars = topology-only baseline."
-        ),
+        cascade_chart_html=cascade_chart, qos_gini=demo_data.qos_gini,
+        wilcoxon_p=demo_data.cascade_wilcoxon_p, delta_rho=demo_data.cascade_delta_rho,
+        note="QoS enrichment adds statistically significant predictive signal."
     )
     dash.end_section()
+    dash.end_tab()
 
-    # ── Section 4: Network Graph ─────────────────────────────────────────────
-    display.print_step("Adding interactive network visualization...")
+    # ── Tab 5: Topology ────────────────────────────────────────────────────
+    dash.add_tab("Topology", "topology")
+    dash.start_section("Network Graph")
     mock_nodes = [
-        {"id": "sf",   "label": "Sensor Fusion",  "type": "Application", "level": "CRITICAL", "value": 0.84},
-        {"id": "pe",   "label": "Planning Engine", "type": "Application", "level": "HIGH",     "value": 0.72},
-        {"id": "mb",   "label": "Main Broker",     "type": "Broker",      "level": "CRITICAL", "value": 0.80},
-        {"id": "nl",   "label": "NavLib",          "type": "Library",     "level": "MEDIUM",   "value": 0.61},
-        {"id": "tele", "label": "Telemetry",       "type": "Topic",       "level": "LOW",      "value": 0.40},
+        {"id": "sf",   "label": "Sensor Fusion",  "type": "Application", "level": "CRITICAL", "value": 40},
+        {"id": "pe",   "label": "Planning Engine", "type": "Application", "level": "HIGH",     "value": 30},
+        {"id": "mb",   "label": "Main Broker",     "type": "Broker",      "level": "CRITICAL", "value": 35},
+        {"id": "nl",   "label": "NavLib",          "type": "Library",     "level": "MEDIUM",   "value": 25},
+        {"id": "tele", "label": "Telemetry",       "type": "Topic",       "level": "LOW",      "value": 20},
     ]
     mock_edges = [
         {"source": "sf",   "target": "mb",   "weight": 2.5, "dependency_type": "publishes_to"},
         {"source": "pe",   "target": "mb",   "weight": 1.2, "dependency_type": "subscribes_to"},
-        {"source": "sf",   "target": "pe",   "weight": 0.8, "dependency_type": "uses"},
         {"source": "mb",   "target": "tele", "weight": 1.0, "dependency_type": "broadcasts"},
-        {"source": "pe",   "target": "nl",   "weight": 1.5, "dependency_type": "uses"},
     ]
-    dash.start_section("Interactive Network Graph", "network")
     dash.add_cytoscape_network("demo-net", mock_nodes, mock_edges, "System Connectivity (Demo)")
     dash.end_section()
+    
+    dash.start_section("Dependency Matrix")
+    dash.add_dependency_matrix("demo-matrix", mock_nodes, mock_edges)
+    dash.end_section()
+    dash.end_tab()
+
+    # ── Tab 6: MIL-STD-498 ─────────────────────────────────────────────────
+    dash.add_tab("MIL-STD-498", "hierarchy")
+    dash.start_section("Hierarchy tree — BPA_\u03b2 rollup scores")
+    dash.add_hierarchy_tree(demo_data.hierarchy_data)
+    dash.end_section()
+    dash.end_tab()
 
     # ── Write output ─────────────────────────────────────────────────────────
     display.print_step("Finalizing dashboard export...")
