@@ -110,15 +110,16 @@ graph:
       mode_count: 35
       mode_percentage: 38.9
 
-    # Only ~10 % critical — API gateways and saga coordinators
+    # Only ~6.7 % critical — API gateway and saga coordinators only
+    # (lower than IoT/enterprise to reflect loose-coupling intent of microservices)
     app_criticality_distribution:
       total_count: 90
       category_counts:
-        critical: 9
-        non_critical: 81
+        critical: 6
+        non_critical: 84
       mode: non_critical
-      mode_count: 81
-      mode_percentage: 90.0
+      mode_count: 84
+      mode_percentage: 93.3
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Service-specific; low fan-out = lower blast radius

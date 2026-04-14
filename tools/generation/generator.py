@@ -3,6 +3,7 @@ Statistical Graph Generator
 """
 import random
 import logging
+from collections import Counter
 from typing import Dict, Any, List, Optional, Union, Tuple
 
 from src.core.models import (
@@ -100,6 +101,21 @@ _LIB_CODE_METRICS_PARAMS: Dict[str, Dict[str, Any]] = {
 }
 # Weighted random selection of lib archetype (utility and driver are most common)
 _LIB_ARCHETYPE_WEIGHTS = ["utility"] * 4 + ["framework"] * 2 + ["driver"] * 3 + ["middleware"] * 2 + ["protocol"] * 2
+
+# Maps app_type → preferred QoS attributes for topic selection bias.
+# Used by _partition_topics_by_qos_affinity() to steer which topics are drawn into
+# the "preferred" tier of _sample_biased(), making QoS semantics structurally
+# coherent: gateways/controllers prefer RELIABLE/HIGH topics; sensors stay on
+# BEST_EFFORT/LOW topics.  Falls back to the cluster pool when the preferred
+# set is empty (e.g. all topics in the cluster share the same QoS level).
+_APP_TYPE_QOS_AFFINITY: Dict[str, Dict[str, List[str]]] = {
+    "gateway":    {"reliability": ["RELIABLE"],                "priority": ["HIGH", "HIGHEST", "CRITICAL"]},
+    "controller": {"reliability": ["RELIABLE"],                "priority": ["HIGH", "HIGHEST", "CRITICAL"]},
+    "processor":  {"reliability": ["RELIABLE", "BEST_EFFORT"], "priority": ["MEDIUM", "HIGH"]},
+    "monitor":    {"reliability": ["RELIABLE", "BEST_EFFORT"], "priority": ["LOW", "MEDIUM"]},
+    "actuator":   {"reliability": ["RELIABLE"],                "priority": ["MEDIUM", "HIGH"]},
+    "sensor":     {"reliability": ["BEST_EFFORT"],             "priority": ["LOW", "MEDIUM"]},
+}
 
 # --- Criticality levels for statistical generation ---
 CRITICALITY_OPTIONS = [True, False]
@@ -260,6 +276,188 @@ class StatisticalGraphGenerator:
             },
         }
 
+    # ------------------------------------------------------------------
+    # Structural-quality helpers (called inside generate())
+    # ------------------------------------------------------------------
+
+    def _build_cluster_to_nodes(
+        self,
+        nodes: List[Node],
+        cluster_domains: List[str],
+    ) -> Dict[str, List[Node]]:
+        """Randomly partition nodes into per-cluster subsets.
+
+        Each node is assigned to one cluster via random.choices so the
+        partition is seeded and deterministic.  Clusters that receive no
+        nodes fall back to the full node list so no app/broker is ever
+        stranded without a placement target.
+        """
+        cluster_to_nodes: Dict[str, List[Node]] = {d: [] for d in cluster_domains}
+        assignments = self.rng.choices(cluster_domains, k=len(nodes))
+        for node, cluster in zip(nodes, assignments):
+            cluster_to_nodes[cluster].append(node)
+        # Guard: empty cluster bins fall back to all nodes
+        for cluster in cluster_domains:
+            if not cluster_to_nodes[cluster]:
+                cluster_to_nodes[cluster] = list(nodes)
+        return cluster_to_nodes
+
+    def _assign_apps_to_nodes(
+        self,
+        apps: List[Application],
+        nodes: List[Node],
+        app_cluster_domain: List[str],
+        cluster_to_nodes: Dict[str, List[Node]],
+        p_collocate: float = 0.70,
+    ) -> List[Dict[str, str]]:
+        """Assign apps to nodes with cluster affinity.
+
+        With probability *p_collocate* the host is drawn from the app's
+        cluster node subset; otherwise it is drawn uniformly from all nodes.
+        This makes node-level structural metrics (betweenness, SPOF
+        detection) realistic: functionally related apps share infrastructure.
+        """
+        runs_on = []
+        for i, app in enumerate(apps):
+            cluster = app_cluster_domain[i]
+            if self.rng.random() < p_collocate:
+                host = self.rng.choice(cluster_to_nodes[cluster])
+            else:
+                host = self.rng.choice(nodes)
+            runs_on.append(self._make_edge(app, host))
+        return runs_on
+
+    def _partition_topics_by_qos_affinity(
+        self,
+        topics: List[Topic],
+        app_type: str,
+    ) -> Tuple[List[Topic], List[Topic]]:
+        """Return (preferred_topics, other_topics) based on app_type QoS affinity.
+
+        Preferred topics match the reliability and priority tiers in
+        _APP_TYPE_QOS_AFFINITY[app_type].  Falls back to (all_topics, [])
+        when no affinity is defined or no topics match, so _sample_biased()
+        behaviour is unchanged for unknown app types or uniform QoS clusters.
+        """
+        affinity = _APP_TYPE_QOS_AFFINITY.get(app_type)
+        if not affinity or not topics:
+            return list(topics), []
+        pref_rel = set(affinity["reliability"])
+        pref_pri = set(affinity["priority"])
+        preferred = [
+            t for t in topics
+            if t.qos.reliability in pref_rel and t.qos.transport_priority in pref_pri
+        ]
+        if not preferred:
+            return list(topics), []
+        other = [t for t in topics if t not in preferred]
+        return preferred, other
+
+    def _rewrite_broker_placement(
+        self,
+        brokers: List[Broker],
+        nodes: List[Node],
+        routes: List[Dict[str, str]],
+        topic_id_to_cluster: Dict[str, str],
+        cluster_to_nodes: Dict[str, List[Node]],
+    ) -> List[Dict[str, str]]:
+        """Place each broker on a node in its plurality cluster.
+
+        The plurality cluster is determined by the cluster distribution of
+        topics the broker routes.  This co-locates brokers with the apps
+        they serve, improving infra-layer SPOF and betweenness accuracy.
+        Should be called *after* the routes list (including stranded-broker
+        guard) is complete so every broker has at least one routed topic.
+        """
+        broker_cluster_votes: Dict[str, Counter] = {b.id: Counter() for b in brokers}
+        for edge in routes:
+            broker_id = edge["from"]
+            topic_id = edge["to"]
+            cluster = topic_id_to_cluster.get(topic_id)
+            if cluster and broker_id in broker_cluster_votes:
+                broker_cluster_votes[broker_id][cluster] += 1
+
+        runs_on = []
+        for broker in brokers:
+            votes = broker_cluster_votes[broker.id]
+            if votes:
+                plurality_cluster = votes.most_common(1)[0][0]
+                cluster_nodes = cluster_to_nodes.get(plurality_cluster, nodes)
+                host = self.rng.choice(cluster_nodes)
+            else:
+                host = self.rng.choice(nodes)
+            runs_on.append(self._make_edge(broker, host))
+        return runs_on
+
+    def _validate_role_constraints(
+        self,
+        apps: List[Application],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+        """Remove edges that violate app role constraints.
+
+        Pure-publisher apps (role="pub") must not appear in *subscribes*;
+        pure-subscriber apps (role="sub") must not appear in *publishes*.
+        Library edges are not affected (libraries have no role field).
+        """
+        pub_only_ids = {a.id for a in apps if a.role == "pub"}
+        sub_only_ids = {a.id for a in apps if a.role == "sub"}
+
+        clean_pub = [e for e in publishes if e["from"] not in sub_only_ids]
+        clean_sub = [e for e in subscribes if e["from"] not in pub_only_ids]
+
+        removed_pub = len(publishes) - len(clean_pub)
+        removed_sub = len(subscribes) - len(clean_sub)
+        if removed_pub or removed_sub:
+            self.logger.debug(
+                "Role constraint enforcement: removed %d publish and %d subscribe edges.",
+                removed_pub, removed_sub,
+            )
+        return clean_pub, clean_sub
+
+    def _assign_criticality_two_pass(
+        self,
+        apps: List[Application],
+        publishes: List[Dict[str, str]],
+        subscribes: List[Dict[str, str]],
+        criticality_pool: Optional[List[bool]],
+    ) -> None:
+        """Assign criticality in-place after topology is built.
+
+        Ranks apps by structural degree proxy (pub_count + sub_count) and
+        assigns critical=True to the top-N highest-degree apps, where N is
+        derived from *criticality_pool* (or 10 % of apps as fallback).  Ties
+        are broken with a seeded jitter so the result is deterministic but
+        not index-position biased.
+
+        This intentionally changes seeded output vs. the previous approach
+        (random assignment before topology existed) because it produces
+        topologically coherent criticality: structurally central components
+        are more likely to be labelled critical.
+        """
+        pub_count: Counter = Counter(e["from"] for e in publishes)
+        sub_count: Counter = Counter(e["from"] for e in subscribes)
+
+        if criticality_pool is not None:
+            n_critical = sum(1 for x in criticality_pool if x)
+        else:
+            n_critical = max(1, round(len(apps) * 0.10))
+        n_critical = min(n_critical, len(apps))
+
+        # Sort descending by degree proxy + small seeded jitter to break ties
+        ranked = sorted(
+            apps,
+            key=lambda a: (
+                pub_count.get(a.id, 0) + sub_count.get(a.id, 0)
+                + self.rng.uniform(0.0, 0.3)
+            ),
+            reverse=True,
+        )
+        critical_ids = {a.id for a in ranked[:n_critical]}
+        for app in apps:
+            app.criticality = app.id in critical_ids
+
     def generate(self) -> Dict[str, Any]:
         c = self.config
         name_rng = random.Random(c.seed + 12345)
@@ -392,13 +590,8 @@ class StatisticalGraphGenerator:
             else:
                 role = self.rng.choice(ROLE_OPTIONS)
             
-            if criticality_pool and i < len(criticality_pool):
-                criticality = criticality_pool[i]
-            elif criticality_pool:
-                criticality = self.rng.choice(criticality_pool)
-            else:
-                criticality = self.rng.choice(CRITICALITY_OPTIONS)
-            
+            # Criticality is assigned after topology is built (two-pass approach
+            # in _assign_criticality_two_pass).  Use placeholder False here.
             app_name = domain_ds.get_app_name() if domain_ds else f"App-{i}"
             if domain_ds:
                 app_type = get_app_type_for_name(app_name)
@@ -419,7 +612,7 @@ class StatisticalGraphGenerator:
                 name=app_name,
                 role=role,
                 app_type=app_type,
-                criticality=criticality,
+                criticality=False,  # assigned after topology by _assign_criticality_two_pass
                 version=f"{self.rng.randint(1, 3)}.{self.rng.randint(0, 9)}.{self.rng.randint(0, 9)}",
                 system_hierarchy=hierarchy,
                 code_metrics=code_metrics,
@@ -453,29 +646,16 @@ class StatisticalGraphGenerator:
             _cluster_to_libs[_lib_cluster_domain[i]].append(libs[-1])
 
         # 2. Relationships
-        runs_on = []
-        if c.node_stats and c.node_stats.applications_per_node.mean > 0:
-            app_counts_per_node = self._generate_values_from_distribution(
-                c.node_stats.applications_per_node, len(nodes)
-            )
-            app_index = 0
-            for node_idx, target_count in enumerate(app_counts_per_node):
-                for _ in range(target_count):
-                    if app_index < len(apps):
-                        runs_on.append(self._make_edge(apps[app_index], nodes[node_idx]))
-                        app_index += 1
-            while app_index < len(apps):
-                host = self.rng.choice(nodes)
-                runs_on.append(self._make_edge(apps[app_index], host))
-                app_index += 1
-        else:
-            for app in apps:
-                host = self.rng.choice(nodes)
-                runs_on.append(self._make_edge(app, host))
+        # Build a shared cluster→node partition used for both app and broker placement.
+        _cluster_to_nodes = self._build_cluster_to_nodes(nodes, _cluster_domains)
 
-        for idx, broker in enumerate(brokers):
-            host = nodes[idx % len(nodes)]
-            runs_on.append(self._make_edge(broker, host))
+        # Apps: cluster-affine node assignment (70 % of apps land on a node
+        # from their functional cluster; 30 % are placed anywhere).  This
+        # replaces the previous sequential/random assignment and makes node-level
+        # structural metrics (betweenness, SPOF detection) realistic.
+        runs_on = self._assign_apps_to_nodes(
+            apps, nodes, _app_cluster_domain, _cluster_to_nodes
+        )
 
         routes = []
         for topic in topics:
@@ -502,6 +682,14 @@ class StatisticalGraphGenerator:
         for idx, broker in enumerate(unrouted_brokers):
             topic = topics[idx % len(topics)]
             routes.append(self._make_edge(broker, topic))
+
+        # Brokers: cluster-affine placement based on plurality of routed topics.
+        # Called after routes (including the stranded-broker guard) are complete
+        # so every broker has at least one topic to vote its cluster.
+        broker_runs_on = self._rewrite_broker_placement(
+            brokers, nodes, routes, _topic_id_to_cluster, _cluster_to_nodes
+        )
+        runs_on.extend(broker_runs_on)
 
         publishes = []
         subscribes = []
@@ -591,28 +779,42 @@ class StatisticalGraphGenerator:
 
                 # Pass 2: use cluster-biased sampling so apps in the same
                 # hierarchy cluster preferentially share topics (p_intra=0.65).
+                # QoS affinity further steers the preferred pool: gateway/controller
+                # apps draw from RELIABLE/HIGH topics first; sensors from BEST_EFFORT.
                 _app_cluster_topics = _cluster_to_topics[_app_id_to_cluster[app.id]]
+                _qos_preferred, _ = self._partition_topics_by_qos_affinity(
+                    _app_cluster_topics, app.app_type
+                )
+                _pub_pool = _qos_preferred if _qos_preferred else _app_cluster_topics
+                _sub_pool = _qos_preferred if _qos_preferred else _app_cluster_topics
+
                 if direct_pub_count > 0:
-                    pub_topics = self._sample_biased(direct_pub_count, topics, _app_cluster_topics, p_intra=c.intra_cluster_coupling)
+                    pub_topics = self._sample_biased(direct_pub_count, topics, _pub_pool, p_intra=c.intra_cluster_coupling)
                     for t in pub_topics:
                         publishes.append(self._make_edge(app, t))
                     self._direct_pub_counts[app.id] = direct_pub_count
 
                 if direct_sub_count > 0:
-                    sub_topics = self._sample_biased(direct_sub_count, topics, _app_cluster_topics, p_intra=c.intra_cluster_coupling)
+                    sub_topics = self._sample_biased(direct_sub_count, topics, _sub_pool, p_intra=c.intra_cluster_coupling)
                     for t in sub_topics:
                         subscribes.append(self._make_edge(app, t))
                     self._direct_sub_counts[app.id] = direct_sub_count
-                    
+
         elif c.application_stats and c.application_stats.direct_publish_count.mean > 0:
             for app in apps:
                 _app_cluster_topics = _cluster_to_topics[_app_id_to_cluster[app.id]]
+                _qos_preferred, _ = self._partition_topics_by_qos_affinity(
+                    _app_cluster_topics, app.app_type
+                )
+                _pub_pool = _qos_preferred if _qos_preferred else _app_cluster_topics
+                _sub_pool = _qos_preferred if _qos_preferred else _app_cluster_topics
+
                 pub_count = self._sample_from_distribution(c.application_stats.direct_publish_count)
                 pub_count = min(pub_count, len(topics))
                 if app.role == "sub": pub_count = 0
-                
+
                 if pub_count > 0:
-                    pub_topics = self._sample_biased(pub_count, topics, _app_cluster_topics, p_intra=c.intra_cluster_coupling)
+                    pub_topics = self._sample_biased(pub_count, topics, _pub_pool, p_intra=c.intra_cluster_coupling)
                     for t in pub_topics:
                         publishes.append(self._make_edge(app, t))
                     self._direct_pub_counts[app.id] = pub_count
@@ -620,9 +822,9 @@ class StatisticalGraphGenerator:
                 sub_count = self._sample_from_distribution(c.application_stats.direct_subscribe_count)
                 sub_count = min(sub_count, len(topics))
                 if app.role == "pub": sub_count = 0
-                
+
                 if sub_count > 0:
-                    sub_topics = self._sample_biased(sub_count, topics, _app_cluster_topics, p_intra=c.intra_cluster_coupling)
+                    sub_topics = self._sample_biased(sub_count, topics, _sub_pool, p_intra=c.intra_cluster_coupling)
                     for t in sub_topics:
                         subscribes.append(self._make_edge(app, t))
                     self._direct_sub_counts[app.id] = sub_count
@@ -688,6 +890,15 @@ class StatisticalGraphGenerator:
             elif app.role == "sub":
                 subscribes.append(self._make_edge(app, t))
                 
+        # Enforce role constraints: remove any edges that violate pub/sub role
+        # (e.g. a "pub" app appearing in subscribes due to the topic_stats path).
+        publishes, subscribes = self._validate_role_constraints(apps, publishes, subscribes)
+
+        # Two-pass criticality: now that topology is known, assign critical=True
+        # to the structurally most central apps (highest pub+sub degree), honouring
+        # the target count from the scenario YAML's criticality distribution.
+        self._assign_criticality_two_pass(apps, publishes, subscribes, criticality_pool)
+
         def _deduplicate_edges(edge_list: List[Dict[str, str]]) -> List[Dict[str, str]]:
             seen = set()
             dedup = []
@@ -697,7 +908,7 @@ class StatisticalGraphGenerator:
                     seen.add(tup)
                     dedup.append(e)
             return dedup
-            
+
         publishes = _deduplicate_edges(publishes)
         subscribes = _deduplicate_edges(subscribes)
 

@@ -107,15 +107,16 @@ graph:
       mode_count: 120
       mode_percentage: 60.0
 
-    # City infrastructure: only control systems are critical
+    # City infrastructure: only emergency command systems are critical (5 %)
+    # — sensors and aggregators are non-critical by design (fire-and-forget).
     app_criticality_distribution:
       total_count: 200
       category_counts:
-        critical: 20
-        non_critical: 180
+        critical: 10
+        non_critical: 190
       mode: non_critical
-      mode_count: 180
-      mode_percentage: 90.0
+      mode_count: 190
+      mode_percentage: 95.0
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Minimal shared code on constrained edge devices

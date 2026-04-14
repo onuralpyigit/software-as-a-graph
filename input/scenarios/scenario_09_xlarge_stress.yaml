@@ -119,15 +119,17 @@ graph:
       mode_count: 280
       mode_percentage: 56.0
 
-    # ~10 % critical — control plane, identity, billing, core routing
+    # ~8 % critical — control plane, identity, billing, core routing
+    # (down from 10 % to reflect platform-scale dilution by data-plane workloads
+    #  and to create a visible gradient below scenario_07_enterprise at ~15 %)
     app_criticality_distribution:
       total_count: 500
       category_counts:
-        critical: 50
-        non_critical: 450
+        critical: 40
+        non_critical: 460
       mode: non_critical
-      mode_count: 450
-      mode_percentage: 90.0
+      mode_count: 460
+      mode_percentage: 92.0
 
   # ---------------------------------------------------------------------------
   # LIBRARY STATISTICS — Platform SDKs shared broadly across tenants
