@@ -81,11 +81,13 @@ def reconstruct_component_dict(comp: ComponentData) -> Dict[str, Any]:
     # 3. Type-specific logic and property normalization
     if comp.component_type == "Topic":
         res["size"] = props.get("size", 256)
-        # Canonical lowercase for QoS keys to match input expectations
+        # Preserve uppercase QoS values — the canonical format and weight calculations
+        # both use uppercase (RELIABLE, TRANSIENT_LOCAL, HIGH, etc.). Lowercasing here
+        # would cause silent weight mismatches on round-trip import.
         res["qos"] = {
-            "reliability": str(props.get("qos_reliability", "best_effort")).lower(),
-            "durability": str(props.get("qos_durability", "volatile")).lower(),
-            "transport_priority": str(props.get("qos_transport_priority", "medium")).lower(),
+            "reliability": props.get("qos_reliability", "BEST_EFFORT"),
+            "durability": props.get("qos_durability", "VOLATILE"),
+            "transport_priority": props.get("qos_transport_priority", "MEDIUM"),
         }
     elif comp.component_type == "Application":
         res.update({

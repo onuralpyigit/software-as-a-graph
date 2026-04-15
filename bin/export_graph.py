@@ -55,8 +55,16 @@ def main() -> None:
         client = Client(neo4j_uri=args.uri, user=args.user, password=args.password)
         
         if args.format == "analysis":
-            console.print_step(f"Exporting graph in analysis format (structural={args.include_structural})...")
-            graph_data = client.get_graph_data(include_raw=args.include_structural)
+            layer = args.layer or "system"
+            console.print_step(f"Exporting graph in analysis format (layer={layer}, structural={args.include_structural})...")
+            from src.infrastructure.neo4j_repo import LAYER_DEFINITIONS, _resolve_layer
+            canonical = _resolve_layer(layer)
+            defn = LAYER_DEFINITIONS[canonical]
+            graph_data = client.get_graph_data(
+                component_types=defn["component_types"],
+                dependency_types=defn["dependency_types"],
+                include_raw=args.include_structural,
+            )
             data = graph_data.to_dict()
         else:
             console.print_step("Exporting graph in nested persistence format...")

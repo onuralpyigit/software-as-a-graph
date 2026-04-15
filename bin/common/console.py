@@ -967,14 +967,19 @@ class ConsoleDisplay:
                 print(f"    - {label:<18} {count}")
             
         relationships = graph_data.get("relationships", {})
-        total_edges = sum(len(rels) for rels in relationships.values())
-        
-        print(f"\n  {'Total Relationships:':<20} {total_edges}")
-        for rel_type, rel_list in sorted(relationships.items()):
+        # Separate structural edges (imported) from derived DEPENDS_ON (computed at import time)
+        structural = {k: v for k, v in relationships.items() if k != "depends_on"}
+        derived = relationships.get("depends_on", [])
+
+        total_structural = sum(len(rels) for rels in structural.values())
+        print(f"\n  {'Structural Edges:':<20} {total_structural}")
+        for rel_type, rel_list in sorted(structural.items()):
             if rel_list:
-                # Format relationship type: pub_sub_rel -> Pub Sub Rel
                 formatted_rel = rel_type.replace("_", " ").title()
                 print(f"    - {formatted_rel:<18} {len(rel_list)}")
+
+        if derived:
+            print(f"\n  {'Derived (DEPENDS_ON):':<20} {len(derived)} (informational snapshot)")
 
     def display_dimensional_results(self, dimensional_validation: Dict[str, Any]) -> None:
         """Display dimension-specific metrics (RMAV)."""

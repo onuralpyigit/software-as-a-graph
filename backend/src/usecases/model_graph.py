@@ -58,15 +58,29 @@ class ModelGraphUseCase:
                 len(graph_data.get("libraries", []))
             )
             rel_dict = graph_data.get("relationships", {})
-            edges_count = sum(len(items) for items in rel_dict.values())
-            
+            structural_edges = sum(len(items) for items in rel_dict.values())
+
+            # Estimate derived DEPENDS_ON edges: pub/sub pairs (Rules 1-2) + USES edges (Rule 5).
+            # Actual count is determined at import time by Cypher MERGE semantics.
+            estimated_depends_on = (
+                len(rel_dict.get("publishes_to", [])) +
+                len(rel_dict.get("subscribes_to", [])) +
+                len(rel_dict.get("uses", []))
+            )
+
             duration = (time.time() - start_time) * 1000
-            
+
             return ImportStats(
                 nodes_imported=nodes_count,
-                edges_imported=edges_count,
+                edges_imported=structural_edges,
                 duration_ms=duration,
-                details={"dry_run": True, "source": "input_file_parsing"},
+                details={
+                    "dry_run": True,
+                    "source": "input_file_parsing",
+                    "structural_edges": structural_edges,
+                    "estimated_depends_on": estimated_depends_on,
+                    "note": "edges_imported counts structural relationships only; DEPENDS_ON edges are derived at import time",
+                },
                 success=True,
                 message="Dry run complete (no changes made to database)"
             )

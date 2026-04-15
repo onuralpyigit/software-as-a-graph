@@ -119,8 +119,7 @@ class QoSPolicy:
         "LOW": 0.0,
         "MEDIUM": 0.33,
         "HIGH": 0.66,
-        "URGENT": 1.0,
-        "CRITICAL": 1.0,
+        "URGENT": 1.0
     }
     
     # Justification (AHP): 

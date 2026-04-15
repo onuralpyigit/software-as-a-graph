@@ -7,11 +7,12 @@ This adapter handles all Neo4j-specific operations for the graph model
 defined in docs/graph-model.md (Definition 1):
     G = (V, E, τ_V, τ_E, L, w, QoS)
 
-Import performs the four construction phases:
+Import performs five construction phases:
     Phase 1: Entity import (V)
     Phase 2: Structural edge import (E_S)
     Phase 3: QoS-based weight computation (w)
-    Phase 4: Dependency derivation (E_D, Rules 1–4)
+    Phase 4: Dependency derivation (E_D, Rules 1–6)
+    Phase 5: Aggregate component weight propagation
 """
 
 from __future__ import annotations
@@ -374,7 +375,7 @@ class Neo4jRepository:
                       "to": r.get("to", r.get("target"))} for r in items]
             
             # 1. Validate existence
-            # OPTIONAL MATCH allows identifying precisely which rows refer to missing nodes
+            # OPTIONAL MATCH identifies precisely which rows refer to missing entities.
             validation_query = """
                 UNWIND $rows AS row
                 OPTIONAL MATCH (src {id: row.from})
@@ -385,27 +386,25 @@ class Neo4jRepository:
                        row.to as tgt_id, tgt IS NOT NULL as tgt_exists
                 LIMIT 100
             """
-            res = self._run_query(validation_query, {"rows": batch}, tx=tx)
-            # res for a tx run returns a Result object or something we can iterate if it's run via tx.run
-            # Wait, my _run_query returns result.consume() which is a ResultSummary.
-            # I should use tx.run directly here to get the records.
-            
-            # Re-running validation manually since _run_query consumes the result
             if tx:
                 res = tx.run(validation_query, {"rows": batch})
-                errors = []
-                for record in res:
-                    if not record["src_exists"]:
-                        errors.append(f"Source entity missing (id='{record['src_id']}')")
-                    if not record["tgt_exists"]:
-                        errors.append(f"Target entity missing (id='{record['tgt_id']}')")
-                
-                if errors:
-                    example_errs = "; ".join(errors[:5])
-                    raise ValueError(
-                        f"Structural integrity violation in '{key}' ('{rel_type}') relationship: "
-                        f"Referenced entities must exist. Found {len(errors)} errors including: {example_errs}"
-                    )
+            else:
+                with self.driver.session(database=self.database) as _session:
+                    res = list(_session.run(validation_query, {"rows": batch}))
+
+            errors = []
+            for record in res:
+                if not record["src_exists"]:
+                    errors.append(f"Source entity missing (id='{record['src_id']}')")
+                if not record["tgt_exists"]:
+                    errors.append(f"Target entity missing (id='{record['tgt_id']}')")
+
+            if errors:
+                example_errs = "; ".join(errors[:5])
+                raise ValueError(
+                    f"Structural integrity violation in '{key}' ('{rel_type}') relationship: "
+                    f"Referenced entities must exist. Found {len(errors)} errors including: {example_errs}"
+                )
 
             # 2. Create edges using label-optimized match
             query = f"""
@@ -447,11 +446,12 @@ class Neo4jRepository:
              WHEN 'TRANSIENT' THEN {dur_scores['TRANSIENT']} 
              WHEN 'TRANSIENT_LOCAL' THEN {dur_scores['TRANSIENT_LOCAL']} 
              ELSE 0.0 END +
-         {QoSPolicy.W_PRIORITY} * CASE {topic_var}.qos_transport_priority 
-             WHEN 'CRITICAL' THEN {pri_scores['CRITICAL']} 
-             WHEN 'URGENT' THEN {pri_scores['URGENT']} 
-             WHEN 'HIGH' THEN {pri_scores['HIGH']} 
-             WHEN 'MEDIUM' THEN {pri_scores['MEDIUM']} 
+         {QoSPolicy.W_PRIORITY} * CASE {topic_var}.qos_transport_priority
+             WHEN 'HIGHEST' THEN 1.0
+             WHEN 'CRITICAL' THEN 1.0
+             WHEN 'URGENT' THEN {pri_scores['URGENT']}
+             WHEN 'HIGH' THEN {pri_scores['HIGH']}
+             WHEN 'MEDIUM' THEN {pri_scores['MEDIUM']}
              ELSE 0.0 END)
         """
         
@@ -536,6 +536,18 @@ class Neo4jRepository:
                                 ELSE base_w * multiplier END
         """, tx=tx)
 
+        # 1.5. Application Weight — library-mediated topics (second pass)
+        # Apps with no direct pub/sub connections get weight 0.01 from step 1.
+        # If they communicate exclusively through libraries, propagate the max
+        # used-library weight so their importance is not invisible to RMAV scoring.
+        self._run_query("""
+            MATCH (a:Application)
+            WHERE a.weight <= 0.01
+            MATCH (a)-[:USES]->(l:Library)
+            WITH a, max(l.weight) as max_lib_w
+            SET a.weight = max_lib_w
+        """, tx=tx)
+
         # 3. Broker Weight (hybrid: 0.70 * max + 0.30 * mean)
         self._run_query(f"""
             MATCH (b:Broker)
@@ -570,8 +582,10 @@ class Neo4jRepository:
     def _derive_dependencies(self, tx: Any = None) -> None:
         """
         Derive DEPENDS_ON relationships from structural edges (Phase 4).
-        
-        Implements Definition 2, Rules 1–4 from docs/graph-model.md.
+
+        Implements Definition 2, Rules 1–6 from docs/graph-model.md.
+        All rules use max-preserving ON CREATE / ON MATCH semantics so
+        that a later rule can only raise a weight, never lower it.
         """
         # Rule 1: app_to_app — subscriber depends on publisher (via shared topic)
         # Note: This captures direct pub/sub. Library transitive paths are handled
@@ -581,10 +595,13 @@ class Neo4jRepository:
             WHERE subscriber <> publisher
               AND (subscriber:Application OR subscriber:Library)
               AND (publisher:Application OR publisher:Library)
-            WITH subscriber, publisher, count(t) as path_count, max(t.weight) as max_weight
+            WITH subscriber, publisher, count(DISTINCT t) as path_count, max(t.weight) as max_weight
             MERGE (subscriber)-[d:DEPENDS_ON {dependency_type: 'app_to_app'}]->(publisher)
-            SET d.weight = coalesce(max_weight, 0.01),
-                d.path_count = path_count
+            ON CREATE SET d.weight = coalesce(max_weight, 0.01), d.path_count = path_count
+            ON MATCH SET d.weight = CASE WHEN coalesce(max_weight, 0.01) > coalesce(d.weight, 0.0)
+                                         THEN max_weight ELSE d.weight END,
+                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0)
+                                             THEN path_count ELSE d.path_count END
         """, tx=tx)
         
         # Rule 1 (transitive): app depends on publisher via library chain
@@ -621,9 +638,13 @@ class Neo4jRepository:
         self._run_query("""
             MATCH (app)-[:PUBLISHES_TO|SUBSCRIBES_TO]->(t:Topic)<-[:ROUTES]-(broker:Broker)
             WHERE app:Application OR app:Library
-            WITH app, broker, max(t.weight) as max_w, count(t) as path_count
+            WITH app, broker, max(t.weight) as max_w, count(DISTINCT t) as path_count
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_broker'}]->(broker)
-            SET d.weight = coalesce(max_w, 0.01), d.path_count = path_count
+            ON CREATE SET d.weight = coalesce(max_w, 0.01), d.path_count = path_count
+            ON MATCH SET d.weight = CASE WHEN coalesce(max_w, 0.01) > coalesce(d.weight, 0.0)
+                                         THEN max_w ELSE d.weight END,
+                         d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0)
+                                             THEN path_count ELSE d.path_count END
         """, tx=tx)
  
         # Rule 2 (transitive): app depends on broker via library chain
@@ -636,12 +657,15 @@ class Neo4jRepository:
                          d.path_count = CASE WHEN path_count > coalesce(d.path_count, 0) THEN path_count ELSE d.path_count END
         """, tx=tx)
  
-        # Rule 3: node_to_node — lifted from component dependencies
+        # Rule 3: node_to_node — lifted from component-level app_to_app / app_to_broker dependencies.
+        # Explicitly filtering to the source dependency types that carry RUNS_ON context,
+        # making this resilient to rule reordering.
         self._run_query("""
             MATCH (a)-[d_ab:DEPENDS_ON]->(b),
                   (a)-[:RUNS_ON]->(n1:Node),
                   (b)-[:RUNS_ON]->(n2:Node)
             WHERE n1 <> n2
+              AND d_ab.dependency_type IN ['app_to_app', 'app_to_broker']
             WITH n1, n2, max(d_ab.weight) as lifted_max, count(*) as dep_count
             MERGE (n1)-[d:DEPENDS_ON {dependency_type: 'node_to_node'}]->(n2)
             SET d.weight = coalesce(lifted_max, 0.01), d.path_count = dep_count
@@ -657,21 +681,27 @@ class Neo4jRepository:
         """, tx=tx)
  
         # Rule 6: broker_to_broker — colocation dependency via shared node
+        # Weight is set to a placeholder (0.01) here; Phase 5 step 6 overwrites it
+        # with the finalized Node weight once all component weights are computed.
         self._run_query("""
             MATCH (b1:Broker)-[:RUNS_ON]->(n:Node)<-[:RUNS_ON]-(b2:Broker)
             WHERE b1 <> b2
             WITH b1, b2, count(DISTINCT n) as path_count
             MERGE (b1)-[d:DEPENDS_ON {dependency_type: 'broker_to_broker'}]->(b2)
-            SET d.path_count = path_count
+            SET d.path_count = path_count,
+                d.weight = coalesce(d.weight, 0.01)
         """, tx=tx)
  
         # Rule 5: app_to_lib — app depends on shared library
+        # Weight is set to a placeholder (0.01) here; Phase 5 step 5 overwrites it
+        # with the finalized Application weight once all component weights are computed.
         self._run_query("""
             MATCH (app)-[:USES]->(lib:Library)
             WHERE app:Application OR app:Library
             WITH app, lib, count(*) as path_count
             MERGE (app)-[d:DEPENDS_ON {dependency_type: 'app_to_lib'}]->(lib)
-            SET d.path_count = path_count
+            SET d.path_count = path_count,
+                d.weight = coalesce(d.weight, 0.01)
         """, tx=tx)
 
     # ==========================================
@@ -792,7 +822,7 @@ class Neo4jRepository:
         stats = {}
         with self.driver.session(database=self.database) as session:
             # Capture total metrics
-            result = session.run("MATCH (n) RETURN count(n) as c")
+            result = session.run("MATCH (n) WHERE NOT n:Metadata RETURN count(n) as c")
             stats["total_nodes"] = result.single()["c"]
             
             result = session.run("MATCH ()-[r]->() RETURN count(r) as c")
@@ -810,87 +840,6 @@ class Neo4jRepository:
                 )
                 stats[f"{dep_type}_count"] = result.single()["c"]
         return stats
-
-    def _reconstruct_component_dict(self, comp: ComponentData) -> Dict[str, Any]:
-        """
-        Reconstruct a component dictionary with nested sub-objects (system_hierarchy, code_metrics)
-        from flattened Neo4j properties.
-        """
-        props = comp.properties
-        # Base fields
-        res = {"id": comp.id, "name": props.get("name", comp.id), "weight": comp.weight}
-        
-        # 1. System Hierarchy reconstruction
-        sh = {}
-        for key in ["system_name", "domain_name", "component_name", "config_item_name"]:
-            if val := props.get(key):
-                if val != "": # Don't export empty strings
-                    sh[key] = val
-        if sh:
-            res["system_hierarchy"] = sh
-
-        # 2. Code Metrics reconstruction (Size, Complexity, Cohesion, Coupling, Quality)
-        cm = {"size": {}, "complexity": {}, "cohesion": {}, "coupling": {}, "quality": {}}
-        
-        # Mapping definition for un-flattening
-        metrics_mapping = {
-            "size": {
-                "cm_total_loc": "total_loc", "cm_total_classes": "total_classes", 
-                "cm_total_methods": "total_methods", "cm_total_fields": "total_fields"
-            },
-            "complexity": {
-                "cm_total_wmc": "total_wmc", "cm_avg_wmc": "avg_wmc", "cm_max_wmc": "max_wmc"
-            },
-            "cohesion": {
-                "cm_avg_lcom": "avg_lcom", "cm_max_lcom": "max_lcom"
-            },
-            "coupling": {
-                "cm_avg_cbo": "avg_cbo", "cm_max_cbo": "max_cbo", "cm_avg_rfc": "avg_rfc",
-                "cm_max_rfc": "max_rfc", "cm_avg_fanin": "avg_fanin", "cm_max_fanin": "max_fanin",
-                "cm_avg_fanout": "avg_fanout", "cm_max_fanout": "max_fanout"
-            },
-            "quality": {
-                "sqale_debt_ratio": "sqale_debt_ratio", "bugs": "bugs", 
-                "vulnerabilities": "vulnerabilities", "duplicated_lines_density": "duplicated_lines_density"
-            }
-        }
-        
-        for section, fields in metrics_mapping.items():
-            for flat_key, nest_key in fields.items():
-                if flat_key in props:
-                    cm[section][nest_key] = props[flat_key]
-        
-        # Filter out empty sections
-        cm = {k: v for k, v in cm.items() if v}
-        if cm:
-            res["code_metrics"] = cm
-
-        # 3. Type-specific logic and property normalization
-        if comp.component_type == "Topic":
-            res["size"] = props.get("size", 256)
-            # Canonical lowercase for QoS keys to match input expectations
-            res["qos"] = {
-                "reliability": str(props.get("qos_reliability", "best_effort")).lower(),
-                "durability": str(props.get("qos_durability", "volatile")).lower(),
-                "transport_priority": str(props.get("qos_transport_priority", "medium")).lower(),
-            }
-        elif comp.component_type == "Application":
-            res.update({
-                "role": props.get("role", "pubsub"),
-                "app_type": props.get("app_type", "service"),
-                "criticality": props.get("criticality", "LOW"),
-            })
-            if props.get("version"): res["version"] = props["version"]
-        elif comp.component_type == "Library":
-            if props.get("version"): res["version"] = props["version"]
-        elif comp.component_type == "Node":
-            for key in ["ip_address", "cpu_cores", "memory_gb", "os_type"]:
-                if key in props: res[key] = props[key]
-        elif comp.component_type == "Broker":
-            for key in ["type", "max_connections", "host"]:
-                if key in props: res[key] = props[key]
-        
-        return res
 
     def _get_metadata_dict(self) -> Dict[str, Any]:
         """
