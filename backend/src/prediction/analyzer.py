@@ -360,7 +360,7 @@ class QualityAnalyzer:
         mpci = m.mpci
         foc = m.fan_out_criticality
 
-        # --- Reliability: R*(v) v6 = RPR + DG_in + CDPot_enh ---
+        # --- Reliability: R*(v) v7 = PR*(1+MPCI) + DG_in ---
         if m.type == "Topic":
             # R_topic(v) = 0.50 × FOC(v) + 0.50 × CDPot_topic(v)
             # CDPot_topic(v) = FOC(v) × (1 − min(publisher_count_norm(v), 1))
@@ -395,13 +395,15 @@ class QualityAnalyzer:
             + w.m_clustering * (1.0 - cc)
         )
 
-        # Availability: A(v) v4 — SPOF risk (AP + QSPOF + PSPOF)
-        # Formula: AP * (1 + 0.30 * QSPOF) + 0.20 * PSPOF
+        # Availability: A(v) v3 — 5-term additive formula
+        # A(v) = 0.35·AP_c_directed + 0.25·QSPOF + 0.25·BR + 0.10·CDI + 0.05·w(v)
         qspof = ap_c * qw
-        pspof = m.publisher_spof
         A = (
-            ap_c * (1.0 + 0.30 * qspof)
-            + 0.20 * pspof
+            w.a_ap_c_directed * ap_c
+            + w.a_qspof       * qspof
+            + w.a_bridge_ratio * m.bridge_ratio
+            + w.a_cdi         * cdi
+            + w.a_qos_weight  * qw
         )
 
         # Vulnerability: strategic dependent reach + propagation speed + QoS attack surface

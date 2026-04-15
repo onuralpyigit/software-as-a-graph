@@ -118,11 +118,39 @@ class LayerAnalysisResult:
         }
 
 @dataclass
+class CrossLayerInsight:
+    """
+    An insight derived from correlating results across two or more layers.
+
+    insight_type values:
+      - "compound_critical"  : component is CRITICAL or HIGH in ≥2 layers
+      - "systemic_spof"      : component is an articulation point in ≥2 layers
+      - "layer_concentration": one layer has a disproportionate CRITICAL fraction
+    """
+    component_id: str
+    component_name: str
+    insight_type: str
+    layers_affected: List[str]
+    severity: str      # "CRITICAL" | "HIGH" | "MEDIUM"
+    description: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "component_id": self.component_id,
+            "component_name": self.component_name,
+            "insight_type": self.insight_type,
+            "layers_affected": self.layers_affected,
+            "severity": self.severity,
+            "description": self.description,
+        }
+
+
+@dataclass
 class MultiLayerAnalysisResult:
     """Complete analysis across multiple layers."""
     timestamp: str
     layers: Dict[str, LayerAnalysisResult]
-    cross_layer_insights: List[str]
+    cross_layer_insights: List[CrossLayerInsight]
 
     @property
     def summary(self) -> Dict[str, Any]:
@@ -143,6 +171,6 @@ class MultiLayerAnalysisResult:
         return {
             "timestamp": self.timestamp,
             "layers": {k: v.to_dict() for k, v in self.layers.items()},
-            "cross_layer_insights": self.cross_layer_insights,
+            "cross_layer_insights": [i.to_dict() for i in self.cross_layer_insights],
             "summary": self.summary,
         }

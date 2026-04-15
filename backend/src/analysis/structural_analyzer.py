@@ -781,7 +781,6 @@ class StructuralAnalyzer:
         Migrated from QualityAnalyzer for better performance (one-pass pipeline).
         """
         import networkx as nx
-        import random
         ap_scores: Dict[str, Dict[str, float]] = {}
         
         n = G_dir.number_of_nodes()
@@ -793,22 +792,33 @@ class StructuralAnalyzer:
         # Transposed version for in-SPOF
         G_T_undir = G_dir.reverse(copy=True).to_undirected()
 
-        # Optimization: Sample BFS for large graphs
+        # Optimization: For large graphs use degree-ranked deterministic sampling instead of
+        # random selection. Sorting by total degree (in+out) ensures the most structurally
+        # significant nodes are always included, making CDI estimates stable across runs.
         use_sampling = n > 300
         sample_size = 50 if use_sampling else n
-        
+
         if use_sampling:
-            # Prioritize "core" component types to avoid downward bias from leaf-node sampling (Topics/Libraries)
             core_types = {"Application", "Broker", "Node"}
-            core_nodes = [n for n in G_dir.nodes if G_dir.nodes[n].get("component_type") in core_types]
-            
-            if len(core_nodes) >= sample_size:
-                random_nodes = random.sample(core_nodes, sample_size)
+            core_nodes = [nd for nd in G_dir.nodes if G_dir.nodes[nd].get("component_type") in core_types]
+            other_nodes = [nd for nd in G_dir.nodes if G_dir.nodes[nd].get("component_type") not in core_types]
+
+            # Rank each group by total degree (descending) for deterministic selection
+            core_nodes_ranked = sorted(
+                core_nodes,
+                key=lambda nd: G_dir.in_degree(nd) + G_dir.out_degree(nd),
+                reverse=True,
+            )
+            if len(core_nodes_ranked) >= sample_size:
+                random_nodes = core_nodes_ranked[:sample_size]
             else:
-                # If not enough core nodes, take all of them and fill the rest from other nodes
-                other_nodes = [n for n in G_dir.nodes if G_dir.nodes[n].get("component_type") not in core_types]
-                fill_size = min(sample_size - len(core_nodes), len(other_nodes))
-                random_nodes = core_nodes + random.sample(other_nodes, fill_size)
+                other_nodes_ranked = sorted(
+                    other_nodes,
+                    key=lambda nd: G_dir.in_degree(nd) + G_dir.out_degree(nd),
+                    reverse=True,
+                )
+                fill_size = min(sample_size - len(core_nodes_ranked), len(other_nodes_ranked))
+                random_nodes = core_nodes_ranked + other_nodes_ranked[:fill_size]
         else:
             random_nodes = list(G_dir.nodes)
         

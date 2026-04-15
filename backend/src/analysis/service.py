@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 
 from .structural_analyzer import StructuralAnalyzer
-from .models import MultiLayerAnalysisResult, LayerAnalysisResult
+from .models import CrossLayerInsight, MultiLayerAnalysisResult, LayerAnalysisResult
 from src.core.layers import AnalysisLayer, get_layer_definition
 from src.core.ports.graph_repository import IGraphRepository
 from src.analysis.antipattern_detector import AntiPatternDetector
@@ -33,17 +33,138 @@ class AnalysisService:
         self._analysis_kwargs = kwargs
 
     def analyze_all_layers(self) -> MultiLayerAnalysisResult:
-        """Analyze all primary graph layers."""
+        """Analyze all primary graph layers and compute cross-layer insights."""
         layers = ["app", "infra", "mw", "system"]
         results = {}
         for layer in layers:
             results[layer] = self.analyze_layer(layer)
-        
+
+        insights = self._compute_cross_layer_insights(results)
+
         return MultiLayerAnalysisResult(
             timestamp=datetime.now().isoformat(),
             layers=results,
-            cross_layer_insights=[]
+            cross_layer_insights=insights,
         )
+
+    # ------------------------------------------------------------------
+    # Cross-layer insight computation
+    # ------------------------------------------------------------------
+
+    def _compute_cross_layer_insights(
+        self, results: Dict[str, LayerAnalysisResult]
+    ) -> List[CrossLayerInsight]:
+        """
+        Derive insights that span multiple layers.
+
+        Three insight types are produced:
+
+        1. compound_critical  — component is CRITICAL or HIGH in ≥2 distinct layers.
+        2. systemic_spof      — component is an articulation point in ≥2 distinct layers.
+        3. layer_concentration — a layer where >30 % of analysed components are CRITICAL.
+        """
+        from src.core.criticality import CriticalityLevel
+
+        insights: List[CrossLayerInsight] = []
+
+        # -------------------------------------------------------------------
+        # 1 & 2: Per-component cross-layer signals
+        # -------------------------------------------------------------------
+        # Map: component_id → {layer: ComponentQuality}
+        comp_by_layer: Dict[str, Dict[str, Any]] = {}
+
+        for layer_name, layer_result in results.items():
+            for cq in layer_result.quality.components:
+                comp_by_layer.setdefault(cq.id, {})[layer_name] = cq
+
+        for comp_id, layer_map in comp_by_layer.items():
+            if len(layer_map) < 2:
+                continue  # only appears in one layer — no cross-layer signal
+
+            # Collect any layer where level is CRITICAL or HIGH
+            high_layers = [
+                lname for lname, cq in layer_map.items()
+                if cq.levels.overall >= CriticalityLevel.HIGH
+            ]
+            # Collect any layer where component is an articulation point
+            spof_layers = [
+                lname for lname, cq in layer_map.items()
+                if cq.structural.is_articulation_point
+            ]
+
+            # Derive name from any available entry
+            sample_cq = next(iter(layer_map.values()))
+            comp_name = getattr(sample_cq.structural, "name", comp_id)
+
+            if len(high_layers) >= 2:
+                severity = (
+                    "CRITICAL"
+                    if any(
+                        layer_map[l].levels.overall == CriticalityLevel.CRITICAL
+                        for l in high_layers
+                    )
+                    else "HIGH"
+                )
+                insights.append(CrossLayerInsight(
+                    component_id=comp_id,
+                    component_name=comp_name,
+                    insight_type="compound_critical",
+                    layers_affected=sorted(high_layers),
+                    severity=severity,
+                    description=(
+                        f"{comp_name} is classified {severity} in "
+                        f"{len(high_layers)} layers ({', '.join(sorted(high_layers))}), "
+                        "indicating compound risk that spans architectural boundaries."
+                    ),
+                ))
+
+            if len(spof_layers) >= 2:
+                insights.append(CrossLayerInsight(
+                    component_id=comp_id,
+                    component_name=comp_name,
+                    insight_type="systemic_spof",
+                    layers_affected=sorted(spof_layers),
+                    severity="CRITICAL",
+                    description=(
+                        f"{comp_name} is a structural articulation point in "
+                        f"{len(spof_layers)} layers ({', '.join(sorted(spof_layers))}). "
+                        "Its failure would disconnect subgraphs at multiple architectural levels."
+                    ),
+                ))
+
+        # -------------------------------------------------------------------
+        # 3: Layer-level concentration
+        # -------------------------------------------------------------------
+        for layer_name, layer_result in results.items():
+            components = layer_result.quality.components
+            if not components:
+                continue
+            critical_count = sum(
+                1 for cq in components
+                if cq.levels.overall == CriticalityLevel.CRITICAL
+            )
+            fraction = critical_count / len(components)
+            if fraction > 0.30:
+                insights.append(CrossLayerInsight(
+                    component_id="",
+                    component_name="",
+                    insight_type="layer_concentration",
+                    layers_affected=[layer_name],
+                    severity="HIGH",
+                    description=(
+                        f"Layer '{layer_name}' has {critical_count}/{len(components)} "
+                        f"({fraction:.0%}) components classified as CRITICAL — "
+                        "high systemic risk concentration in this architectural tier."
+                    ),
+                ))
+
+        # Sort: CRITICAL first, then by number of affected layers descending
+        def _sort_key(i: CrossLayerInsight) -> tuple:
+            sev_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}
+            return (sev_order.get(i.severity, 9), -len(i.layers_affected))
+
+        insights.sort(key=_sort_key)
+        return insights
 
     def analyze_system(self, layer: str = "system", context: Optional[str] = None) -> Dict[str, Any]:
         """Run analysis on a specific layer or the full system and return a dict."""

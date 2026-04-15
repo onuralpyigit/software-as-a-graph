@@ -116,25 +116,40 @@ class MemoryRepository:
         # Build a lookup map of ID -> Type for edges
         id_to_type = {c.id: c.component_type for c in components}
 
+        # Build component weight lookup for Phase-5-equivalent propagation
+        comp_weights: Dict[str, float] = {c.id: c.weight for c in components}
+
+        # Map raw relationship types to DEPENDS_ON subtypes (mirrors neo4j_repo derivation rules).
+        # Note: runs_on is a structural edge and does NOT map to any DEPENDS_ON subtype
+        # (node_to_node is derived from app-level dependencies in Rule 3, not from RUNS_ON directly).
+        _dep_type_map: Dict[str, str] = {
+            "publishes_to":  "app_to_app",
+            "subscribes_to": "app_to_app",
+            "uses":          "app_to_lib",    # Rule 5: app depends on library (was wrongly app_to_app)
+            "routes":        "app_to_broker",
+            "connects_to":   "node_to_node",
+            # "runs_on" intentionally omitted — structural only, not a DEPENDS_ON dependency
+        }
+
         edges = []
         for rel_type, items in self.data.get("relationships", {}).items():
-            # Map raw relationship types to the DEPENDS_ON subtypes expected by Analysis layers
-            dep_type = "unknown"
-            if rel_type in ["publishes_to", "subscribes_to", "uses"]:
-                dep_type = "app_to_app"
-            elif rel_type == "routes":
-                dep_type = "app_to_broker"
-            elif rel_type == "connects_to":
-                dep_type = "node_to_node"
-            elif rel_type == "runs_on":
-                dep_type = "node_to_node"
-            
+            dep_type = _dep_type_map.get(rel_type)
+            if dep_type is None:
+                continue  # skip structural-only edges (runs_on) and unknown types
+
             if dependency_types and dep_type not in dependency_types:
                 continue
 
             for item in items:
                 src_id = item.get("from", item.get("source_id"))
                 tgt_id = item.get("to", item.get("target_id"))
+
+                # Phase-5-equivalent weight propagation:
+                # app_to_lib edges inherit the source application's weight (Rule 5).
+                raw_weight = item.get("weight", 1.0)
+                if dep_type == "app_to_lib" and src_id in comp_weights:
+                    raw_weight = comp_weights[src_id] or 0.01
+
                 edges.append(EdgeData(
                     source_id=src_id,
                     target_id=tgt_id,
@@ -142,7 +157,7 @@ class MemoryRepository:
                     target_type=id_to_type.get(tgt_id, "Unknown"),
                     dependency_type=dep_type,
                     relation_type=rel_type,
-                    weight=item.get("weight", 1.0),
+                    weight=raw_weight,
                     properties={k: v for k, v in item.items() if k not in ["source_id", "target_id", "weight"]}
                 ))
         
