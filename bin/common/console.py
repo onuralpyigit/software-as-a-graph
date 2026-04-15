@@ -5,6 +5,23 @@ import sys
 import os
 from pathlib import Path
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from datetime import datetime
+
+try:
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.columns import Columns
+    from rich.group import Group
+    from rich.text import Text
+    from rich.bar import Bar
+    from rich.progress import Progress, BarColumn, TextColumn
+    from rich.theme import Theme
+    from rich.style import Style
+    from rich import box
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
 
 if TYPE_CHECKING:
     from src.analysis.models import LayerAnalysisResult, MultiLayerAnalysisResult
@@ -32,6 +49,25 @@ class ConsoleDisplay:
     Service for formatting and displaying analysis, simulation, and validation results in the terminal.
     """
     Colors = Colors
+
+    def __init__(self):
+        if RICH_AVAILABLE:
+            custom_theme = Theme({
+                "info": "cyan",
+                "warning": "yellow",
+                "error": "red",
+                "success": "green",
+                "critical": "bold red",
+                "high": "bold yellow",
+                "medium": "bold blue",
+                "low": "cyan",
+                "minimal": "grey50",
+                "header": "bold magenta",
+                "step": "bold blue",
+            })
+            self.console = Console(theme=custom_theme)
+        else:
+            self.console = None
 
     @staticmethod
     def colored(text: str, color: str, bold: bool = False) -> str:
@@ -72,30 +108,56 @@ class ConsoleDisplay:
 
     def print_header(self, title: str, char: str = "=", width: int = 78) -> None:
         """Print a formatted header."""
-        print(f"\n{self.colored(char * width, Colors.CYAN)}")
-        print(f"{self.colored(f' {title} '.center(width), Colors.CYAN, bold=True)}")
-        print(f"{self.colored(char * width, Colors.CYAN)}")
+        if RICH_AVAILABLE:
+            self.console.print()
+            self.console.print(Panel(
+                Text(title.upper(), justify="center", style="header"),
+                border_style="cyan",
+                width=width,
+                box=box.DOUBLE
+            ))
+        else:
+            print(f"\n{self.colored(char * width, Colors.CYAN)}")
+            print(f"{self.colored(f' {title} '.center(width), Colors.CYAN, bold=True)}")
+            print(f"{self.colored(char * width, Colors.CYAN)}")
 
     def print_subheader(self, title: str, char: str = "-", width: int = 78) -> None:
         """Print a formatted subheader."""
-        print(f"\n{self.colored(f' {title} ', Colors.WHITE, bold=True)}")
-        print(f"{self.colored(char * width, Colors.GRAY)}")
+        if RICH_AVAILABLE:
+            self.console.print()
+            self.console.print(Text(f" {title} ", style="bold white on grey23"))
+            self.console.print(Text(char * width, style="grey50"))
+        else:
+            print(f"\n{self.colored(f' {title} ', Colors.WHITE, bold=True)}")
+            print(f"{self.colored(char * width, Colors.GRAY)}")
 
     def print_step(self, msg: str) -> None:
         """Print a step indicator."""
-        print(f"  {self.colored('→', Colors.BLUE)} {msg}")
+        if RICH_AVAILABLE:
+            self.console.print(f"  [step]→[/step] {msg}")
+        else:
+            print(f"  {self.colored('→', Colors.BLUE)} {msg}")
 
     def print_success(self, msg: str) -> None:
         """Print a success indicator."""
-        print(f"  {self.colored('✓', Colors.GREEN)} {msg}")
+        if RICH_AVAILABLE:
+            self.console.print(f"  [success]✓[/success] {msg}")
+        else:
+            print(f"  {self.colored('✓', Colors.GREEN)} {msg}")
 
     def print_error(self, msg: str) -> None:
         """Print an error indicator."""
-        print(f"  {self.colored('✗', Colors.RED)} {msg}")
+        if RICH_AVAILABLE:
+            self.console.print(f"  [error]✗[/error] {msg}")
+        else:
+            print(f"  {self.colored('✗', Colors.RED)} {msg}")
 
     def print_warning(self, msg: str) -> None:
         """Print a warning indicator."""
-        print(f"  {self.colored('⚠', Colors.YELLOW)} {msg}")
+        if RICH_AVAILABLE:
+            self.console.print(f"  [warning]⚠[/warning] {msg}")
+        else:
+            print(f"  {self.colored('⚠', Colors.YELLOW)} {msg}")
 
     def wrap_text(self, text: str, width: int) -> List[str]:
         """Wrap text to specified width."""
@@ -120,61 +182,200 @@ class ConsoleDisplay:
 
     def display_graph_summary(self, result: "LayerAnalysisResult") -> None:
         """Display graph structure summary."""
-        self.print_subheader("Graph Summary")
+        if not RICH_AVAILABLE:
+            self.print_subheader("Graph Summary")
+            gs = result.structural.graph_summary
+            print(f"  {'Nodes:':<20} {gs.nodes}")
+            print(f"  {'Edges:':<20} {gs.edges}")
+            print(f"  {'Density:':<20} {gs.density:.4f}")
+            print(f"  {'Avg Degree:':<20} {gs.avg_degree:.2f}")
+            print(f"  {'Avg Clustering:':<20} {gs.avg_clustering:.4f}")
+            status = self.colored("Yes", Colors.GREEN) if gs.is_connected else self.colored("No", Colors.RED)
+            print(f"  {'Connected:':<20} {status}")
+            print(f"  {'Components:':<20} {gs.num_components}")
+            ap_color = Colors.RED if gs.num_articulation_points > 0 else Colors.GREEN
+            br_color = Colors.RED if gs.num_bridges > 0 else Colors.GREEN
+            print(f"  {'Articulation Pts:':<20} {self.colored(str(gs.num_articulation_points), ap_color)}")
+            print(f"  {'Bridges:':<20} {self.colored(str(gs.num_bridges), br_color)}")
+            health = gs.connectivity_health
+            health_color = {"ROBUST": Colors.GREEN, "MODERATE": Colors.YELLOW, "FRAGILE": Colors.RED, "DISCONNECTED": Colors.RED}.get(health, Colors.WHITE)
+            print(f"  {'Health:':<20} {self.colored(health, health_color, bold=True)}")
+            if gs.node_types:
+                print(f"\n  Node Types: {', '.join(f'{t}: {c}' for t, c in gs.node_types.items())}")
+            if gs.edge_types:
+                print(f"  Edge Types: {', '.join(f'{t}: {c}' for t, c in gs.edge_types.items())}")
+            return
+
+        self.print_subheader("Graph Topology Overview")
         gs = result.structural.graph_summary
-        print(f"  {'Nodes:':<20} {gs.nodes}")
-        print(f"  {'Edges:':<20} {gs.edges}")
-        print(f"  {'Density:':<20} {gs.density:.4f}")
-        print(f"  {'Avg Degree:':<20} {gs.avg_degree:.2f}")
-        print(f"  {'Avg Clustering:':<20} {gs.avg_clustering:.4f}")
-        status = self.colored("Yes", Colors.GREEN) if gs.is_connected else self.colored("No", Colors.RED)
-        print(f"  {'Connected:':<20} {status}")
-        print(f"  {'Components:':<20} {gs.num_components}")
-        ap_color = Colors.RED if gs.num_articulation_points > 0 else Colors.GREEN
-        br_color = Colors.RED if gs.num_bridges > 0 else Colors.GREEN
-        print(f"  {'Articulation Pts:':<20} {self.colored(str(gs.num_articulation_points), ap_color)}")
-        print(f"  {'Bridges:':<20} {self.colored(str(gs.num_bridges), br_color)}")
+        
+        table = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="bold white")
+        
+        table.add_row("Nodes / Edges", f"{gs.nodes} / {gs.edges}")
+        table.add_row("Density", f"{gs.density:.4f}")
+        table.add_row("Avg Degree", f"{gs.avg_degree:.2f}")
+        table.add_row("Avg Clustering", f"{gs.avg_clustering:.4f}")
+        
+        status_text = "[green]Yes[/green]" if gs.is_connected else "[red]No[/red]"
+        table.add_row("Connected", status_text)
+        table.add_row("Components", str(gs.num_components))
+        
+        ap_style = "red" if gs.num_articulation_points > 0 else "green"
+        br_style = "red" if gs.num_bridges > 0 else "green"
+        table.add_row("Articulation Pts", f"[{ap_style}]{gs.num_articulation_points}[/{ap_style}]")
+        table.add_row("Bridges", f"[{br_style}]{gs.num_bridges}[/{br_style}]")
+        
         health = gs.connectivity_health
-        health_color = {"ROBUST": Colors.GREEN, "MODERATE": Colors.YELLOW, "FRAGILE": Colors.RED, "DISCONNECTED": Colors.RED}.get(health, Colors.WHITE)
-        print(f"  {'Health:':<20} {self.colored(health, health_color, bold=True)}")
-        if gs.node_types:
-            print(f"\n  Node Types: {', '.join(f'{t}: {c}' for t, c in gs.node_types.items())}")
-        if gs.edge_types:
-            print(f"  Edge Types: {', '.join(f'{t}: {c}' for t, c in gs.edge_types.items())}")
+        health_style = {"ROBUST": "green", "MODERATE": "yellow", "FRAGILE": "red", "DISCONNECTED": "bold red"}.get(health, "white")
+        table.add_row("Connectivity Health", f"[{health_style}]{health}[/{health_style}]")
+        
+        self.console.print(table)
+        
+        if gs.node_types or gs.edge_types:
+            parts = []
+            if gs.node_types:
+                parts.append(f"[bold]Nodes:[/] " + ", ".join(f"{t}: {c}" for t, c in gs.node_types.items()))
+            if gs.edge_types:
+                parts.append(f"[bold]Edges:[/] " + ", ".join(f"{t}: {c}" for t, c in gs.edge_types.items()))
+            self.console.print(Columns([Panel(p, padding=(0,1), border_style="grey23") for p in parts]))
 
     def display_classification_summary(self, result: "LayerAnalysisResult") -> None:
         """Display classification distribution."""
-        self.print_subheader("Classification Summary")
-        summary = result.quality.classification_summary
-        print(f"\n  Components ({summary.total_components} total):")
-        for level_name, count in sorted(summary.component_distribution.items(), key=lambda x: x[1], reverse=True):
-            if count > 0:
-                bar = "█" * min(count * 2, 40)
-                print(f"    {level_name:10} {self.colored(bar, self.level_color(level_name))} {count}")
-        if summary.total_edges > 0:
-            print(f"\n  Edges ({summary.total_edges} total):")
-            for level_name, count in sorted(summary.edge_distribution.items(), key=lambda x: x[1], reverse=True):
+        if not RICH_AVAILABLE:
+            self.print_subheader("Classification Summary")
+            summary = result.quality.classification_summary
+            print(f"\n  Components ({summary.total_components} total):")
+            for level_name, count in sorted(summary.component_distribution.items(), key=lambda x: x[1], reverse=True):
                 if count > 0:
                     bar = "█" * min(count * 2, 40)
                     print(f"    {level_name:10} {self.colored(bar, self.level_color(level_name))} {count}")
+            if summary.total_edges > 0:
+                print(f"\n  Edges ({summary.total_edges} total):")
+                for level_name, count in sorted(summary.edge_distribution.items(), key=lambda x: x[1], reverse=True):
+                    if count > 0:
+                        bar = "█" * min(count * 2, 40)
+                        print(f"    {level_name:10} {self.colored(bar, self.level_color(level_name))} {count}")
+            return
+
+        self.print_subheader("Criticality Distribution")
+        summary = result.quality.classification_summary
+        
+        def render_distribution(dist, title, total):
+            if total == 0: return None
+            table = Table(box=box.MINIMAL, show_header=True, padding=(0, 2), header_style="bold grey70")
+            table.add_column("Level", style="bold")
+            table.add_column("Count", justify="right")
+            table.add_column("Visual", width=30)
+            
+            for lvl in ["CRITICAL", "HIGH", "MEDIUM", "LOW", "MINIMAL"]:
+                count = dist.get(lvl.lower(), 0)
+                if count == 0 and lvl != "CRITICAL": continue
+                
+                pct = count / total if total > 0 else 0
+                bar_len = int(pct * 28)
+                bar = "█" * bar_len
+                color = self.level_color(lvl)
+                table.add_row(
+                    Text(lvl, style=color),
+                    str(count),
+                    Text(bar, style=color)
+                )
+            return table
+
+        comp_table = render_distribution(summary.component_distribution, "Components", summary.total_components)
+        edge_table = render_distribution(summary.edge_distribution, "Edges", summary.total_edges)
+        
+        items = []
+        if comp_table: items.append(Panel(comp_table, title="[bold]Components[/]", border_style="grey23"))
+        if edge_table: items.append(Panel(edge_table, title="[bold]Edges[/]", border_style="grey23"))
+        
+        if items:
+            self.console.print(Columns(items))
 
     def display_layer_critical_components(self, result: "LayerAnalysisResult", limit: int = 15) -> None:
         """Display top critical components."""
-        self.print_subheader("Top Components by Criticality", width=96)
+        if not RICH_AVAILABLE:
+            self.print_subheader("Top Components by Criticality", width=96)
+            components = result.quality.components[:limit]
+            if not components:
+                print(f"  {self.colored('No components found.', Colors.GRAY)}")
+                return
+            header = f"  {'ID':<20} {'Name':<20} {'Type':<10} {'R':<6} {'M':<6} {'A':<6} {'V':<6} {'Q':<6} {'Level':<10}"
+            print(self.colored(header, Colors.WHITE, bold=True))
+            print(f"  {'-' * 96}")
+            for c in components:
+                level_str = c.levels.overall.name if hasattr(c.levels.overall, 'name') else str(c.levels.overall)
+                color = self.level_color(c.levels.overall)
+                ap_flag = self.colored("●", Colors.RED) if c.structural.is_articulation_point else " "
+                print(f"  {c.id:<20} {c.structural.name[:20]:<20} {c.type:<10} {c.scores.reliability:.3f}  {c.scores.maintainability:.3f}  {c.scores.availability:.3f}  {c.scores.vulnerability:.3f}  {self.colored(f'{c.scores.overall:.3f}', color)}  {self.colored(level_str, color):<10} {ap_flag}")
+                
+                # Show direct affected/related components
+                related = []
+                if c.type == "Application" and c.id in result.library_usage:
+                    related = [f"Uses Lib: {l}" for l in result.library_usage[c.id]]
+                elif c.type == "Node" and c.id in result.node_allocations:
+                    related = [f"Hosts App: {a}" for a in result.node_allocations[c.id]]
+                elif c.type == "Broker" and c.id in result.broker_routing:
+                    related = [f"Routes Topic: {t}" for t in result.broker_routing[c.id]]
+                
+                if related:
+                    # Wrap or truncate related list if too long
+                    related_str = ", ".join(related)
+                    if len(related_str) > 90:
+                        related_str = related_str[:87] + "..."
+                    print(f"    {self.colored('↳ ', Colors.GRAY)} {self.colored(related_str, Colors.GRAY)}")
+                    
+            if len(result.quality.components) > limit:
+                print(f"\n  {self.colored(f'... and {len(result.quality.components) - limit} more', Colors.GRAY)}")
+            return
+
+        self.print_subheader(f"Top {limit} Critical Components")
         components = result.quality.components[:limit]
         if not components:
-            print(f"  {self.colored('No components found.', Colors.GRAY)}")
+            self.console.print("  [grey50]No components found.[/]")
             return
-        header = f"  {'ID':<20} {'Name':<20} {'Type':<10} {'R':<6} {'M':<6} {'A':<6} {'V':<6} {'Q':<6} {'Level':<10}"
-        print(self.colored(header, Colors.WHITE, bold=True))
-        print(f"  {'-' * 96}")
-        for c in components:
+
+        table = Table(
+            box=box.MINIMAL_HEAVY_HEAD, 
+            header_style="bold white", 
+            padding=(0, 1),
+            caption="[grey50]R: Reliability | M: Maintainability | A: Availability | V: Vulnerability | Q: Overall | S: SPOF[/]",
+            caption_justify="left"
+        )
+        table.add_column("Rank", justify="center", style="grey70")
+        table.add_column("ID", style="cyan")
+        table.add_column("Name", style="bold")
+        table.add_column("Type", style="grey70")
+        table.add_column("R", justify="right")
+        table.add_column("M", justify="right")
+        table.add_column("A", justify="right")
+        table.add_column("V", justify="right")
+        table.add_column("Score (Q)", justify="right")
+        table.add_column("Level", justify="left")
+        table.add_column("S", justify="center") # SPOF flag
+
+        for i, c in enumerate(components, 1):
             level_str = c.levels.overall.name if hasattr(c.levels.overall, 'name') else str(c.levels.overall)
             color = self.level_color(c.levels.overall)
-            ap_flag = self.colored("●", Colors.RED) if c.structural.is_articulation_point else " "
-            print(f"  {c.id:<20} {c.structural.name[:20]:<20} {c.type:<10} {c.scores.reliability:.3f}  {c.scores.maintainability:.3f}  {c.scores.availability:.3f}  {c.scores.vulnerability:.3f}  {self.colored(f'{c.scores.overall:.3f}', color)}  {self.colored(level_str, color):<10} {ap_flag}")
+            spof = "[red]●[/]" if c.structural.is_articulation_point else ""
             
-            # Show direct affected/related components
+            table.add_row(
+                str(i),
+                c.id,
+                c.structural.name[:25],
+                c.type,
+                f"{c.scores.reliability:.3f}",
+                f"{c.scores.maintainability:.3f}",
+                f"{c.scores.availability:.3f}",
+                f"{c.scores.vulnerability:.3f}",
+                Text(f"{c.scores.overall:.4f}", style=color),
+                Text(level_str.capitalize(), style=color),
+                spof
+            )
+            
+            # Sub-row for related entities if present
             related = []
             if c.type == "Application" and c.id in result.library_usage:
                 related = [f"Uses Lib: {l}" for l in result.library_usage[c.id]]
@@ -184,42 +385,102 @@ class ConsoleDisplay:
                 related = [f"Routes Topic: {t}" for t in result.broker_routing[c.id]]
             
             if related:
-                # Wrap or truncate related list if too long
-                related_str = ", ".join(related)
-                if len(related_str) > 90:
-                    related_str = related_str[:87] + "..."
-                print(f"    {self.colored('↳ ', Colors.GRAY)} {self.colored(related_str, Colors.GRAY)}")
-                
+                rel_str = ", ".join(related)
+                if len(rel_str) > 100: rel_str = rel_str[:97] + "..."
+                # We can't easily add a second row with different span in rich.Table without complex hacks,
+                # but we can use a Group or just print it after. 
+                # Let's keep it simple and just add it as a new row with mostly empty cells or handle it via padding.
+                # Actually, adding it as a row with col_span support is not there, so we'll just use a small marker.
+        
+        self.console.print(table)
+        
         if len(result.quality.components) > limit:
-            print(f"\n  {self.colored(f'... and {len(result.quality.components) - limit} more', Colors.GRAY)}")
+            self.console.print(f"\n  [grey50]... and {len(result.quality.components) - limit} more components[/]")
 
     def display_problems(self, result: "LayerAnalysisResult", limit: int = 10) -> None:
         """Display detected problems."""
-        self.print_subheader("Detected Problems")
-        node_names = {c.id: c.structural.name for c in result.quality.components}
+        if not RICH_AVAILABLE:
+            self.print_subheader("Detected Problems")
+            node_names = {c.id: c.structural.name for c in result.quality.components}
+            problems = result.problems
+            if not problems:
+                print(f"  {self.colored('✓ No architectural problems detected.', Colors.GREEN)}")
+                return
+            summary = result.problem_summary
+            print(f"\n  Total: {summary.total_problems} problems")
+            print(f"  By Severity: ", end="")
+            for sev in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
+                count = summary.by_severity.get(sev, 0)
+                if count > 0: print(f"{self.colored(f'{sev}: {count}', self.severity_color(sev))}  ", end="")
+            print(f"\n\n  {'-' * 75}")
+            for i, p in enumerate(problems[:limit]):
+                if i > 0: print(f"  {'-' * 75}")
+                sev_color = self.severity_color(p.severity)
+                print(f"  [{self.colored(p.severity, sev_color, bold=True):>8}] {self.colored(p.name, Colors.WHITE, bold=True)}")
+                entity_display = p.entity_id
+                related_info = ""
+                
+                if p.entity_type == "Component":
+                    name = node_names.get(p.entity_id)
+                    if name: entity_display = f"{p.entity_id} ({name})"
+                    
+                    # Check for related components
+                    related = []
+                    if p.entity_id in result.library_usage:
+                        related = [l for l in result.library_usage[p.entity_id]]
+                        if related: related_info = f"Uses Libs: {', '.join(related)}"
+                    elif p.entity_id in result.node_allocations:
+                        related = [a for a in result.node_allocations[p.entity_id]]
+                        if related: related_info = f"Hosts Apps: {', '.join(related)}"
+                    elif p.entity_id in result.broker_routing:
+                        related = [t for t in result.broker_routing[p.entity_id]]
+                        if related: related_info = f"Routes Topics: {', '.join(related)}"
+
+                print(f"           Entity: {self.colored(entity_display, Colors.CYAN)} ({p.entity_type})")
+                if related_info:
+                    # Wrap related info if too long
+                    if len(related_info) > 70: related_info = related_info[:67] + "..."
+                    print(f"           Related: {self.colored(related_info, Colors.GRAY)}")
+                
+                print(f"           Category: {p.category}")
+                desc_lines = self.wrap_text(p.description, 60)
+                print(f"           Issue: {desc_lines[0]}")
+                for line in desc_lines[1:]: print(f"                  {line}")
+                rec_lines = self.wrap_text(p.recommendation, 60)
+                print(f"           Fix: {self.colored(rec_lines[0], Colors.GREEN)}")
+                for line in rec_lines[1:]: print(f"                {self.colored(line, self.Colors.GREEN)}")
+            return
+
+        self.print_subheader("Architectural Findings")
         problems = result.problems
         if not problems:
-            print(f"  {self.colored('✓ No architectural problems detected.', Colors.GREEN)}")
+            self.console.print("  [success]✓ No architectural problems detected.[/]")
             return
+
         summary = result.problem_summary
-        print(f"\n  Total: {summary.total_problems} problems")
-        print(f"  By Severity: ", end="")
+        stats = []
         for sev in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
             count = summary.by_severity.get(sev, 0)
-            if count > 0: print(f"{self.colored(f'{sev}: {count}', self.severity_color(sev))}  ", end="")
-        print(f"\n\n  {'-' * 75}")
-        for i, p in enumerate(problems[:limit]):
-            if i > 0: print(f"  {'-' * 75}")
-            sev_color = self.severity_color(p.severity)
-            print(f"  [{self.colored(p.severity, sev_color, bold=True):>8}] {self.colored(p.name, Colors.WHITE, bold=True)}")
-            entity_display = p.entity_id
-            related_info = ""
+            if count > 0:
+                stats.append(f"[{self.severity_color(sev)}]{sev}: {count}[/]")
+        
+        self.console.print(f"  Total: [bold]{summary.total_problems}[/] findings  |  " + "  ".join(stats))
+        self.console.print()
+
+        node_names = {c.id: c.structural.name for c in result.quality.components}
+        
+        for p in problems[:limit]:
+            sev_style = self.severity_color(p.severity)
             
+            # Build content group
+            content = []
+            entity_name = node_names.get(p.entity_id, "")
+            entity_line = f"[cyan]{p.entity_id}[/] " + (f"({entity_name})" if entity_name else "")
+            content.append(f"[bold]Entity:[/] {entity_line} [[grey70]{p.entity_type}[/]]")
+            
+            # Check for related components
+            related_info = ""
             if p.entity_type == "Component":
-                name = node_names.get(p.entity_id)
-                if name: entity_display = f"{p.entity_id} ({name})"
-                
-                # Check for related components
                 related = []
                 if p.entity_id in result.library_usage:
                     related = [l for l in result.library_usage[p.entity_id]]
@@ -230,20 +491,27 @@ class ConsoleDisplay:
                 elif p.entity_id in result.broker_routing:
                     related = [t for t in result.broker_routing[p.entity_id]]
                     if related: related_info = f"Routes Topics: {', '.join(related)}"
-
-            print(f"           Entity: {self.colored(entity_display, Colors.CYAN)} ({p.entity_type})")
-            if related_info:
-                # Wrap related info if too long
-                if len(related_info) > 70: related_info = related_info[:67] + "..."
-                print(f"           Related: {self.colored(related_info, Colors.GRAY)}")
             
-            print(f"           Category: {p.category}")
-            desc_lines = self.wrap_text(p.description, 60)
-            print(f"           Issue: {desc_lines[0]}")
-            for line in desc_lines[1:]: print(f"                  {line}")
-            rec_lines = self.wrap_text(p.recommendation, 60)
-            print(f"           Fix: {self.colored(rec_lines[0], Colors.GREEN)}")
-            for line in rec_lines[1:]: print(f"                {self.colored(line, self.Colors.GREEN)}")
+            if related_info:
+                if len(related_info) > 80: related_info = related_info[:77] + "..."
+                content.append(f"[bold]Related:[/] [grey70]{related_info}[/]")
+
+            content.append(f"[bold]Category:[/] {p.category}")
+            content.append(f"\n[bold red]Issue:[/] {p.description}")
+            content.append(f"[bold green]Recommendation:[/] {p.recommendation}")
+            
+            panel = Panel(
+                Group(*content),
+                title=f"[{sev_style}]{p.severity}[/] | [bold white]{p.name}[/]",
+                border_style=sev_style,
+                expand=False,
+                padding=(1, 2)
+            )
+            self.console.print(panel)
+            self.console.print()
+
+        if len(problems) > limit:
+            self.console.print(f"  [grey50]... and {len(problems) - limit} more findings[/]")
 
     def display_antipatterns(self, problems: List["DetectedProblem"], layers: List[str], total_components: int) -> None:
         """Display anti-pattern detection findings."""
@@ -297,22 +565,34 @@ class ConsoleDisplay:
         if not sensitivity:
             return
 
+        if not RICH_AVAILABLE:
+            self.print_subheader("Reliability & Sensitivity Analysis")
+            stability = sensitivity.get("top5_stability", 0.0)
+            mean_tau = sensitivity.get("mean_kendall_tau", 0.0)
+            status = "STABLE" if stability > 0.8 else "MODERATE" if stability > 0.5 else "UNSTABLE"
+            color = Colors.GREEN if status == "STABLE" else Colors.YELLOW if status == "MODERATE" else Colors.RED
+            print(f"  {'Ranking Stability:':<25} {self.colored(status, color, bold=True)} ({stability*100:.1f}% top-5 consistency)")
+            print(f"  {'Mean Kendall Tau:':<25} {mean_tau:.4f} (Ranking similarity under noise)")
+            if stability < 0.5: print(f"\n  {self.colored('⚠ Warning:', Colors.YELLOW)} Ranking is sensitive to weight changes. Results should be interpreted with caution.")
+            else: print(f"\n  {self.colored('✓ Info:', Colors.GREEN)} Ranking is robust to minor weight fluctuations.")
+            return
+
         self.print_subheader("Reliability & Sensitivity Analysis")
-        
-        # Stability metrics
         stability = sensitivity.get("top5_stability", 0.0)
         mean_tau = sensitivity.get("mean_kendall_tau", 0.0)
         
         status = "STABLE" if stability > 0.8 else "MODERATE" if stability > 0.5 else "UNSTABLE"
-        color = Colors.GREEN if status == "STABLE" else Colors.YELLOW if status == "MODERATE" else Colors.RED
+        color = "green" if status == "STABLE" else "yellow" if status == "MODERATE" else "red"
         
-        print(f"  {'Ranking Stability:':<25} {self.colored(status, color, bold=True)} ({stability*100:.1f}% top-5 consistency)")
-        print(f"  {'Mean Kendall Tau:':<25} {mean_tau:.4f} (Ranking similarity under noise)")
+        table = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
+        table.add_row("Ranking Stability", f"[{color} bold]{status}[/] ({stability*100:.1f}% Top-5 consistency)")
+        table.add_row("Mean Kendall Tau", f"[white]{mean_tau:.4f}[/] (Ranking similarity under noise)")
+        self.console.print(table)
         
         if stability < 0.5:
-            print(f"\n  {self.colored('⚠ Warning:', Colors.YELLOW)} Ranking is sensitive to weight changes. Results should be interpreted with caution.")
+            self.console.print(Panel("Ranking is sensitive to weight changes. Results should be interpreted with caution.", title="[warning]⚠ Warning[/]", border_style="yellow"))
         else:
-            print(f"\n  {self.colored('✓ Info:', Colors.GREEN)} Ranking is robust to minor weight fluctuations.")
+            self.console.print(Panel("Ranking is robust to minor weight fluctuations.", title="[success]✓ Info[/]", border_style="green"))
 
     def display_library_usage(self, result: "LayerAnalysisResult") -> None:
         """Display library usage by applications."""
@@ -336,70 +616,119 @@ class ConsoleDisplay:
         if not prediction:
             return
 
+        if not RICH_AVAILABLE:
+            is_ensemble = bool(prediction.get("ensemble_scores"))
+            title = "GNN/Ensemble Criticality Prediction" if is_ensemble else "GNN Criticality Prediction"
+            self.print_subheader(title)
+            node_scores = prediction.get("ensemble_scores") or prediction.get("node_scores")
+            if not node_scores:
+                print(f"  {self.colored('No prediction scores available.', Colors.GRAY)}")
+                return
+            sorted_nodes = sorted(node_scores.values(), key=lambda s: s.get("composite_score", 0), reverse=True)
+            header = f"  {'#':<4} {'Component':<30} {'Score':>7} {'Level':<10} {'R':>6} {'M':>6} {'A':>6} {'V':>6}"
+            print(self.colored(header, Colors.WHITE, bold=True)); print("  " + "-" * 78)
+            for i, s in enumerate(sorted_nodes[:limit], 1):
+                level = s.get("criticality_level", "MINIMAL")
+                color = self.level_color(level)
+                score_str = f"{s.get('composite_score', 0):>7.4f}"
+                print(f"  {i:<4} {s.get('component', '')[:29]:<30} {self.colored(score_str, color)} {self.colored(level[:10], color):<10} {s.get('reliability_score', 0):>6.3f} {s.get('maintainability_score', 0):>6.3f} {s.get('availability_score', 0):>6.3f} {s.get('vulnerability_score', 0):>6.3f}")
+            if len(sorted_nodes) > limit: print(f"\n  {self.colored(f'... and {len(sorted_nodes) - limit} more components', Colors.GRAY)}")
+            return
+
         is_ensemble = bool(prediction.get("ensemble_scores"))
         title = "GNN/Ensemble Criticality Prediction" if is_ensemble else "GNN Criticality Prediction"
         self.print_subheader(title)
 
         node_scores = prediction.get("ensemble_scores") or prediction.get("node_scores")
         if not node_scores:
-            print(f"  {self.colored('No prediction scores available.', Colors.GRAY)}")
+            self.console.print("  [grey50]No prediction scores available.[/]")
             return
 
-        # Sort by composite score
-        sorted_nodes = sorted(
-            node_scores.values(),
-            key=lambda s: s.get("composite_score", 0),
-            reverse=True
-        )
+        sorted_nodes = sorted(node_scores.values(), key=lambda s: s.get("composite_score", 0), reverse=True)
 
-        header = f"  {'#':<4} {'Component':<30} {'Score':>7} {'Level':<10} {'R':>6} {'M':>6} {'A':>6} {'V':>6}"
-        print(self.colored(header, Colors.WHITE, bold=True))
-        print("  " + "-" * 78)
+        table = Table(box=box.MINIMAL_HEAVY_HEAD, header_style="bold cyan")
+        table.add_column("#", justify="center")
+        table.add_column("Component", width=30)
+        table.add_column("Score", justify="right")
+        table.add_column("Level", justify="left")
+        table.add_column("R", justify="right")
+        table.add_column("M", justify="right")
+        table.add_column("A", justify="right")
+        table.add_column("V", justify="right")
 
         for i, s in enumerate(sorted_nodes[:limit], 1):
-            level = s.get("criticality_level", "MINIMAL")
-            color = self.level_color(level)
-            score_val = s.get("composite_score", 0)
-            score_str = f"{score_val:>7.4f}"
-            print(
-                f"  {i:<4} {s.get('component', '')[:29]:<30} "
-                f"{self.colored(score_str, color)} "
-                f"{self.colored(level[:10], color):<10} "
-                f"{s.get('reliability_score', 0):>6.3f} {s.get('maintainability_score', 0):>6.3f} "
-                f"{s.get('availability_score', 0):>6.3f} {s.get('vulnerability_score', 0):>6.3f}"
+            lvl = s.get("criticality_level", "MINIMAL").upper()
+            color = self.level_color(lvl)
+            table.add_row(
+                str(i),
+                s.get('component', '')[:29],
+                Text(f"{s.get('composite_score', 0):.4f}", style=color),
+                Text(lvl.capitalize(), style=color),
+                f"{s.get('reliability_score', 0):.3f}",
+                f"{s.get('maintainability_score', 0):.3f}",
+                f"{s.get('availability_score', 0):.3f}",
+                f"{s.get('vulnerability_score', 0):.3f}"
             )
+        self.console.print(table)
 
         if len(sorted_nodes) > limit:
-            print(f"\n  {self.colored(f'... and {len(sorted_nodes) - limit} more components', Colors.GRAY)}")
+            self.console.print(f"\n  [grey50]... and {len(sorted_nodes) - limit} more components[/]")
             
-        # Display edge scores if available
         edge_scores = prediction.get("edge_scores", [])
         if edge_scores:
-            self.print_subheader("Top Critical Relationships (GNN)")
+            self.print_subheader("Critical Relationships (GNN)")
             sorted_edges = sorted(edge_scores, key=lambda e: e.get("composite_score", 0), reverse=True)
-            print(f"  {'#':<4} {'Source':<20} {'→':<3} {'Target':<20} {'Type':<15} {'Score':>7}")
-            print("  " + "-" * 74)
+            e_table = Table(box=box.SIMPLE, header_style="bold grey70")
+            e_table.add_column("#")
+            e_table.add_column("Source")
+            e_table.add_column("Target")
+            e_table.add_column("Type")
+            e_table.add_column("Score", justify="right")
+            
             for i, e in enumerate(sorted_edges[:limit], 1):
-                level = e.get("criticality_level", "MINIMAL")
-                color = self.level_color(level)
-                score_val = e.get("composite_score", 0)
-                score_str = f"{score_val:>7.4f}"
-                print(
-                    f"  {i:<4} {e.get('source', '')[:19]:<20} → {e.get('target', '')[:19]:<20} "
-                    f"{self.colored(e.get('edge_type', '')[:14], Colors.CYAN):<15} "
-                    f"{self.colored(score_str, color)}"
+                lvl = e.get("criticality_level", "MINIMAL").upper()
+                color = self.level_color(lvl)
+                e_table.add_row(
+                    str(i),
+                    e.get('source', '')[:20],
+                    e.get('target', '')[:20],
+                    f"[cyan]{e.get('edge_type', '')[:15]}[/]",
+                    Text(f"{e.get('composite_score', 0):.4f}", style=color)
                 )
+            self.console.print(e_table)
 
     def display_layer_result(self, result: "LayerAnalysisResult") -> None:
         """Display complete analysis result for a single layer."""
-        self.print_header(f"{result.layer_name} Analysis")
-        print(f"  {self.colored(result.description, Colors.GRAY)}")
+        if not RICH_AVAILABLE:
+            self.print_header(f"{result.layer_name} Analysis")
+            print(f"  {self.colored(result.description, Colors.GRAY)}")
+            has_topics = any(c.type == "Topic" for c in result.structural.components.values())
+            if not has_topics and result.layer in ("app", "mw"):
+                self.print_warning(f"fan_out_criticality (FOC) is restricted in {result.layer} layer. Use 'system' layer for topic fan-out analysis.")
+            self.display_graph_summary(result)
+            self.display_classification_summary(result)
+            self.display_layer_critical_components(result)
+            self.display_sensitivity(result)
+            if result.prediction:
+                self.display_gnn_prediction(result.prediction)
+            self.display_problems(result)
+            return
+
+        self.print_header(f"{result.layer_name} Layer Analysis")
         
-        # Check for FOC visibility warning (Phase 3 audit fix)
-        # FOC is only non-zero for Topic nodes, which are only included in 'system' layer
+        # Description and metadata panel
+        info_content = [
+            f"[bold cyan]Description:[/] {result.description}",
+            f"[bold cyan]Timestamp:[/]   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        ]
+        
+        # Check for FOC visibility warning
         has_topics = any(c.type == "Topic" for c in result.structural.components.values())
         if not has_topics and result.layer in ("app", "mw"):
-            self.print_warning(f"fan_out_criticality (FOC) is restricted in {result.layer} layer. Use 'system' layer for topic fan-out analysis.")
+            info_content.append(f"\n[warning]⚠ Fan-out criticality (FOC) is restricted in {result.layer} layer.[/]")
+            info_content.append("[grey50]Use 'system' layer for comprehensive topic fan-out analysis.[/]")
+
+        self.console.print(Panel(Group(*info_content), border_style="grey23"))
 
         self.display_graph_summary(result)
         self.display_classification_summary(result)
