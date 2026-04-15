@@ -194,7 +194,9 @@ MIN_WEIGHT = 0.01
 | | `TRANSIENT` | 0.6 |
 | | `TRANSIENT_LOCAL` | 0.5 |
 | | `VOLATILE` | 0.0 |
-| **priority_score** | `URGENT` | 1.0 |
+| **priority_score** | `HIGHEST` | 1.0 |
+| | `CRITICAL` | 1.0 |
+| | `URGENT` | 1.0 |
 | | `HIGH` | 0.66 |
 | | `MEDIUM` | 0.33 |
 | | `LOW` | 0.0 |
@@ -219,7 +221,7 @@ Six derivation rules are applied, producing six `dependency_type` values:
 |------|-------------------|----------------|--------|
 | 1 | `app_to_app` | App/Lib `SUBSCRIBES_TO` → Topic ← `PUBLISHES_TO` App/Lib; also transitive via `USES*1..3` library chains | `max(t.weight)` over shared topics |
 | 2 | `app_to_broker` | App/Lib `PUBLISHES_TO` or `SUBSCRIBES_TO` → Topic ← `ROUTES` Broker; also transitive via `USES*1..3` chains | `max(t.weight)` over routed topics |
-| 3 | `node_to_node` | Lifted from Rule 1: Node_B → Node_A when their hosted apps share an `app_to_app` edge | lifted `max(d.weight)` |
+| 3 | `node_to_node` | Lifted from `app_to_app` and `app_to_broker` DEPENDS_ON edges: Node_B → Node_A when their hosted apps share one of those dependency types | lifted `max(d.weight)` over matching edges |
 | 4 | `node_to_broker` | Lifted from Rule 2: Node → Broker when a hosted app has an `app_to_broker` edge | lifted `max(dep.weight)` |
 | 5 | `app_to_lib` | App/Lib `USES` → Library | `src.weight` (set in Phase 5, after aggregate propagation) |
 | 6 | `broker_to_broker` | Bidirectional colocation edge between two Brokers sharing a physical Node | `node.weight` (set in Phase 5) |
@@ -283,6 +285,17 @@ w(app) = 0.80 × max{ w(t) : app PUBLISHES_TO t OR app SUBSCRIBES_TO t }
 
 The hybrid formula reflects that an application's criticality is primarily bounded by its most critical data stream (0.80 × max), but a dense subscription footprint of medium-weight topics adds cumulative risk (0.20 × mean). When `max = mean` (single-topic app), the formula collapses to `w = w(t)`.
 
+**Library-mediated pass (step 1.5):** The formula above only counts topics directly connected to the application via `PUBLISHES_TO` or `SUBSCRIBES_TO`. Applications that communicate exclusively through shared libraries (no direct topic edges) would receive `w(app) = 0.01` from the first pass — making them invisible to RMAV scoring even if they indirectly handle high-weight data.
+
+After Library weights are computed in step 2, a second pass corrects this for any application still at the default floor:
+
+```
+For all apps where w(app) ≤ 0.01:
+  w(app) = max{ w(l) : app USES l }
+```
+
+This propagates library importance back to the consuming application. Only applications with no direct topics AND at least one USES edge are affected; all other applications retain their step-1 weights unchanged.
+
 #### Library Weight
 
 ```
@@ -335,7 +348,7 @@ The graph supports four layer projections, each filtering vertices and DEPENDS_O
 
 | Layer | CLI name | Vertex Types | `dependency_type` values |
 |-------|----------|-------------|--------------------------|
-| Application | `app` | Application, Library | `app_to_app` |
+| Application | `app` | Application, Library | `app_to_app`, `app_to_lib` |
 | Infrastructure | `infra` | Node | `node_to_node` |
 | Middleware | `mw` | Application, Broker, Node | `app_to_broker`, `node_to_broker`, `broker_to_broker` |
 | System | `system` | All five types | All six types |
@@ -467,7 +480,7 @@ The topology JSON uses a **dict-of-lists** structure for relationships. Each key
 **Schema notes:**
 
 - `"qos"` and `"qos_policy"` are both accepted as the QoS sub-object key; `"qos"` is canonical.
-- QoS string values are case-insensitive at import (`"reliable"` and `"RELIABLE"` are both accepted), but are stored in uppercase in Neo4j.
+- QoS string values must be **uppercase** (`"RELIABLE"`, `"TRANSIENT_LOCAL"`, `"HIGH"`, etc.). They are stored and exported in uppercase. The Cypher weight CASE statements perform case-sensitive matching, so lowercase values (`"reliable"`) would fall through to the `ELSE 0.0` branch and silently produce `w = 0.01` for every affected topic.
 - All fields except `"id"` are optional. Missing fields receive defaults (`role = "pubsub"`, `app_type = "service"`, `qos_reliability = "BEST_EFFORT"`, etc.).
 - The `"metadata"` block is optional but strongly recommended for provenance tracking. Generated files include it automatically.
 - Relationship edges may also use `"source"` and `"target"` keys as aliases for `"from"` and `"to"`.
@@ -587,10 +600,13 @@ python bin/import_graph.py --input <file> [options]
 |----------|------|----------|---------|-------------|
 | `--input` | path | **yes** | — | Path to the topology JSON file |
 | `--clear` | flag | no | off | Wipe the entire database before importing. Recommended when loading a new topology to avoid stale data |
-| `--uri` | string | no | `bolt://localhost:7687` | Neo4j Bolt connection URI |
-| `--user` | string | no | `neo4j` | Neo4j username |
-| `--password` | string | no | `password` | Neo4j password |
+| `--dry-run` | flag | no | off | Validate the input JSON and report expected counts without touching the database |
+| `--uri` | string | no | `bolt://localhost:7687` | Neo4j Bolt connection URI (env: `NEO4J_URI`) |
+| `--user` / `-u` | string | no | `neo4j` | Neo4j username (env: `NEO4J_USER`) |
+| `--password` / `-p` | string | no | `password` | Neo4j password (env: `NEO4J_PASSWORD`) |
+| `--layer` / `-l` | string | no | `system` | Reserved for future use; currently unused by the import path |
 | `--verbose` / `-v` | flag | no | off | Enable debug logging and print tracebacks on error |
+| `--quiet` / `-q` | flag | no | off | Suppress non-essential console output |
 | `--output` / `-o` | path | no | — | Write the returned import statistics to a JSON file |
 
 ### Call Chain
@@ -641,12 +657,24 @@ On success, the console prints an import summary. The returned statistics dict (
 
 | Key | Description |
 |-----|-------------|
-| `nodes_imported` | Total vertex count in Neo4j after import |
+| `nodes_imported` | Total vertex count in Neo4j after import (excludes the internal `:Metadata` node) |
 | `edges_imported` | Total relationship count after import (structural + DEPENDS_ON) |
 | `duration_ms` | Total import duration in milliseconds |
-| `node_count` | Vertex count breakdown by label |
-| `total_relationships` | Relationship count by type |
+| `application_count`, `broker_count`, … | Per-label vertex counts |
+| `app_to_app_count`, `app_to_broker_count`, … | Per-type DEPENDS_ON edge counts |
 | `success` | `true` on success |
+| `message` | Human-readable status string |
+
+**Dry-run output** (`--dry-run` flag): no database writes occur. The returned dict instead contains:
+
+| Key | Description |
+|-----|-------------|
+| `nodes_imported` | Total vertex count parsed from the input JSON |
+| `edges_imported` | Count of structural relationship entries in the input JSON |
+| `structural_edges` | Same as `edges_imported` — the six structural edge types only |
+| `estimated_depends_on` | Estimated lower bound of DEPENDS_ON edges that would be derived (sum of `publishes_to` + `subscribes_to` + `uses` entries, which drive Rules 1, 2, and 5) |
+| `note` | Reminder that `edges_imported` covers structural relationships only; DEPENDS_ON edges are derived at import time |
+| `dry_run` | `true` |
 
 ### Notes and Caveats
 
@@ -654,7 +682,7 @@ On success, the console prints an import summary. The returned statistics dict (
 
 **No transactional rollback.** If a phase fails mid-way (e.g., due to a Neo4j memory error on a large topology), the database is left in a partially constructed state: entities may be present but weights and DEPENDS_ON edges absent. Re-run with `--clear` to recover.
 
-**Input validation is minimal.** Structural errors in the JSON (e.g., a `PUBLISHES_TO` edge referencing a Topic ID that does not exist) will cause the Neo4j `MATCH` in Phase 2 to silently skip that edge rather than raising an error. Validate your topology JSON against the schema above before import.
+**Referential integrity is enforced in Phase 2.** Before any edge is created, each batch of relationships is validated: source and target IDs must exist as Neo4j vertices. A missing entity raises a `ValueError` and rolls back the entire transaction. The error message names up to five offending IDs. If you see this error, check your JSON for typos or missing entries in the `nodes`, `applications`, etc. arrays.
 
 **The REST API equivalent** is `POST /api/v1/graph/import` with `ImportGraphRequest` body. The CLI and REST path share the same `ModelGraphUseCase` and produce identical Neo4j state.
 
@@ -675,30 +703,58 @@ python bin/export_graph.py --output <file> [options]
 | Argument | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
 | `--output` / `-o` | path | **yes** | — | Path for the output JSON file. Parent directories are created if absent |
-| `--uri` | string | no | `bolt://localhost:7687` | Neo4j Bolt connection URI |
-| `--user` | string | no | `neo4j` | Neo4j username |
-| `--password` | string | no | `password` | Neo4j password |
+| `--format` | choice | no | `persistence` | `persistence` — nested JSON re-importable by `import_graph.py`; `analysis` — flat `components`/`edges` dict for downstream tooling |
+| `--layer` / `-l` | string | no | `system` | Layer filter applied to `--format analysis` only. One of `app`, `infra`, `mw`, `system` (or legacy aliases). Scopes which vertex types and dependency types are included |
+| `--include-structural` | flag | no | off | Include raw structural edges (`PUBLISHES_TO`, `SUBSCRIBES_TO`, etc.) alongside `DEPENDS_ON` edges in `--format analysis` output |
+| `--uri` | string | no | `bolt://localhost:7687` | Neo4j Bolt connection URI (env: `NEO4J_URI`) |
+| `--user` / `-u` | string | no | `neo4j` | Neo4j username (env: `NEO4J_USER`) |
+| `--password` / `-p` | string | no | `password` | Neo4j password (env: `NEO4J_PASSWORD`) |
 | `--verbose` / `-v` | flag | no | off | Enable debug logging and print tracebacks on error |
+| `--quiet` / `-q` | flag | no | off | Suppress non-essential console output |
 
-### Call Chain
+### Call Chains
 
+**Persistence format** (`--format persistence`, default):
 ```
 bin/export_graph.py
-  └─ Neo4jRepository.export_json()
-       └─ 6 Cypher queries (one per entity type + relationships)
-            └─ Reconstructed topology dict → json.dump()
+  └─ saag.Client.export_topology()
+       └─ Neo4jRepository.export_json()
+            └─ get_graph_data(include_raw=True) + _get_metadata_dict()
+                 └─ serialization.reconstruct_export_payload()
+                      └─ Reconstructed topology dict → json.dump()
 ```
 
-> **Note:** The CLI currently calls `client.repo.export_json()` directly, bypassing the `Client` SDK layer. Future releases will introduce `Client.export_topology()` as the canonical programmatic interface.
+**Analysis format** (`--format analysis`):
+```
+bin/export_graph.py
+  └─ saag.Client.get_graph_data(component_types, dependency_types, include_raw)
+       └─ Neo4jRepository.get_graph_data()
+            └─ GraphData.to_dict() → json.dump()
+```
+
+The layer filter (`--layer`) is applied to the analysis format only, scoping `component_types` and `dependency_types` through `LAYER_DEFINITIONS`. The persistence format always exports all five vertex types.
 
 ### Usage Examples
 
 ```bash
-# Export to a file
+# Export full topology — nested persistence format (re-importable)
 python bin/export_graph.py \
-  --output output/exported_topology.json
+  --output output/snapshot.json
 
-# Export from a remote Neo4j instance with verbose output
+# Export application-layer view — flat analysis format
+python bin/export_graph.py \
+  --output output/app_layer.json \
+  --format analysis \
+  --layer app
+
+# Export system analysis view including raw structural edges
+python bin/export_graph.py \
+  --output output/system_full.json \
+  --format analysis \
+  --layer system \
+  --include-structural
+
+# Export from a remote Neo4j instance
 python bin/export_graph.py \
   --output output/sample_snapshot.json \
   --uri bolt://neo4j-host:7687 \
@@ -709,7 +765,11 @@ python bin/export_graph.py \
 
 ### Output Format
 
-The exported file uses the same dict-of-lists `"relationships"` format as the input, and is suitable for direct re-import with `import_graph.py`. See [Input Format](#input-format) for the full schema.
+**Persistence format** (default): the exported file uses the same dict-of-lists structure as the input and is suitable for direct re-import with `import_graph.py`. See [Input Format](#input-format) for the full schema.
+
+One difference from the input: the persistence export adds a `"depends_on"` key inside `"relationships"` containing a snapshot of the currently derived DEPENDS_ON edges. This key is **informational only** — `import_graph.py` ignores it and always re-derives DEPENDS_ON from structural edges. The export summary reports these separately as "Derived (DEPENDS_ON)" to avoid inflating the structural edge count.
+
+**Analysis format** (`--format analysis`): outputs `{ "components": [...], "edges": [...] }`. This format is consumed by the Genieus frontend and downstream analysis scripts. It is **not re-importable** by `import_graph.py`.
 
 ### Notes and Caveats
 
@@ -729,26 +789,26 @@ Use `/export-neo4j-data` (not `/export`) when a re-importable snapshot is requir
 
 ## Export–Import Roundtrip
 
-Running `export_graph.py` followed by `import_graph.py` on the output is not a perfect roundtrip. The following table documents what is preserved and what is lost.
+Running `export_graph.py` (persistence format) followed by `import_graph.py` on the output is a faithful roundtrip for all user-supplied data. The following table documents what is preserved and what is intentionally re-computed.
 
 ### Preserved
 
 | Data | Notes |
 |------|-------|
 | All entity IDs and names | `id`, `name` for all five vertex types |
-| Topic QoS and size | `qos_reliability`, `qos_durability`, `qos_transport_priority`, `size` |
-| Application `role`, `app_type`, `version`, `criticality` | Exported conditionally (only if non-null) |
+| Topic QoS and size | `qos_reliability`, `qos_durability`, `qos_transport_priority`, `size` — exported and re-imported in uppercase |
+| Application `role`, `app_type`, `version`, `criticality` | Exported conditionally (only if non-null/non-empty) |
 | All six structural relationship types | `runs_on`, `routes`, `publishes_to`, `subscribes_to`, `connects_to`, `uses` |
+| `code_metrics` block (Applications and Libraries) | Flat `cm_*` properties in Neo4j are reconstructed into the nested `code_metrics` structure on export and re-flattened on re-import. CQP scores are fully reproducible after a roundtrip. |
+| `system_hierarchy` block | Flat `system_name`, `domain_name`, `component_name`, `config_item_name` properties are reconstructed and re-imported correctly |
+| `metadata` block | Stored in the `:Metadata` singleton node; reconstructed and included in the export |
 
-### Not Preserved (Lost on Export)
+### Not Preserved (Re-computed on Re-import)
 
-| Data | Impact |
-|------|--------|
-| `code_metrics` block (Applications and Libraries) | CQP penalty in M(v) falls back to zero; quality-aware ranking degrades to topology-only |
-| `system_hierarchy` block | MIL-STD-498 hierarchy signal lost; CSU/CSC/CSCI/CSS coupling analysis cannot be reproduced |
-| Computed `weight` properties | All five construction phases must re-run on re-import; no snapshot-based workflow |
-| `DEPENDS_ON` edges | Re-derived automatically on re-import |
-| `metadata` block | Provenance (seed, scale, domain, generation mode) is not written to export output |
+| Data | What Happens Instead |
+|------|----------------------|
+| Computed `weight` properties | All five construction phases re-run on re-import from QoS data; computed weights are always fresh and do not need to be stored |
+| `DEPENDS_ON` edges | Re-derived automatically from structural edges on re-import; the persistence export includes them as an informational `"depends_on"` key but this key is ignored by the importer |
 
 ### Roundtrip Validation Test
 
@@ -758,17 +818,18 @@ To verify roundtrip integrity for a given topology, run:
 # Import original
 python bin/import_graph.py --input input/system.json --clear
 
-# Export snapshot
+# Export persistence snapshot
 python bin/export_graph.py --output output/snapshot.json
 
 # Re-import snapshot
 python bin/import_graph.py --input output/snapshot.json --clear
 
-# Compare statistics — node and edge counts should match
-# (code_metrics fields will be absent in the re-import)
+# Verify: node and edge counts, per-label counts, and topic weights
+# should all match between the original and re-import runs.
+# code_metrics, system_hierarchy, and metadata are fully preserved.
 ```
 
-A full roundtrip integration test that asserts identical node/edge counts and identical topic weights after re-import is a recommended CI addition.
+A full roundtrip integration test that asserts identical node/edge counts, identical per-label vertex counts, and identical topic weights after re-import is a recommended CI addition.
 
 ---
 
