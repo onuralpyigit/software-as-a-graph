@@ -166,8 +166,8 @@ Located at `bin/generate_graph.py`. This is the primary generation entry point. 
 | `--config` | path | — | Path to a YAML scenario configuration file. Mutually exclusive with `--scale`. |
 | `--output` | path | `output/graph.json` | Destination path for the generated JSON file. Parent directories are created automatically. |
 | `--seed` | int | `42` | Random seed. Any integer value gives a deterministic, reproducible output. |
-| `--domain` | str | — | Domain name pool: `av`, `iot`, `finance`, `healthcare`, `enterprise`, `robotics`, `e-commerce`. **No validation is performed** — an unrecognised string silently falls back to generic naming with no error. |
-| `--scenario` | choice | — | QoS scenario mapping: `av`, `iot`, `finance`, `healthcare`, `hub-and-spoke`, `microservices`, `enterprise`. |
+| `--domain` | str | — | Domain name pool: `av`, `iot`, `finance`, `healthcare`, `hub-and-spoke`, `microservices`, `enterprise`, `atm`. **No validation is performed** — an unrecognised string silently falls back to generic naming with no error. |
+| `--scenario` | choice | — | QoS scenario mapping: `av`, `iot`, `finance`, `healthcare`, `hub-and-spoke`, `microservices`, `enterprise`, `atm`. |
 | `--verbose` / `-v` | flag | off | Print full tracebacks on error. |
 
 When `--config` is provided, the seed embedded in the YAML (`graph.seed`) is used and the `--seed` CLI argument is ignored. When `--scale` is provided without `--seed`, the default seed of 42 is used.
@@ -310,8 +310,10 @@ Located in `input/scenario_*.yaml`. Each file is a self-contained specification 
 | `scenario_07_enterprise_xlarge.yaml` | Enterprise ESB | Jumbo (300 apps) | Scalability and performance benchmark | 7007 |
 | `scenario_08_tiny_regression.yaml` | Smoke test | Tiny (12 apps) | CI regression, fully deterministic | 8008 |
 | `scenario_09_xlarge_stress.yaml` | Cloud Platform | XLarge (500 apps) | True xlarge validation, thesis coverage | 9009 |
+| `scenario_10_atm_system.yaml` | ATM / Aviation | Medium (26 apps) | Ultra-high reliability, safety-critical surveillance | 0042 |
+| `scenario_11_broker_redundancy.yaml` | Enterprise Clearing | Small-medium (40 apps) | 12 brokers / 15 topics (ratio 0.8) — validates non-SPOF redundant brokers | 1111 |
 
-The nine scenarios collectively cover the four topology classes identified in the thesis: fan-out dominated (01, 02), dense pubsub (03, 04), anti-pattern / SPOF (05), and sparse / well-distributed (06). Scenarios 07 and 09 are scalability benchmarks; scenario 08 is the CI smoke test and should always be the first to run.
+The eleven scenarios collectively cover five topology classes: fan-out dominated (01, 02), dense pubsub (03, 04), anti-pattern / SPOF (05), sparse / well-distributed (06), and over-provisioned redundancy (11). Scenarios 07 and 09 are scalability benchmarks; scenario 08 is the CI smoke test and should always be the first to run. Scenario 10 (ATM) tests ultra-high criticality and scenario 11 tests the Availability dimension under broker redundancy.
 
 ### 7.2 YAML schema reference
 
@@ -433,7 +435,7 @@ The generator runs in two passes.
 
 For each topic, QoS values (durability, reliability, transport priority) and message size are assigned. If a `domain` and `scenario` are configured, the domain-specific `get_qos_for_topic()` function maps topic names to QoS settings using keyword matching. Otherwise, values are drawn from the `qos_stats` categorical distributions.
 
-For each application, role, criticality, app type, system hierarchy, and code metrics are assigned. If a `domain` dataset is active, the app name is drawn from the domain's name pool and the app type is inferred from the name using `get_app_type_for_name()`. Otherwise, names are generic (`App-{n}`) and the app type is sampled uniformly from `APP_TYPE_OPTIONS`.
+For each application, role, app type, system hierarchy, and code metrics are assigned. **Criticality is not assigned here** — it is deferred to the two-pass assignment after topology is built (see Pass 2, step 5 below). If a `domain` dataset is active, the app name is drawn from the domain's name pool and the app type is inferred from the name using `get_app_type_for_name()`. Otherwise, names are generic (`App-{n}`) and the app type is sampled uniformly from `APP_TYPE_OPTIONS`.
 
 **Pass 2 — Relationships.** Edges are constructed in strict dependency order because library pub/sub counts must be known before inherited application counts can be computed:
 
@@ -441,13 +443,13 @@ For each application, role, criticality, app type, system hierarchy, and code me
 2. `ROUTES` — broker-to-topic routing
 3. `USES` — library dependencies (app→lib and lib→lib), required before step 4
 4. `PUBLISHES_TO` / `SUBSCRIBES_TO` — publish/subscribe wiring
-5. `CONNECTS_TO` — infrastructure mesh edges
+5. **Post-topology quality passes** — role constraint enforcement, criticality assignment
 
-`RUNS_ON` assignment respects the `node_stats.applications_per_node` distribution. If that distribution is present, the generator samples target counts per node from a clamped Gaussian and assigns applications sequentially, filling each node to its target count before moving to the next. Remaining applications after the sequential pass are assigned to randomly chosen nodes.
+**`RUNS_ON` — cluster-affine placement.** A shared cluster→node partition is built first by randomly assigning each infrastructure node to one hierarchy cluster (`_build_cluster_to_nodes()`). Applications are then placed on nodes using `_assign_apps_to_nodes()`: with probability 0.70 an application lands on a node in its own cluster's subset; with probability 0.30 it lands on any node. This co-locates functionally related applications on shared infrastructure, making node-level structural metrics (betweenness, SPOF detection) realistic. The same cluster→node partition is reused for broker placement (see `ROUTES` below).
 
-`ROUTES` assignment ensures every topic is routed by at least one broker. There is a 30 % chance of a second broker being assigned as a redundant router, which introduces structural redundancy and lowers the broker's SPOF vulnerability score. A guard pass then checks that every broker routes at least one topic (to prevent anomalously low betweenness scores in small custom configurations) and assigns stranded brokers in deterministic round-robin order.
+**`ROUTES` — cluster-affine broker placement.** Broker-to-topic routing is assigned first (each topic gets one primary broker plus a 30 % chance of a secondary). A stranded-broker guard then ensures every broker routes at least one topic. After the routes list is complete, `_rewrite_broker_placement()` reads each broker's topic assignments, determines the plurality cluster of its routed topics, and places the broker on a node from that cluster's subset. This ensures brokers are co-located with the applications they serve, improving infra-layer SPOF and betweenness accuracy.
 
-`USES` edges include both application-to-library and library-to-library dependencies. Each library has a 30 % chance of depending on up to two other libraries, creating transitive dependency chains. The resulting `_uses_graph` is traversed recursively in Pass 2 step 4 to compute inherited pub/sub counts.
+**`USES` edges** include both application-to-library and library-to-library dependencies. Each library has a 30 % chance of depending on up to two other libraries, creating transitive dependency chains. The resulting `_uses_graph` is traversed recursively in Pass 2 step 4 to compute inherited pub/sub counts.
 
 **Pub/sub wiring priority order.** Four strategies are tried in order; the first one whose relevant stat has a non-zero mean is used:
 
@@ -456,7 +458,12 @@ For each application, role, criticality, app type, system hierarchy, and code me
 3. `applications_publishing_to_this_topic` from `topic_stats` — drives wiring from the topic side (fan-in perspective).
 4. **Random fallback** — 1–5 publishers and 1–8 subscribers sampled per topic when no stat section defines the distribution.
 
-All four strategies use `_sample_biased()` (p_intra = 0.65) so that applications in the same hierarchy cluster preferentially share topics regardless of which strategy is active.
+All four strategies use `_sample_biased()` (p_intra = 0.65) so that applications in the same hierarchy cluster preferentially share topics. In strategies 1 and 2, the preferred pool is further filtered by `_partition_topics_by_qos_affinity()`: gateway and controller applications are steered toward `RELIABLE` / `HIGH`-priority topics; sensor applications are steered toward `BEST_EFFORT` / `LOW`-priority topics. This makes QoS semantics structurally coherent — high-priority topics attract structurally central components.
+
+**Post-topology quality passes (step 5).**
+
+- *Role constraint enforcement* — `_validate_role_constraints()` removes any edges that violate declared app roles: a `pub`-only application cannot appear in `subscribes_to`; a `sub`-only application cannot appear in `publishes_to`. Library edges are not affected.
+- *Two-pass criticality assignment* — `_assign_criticality_two_pass()` computes a structural degree proxy (direct publish count + direct subscribe count) for each application. The top-N applications by degree proxy receive `criticality=True`, where N is the target count from the scenario's `app_criticality_distribution`. Ties are broken with a seeded random jitter so the result is deterministic. This ensures that structurally central components (hubs, articulation-point candidates) are the ones labelled critical, rather than randomly selected applications that may be structural leaf nodes.
 
 ### 8.2 Code-metrics generation
 
@@ -481,7 +488,7 @@ Every application and library is assigned a `system_hierarchy` block representin
 
 When a `domain` dataset is active, hierarchy values are drawn from `SYSTEM_HIERARCHY_POOLS[domain]`, which contains domain-specific labels (e.g. `"Navigation Software"`, `"Path Planning"` for the AV domain). When no domain is set, generic labels are drawn from `GENERIC_HIERARCHY_POOL`.
 
-> **Resolved (April 2026):** The generator now performs a cluster pre-assignment pass before nodes are created. Applications and topics are partitioned into clusters keyed by `domain_name` (the third MIL-STD-498 level) in deterministic round-robin order. The `_sample_biased()` helper (p_intra = 0.65) then ensures that applications in the same cluster preferentially publish and subscribe to topics in the same cluster, making the hierarchy signal structurally meaningful for coupling analysis.
+> **Resolved (April 2026):** The generator now performs a cluster pre-assignment pass before edges are created. Applications are assigned to clusters via `rng.choices()` (seeded, not strict round-robin) and topics are partitioned across clusters in round-robin index order. The `_sample_biased()` helper (p_intra = 0.65) then ensures that applications in the same cluster preferentially publish and subscribe to topics in the same cluster, making the hierarchy signal structurally meaningful for coupling analysis. Infrastructure nodes and brokers are also co-located with their cluster (see §8.1).
 
 ### 8.4 QoS assignment
 
@@ -650,4 +657,9 @@ This view provides a flattened, derived representation of the graph optimized fo
 | 2 | `generation_mode` field | The `metadata.generation_mode` field is `"statistical"` only when a YAML config with at least one `*_stats` section is provided. A YAML file that specifies only `counts` and no stats sections will produce `generation_mode: "random"`, even though it was loaded from a YAML config. | Open |
 | 3 | Pub/sub duplicate edges | The pub/sub wiring strategies do not deduplicate edges: the same `(app, topic)` pair can appear more than once in `publishes_to` / `subscribes_to` if both topic-driven and app-driven wiring write the same edge. The import pipeline deduplicates on ingest; downstream consumers reading the raw JSON should not assume uniqueness. | Open |
 | 4 | Broker guard semantics | The unrouted-broker guard (round-robin assignment) is deterministic but can assign a stranded broker to an already over-routed topic, skewing broker betweenness scores in topologies with many brokers and few topics. | Open |
-| 5 | Hierarchy clustering (resolved) | Hierarchy labels were formerly assigned independently from a flat pool with no structural effect. As of April 2026 the generator performs a round-robin cluster pre-assignment and uses `_sample_biased()` (p_intra = 0.65) to make intra-cluster pub/sub edges more probable. | **Resolved** |
+| 5 | Hierarchy clustering | Hierarchy labels were formerly assigned independently from a flat pool with no structural effect. As of April 2026 the generator performs a seeded cluster pre-assignment and uses `_sample_biased()` (p_intra = 0.65) to make intra-cluster pub/sub edges more probable. | **Resolved** |
+| 6 | Infrastructure placement | `RUNS_ON` edges were previously assigned uniformly at random (or sequentially by count distribution), with no cluster awareness. As of April 2026 `_assign_apps_to_nodes()` applies 70 % cluster-affine placement, co-locating functionally related apps on the same infrastructure node. | **Resolved** |
+| 7 | Broker placement | Brokers were previously placed on nodes via round-robin index, ignoring which cluster of topics they route. As of April 2026 `_rewrite_broker_placement()` reads the completed routes list and places each broker on a node in its plurality cluster. | **Resolved** |
+| 8 | Criticality coherence | Criticality was previously sampled before topology was built, so critical apps could be structural leaf nodes. As of April 2026 `_assign_criticality_two_pass()` assigns `critical=True` after topology is built, biased toward high-degree (hub) applications. | **Resolved** |
+| 9 | Role constraint drift | The `topic_stats` pub/sub wiring path could assign subscribe edges to `pub`-only apps. As of April 2026 `_validate_role_constraints()` removes such violations before deduplication. | **Resolved** |
+| 10 | QoS–topology coherence | Topic selection during pub/sub wiring was cluster-biased but QoS-agnostic. As of April 2026 `_partition_topics_by_qos_affinity()` steers gateway/controller apps toward `RELIABLE`/`HIGH` topics and sensor apps toward `BEST_EFFORT`/`LOW` topics. | **Resolved** |

@@ -21,12 +21,17 @@ domain scenario for validating the six-step methodology.
 | `scenario_08_tiny_regression.yaml`     | Smoke test      | Tiny    | CI regression, fully deterministic, fast            | 8008 |
 | `scenario_09_xlarge_stress.yaml`       | Cloud Platform  | XLarge (500 apps) | True xlarge validation, thesis coverage gap | 9009 |
 | `scenario_10_atm_system.yaml`          | ATM / Aviation  | Medium  | Critical surveillance, high reliability focus       | 0042 |
+| `scenario_11_broker_redundancy.yaml`   | Enterprise Clearing | Small-medium (40 apps) | 12 brokers / 15 topics — validates non-SPOF redundant brokers | 1111 |
 
 > **Scale note — scenario_07:** The enterprise scenario uses 300 applications, which sits between
 > the `large` preset (150 apps) and the `xlarge` preset (500 apps).  It must be run with
 > `--config` (not `--scale`).  The `jumbo` preset (`--scale jumbo`) targets the same counts
 > (300 apps / 120 topics / 10 brokers / 40 nodes / 50 libs) and can be used for quick
 > ad-hoc runs at this scale without a YAML config file.
+>
+> **Scale note — scenario_11:** The broker-redundancy scenario uses a deliberately atypical
+> broker-to-topic ratio of 0.8 (12 brokers / 15 topics), far above all other scenarios.
+> It must be run with `--config`; no named `--scale` preset approximates this ratio.
 
 ---
 
@@ -74,8 +79,7 @@ with uniform random QoS and topology.
 
 ### Topology Coverage
 
-The ten scenarios collectively cover the five major topology classes
-identified in the thesis:
+The eleven scenarios collectively cover six topology classes:
 
 1. **Fan-out dominated** (AV, IoT) — many subscribers per topic;
    broker and topic betweenness centrality are the primary criticality driver.
@@ -93,6 +97,10 @@ identified in the thesis:
 5. **Safety-Critical Real-time** (ATM) — ultra-reliable, high-priority
    surveillance feeds; validates criticality modulation for transport priority.
 
+6. **Over-provisioned / redundant** (Broker Redundancy) — many brokers
+   relative to topics (ratio 0.8); validates that Availability scoring
+   correctly suppresses SPOF classification when redundancy is present.
+
 ### QoS Weight Variation
 
 | Scenario | Dominant Durability | Dominant Reliability | Dominant Priority |
@@ -105,7 +113,9 @@ identified in the thesis:
 | 06 µSvc  | TRANSIENT_LOCAL    | RELIABLE           | MEDIUM           |
 | 07 Enterprise | mixed         | RELIABLE           | MEDIUM           |
 | 08 Tiny  | balanced           | balanced           | balanced         |
+| 09 XLarge | mixed             | RELIABLE           | MEDIUM           |
 | 10 ATM   | VOLATILE           | RELIABLE           | HIGH/CRITICAL    |
+| 11 Redundancy | PERSISTENT    | RELIABLE           | HIGH             |
 
 ### Expected Validation Thresholds
 
@@ -129,4 +139,4 @@ Copy any existing file and adjust:
 2. `graph.counts` — set the component counts for your scale
 3. Adjust `*_stats` distributions to reflect your domain's topology
 4. Document the **expected analysis outcomes** in the header comment
-5. Add a row to the quick-reference table above
+5. Add a row to the quick-reference table above and to the QoS Weight Variation table
