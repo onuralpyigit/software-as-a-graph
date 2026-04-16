@@ -122,6 +122,65 @@ Every call to `analyze()` targets exactly one **analysis layer** (π_l). The lay
 
 ---
 
+## Cross-Layer Analysis
+
+When `--layer all` (or a comma-separated layer list) is used, `AnalysisService.analyze_all_layers()` runs each layer independently and then derives **cross-layer insights** — observations that only become visible by correlating results across two or more layers.
+
+### What cross-layer insights capture
+
+A component that is `CRITICAL` in the `app` layer alone is a service-level reliability risk. The same component also classified as `CRITICAL` in the `infra` layer means its physical host is simultaneously a structural SPOF — an entirely different failure mode. No single-layer analysis surfaces this compound risk; only the multi-layer view can.
+
+Three insight types are produced:
+
+| Insight type | Trigger | Severity |
+|---|---|---|
+| `compound_critical` | Component is `CRITICAL` or `HIGH` in ≥ 2 distinct layers | `CRITICAL` if any layer classifies it CRITICAL, else `HIGH` |
+| `systemic_spof` | Component is a structural articulation point (`AP_c_directed > 0`) in ≥ 2 distinct layers | `CRITICAL` |
+| `layer_concentration` | A single layer has > 30 % of its analysed components classified `CRITICAL` | `HIGH` |
+
+### How the correlation works
+
+After all four layer results are assembled, `_compute_cross_layer_insights()` builds a component-indexed map across all `LayerAnalysisResult` objects:
+
+```
+For each component id that appears in ≥ 2 layer results:
+  high_layers  = layers where levels.overall ≥ HIGH
+  spof_layers  = layers where structural.is_articulation_point == True
+
+  if |high_layers| ≥ 2  → emit compound_critical insight
+  if |spof_layers| ≥ 2  → emit systemic_spof insight
+
+For each layer:
+  if CRITICAL_count / total_components > 0.30  → emit layer_concentration insight
+```
+
+Insights are sorted by severity (`CRITICAL` before `HIGH`) and then by number of affected layers (more layers = higher priority).
+
+### Data model
+
+```python
+@dataclass
+class CrossLayerInsight:
+    component_id:    str        # empty string for layer_concentration insights
+    component_name:  str        # human-readable name from structural metrics
+    insight_type:    str        # "compound_critical" | "systemic_spof" | "layer_concentration"
+    layers_affected: List[str]  # e.g. ["app", "system"]
+    severity:        str        # "CRITICAL" | "HIGH" | "MEDIUM"
+    description:     str        # free-text explanation
+```
+
+The `MultiLayerAnalysisResult.cross_layer_insights` field carries the full list. It is serialised under the `cross_layer_insights` key in the `--output` JSON.
+
+### Layer membership semantics
+
+A component appears in a given layer only if its type is in that layer's `analyze_types`. This means:
+
+- A `Broker` node can appear in both `mw` results (it is the sole analyzed type) and `system` results — so a broker that is CRITICAL in both layers would produce a `compound_critical` insight.
+- An `Application` never appears in `infra` or `mw` results, so no cross-layer signal is possible between those two layers for application nodes. Cross-layer signals for applications are limited to `app` ↔ `system`.
+- Nodes (`Node` type) can appear in `infra` and `system`, making infrastructure-level SPOFs detectable across both views.
+
+---
+
 ## Topological Analysis Flow
 
 `StructuralAnalyzer.analyze()` runs seven internal phases in a fixed order:
@@ -158,7 +217,9 @@ Phase 4  AP_c_directed & CDI
          │      AP_c_in(v)  = 1 - |largest_CC(G_T_undirected \ v)| / (n-1)
          │      AP_c_directed(v) = max(AP_c_out, AP_c_in)
          │      CDI(v) = min((avg_L(G\v) - avg_L(G)) / avg_L(G), 1.0)
-         │    Optimization: BFS sampled from 50 "core" nodes for |V| > 300
+         │    Optimization: for |V| > 300 the CDI BFS uses the top-50
+         │    highest-degree "core" nodes (Application, Broker, Node),
+         │    ranked by in+out degree — deterministic, no randomness
 
 Phase 5  Resilience metrics  (all on undirected projection U)
          │  clustering_coefficient   via nx.clustering(U)
@@ -429,7 +490,11 @@ If G' \ {v} is disconnected: avg_L(G' \ {v}) = ∞ → CDI(v) = 1.0
 If |V| ≤ 2 after removal:   CDI(v) = 0
 
 Complexity: O(|V| × (|V| + |E|)) via BFS.
-For |V| > 300: sampled BFS from a random subset of source nodes (seed fixed for reproducibility).
+For |V| > 300: BFS source nodes are restricted to the top-50 highest-degree
+"core" nodes (Application, Broker, Node), ranked by in+out degree. This is
+deterministic — no random sampling — so CDI values are identical across runs
+on the same graph. High-degree nodes have disproportionate impact on average
+path length, making them the most informative BFS sources for CDI estimation.
 ```
 
 **High CDI(v) means:** Removing v significantly increases the average path length in the surviving graph — even if the graph remains connected, dependency paths become much longer, indicating v was a shortcut that many routes depended on.
@@ -496,6 +561,7 @@ PC(v) = mean( log2(1 + path_count(e)) ) over e ∈ OutEdges(v)
 | pubsub_degree | Degree in bipartite app-topic graph | Topic diversity of an application — how many distinct message channels it participates in |
 | pubsub_betweenness | Betweenness in bipartite app-topic graph | Applications that bridge separate topic clusters |
 | broker_exposure | Avg distinct brokers routing app's topics | Infrastructure blast surface — how many brokers an application's failure would stress |
+| publisher_spof (PSPOF) | `max(w(t) × min(sub_count(t)/5, 1))` over sole-published topics | Sole-publisher risk: if this application is the only publisher on a topic and that topic has active subscribers, PSPOF quantifies the blast if the application goes silent. Available in M(v) for dashboards and GNN features. |
 
 ---
 
@@ -525,11 +591,12 @@ Complete M(v) field listing. Every field has a tier, a RMAV dimension (or "—" 
 | `pubsub_degree` | — | 2 | — | — | Topic participation breadth |
 | `pubsub_betweenness` | — | 2 | — | — | Topic cluster bridging |
 | `broker_exposure` | — | 2 | — | — | Infrastructure blast surface |
+| `publisher_spof` | PSPOF | 2 | — | ↑ | Sole-publisher blast risk (Application nodes; 0.0 otherwise) |
 | `in_degree_raw` | — | 3 | — | — | Raw integer in-degree (for CDPot, CouplingRisk_enh) |
 | `out_degree_raw` | — | 3 | — | — | Raw integer out-degree (for CouplingRisk_enh) |
 | `bridge_count` | — | 3 | — | — | Integer count of bridge edges incident to v |
 | `is_articulation_point` | — | 3 | — | — | Binary AP flag (derived from AP_c_directed) |
-| `weight` | w | — | A via QSPOF | ↑ | Component QoS weight from Step 1 |
+| `weight` | w | 1 | A | ↑ | Component QoS weight from Step 1; direct 5th term in A(v) and factor in QSPOF |
 
 **Code quality metrics** (Application and Library nodes only; 0.0 for all other types):
 
@@ -629,7 +696,7 @@ These metric vectors become the input to Step 3's RMAV formula evaluation.
 
 **Overall:** O(|V|² + |V|×|E|), dominated by AP_c_directed and CDI. An `xlarge` system (200 components, ~600 edges) completes in approximately 20–25 seconds. AP_c_directed and CDI together account for roughly 70% of runtime.
 
-> **Performance note:** AP_c_directed and CDI are both computed in StructuralAnalyzer (moved from QualityAnalyzer). This consolidation eliminates one redundant O(|V|²) pass previously performed in Step 3. For enterprise-scale systems (|V| > 300), both use sampled BFS prioritizing "core" component types (Application, Broker, Node) with a fixed random seed of 42 for reproducibility across runs.
+> **Performance note:** AP_c_directed and CDI are both computed in StructuralAnalyzer (moved from QualityAnalyzer). This consolidation eliminates one redundant O(|V|²) pass previously performed in Step 3. For enterprise-scale systems (|V| > 300), the CDI BFS is restricted to the top-50 "core" nodes (Application, Broker, Node) ranked by total degree (in + out). This is fully deterministic — the same graph always produces the same CDI values — and prioritises the nodes most likely to have significant path-length impact when removed.
 
 ---
 
@@ -648,10 +715,10 @@ python bin/analyze_graph.py --layer mw
 # Analyze the infrastructure layer (Nodes only)
 python bin/analyze_graph.py --layer infra
 
-# Analyze all four layers sequentially
+# Analyze all four layers sequentially — also produces cross_layer_insights
 python bin/analyze_graph.py --layer all
 
-# Analyze multiple specific layers (comma-separated)
+# Analyze multiple specific layers (comma-separated) — also produces cross_layer_insights
 python bin/analyze_graph.py --layer app,system
 
 # Export full metric vectors M(v) to JSON
@@ -718,11 +785,45 @@ Topic Fan-Out Hotspots (system layer only):
   /command/velocity  FOC=0.75  subscribers=9   — blast relay for 9 applications
 ```
 
+When `--layer all` is used, the output JSON also includes a `cross_layer_insights` array:
+
+```json
+"cross_layer_insights": [
+  {
+    "component_id": "broker-001",
+    "component_name": "MainBroker",
+    "insight_type": "systemic_spof",
+    "layers_affected": ["infra", "mw"],
+    "severity": "CRITICAL",
+    "description": "MainBroker is a structural articulation point in 2 layers (infra, mw). Its failure would disconnect subgraphs at multiple architectural levels."
+  },
+  {
+    "component_id": "app-core",
+    "component_name": "DataRouter",
+    "insight_type": "compound_critical",
+    "layers_affected": ["app", "system"],
+    "severity": "CRITICAL",
+    "description": "DataRouter is classified CRITICAL in 2 layers (app, system), indicating compound risk that spans architectural boundaries."
+  },
+  {
+    "component_id": "",
+    "component_name": "",
+    "insight_type": "layer_concentration",
+    "layers_affected": ["mw"],
+    "severity": "HIGH",
+    "description": "Layer 'mw' has 4/11 (36%) components classified as CRITICAL — high systemic risk concentration in this architectural tier."
+  }
+]
+```
+
 Reading the output:
 - Components with non-zero `AP_c_dir` are structural SPOFs — top priority for redundancy.
 - Components with high `BT` but `AP_c_dir = 0` are bottlenecks but not SPOFs — consider decoupling.
 - Components with non-zero `MPCI` have intensified coupling — multiple independent failure vectors reach them from the same dependents.
 - Topics with high `FOC` are distribution choke points — if the topic's broker fails, all listed subscribers fail simultaneously.
+- **`systemic_spof` cross-layer insights** identify components whose removal would fragment the graph at multiple architectural levels simultaneously. These are the highest-priority candidates for active redundancy (replica sets, failover routing).
+- **`compound_critical` cross-layer insights** identify components that appear as architectural liabilities across more than one layer. A component that is `CRITICAL` at the service level *and* the system level has no layer-scoped mitigation path — the risk is pervasive.
+- **`layer_concentration` insights** flag architectural tiers where risk is not distributed. A middleware layer with 40 % `CRITICAL` brokers indicates a design pattern (hub-and-spoke, single broker cluster) rather than individual component problems.
 - **Negative assortativity** (shown in `S(G)`) indicates hub-and-spoke topology — a few highly-critical hubs surrounded by many leaf-level consumers.
 - **`connectivity_health`** of `FRAGILE` means one or more articulation points exist; `ROBUST` means no SPOFs were detected.
 
