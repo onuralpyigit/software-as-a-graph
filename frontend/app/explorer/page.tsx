@@ -306,6 +306,47 @@ function propUnit(key: string): string {
   return ""
 }
 
+// ── Risk-range badge (good / bad judgement for [0–1] risk scores) ─────────────
+/**
+ * Returns true for keys whose value sits on a [0–1] risk scale where
+ * higher = worse / more risky.  These keys get a colour-coded level badge.
+ */
+function isRiskKey(key: string): boolean {
+  // RMAV quality / dimension scores
+  if (/^(reliability|maintainability|availability|vulnerability|quality_score|rmav_score|overall)$/.test(key)) return true
+  // Structural centrality metrics (all normalised to [0–1])
+  if (/^(reverse_pagerank|betweenness_centrality|betweenness|bridge_ratio|bridge_score|reverse_eigenvector|reverse_closeness|ap_score|directed_ap_score|qspof)$/.test(key)) return true
+  // Code quality [0–1] penalty inputs
+  if (/^(lcom_norm|instability_code|complexity_norm|coupling_risk|weight)$/.test(key)) return true
+  // Any coupling_ derived field
+  if (/^coupling_/.test(key)) return true
+  return false
+}
+
+const RISK_LEVELS = [
+  { min: 0.75, label: "CRIT", cls: "bg-red-500/15 text-red-500" },
+  { min: 0.50, label: "HIGH", cls: "bg-orange-500/15 text-orange-500" },
+  { min: 0.25, label: "MOD",  cls: "bg-amber-500/15 text-amber-600 dark:text-amber-500" },
+  { min: 0.00, label: "LOW",  cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-500" },
+] as const
+
+function getRiskLevel(n: number) {
+  return RISK_LEVELS.find(r => n >= r.min) ?? RISK_LEVELS[RISK_LEVELS.length - 1]
+}
+
+function RiskBadge({ k, v }: { k: string; v: unknown }) {
+  if (!isRiskKey(k)) return null
+  const n = typeof v === "number" ? v
+    : (typeof v === "string" && v !== "" && !isNaN(Number(v)) ? Number(v) : null)
+  if (n === null || n < 0 || n > 1) return null
+  const { label, cls } = getRiskLevel(n)
+  return (
+    <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wide ${cls}`}>
+      {label}
+    </span>
+  )
+}
+
 // ── Shared ReactFlow prop constants (hoisted to avoid re-renders) ─────────────
 const RF_NODE_ORIGIN: [number, number] = [0.5, 0.5]
 const RF_FIT_VIEW_OPTIONS = { padding: 0.25 }
@@ -1924,7 +1965,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                         const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
                         const desc = EDGE_DESCS[k] ?? PROP_DESCS[k]
                         return (
-                          <div key={k} className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 truncate inline-flex items-center">{k}{desc && <Tip text={desc} />}</span><span className="font-mono truncate">{propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55">{unit}</span>}</span></div>
+                          <div key={k} className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 truncate inline-flex items-center">{k}{desc && <Tip text={desc} />}</span><span className="font-mono truncate inline-flex items-center gap-0">{propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55">{unit}</span>}<RiskBadge k={k} v={v} /></span></div>
                         )
                       })}
                     </div>
@@ -2063,7 +2104,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                               <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
                             </td>
                             <td className="px-3 py-2 font-mono text-muted-foreground break-all text-[10px]">
-                              {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}
+                              {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}<RiskBadge k={k} v={v} />
                             </td>
                           </tr>
                         )
@@ -2227,7 +2268,7 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
             <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
           </td>
           <td className="px-4 py-2.5 font-mono text-muted-foreground break-all text-xs">
-            {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}
+            {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}<RiskBadge k={k} v={v} />
           </td>
         </tr>
       )
