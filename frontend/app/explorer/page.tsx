@@ -129,7 +129,7 @@ const NODE_SIZES: Record<HGLevel, number> = {
   csms: 14, css: 10, csci: 8, csc: 6, app: 3.5,
 }
 const LEVEL_LABELS: Record<HGLevel, string> = {
-  csms: "System (CSMS)", css: "Domain (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)",
+  csms: "System (CSMS)", css: "Segment (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)",
 }
 
 // Hierarchical connections-view layout: assign a y-layer per node type
@@ -653,7 +653,7 @@ const cfEdgeTypes = { conn: ConnFlowEdge }
 // ── Hierarchy graph using @xyflow/react ──────────────────────────────────────
 
 const HIER_LEVEL_LABEL: Record<HGLevel, string> = {
-  csms: "System", css: "Domain", csci: "Config Item", csc: "Component", app: "App",
+  csms: "System", css: "Segment", csci: "Config Item", csc: "Component", app: "App",
 }
 
 const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
@@ -1998,7 +1998,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 // ── Detail Panel (left) ──────────────────────────────────────────────────────
 
 const KIND_LABEL: Record<SelectedKind, string> = {
-  csms: "System (CSMS)", css: "Domain (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)", node: "Node", topic: "Topic",
+  csms: "System (CSMS)", css: "Segment (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)", node: "Node", topic: "Topic",
 }
 const KIND_COLOR: Record<SelectedKind, string> = {
   csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#8b5cf6", node: "#ef4444", topic: "#a855f7",
@@ -2055,7 +2055,7 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
       const appCount = Object.values(css.csci).flatMap(ci => Object.values(ci.csc)).flatMap(c => c.apps).length
       return [k, csciCount, cscCount, appCount]
     })
-    content = <DetailTable headers={["Domain", "Config Item Groups", "Component Groups", "Apps"]} rows={rows} />
+    content = <DetailTable headers={["Segment", "Config Item Groups", "Component Groups", "Apps"]} rows={rows} />
   } else if (node.kind === "css") {
     const css = node.payload as CssGroup
     const rows = sortKeys(Object.keys(css.csci)).map((k) => {
@@ -2637,7 +2637,7 @@ function BrowserPageContent() {
   return (
     <AppLayout
       title="Explorer"
-      description="System (CSMS) → Domain (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)"
+      description="System (CSMS) → Segment (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)"
     >
       <div className="flex flex-col gap-5 h-full">
         {error && (
@@ -2720,7 +2720,7 @@ function BrowserPageContent() {
 export default function BrowserPage() {
   return (
     <Suspense fallback={
-      <AppLayout title="Explorer" description="System (CSMS) → Domain (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)">
+      <AppLayout title="Explorer" description="System (CSMS) → Segment (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)">
         <div className="flex items-center justify-center h-64"><LoadingSpinner /></div>
       </AppLayout>
     }>
