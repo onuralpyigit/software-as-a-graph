@@ -1009,8 +1009,9 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
   const [connData, setConnData] = useState<{ nodes: any[]; links: any[] } | null>(null)
   const [connLoading, setConnLoading] = useState(false)
   const [connError, setConnError] = useState<string | null>(null)
-  const [connTab, setConnTab] = useState<"out" | "in" | "props">("props")
+  const [connTab, setConnTab] = useState<"connections" | "props">("props")
   const [connDepth, setConnDepth] = useState(1)
+  const [connSort, setConnSort] = useState<{ col: "node" | "type" | "dir"; asc: boolean }>({ col: "type", asc: true })
 
   const isSyncingRef = useRef(false)
 
@@ -1527,8 +1528,8 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     return []
   }, [selectedApp, hierarchy])
 
-  const outLinks = (connData?.links ?? []).filter(l => (l.source?.id ?? l.source) === selectedApp?.pathKey)
-  const inLinks  = (connData?.links ?? []).filter(l => (l.target?.id ?? l.target) === selectedApp?.pathKey)
+  const outLinks = connGraphData.links.filter((l: any) => (l.source?.id ?? l.source) === selectedApp?.pathKey)
+  const inLinks  = connGraphData.links.filter((l: any) => (l.target?.id ?? l.target) === selectedApp?.pathKey)
   const nodeById = useMemo(() => { const m = new Map<string, any>(); connData?.nodes.forEach(n => m.set(n.id, n)); return m }, [connData])
   const peerLabel = (nodeId: string) => nodeById.get(nodeId)?.label ?? nodeId
   const appNode = connData?.nodes.find(n => n.id === selectedApp?.pathKey)
@@ -1642,42 +1643,42 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
         {/* Canvas */}
         <div ref={containerRef} className="flex-1 overflow-hidden relative" style={{ background: bgColor }}>
           {/* Filter overlay — connections mode only */}
-          {viewMode === "connections" && <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 rounded-lg border border-border/50 px-2.5 py-2 text-xs"
-            style={{ background: isDark ? "rgba(15,15,20,0.75)" : "rgba(255,255,255,0.80)", backdropFilter: "blur(8px)", minWidth: 96 }}>
-            <p className="font-medium text-muted-foreground uppercase tracking-wide text-[9px]">Filter</p>
+          {viewMode === "connections" && <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 rounded-lg border border-border/50 px-3.5 py-3 text-sm"
+            style={{ background: isDark ? "rgba(15,15,20,0.75)" : "rgba(255,255,255,0.80)", backdropFilter: "blur(8px)", minWidth: 140 }}>
+            <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px]">Filter</p>
             {viewMode !== "hierarchy" && (
               <>
-                <p className="font-medium text-muted-foreground uppercase tracking-wide text-[9px] mt-0.5">Nodes</p>
+                <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px] mt-0.5">Nodes</p>
                 {Array.from(new Set((connData?.nodes as any[] ?? []).map(n => n.type).filter(Boolean))).map(t => (
                   <button key={t} onClick={() => toggleNodeType(t as string)}
-                    className={cn("flex items-center gap-2 w-full text-left transition-opacity", hiddenNodeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
-                    <svg width="10" height="10" viewBox="0 0 10 10" className="shrink-0">
+                    className={cn("flex items-center gap-2.5 w-full text-left transition-opacity py-0.5", hiddenNodeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
+                    <svg width="12" height="12" viewBox="0 0 10 10" className="shrink-0">
                       {t === "Node"    && <rect x="1" y="1" width="8" height="8" fill={nodeTypeColor(t, isDark)} />}
                       {t === "Topic"   && <polygon points="5,1 9,5 5,9 1,5" fill={nodeTypeColor(t, isDark)} />}
                       {t === "Library" && <polygon points="5,1 9,8.5 1,8.5" fill={nodeTypeColor(t, isDark)} />}
                       {t === "Broker"  && <polygon points="5,0.5 8.3,2.5 8.3,7.5 5,9.5 1.7,7.5 1.7,2.5" fill={nodeTypeColor(t, isDark)} />}
                       {!["Node","Topic","Library","Broker"].includes(t as string) && <circle cx="5" cy="5" r="4" fill={nodeTypeColor(t as string, isDark)} />}
                     </svg>
-                    <span className={cn("truncate", hiddenNodeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
+                    <span className={cn("truncate text-xs", hiddenNodeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
                   </button>
                 ))}
-                <p className="font-medium text-muted-foreground uppercase tracking-wide text-[9px] mt-1">Edges</p>
+                <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px] mt-1">Edges</p>
                 {Array.from(new Set((connData?.links as any[] ?? []).map(l => l.type).filter(Boolean))).map(t => (
                   <button key={t} onClick={() => toggleEdgeType(t as string)}
-                    className={cn("flex items-center gap-2 w-full text-left transition-opacity", hiddenEdgeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
+                    className={cn("flex items-center gap-2.5 w-full text-left transition-opacity py-0.5", hiddenEdgeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
                     {t === "DEPENDS_ON" ? (
-                      <svg width="16" height="4" viewBox="0 0 16 4" className="shrink-0">
+                      <svg width="18" height="6" viewBox="0 0 16 4" className="shrink-0">
                         <line x1="0" y1="2" x2="16" y2="2" stroke={linkTypeColor(t as string, isDark)} strokeWidth="1.5" strokeDasharray="4 2" />
                       </svg>
                     ) : (
                       <span className="h-0.5 w-4 shrink-0 rounded-full" style={{ background: linkTypeColor(t as string, isDark) }} />
                     )}
-                    <span className={cn("truncate", hiddenEdgeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
+                    <span className={cn("truncate text-xs", hiddenEdgeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
                   </button>
                 ))}
               </>
             )}
-            <div className="border-t border-border/40 mt-1 pt-1 space-y-0.5 text-[10px] text-muted-foreground">
+            <div className="border-t border-border/40 mt-1 pt-1.5 space-y-0.5 text-xs text-muted-foreground">
               {connGraphData ? (
                 <><p>{connGraphData.nodes.length} nodes</p><p>{connGraphData.links.length} edges</p></>
               ) : null}
@@ -1804,45 +1805,72 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
               )}
             </div>
             <div className="flex border-b border-border shrink-0">
-              {(["props", "out", "in"] as const).map(tab => (
+              {(["props", "connections"] as const).map(tab => (
                 <button key={tab} onClick={() => setConnTab(tab)}
                   className={cn("flex-1 py-1.5 text-[11px] font-medium transition-colors",
                     connTab === tab ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}>
-                  {tab === "out" ? `Out (${outLinks.length})` : tab === "in" ? `In (${inLinks.length})` : "Props"}
+                  {tab === "connections" ? `Connections (${outLinks.length + inLinks.length})` : "Props"}
                 </button>
               ))}
             </div>
             <div className="flex-1 overflow-y-auto">
               {connLoading && <div className="flex items-center justify-center h-24"><LoadingSpinner className="h-5 w-5" /></div>}
               {connError && !connLoading && <p className="px-4 py-3 text-xs text-destructive">{connError}</p>}
-              {!connLoading && !connError && connTab !== "props" && (
+              {!connLoading && !connError && connTab === "connections" && (
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 bg-background z-10">
                     <tr className="border-b border-border">
-                      <th className="text-left px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                        {connTab === "out" ? "Target" : "Source"}
-                      </th>
-                      <th className="text-left px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
-                      <th className="text-right px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">W</th>
+                      {(["node", "type", "dir"] as const).map(col => (
+                        <th key={col}
+                          onClick={() => setConnSort(s => ({ col, asc: s.col === col ? !s.asc : true }))}
+                          className={cn(
+                            "py-2 text-[10px] font-semibold uppercase tracking-wide cursor-pointer select-none transition-colors hover:text-foreground",
+                            col === "dir" ? "text-right px-3" : "text-left px-3",
+                            connSort.col === col ? "text-foreground" : "text-muted-foreground"
+                          )}>
+                          {col === "node" ? "Node" : col === "type" ? "Type" : "Dir"}
+                          <span className={connSort.col === col ? "" : "opacity-30"}>{connSort.col === col ? (connSort.asc ? " ↑" : " ↓") : " ↑"}</span>
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {(connTab === "out" ? outLinks : inLinks).map((link, i) => {
-                      const peerId = connTab === "out" ? (link.target?.id ?? link.target) : (link.source?.id ?? link.source)
+                    {[
+                      ...outLinks.map(l => ({ link: l, dir: "out" as const })),
+                      ...inLinks.map(l => ({ link: l, dir: "in" as const })),
+                    ].sort((a, b) => {
+                      let cmp = 0
+                      if (connSort.col === "node") {
+                        const aId = a.dir === "out" ? (a.link.target?.id ?? a.link.target) : (a.link.source?.id ?? a.link.source)
+                        const bId = b.dir === "out" ? (b.link.target?.id ?? b.link.target) : (b.link.source?.id ?? b.link.source)
+                        cmp = peerLabel(aId).localeCompare(peerLabel(bId))
+                      } else if (connSort.col === "type") {
+                        cmp = (a.link.type ?? "").localeCompare(b.link.type ?? "")
+                      } else {
+                        cmp = a.dir.localeCompare(b.dir)
+                      }
+                      return connSort.asc ? cmp : -cmp
+                    }).map(({ link, dir }, i) => {
+                      const peerId = dir === "out" ? (link.target?.id ?? link.target) : (link.source?.id ?? link.source)
                       return (
                         <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                           <td className="px-3 py-2 font-medium text-foreground max-w-[110px] truncate" title={peerLabel(peerId)}>{peerLabel(peerId)}</td>
                           <td className="px-3 py-2 text-muted-foreground max-w-[80px] truncate text-[10px]">{link.type ?? "—"}</td>
-                          <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">
-                            {link.weight != null ? Number(link.weight).toFixed(2) : "—"}
+                          <td className="px-3 py-2 text-right">
+                            <span className={cn(
+                              "text-[9px] font-semibold px-1.5 py-0.5 rounded-full",
+                              dir === "out"
+                                ? "bg-blue-500/15 text-blue-400"
+                                : "bg-orange-500/15 text-orange-400"
+                            )}>{dir}</span>
                           </td>
                         </tr>
                       )
                     })}
-                    {(connTab === "out" ? outLinks : inLinks).length === 0 && (
+                    {outLinks.length === 0 && inLinks.length === 0 && (
                       <tr><td colSpan={3} className="px-3 py-8 text-center text-muted-foreground text-[11px]">
-                        No {connTab === "out" ? "outbound" : "inbound"} connections
+                        No connections
                       </td></tr>
                     )}
                   </tbody>
