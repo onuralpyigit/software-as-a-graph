@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
 import { forceCollide } from "d3-force-3d"
@@ -191,6 +192,118 @@ function nodeTypeColor(type: string | undefined, isDark = true): string {
 function linkTypeColor(type: string | undefined, isDark = true): string {
   if (!type) return isDark ? "#a1a1aa" : "#71717a"
   return (isDark ? CONN_LINK_TYPE_COLORS_DARK : CONN_LINK_TYPE_COLORS_LIGHT)[type] ?? hashTypeColor(type)
+}
+
+// ── Property descriptions (shown as tooltips on key labels) ─────────────────
+const PROP_DESCS: Record<string, string> = {
+  weight:                  "Operational priority weight — QoS severity of topics routed through this component (0 = low, 1 = high)",
+  path_count:              "Number of independent event-routing paths that share this dependency",
+  loc:                     "Lines of Code — total source size of this component",
+  lcom_norm:               "Normalised Lack of Cohesion of Methods — how scattered responsibilities are (0 = cohesive, 1 = fully scattered)",
+  cyclomatic_complexity:   "McCabe's Cyclomatic Complexity — number of linearly independent paths through the code",
+  instability_code:        "Martin's Instability I = Ce/(Ca+Ce) — ratio of efferent to total couplings (0 = stable, 1 = unstable)",
+  complexity_norm:         "Normalised cyclomatic complexity within the component's type population (0 = simplest, 1 = most complex)",
+  cm_avg_lcom:             "Average Lack of Cohesion of Methods across classes — higher values indicate poorly cohesive classes",
+  cm_max_lcom:             "Maximum Lack of Cohesion of Methods across all classes in this component",
+  cm_avg_wmc:              "Average Weighted Methods per Class — sum of cyclomatic complexities of all methods, averaged across classes",
+  cm_max_wmc:              "Maximum Weighted Methods per Class across all classes",
+  cm_total_wmc:            "Total Weighted Methods per Class — aggregate cyclomatic complexity across the whole component",
+  cm_avg_cbo:              "Average Coupling Between Objects — number of classes this class is directly coupled to, averaged",
+  cm_max_cbo:              "Maximum Coupling Between Objects across all classes",
+  cm_avg_rfc:              "Average Response For Class — number of methods potentially executed in response to a message, averaged",
+  cm_max_rfc:              "Maximum Response For Class across all classes",
+  cm_avg_fanin:            "Average fan-in — average number of modules/classes that directly depend on each class",
+  cm_max_fanin:            "Maximum fan-in across all classes in this component",
+  cm_avg_fanout:           "Average fan-out — average number of modules/classes each class directly depends on",
+  cm_max_fanout:           "Maximum fan-out across all classes in this component",
+  cm_total_classes:        "Total number of classes defined in this component",
+  cm_total_methods:        "Total number of methods across all classes in this component",
+  cm_total_lines:          "Total lines of code across the component",
+  cm_total_loc:            "Total lines of code across the component",
+  // Byte-sized fields
+  size:                    "Message payload size in bytes — used to compute the topic's contribution to the QoS weight (W_topic = 0.85·QoS + 0.15·size_norm)",
+  message_size:            "Message payload size in bytes used in event-flow simulation",
+  payload_size_bytes:      "Message payload size in bytes used in event-flow simulation",
+  // Time fields
+  deadline_ms:             "Maximum allowed end-to-end latency for this flow in milliseconds",
+  latency_p50_ms:          "Median (p50) observed end-to-end message latency in milliseconds",
+  latency_p95_ms:          "95th-percentile observed end-to-end message latency in milliseconds",
+  latency_p99_ms:          "99th-percentile observed end-to-end message latency in milliseconds",
+  // Queue / frequency
+  queue_size:              "Maximum number of messages this subscriber's queue can buffer before dropping",
+  frequency:               "Publishing frequency in Hz (messages per second)",
+}
+const EDGE_DESCS: Record<string, string> = {
+  weight:     "QoS severity weight [0–1] — maximum weight of topics routed through this dependency",
+  path_count: "Number of independent event-routing paths that share this dependency",
+}
+
+/** Small ⓘ tooltip trigger shown inline after a property label */
+function Tip({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className="ml-1.5 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full
+            border border-muted-foreground/40 text-muted-foreground/60
+            hover:border-foreground/50 hover:text-foreground/80 cursor-help transition-colors"
+          style={{ fontSize: 8, lineHeight: 1, flexShrink: 0, verticalAlign: "middle" }}
+        >i</span>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-64 text-xs leading-relaxed">
+        {text}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+// ── Property unit suffixes & value formatting ─────────────────────────────────
+function isBytesKey(key: string): boolean {
+  return key === "size" || key === "message_size" || /bytes/.test(key)
+}
+
+/** Human-readable byte size: 41969 → "41.0 KB" */
+function formatBytes(n: number): string {
+  if (n < 1024)         return `${n} B`
+  if (n < 1024 * 1024)  return `${(n / 1024).toFixed(1)} KB`
+  if (n < 1024 ** 3)    return `${(n / 1024 ** 2).toFixed(2)} MB`
+  return `${(n / 1024 ** 3).toFixed(2)} GB`
+}
+
+/** Formatted display value for a property (applies byte/etc formatting where meaningful) */
+function propValue(key: string, v: unknown): string {
+  const n = typeof v === "number" ? v : (typeof v === "string" && v !== "" && !isNaN(Number(v)) ? Number(v) : null)
+  if (n !== null && isBytesKey(key)) return formatBytes(n)
+  return String(v)
+}
+
+function propUnit(key: string): string {
+  if (isBytesKey(key))                                return ""   // unit embedded by formatBytes
+  // Strictly bounded [0–1] fields
+  if (key === "weight")                               return "[0–1]"
+  if (key === "lcom_norm")                            return "[0–1]"
+  if (/^coupling_risk/.test(key))                     return "[0–1]"
+  // Time fields
+  if (/_ms$/.test(key) || key === "deadline_ms")      return "ms"
+  // Frequency fields
+  if (/_hz$/.test(key) || key === "frequency")        return "Hz"
+  // Queue / count fields
+  if (key === "queue_size")                           return "msgs"
+  // Raw code-metric counts (unbounded — no [0–1] claim)
+  if (key === "loc")                                  return "lines"
+  if (key === "cyclomatic_complexity")                return "CC"
+  if (key === "path_count")                           return "paths"
+  if (/^cm_(avg_|max_|total_)?lcom$/.test(key))       return "LCOM"
+  if (/fanin/.test(key))                              return "in-deps"
+  if (/fanout/.test(key))                             return "out-deps"
+  if (/\bcbo\b/.test(key))                            return "deps"
+  if (/\brfc\b/.test(key))                            return "calls"
+  if (/cm_total_classes/.test(key))                   return "classes"
+  if (/cm_total_methods/.test(key))                   return "methods"
+  if (/cm_total_(lines|loc)/.test(key))               return "lines"
+  // Other coupling_ fields are instability-derived [0–1]
+  if (/^coupling_/.test(key))                         return "[0–1]"
+  return ""
 }
 
 // ── Shared ReactFlow prop constants (hoisted to avoid re-renders) ─────────────
@@ -1806,10 +1919,14 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                     <div className="px-3 py-2 space-y-1.5">
                       <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0">From</span><span className="font-medium truncate">{srcLabel}</span></div>
                       <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0">To</span><span className="font-medium truncate">{tgtLabel}</span></div>
-                      {l.weight !== undefined && <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0">Weight</span><span className="font-mono">{typeof l.weight === "number" ? l.weight.toFixed(4) : String(l.weight)}</span></div>}
-                      {extraProps.map(([k, v]) => (
-                        <div key={k} className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 truncate">{k}</span><span className="font-mono truncate">{String(v as any)}</span></div>
-                      ))}
+                      {l.weight !== undefined && <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 inline-flex items-center">Weight{EDGE_DESCS.weight && <Tip text={EDGE_DESCS.weight} />}</span><span className="font-mono">{typeof l.weight === "number" ? l.weight.toFixed(4) : String(l.weight)}<span className="ml-1 text-[9px] opacity-55">[0–1]</span></span></div>}
+                      {extraProps.map(([k, v]) => {
+                        const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
+                        const desc = EDGE_DESCS[k] ?? PROP_DESCS[k]
+                        return (
+                          <div key={k} className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 truncate inline-flex items-center">{k}{desc && <Tip text={desc} />}</span><span className="font-mono truncate">{propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55">{unit}</span>}</span></div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
@@ -1937,12 +2054,20 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                       const cmCoupling = appProps.filter(([k]) => isCmCoupling(k))
                       const cmOther    = appProps.filter(([k, v]) => isCm(k) && !isCmSize(k) && !isCmComplex(k) && !isCmCohesion(k) && !isCmCoupling(k))
 
-                      const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => (
-                        <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                          <td className={`${indent ? "pl-6" : "px-3"} pr-3 py-2 font-medium text-foreground w-2/5`}>{k}</td>
-                          <td className="px-3 py-2 font-mono text-muted-foreground break-all text-[10px]">{String(v as any)}</td>
-                        </tr>
-                      )
+                      const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => {
+                        const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
+                        const desc = PROP_DESCS[k]
+                        return (
+                          <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                            <td className={`${indent ? "pl-6" : "px-3"} pr-3 py-2 font-medium text-foreground w-2/5`}>
+                              <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
+                            </td>
+                            <td className="px-3 py-2 font-mono text-muted-foreground break-all text-[10px]">
+                              {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}
+                            </td>
+                          </tr>
+                        )
+                      }
                       const GroupHeader = ({ label }: { label: string }) => (
                         <tr className="bg-muted/60 border-t border-border">
                           <td colSpan={2} className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
@@ -2072,7 +2197,7 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
   } else if (node.kind === "csc") {
     const csc = node.payload as CscGroup
     const rows = csc.apps.map((a) => [a.id, a.csu ?? a.name ?? "—", a.weight])
-    content = <DetailTable headers={["ID", "Name / CSU", "Weight"]} rows={rows} />
+    content = <DetailTable headers={["ID", "Name / CSU", "Weight (QoS [0–1])"]} rows={rows} />
   } else {
     // app — grouped key-value table (same grouping as graph view Props panel)
     const app = node.payload as AppNode
@@ -2093,12 +2218,20 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
     const cmCoupling = entries.filter(([k]) => isCmCoupling(k))
     const cmOther    = entries.filter(([k, v]) => isCm(k) && !isCmSize(k) && !isCmComplex(k) && !isCmCohesion(k) && !isCmCoupling(k))
 
-    const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => (
-      <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-        <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 font-medium text-foreground w-2/5`}>{k}</td>
-        <td className="px-4 py-2.5 font-mono text-muted-foreground break-all text-xs">{String(v as any)}</td>
-      </tr>
-    )
+    const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => {
+      const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
+      const desc = PROP_DESCS[k]
+      return (
+        <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+          <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 font-medium text-foreground w-2/5`}>
+            <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
+          </td>
+          <td className="px-4 py-2.5 font-mono text-muted-foreground break-all text-xs">
+            {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}
+          </td>
+        </tr>
+      )
+    }
     const GroupHeader = ({ label }: { label: string }) => (
       <tr className="bg-muted/60 border-t border-border">
         <td colSpan={2} className="px-4 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
