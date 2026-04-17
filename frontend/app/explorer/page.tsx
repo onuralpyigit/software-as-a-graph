@@ -603,7 +603,7 @@ const ConnLaneNode = memo(function ConnLaneNode({ data }: NodeProps) {
 const cfNodeTypes = { conn: ConnFlowNode, lane: ConnLaneNode }
 
 // Custom edge: smooth bezier + clean fixed-size filled arrowhead
-const ConnFlowEdge = memo(function ConnFlowEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style }: EdgeProps) {
+const ConnFlowEdge = memo(function ConnFlowEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, data }: EdgeProps) {
   // Fixed arrowhead dimensions — same size on every edge
   const AW = 5  // half-width
   const AH = 8  // height
@@ -611,16 +611,32 @@ const ConnFlowEdge = memo(function ConnFlowEdge({ sourceX, sourceY, targetX, tar
   const sw = Number(style?.strokeWidth ?? 2)
   const opacity = Number(style?.opacity ?? 1)
   const dashArray = (style as any)?.strokeDasharray as string | undefined
+  const curveOffset = Number((data as any)?.curveOffset ?? 0)
   // Handles are always top/bottom — bezier arrives vertically at target
   const goingDown = targetPosition === "top"
   const dir = goingDown ? 1 : -1
   // Shorten path so the line ends at arrowhead base, not tip — no overlap
   const adjustedTY = targetY - dir * AH
-  const [edgePath] = getBezierPath({
-    sourceX, sourceY, sourcePosition,
-    targetX, targetY: adjustedTY,
-    targetPosition, curvature: 0.35,
-  })
+  // Build path: when curveOffset != 0 use a manually offset cubic bezier so
+  // parallel edges between the same pair of nodes don't overlap.
+  let edgePath: string
+  if (curveOffset === 0) {
+    ;[edgePath] = getBezierPath({
+      sourceX, sourceY, sourcePosition,
+      targetX, targetY: adjustedTY,
+      targetPosition, curvature: 0.35,
+    })
+  } else {
+    const midY = (sourceY + adjustedTY) / 2
+    const bendY = Math.abs(adjustedTY - sourceY) * 0.35
+    edgePath = [
+      `M ${sourceX} ${sourceY}`,
+      `C ${sourceX + curveOffset} ${sourceY + bendY}`,
+      `  ${targetX + curveOffset} ${adjustedTY - bendY}`,
+      `  ${targetX} ${adjustedTY}`,
+    ].join(" ")
+    void midY // suppress unused warning
+  }
   const tipY  = targetY
   const baseY = adjustedTY
   const arrowPts = `${targetX},${tipY} ${targetX - AW},${baseY} ${targetX + AW},${baseY}`
@@ -923,6 +939,19 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
     const lo = weights.length ? Math.min(...weights) : 0
     const hi = weights.length ? Math.max(...weights) : 1
     const wScale = lo === hi ? () => 2.0 : (w: number) => 1.0 + ((w - lo) / (hi - lo)) * 2.5
+
+    // Detect parallel edges (same node pair, any direction) and assign lateral offsets
+    // so they fan out and don't overlap.
+    const pairGroups = new Map<string, number[]>()
+    graphData.links.forEach((l: any, i: number) => {
+      const a = typeof l.source === "object" ? l.source.id : l.source
+      const b = typeof l.target === "object" ? l.target.id : l.target
+      const key = a < b ? `${a}||${b}` : `${b}||${a}`
+      if (!pairGroups.has(key)) pairGroups.set(key, [])
+      pairGroups.get(key)!.push(i)
+    })
+    const OFFSET_STEP = 28 // px between parallel edges
+
     return graphData.links.map((l: any, i: number) => {
       const srcId = typeof l.source === "object" ? l.source.id : l.source
       const tgtId = typeof l.target === "object" ? l.target.id : l.target
@@ -937,6 +966,16 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
       const color = isHl ? "#f59e0b" : linkTypeColor(l.type, isDark)
       const sw = isHl ? 6 : isAdj ? Math.min(wScale(Number(l.weight ?? 1)) + 0.5, 4) : 1
       const opacity = isHl ? 1 : isAdj ? 0.88 : 0.2
+
+      // Compute lateral curve offset for this edge within its parallel group
+      const a = srcId < tgtId ? srcId : tgtId
+      const b = srcId < tgtId ? tgtId : srcId
+      const pairKey = `${a}||${b}`
+      const group = pairGroups.get(pairKey) ?? [i]
+      const groupIdx = group.indexOf(i)
+      const n = group.length
+      const curveOffset = n === 1 ? 0 : (groupIdx - (n - 1) / 2) * OFFSET_STEP
+
       return {
         id: `e${i}`,
         source: srcId,
@@ -945,7 +984,7 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
         targetHandle,
         type: "conn",
         style: { stroke: color, strokeWidth: sw, opacity, ...(isDerived ? { strokeDasharray: "6 4" } : {}) },
-        data: { link: l },
+        data: { link: l, curveOffset },
         selectable: false,
       }
     })
