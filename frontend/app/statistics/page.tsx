@@ -290,7 +290,7 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
     <div className="space-y-4">
       <SummaryCards summary={data.summary} keys={[
         { key: "total_topics", label: "Total Topics" },
-        { key: "size_mean", label: "Avg Size" },
+        { key: "size_mean", label: "Avg Size", format: (v) => fmtNum(v) + " bytes" },
         { key: cfg.avgKey, label: cfg.avgLabel },
         { key: "outlier_count", label: "Outliers" },
       ]} />
@@ -560,7 +560,7 @@ function HeatmapSection({ data, title, modeToggle }: {
                           showKb === kb ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        {kb ? "KB" : "Count"}
+                        {kb ? "bytes" : "Count"}
                       </button>
                     ))}
                   </div>
@@ -623,10 +623,10 @@ function HeatmapSection({ data, title, modeToggle }: {
                               : ""
                           } ${isSelected ? "ring-2 ring-violet-500 z-10 relative" : "border-border"}`}
                           style={{ backgroundColor: val > 0 ? `rgba(139, 92, 246, ${0.15 + intensity * 0.75})` : undefined }}
-                          title={`${rowLabel} → ${labels[ci]}: ${showKb ? val.toFixed(1) + " KB" : val}`}
+                          title={`${rowLabel} → ${labels[ci]}: ${showKb ? val.toFixed(1) + " bytes" : val}`}
                           onClick={val > 0 ? () => handleCellClick(ri, ci) : undefined}
                         >
-                          {val > 0 ? (showKb ? (val >= 1000 ? (val / 1000).toFixed(1) + "M" : val.toFixed(0)) : val) : ""}
+                          {val > 0 ? (showKb ? (val >= 1_048_576 ? (val / 1_048_576).toFixed(1) + "M" : val >= 1024 ? (val / 1024).toFixed(1) + "K" : val.toFixed(0)) : val) : ""}
                         </td>
                       )
                     })}
@@ -662,7 +662,7 @@ function HeatmapSection({ data, title, modeToggle }: {
                       {pubTopics.map((t) => (
                         <li key={t.id} className="text-xs font-mono text-green-700 dark:text-green-400 truncate break-inside-avoid cursor-pointer hover:underline flex items-baseline gap-1" title={t.name} onClick={() => goToExplorer(t.id)}>
                           <span className="truncate">{t.name}</span>
-                          {showKb && <span className="text-[10px] opacity-60 shrink-0">{t.size_kb ?? 0}KB</span>}
+                          {showKb && <span className="text-[10px] opacity-60 shrink-0">{t.size_kb ?? 0} bytes</span>}
                         </li>
                       ))}
                     </ul>
@@ -680,7 +680,7 @@ function HeatmapSection({ data, title, modeToggle }: {
                       {subTopics.map((t) => (
                         <li key={t.id} className="text-xs font-mono text-purple-700 dark:text-purple-400 truncate break-inside-avoid cursor-pointer hover:underline flex items-baseline gap-1" title={t.name} onClick={() => goToExplorer(t.id)}>
                           <span className="truncate">{t.name}</span>
-                          {showKb && <span className="text-[10px] opacity-60 shrink-0">{t.size_kb ?? 0}KB</span>}
+                          {showKb && <span className="text-[10px] opacity-60 shrink-0">{t.size_kb ?? 0} bytes</span>}
                         </li>
                       ))}
                     </ul>
