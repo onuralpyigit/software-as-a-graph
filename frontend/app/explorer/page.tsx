@@ -238,6 +238,120 @@ const EDGE_DESCS: Record<string, string> = {
   path_count: "Number of independent event-routing paths that share this dependency",
 }
 
+// ── Contextual neighborhood scenarios (replaces raw depth 1-2-3) ─────────────
+interface ConnScenario {
+  id: string
+  label: string
+  tooltip: string
+  depth: number
+  /** If set, only edges of these types are shown */
+  allowedEdgeTypes?: string[]
+  /** If set, only nodes of these types are shown (center node always kept) */
+  allowedNodeTypes?: string[]
+  /**
+   * When true, use a strict hop-by-hop BFS from the center so only nodes
+   * reachable via the EXACT intended hop path are included. Prevents transitive
+   * leakage where depth-2 queries pull in unrelated nodes via shared topics.
+   */
+  strictBFS?: boolean
+}
+
+const NODE_SCENARIOS: Record<string, ConnScenario[]> = {
+  Application: [
+    {
+      id: "direct",  label: "Direct",
+      tooltip: "Hosting node, pub/sub topics, and library dependencies",
+      depth: 1,
+      allowedNodeTypes: ["Application", "Node", "Topic", "Library"],
+      allowedEdgeTypes: ["RUNS_ON", "PUBLISHES_TO", "SUBSCRIBES_TO", "USES"],
+    },
+    {
+      id: "pubsub",  label: "Pub/Sub Context",
+      tooltip: "Topics this app publishes/subscribes to, plus other apps sharing those topics",
+      depth: 2,
+      allowedNodeTypes: ["Application", "Topic"],
+      allowedEdgeTypes: ["PUBLISHES_TO", "SUBSCRIBES_TO"],
+      strictBFS: true,
+    },
+  ],
+  Topic: [
+    {
+      id: "flows",  label: "Publishers & Subscribers",
+      tooltip: "Applications that publish or subscribe to this topic",
+      depth: 1,
+      allowedNodeTypes: ["Application"],
+      allowedEdgeTypes: ["PUBLISHES_TO", "SUBSCRIBES_TO"],
+    },
+    {
+      id: "extended",  label: "Extended",
+      tooltip: "Also includes infrastructure nodes of connected applications",
+      depth: 2,
+      allowedNodeTypes: ["Application", "Node", "Broker"],
+      allowedEdgeTypes: ["PUBLISHES_TO", "SUBSCRIBES_TO", "RUNS_ON", "ROUTES"],
+      strictBFS: true,
+    },
+  ],
+  Node: [
+    {
+      id: "apps",  label: "Hosted Apps",
+      tooltip: "Applications deployed on this infrastructure node",
+      depth: 1,
+      allowedNodeTypes: ["Application"],
+      allowedEdgeTypes: ["RUNS_ON"],
+    },
+    {
+      id: "ecosystem",  label: "App Ecosystem",
+      tooltip: "Only apps that run on this node, plus topics those specific apps publish or subscribe to",
+      depth: 2,
+      allowedNodeTypes: ["Application", "Topic"],
+      allowedEdgeTypes: ["RUNS_ON", "PUBLISHES_TO", "SUBSCRIBES_TO"],
+      strictBFS: true,
+    },
+  ],
+  Broker: [
+    {
+      id: "topics",  label: "Routed Topics",
+      tooltip: "Topics routed through this message broker",
+      depth: 1,
+      allowedNodeTypes: ["Topic"],
+      allowedEdgeTypes: ["ROUTES"],
+    },
+    {
+      id: "context",  label: "App Connections",
+      tooltip: "Routed topics plus applications that publish or subscribe to those topics",
+      depth: 2,
+      allowedNodeTypes: ["Topic", "Application"],
+      allowedEdgeTypes: ["ROUTES", "PUBLISHES_TO", "SUBSCRIBES_TO"],
+      strictBFS: true,
+    },
+  ],
+  Library: [
+    {
+      id: "users",  label: "Dependent Apps",
+      tooltip: "Applications that depend on this library",
+      depth: 1,
+      allowedNodeTypes: ["Application"],
+      allowedEdgeTypes: ["USES"],
+    },
+    {
+      id: "ecosystem",  label: "App Topics",
+      tooltip: "Dependent apps plus the topics those specific apps publish or subscribe to",
+      depth: 2,
+      allowedNodeTypes: ["Application", "Topic"],
+      allowedEdgeTypes: ["USES", "PUBLISHES_TO", "SUBSCRIBES_TO"],
+      strictBFS: true,
+    },
+  ],
+}
+const DEFAULT_SCENARIOS: ConnScenario[] = [
+  { id: "direct",   label: "Direct",   tooltip: "Direct neighbors (1 hop)",   depth: 1 },
+  { id: "extended", label: "Extended", tooltip: "2-hop neighborhood",          depth: 2 },
+]
+
+function getScenariosForType(nodeType: string | undefined): ConnScenario[] {
+  return NODE_SCENARIOS[nodeType ?? "Application"] ?? DEFAULT_SCENARIOS
+}
+
 /** Small ⓘ tooltip trigger shown inline after a property label */
 function Tip({ text }: { text: string }) {
   return (
@@ -1203,7 +1317,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
   const [connLoading, setConnLoading] = useState(false)
   const [connError, setConnError] = useState<string | null>(null)
   const [connTab, setConnTab] = useState<"connections" | "props">("props")
-  const [connDepth, setConnDepth] = useState(1)
+  const [connScenario, setConnScenario] = useState("direct")
   const [connSort, setConnSort] = useState<{ col: "node" | "type" | "dir"; asc: boolean }>({ col: "type", asc: true })
 
   const isSyncingRef = useRef(false)
@@ -1340,21 +1454,71 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   const connGraphData = useMemo(() => {
     if (!connData) return { nodes: [], links: [] }
+
+    // Resolve active scenario filter
+    const scenarios = getScenariosForType(selectedApp?.nodeType ?? "Application")
+    const activeScenario = scenarios.find(s => s.id === connScenario) ?? scenarios[0]
+    const centerPathKey = selectedApp?.pathKey ?? ""
+
     let links = [...connData.links]
+
+    // 1. Scenario-based edge type filter
+    if (activeScenario.allowedEdgeTypes) {
+      const allowedSet = new Set(activeScenario.allowedEdgeTypes)
+      links = links.filter(l => allowedSet.has(l.type))
+    }
+    // 2. Manual edge type hide overlay
     if (hiddenEdgeTypes.size > 0) links = links.filter(l => !hiddenEdgeTypes.has(l.type))
-    // Keep only nodes that are still referenced by remaining links or are the selected app
+
+    // 3. Strict BFS hop-by-hop reachability (prevents transitive leakage)
+    //    e.g. Node→App→Topic→OtherApp: OtherApp is NOT on this node and must be excluded
+    if (activeScenario.strictBFS && centerPathKey) {
+      const visited = new Set<string>([centerPathKey])
+      let frontier = new Set<string>([centerPathKey])
+      for (let hop = 0; hop < activeScenario.depth; hop++) {
+        const nextFrontier = new Set<string>()
+        for (const link of links) {
+          const srcId = link.source?.id ?? link.source
+          const tgtId = link.target?.id ?? link.target
+          if (frontier.has(srcId) && !visited.has(tgtId)) {
+            nextFrontier.add(tgtId)
+            visited.add(tgtId)
+          }
+          if (frontier.has(tgtId) && !visited.has(srcId)) {
+            nextFrontier.add(srcId)
+            visited.add(srcId)
+          }
+        }
+        frontier = nextFrontier
+      }
+      links = links.filter(l => visited.has(l.source?.id ?? l.source) && visited.has(l.target?.id ?? l.target))
+    }
+
+    // Keep only nodes referenced by surviving links or the center node
     const referencedIds = new Set<string>([
-      ...(selectedApp ? [selectedApp.pathKey] : []),
+      ...(selectedApp ? [centerPathKey] : []),
       ...links.flatMap(l => [l.source?.id ?? l.source, l.target?.id ?? l.target]),
     ])
     let nodes = connData.nodes.filter(n => referencedIds.has(n.id))
+
+    // 4. Scenario-based node type filter
+    if (activeScenario.allowedNodeTypes) {
+      const allowedSet = new Set(activeScenario.allowedNodeTypes)
+      const removedIds = new Set(nodes.filter(n => !allowedSet.has(n.type) && n.id !== centerPathKey).map(n => n.id))
+      if (removedIds.size > 0) {
+        nodes = nodes.filter(n => !removedIds.has(n.id))
+        links = links.filter(l => !removedIds.has(l.source?.id ?? l.source) && !removedIds.has(l.target?.id ?? l.target))
+      }
+    }
+    // 5. Manual node type hide overlay
     if (hiddenNodeTypes.size > 0) {
-      const removedIds = new Set(nodes.filter(n => hiddenNodeTypes.has(n.type) && n.id !== selectedApp?.pathKey).map(n => n.id))
+      const removedIds = new Set(nodes.filter(n => hiddenNodeTypes.has(n.type) && n.id !== centerPathKey).map(n => n.id))
       nodes = nodes.filter(n => !removedIds.has(n.id))
       links = links.filter(l => !removedIds.has(l.source?.id ?? l.source) && !removedIds.has(l.target?.id ?? l.target))
     }
+
     return { nodes, links }
-  }, [connData, selectedApp, hiddenEdgeTypes, hiddenNodeTypes])
+  }, [connData, selectedApp, connScenario, hiddenEdgeTypes, hiddenNodeTypes])
 
   // Direct neighbor id sets (relative to selected app node)
   const directOutIds = useMemo(() =>
@@ -1473,17 +1637,27 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     return () => { ro.disconnect(); if (rafId) cancelAnimationFrame(rafId) }
   }, [])
 
-  // Fetch connections whenever selected app or depth changes
+  // Reset scenario to the first option for this node type when the selected node changes
+  useEffect(() => {
+    if (!selectedApp) return
+    const scenarios = getScenariosForType(selectedApp.nodeType ?? "Application")
+    setConnScenario(scenarios[0].id)
+  }, [selectedApp?.pathKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch connections whenever selected app or scenario changes
   // Two parallel calls: structural (fetch_structural=true) + derived DEPENDS_ON (fetch_structural=false)
   useEffect(() => {
     if (!selectedApp) { setConnData(null); setConnError(null); return }
+    const scenarios = getScenariosForType(selectedApp.nodeType ?? "Application")
+    const activeScenario = scenarios.find(s => s.id === connScenario) ?? scenarios[0]
+    const effectiveDepth = activeScenario.depth
     let cancelled = false
     setConnLoading(true)
     setConnError(null)
     setConnData(null)
     Promise.all([
-      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, true, connDepth),
-      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, false, connDepth),
+      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, true, effectiveDepth),
+      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, false, effectiveDepth),
     ]).then(([structural, derived]) => {
       if (cancelled) return
       // Merge nodes (deduplicate by id)
@@ -1499,7 +1673,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       .catch(e => { if (!cancelled) setConnError(e instanceof Error ? e.message : String(e)) })
       .finally(() => { if (!cancelled) setConnLoading(false) })
     return () => { cancelled = true }
-  }, [selectedApp, connDepth])
+  }, [selectedApp, connScenario])
 
   const clearSelection = useCallback(() => {
     setSelectedApp(null)
@@ -1610,8 +1784,9 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
   // Click handler — connections mode (re-center on clicked node)
   const drillIntoConn = useCallback((node: object) => {
     const n = node as any
+    if (!n || !n.id) return
     if (n.id === selectedApp?.pathKey) return
-    setSelectedApp({ id: `app:${n.id}`, name: n.label ?? n.id, level: "app", appCount: 1, pathKey: n.id })
+    setSelectedApp({ id: `app:${n.id}`, name: n.label ?? n.id, level: "app", nodeType: n.type, appCount: 1, pathKey: n.id })
     setConnTab("props")
     setConnData(null)
     const key = n.type === 'Application' ? `app:${n.id}` : `extra:${n.id}`
@@ -1982,24 +2157,49 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold text-white shrink-0"
-                  style={{ background: NODE_COLORS.app }}>App</span>
+                  style={{ background: nodeTypeColor(appNode?.type ?? selectedApp?.nodeType, isDark) }}>
+                  {appNode?.type ?? selectedApp?.nodeType ?? "App"}
+                </span>
                 <span className="text-xs font-semibold text-foreground truncate">{selectedApp.name}</span>
               </div>
               <button onClick={clearSelection} className="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
-              <span className="text-[11px] text-muted-foreground">Depth</span>
-              {[1, 2, 3].map(d => (
-                <button key={d} onClick={() => setConnDepth(d)}
-                  className={cn("h-6 w-6 rounded text-xs font-medium transition-colors",
-                    connDepth === d ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  )}>{d}</button>
-              ))}
-              {connData && !connLoading && (
-                <span className="ml-auto text-[11px] text-muted-foreground">{connData.links.length} edges</span>
-              )}
+            {/* Scenario selector */}
+            <div className="px-4 py-2.5 border-b border-border shrink-0">
+              {(() => {
+                const nodeType = appNode?.type ?? selectedApp?.nodeType ?? "Application"
+                const scenarios = getScenariosForType(nodeType)
+                return (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">View</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {scenarios.map(s => (
+                        <Tooltip key={s.id}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => setConnScenario(s.id)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors",
+                                connScenario === s.id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                              )}
+                            >{s.label}</button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-52 text-xs leading-relaxed">
+                            {s.tooltip}
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                      {connData && !connLoading && (
+                        <span className="ml-auto text-[11px] text-muted-foreground">{connData.links.length} edges</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
             <div className="flex border-b border-border shrink-0">
               {(["props", "connections"] as const).map(tab => (
