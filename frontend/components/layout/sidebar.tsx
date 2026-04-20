@@ -17,6 +17,7 @@ import {
   Brain,
   Cpu,
   LayoutGrid,
+  Wifi,
 } from "lucide-react"
 
 const navigation = [
@@ -44,6 +45,11 @@ const navigation = [
     name: "Simulation",
     href: "/simulation",
     icon: Zap,
+  },
+  {
+    name: "Traffic",
+    href: "/traffic",
+    icon: Wifi,
   },
   {
     name: "Validation",
