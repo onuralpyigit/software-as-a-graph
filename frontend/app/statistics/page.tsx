@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState, useMemo, type ReactElement } from "react"
-import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -258,6 +257,36 @@ function OutlierTable({ rows, headers }: { rows: (string | number)[][]; headers:
   )
 }
 
+function MetricInsightCard({
+  label,
+  value,
+  description,
+  formula,
+  unit,
+}: {
+  label: string
+  value: string | number
+  description: string
+  formula?: string
+  unit?: string
+}) {
+  return (
+    <div className="rounded-lg border bg-card p-4 flex flex-col gap-1.5">
+      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest leading-none">{label}</p>
+      <p className="text-xl font-bold leading-tight">
+        {typeof value === "number" ? fmtNum(value) : value}
+        {unit && <span className="text-xs font-normal text-muted-foreground ml-1">{unit}</span>}
+      </p>
+      <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+      {formula && (
+        <code className="text-[10px] font-mono bg-muted/80 rounded px-2 py-0.5 text-muted-foreground/90 mt-0.5 self-start">
+          {formula}
+        </code>
+      )}
+    </div>
+  )
+}
+
 // ── Sections ────────────────────────────────────────────────────────────
 
 type BandwidthMode = "sub" | "pub" | "pubsub"
@@ -288,6 +317,27 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <MetricInsightCard
+          label="Avg Subscriber Bandwidth"
+          value={fmtNum(data.summary.bw_mean ?? 0)}
+          unit="bytes"
+          description="Mean subscriber-side bandwidth per active topic. Measures how many bytes flow to all consumers per publish event. High values signal topics that strain network capacity."
+          formula="bandwidth_sub = size × sub_count"
+        />
+        <MetricInsightCard
+          label="Zero-Subscriber Topics"
+          value={data.summary.zero_sub_count ?? 0}
+          description="Topics that are published to but never consumed. Dead channels waste publisher resources and typically indicate incomplete pub/sub wiring or stale topic definitions."
+          formula="count(topics where sub_count = 0)"
+        />
+        <MetricInsightCard
+          label="Bandwidth Outliers"
+          value={data.summary.outlier_count ?? 0}
+          description="Topics whose bandwidth exceeds the IQR upper fence. A small number of outlier topics can dominate total network utilisation."
+          formula="outlier if bandwidth > Q3 + 1.5 × IQR"
+        />
+      </div>
       <SummaryCards summary={data.summary} keys={[
         { key: "total_topics", label: "Total Topics" },
         { key: "size_mean", label: "Avg Size", format: (v) => fmtNum(v) + " bytes" },
@@ -339,6 +389,26 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <MetricInsightCard
+          label="High I/O Apps"
+          value={data.summary.q_high_io ?? 0}
+          description="Applications that both publish and subscribe above the system mean — the busiest communication hubs. Their failure disrupts both upstream and downstream flows."
+          formula="pub > avg_pub AND sub > avg_sub"
+        />
+        <MetricInsightCard
+          label="Consumer-Only Apps"
+          value={data.summary.q_consumer ?? 0}
+          description="Apps that subscribe above average but publish below average. Pure consumers: data enters but nothing is emitted. Upstream failures cascade directly into these endpoints."
+          formula="pub ≤ avg_pub AND sub > avg_sub"
+        />
+        <MetricInsightCard
+          label="Producer-Only Apps"
+          value={data.summary.q_producer ?? 0}
+          description="Apps that publish above average but subscribe below average. Data sources whose failure causes downstream data loss across all dependent subscribers."
+          formula="pub > avg_pub AND sub ≤ avg_sub"
+        />
+      </div>
       <SummaryCards summary={data.summary} keys={[
         { key: "total_apps", label: "Total Apps" },
         { key: "q_high_io", label: "High I/O" },
@@ -386,6 +456,26 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <MetricInsightCard
+          label="Max Fanout"
+          value={data.summary.fanout_max ?? 0}
+          description="Highest message multiplication factor in the system. One publish event on this topic is delivered to this many subscribers simultaneously. High fanout amplifies failure blast radius."
+          formula="fanout = pub_count × sub_count"
+        />
+        <MetricInsightCard
+          label="Orphan Topics"
+          value={data.summary.orphan ?? 0}
+          description="Topics missing a publisher or subscriber — incomplete message flows that either produce data nobody receives, or await data that never arrives."
+          formula="count(pub_count = 0 OR sub_count = 0)"
+        />
+        <MetricInsightCard
+          label="Broadcast Topics (1→N)"
+          value={data.summary.one_to_many ?? 0}
+          description="Topics with a single publisher and multiple subscribers. A publisher failure on any of these simultaneously silences all downstream consumers."
+          formula="count(pub_count = 1 AND sub_count > 1)"
+        />
+      </div>
       <SummaryCards summary={data.summary} keys={[
         { key: "total_topics", label: "Total Topics" },
         { key: "one_to_many", label: "1→N" },
@@ -428,7 +518,7 @@ function combineMatrices(m: number[][]): number[][] {
   return m.map((row, ri) => row.map((val, ci) => val + t[ri][ci]))
 }
 
-function HeatmapSection({ data, title, modeToggle }: {
+function HeatmapSection({ data, title, modeToggle, insights }: {
   data: {
     labels: string[]
     node_ids?: string[]
@@ -440,6 +530,7 @@ function HeatmapSection({ data, title, modeToggle }: {
   } | undefined
   title: string
   modeToggle?: boolean
+  insights?: React.ReactNode
 }) {
   const [mode, setMode] = useState<HeatmapMode>("pub")
   const [showKb, setShowKb] = useState(false)
@@ -523,6 +614,7 @@ function HeatmapSection({ data, title, modeToggle }: {
 
   return (
     <div className="space-y-4">
+      {insights}
       <SummaryCards summary={data.summary} keys={[
         { key: "entity_count", label: "Entities" },
         { key: "nonzero_count", label: "Active Cells" },
@@ -717,6 +809,26 @@ function NodeCommLoadSection({ data }: { data: ExtrasStats["node_comm_load"] }) 
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <MetricInsightCard
+          label="Avg Node Load"
+          value={data.summary.load_mean ?? 0}
+          description="Average number of topic connections (publishes + subscribes) hosted on a single node. Represents typical communication pressure across all hosts."
+          formula="load(node) = Σ pub_count + Σ sub_count for hosted apps"
+        />
+        <MetricInsightCard
+          label="Load Variation (CV)"
+          value={`${Number(data.summary.cv ?? 0).toFixed(1)}%`}
+          description="Coefficient of variation of node load. High CV means uneven workload distribution — some nodes carry disproportionate traffic while others are nearly idle."
+          formula="CV = std(load) / mean(load) × 100"
+        />
+        <MetricInsightCard
+          label="Idle Nodes"
+          value={data.summary.zero_load ?? 0}
+          description="Nodes hosting no communicating applications. May indicate orphaned infrastructure, pure compute nodes, or deployment imbalances worth investigating."
+          formula="count(nodes where load = 0)"
+        />
+      </div>
       <SummaryCards summary={data.summary} keys={[
         { key: "node_count", label: "Nodes" },
         { key: "pub_total", label: "Total Pub" },
@@ -773,6 +885,27 @@ function CriticalityIOSection({ data }: { data: ExtrasStats["criticality_io"] })
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <MetricInsightCard
+          label="Critical App Fraction"
+          value={`${Number(data.summary.crit_pct ?? 0).toFixed(1)}%`}
+          description="Share of applications flagged as mission-critical. A higher fraction reduces the system's fault-tolerance margin — more components failing means wider impact."
+          formula="critical_apps / total_apps × 100"
+        />
+        <MetricInsightCard
+          label="Critical vs Normal I/O"
+          value={Number(data.summary.crit_norm_ratio ?? 0).toFixed(2)}
+          unit="×"
+          description="How much heavier critical apps' average I/O load is compared to normal apps. Values above 1× mean critical components are also the communication hotspots."
+          formula="mean_io(critical) / mean_io(normal)"
+        />
+        <MetricInsightCard
+          label="Critical Avg I/O"
+          value={data.summary.crit_io_mean ?? 0}
+          description="Average number of pub/sub connections per critical application. High values compound failure impact — more dependencies are at risk when a critical component goes down."
+          formula="mean(pub + sub) for critical apps"
+        />
+      </div>
       <SummaryCards summary={data.summary} keys={[
         { key: "total_apps", label: "Total Apps" },
         { key: "crit_count", label: "Critical" },
@@ -822,6 +955,26 @@ function LibDependencySection({ data }: { data: ExtrasStats["lib_dependency"] })
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <MetricInsightCard
+          label="Max Library In-Degree"
+          value={data.summary.in_max ?? 0}
+          description="The highest number of applications depending on a single library. This library is a shared-fate risk — its failure or API change affects all dependents simultaneously."
+          formula="max(count(apps depending on library))"
+        />
+        <MetricInsightCard
+          label="Avg In-Degree"
+          value={Number(data.summary.in_mean ?? 0).toFixed(1)}
+          description="Mean number of applications consuming each library. Higher averages indicate broadly shared libraries with larger collective blast radius."
+          formula="mean(in-degree) across active libraries"
+        />
+        <MetricInsightCard
+          label="Total Dependencies"
+          value={data.summary.total_relations ?? 0}
+          description="Total application-to-library USES edges in the system. Measures overall coupling density between the application and library layers."
+          formula="count(USES relationships)"
+        />
+      </div>
       <SummaryCards summary={data.summary} keys={[
         { key: "total_relations", label: "Total Relations" },
         { key: "active_count", label: "Active Entities" },
@@ -878,6 +1031,26 @@ function NodeCriticalDensitySection({ data }: { data: ExtrasStats["node_critical
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <MetricInsightCard
+          label="System Critical %"
+          value={`${Number(data.summary.system_crit_pct ?? 0).toFixed(1)}%`}
+          description="Percentage of all applications across the system that are marked critical. High values reduce redundancy headroom and make the system more vulnerable to targeted failures."
+          formula="critical_apps / total_apps × 100"
+        />
+        <MetricInsightCard
+          label="Max Critical Apps / Node"
+          value={data.summary.crit_per_node_max ?? 0}
+          description="Highest concentration of critical apps on a single physical node. A node with many critical apps is a blast-radius hotspot — losing it collapses multiple mission-critical flows."
+          formula="max(critical_count per node)"
+        />
+        <MetricInsightCard
+          label="Nodes Without Critical Apps"
+          value={data.summary.zero_crit ?? 0}
+          description="Physical nodes hosting no critical applications. These nodes have inherently lower individual failure impact on mission-critical system behaviour."
+          formula="count(nodes where critical_count = 0)"
+        />
+      </div>
       <SummaryCards summary={data.summary} keys={[
         { key: "node_count", label: "Nodes" },
         { key: "total_crit", label: "Total Critical" },
@@ -925,6 +1098,26 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <MetricInsightCard
+          label="Avg Apps per Domain"
+          value={Number(data.summary.app_mean ?? 0).toFixed(1)}
+          description="Mean number of applications per domain. Very low values may indicate overly fragmented subsystems; very high values may signal monolithic domains with unclear boundaries."
+          formula="total_apps / domain_count"
+        />
+        <MetricInsightCard
+          label="Avg Topics per Domain"
+          value={Number(data.summary.topic_mean ?? 0).toFixed(1)}
+          description="Mean number of topics owned or used per domain. Reflects how much communication surface each subsystem exposes to the rest of the architecture."
+          formula="total_topics_touched / domain_count"
+        />
+        <MetricInsightCard
+          label="Avg I/O per Domain"
+          value={Number(data.summary.io_mean ?? 0).toFixed(1)}
+          description="Average pub/sub message load aggregated per domain. High I/O domains are communication hubs whose degradation has the widest downstream reach."
+          formula="mean(Σ pub + Σ sub per domain)"
+        />
+      </div>
       <SummaryCards summary={data.summary} keys={[
         { key: "css_count", label: "Domains" },
         { key: "app_mean", label: "Avg Apps/Domain" },
@@ -975,24 +1168,44 @@ const TAB_CONFIG = [
   { id: "domain_div", label: "Domain Diversity", icon: Box, color: "text-orange-500", description: "Application and topic variety within each domain. Low diversity may indicate monolithic subsystems." },
 ] as const
 
+type TabId = typeof TAB_CONFIG[number]["id"]
+
+// Maps tab id → backend chart_id for the /chart/{chart_id} endpoint
+const TAB_TO_CHART_ID: Record<TabId, keyof ExtrasStats> = {
+  topic_bandwidth: "topic_bandwidth",
+  app_balance: "app_balance",
+  topic_fanout: "topic_fanout",
+  cross_node: "cross_node_heatmap",
+  node_load: "node_comm_load",
+  domain_comm: "domain_comm",
+  criticality: "criticality_io",
+  lib_deps: "lib_dependency",
+  node_density: "node_critical_density",
+  domain_div: "domain_diversity",
+}
+
 // ── Main page ───────────────────────────────────────────────────────────
 
 export default function StatisticsPage() {
   const { status, config, initialLoadComplete } = useConnection()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [stats, setStats] = useState<ExtrasStats | null>(null)
+  const [tabData, setTabData] = useState<Partial<ExtrasStats>>({})
+  const [tabLoading, setTabLoading] = useState<Partial<Record<TabId, boolean>>>({})
+  const [tabError, setTabError] = useState<Partial<Record<TabId, string>>>({})
+  const [activeTab, setActiveTab] = useState<TabId>("topic_bandwidth")
 
   const isConnected = status === "connected"
 
-  const fetchExtras = async () => {
+  const fetchTab = async (tabId: TabId, force = false) => {
+    const chartKey = TAB_TO_CHART_ID[tabId]
+    if (!force && tabData[chartKey] !== undefined) return
     if (!isConnected || !config) return
-    setLoading(true)
-    setError(null)
+
+    setTabLoading((prev) => ({ ...prev, [tabId]: true }))
+    setTabError((prev) => ({ ...prev, [tabId]: undefined }))
     try {
       const creds = apiClient.getCredentials()
       if (!creds) throw new Error("No credentials")
-      const response = await fetch(`${API_BASE_URL}/api/v1/stats`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/stats/chart/${chartKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(creds),
@@ -1000,21 +1213,37 @@ export default function StatisticsPage() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const json = await response.json()
       if (json.success) {
-        setStats(json.stats)
+        setTabData((prev) => ({ ...prev, [chartKey]: json.data }))
       } else {
         throw new Error(json.detail || "Failed")
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to load statistics"
-      setError(msg)
+      setTabError((prev) => ({ ...prev, [tabId]: msg }))
     } finally {
-      setLoading(false)
+      setTabLoading((prev) => ({ ...prev, [tabId]: false }))
     }
+  }
+
+  const handleTabChange = (value: string) => {
+    const id = value as TabId
+    setActiveTab(id)
+    fetchTab(id)
+  }
+
+  const handleRefresh = () => {
+    setTabData((prev) => {
+      const chartKey = TAB_TO_CHART_ID[activeTab]
+      const next = { ...prev }
+      delete next[chartKey]
+      return next
+    })
+    fetchTab(activeTab, true)
   }
 
   useEffect(() => {
     if (isConnected && config) {
-      fetchExtras()
+      fetchTab("topic_bandwidth")
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, config])
@@ -1052,61 +1281,113 @@ export default function StatisticsPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={fetchExtras}
-                    disabled={loading}
+                    onClick={handleRefresh}
+                    disabled={!!tabLoading[activeTab]}
                     className="shrink-0"
                   >
-                    <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />
+                    <RefreshCw className={`h-4 w-4 mr-1 ${tabLoading[activeTab] ? "animate-spin" : ""}`} />
                     Refresh
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {loading && !stats && (
-              <div className="flex h-64 items-center justify-center">
-                <LoadingSpinner size="lg" text="Computing statistics…" />
-              </div>
-            )}
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+              <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
+                {TAB_CONFIG.map(({ id, label, icon: Icon, color, description }) => (
+                  <TabsTrigger key={id} value={id} className="text-xs gap-1 data-[state=active]:shadow-sm">
+                    <Icon className={`h-3.5 w-3.5 ${color}`} />
+                    <TermTooltip description={description}>{label}</TermTooltip>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
 
-            {error && (
-              <Card className="border-red-500/50 bg-red-500/5">
-                <CardContent className="p-4">
-                  <p className="text-sm text-red-500">
-                    <AlertTriangle className="inline h-4 w-4 mr-1" /> {error}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {stats && (
-              <Tabs defaultValue="topic_bandwidth" className="w-full">
-                <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
-                  {TAB_CONFIG.map(({ id, label, icon: Icon, color, description }) => (
-                    <TabsTrigger key={id} value={id} className="text-xs gap-1 data-[state=active]:shadow-sm">
-                      <Icon className={`h-3.5 w-3.5 ${color}`} />
-                      <TermTooltip description={description}>{label}</TermTooltip>
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-
-                {TAB_CONFIG.map(({ id, description }) => (
+              {TAB_CONFIG.map(({ id, description }) => {
+                const isLoading = !!tabLoading[id]
+                const error = tabError[id]
+                const chartKey = TAB_TO_CHART_ID[id]
+                const data = tabData[chartKey] as ExtrasStats[typeof chartKey] | undefined
+                return (
                   <TabsContent key={id} value={id} className="mt-4">
                     <p className="text-sm text-muted-foreground mb-4">{description}</p>
-                    {id === "topic_bandwidth" && <TopicBandwidthSection data={stats.topic_bandwidth} />}
-                    {id === "app_balance" && <AppBalanceSection data={stats.app_balance} />}
-                    {id === "topic_fanout" && <TopicFanoutSection data={stats.topic_fanout} />}
-                    {id === "cross_node" && <HeatmapSection data={stats.cross_node_heatmap} title="Cross-Node Communication Heatmap" modeToggle />}
-                    {id === "node_load" && <NodeCommLoadSection data={stats.node_comm_load} />}
-                    {id === "domain_comm" && <HeatmapSection data={stats.domain_comm} title="Domain-to-Domain Communication" />}
-                    {id === "criticality" && <CriticalityIOSection data={stats.criticality_io} />}
-                    {id === "lib_deps" && <LibDependencySection data={stats.lib_dependency} />}
-                    {id === "node_density" && <NodeCriticalDensitySection data={stats.node_critical_density} />}
-                    {id === "domain_div" && <DomainDiversitySection data={stats.domain_diversity} />}
+                    {isLoading && (
+                      <div className="flex h-64 items-center justify-center">
+                        <LoadingSpinner size="lg" text="Computing statistics…" />
+                      </div>
+                    )}
+                    {!isLoading && error && (
+                      <Card className="border-red-500/50 bg-red-500/5">
+                        <CardContent className="p-4">
+                          <p className="text-sm text-red-500">
+                            <AlertTriangle className="inline h-4 w-4 mr-1" /> {error}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
+                    {!isLoading && !error && data !== undefined && (
+                      <>
+                        {id === "topic_bandwidth" && <TopicBandwidthSection data={tabData.topic_bandwidth} />}
+                        {id === "app_balance" && <AppBalanceSection data={tabData.app_balance} />}
+                        {id === "topic_fanout" && <TopicFanoutSection data={tabData.topic_fanout} />}
+                        {id === "cross_node" && <HeatmapSection data={tabData.cross_node_heatmap} title="Cross-Node Communication Heatmap" modeToggle insights={
+                          tabData.cross_node_heatmap && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                              <MetricInsightCard
+                                label="Active Cell %"
+                                value={`${Number(tabData.cross_node_heatmap.summary.active_pct ?? 0).toFixed(1)}%`}
+                                description="Fraction of node pairs that exchange at least one topic. High density indicates tightly coupled physical infrastructure where many nodes share data paths."
+                                formula="nonzero_cells / total_cells × 100"
+                              />
+                              <MetricInsightCard
+                                label="Intra-Node Events"
+                                value={tabData.cross_node_heatmap.summary.intra_total ?? 0}
+                                description="Topics where both publisher and subscriber run on the same physical node. Local traffic is unaffected by inter-node network failures."
+                                formula="Σ matrix[i][i]  (diagonal sum)"
+                              />
+                              <MetricInsightCard
+                                label="Cross-Node Events"
+                                value={tabData.cross_node_heatmap.summary.inter_total ?? 0}
+                                description="Topics that cross node boundaries. High counts raise network dependency risk and increase the blast radius of any single node or link failure."
+                                formula="Σ matrix[i][j]  for i ≠ j"
+                              />
+                            </div>
+                          )
+                        } />}
+                        {id === "node_load" && <NodeCommLoadSection data={tabData.node_comm_load} />}
+                        {id === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Domain-to-Domain Communication" insights={
+                          tabData.domain_comm && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                              <MetricInsightCard
+                                label="Active Cell %"
+                                value={`${Number(tabData.domain_comm.summary.active_pct ?? 0).toFixed(1)}%`}
+                                description="Fraction of domain pairs with cross-domain message traffic. High values signal tight coupling between subsystems and potential dependency debt."
+                                formula="nonzero_cells / total_cells × 100"
+                              />
+                              <MetricInsightCard
+                                label="Intra-Domain Events"
+                                value={tabData.domain_comm.summary.intra_total ?? 0}
+                                description="Topic exchanges where publisher and subscriber belong to the same domain. High intra-domain traffic signals well-encapsulated, loosely coupled subsystems."
+                                formula="Σ matrix[i][i]  (diagonal sum)"
+                              />
+                              <MetricInsightCard
+                                label="Cross-Domain Events"
+                                value={tabData.domain_comm.summary.inter_total ?? 0}
+                                description="Topic flows that cross domain boundaries. High values indicate interdependency between subsystems and wider cascade paths under failure."
+                                formula="Σ matrix[i][j]  for i ≠ j"
+                              />
+                            </div>
+                          )
+                        } />}
+                        {id === "criticality" && <CriticalityIOSection data={tabData.criticality_io} />}
+                        {id === "lib_deps" && <LibDependencySection data={tabData.lib_dependency} />}
+                        {id === "node_density" && <NodeCriticalDensitySection data={tabData.node_critical_density} />}
+                        {id === "domain_div" && <DomainDiversitySection data={tabData.domain_diversity} />}
+                      </>
+                    )}
                   </TabsContent>
-                ))}
-              </Tabs>
-            )}
+                )
+              })}
+            </Tabs>
           </>
         )}
       </div>
