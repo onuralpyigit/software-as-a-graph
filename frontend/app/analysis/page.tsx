@@ -222,11 +222,11 @@ export default function AnalysisPage() {
     }
   }
   const getScoreColor = (score: number) => {
-    // Scores are 0-1, convert to 0-100 for display
-    const displayScore = score * 100
-    if (displayScore >= 80) return "text-red-600 dark:text-red-500" // High score = bad (high risk)
-    if (displayScore >= 60) return "text-yellow-600 dark:text-yellow-500"
-    return "text-green-600 dark:text-green-500" // Low score = good (low risk)
+    // score is raw 0-1 risk score (high = bad). Display is inverted: (1-score)*100 where high = good.
+    const rawPct = score * 100
+    if (rawPct >= 80) return "text-red-600 dark:text-red-500"   // Critical risk → low display score → red
+    if (rawPct >= 60) return "text-yellow-600 dark:text-yellow-500"
+    return "text-green-600 dark:text-green-500" // Low risk → high display score → green
   }
 
   const getSeverityVariant = (severity: string) => {
@@ -267,11 +267,12 @@ export default function AnalysisPage() {
     // Combine components and edges for overall system score
     const allEntities = [...components, ...edges]
 
-    const reliability = (allEntities.reduce((sum, e) => sum + e.scores.reliability, 0) / allEntities.length) * 100
-    const maintainability = (allEntities.reduce((sum, e) => sum + e.scores.maintainability, 0) / allEntities.length) * 100
-    const availability = (allEntities.reduce((sum, e) => sum + e.scores.availability, 0) / allEntities.length) * 100
-    const vulnerability = (allEntities.reduce((sum, e) => sum + e.scores.vulnerability, 0) / allEntities.length) * 100
-    const overall = (allEntities.reduce((sum, e) => sum + e.scores.overall, 0) / allEntities.length) * 100
+    // Invert raw risk scores so that high display score = good quality
+    const reliability = (1 - allEntities.reduce((sum, e) => sum + e.scores.reliability, 0) / allEntities.length) * 100
+    const maintainability = (1 - allEntities.reduce((sum, e) => sum + e.scores.maintainability, 0) / allEntities.length) * 100
+    const availability = (1 - allEntities.reduce((sum, e) => sum + e.scores.availability, 0) / allEntities.length) * 100
+    const vulnerability = (1 - allEntities.reduce((sum, e) => sum + e.scores.vulnerability, 0) / allEntities.length) * 100
+    const overall = (1 - allEntities.reduce((sum, e) => sum + e.scores.overall, 0) / allEntities.length) * 100
 
     return { reliability, maintainability, availability, vulnerability, overall }
   }
@@ -1218,16 +1219,17 @@ export default function AnalysisPage() {
                 {(() => {
                   const scores = calculateAggregateScores()
                   const avgScore = scores.overall
-                  const healthStatus = avgScore < 40 ? 'Excellent' : avgScore < 60 ? 'Good' : avgScore < 80 ? 'Fair' : 'Critical'
-                  const healthColor = avgScore < 40 ? 'from-green-500 to-emerald-600' : 
-                                      avgScore < 60 ? 'from-blue-500 to-cyan-600' : 
-                                      avgScore < 80 ? 'from-yellow-500 to-orange-600' : 'from-red-500 to-rose-600'
-                  const healthBg = avgScore < 40 ? 'bg-green-500/10' : 
-                                   avgScore < 60 ? 'bg-blue-500/10' : 
-                                   avgScore < 80 ? 'bg-yellow-500/10' : 'bg-red-500/10'
-                  const healthBorder = avgScore < 40 ? 'border-green-500/20' : 
-                                       avgScore < 60 ? 'border-blue-500/20' : 
-                                       avgScore < 80 ? 'border-yellow-500/20' : 'border-red-500/20'
+                  // avgScore is now a quality score (0-100, high = good)
+                  const healthStatus = avgScore >= 80 ? 'Excellent' : avgScore >= 60 ? 'Good' : avgScore >= 40 ? 'Fair' : 'Critical'
+                  const healthColor = avgScore >= 80 ? 'from-green-500 to-emerald-600' : 
+                                      avgScore >= 60 ? 'from-blue-500 to-cyan-600' : 
+                                      avgScore >= 40 ? 'from-yellow-500 to-orange-600' : 'from-red-500 to-rose-600'
+                  const healthBg = avgScore >= 80 ? 'bg-green-500/10' : 
+                                   avgScore >= 60 ? 'bg-blue-500/10' : 
+                                   avgScore >= 40 ? 'bg-yellow-500/10' : 'bg-red-500/10'
+                  const healthBorder = avgScore >= 80 ? 'border-green-500/20' : 
+                                       avgScore >= 60 ? 'border-blue-500/20' : 
+                                       avgScore >= 40 ? 'border-yellow-500/20' : 'border-red-500/20'
                   
                   return (
                     <div className={`flex items-center gap-3 ${healthBg} ${healthBorder} rounded-2xl px-5 py-3 border`}>
@@ -1239,8 +1241,8 @@ export default function AnalysisPage() {
                       </div>
                       <div className="h-12 w-px bg-border/40" />
                       <div className="text-center">
-                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Overall Risk</div>
-                        <div className={`text-2xl font-bold ${getScoreColor(avgScore / 100)}`}>
+                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Quality Score</div>
+                        <div className={`text-2xl font-bold ${getScoreColor(1 - avgScore / 100)}`}>
                           {avgScore.toFixed(1)}
                         </div>
                       </div>
@@ -1258,45 +1260,46 @@ export default function AnalysisPage() {
                     const metrics = [
                       {
                         key: 'reliability',
-                        name: 'Reliability Risk',
+                        name: 'Reliability',
                         tooltipTerm: 'Reliability',
                         icon: Shield,
                         value: scores.reliability,
                         gradient: 'from-blue-500 via-indigo-500 to-purple-500',
-                        description: 'System failure probability',
+                        description: 'System fault-propagation resilience',
                       },
                       {
                         key: 'maintainability',
-                        name: 'Maintainability Risk',
+                        name: 'Maintainability',
                         tooltipTerm: 'Maintainability',
                         icon: Wrench,
                         value: scores.maintainability,
                         gradient: 'from-purple-500 via-violet-500 to-fuchsia-500',
-                        description: 'Code complexity & technical debt',
+                        description: 'Change propagation manageability',
                       },
                       {
                         key: 'availability',
-                        name: 'Availability Risk',
+                        name: 'Availability',
                         tooltipTerm: 'Availability',
                         icon: Zap,
                         value: scores.availability,
                         gradient: 'from-green-500 via-emerald-500 to-teal-500',
-                        description: 'Service uptime vulnerability',
+                        description: 'Service uptime robustness',
                       },
                       {
                         key: 'vulnerability',
-                        name: 'Security Risk',
+                        name: 'Security',
                         tooltipTerm: 'Vulnerability',
                         icon: AlertTriangle,
                         value: scores.vulnerability,
                         gradient: 'from-orange-500 via-red-500 to-rose-500',
-                        description: 'Security exposure level',
+                        description: 'Attack-surface resistance',
                       },
                     ]
 
                     return metrics.map((metric) => {
                       const Icon = metric.icon
-                      const riskLevel = metric.value < 40 ? 'Low' : metric.value < 60 ? 'Medium' : metric.value < 80 ? 'High' : 'Critical'
+                      // metric.value is a quality score (0-100, high = good)
+                      const qualityLevel = metric.value >= 80 ? 'Excellent' : metric.value >= 60 ? 'Good' : metric.value >= 40 ? 'Fair' : 'Poor'
                       const circumference = 2 * Math.PI * 32
                       const offset = circumference - (metric.value / 100) * circumference
                       
@@ -1334,20 +1337,20 @@ export default function AnalysisPage() {
                             <div className="flex items-end justify-between">
                               <div>
                                 <div className="flex items-baseline gap-2">
-                                  <span className={`text-4xl font-bold tabular-nums ${getScoreColor(metric.value / 100)}`}>
+                                  <span className={`text-4xl font-bold tabular-nums ${getScoreColor(1 - metric.value / 100)}`}>
                                     {metric.value.toFixed(1)}
                                   </span>
                                   <span className="text-lg text-muted-foreground font-medium">/ 100</span>
                                 </div>
                                 <Badge 
                                   className={`mt-2 ${
-                                    riskLevel === 'Low' ? 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30' :
-                                    riskLevel === 'Medium' ? 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border-yellow-500/30' :
-                                    riskLevel === 'High' ? 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30' :
+                                    qualityLevel === 'Excellent' ? 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30' :
+                                    qualityLevel === 'Good' ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30' :
+                                    qualityLevel === 'Fair' ? 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border-yellow-500/30' :
                                     'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30'
                                   }`}
                                 >
-                                  {riskLevel} Risk
+                                  {qualityLevel}
                                 </Badge>
                               </div>
                               
@@ -1405,8 +1408,8 @@ export default function AnalysisPage() {
                                 </div>
                               </div>
                               <div className="flex items-center justify-between text-xs">
-                                <span className="text-green-600 dark:text-green-400 font-medium">0 (Best)</span>
-                                <span className="text-red-600 dark:text-red-400 font-medium">100 (Worst)</span>
+                                <span className="text-red-600 dark:text-red-400 font-medium">0 (Worst)</span>
+                                <span className="text-green-600 dark:text-green-400 font-medium">100 (Best)</span>
                               </div>
                             </div>
                           </CardContent>
@@ -1535,7 +1538,7 @@ export default function AnalysisPage() {
                                 content={<ChartTooltipContent 
                                   formatter={(value) => `${Number(value).toFixed(1)}`}
                                   className="font-semibold"
-                                  labelFormatter={(label) => `${label} Risk`}
+                                  labelFormatter={(label) => `${label} Score`}
                                 />} 
                               />
                             </RadarChart>
@@ -1545,20 +1548,20 @@ export default function AnalysisPage() {
                           <div className="w-full mt-4 pt-4 border-t border-border/40">
                             <div className="grid grid-cols-2 gap-3 text-xs">
                               <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-500" />
-                                <span className="text-muted-foreground">0-40: Low Risk</span>
+                                <div className="w-3 h-3 rounded-full bg-gradient-to-r from-red-500 to-rose-600" />
+                                <span className="text-muted-foreground">0-40: Poor</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500" />
-                                <span className="text-muted-foreground">40-60: Medium</span>
+                                <span className="text-muted-foreground">40-60: Fair</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-gradient-to-r from-orange-500 to-red-500" />
-                                <span className="text-muted-foreground">60-80: High</span>
+                                <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500" />
+                                <span className="text-muted-foreground">60-80: Good</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-gradient-to-r from-red-500 to-rose-600" />
-                                <span className="text-muted-foreground">80-100: Critical</span>
+                                <div className="w-3 h-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-500" />
+                                <span className="text-muted-foreground">80-100: Excellent</span>
                               </div>
                             </div>
                           </div>
@@ -1941,20 +1944,20 @@ export default function AnalysisPage() {
                               <div className="flex flex-col items-center gap-2">
                                 <div className="flex items-center gap-1.5">
                                   <span className={`text-base font-bold tabular-nums ${getScoreColor(component.scores.overall)}`}>
-                                    {(component.scores.overall * 100).toFixed(0)}
+                                    {((1 - component.scores.overall) * 100).toFixed(0)}
                                   </span>
                                   <Gauge className={`h-3.5 w-3.5 ${getScoreColor(component.scores.overall)} group-hover:scale-110 transition-transform`} />
                                 </div>
                                 <div className="w-full max-w-[70px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 shadow-sm ${
-                                      component.scores.overall * 100 >= 80 
-                                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                                        : component.scores.overall * 100 >= 60 
+                                      (1 - component.scores.overall) * 100 >= 60 
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                        : (1 - component.scores.overall) * 100 >= 40 
                                         ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' 
-                                        : 'bg-gradient-to-r from-green-500 to-green-600'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600'
                                     }`}
-                                    style={{ width: `${component.scores.overall * 100}%` }}
+                                    style={{ width: `${(1 - component.scores.overall) * 100}%` }}
                                   />
                                 </div>
                               </div>
@@ -1964,18 +1967,18 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(component.scores.reliability)}`}>
-                                  {(component.scores.reliability * 100).toFixed(0)}
+                                  {((1 - component.scores.reliability) * 100).toFixed(0)}
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      component.scores.reliability * 100 >= 80 
-                                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                                        : component.scores.reliability * 100 >= 60 
+                                      (1 - component.scores.reliability) * 100 >= 60 
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                        : (1 - component.scores.reliability) * 100 >= 40 
                                         ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' 
-                                        : 'bg-gradient-to-r from-green-500 to-green-600'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600'
                                     }`}
-                                    style={{ width: `${component.scores.reliability * 100}%` }}
+                                    style={{ width: `${(1 - component.scores.reliability) * 100}%` }}
                                   />
                                 </div>
                               </div>
@@ -1985,18 +1988,18 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(component.scores.maintainability)}`}>
-                                  {(component.scores.maintainability * 100).toFixed(0)}
+                                  {((1 - component.scores.maintainability) * 100).toFixed(0)}
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      component.scores.maintainability * 100 >= 80 
-                                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                                        : component.scores.maintainability * 100 >= 60 
+                                      (1 - component.scores.maintainability) * 100 >= 60 
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                        : (1 - component.scores.maintainability) * 100 >= 40 
                                         ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' 
-                                        : 'bg-gradient-to-r from-green-500 to-green-600'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600'
                                     }`}
-                                    style={{ width: `${component.scores.maintainability * 100}%` }}
+                                    style={{ width: `${(1 - component.scores.maintainability) * 100}%` }}
                                   />
                                 </div>
                               </div>
@@ -2006,18 +2009,18 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(component.scores.availability)}`}>
-                                  {(component.scores.availability * 100).toFixed(0)}
+                                  {((1 - component.scores.availability) * 100).toFixed(0)}
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      component.scores.availability * 100 >= 80 
-                                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                                        : component.scores.availability * 100 >= 60 
+                                      (1 - component.scores.availability) * 100 >= 60 
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                        : (1 - component.scores.availability) * 100 >= 40 
                                         ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' 
-                                        : 'bg-gradient-to-r from-green-500 to-green-600'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600'
                                     }`}
-                                    style={{ width: `${component.scores.availability * 100}%` }}
+                                    style={{ width: `${(1 - component.scores.availability) * 100}%` }}
                                   />
                                 </div>
                               </div>
@@ -2027,18 +2030,18 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(component.scores.vulnerability)}`}>
-                                  {(component.scores.vulnerability * 100).toFixed(0)}
+                                  {((1 - component.scores.vulnerability) * 100).toFixed(0)}
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      component.scores.vulnerability * 100 >= 80 
-                                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                                        : component.scores.vulnerability * 100 >= 60 
+                                      (1 - component.scores.vulnerability) * 100 >= 60 
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                        : (1 - component.scores.vulnerability) * 100 >= 40 
                                         ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' 
-                                        : 'bg-gradient-to-r from-green-500 to-green-600'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600'
                                     }`}
-                                    style={{ width: `${component.scores.vulnerability * 100}%` }}
+                                    style={{ width: `${(1 - component.scores.vulnerability) * 100}%` }}
                                   />
                                 </div>
                               </div>
@@ -2329,20 +2332,20 @@ export default function AnalysisPage() {
                               <div className="flex flex-col items-center gap-2">
                                 <div className="flex items-center gap-1.5">
                                   <span className={`text-base font-bold tabular-nums ${getScoreColor(edge.scores.overall)}`}>
-                                    {(edge.scores.overall * 100).toFixed(0)}
+                                    {((1 - edge.scores.overall) * 100).toFixed(0)}
                                   </span>
                                   <Gauge className={`h-3.5 w-3.5 ${getScoreColor(edge.scores.overall)} group-hover:scale-110 transition-transform`} />
                                 </div>
                                 <div className="w-full max-w-[70px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 shadow-sm ${
-                                      edge.scores.overall * 100 >= 80 
-                                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                                        : edge.scores.overall * 100 >= 60 
+                                      (1 - edge.scores.overall) * 100 >= 60 
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                        : (1 - edge.scores.overall) * 100 >= 40 
                                         ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' 
-                                        : 'bg-gradient-to-r from-green-500 to-green-600'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600'
                                     }`}
-                                    style={{ width: `${edge.scores.overall * 100}%` }}
+                                    style={{ width: `${(1 - edge.scores.overall) * 100}%` }}
                                   />
                                 </div>
                               </div>
@@ -2352,18 +2355,18 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(edge.scores.reliability)}`}>
-                                  {(edge.scores.reliability * 100).toFixed(0)}
+                                  {((1 - edge.scores.reliability) * 100).toFixed(0)}
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      edge.scores.reliability * 100 >= 80 
-                                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                                        : edge.scores.reliability * 100 >= 60 
+                                      (1 - edge.scores.reliability) * 100 >= 60 
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                        : (1 - edge.scores.reliability) * 100 >= 40 
                                         ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' 
-                                        : 'bg-gradient-to-r from-green-500 to-green-600'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600'
                                     }`}
-                                    style={{ width: `${edge.scores.reliability * 100}%` }}
+                                    style={{ width: `${(1 - edge.scores.reliability) * 100}%` }}
                                   />
                                 </div>
                               </div>
@@ -2373,18 +2376,18 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(edge.scores.maintainability)}`}>
-                                  {(edge.scores.maintainability * 100).toFixed(0)}
+                                  {((1 - edge.scores.maintainability) * 100).toFixed(0)}
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      edge.scores.maintainability * 100 >= 80 
-                                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                                        : edge.scores.maintainability * 100 >= 60 
+                                      (1 - edge.scores.maintainability) * 100 >= 60 
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                        : (1 - edge.scores.maintainability) * 100 >= 40 
                                         ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' 
-                                        : 'bg-gradient-to-r from-green-500 to-green-600'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600'
                                     }`}
-                                    style={{ width: `${edge.scores.maintainability * 100}%` }}
+                                    style={{ width: `${(1 - edge.scores.maintainability) * 100}%` }}
                                   />
                                 </div>
                               </div>
@@ -2394,18 +2397,18 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(edge.scores.availability)}`}>
-                                  {(edge.scores.availability * 100).toFixed(0)}
+                                  {((1 - edge.scores.availability) * 100).toFixed(0)}
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      edge.scores.availability * 100 >= 80 
-                                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                                        : edge.scores.availability * 100 >= 60 
+                                      (1 - edge.scores.availability) * 100 >= 60 
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                        : (1 - edge.scores.availability) * 100 >= 40 
                                         ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' 
-                                        : 'bg-gradient-to-r from-green-500 to-green-600'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600'
                                     }`}
-                                    style={{ width: `${edge.scores.availability * 100}%` }}
+                                    style={{ width: `${(1 - edge.scores.availability) * 100}%` }}
                                   />
                                 </div>
                               </div>
@@ -2415,18 +2418,18 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(edge.scores.vulnerability)}`}>
-                                  {(edge.scores.vulnerability * 100).toFixed(0)}
+                                  {((1 - edge.scores.vulnerability) * 100).toFixed(0)}
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      edge.scores.vulnerability * 100 >= 80 
-                                        ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                                        : edge.scores.vulnerability * 100 >= 60 
+                                      (1 - edge.scores.vulnerability) * 100 >= 60 
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600' 
+                                        : (1 - edge.scores.vulnerability) * 100 >= 40 
                                         ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' 
-                                        : 'bg-gradient-to-r from-green-500 to-green-600'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600'
                                     }`}
-                                    style={{ width: `${edge.scores.vulnerability * 100}%` }}
+                                    style={{ width: `${(1 - edge.scores.vulnerability) * 100}%` }}
                                   />
                                 </div>
                               </div>
