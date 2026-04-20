@@ -44,6 +44,7 @@ import {
 import { useConnection } from "@/lib/stores/connection-store"
 import { simulationClient } from "@/lib/api/simulation-client"
 import { TermTooltip } from "@/components/ui/term-tooltip"
+import { ScoreTooltip } from "@/components/ui/score-tooltip"
 import { apiClient } from "@/lib/api/client"
 
 // ============================================================================
@@ -1864,7 +1865,7 @@ export default function SimulationPage() {
                   <div className="flex items-start gap-6">
                     <div className="hidden md:flex items-center gap-4">
                       <div className="text-right">
-                        <div className="text-3xl font-bold">{(failureResult.impact.composite_impact || 0).toFixed(3)}</div>
+                        <div className="text-3xl font-bold"><ScoreTooltip score={failureResult.impact.composite_impact || 0} type="impact" side="bottom">{(failureResult.impact.composite_impact || 0).toFixed(3)}</ScoreTooltip></div>
                         <div className="text-sm text-white/80">Impact</div>
                       </div>
                       <div className="text-right">
@@ -1920,7 +1921,7 @@ export default function SimulationPage() {
                       <h3 className="text-sm font-medium"><TermTooltip term="composite_impact">Composite Impact</TermTooltip></h3>
                     </div>
                     <div className={`text-3xl font-bold ${getImpactColor(failureResult.impact.composite_impact || 0)}`}>
-                      {(failureResult.impact.composite_impact || 0).toFixed(4)}
+                      <ScoreTooltip score={failureResult.impact.composite_impact || 0} type="impact">{(failureResult.impact.composite_impact || 0).toFixed(4)}</ScoreTooltip>
                     </div>
                     <Progress value={(failureResult.impact.composite_impact || 0) * 100} className="h-2.5 mt-2 bg-slate-100 dark:bg-slate-800" />
                     <p className="text-xs text-muted-foreground mt-1">Overall system impact score</p>
@@ -2230,7 +2231,7 @@ export default function SimulationPage() {
                                 </div>
                                 <div className="text-right">
                                   <div className={`text-sm font-bold ${getImpactColor(impactValue)}`}>
-                                    {impactValue.toFixed(4)}
+                                    <ScoreTooltip score={impactValue} type="impact" side="left">{impactValue.toFixed(4)}</ScoreTooltip>
                                   </div>
                                   <div className="text-xs text-muted-foreground">
                                     {impactPercent}%

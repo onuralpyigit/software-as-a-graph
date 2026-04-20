@@ -34,6 +34,10 @@ import {
 import { useConnection } from "@/lib/stores/connection-store"
 import { validationClient, PipelineResult, LayerValidationResult, ValidationTargets, LayerDefinition } from "@/lib/api/validation-client"
 import { TermTooltip } from "@/components/ui/term-tooltip"
+import { ScoreTooltip } from "@/components/ui/score-tooltip"
+import { getMetricScoreType } from "@/lib/score-ranges"
+import { ScoreTooltip } from "@/components/ui/score-tooltip"
+import { getMetricScoreType } from "@/lib/score-ranges"
 
 // ============================================================================
 // Types
@@ -986,7 +990,11 @@ function MetricRow({
         <span className="font-medium"><TermTooltip term={label}>{label}</TermTooltip></span>
         <div className="flex items-center gap-2">
           <span className={passed ? "text-green-600 dark:text-green-400 font-bold" : "text-yellow-600 dark:text-yellow-400 font-bold"}>
-            {value != null ? value.toFixed(4) : "N/A"}
+            {value != null ? (
+              <ScoreTooltip score={value} type={getMetricScoreType(label, higherBetter)} side="left">
+                {value.toFixed(4)}
+              </ScoreTooltip>
+            ) : "N/A"}
           </span>
           <span className="text-muted-foreground">
             {higherBetter ? "≥" : "≤"} {target.toFixed(2)}

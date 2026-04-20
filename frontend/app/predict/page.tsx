@@ -35,6 +35,7 @@ import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
 import axios from "axios"
 import { TermTooltip } from "@/components/ui/term-tooltip"
+import { ScoreTooltip } from "@/components/ui/score-tooltip"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -128,7 +129,9 @@ function ScoreBar({ value, dim }: { value: number; dim: string }) {
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${colors[dim] ?? "bg-gray-400"}`} style={{ width: `${Math.round(value * 100)}%` }} />
       </div>
-      <span className="w-10 text-right text-xs tabular-nums">{value.toFixed(3)}</span>
+      <span className="w-10 text-right text-xs tabular-nums">
+        <ScoreTooltip score={value} type="raw-risk" side="left">{value.toFixed(3)}</ScoreTooltip>
+      </span>
     </div>
   )
 }

@@ -56,6 +56,7 @@ import { useConnection } from "@/lib/stores/connection-store"
 import { useAnalysis } from "@/lib/stores/analysis-store"
 import { apiClient } from "@/lib/api/client"
 import { TermTooltip } from "@/components/ui/term-tooltip"
+import { ScoreTooltip } from "@/components/ui/score-tooltip"
 
 // Types for the new API structure
 interface ComponentAnalysis {
@@ -1243,7 +1244,7 @@ export default function AnalysisPage() {
                       <div className="text-center">
                         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Quality Score</div>
                         <div className={`text-2xl font-bold ${getScoreColor(1 - avgScore / 100)}`}>
-                          {avgScore.toFixed(1)}
+                          <ScoreTooltip score={avgScore} type="quality">{avgScore.toFixed(1)}</ScoreTooltip>
                         </div>
                       </div>
                     </div>
@@ -1338,7 +1339,7 @@ export default function AnalysisPage() {
                               <div>
                                 <div className="flex items-baseline gap-2">
                                   <span className={`text-4xl font-bold tabular-nums ${getScoreColor(1 - metric.value / 100)}`}>
-                                    {metric.value.toFixed(1)}
+                                    <ScoreTooltip score={metric.value} type="quality">{metric.value.toFixed(1)}</ScoreTooltip>
                                   </span>
                                   <span className="text-lg text-muted-foreground font-medium">/ 100</span>
                                 </div>
@@ -1944,7 +1945,7 @@ export default function AnalysisPage() {
                               <div className="flex flex-col items-center gap-2">
                                 <div className="flex items-center gap-1.5">
                                   <span className={`text-base font-bold tabular-nums ${getScoreColor(component.scores.overall)}`}>
-                                    {((1 - component.scores.overall) * 100).toFixed(0)}
+                                    <ScoreTooltip score={(1 - component.scores.overall) * 100} type="quality">{((1 - component.scores.overall) * 100).toFixed(0)}</ScoreTooltip>
                                   </span>
                                   <Gauge className={`h-3.5 w-3.5 ${getScoreColor(component.scores.overall)} group-hover:scale-110 transition-transform`} />
                                 </div>
@@ -1967,7 +1968,7 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(component.scores.reliability)}`}>
-                                  {((1 - component.scores.reliability) * 100).toFixed(0)}
+                                  <ScoreTooltip score={(1 - component.scores.reliability) * 100} type="quality">{((1 - component.scores.reliability) * 100).toFixed(0)}</ScoreTooltip>
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
@@ -1988,7 +1989,7 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(component.scores.maintainability)}`}>
-                                  {((1 - component.scores.maintainability) * 100).toFixed(0)}
+                                  <ScoreTooltip score={(1 - component.scores.maintainability) * 100} type="quality">{((1 - component.scores.maintainability) * 100).toFixed(0)}</ScoreTooltip>
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
@@ -2009,7 +2010,7 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(component.scores.availability)}`}>
-                                  {((1 - component.scores.availability) * 100).toFixed(0)}
+                                  <ScoreTooltip score={(1 - component.scores.availability) * 100} type="quality">{((1 - component.scores.availability) * 100).toFixed(0)}</ScoreTooltip>
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
@@ -2030,7 +2031,7 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(component.scores.vulnerability)}`}>
-                                  {((1 - component.scores.vulnerability) * 100).toFixed(0)}
+                                  <ScoreTooltip score={(1 - component.scores.vulnerability) * 100} type="quality">{((1 - component.scores.vulnerability) * 100).toFixed(0)}</ScoreTooltip>
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
@@ -2332,7 +2333,7 @@ export default function AnalysisPage() {
                               <div className="flex flex-col items-center gap-2">
                                 <div className="flex items-center gap-1.5">
                                   <span className={`text-base font-bold tabular-nums ${getScoreColor(edge.scores.overall)}`}>
-                                    {((1 - edge.scores.overall) * 100).toFixed(0)}
+                                    <ScoreTooltip score={(1 - edge.scores.overall) * 100} type="quality">{((1 - edge.scores.overall) * 100).toFixed(0)}</ScoreTooltip>
                                   </span>
                                   <Gauge className={`h-3.5 w-3.5 ${getScoreColor(edge.scores.overall)} group-hover:scale-110 transition-transform`} />
                                 </div>
@@ -2355,7 +2356,7 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(edge.scores.reliability)}`}>
-                                  {((1 - edge.scores.reliability) * 100).toFixed(0)}
+                                  <ScoreTooltip score={(1 - edge.scores.reliability) * 100} type="quality">{((1 - edge.scores.reliability) * 100).toFixed(0)}</ScoreTooltip>
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
@@ -2376,7 +2377,7 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(edge.scores.maintainability)}`}>
-                                  {((1 - edge.scores.maintainability) * 100).toFixed(0)}
+                                  <ScoreTooltip score={(1 - edge.scores.maintainability) * 100} type="quality">{((1 - edge.scores.maintainability) * 100).toFixed(0)}</ScoreTooltip>
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
@@ -2397,7 +2398,7 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(edge.scores.availability)}`}>
-                                  {((1 - edge.scores.availability) * 100).toFixed(0)}
+                                  <ScoreTooltip score={(1 - edge.scores.availability) * 100} type="quality">{((1 - edge.scores.availability) * 100).toFixed(0)}</ScoreTooltip>
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
@@ -2418,7 +2419,7 @@ export default function AnalysisPage() {
                             <td className="px-5 py-4">
                               <div className="flex flex-col items-center gap-2">
                                 <span className={`text-sm font-semibold tabular-nums ${getScoreColor(edge.scores.vulnerability)}`}>
-                                  {((1 - edge.scores.vulnerability) * 100).toFixed(0)}
+                                  <ScoreTooltip score={(1 - edge.scores.vulnerability) * 100} type="quality">{((1 - edge.scores.vulnerability) * 100).toFixed(0)}</ScoreTooltip>
                                 </span>
                                 <div className="w-full max-w-[60px] h-1.5 bg-muted/50 rounded-full overflow-hidden shadow-inner">
                                   <div 
