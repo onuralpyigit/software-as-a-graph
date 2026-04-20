@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
 import { API_BASE_URL } from "@/lib/config/api"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 import {
   BarChart,
   Bar,
@@ -317,7 +318,7 @@ export default function DegreeDistributionPage() {
                     <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-violet-500/30 via-violet-500/15 to-violet-500/5" />
                     
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-                      <CardTitle className="text-sm font-medium">Average Degree</CardTitle>
+                      <CardTitle className="text-sm font-medium"><TermTooltip term="avg_degree">Average Degree</TermTooltip></CardTitle>
                       <div className="rounded-xl bg-violet-500/10 p-2.5">
                         <Activity className="h-4 w-4 text-violet-500" />
                       </div>
@@ -363,7 +364,7 @@ export default function DegreeDistributionPage() {
                     <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-indigo-500/30 via-indigo-500/15 to-indigo-500/5" />
                     
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-                      <CardTitle className="text-sm font-medium">Hub Nodes</CardTitle>
+                      <CardTitle className="text-sm font-medium"><TermTooltip term="Hub Node">Hub Nodes</TermTooltip></CardTitle>
                       <div className="rounded-xl bg-indigo-500/10 p-2.5">
                         <Network className="h-4 w-4 text-indigo-500" />
                       </div>
@@ -386,7 +387,7 @@ export default function DegreeDistributionPage() {
                     <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-amber-500/30 via-amber-500/15 to-amber-500/5" />
                     
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-                      <CardTitle className="text-sm font-medium">Isolated Nodes</CardTitle>
+                      <CardTitle className="text-sm font-medium"><TermTooltip term="Isolated Node">Isolated Nodes</TermTooltip></CardTitle>
                       <div className="rounded-xl bg-amber-500/10 p-2.5">
                         {stats.isolated_nodes === 0 ? (
                           <CheckCircle2 className="h-4 w-4 text-green-500" />

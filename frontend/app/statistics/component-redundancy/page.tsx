@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Shield, AlertTriangle, CheckCircle, Info, ShieldAlert, ShieldCheck, GitBranch } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
 import {
@@ -224,7 +225,7 @@ export default function ComponentRedundancyPage() {
                 <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-cyan-500/30 via-cyan-500/15 to-cyan-500/5" />
                 
                 <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Resilience Score</CardTitle>
+                  <CardTitle className="text-sm font-medium"><TermTooltip term="Resilience Score">Resilience Score</TermTooltip></CardTitle>
                   <div className="rounded-xl bg-cyan-500/10 p-2.5">
                     <ShieldCheck className="h-4 w-4 text-cyan-500" />
                   </div>
@@ -248,7 +249,7 @@ export default function ComponentRedundancyPage() {
                 <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-red-500/30 via-red-500/15 to-red-500/5" />
                 
                 <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">SPOFs</CardTitle>
+                  <CardTitle className="text-sm font-medium"><TermTooltip term="SPOF">SPOFs</TermTooltip></CardTitle>
                   <div className="rounded-xl bg-red-500/10 p-2.5">
                     <ShieldAlert className="h-4 w-4 text-red-500" />
                   </div>
@@ -428,7 +429,7 @@ export default function ComponentRedundancyPage() {
                       <GitBranch className="h-5 w-5 text-amber-500" />
                     </div>
                     <div>
-                      <CardTitle>Bridge Components</CardTitle>
+                      <CardTitle><TermTooltip term="Bridge">Bridge Components</TermTooltip></CardTitle>
                       <CardDescription>
                         Components through which many paths flow - critical for system connectivity
                       </CardDescription>

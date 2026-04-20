@@ -34,6 +34,7 @@ import {
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
 import axios from "axios"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -116,9 +117,14 @@ function ScoreBar({ value, dim }: { value: number; dim: string }) {
     A: "bg-green-500",
     V: "bg-red-500",
   }
+  const termMap: Record<string, string> = {
+    R: "R(v)", M: "M(v)", A: "A(v)", V: "V(v)",
+  }
   return (
     <div className="flex items-center gap-2">
-      <span className="w-4 text-xs text-muted-foreground">{dim}</span>
+      <span className="w-4 text-xs text-muted-foreground">
+        <TermTooltip term={termMap[dim]}>{dim}</TermTooltip>
+      </span>
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${colors[dim] ?? "bg-gray-400"}`} style={{ width: `${Math.round(value * 100)}%` }} />
       </div>

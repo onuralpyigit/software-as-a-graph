@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Box, AlertTriangle, CheckCircle, Info, ArrowRight, ArrowLeftRight, GitFork } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 import { apiClient } from "@/lib/api/client"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
@@ -211,7 +212,7 @@ export default function ComponentIsolationPage() {
                 <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-gray-500/30 via-gray-500/15 to-gray-500/5" />
                 
                 <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Isolated</CardTitle>
+                  <CardTitle className="text-sm font-medium"><TermTooltip term="Component Isolation">Isolated</TermTooltip></CardTitle>
                   <div className="rounded-xl bg-gray-500/10 p-2.5">
                     <Box className="h-4 w-4 text-gray-500" />
                   </div>
@@ -235,7 +236,7 @@ export default function ComponentIsolationPage() {
                 <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-blue-500/30 via-blue-500/15 to-blue-500/5" />
                 
                 <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Sources</CardTitle>
+                  <CardTitle className="text-sm font-medium"><TermTooltip term="Source Component">Sources</TermTooltip></CardTitle>
                   <div className="rounded-xl bg-blue-500/10 p-2.5">
                     <ArrowRight className="h-4 w-4 text-blue-500" />
                   </div>
@@ -259,7 +260,7 @@ export default function ComponentIsolationPage() {
                 <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-green-500/30 via-green-500/15 to-green-500/5" />
                 
                 <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Sinks</CardTitle>
+                  <CardTitle className="text-sm font-medium"><TermTooltip term="Sink Component">Sinks</TermTooltip></CardTitle>
                   <div className="rounded-xl bg-green-500/10 p-2.5">
                     <ArrowLeft className="h-4 w-4 text-green-500" />
                   </div>

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Activity, ArrowLeft, Network, TrendingUp, AlertTriangle, CheckCircle, Info, CheckCircle2 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 import { apiClient } from "@/lib/api/client"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
@@ -251,7 +252,7 @@ export default function ConnectivityDensityPage() {
                     <Activity className="h-5 w-5 text-cyan-500" />
                   </div>
                   <div>
-                    <CardTitle>Network Density Score</CardTitle>
+                    <CardTitle><TermTooltip term="Network Density">Network Density Score</TermTooltip></CardTitle>
                     <CardDescription>
                       Ratio of actual connections to maximum possible connections
                     </CardDescription>
@@ -364,7 +365,7 @@ export default function ConnectivityDensityPage() {
                 <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-purple-500/30 via-purple-500/15 to-purple-500/5" />
                 
                 <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Edge Utilization</CardTitle>
+                  <CardTitle className="text-sm font-medium"><TermTooltip term="Edge Utilization">Edge Utilization</TermTooltip></CardTitle>
                   <div className="rounded-xl bg-purple-500/10 p-2.5">
                     <Activity className="h-4 w-4 text-purple-500" />
                   </div>

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, GitCompare, AlertTriangle, CheckCircle, Info, BarChart3, ArrowRight } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 import { apiClient } from "@/lib/api/client"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
@@ -255,7 +256,7 @@ export default function EdgeWeightDistributionPage() {
                 <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-green-500/30 via-green-500/15 to-green-500/5" />
                 
                 <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Average Weight</CardTitle>
+                  <CardTitle className="text-sm font-medium"><TermTooltip term="Edge Weight">Average Weight</TermTooltip></CardTitle>
                   <div className="rounded-xl bg-green-500/10 p-2.5">
                     <BarChart3 className="h-4 w-4 text-green-500" />
                   </div>

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Layers, ArrowLeft, TrendingUp, AlertTriangle, CheckCircle, Info, AlertCircle, BarChart3 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 import { apiClient } from "@/lib/api/client"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
@@ -250,7 +251,7 @@ export default function DependencyDepthPage() {
               <CardHeader className="relative">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-2xl mb-2">Maximum Dependency Depth</CardTitle>
+                    <CardTitle className="text-2xl mb-2"><TermTooltip term="Dependency Depth">Maximum Dependency Depth</TermTooltip></CardTitle>
                     <CardDescription>Deepest dependency chain in the system</CardDescription>
                   </div>
                   <div className={`rounded-xl bg-orange-500/10 p-3 ${interpretation.color}`}>
@@ -325,7 +326,7 @@ export default function DependencyDepthPage() {
                 <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-green-500/30 via-green-500/15 to-green-500/5" />
                 
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-                  <CardTitle className="text-sm font-medium">Root Components</CardTitle>
+                  <CardTitle className="text-sm font-medium"><TermTooltip term="Root Component">Root Components</TermTooltip></CardTitle>
                   <div className="rounded-xl bg-green-500/10 p-2.5">
                     <CheckCircle className="h-4 w-4 text-green-500" />
                   </div>
@@ -344,7 +345,7 @@ export default function DependencyDepthPage() {
                 <div className="absolute inset-[2px] rounded-lg bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-rose-500/30 via-rose-500/15 to-rose-500/5" />
                 
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
-                  <CardTitle className="text-sm font-medium">Leaf Components</CardTitle>
+                  <CardTitle className="text-sm font-medium"><TermTooltip term="Leaf Component">Leaf Components</TermTooltip></CardTitle>
                   <div className="rounded-xl bg-rose-500/10 p-2.5">
                     <AlertCircle className="h-4 w-4 text-rose-500" />
                   </div>

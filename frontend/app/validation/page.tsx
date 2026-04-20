@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
 import { validationClient, PipelineResult, LayerValidationResult, ValidationTargets, LayerDefinition } from "@/lib/api/validation-client"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 
 // ============================================================================
 // Types
@@ -742,27 +743,27 @@ export default function ValidationPage() {
                 <CardContent className="relative">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="p-3 border rounded-lg bg-muted/20">
-                      <p className="text-xs text-muted-foreground">Spearman ρ</p>
+                      <p className="text-xs text-muted-foreground"><TermTooltip term="Spearman ρ">Spearman ρ</TermTooltip></p>
                       <p className="text-lg font-bold">≥ {validationTargets.spearman.toFixed(2)}</p>
                     </div>
                     <div className="p-3 border rounded-lg bg-muted/20">
-                      <p className="text-xs text-muted-foreground">F1 Score</p>
+                      <p className="text-xs text-muted-foreground"><TermTooltip term="F1 Score">F1 Score</TermTooltip></p>
                       <p className="text-lg font-bold">≥ {validationTargets.f1_score.toFixed(2)}</p>
                     </div>
                     <div className="p-3 border rounded-lg bg-muted/20">
-                      <p className="text-xs text-muted-foreground">Precision</p>
+                      <p className="text-xs text-muted-foreground"><TermTooltip term="Precision">Precision</TermTooltip></p>
                       <p className="text-lg font-bold">≥ {validationTargets.precision.toFixed(2)}</p>
                     </div>
                     <div className="p-3 border rounded-lg bg-muted/20">
-                      <p className="text-xs text-muted-foreground">Recall</p>
+                      <p className="text-xs text-muted-foreground"><TermTooltip term="Recall">Recall</TermTooltip></p>
                       <p className="text-lg font-bold">≥ {validationTargets.recall.toFixed(2)}</p>
                     </div>
                     <div className="p-3 border rounded-lg bg-muted/20">
-                      <p className="text-xs text-muted-foreground">Top-5 Overlap</p>
+                      <p className="text-xs text-muted-foreground"><TermTooltip term="Top-5 Overlap">Top-5 Overlap</TermTooltip></p>
                       <p className="text-lg font-bold">≥ {validationTargets.top_5_overlap.toFixed(2)}</p>
                     </div>
                     <div className="p-3 border rounded-lg bg-muted/20">
-                      <p className="text-xs text-muted-foreground">RMSE</p>
+                      <p className="text-xs text-muted-foreground"><TermTooltip term="RMSE">RMSE</TermTooltip></p>
                       <p className="text-lg font-bold">≤ {validationTargets.rmse_max.toFixed(2)}</p>
                     </div>
                   </div>
@@ -982,7 +983,7 @@ function MetricRow({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
+        <span className="font-medium"><TermTooltip term={label}>{label}</TermTooltip></span>
         <div className="flex items-center gap-2">
           <span className={passed ? "text-green-600 dark:text-green-400 font-bold" : "text-yellow-600 dark:text-yellow-400 font-bold"}>
             {value != null ? value.toFixed(4) : "N/A"}

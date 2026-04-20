@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Share2, ArrowLeft, GitBranch, TrendingUp, AlertTriangle, CheckCircle, Info, Network, CheckCircle2 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 import { apiClient } from "@/lib/api/client"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
@@ -259,7 +260,7 @@ export default function ClusteringCoefficientPage() {
                     <Share2 className="h-5 w-5 text-purple-500" />
                   </div>
                   <div>
-                    <CardTitle>Average Clustering Coefficient</CardTitle>
+                    <CardTitle><TermTooltip term="Clustering Coefficient">Average Clustering Coefficient</TermTooltip></CardTitle>
                     <CardDescription>
                       Measure of how nodes cluster together forming tight-knit groups
                     </CardDescription>

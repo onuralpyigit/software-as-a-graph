@@ -22,6 +22,7 @@ import {
   Shield, Box, Server, BookOpen, RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -349,7 +350,7 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
       ]} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Application Pub/Sub Balance</CardTitle>
+          <CardTitle className="text-base"><TermTooltip term="Pub/Sub Balance">Application Pub/Sub Balance</TermTooltip></CardTitle>
           <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
         </CardHeader>
         <CardContent>
@@ -396,7 +397,7 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
       ]} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Topic Fanout (Publishers × Subscribers)</CardTitle>
+          <CardTitle className="text-base"><TermTooltip term="Topic Fanout">Topic Fanout (Publishers × Subscribers)</TermTooltip></CardTitle>
           <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
         </CardHeader>
         <CardContent>
@@ -832,7 +833,7 @@ function LibDependencySection({ data }: { data: ExtrasStats["lib_dependency"] })
       ]} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Library Dependency Density</CardTitle>
+          <CardTitle className="text-base"><TermTooltip term="Library Dependency Density">Library Dependency Density</TermTooltip></CardTitle>
           <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
         </CardHeader>
         <CardContent>
@@ -887,7 +888,7 @@ function NodeCriticalDensitySection({ data }: { data: ExtrasStats["node_critical
       ]} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Node Critical Application Density</CardTitle>
+          <CardTitle className="text-base"><TermTooltip term="Node Critical Density">Node Critical Application Density</TermTooltip></CardTitle>
           <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
         </CardHeader>
         <CardContent>
@@ -1081,10 +1082,10 @@ export default function StatisticsPage() {
             {stats && (
               <Tabs defaultValue="topic_bandwidth" className="w-full">
                 <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
-                  {TAB_CONFIG.map(({ id, label, icon: Icon, color }) => (
+                  {TAB_CONFIG.map(({ id, label, icon: Icon, color, description }) => (
                     <TabsTrigger key={id} value={id} className="text-xs gap-1 data-[state=active]:shadow-sm">
                       <Icon className={`h-3.5 w-3.5 ${color}`} />
-                      {label}
+                      <TermTooltip description={description}>{label}</TermTooltip>
                     </TabsTrigger>
                   ))}
                 </TabsList>

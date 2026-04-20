@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Zap, AlertTriangle, CheckCircle, Info, TrendingUp, Activity, MessageSquare } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 import { apiClient } from "@/lib/api/client"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
@@ -401,7 +402,7 @@ export default function MessageFlowPatternsPage() {
                 <CardHeader className="relative">
                   <CardTitle className="flex items-center gap-2">
                     <Zap className="h-5 w-5 text-yellow-500" />
-                    Hot Topics
+                    <TermTooltip term="Hot Topic">Hot Topics</TermTooltip>
                   </CardTitle>
                   <CardDescription>
                     Most active message channels by publisher and subscriber count
@@ -474,7 +475,7 @@ export default function MessageFlowPatternsPage() {
                 <CardHeader className="relative">
                   <CardTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5 text-blue-500" />
-                    Broker Utilization
+                    <TermTooltip term="Broker Utilization">Broker Utilization</TermTooltip>
                   </CardTitle>
                   <CardDescription>
                     Load distribution across message brokers

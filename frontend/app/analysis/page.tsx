@@ -55,6 +55,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { useConnection } from "@/lib/stores/connection-store"
 import { useAnalysis } from "@/lib/stores/analysis-store"
 import { apiClient } from "@/lib/api/client"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 
 // Types for the new API structure
 interface ComponentAnalysis {
@@ -1258,6 +1259,7 @@ export default function AnalysisPage() {
                       {
                         key: 'reliability',
                         name: 'Reliability Risk',
+                        tooltipTerm: 'Reliability',
                         icon: Shield,
                         value: scores.reliability,
                         gradient: 'from-blue-500 via-indigo-500 to-purple-500',
@@ -1266,6 +1268,7 @@ export default function AnalysisPage() {
                       {
                         key: 'maintainability',
                         name: 'Maintainability Risk',
+                        tooltipTerm: 'Maintainability',
                         icon: Wrench,
                         value: scores.maintainability,
                         gradient: 'from-purple-500 via-violet-500 to-fuchsia-500',
@@ -1274,6 +1277,7 @@ export default function AnalysisPage() {
                       {
                         key: 'availability',
                         name: 'Availability Risk',
+                        tooltipTerm: 'Availability',
                         icon: Zap,
                         value: scores.availability,
                         gradient: 'from-green-500 via-emerald-500 to-teal-500',
@@ -1282,6 +1286,7 @@ export default function AnalysisPage() {
                       {
                         key: 'vulnerability',
                         name: 'Security Risk',
+                        tooltipTerm: 'Vulnerability',
                         icon: AlertTriangle,
                         value: scores.vulnerability,
                         gradient: 'from-orange-500 via-red-500 to-rose-500',
@@ -1315,7 +1320,9 @@ export default function AnalysisPage() {
                                   <Icon className="h-5 w-5 text-white" />
                                 </div>
                                 <div>
-                                  <CardTitle className="text-base font-semibold">{metric.name}</CardTitle>
+                                  <CardTitle className="text-base font-semibold">
+                                    <TermTooltip term={metric.tooltipTerm}>{metric.name}</TermTooltip>
+                                  </CardTitle>
                                   <p className="text-xs text-muted-foreground mt-0.5">{metric.description}</p>
                                 </div>
                               </div>
@@ -1822,31 +1829,31 @@ export default function AnalysisPage() {
                           <th className="sticky top-0 text-center px-5 py-4 text-xs font-bold uppercase tracking-wider text-foreground/90 bg-gradient-to-b from-red-500/20 via-orange-500/15 to-red-500/10 backdrop-blur-sm border-b-2 border-red-500/40 w-28">
                             <div className="flex items-center justify-center gap-2">
                               <Gauge className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
-                              Overall
+                              <TermTooltip term="Q(v)">Overall</TermTooltip>
                             </div>
                           </th>
                           <th className="sticky top-0 text-center px-5 py-4 text-xs font-bold uppercase tracking-wider text-foreground/90 bg-gradient-to-b from-red-500/20 via-orange-500/15 to-red-500/10 backdrop-blur-sm border-b-2 border-red-500/40 w-28">
                             <div className="flex items-center justify-center gap-2">
                               <Shield className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                              Reliability
+                              <TermTooltip term="R(v)">Reliability</TermTooltip>
                             </div>
                           </th>
                           <th className="sticky top-0 text-center px-5 py-4 text-xs font-bold uppercase tracking-wider text-foreground/90 bg-gradient-to-b from-red-500/20 via-orange-500/15 to-red-500/10 backdrop-blur-sm border-b-2 border-red-500/40 w-28">
                             <div className="flex items-center justify-center gap-2">
                               <Wrench className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                              Maintain
+                              <TermTooltip term="M(v)">Maintain</TermTooltip>
                             </div>
                           </th>
                           <th className="sticky top-0 text-center px-5 py-4 text-xs font-bold uppercase tracking-wider text-foreground/90 bg-gradient-to-b from-red-500/20 via-orange-500/15 to-red-500/10 backdrop-blur-sm border-b-2 border-red-500/40 w-28">
                             <div className="flex items-center justify-center gap-2">
                               <Zap className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                              Availability
+                              <TermTooltip term="A(v)">Availability</TermTooltip>
                             </div>
                           </th>
                           <th className="sticky top-0 text-center px-5 py-4 text-xs font-bold uppercase tracking-wider text-foreground/90 bg-gradient-to-b from-red-500/20 via-orange-500/15 to-red-500/10 backdrop-blur-sm border-b-2 border-red-500/40 w-28 last:rounded-tr-lg">
                             <div className="flex items-center justify-center gap-2">
                               <Shield className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-                              Vulnerability
+                              <TermTooltip term="V(v)">Vulnerability</TermTooltip>
                             </div>
                           </th>
                         </tr>
@@ -2216,31 +2223,31 @@ export default function AnalysisPage() {
                           <th className="sticky top-0 text-center px-5 py-4 text-xs font-bold uppercase tracking-wider text-foreground/90 bg-gradient-to-b from-purple-500/20 via-fuchsia-500/15 to-purple-500/10 backdrop-blur-sm border-b-2 border-purple-500/40 w-28">
                             <div className="flex items-center justify-center gap-2">
                               <Gauge className="h-3.5 w-3.5 text-fuchsia-600 dark:text-fuchsia-400" />
-                              Overall
+                              <TermTooltip term="Q(v)">Overall</TermTooltip>
                             </div>
                           </th>
                           <th className="sticky top-0 text-center px-5 py-4 text-xs font-bold uppercase tracking-wider text-foreground/90 bg-gradient-to-b from-purple-500/20 via-fuchsia-500/15 to-purple-500/10 backdrop-blur-sm border-b-2 border-purple-500/40 w-28">
                             <div className="flex items-center justify-center gap-2">
                               <Shield className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                              Reliability
+                              <TermTooltip term="R(v)">Reliability</TermTooltip>
                             </div>
                           </th>
                           <th className="sticky top-0 text-center px-5 py-4 text-xs font-bold uppercase tracking-wider text-foreground/90 bg-gradient-to-b from-purple-500/20 via-fuchsia-500/15 to-purple-500/10 backdrop-blur-sm border-b-2 border-purple-500/40 w-28">
                             <div className="flex items-center justify-center gap-2">
                               <Wrench className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                              Maintain
+                              <TermTooltip term="M(v)">Maintain</TermTooltip>
                             </div>
                           </th>
                           <th className="sticky top-0 text-center px-5 py-4 text-xs font-bold uppercase tracking-wider text-foreground/90 bg-gradient-to-b from-purple-500/20 via-fuchsia-500/15 to-purple-500/10 backdrop-blur-sm border-b-2 border-purple-500/40 w-28">
                             <div className="flex items-center justify-center gap-2">
                               <Zap className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                              Availability
+                              <TermTooltip term="A(v)">Availability</TermTooltip>
                             </div>
                           </th>
                           <th className="sticky top-0 text-center px-5 py-4 text-xs font-bold uppercase tracking-wider text-foreground/90 bg-gradient-to-b from-purple-500/20 via-fuchsia-500/15 to-purple-500/10 backdrop-blur-sm border-b-2 border-purple-500/40 w-28 last:rounded-tr-lg">
                             <div className="flex items-center justify-center gap-2">
                               <Shield className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-                              Vulnerability
+                              <TermTooltip term="V(v)">Vulnerability</TermTooltip>
                             </div>
                           </th>
                         </tr>
