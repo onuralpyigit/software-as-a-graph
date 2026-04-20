@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type ReactElement } from "react"
+import { useEffect, useState, useMemo, type ReactElement } from "react"
 import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,7 +33,11 @@ interface ExtrasStats {
     ids: string[]
     sizes: number[]
     subs: number[]
+    pubs: number[]
     bandwidth: number[]
+    bandwidth_sub: number[]
+    bandwidth_pub: number[]
+    bandwidth_pubsub: number[]
     summary: SummaryDict
     outlier_indices: number[]
   }
@@ -59,8 +63,15 @@ interface ExtrasStats {
     labels: string[]
     node_ids: string[]
     matrix: number[][]
+    matrix_kb: number[][]
     summary: SummaryDict
     outlier_pairs: [string, string, number, number][]
+    per_node?: Record<string, {
+      label: string
+      apps: { id: string; name: string }[]
+      pub_topics: { id: string; name: string; size_kb: number }[]
+      sub_topics: { id: string; name: string; size_kb: number }[]
+    }>
   }
   node_comm_load?: {
     sorted_labels: string[]
@@ -128,6 +139,62 @@ const BAR_SLOT_WIDTH = 80
 const CHART_MIN_WIDTH = 300
 const CHART_Y_MARGIN = 60
 const MAX_ITEMS = 20
+const PAGE_SIZE = 20
+
+// ── Pagination + Search ─────────────────────────────────────────────────
+
+function usePaginatedSearch<T extends { name: string }>(items: T[]) {
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(0)
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return q ? items.filter((it) => it.name.toLowerCase().includes(q)) : items
+  }, [items, search])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages - 1)
+  const pageItems = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+
+  // Reset to page 0 when search changes
+  const handleSearch = (v: string) => { setSearch(v); setPage(0) }
+
+  return { search, handleSearch, page: safePage, setPage, filtered, pageItems, totalPages }
+}
+
+function PaginationBar({
+  search, onSearch, page, totalPages, onPage, totalItems, filteredItems,
+}: {
+  search: string; onSearch: (v: string) => void
+  page: number; totalPages: number; onPage: (p: number) => void
+  totalItems: number; filteredItems: number
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 justify-between">
+      <div className="flex items-center gap-1.5">
+        <input
+          type="search"
+          placeholder="Search…"
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+          className="h-7 w-40 rounded-md border bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <span className="text-xs text-muted-foreground">
+          {search ? `${filteredItems} of ${totalItems}` : `${totalItems} items`}
+        </span>
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1">
+          <button onClick={() => onPage(0)} disabled={page === 0} className="h-6 w-6 text-xs rounded border disabled:opacity-30 hover:bg-muted transition-colors">«</button>
+          <button onClick={() => onPage(page - 1)} disabled={page === 0} className="h-6 w-6 text-xs rounded border disabled:opacity-30 hover:bg-muted transition-colors">‹</button>
+          <span className="text-xs px-1">{page + 1} / {totalPages}</span>
+          <button onClick={() => onPage(page + 1)} disabled={page >= totalPages - 1} className="h-6 w-6 text-xs rounded border disabled:opacity-30 hover:bg-muted transition-colors">›</button>
+          <button onClick={() => onPage(totalPages - 1)} disabled={page >= totalPages - 1} className="h-6 w-6 text-xs rounded border disabled:opacity-30 hover:bg-muted transition-colors">»</button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function goToExplorer(id: string | undefined) {
   if (id) window.open(`/explorer?node=${encodeURIComponent(id)}`, "_blank")
@@ -192,29 +259,58 @@ function OutlierTable({ rows, headers }: { rows: (string | number)[][]; headers:
 
 // ── Sections ────────────────────────────────────────────────────────────
 
+type BandwidthMode = "sub" | "pub" | "pubsub"
+
+const BANDWIDTH_MODE_CONFIG: Record<BandwidthMode, { label: string; multiplierLabel: string; avgKey: string; avgLabel: string }> = {
+  sub:    { label: "Subscribers",  multiplierLabel: "Size × Subscribers",  avgKey: "sub_mean",  avgLabel: "Avg Subscribers" },
+  pub:    { label: "Publishers",   multiplierLabel: "Size × Publishers",   avgKey: "pub_mean",  avgLabel: "Avg Publishers" },
+  pubsub: { label: "Pub + Sub",    multiplierLabel: "Size × (Pub + Sub)",  avgKey: "sub_mean",  avgLabel: "Avg Subs" },
+}
+
 function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] }) {
+  const [mode, setMode] = useState<BandwidthMode>("sub")
+
+  const bwArray = mode === "pub" ? (data?.bandwidth_pub ?? data?.bandwidth ?? [])
+                : mode === "pubsub" ? (data?.bandwidth_pubsub ?? data?.bandwidth ?? [])
+                : (data?.bandwidth_sub ?? data?.bandwidth ?? [])
+
+  const allItems = useMemo(() => (data?.labels ?? []).map((label, i) => ({
+    name: label,
+    id: data?.ids?.[i],
+    bandwidth: bwArray[i] ?? 0,
+  })).sort((a, b) => b.bandwidth - a.bandwidth), [data, mode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
+
   if (!data) return null
-  const chartData = data.labels.map((label, i) => ({
-    name: truncate(label),
-    id: data.ids?.[i],
-    bandwidth: data.bandwidth[i],
-  })).sort((a, b) => b.bandwidth - a.bandwidth)
-  const total = chartData.length
-  const capped = chartData.slice(0, MAX_ITEMS)
+  const cfg = BANDWIDTH_MODE_CONFIG[mode]
 
   return (
     <div className="space-y-4">
       <SummaryCards summary={data.summary} keys={[
         { key: "total_topics", label: "Total Topics" },
         { key: "size_mean", label: "Avg Size" },
-        { key: "sub_mean", label: "Avg Subscribers" },
+        { key: cfg.avgKey, label: cfg.avgLabel },
         { key: "outlier_count", label: "Outliers" },
       ]} />
       <Card>
-        <CardHeader><CardTitle className="text-base">Topic Bandwidth (Size × Subscribers){total > MAX_ITEMS && <span className="text-xs font-normal text-muted-foreground ml-2">showing {MAX_ITEMS} of {total}</span>}</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="text-base">Topic Bandwidth ({cfg.multiplierLabel})</CardTitle>
+            <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
+              {(["sub", "pub", "pubsub"] as BandwidthMode[]).map((m) => (
+                <button key={m} onClick={() => setMode(m)}
+                  className={`px-2.5 py-0.5 text-xs rounded transition-colors ${mode === m ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"}`}>
+                  {BANDWIDTH_MODE_CONFIG[m].label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
+        </CardHeader>
         <CardContent>
-          <SizedBarChart dataCount={capped.length} config={{ bandwidth: { label: "Bandwidth", color: "#8b5cf6" } }}>
-            <BarChart data={capped} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+          <SizedBarChart dataCount={pageItems.length} config={{ bandwidth: { label: "Bandwidth", color: "#8b5cf6" } }}>
+            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -229,15 +325,16 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
 }
 
 function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
-  if (!data) return null
-  const chartData = data.labels.map((label, i) => ({
-    name: truncate(label),
+  const allItems = useMemo(() => (!data ? [] : data.labels.map((label, i) => ({
+    name: label,
     id: data.ids?.[i],
     publishes: data.pubs[i],
     subscribes: data.subs[i],
-  })).sort((a, b) => (b.publishes + b.subscribes) - (a.publishes + a.subscribes))
-  const total = chartData.length
-  const capped = chartData.slice(0, MAX_ITEMS)
+  })).sort((a, b) => (b.publishes + b.subscribes) - (a.publishes + a.subscribes))), [data])
+
+  const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
+
+  if (!data) return null
 
   return (
     <div className="space-y-4">
@@ -251,13 +348,16 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
         { key: "outlier_count", label: "Outliers" },
       ]} />
       <Card>
-        <CardHeader><CardTitle className="text-base">Application Pub/Sub Balance{total > MAX_ITEMS && <span className="text-xs font-normal text-muted-foreground ml-2">showing {MAX_ITEMS} of {total}</span>}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Application Pub/Sub Balance</CardTitle>
+          <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
+        </CardHeader>
         <CardContent>
-          <SizedBarChart dataCount={capped.length} config={{
+          <SizedBarChart dataCount={pageItems.length} config={{
             publishes: { label: "Publishes", color: "#3b82f6" },
             subscribes: { label: "Subscribes", color: "#10b981" },
           }}>
-            <BarChart data={capped} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -273,14 +373,15 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
 }
 
 function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
-  if (!data) return null
-  const chartData = data.labels.map((label, i) => ({
-    name: truncate(label),
+  const allItems = useMemo(() => (!data ? [] : data.labels.map((label, i) => ({
+    name: label,
     id: data.ids?.[i],
     fanout: data.fanout[i],
-  })).sort((a, b) => b.fanout - a.fanout)
-  const total = chartData.length
-  const capped = chartData.slice(0, MAX_ITEMS)
+  })).sort((a, b) => b.fanout - a.fanout)), [data])
+
+  const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
+
+  if (!data) return null
 
   return (
     <div className="space-y-4">
@@ -294,10 +395,13 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
         { key: "outlier_count", label: "Outliers" },
       ]} />
       <Card>
-        <CardHeader><CardTitle className="text-base">Topic Fanout (Publishers × Subscribers){total > MAX_ITEMS && <span className="text-xs font-normal text-muted-foreground ml-2">showing {MAX_ITEMS} of {total}</span>}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Topic Fanout (Publishers × Subscribers)</CardTitle>
+          <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
+        </CardHeader>
         <CardContent>
-          <SizedBarChart dataCount={capped.length} config={{ fanout: { label: "Fanout", color: "#f59e0b" } }}>
-            <BarChart data={capped} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+          <SizedBarChart dataCount={pageItems.length} config={{ fanout: { label: "Fanout", color: "#f59e0b" } }}>
+            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -311,25 +415,110 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
   )
 }
 
-function HeatmapSection({ data, title }: { data: { labels: string[]; node_ids?: string[]; matrix: number[][]; summary: SummaryDict; outlier_pairs: [string, string, number, number][] } | undefined; title: string }) {
+type HeatmapMode = "pub" | "sub" | "pubsub"
+
+function transposeMatrix(m: number[][]): number[][] {
+  if (!m.length) return m
+  return m[0].map((_, ci) => m.map((row) => row[ci]))
+}
+
+function combineMatrices(m: number[][]): number[][] {
+  const t = transposeMatrix(m)
+  return m.map((row, ri) => row.map((val, ci) => val + t[ri][ci]))
+}
+
+function HeatmapSection({ data, title, modeToggle }: {
+  data: {
+    labels: string[]
+    node_ids?: string[]
+    matrix: number[][]
+    matrix_kb?: number[][]
+    summary: SummaryDict
+    outlier_pairs: [string, string, number, number][]
+    per_node?: Record<string, { label: string; apps: { id: string; name: string }[]; pub_topics: { id: string; name: string; size_kb: number }[]; sub_topics: { id: string; name: string; size_kb: number }[] }>
+  } | undefined
+  title: string
+  modeToggle?: boolean
+}) {
+  const [mode, setMode] = useState<HeatmapMode>("pub")
+  const [showKb, setShowKb] = useState(false)
+  const [selectedCell, setSelectedCell] = useState<{ rowId: string; colId: string; rowLabel: string; colLabel: string } | null>(null)
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(0)
+
   if (!data || !data.labels.length) return <p className="text-sm text-muted-foreground">Not enough data for {title}</p>
 
   const totalLabels = data.labels.length
-  let labels = data.labels
-  let matrix = data.matrix
-  let ids = data.node_ids
-  if (totalLabels > MAX_ITEMS) {
-    const rowTotals = data.matrix.map((row) => row.reduce((s, v) => s + v, 0))
-    const indices = rowTotals.map((_, i) => i).sort((a, b) => rowTotals[b] - rowTotals[a]).slice(0, MAX_ITEMS)
-    const idxSet = new Set(indices)
-    labels = indices.map((i) => data.labels[i])
-    matrix = indices.map((ri) => data.matrix[ri].filter((_, ci) => idxSet.has(ci)))
-    if (data.node_ids) ids = indices.map((i) => data.node_ids![i])
-  }
+
+  // Sort all indices by row total descending (busiest entities first)
+  const rowTotals = data.matrix.map((row) => row.reduce((s, v) => s + v, 0))
+  const sortedIndices = rowTotals.map((_, i) => i).sort((a, b) => rowTotals[b] - rowTotals[a])
+
+  // Filter by search term
+  const q = search.trim().toLowerCase()
+  const filteredIndices = q
+    ? sortedIndices.filter((i) => data.labels[i].toLowerCase().includes(q))
+    : sortedIndices
+
+  const totalPages = Math.max(1, Math.ceil(filteredIndices.length / MAX_ITEMS))
+  const safePage = Math.min(page, totalPages - 1)
+  const indices = filteredIndices.slice(safePage * MAX_ITEMS, (safePage + 1) * MAX_ITEMS)
+  const idxSet = new Set(indices)
+
+  let labels = indices.map((i) => data.labels[i])
+  let baseMatrix = indices.map((ri) => data.matrix[ri].filter((_, ci) => idxSet.has(ci)))
+  let ids = data.node_ids ? indices.map((i) => data.node_ids![i]) : undefined
+
+  const countMatrix = !modeToggle || mode === "pub" ? baseMatrix
+               : mode === "sub" ? transposeMatrix(baseMatrix)
+               : combineMatrices(baseMatrix)
+
+  const baseMatrixKb = (showKb && data.matrix_kb) ? indices.map((ri) => data.matrix_kb!![ri].filter((_, ci) => idxSet.has(ci))) : null
+  const kbMatrix = baseMatrixKb
+    ? (!modeToggle || mode === "pub" ? baseMatrixKb
+       : mode === "sub" ? transposeMatrix(baseMatrixKb)
+       : combineMatrices(baseMatrixKb))
+    : null
+
+  const matrix = kbMatrix ?? countMatrix
+
+  const rowAxisLabel = !modeToggle || mode === "pub" ? "Publisher →" : mode === "sub" ? "Subscriber →" : "Node →"
+  const colAxisLabel = !modeToggle || mode === "pub" ? "→ Subscriber" : mode === "sub" ? "→ Publisher" : "→ Node"
+
   const maxVal = Math.max(1, ...matrix.flat())
   const n = labels.length
   const cellSize = n > 15 ? "min-w-[28px] h-[28px] p-0.5 text-[10px]" : n > 10 ? "min-w-[32px] h-[32px] p-1 text-[11px]" : "min-w-[40px] h-[40px] p-2 text-xs"
   const headerSize = n > 15 ? "text-[9px] p-0.5" : n > 10 ? "text-[10px] p-1" : "text-xs p-1"
+
+  function handleCellClick(ri: number, ci: number) {
+    if (!ids || !modeToggle || !data?.per_node) return
+    const rowId = ids[ri], colId = ids[ci]
+    const rowLabel = data.per_node[rowId]?.label ?? rowId
+    const colLabel = data.per_node[colId]?.label ?? colId
+    setSelectedCell((prev) =>
+      prev?.rowId === rowId && prev?.colId === colId ? null : { rowId, colId, rowLabel, colLabel }
+    )
+  }
+
+  // Compute directed topic lists based on current mode
+  // pub:    row=publisher → col=subscriber
+  // sub:    row=subscriber ← col=publisher
+  // pubsub: both directions
+  let pubTopics: { id: string; name: string }[] = []   // row→col direction
+  let subTopics: { id: string; name: string }[] = []   // col→row direction
+  if (selectedCell && data.per_node) {
+    const pn = data.per_node
+    if (mode === "pub" || mode === "pubsub") {
+      // topics rowId publishes that colId subscribes
+      const colSubIds = new Set(pn[selectedCell.colId]?.sub_topics.map((t) => t.id) ?? [])
+      pubTopics = (pn[selectedCell.rowId]?.pub_topics ?? []).filter((t) => colSubIds.has(t.id))
+    }
+    if (mode === "sub" || mode === "pubsub") {
+      // topics colId publishes that rowId subscribes
+      const rowSubIds = new Set(pn[selectedCell.rowId]?.sub_topics.map((t) => t.id) ?? [])
+      subTopics = (pn[selectedCell.colId]?.pub_topics ?? []).filter((t) => rowSubIds.has(t.id))
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -342,13 +531,65 @@ function HeatmapSection({ data, title }: { data: { labels: string[]; node_ids?: 
         { key: "outlier_count", label: "Outliers" },
       ]} />
       <Card>
-        <CardHeader><CardTitle className="text-base">{title}{totalLabels > MAX_ITEMS && <span className="text-xs font-normal text-muted-foreground ml-2">showing {MAX_ITEMS} of {totalLabels}</span>}</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="text-base">{title}</CardTitle>
+            {modeToggle && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
+                  {(["pub", "sub", "pubsub"] as HeatmapMode[]).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => { setMode(m); setSelectedCell(null) }}
+                      className={`px-2.5 py-0.5 text-xs rounded transition-colors ${
+                        mode === m ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {m === "pub" ? "Publishers" : m === "sub" ? "Subscribers" : "Pub + Sub"}
+                    </button>
+                  ))}
+                </div>
+                {data.matrix_kb && (
+                  <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
+                    {[false, true].map((kb) => (
+                      <button
+                        key={String(kb)}
+                        onClick={() => setShowKb(kb)}
+                        className={`px-2.5 py-0.5 text-xs rounded transition-colors ${
+                          showKb === kb ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {kb ? "KB" : "Count"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {modeToggle && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {mode === "pub" ? "Row = publishing node, column = subscribing node. Click a cell to inspect shared topics." :
+               mode === "sub" ? "Row = subscribing node, column = publishing node. Click a cell to inspect shared topics." :
+               "Symmetric view: both directions summed. Click a cell to inspect shared topics."}
+            </p>
+          )}
+          <PaginationBar
+            search={search}
+            onSearch={(v) => { setSearch(v); setPage(0); setSelectedCell(null) }}
+            page={safePage}
+            totalPages={totalPages}
+            onPage={(p) => { setPage(p); setSelectedCell(null) }}
+            totalItems={totalLabels}
+            filteredItems={filteredIndices.length}
+          />
+        </CardHeader>
         <CardContent>
           <div className="overflow-auto">
             <table className="border-collapse">
               <thead>
                 <tr>
-                  <th className="sticky left-0 bg-background z-10 p-2" />
+                  <th className="sticky left-0 bg-background z-10 p-2 text-[10px] text-muted-foreground text-right">{rowAxisLabel}</th>
                   {labels.map((l, i) => (
                     <th
                       key={i}
@@ -357,6 +598,9 @@ function HeatmapSection({ data, title }: { data: { labels: string[]; node_ids?: 
                       onClick={ids ? () => goToExplorer(ids[i]) : undefined}
                     >{l}</th>
                   ))}
+                </tr>
+                <tr>
+                  <th className="sticky left-0 bg-background z-10 p-1 text-[10px] text-muted-foreground text-right">{colAxisLabel}</th>
                 </tr>
               </thead>
               <tbody>
@@ -368,14 +612,20 @@ function HeatmapSection({ data, title }: { data: { labels: string[]; node_ids?: 
                     >{rowLabel}</td>
                     {matrix[ri]?.map((val, ci) => {
                       const intensity = val / maxVal
+                      const isSelected = !!(selectedCell && ids && selectedCell.rowId === ids[ri] && selectedCell.colId === ids[ci])
                       return (
                         <td
                           key={ci}
-                          className={`text-center border border-border ${cellSize}`}
+                          className={`text-center border ${cellSize} transition-all ${
+                            modeToggle && ids && val > 0
+                              ? "cursor-pointer hover:ring-2 hover:ring-violet-400"
+                              : ""
+                          } ${isSelected ? "ring-2 ring-violet-500 z-10 relative" : "border-border"}`}
                           style={{ backgroundColor: val > 0 ? `rgba(139, 92, 246, ${0.15 + intensity * 0.75})` : undefined }}
-                          title={`${rowLabel} → ${labels[ci]}: ${val}`}
+                          title={`${rowLabel} → ${labels[ci]}: ${showKb ? val.toFixed(1) + " KB" : val}`}
+                          onClick={val > 0 ? () => handleCellClick(ri, ci) : undefined}
                         >
-                          {val > 0 ? val : ""}
+                          {val > 0 ? (showKb ? (val >= 1000 ? (val / 1000).toFixed(1) + "M" : val.toFixed(0)) : val) : ""}
                         </td>
                       )
                     })}
@@ -386,6 +636,60 @@ function HeatmapSection({ data, title }: { data: { labels: string[]; node_ids?: 
           </div>
         </CardContent>
       </Card>
+
+      {selectedCell && data.per_node && (
+        <Card className="border-violet-500/40">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <span className="text-violet-600 dark:text-violet-400 font-semibold">{selectedCell.rowLabel}</span>
+                <span className="text-muted-foreground text-sm">{mode === "pub" ? "→" : mode === "sub" ? "←" : "↔"}</span>
+                <span className="text-violet-600 dark:text-violet-400 font-semibold">{selectedCell.colLabel}</span>
+              </CardTitle>
+              <button onClick={() => setSelectedCell(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1">✕</button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {(mode === "pub" || mode === "pubsub") && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  {selectedCell.rowLabel} publishes → {selectedCell.colLabel} subscribes ({pubTopics.length} topics)
+                </p>
+                {pubTopics.length === 0
+                  ? <p className="text-xs text-muted-foreground">No published topics shared in this direction.</p>
+                  : <ul className="columns-2 sm:columns-3 gap-2 space-y-0.5">
+                      {pubTopics.map((t) => (
+                        <li key={t.id} className="text-xs font-mono text-green-700 dark:text-green-400 truncate break-inside-avoid cursor-pointer hover:underline flex items-baseline gap-1" title={t.name} onClick={() => goToExplorer(t.id)}>
+                          <span className="truncate">{t.name}</span>
+                          {showKb && <span className="text-[10px] opacity-60 shrink-0">{t.size_kb ?? 0}KB</span>}
+                        </li>
+                      ))}
+                    </ul>
+                }
+              </div>
+            )}
+            {(mode === "sub" || mode === "pubsub") && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  {selectedCell.rowLabel} subscribes ← {selectedCell.colLabel} publishes ({subTopics.length} topics)
+                </p>
+                {subTopics.length === 0
+                  ? <p className="text-xs text-muted-foreground">No subscribed topics shared in this direction.</p>
+                  : <ul className="columns-2 sm:columns-3 gap-2 space-y-0.5">
+                      {subTopics.map((t) => (
+                        <li key={t.id} className="text-xs font-mono text-purple-700 dark:text-purple-400 truncate break-inside-avoid cursor-pointer hover:underline flex items-baseline gap-1" title={t.name} onClick={() => goToExplorer(t.id)}>
+                          <span className="truncate">{t.name}</span>
+                          {showKb && <span className="text-[10px] opacity-60 shrink-0">{t.size_kb ?? 0}KB</span>}
+                        </li>
+                      ))}
+                    </ul>
+                }
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {data.outlier_pairs.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="text-base">Outlier Pairs</CardTitle></CardHeader>
@@ -399,15 +703,16 @@ function HeatmapSection({ data, title }: { data: { labels: string[]; node_ids?: 
 }
 
 function NodeCommLoadSection({ data }: { data: ExtrasStats["node_comm_load"] }) {
-  if (!data) return null
-  const chartData = data.sorted_labels.map((label, i) => ({
-    name: truncate(label),
+  const allItems = useMemo(() => (!data ? [] : data.sorted_labels.map((label, i) => ({
+    name: label,
     id: data.sorted_ids?.[i],
     publishes: data.sorted_pub[i],
     subscribes: data.sorted_sub[i],
-  }))
-  const total = chartData.length
-  const capped = chartData.slice(0, MAX_ITEMS)
+  }))), [data])
+
+  const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
+
+  if (!data) return null
 
   return (
     <div className="space-y-4">
@@ -421,13 +726,16 @@ function NodeCommLoadSection({ data }: { data: ExtrasStats["node_comm_load"] }) 
         { key: "outlier_count", label: "Outliers" },
       ]} />
       <Card>
-        <CardHeader><CardTitle className="text-base">Node Communication Load{total > MAX_ITEMS && <span className="text-xs font-normal text-muted-foreground ml-2">showing {MAX_ITEMS} of {total}</span>}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Node Communication Load</CardTitle>
+          <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
+        </CardHeader>
         <CardContent>
-          <SizedBarChart dataCount={capped.length} config={{
+          <SizedBarChart dataCount={pageItems.length} config={{
             publishes: { label: "Publishes", color: "#3b82f6" },
             subscribes: { label: "Subscribes", color: "#ec4899" },
           }}>
-            <BarChart data={capped} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -451,15 +759,16 @@ function NodeCommLoadSection({ data }: { data: ExtrasStats["node_comm_load"] }) 
 }
 
 function CriticalityIOSection({ data }: { data: ExtrasStats["criticality_io"] }) {
-  if (!data) return null
-  const critData = data.crit_labels.map((label, i) => ({
-    name: truncate(label),
+  const allItems = useMemo(() => (!data ? [] : data.crit_labels.map((label, i) => ({
+    name: label,
     id: data.crit_ids?.[i],
     publishes: data.crit_pubs[i],
     subscribes: data.crit_subs[i],
-  })).sort((a, b) => (b.publishes + b.subscribes) - (a.publishes + a.subscribes))
-  const total = critData.length
-  const capped = critData.slice(0, MAX_ITEMS)
+  })).sort((a, b) => (b.publishes + b.subscribes) - (a.publishes + a.subscribes))), [data])
+
+  const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
+
+  if (!data) return null
 
   return (
     <div className="space-y-4">
@@ -471,15 +780,18 @@ function CriticalityIOSection({ data }: { data: ExtrasStats["criticality_io"] })
         { key: "norm_io_mean", label: "Normal Avg I/O" },
         { key: "crit_norm_ratio", label: "Crit/Normal Ratio" },
       ]} />
-      {capped.length > 0 && (
+      {allItems.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Critical Applications I/O{total > MAX_ITEMS && <span className="text-xs font-normal text-muted-foreground ml-2">showing {MAX_ITEMS} of {total}</span>}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Critical Applications I/O</CardTitle>
+            <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
+          </CardHeader>
           <CardContent>
-            <SizedBarChart dataCount={capped.length} config={{
+            <SizedBarChart dataCount={pageItems.length} config={{
               publishes: { label: "Publishes", color: "#ef4444" },
               subscribes: { label: "Subscribes", color: "#f97316" },
             }}>
-              <BarChart data={capped} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+              <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 11 }} />
@@ -496,15 +808,16 @@ function CriticalityIOSection({ data }: { data: ExtrasStats["criticality_io"] })
 }
 
 function LibDependencySection({ data }: { data: ExtrasStats["lib_dependency"] }) {
-  if (!data || !data.labels.length) return <p className="text-sm text-muted-foreground">No library dependency data</p>
-  const chartData = data.labels.map((label, i) => ({
-    name: truncate(label, 20),
+  const allItems = useMemo(() => (!data ? [] : data.labels.map((label, i) => ({
+    name: label,
     id: data.display_ids?.[i],
     inbound: data.in_vals[i],
     outbound: data.out_vals[i],
-  }))
-  const total = chartData.length
-  const capped = chartData.slice(0, MAX_ITEMS)
+  }))), [data])
+
+  const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
+
+  if (!data || !data.labels.length) return <p className="text-sm text-muted-foreground">No library dependency data</p>
 
   return (
     <div className="space-y-4">
@@ -518,13 +831,16 @@ function LibDependencySection({ data }: { data: ExtrasStats["lib_dependency"] })
         { key: "outlier_count", label: "Outliers" },
       ]} />
       <Card>
-        <CardHeader><CardTitle className="text-base">Library Dependency Density{total > MAX_ITEMS && <span className="text-xs font-normal text-muted-foreground ml-2">showing {MAX_ITEMS} of {total}</span>}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Library Dependency Density</CardTitle>
+          <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
+        </CardHeader>
         <CardContent>
-          <SizedBarChart dataCount={capped.length} config={{
+          <SizedBarChart dataCount={pageItems.length} config={{
             inbound: { label: "In-degree (dependents)", color: "#8b5cf6" },
             outbound: { label: "Out-degree (dependencies)", color: "#14b8a6" },
           }}>
-            <BarChart data={capped} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name, 20) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -548,15 +864,16 @@ function LibDependencySection({ data }: { data: ExtrasStats["lib_dependency"] })
 }
 
 function NodeCriticalDensitySection({ data }: { data: ExtrasStats["node_critical_density"] }) {
-  if (!data) return null
-  const chartData = data.sorted_labels.map((label, i) => ({
-    name: truncate(label),
+  const allItems = useMemo(() => (!data ? [] : data.sorted_labels.map((label, i) => ({
+    name: label,
     id: data.sorted_ids?.[i],
     critical: data.sorted_crit[i],
     normal: data.sorted_norm[i],
-  }))
-  const total = chartData.length
-  const capped = chartData.slice(0, MAX_ITEMS)
+  }))), [data])
+
+  const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
+
+  if (!data) return null
 
   return (
     <div className="space-y-4">
@@ -569,13 +886,16 @@ function NodeCriticalDensitySection({ data }: { data: ExtrasStats["node_critical
         { key: "zero_crit", label: "No Critical" },
       ]} />
       <Card>
-        <CardHeader><CardTitle className="text-base">Node Critical Application Density{total > MAX_ITEMS && <span className="text-xs font-normal text-muted-foreground ml-2">showing {MAX_ITEMS} of {total}</span>}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Node Critical Application Density</CardTitle>
+          <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
+        </CardHeader>
         <CardContent>
-          <SizedBarChart dataCount={capped.length} config={{
+          <SizedBarChart dataCount={pageItems.length} config={{
             critical: { label: "Critical", color: "#ef4444" },
             normal: { label: "Normal", color: "#3b82f6" },
           }}>
-            <BarChart data={capped} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -591,15 +911,16 @@ function NodeCriticalDensitySection({ data }: { data: ExtrasStats["node_critical
 }
 
 function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"] }) {
-  if (!data || !data.labels.length) return <p className="text-sm text-muted-foreground">Insufficient domain data (need ≥ 2 domains)</p>
-  const chartData = data.labels.map((label, i) => ({
-    name: truncate(label),
+  const allItems = useMemo(() => (!data ? [] : data.labels.map((label, i) => ({
+    name: label,
     applications: data.app_counts[i],
     topics: data.topic_counts[i],
     io: data.io_vals[i],
-  }))
-  const total = chartData.length
-  const capped = chartData.slice(0, MAX_ITEMS)
+  }))), [data])
+
+  const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
+
+  if (!data || !data.labels.length) return <p className="text-sm text-muted-foreground">Insufficient domain data (need ≥ 2 domains)</p>
 
   return (
     <div className="space-y-4">
@@ -612,14 +933,17 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
         { key: "io_max", label: "Max I/O" },
       ]} />
       <Card>
-        <CardHeader><CardTitle className="text-base">Domain Diversity{total > MAX_ITEMS && <span className="text-xs font-normal text-muted-foreground ml-2">showing {MAX_ITEMS} of {total}</span>}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Domain Diversity</CardTitle>
+          <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
+        </CardHeader>
         <CardContent>
-          <SizedBarChart dataCount={capped.length} config={{
+          <SizedBarChart dataCount={pageItems.length} config={{
             applications: { label: "Applications", color: "#3b82f6" },
             topics: { label: "Topics", color: "#10b981" },
             io: { label: "I/O Load", color: "#f59e0b" },
           }}>
-            <BarChart data={capped} margin={{ bottom: 50 }} maxBarSize={48}>
+            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
@@ -638,7 +962,7 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
 // ── Tab config ──────────────────────────────────────────────────────────
 
 const TAB_CONFIG = [
-  { id: "topic_bandwidth", label: "Topic Bandwidth", icon: Radio, color: "text-violet-500", description: "Data throughput per topic based on message size and subscriber count. High-bandwidth topics are potential bottlenecks." },
+  { id: "topic_bandwidth", label: "Topic Bandwidth", icon: Radio, color: "text-violet-500", description: "Data throughput per topic based on message size and connection count. Switch between subscriber-side, publisher-side, or combined (pub + sub) bandwidth. High-bandwidth topics are potential bottlenecks." },
   { id: "app_balance", label: "App Balance", icon: Activity, color: "text-blue-500", description: "Publish/subscribe distribution across applications. Imbalances indicate uneven communication load or single-role components." },
   { id: "topic_fanout", label: "Topic Fanout", icon: Network, color: "text-amber-500", description: "Publisher-to-subscriber ratios per topic. Identifies 1-to-N broadcast, N-to-1 aggregation, and orphan patterns." },
   { id: "cross_node", label: "Cross-Node", icon: Server, color: "text-purple-500", description: "Inter-node communication intensity matrix. Reveals physical host coupling and network traffic hotspots." },
@@ -771,7 +1095,7 @@ export default function StatisticsPage() {
                     {id === "topic_bandwidth" && <TopicBandwidthSection data={stats.topic_bandwidth} />}
                     {id === "app_balance" && <AppBalanceSection data={stats.app_balance} />}
                     {id === "topic_fanout" && <TopicFanoutSection data={stats.topic_fanout} />}
-                    {id === "cross_node" && <HeatmapSection data={stats.cross_node_heatmap} title="Cross-Node Communication Heatmap" />}
+                    {id === "cross_node" && <HeatmapSection data={stats.cross_node_heatmap} title="Cross-Node Communication Heatmap" modeToggle />}
                     {id === "node_load" && <NodeCommLoadSection data={stats.node_comm_load} />}
                     {id === "domain_comm" && <HeatmapSection data={stats.domain_comm} title="Domain-to-Domain Communication" />}
                     {id === "criticality" && <CriticalityIOSection data={stats.criticality_io} />}

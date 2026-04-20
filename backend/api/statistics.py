@@ -274,7 +274,7 @@ def extract_cross_cutting_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "app_criticality": {a["id"]: a.get("criticality", False) for a in apps},
         "app_role": {a["id"]: a.get("role", "NOT_FOUND") for a in apps},
         "app_domain": {
-            a["id"]: (a.get("system_hierarchy") or {}).get("css_name", "NOT_FOUND")
+            a["id"]: (a.get("system_hierarchy") or {}).get("domain_name", "NOT_FOUND")
             for a in apps
         },
         "libs": raw_data.get("libraries", []),
@@ -291,30 +291,37 @@ def extract_cross_cutting_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
 
 def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     """Compute bandwidth statistics for Topic Size vs Subscriber chart."""
-    sizes, subs, labels, ids = [], [], [], []
+    sizes, subs, pubs, labels, ids = [], [], [], [], []
     for tid in cc["topic_sizes"]:
         sizes.append(cc["topic_sizes"][tid])
         subs.append(cc["topic_sub_count"].get(tid, 0))
+        pubs.append(cc["topic_pub_count"].get(tid, 0))
         labels.append(cc["topic_names"].get(tid, tid))
         ids.append(tid)
 
-    bandwidth = [s * sc for s, sc in zip(sizes, subs)]
-    nonzero_bw = [b for b in bandwidth if b > 0]
+    bandwidth_sub = [s * sc for s, sc in zip(sizes, subs)]
+    bandwidth_pub = [s * pc for s, pc in zip(sizes, pubs)]
+    bandwidth_pubsub = [s * (pc + sc) for s, pc, sc in zip(sizes, pubs, subs)]
+    # Keep legacy "bandwidth" as sub-based for backward compatibility
+    bandwidth = bandwidth_sub
+
+    nonzero_bw = [b for b in bandwidth_sub if b > 0]
     outlier_indices: List[int] = []
     iqr_upper = 0.0
     iqr_val = 0.0
     if len(nonzero_bw) >= 4:
         _, iqr_upper, iqr_val = find_1d_outliers_iqr(nonzero_bw)
         outlier_indices = [
-            i for i in range(len(bandwidth))
-            if bandwidth[i] > iqr_upper and bandwidth[i] > 0
+            i for i in range(len(bandwidth_sub))
+            if bandwidth_sub[i] > iqr_upper and bandwidth_sub[i] > 0
         ]
-        outlier_indices.sort(key=lambda i: bandwidth[i], reverse=True)
+        outlier_indices.sort(key=lambda i: bandwidth_sub[i], reverse=True)
 
     summary: Dict[str, Any] = {}
     if sizes:
         size_arr = np.array(sizes, dtype=float)
         sub_arr = np.array(subs, dtype=float)
+        pub_arr = np.array(pubs, dtype=float)
         summary = {
             "total_topics": len(sizes),
             "size_mean": float(np.mean(size_arr)),
@@ -323,6 +330,9 @@ def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "sub_mean": float(np.mean(sub_arr)),
             "sub_median": float(np.median(sub_arr)),
             "sub_max": int(np.max(sub_arr)),
+            "pub_mean": float(np.mean(pub_arr)),
+            "pub_median": float(np.median(pub_arr)),
+            "pub_max": int(np.max(pub_arr)),
             "zero_sub_count": sum(1 for s in subs if s == 0),
             "bw_mean": float(np.mean(nonzero_bw)) if nonzero_bw else 0,
             "bw_median": float(np.median(nonzero_bw)) if nonzero_bw else 0,
@@ -330,8 +340,10 @@ def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     return {
-        "sizes": sizes, "subs": subs, "labels": labels, "ids": ids,
-        "bandwidth": bandwidth, "nonzero_bw": nonzero_bw,
+        "sizes": sizes, "subs": subs, "pubs": pubs, "labels": labels, "ids": ids,
+        "bandwidth": bandwidth, "bandwidth_sub": bandwidth_sub,
+        "bandwidth_pub": bandwidth_pub, "bandwidth_pubsub": bandwidth_pubsub,
+        "nonzero_bw": nonzero_bw,
         "outlier_indices": outlier_indices,
         "iqr_upper": iqr_upper, "iqr": iqr_val,
         "summary": summary,
@@ -619,16 +631,78 @@ def compute_cross_node_heatmap_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
 
     if n == 0:
         return {"node_ids": [], "labels": [], "matrix": np.zeros((0, 0)),
-                "outlier_pairs": [], "iqr_upper": 0, "iqr": 0, "summary": {}}
+                "outlier_pairs": [], "iqr_upper": 0, "iqr": 0, "summary": {},
+                "per_node": {}}
 
     labels = [cc["node_names"].get(nid, nid)[:20] for nid in node_ids]
     app_node = cc["app_node"]
     matrix = _build_communication_matrix(
         cc, lambda aid: app_node.get(aid), node_ids)
 
+    # Build per-node topic lists: which topics are published/subscribed from each node
+    node_pub_topics: Dict[str, Dict[str, str]] = {nid: {} for nid in node_ids}
+    node_sub_topics: Dict[str, Dict[str, str]] = {nid: {} for nid in node_ids}
+    node_apps: Dict[str, List[Dict[str, str]]] = {nid: [] for nid in node_ids}
+
+    for app in cc["apps"]:
+        aid = app["id"]
+        nid = app_node.get(aid)
+        if nid and nid in node_apps:
+            node_apps[nid].append({"id": aid, "name": cc["app_names"].get(aid, aid)})
+
+    for rel in cc["publishes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        nid = app_node.get(aid)
+        if nid and nid in node_pub_topics and tid:
+            node_pub_topics[nid][tid] = cc["topic_names"].get(tid, tid)
+
+    for rel in cc["subscribes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        nid = app_node.get(aid)
+        if nid and nid in node_sub_topics and tid:
+            node_sub_topics[nid][tid] = cc["topic_names"].get(tid, tid)
+
+    topic_sizes = cc["topic_sizes"]
+
+    per_node = {
+        nid: {
+            "label": cc["node_names"].get(nid, nid),
+            "apps": node_apps[nid],
+            "pub_topics": [
+                {"id": tid, "name": name, "size_kb": topic_sizes.get(tid, 0)}
+                for tid, name in sorted(node_pub_topics[nid].items(), key=lambda x: x[1])
+            ],
+            "sub_topics": [
+                {"id": tid, "name": name, "size_kb": topic_sizes.get(tid, 0)}
+                for tid, name in sorted(node_sub_topics[nid].items(), key=lambda x: x[1])
+            ],
+        }
+        for nid in node_ids
+    }
+
+    # Size-weighted matrix: cell(i,j) = sum of topic sizes (KB) for shared pub→sub topics
+    idx = {nid: i for i, nid in enumerate(node_ids)}
+    matrix_kb = np.zeros((n, n))
+    # Build topic -> publishing nodes and subscribing nodes
+    topic_pub_nodes: Dict[str, set] = {}
+    topic_sub_nodes: Dict[str, set] = {}
+    for nid in node_ids:
+        for t in per_node[nid]["pub_topics"]:
+            topic_pub_nodes.setdefault(t["id"], set()).add(nid)
+        for t in per_node[nid]["sub_topics"]:
+            topic_sub_nodes.setdefault(t["id"], set()).add(nid)
+    for tid, pub_nodes in topic_pub_nodes.items():
+        sub_nodes = topic_sub_nodes.get(tid, set())
+        size = topic_sizes.get(tid, 0)
+        for pn in pub_nodes:
+            for sn in sub_nodes:
+                if pn in idx and sn in idx:
+                    matrix_kb[idx[pn]][idx[sn]] += size
+
     matrix_stats = _compute_matrix_stats(matrix, labels, n)
     return {
-        "node_ids": node_ids, "labels": labels, "matrix": matrix,
+        "node_ids": node_ids, "labels": labels, "matrix": matrix, "matrix_kb": matrix_kb,
+        "per_node": per_node,
         **matrix_stats,
     }
 
