@@ -283,6 +283,12 @@ def extract_cross_cutting_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
             for lib in raw_data.get("libraries", [])
         },
         "uses": relationships.get("uses", []),
+        "brokers": raw_data.get("brokers", []),
+        "broker_names": {
+            b["id"]: b.get("name", b["id"])
+            for b in raw_data.get("brokers", [])
+        },
+        "routes": relationships.get("routes", []),
     }
 
 
@@ -1055,6 +1061,85 @@ def compute_domain_diversity_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         "domain_set": domain_set, "labels": labels,
         "app_counts": app_counts, "topic_counts": topic_counts,
         "io_vals": io_vals, "ranked": ranked,
+        "summary": summary,
+    }
+
+
+def compute_bottleneck_stats_from_structural(components: Dict[str, Any]) -> Dict[str, Any]:
+    """Identify structural bottlenecks from StructuralMetrics.
+
+    Scores each component with a composite bottleneck score based on four
+    real structural signals:
+
+        bottleneck_score = 0.40 * betweenness          # lies on many shortest paths
+                         + 0.25 * ap_c_directed        # removal hurts connectivity
+                         + 0.20 * blast_radius_norm     # downstream nodes made unreachable
+                         + 0.15 * bridge_ratio          # fraction of incident edges that are bridges
+
+    Articulation points and directed APs are flagged independently.
+    Components are ranked by this score and outliers identified via IQR.
+    """
+    if not components:
+        return {"items": [], "summary": {"total": 0, "articulation_point_count": 0, "outlier_count": 0}}
+
+    max_blast = max((c.get("blast_radius", 0) for c in components.values()), default=1)
+
+    items: List[Dict[str, Any]] = []
+    for cid, c in components.items():
+        blast_norm = c.get("blast_radius", 0) / max_blast if max_blast > 0 else 0.0
+        score = (
+            0.40 * c.get("betweenness", 0.0)
+            + 0.25 * c.get("ap_c_directed", 0.0)
+            + 0.20 * blast_norm
+            + 0.15 * c.get("bridge_ratio", 0.0)
+        )
+        items.append({
+            "id": cid,
+            "name": c.get("name", cid),
+            "type": c.get("type", "Unknown"),
+            "bottleneck_score": round(score, 4),
+            "betweenness": round(c.get("betweenness", 0.0), 4),
+            "ap_c_directed": round(c.get("ap_c_directed", 0.0), 4),
+            "blast_radius": c.get("blast_radius", 0),
+            "blast_radius_norm": round(blast_norm, 4),
+            "bridge_ratio": round(c.get("bridge_ratio", 0.0), 4),
+            "is_articulation_point": bool(c.get("is_articulation_point", False)),
+            "is_directed_ap": bool(c.get("is_directed_ap", False)),
+            "cascade_depth": c.get("cascade_depth", 0),
+            "pubsub_betweenness": round(c.get("pubsub_betweenness", 0.0), 4),
+            "weight": round(c.get("weight", 1.0), 4),
+        })
+
+    items.sort(key=lambda x: x["bottleneck_score"], reverse=True)
+
+    scores = [it["bottleneck_score"] for it in items]
+    nonzero = [s for s in scores if s > 0]
+    outlier_indices: List[int] = []
+    score_upper = 0.0
+    if len(nonzero) >= 4:
+        _, score_upper, _ = find_1d_outliers_iqr(nonzero)
+        outlier_indices = [i for i, it in enumerate(items) if it["bottleneck_score"] > score_upper]
+
+    ap_count = sum(1 for it in items if it["is_articulation_point"])
+    directed_ap_count = sum(1 for it in items if it["is_directed_ap"])
+
+    summary: Dict[str, Any] = {
+        "total": len(items),
+        "articulation_point_count": ap_count,
+        "directed_ap_count": directed_ap_count,
+        "outlier_count": len(outlier_indices),
+        "score_upper": round(score_upper, 4),
+    }
+    if scores:
+        arr = np.array(scores, dtype=float)
+        summary.update({
+            "score_mean": round(float(np.mean(arr)), 4),
+            "score_max": round(float(np.max(arr)), 4),
+        })
+
+    return {
+        "items": items,
+        "outlier_indices": outlier_indices,
         "summary": summary,
     }
 

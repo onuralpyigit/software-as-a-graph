@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/chart"
 import {
   Activity, AlertTriangle, BarChart3, Layers, Network, Radio,
-  Shield, Box, Server, BookOpen, RefreshCw,
+  Shield, Box, Server, BookOpen, RefreshCw, Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TermTooltip } from "@/components/ui/term-tooltip"
@@ -119,6 +119,26 @@ interface ExtrasStats {
     app_counts: number[]
     topic_counts: number[]
     io_vals: number[]
+    summary: SummaryDict
+  }
+  bottleneck?: {
+    items: {
+      id: string
+      name: string
+      type: string
+      bottleneck_score: number
+      betweenness: number
+      ap_c_directed: number
+      blast_radius: number
+      blast_radius_norm: number
+      bridge_ratio: number
+      is_articulation_point: boolean
+      is_directed_ap: boolean
+      cascade_depth: number
+      pubsub_betweenness: number
+      weight: number
+    }[]
+    outlier_indices: number[]
     summary: SummaryDict
   }
 }
@@ -1153,6 +1173,134 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
   )
 }
 
+function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
+  const allItems = useMemo(() => (!data ? [] : data.items.map((it, i) => ({
+    ...it,
+    outlier: data.outlier_indices.includes(i),
+  }))), [data])
+
+  const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
+
+  if (!data) return null
+  const s = data.summary
+
+  return (
+    <div className="space-y-6">
+      {/* Score formula explanation */}
+      <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+        <span className="font-semibold text-foreground">Score = </span>
+        <code className="text-xs font-mono">0.40 × betweenness + 0.25 × ap_c_directed + 0.20 × blast_radius_norm + 0.15 × bridge_ratio</code>
+        <p className="mt-1 text-xs">
+          Components with the highest score lie on the most critical structural paths — their failure disrupts the largest fraction of the system.
+          Articulation points (🔴) are graph-theoretic SPOFs: their removal disconnects the graph entirely.
+        </p>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricInsightCard
+          label="Articulation Points"
+          value={s.articulation_point_count ?? 0}
+          description="Components whose removal disconnects the undirected graph. These are structural SPOFs — the most severe bottleneck class."
+          formula="is_articulation_point = True"
+        />
+        <MetricInsightCard
+          label="Directed APs"
+          value={s.directed_ap_count ?? 0}
+          description="Components that disconnect the directed reachable set. Directional SPOFs that may not appear in undirected analysis."
+          formula="is_directed_ap = True"
+        />
+        <MetricInsightCard
+          label="Score Outliers"
+          value={s.outlier_count ?? 0}
+          description="Components whose bottleneck score exceeds the IQR upper fence. These are statistically extreme relative to the rest of the system."
+          formula="score > Q3 + 1.5 × IQR"
+        />
+        <MetricInsightCard
+          label="Max Score"
+          value={fmtNum(s.score_max ?? 0)}
+          description="Highest composite bottleneck score in the system. Values above 0.5 indicate a severe single-point bottleneck."
+          formula="max(0.40·BT + 0.25·AP + 0.20·BR + 0.15·bridge)"
+        />
+      </div>
+
+      {/* Bottleneck bar chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            <TermTooltip term="Bottleneck Score" description="Composite structural score: betweenness (path coverage) + ap_c_directed (SPOF severity) + blast_radius (reachability loss) + bridge_ratio (structural fragility).">
+              Bottleneck Score by Component
+            </TermTooltip>
+          </CardTitle>
+          <PaginationBar
+            search={search} onSearch={handleSearch}
+            page={page} totalPages={totalPages} onPage={setPage}
+            totalItems={allItems.length} filteredItems={filtered.length}
+          />
+        </CardHeader>
+        <CardContent>
+          <SizedBarChart dataCount={pageItems.length} config={{ bottleneck_score: { label: "Bottleneck Score", color: "#ef4444" } }}>
+            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 11 }} domain={[0, 1]} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="bottleneck_score" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </SizedBarChart>
+        </CardContent>
+      </Card>
+
+      {/* Ranked table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">All Components Ranked by Bottleneck Score</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-h-[480px] overflow-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Component</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Score</TableHead>
+                  <TableHead className="text-right">Betweenness</TableHead>
+                  <TableHead className="text-right">Blast Radius</TableHead>
+                  <TableHead className="text-right">Bridge Ratio</TableHead>
+                  <TableHead className="text-center">Flags</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pageItems.map((it, idx) => (
+                  <TableRow
+                    key={it.id}
+                    className={`cursor-pointer hover:bg-muted/50 ${it.outlier ? "bg-red-500/5" : ""}`}
+                    onClick={() => goToExplorer(it.id)}
+                  >
+                    <TableCell className="text-xs text-muted-foreground">{page * PAGE_SIZE + idx + 1}</TableCell>
+                    <TableCell className="font-medium">{it.name}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{it.type}</TableCell>
+                    <TableCell className="text-right font-mono text-sm font-semibold">{fmtNum(it.bottleneck_score)}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{fmtNum(it.betweenness)}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{it.blast_radius}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{fmtNum(it.bridge_ratio)}</TableCell>
+                    <TableCell className="text-center text-sm">
+                      {it.is_articulation_point && <span title="Articulation point (undirected SPOF)">🔴</span>}
+                      {it.is_directed_ap && !it.is_articulation_point && <span title="Directed articulation point">🟠</span>}
+                      {it.outlier && <span title="Score outlier (IQR)">⚡</span>}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 // ── Tab config ──────────────────────────────────────────────────────────
 
 const TAB_CONFIG = [
@@ -1166,6 +1314,7 @@ const TAB_CONFIG = [
   { id: "lib_deps", label: "Library Deps", icon: BookOpen, color: "text-teal-500", description: "Library dependency density and coupling. Libraries with high in-degree are shared-fate risks across multiple consumers." },
   { id: "node_density", label: "Node Density", icon: Shield, color: "text-green-500", description: "Distribution of critical applications across physical nodes. Concentration of critical apps on few nodes increases blast radius." },
   { id: "domain_div", label: "Domain Diversity", icon: Box, color: "text-orange-500", description: "Application and topic variety within each domain. Low diversity may indicate monolithic subsystems." },
+  { id: "bottleneck", label: "Bottlenecks", icon: Zap, color: "text-yellow-500", description: "Components with disproportionate structural load: high-I/O apps, over-connected topics, widely-shared libraries, and heavily-loaded brokers." },
 ] as const
 
 type TabId = typeof TAB_CONFIG[number]["id"]
@@ -1182,6 +1331,7 @@ const TAB_TO_CHART_ID: Record<TabId, keyof ExtrasStats> = {
   lib_deps: "lib_dependency",
   node_density: "node_critical_density",
   domain_div: "domain_diversity",
+  bottleneck: "bottleneck",
 }
 
 // ── Main page ───────────────────────────────────────────────────────────
@@ -1205,7 +1355,13 @@ export default function StatisticsPage() {
     try {
       const creds = apiClient.getCredentials()
       if (!creds) throw new Error("No credentials")
-      const response = await fetch(`${API_BASE_URL}/api/v1/stats/chart/${chartKey}`, {
+
+      // Bottleneck tab uses a dedicated endpoint that runs structural analysis
+      const url = tabId === "bottleneck"
+        ? `${API_BASE_URL}/api/v1/stats/bottleneck`
+        : `${API_BASE_URL}/api/v1/stats/chart/${chartKey}`
+
+      const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(creds),
@@ -1382,6 +1538,7 @@ export default function StatisticsPage() {
                         {id === "lib_deps" && <LibDependencySection data={tabData.lib_dependency} />}
                         {id === "node_density" && <NodeCriticalDensitySection data={tabData.node_critical_density} />}
                         {id === "domain_div" && <DomainDiversitySection data={tabData.domain_diversity} />}
+                        {id === "bottleneck" && <BottleneckSection data={tabData.bottleneck} />}
                       </>
                     )}
                   </TabsContent>

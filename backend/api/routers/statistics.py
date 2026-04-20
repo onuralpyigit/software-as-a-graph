@@ -17,7 +17,10 @@ from api.models import (
 )
 from src.analysis.statistics_service import StatisticsService
 from src.core.ports.graph_repository import IGraphRepository
-from api.dependencies import get_statistics_service, get_repository
+from src.analysis.structural_analyzer import StructuralAnalyzer
+from src.core.layers import AnalysisLayer
+from api.dependencies import get_statistics_service, get_repository, get_client
+from saag import Client
 from api.presenters import statistics_presenter
 from api.statistics import (
     extract_cross_cutting_data,
@@ -32,6 +35,7 @@ from api.statistics import (
     compute_lib_dependency_stats,
     compute_node_critical_density_stats,
     compute_domain_diversity_stats,
+    compute_bottleneck_stats_from_structural,
 )
 
 router = APIRouter(prefix="/api/v1/stats", tags=["statistics"])
@@ -290,3 +294,35 @@ async def get_chart_statistics(
     except Exception as e:
         logger.error(f"Statistics failed for chart {chart_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Computation failed: {e}")
+
+
+@router.post("/bottleneck")
+async def get_bottleneck_stats(
+    credentials: Neo4jCredentials,
+    client: Client = Depends(get_client),
+):
+    """Identify structural bottlenecks using real topological metrics.
+
+    Ranks components by a composite bottleneck score derived from:
+    - betweenness centrality (lies on many shortest paths, weight 0.40)
+    - ap_c_directed (directed articulation-point severity, weight 0.25)
+    - blast_radius_norm (fraction of graph made unreachable, weight 0.20)
+    - bridge_ratio (fraction of incident edges that are bridges, weight 0.15)
+
+    Articulation points and directed APs are also flagged explicitly.
+    """
+    try:
+        logger.info("Computing structural bottleneck statistics")
+        graph_data = client.repo.get_graph_data()
+        analyzer = StructuralAnalyzer()
+        result = analyzer.analyze(graph_data, layer=AnalysisLayer.SYSTEM)
+        components_dict = {cid: m.to_dict() for cid, m in result.components.items()}
+        bottleneck_data = compute_bottleneck_stats_from_structural(components_dict)
+        return {
+            "success": True,
+            "data": statistics_presenter.serialise_numpy(bottleneck_data),
+        }
+    except Exception as e:
+        logger.error(f"Bottleneck statistics failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Computation failed: {e}")
+
