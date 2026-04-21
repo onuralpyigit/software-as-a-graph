@@ -349,80 +349,48 @@ export default function TrafficSimulatorPage() {
             <CardContent className="space-y-5 text-sm text-muted-foreground pt-0">
 
               <p>
-                The traffic simulator is an <strong className="text-foreground">analytical estimator</strong> —
-                it does not replay discrete events. Instead, it reads the pub-sub topology from the
-                graph database and computes expected load deterministically from three inputs:
-                <strong className="text-foreground"> frequency</strong> (Hz),
-                <strong className="text-foreground"> duration</strong> (s), and
-                <strong className="text-foreground"> message size</strong> (bytes).
+                Pick one or more topics, set how fast messages are sent (Hz) and for how long,
+                then hit <strong className="text-foreground">Run Simulation</strong>.
+                The simulator reads your system's topology from the graph and instantly tells you
+                how much traffic each topic and broker will carry — no guesswork needed.
               </p>
 
-              <div className="space-y-3">
-                <h4 className="font-semibold text-foreground">Per-topic formulas</h4>
-                <div className="grid gap-2 rounded-lg border bg-background/60 p-4 font-mono text-xs leading-relaxed">
-                  <div><span className="text-blue-500">msgs_in/s</span>   = publisher_count × frequency_hz</div>
-                  <div><span className="text-blue-500">msgs_out/s</span>  = msgs_in/s × subscriber_count</div>
-                  <div><span className="text-blue-500">bw_in</span>       = msgs_in/s × message_size_bytes</div>
-                  <div><span className="text-blue-500">bw_out</span>      = msgs_out/s × message_size_bytes</div>
-                  <div><span className="text-blue-500">bw_total</span>    = bw_in + bw_out</div>
-                  <div><span className="text-blue-500">published_total</span> = msgs_in/s × duration_sec</div>
-                  <div><span className="text-blue-500">delivered_total</span> = msgs_out/s × duration_sec</div>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div className="rounded-lg border bg-background/60 p-4 space-y-1.5">
+                  <div className="font-semibold text-foreground">① Messages in</div>
+                  <p className="text-xs">
+                    Every publisher on a topic sends at the frequency you set.
+                    <br /><br />
+                    <strong className="text-foreground">2 publishers × 10 Hz = 20 msg/s</strong> arriving at the broker.
+                  </p>
                 </div>
-                <p>
-                  <strong className="text-foreground">Fan-out</strong>: each message published to a topic is
-                  independently delivered to every subscriber, so{" "}
-                  <code className="rounded bg-muted px-1 py-0.5">msgs_out</code> can be many times larger than{" "}
-                  <code className="rounded bg-muted px-1 py-0.5">msgs_in</code> when a topic has many subscribers.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="font-semibold text-foreground">Broker aggregation</h4>
-                <p>
-                  Each broker's load is the sum of the per-topic values for all topics it routes.
-                  A topic routed by multiple brokers contributes equally to each broker's counter —
-                  modelling shared-fate routing (e.g. mirrored or federated brokers).
-                </p>
-                <div className="rounded-lg border bg-background/60 p-4 font-mono text-xs leading-relaxed">
-                  <div><span className="text-orange-500">broker.msgs_in/s</span>  = Σ topic.msgs_in/s  (for all routed topics)</div>
-                  <div><span className="text-orange-500">broker.msgs_out/s</span> = Σ topic.msgs_out/s</div>
-                  <div><span className="text-orange-500">broker.bw</span>         = Σ topic.bw_total</div>
+                <div className="rounded-lg border bg-background/60 p-4 space-y-1.5">
+                  <div className="font-semibold text-foreground">② Fan-out</div>
+                  <p className="text-xs">
+                    The broker delivers a copy to <em>each</em> subscriber — so the outbound traffic multiplies.
+                    <br /><br />
+                    <strong className="text-foreground">20 msg/s × 5 subscribers = 100 msg/s</strong> leaving the broker.
+                  </p>
                 </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="font-semibold text-foreground">Assumptions &amp; limitations</h4>
-                <ul className="space-y-1.5 list-disc list-inside">
-                  <li>All publishers on a topic publish at the <em>same</em> frequency.</li>
-                  <li>All messages are the same size (set by the <em>Message size</em> field).</li>
-                  <li>There is no queuing delay, back-pressure, or packet loss modelled.</li>
-                  <li>
-                    Bandwidth is counted at the <em>application layer</em> (payload bytes only) —
-                    TCP/IP framing overhead is not included.
-                  </li>
-                  <li>
-                    Topics with no publishers still consume zero bandwidth; topics with no subscribers
-                    produce inbound traffic only (no fan-out).
-                  </li>
-                  <li>
-                    Publisher and subscriber counts are read live from the graph at simulation time.
-                    Run an import first if the graph is empty.
-                  </li>
-                </ul>
+                <div className="rounded-lg border bg-background/60 p-4 space-y-1.5">
+                  <div className="font-semibold text-foreground">③ Bandwidth</div>
+                  <p className="text-xs">
+                    Multiply message rate by the message size stored on each topic node.
+                    <br /><br />
+                    <strong className="text-foreground">120 msg/s × 1 KB = 120 KB/s</strong> total for that topic.
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">Bandwidth colour coding</h4>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-red-500 shrink-0" /> &gt; 80 % of peak</span>
-                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-orange-500 shrink-0" /> 50 – 80 %</span>
-                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-yellow-500 shrink-0" /> 20 – 50 %</span>
-                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-green-500 shrink-0" /> &lt; 20 % of peak</span>
-                </div>
-                <p className="text-xs">
-                  Colours are relative to the <em>highest-loaded</em> entity in the current result set,
-                  not to any absolute capacity limit.
-                </p>
+                <h4 className="font-semibold text-foreground">Good to know</h4>
+                <ul className="space-y-1.5 list-disc list-inside text-xs">
+                  <li>Each topic can have its own <strong className="text-foreground">Hz</strong> and <strong className="text-foreground">duration</strong> — just select it and edit the fields inline.</li>
+                  <li>Message size comes from the topic node in the graph. The global fallback is used only when a topic has none set.</li>
+                  <li>Broker load is the sum across all topics it routes — a busy broker shows up immediately.</li>
+                  <li>Bandwidth colours are <strong className="text-green-600 dark:text-green-400">green → yellow → orange → red</strong> relative to the busiest topic/broker in your results.</li>
+                  <li>No network simulation happens — results are calculated instantly from the topology.</li>
+                </ul>
               </div>
 
             </CardContent>
