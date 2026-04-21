@@ -1637,11 +1637,13 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     return () => { ro.disconnect(); if (rafId) cancelAnimationFrame(rafId) }
   }, [])
 
-  // Reset scenario to the first option for this node type when the selected node changes
+  // Reset scenario and filters when the selected node changes
   useEffect(() => {
     if (!selectedApp) return
     const scenarios = getScenariosForType(selectedApp.nodeType ?? "Application")
     setConnScenario(scenarios[0].id)
+    setHiddenNodeTypes(new Set())
+    setHiddenEdgeTypes(new Set(["DEPENDS_ON"]))
   }, [selectedApp?.pathKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch connections whenever selected app or scenario changes
@@ -2017,7 +2019,10 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             {viewMode !== "hierarchy" && (
               <>
                 <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px] mt-0.5">Nodes</p>
-                {Array.from(new Set((connData?.nodes as any[] ?? []).map(n => n.type).filter(Boolean))).map(t => (
+                {Array.from(new Set([
+                  ...(connGraphData?.nodes ?? []).map((n: any) => n.type).filter(Boolean),
+                  ...Array.from(hiddenNodeTypes).filter(t => (connData?.nodes as any[] ?? []).some(n => n.type === t)),
+                ])).map(t => (
                   <button key={t} onClick={() => toggleNodeType(t as string)}
                     className={cn("flex items-center gap-2.5 w-full text-left transition-opacity py-0.5", hiddenNodeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
                     <svg width="12" height="12" viewBox="0 0 10 10" className="shrink-0">
