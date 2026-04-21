@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
 import { trafficClient, type TopicInfo, type TrafficSimulationResult, type TopicParams } from "@/lib/api/traffic-client"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 
 // ============================================================================
 // Types
@@ -680,9 +681,11 @@ export default function TrafficSimulatorPage() {
                                       {topic.qos_reliability}
                                     </Badge>
                                   )}
-                                  <span className="text-xs font-mono text-muted-foreground w-12 text-right">
-                                    {topic.weight.toFixed(3)}
-                                  </span>
+                                  <TermTooltip term="Topic Weight" side="left">
+                                    <span className="text-xs font-mono text-muted-foreground w-12 text-right">
+                                      {topic.weight.toFixed(3)}
+                                    </span>
+                                  </TermTooltip>
                                 </div>
                               )}
                             </div>
@@ -780,7 +783,7 @@ export default function TrafficSimulatorPage() {
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
                     <Network className="h-4 w-4" />
-                    <span className="text-xs">Total bandwidth</span>
+                    <span className="text-xs"><TermTooltip term="Network Bandwidth">Total bandwidth</TermTooltip></span>
                   </div>
                   <div className="text-2xl font-bold">{formatBytes(result.summary.total_network_bps)}</div>
                   <div className="text-xs text-muted-foreground mt-1">
@@ -793,7 +796,7 @@ export default function TrafficSimulatorPage() {
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
                     <Activity className="h-4 w-4" />
-                    <span className="text-xs">Messages published</span>
+                    <span className="text-xs"><TermTooltip term="Messages Published">Messages published</TermTooltip></span>
                   </div>
                   <div className="text-2xl font-bold">{formatNumber(result.summary.total_msgs_published)}</div>
                   <div className="text-xs text-muted-foreground mt-1">over {result.summary.duration_sec}s</div>
@@ -804,10 +807,10 @@ export default function TrafficSimulatorPage() {
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
                     <CheckCircle2 className="h-4 w-4" />
-                    <span className="text-xs">Messages delivered</span>
+                    <span className="text-xs"><TermTooltip term="Messages Delivered">Messages delivered</TermTooltip></span>
                   </div>
                   <div className="text-2xl font-bold">{formatNumber(result.summary.total_msgs_delivered)}</div>
-                  <div className="text-xs text-muted-foreground mt-1">fan-out total</div>
+                  <div className="text-xs text-muted-foreground mt-1">fan-out total <TermTooltip term="Fan-out Multiplier" iconOnly /></div>
                 </CardContent>
               </Card>
 
@@ -815,7 +818,7 @@ export default function TrafficSimulatorPage() {
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
                     <Server className="h-4 w-4" />
-                    <span className="text-xs">Brokers involved</span>
+                    <span className="text-xs"><TermTooltip term="Broker Load">Brokers involved</TermTooltip></span>
                   </div>
                   <div className="text-2xl font-bold">{result.summary.brokers_involved}</div>
                   <div className="text-xs text-muted-foreground mt-1">
@@ -824,6 +827,42 @@ export default function TrafficSimulatorPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Calculation cards */}
+            <Card className="border-muted">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-muted-foreground" />
+                  How results are calculated
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid sm:grid-cols-3 gap-3 text-xs">
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
+                    <div className="font-semibold text-foreground">Inbound (msg/s)</div>
+                    <div className="font-mono bg-background rounded px-2 py-1 text-muted-foreground">publishers × Hz</div>
+                    <div className="text-muted-foreground">Messages arriving at the broker from all publishers on a topic each second.</div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
+                    <div className="font-semibold text-foreground">Outbound (msg/s)</div>
+                    <div className="font-mono bg-background rounded px-2 py-1 text-muted-foreground">inbound × subscribers</div>
+                    <div className="text-muted-foreground">The broker delivers one copy per subscriber — fan-out multiplies outbound traffic.</div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
+                    <div className="font-semibold text-foreground">Bandwidth</div>
+                    <div className="font-mono bg-background rounded px-2 py-1 text-muted-foreground">(inbound + outbound) × size</div>
+                    <div className="text-muted-foreground">Total bytes per second through the broker for this topic. Size from graph or global fallback.</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
+                  <span className="font-medium text-foreground">Bandwidth colour scale</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" /> green = &lt;20% of max</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-yellow-500" /> yellow = 20–50%</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500" /> orange = 50–80%</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" /> red = &gt;80%</span>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Detail tabs */}
             <Tabs defaultValue="topics">
@@ -857,13 +896,13 @@ export default function TrafficSimulatorPage() {
                         <thead>
                           <tr className="border-b bg-muted/50">
                             <th className="text-left p-3 font-medium">Topic</th>
-                            <th className="text-right p-3 font-medium" title="Number of publishers writing to this topic">Pubs</th>
-                            <th className="text-right p-3 font-medium" title="Number of subscribers reading from this topic">Subs</th>
-                            <th className="text-right p-3 font-medium" title="Effective frequency used for this topic (Hz)">Hz</th>
-                            <th className="text-right p-3 font-medium" title="Inbound: publisher_count × frequency_hz">In (msg/s)</th>
-                            <th className="text-right p-3 font-medium" title="Outbound fan-out: msgs_in/s × subscriber_count">Out (msg/s)</th>
-                            <th className="text-right p-3 font-medium" title="Total bandwidth: (in + out) × message_size_bytes">Bandwidth</th>
-                            <th className="text-left p-3 font-medium" title="Brokers that route this topic">Brokers</th>
+                            <th className="text-right p-3 font-medium"><TermTooltip term="Publisher Count">Pubs</TermTooltip></th>
+                            <th className="text-right p-3 font-medium"><TermTooltip term="Subscriber Count">Subs</TermTooltip></th>
+                            <th className="text-right p-3 font-medium"><TermTooltip term="Simulation Frequency">Hz</TermTooltip></th>
+                            <th className="text-right p-3 font-medium"><TermTooltip term="In (msg/s)">In (msg/s)</TermTooltip></th>
+                            <th className="text-right p-3 font-medium"><TermTooltip term="Out (msg/s)">Out (msg/s)</TermTooltip></th>
+                            <th className="text-right p-3 font-medium"><TermTooltip term="Topic Bandwidth">Bandwidth</TermTooltip></th>
+                            <th className="text-left p-3 font-medium"><TermTooltip description="Message brokers that route this topic's messages from publishers to subscribers.">Brokers</TermTooltip></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -936,7 +975,7 @@ export default function TrafficSimulatorPage() {
                             {/* Bandwidth bar */}
                             <div>
                               <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                                <span>Bandwidth</span>
+                                <span><TermTooltip term="Network Bandwidth">Bandwidth</TermTooltip></span>
                                 <span className={`font-medium ${getBandwidthColor(broker.bandwidth_bps, maxBrokerBps)}`}>
                                   {formatBytes(broker.bandwidth_bps)}
                                 </span>
@@ -951,19 +990,19 @@ export default function TrafficSimulatorPage() {
 
                             <div className="grid grid-cols-2 gap-3 text-sm">
                               <div>
-                                <div className="text-xs text-muted-foreground">Inbound</div>
+                                <div className="text-xs text-muted-foreground"><TermTooltip term="Inbound Rate">Inbound</TermTooltip></div>
                                 <div className="font-mono font-medium">{broker.msgs_inbound_per_sec.toFixed(1)} msg/s</div>
                               </div>
                               <div>
-                                <div className="text-xs text-muted-foreground">Outbound</div>
+                                <div className="text-xs text-muted-foreground"><TermTooltip term="Outbound Rate">Outbound</TermTooltip></div>
                                 <div className="font-mono font-medium">{broker.msgs_outbound_per_sec.toFixed(1)} msg/s</div>
                               </div>
                               <div>
-                                <div className="text-xs text-muted-foreground">Total msg/s</div>
+                                <div className="text-xs text-muted-foreground"><TermTooltip description="Sum of inbound + outbound messages per second across all topics routed by this broker.">Total msg/s</TermTooltip></div>
                                 <div className="font-mono font-medium">{broker.msgs_total_per_sec.toFixed(1)}</div>
                               </div>
                               <div>
-                                <div className="text-xs text-muted-foreground">Bandwidth</div>
+                                <div className="text-xs text-muted-foreground"><TermTooltip term="Topic Bandwidth">Bandwidth</TermTooltip></div>
                                 <div className="font-mono font-medium">{broker.bandwidth_mbps.toFixed(4)} MB/s</div>
                               </div>
                             </div>
@@ -998,25 +1037,54 @@ export default function TrafficSimulatorPage() {
                   </CardHeader>
                   <CardContent>
                     <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-                      {[
-                        { label: "Topics selected", value: result.summary.selected_topics },
-                        { label: "Topics found in graph", value: result.summary.topics_found },
-                        { label: "Frequency", value: `${result.summary.frequency_hz} Hz` },
-                        { label: "Duration", value: `${result.summary.duration_sec}s` },
-                        { label: "Message size", value: `${result.summary.message_size_bytes} B` },
-                        { label: "Brokers involved", value: result.summary.brokers_involved },
-                        { label: "Total published", value: formatNumber(result.summary.total_msgs_published) + " msgs" },
-                        { label: "Total delivered (fan-out)", value: formatNumber(result.summary.total_msgs_delivered) + " msgs" },
-                        { label: "Total bandwidth", value: formatBytes(result.summary.total_network_bps) },
-                        { label: "Peak topic bandwidth", value: formatBytes(result.summary.peak_topic_bps) },
-                        { label: "Total (kbps)", value: result.summary.total_network_kbps.toFixed(2) + " KB/s" },
-                        { label: "Total (mbps)", value: result.summary.total_network_mbps.toFixed(4) + " MB/s" },
-                      ].map(item => (
-                        <div key={item.label}>
-                          <dt className="text-muted-foreground">{item.label}</dt>
-                          <dd className="font-semibold">{item.value}</dd>
-                        </div>
-                      ))}
+                      <div>
+                        <dt className="text-muted-foreground">Topics selected</dt>
+                        <dd className="font-semibold">{result.summary.selected_topics}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Topics found in graph</dt>
+                        <dd className="font-semibold">{result.summary.topics_found}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground"><TermTooltip term="Simulation Frequency">Frequency</TermTooltip></dt>
+                        <dd className="font-semibold">{result.summary.frequency_hz} Hz</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground"><TermTooltip term="Simulation Duration">Duration</TermTooltip></dt>
+                        <dd className="font-semibold">{result.summary.duration_sec} s</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground"><TermTooltip term="Message Size">Message size</TermTooltip></dt>
+                        <dd className="font-semibold">{result.summary.message_size_bytes} B</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground"><TermTooltip term="Broker Load">Brokers involved</TermTooltip></dt>
+                        <dd className="font-semibold">{result.summary.brokers_involved}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground"><TermTooltip term="Messages Published">Total published</TermTooltip></dt>
+                        <dd className="font-semibold">{formatNumber(result.summary.total_msgs_published)} msgs</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground"><TermTooltip term="Messages Delivered">Total delivered (fan-out)</TermTooltip></dt>
+                        <dd className="font-semibold">{formatNumber(result.summary.total_msgs_delivered)} msgs</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground"><TermTooltip term="Network Bandwidth">Total bandwidth</TermTooltip></dt>
+                        <dd className="font-semibold">{formatBytes(result.summary.total_network_bps)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground"><TermTooltip term="Peak Topic Bandwidth">Peak topic bandwidth</TermTooltip></dt>
+                        <dd className="font-semibold">{formatBytes(result.summary.peak_topic_bps)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Total (kbps)</dt>
+                        <dd className="font-semibold">{result.summary.total_network_kbps.toFixed(2)} KB/s</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Total (mbps)</dt>
+                        <dd className="font-semibold">{result.summary.total_network_mbps.toFixed(4)} MB/s</dd>
+                      </div>
                     </dl>
                   </CardContent>
                 </Card>
