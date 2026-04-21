@@ -528,6 +528,8 @@ class GraphGenerationResponse(BaseModel):
     success: bool
     message: str
     metadata: Dict[str, Any]
+    stats: Optional[Dict[str, Any]] = None
+    graph_data: Optional[Dict[str, Any]] = None
 
 
 # ── Traffic Simulation Models ──────────────────────────────────────────
