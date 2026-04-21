@@ -575,17 +575,16 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
   const totalPages = Math.max(1, Math.ceil(filteredIndices.length / MAX_ITEMS))
   const safePage = Math.min(page, totalPages - 1)
   const indices = filteredIndices.slice(safePage * MAX_ITEMS, (safePage + 1) * MAX_ITEMS)
-  const idxSet = new Set(indices)
 
   let labels = indices.map((i) => data.labels[i])
-  let baseMatrix = indices.map((ri) => data.matrix[ri].filter((_, ci) => idxSet.has(ci)))
+  let baseMatrix = indices.map((ri) => indices.map((ci) => data.matrix[ri][ci]))
   let ids = data.node_ids ? indices.map((i) => data.node_ids![i]) : undefined
 
   const countMatrix = !modeToggle || mode === "pub" ? baseMatrix
                : mode === "sub" ? transposeMatrix(baseMatrix)
                : combineMatrices(baseMatrix)
 
-  const baseMatrixKb = (showKb && data.matrix_kb) ? indices.map((ri) => data.matrix_kb!![ri].filter((_, ci) => idxSet.has(ci))) : null
+  const baseMatrixKb = (showKb && data.matrix_kb) ? indices.map((ri) => indices.map((ci) => data.matrix_kb!![ri][ci])) : null
   const kbMatrix = baseMatrixKb
     ? (!modeToggle || mode === "pub" ? baseMatrixKb
        : mode === "sub" ? transposeMatrix(baseMatrixKb)
