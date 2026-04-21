@@ -36,8 +36,6 @@ import { validationClient, PipelineResult, LayerValidationResult, ValidationTarg
 import { TermTooltip } from "@/components/ui/term-tooltip"
 import { ScoreTooltip } from "@/components/ui/score-tooltip"
 import { getMetricScoreType } from "@/lib/score-ranges"
-import { ScoreTooltip } from "@/components/ui/score-tooltip"
-import { getMetricScoreType } from "@/lib/score-ranges"
 
 // ============================================================================
 // Types
