@@ -194,7 +194,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="relative">
                 <div className="text-3xl font-bold text-purple-500">
-                  {((stats?.total_edges || 0) + (stats?.total_structural_edges || 0)).toLocaleString()}
+                  {(stats?.total_edges || 0).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Combined derived & structural edges
