@@ -17,8 +17,8 @@ from api.models import (
 )
 from src.analysis.statistics_service import StatisticsService
 from src.core.ports.graph_repository import IGraphRepository
-from src.analysis.structural_analyzer import StructuralAnalyzer
 from src.core.layers import AnalysisLayer
+from api.bottleneck_fast import analyze_for_bottleneck
 from api.dependencies import get_statistics_service, get_repository, get_client
 from saag import Client
 from api.presenters import statistics_presenter
@@ -314,9 +314,7 @@ async def get_bottleneck_stats(
     try:
         logger.info("Computing structural bottleneck statistics")
         graph_data = client.repo.get_graph_data()
-        analyzer = StructuralAnalyzer()
-        result = analyzer.analyze(graph_data, layer=AnalysisLayer.SYSTEM)
-        components_dict = {cid: m.to_dict() for cid, m in result.components.items()}
+        components_dict = analyze_for_bottleneck(graph_data, layer=AnalysisLayer.SYSTEM)
         bottleneck_data = compute_bottleneck_stats_from_structural(components_dict)
         return {
             "success": True,
