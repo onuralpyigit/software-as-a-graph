@@ -365,7 +365,7 @@ class SimulationService:
             top_critical=top_critical,
             recommendations=recommendations,
             # Auxiliary data
-            component_names={c.id: c.properties.get("name", c.id) for c in graph.components.values()},
+            csc_names={c.id: c.properties.get("name", c.id) for c in graph.components.values()},
             library_usage=graph.get_library_usage(),
             node_allocations=graph.get_node_allocations(),
             broker_routing=graph.get_broker_routing()

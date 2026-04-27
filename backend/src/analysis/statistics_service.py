@@ -559,7 +559,7 @@ class StatisticsService:
         t0 = time.time()
         gd = self._graph_data()
 
-        component_names = {c.id: c.properties.get("name", c.id) for c in gd.components}
+        csc_names = {c.id: c.properties.get("name", c.id) for c in gd.components}
 
         edge_weights: List[float] = []
         edge_data_list: List[Dict] = []
@@ -596,8 +596,8 @@ class StatisticsService:
             e = item["edge"]
             top_edges.append({
                 "source": e.source_id, "target": e.target_id,
-                "source_name": component_names.get(e.source_id, e.source_id),
-                "target_name": component_names.get(e.target_id, e.target_id),
+                "source_name": csc_names.get(e.source_id, e.source_id),
+                "target_name": csc_names.get(e.target_id, e.target_id),
                 "type": e.relation_type, "weight": round(item["weight"], 4),
             })
 

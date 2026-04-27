@@ -274,7 +274,7 @@ def extract_cross_cutting_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "app_criticality": {a["id"]: a.get("criticality", False) for a in apps},
         "app_role": {a["id"]: a.get("role", "NOT_FOUND") for a in apps},
         "app_domain": {
-            a["id"]: (a.get("system_hierarchy") or {}).get("domain_name", "NOT_FOUND")
+            a["id"]: (a.get("system_hierarchy") or {}).get("css_name", "NOT_FOUND")
             for a in apps
         },
         "libs": raw_data.get("libraries", []),

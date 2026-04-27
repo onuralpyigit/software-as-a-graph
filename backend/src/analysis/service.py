@@ -107,7 +107,7 @@ class AnalysisService:
                 )
                 insights.append(CrossLayerInsight(
                     component_id=comp_id,
-                    component_name=comp_name,
+                    csc_name=comp_name,
                     insight_type="compound_critical",
                     layers_affected=sorted(high_layers),
                     severity=severity,
@@ -121,7 +121,7 @@ class AnalysisService:
             if len(spof_layers) >= 2:
                 insights.append(CrossLayerInsight(
                     component_id=comp_id,
-                    component_name=comp_name,
+                    csc_name=comp_name,
                     insight_type="systemic_spof",
                     layers_affected=sorted(spof_layers),
                     severity="CRITICAL",
@@ -147,7 +147,7 @@ class AnalysisService:
             if fraction > 0.30:
                 insights.append(CrossLayerInsight(
                     component_id="",
-                    component_name="",
+                    csc_name="",
                     insight_type="layer_concentration",
                     layers_affected=[layer_name],
                     severity="HIGH",

@@ -757,7 +757,7 @@ class ConsoleDisplay:
 
     def display_event_result(self, result: "EventResult") -> None:
         """Display event simulation results."""
-        names = result.component_names
+        names = result.csc_names
         get_name = lambda cid: f"{cid} ({names.get(cid, cid)})" if cid in names else cid
         self.print_header(f"Event Simulation: {get_name(result.source_app)}")
         print(f"\n  {self.colored('Scenario:', Colors.CYAN)}     {result.scenario}\n  {self.colored('Duration:', Colors.CYAN)}     {result.duration * 1000:.2f} ms")
@@ -771,7 +771,7 @@ class ConsoleDisplay:
 
     def display_failure_result(self, result: "FailureResult") -> None:
         """Display failure simulation results."""
-        names = result.component_names
+        names = result.csc_names
         get_name = lambda cid: f"{cid} ({names.get(cid, cid)})" if cid in names else cid
         self.print_header(f"Failure Simulation: {get_name(result.target_id)}")
         print(f"\n  {self.colored('Target:', Colors.CYAN)}       {get_name(result.target_id)} ({result.target_type})")
@@ -802,7 +802,7 @@ class ConsoleDisplay:
         print(f"\n  {'Component':<30} {'Type':<12} {'Impact':<10} {'Cascade':<10}")
         print(f"  {'-' * 65}")
         for r in results[:limit]:
-            r_name = f"{r.target_id} ({r.component_names.get(r.target_id, r.target_id)})"
+            r_name = f"{r.target_id} ({r.csc_names.get(r.target_id, r.target_id)})"
             imp = r.impact.composite_impact
             color = Colors.RED if imp > 0.5 else (Colors.YELLOW if imp > 0.2 else Colors.GREEN)
             print(f"  {r_name:<30} {r.target_type:<12} {self.colored(f'{imp:.4f}', color):<10} {r.impact.cascade_count:<10}")
@@ -827,7 +827,7 @@ class ConsoleDisplay:
             sorted_apps = sorted(report.library_usage.keys())
             for app_id in sorted_apps:
                 libs = report.library_usage[app_id]
-                app_name = report.component_names.get(app_id, app_id)
+                app_name = report.csc_names.get(app_id, app_id)
                 print(f"  {self.colored(app_name, Colors.WHITE, bold=True)} ({app_id})")
                 for lib in sorted(libs):
                     print(f"    - {lib}")
@@ -838,7 +838,7 @@ class ConsoleDisplay:
             sorted_nodes = sorted(report.node_allocations.keys())
             for node_id in sorted_nodes:
                 apps = report.node_allocations[node_id]
-                node_name = report.component_names.get(node_id, node_id)
+                node_name = report.csc_names.get(node_id, node_id)
                 print(f"  {self.colored(node_name, Colors.WHITE, bold=True)} ({node_id})")
                 for app in sorted(apps):
                     print(f"    - {app}")
@@ -849,7 +849,7 @@ class ConsoleDisplay:
             sorted_brokers = sorted(report.broker_routing.keys())
             for broker_id in sorted_brokers:
                 topics = report.broker_routing[broker_id]
-                broker_name = report.component_names.get(broker_id, broker_id)
+                broker_name = report.csc_names.get(broker_id, broker_id)
                 print(f"  {self.colored(broker_name, Colors.WHITE, bold=True)} ({broker_id})")
                 for topic in sorted(topics):
                     print(f"    - {topic}")

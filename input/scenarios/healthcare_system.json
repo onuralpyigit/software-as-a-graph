@@ -321,10 +321,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "EMR Management",
-        "system_name": "Image Processing"
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -362,10 +362,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "PACS Integration",
-        "system_name": "Patient Records"
+        "csc_name": "Health Information System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "PACS Integration",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -403,10 +403,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Patient Management",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Image Processing"
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -444,10 +444,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Lab Processing",
-        "system_name": "Claim Processing"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Lab Integration",
+        "css_name": "Lab Processing",
+        "csms_name": "Claim Processing"
       },
       "code_metrics": {
         "size": {
@@ -485,10 +485,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "Billing",
-        "system_name": "Signal Analysis"
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
+        "css_name": "Billing",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -526,10 +526,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "EMR Management",
-        "system_name": "Patient Records"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -567,10 +567,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "PACS Integration",
-        "system_name": "Result Reporting"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Diagnostics Software",
+        "css_name": "PACS Integration",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -608,10 +608,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Patient Management",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Signal Analysis"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -649,10 +649,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Patient Management",
-        "domain_name": "Lab Processing",
-        "system_name": "Signal Analysis"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "Lab Processing",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -690,10 +690,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "Billing",
-        "system_name": "Patient Records"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Billing",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -731,10 +731,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Lab Integration",
-        "domain_name": "EMR Management",
-        "system_name": "Signal Analysis"
+        "csc_name": "Health Information System",
+        "csci_name": "Lab Integration",
+        "css_name": "EMR Management",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -772,10 +772,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "PACS Integration",
-        "system_name": "Patient Records"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Clinical Software",
+        "css_name": "PACS Integration",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -813,10 +813,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Claim Processing"
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Claim Processing"
       },
       "code_metrics": {
         "size": {
@@ -854,10 +854,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "Lab Processing",
-        "system_name": "Signal Analysis"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Lab Processing",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -895,10 +895,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Billing",
-        "system_name": "Signal Analysis"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Lab Integration",
+        "css_name": "Billing",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -936,10 +936,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "EMR Management",
-        "system_name": "Result Reporting"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "EMR Management",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -977,10 +977,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Clinical Software",
-        "domain_name": "PACS Integration",
-        "system_name": "Result Reporting"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Clinical Software",
+        "css_name": "PACS Integration",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -1018,10 +1018,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Claim Processing"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Lab Integration",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Claim Processing"
       },
       "code_metrics": {
         "size": {
@@ -1059,10 +1059,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Lab Processing",
-        "system_name": "Image Processing"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Lab Integration",
+        "css_name": "Lab Processing",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -1100,10 +1100,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "Billing",
-        "system_name": "Image Processing"
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
+        "css_name": "Billing",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -1141,10 +1141,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Clinical Software",
-        "domain_name": "EMR Management",
-        "system_name": "Patient Records"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -1182,10 +1182,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "PACS Integration",
-        "system_name": "Image Processing"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "PACS Integration",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -1223,10 +1223,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Signal Analysis"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Lab Integration",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -1264,10 +1264,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Clinical Software",
-        "domain_name": "Lab Processing",
-        "system_name": "Result Reporting"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Clinical Software",
+        "css_name": "Lab Processing",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -1305,10 +1305,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Patient Management",
-        "domain_name": "Billing",
-        "system_name": "Signal Analysis"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Patient Management",
+        "css_name": "Billing",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -1346,10 +1346,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Lab Integration",
-        "domain_name": "EMR Management",
-        "system_name": "Claim Processing"
+        "csc_name": "Health Information System",
+        "csci_name": "Lab Integration",
+        "css_name": "EMR Management",
+        "csms_name": "Claim Processing"
       },
       "code_metrics": {
         "size": {
@@ -1387,10 +1387,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Lab Integration",
-        "domain_name": "PACS Integration",
-        "system_name": "Claim Processing"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Lab Integration",
+        "css_name": "PACS Integration",
+        "csms_name": "Claim Processing"
       },
       "code_metrics": {
         "size": {
@@ -1428,10 +1428,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Patient Management",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Patient Records"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -1469,10 +1469,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Patient Management",
-        "domain_name": "Lab Processing",
-        "system_name": "Patient Records"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Patient Management",
+        "css_name": "Lab Processing",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -1510,10 +1510,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Billing",
-        "system_name": "Image Processing"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Lab Integration",
+        "css_name": "Billing",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -1551,10 +1551,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "EMR Management",
-        "system_name": "Patient Records"
+        "csc_name": "Health Information System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "EMR Management",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -1592,10 +1592,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Patient Management",
-        "domain_name": "PACS Integration",
-        "system_name": "Image Processing"
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "PACS Integration",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -1633,10 +1633,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Patient Management",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Claim Processing"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Claim Processing"
       },
       "code_metrics": {
         "size": {
@@ -1674,10 +1674,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "Lab Processing",
-        "system_name": "Result Reporting"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Lab Processing",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -1715,10 +1715,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "Billing",
-        "system_name": "Patient Records"
+        "csc_name": "Health Information System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Billing",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -1756,10 +1756,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "EMR Management",
-        "system_name": "Image Processing"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -1797,10 +1797,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Patient Management",
-        "domain_name": "PACS Integration",
-        "system_name": "Signal Analysis"
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "PACS Integration",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -1838,10 +1838,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Patient Records"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Lab Integration",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -1879,10 +1879,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Lab Processing",
-        "system_name": "Result Reporting"
+        "csc_name": "Health Information System",
+        "csci_name": "Lab Integration",
+        "css_name": "Lab Processing",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -1920,10 +1920,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Billing",
-        "system_name": "Patient Records"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Lab Integration",
+        "css_name": "Billing",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -1961,10 +1961,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "EMR Management",
-        "system_name": "Image Processing"
+        "csc_name": "Health Information System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "EMR Management",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -2002,10 +2002,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "PACS Integration",
-        "system_name": "Signal Analysis"
+        "csc_name": "Health Information System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "PACS Integration",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -2043,10 +2043,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Signal Analysis"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -2084,10 +2084,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Lab Processing",
-        "system_name": "Image Processing"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Lab Integration",
+        "css_name": "Lab Processing",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -2125,10 +2125,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "Billing",
-        "system_name": "Patient Records"
+        "csc_name": "Health Information System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Billing",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -2166,10 +2166,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Lab Integration",
-        "domain_name": "EMR Management",
-        "system_name": "Result Reporting"
+        "csc_name": "Health Information System",
+        "csci_name": "Lab Integration",
+        "css_name": "EMR Management",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -2207,10 +2207,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "PACS Integration",
-        "system_name": "Result Reporting"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Clinical Software",
+        "css_name": "PACS Integration",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -2248,10 +2248,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Result Reporting"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -2289,10 +2289,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Patient Management",
-        "domain_name": "Lab Processing",
-        "system_name": "Result Reporting"
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "Lab Processing",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -2330,10 +2330,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Billing",
-        "system_name": "Image Processing"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Lab Integration",
+        "css_name": "Billing",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -2370,10 +2370,10 @@
       "name": "phi-encryptor",
       "version": "2.7.0",
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "EMR Management",
-        "system_name": "Claim Processing"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Claim Processing"
       },
       "code_metrics": {
         "size": {
@@ -2408,10 +2408,10 @@
       "name": "phi-encryptor-1",
       "version": "0.4.9",
       "system_hierarchy": {
-        "component_name": "Clinical Platform",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "Lab Processing",
-        "system_name": "Signal Analysis"
+        "csc_name": "Clinical Platform",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Lab Processing",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -2446,10 +2446,10 @@
       "name": "phi-encryptor-2",
       "version": "0.3.7",
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Diagnostics Software",
-        "domain_name": "Billing",
-        "system_name": "Result Reporting"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Diagnostics Software",
+        "css_name": "Billing",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -2484,10 +2484,10 @@
       "name": "dicom-toolkit",
       "version": "2.8.0",
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Lab Integration",
-        "domain_name": "PACS Integration",
-        "system_name": "Image Processing"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Lab Integration",
+        "css_name": "PACS Integration",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -2522,10 +2522,10 @@
       "name": "phi-encryptor-3",
       "version": "1.0.2",
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "EMR Management",
-        "system_name": "Patient Records"
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -2560,10 +2560,10 @@
       "name": "phi-encryptor-4",
       "version": "0.4.4",
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Patient Management",
-        "domain_name": "EMR Management",
-        "system_name": "Result Reporting"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "EMR Management",
+        "csms_name": "Result Reporting"
       },
       "code_metrics": {
         "size": {
@@ -2598,10 +2598,10 @@
       "name": "phi-encryptor-5",
       "version": "1.8.2",
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Lab Integration",
-        "domain_name": "Vitals Monitoring",
-        "system_name": "Signal Analysis"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Lab Integration",
+        "css_name": "Vitals Monitoring",
+        "csms_name": "Signal Analysis"
       },
       "code_metrics": {
         "size": {
@@ -2636,10 +2636,10 @@
       "name": "phi-encryptor-6",
       "version": "2.7.7",
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Patient Management",
-        "domain_name": "Lab Processing",
-        "system_name": "Image Processing"
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "Lab Processing",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -2674,10 +2674,10 @@
       "name": "phi-encryptor-7",
       "version": "1.2.3",
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Patient Management",
-        "domain_name": "Lab Processing",
-        "system_name": "Image Processing"
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "Lab Processing",
+        "csms_name": "Image Processing"
       },
       "code_metrics": {
         "size": {
@@ -2712,10 +2712,10 @@
       "name": "dicom-toolkit-1",
       "version": "0.8.5",
       "system_hierarchy": {
-        "component_name": "Medical Imaging System",
-        "config_item_name": "Patient Management",
-        "domain_name": "Billing",
-        "system_name": "Patient Records"
+        "csc_name": "Medical Imaging System",
+        "csci_name": "Patient Management",
+        "css_name": "Billing",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {
@@ -2750,10 +2750,10 @@
       "name": "phi-encryptor-8",
       "version": "2.9.3",
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Patient Management",
-        "domain_name": "PACS Integration",
-        "system_name": "Claim Processing"
+        "csc_name": "Health Information System",
+        "csci_name": "Patient Management",
+        "css_name": "PACS Integration",
+        "csms_name": "Claim Processing"
       },
       "code_metrics": {
         "size": {
@@ -2788,10 +2788,10 @@
       "name": "fhir-client",
       "version": "1.2.2",
       "system_hierarchy": {
-        "component_name": "Health Information System",
-        "config_item_name": "Clinical Software",
-        "domain_name": "EMR Management",
-        "system_name": "Patient Records"
+        "csc_name": "Health Information System",
+        "csci_name": "Clinical Software",
+        "css_name": "EMR Management",
+        "csms_name": "Patient Records"
       },
       "code_metrics": {
         "size": {

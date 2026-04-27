@@ -301,8 +301,8 @@ class Neo4jRepository:
             MERGE (a:Application {id: row.id})
             SET a.name = row.name, a.role = row.role, a.app_type = row.app_type,
                 a.criticality = row.criticality, a.version = row.version,
-                a.component_name = row.component_name, a.config_item_name = row.config_item_name,
-                a.domain_name = row.domain_name, a.system_name = row.system_name,
+                a.csc_name = row.csc_name, a.csci_name = row.csci_name,
+                a.css_name = row.css_name, a.csms_name = row.csms_name,
                 a.cm_total_loc = row.cm_total_loc, a.cm_total_classes = row.cm_total_classes,
                 a.cm_total_methods = row.cm_total_methods, a.cm_total_fields = row.cm_total_fields,
                 a.cm_total_wmc = row.cm_total_wmc, a.cm_avg_wmc = row.cm_avg_wmc, a.cm_max_wmc = row.cm_max_wmc,
@@ -326,8 +326,8 @@ class Neo4jRepository:
         self._import_batch(libs, """
             MERGE (l:Library {id: row.id})
             SET l.name = row.name, l.version = row.version,
-                l.component_name = row.component_name, l.config_item_name = row.config_item_name,
-                l.domain_name = row.domain_name, l.system_name = row.system_name,
+                l.csc_name = row.csc_name, l.csci_name = row.csci_name,
+                l.css_name = row.css_name, l.csms_name = row.csms_name,
                 l.cm_total_loc = row.cm_total_loc, l.cm_total_classes = row.cm_total_classes,
                 l.cm_total_methods = row.cm_total_methods, l.cm_total_fields = row.cm_total_fields,
                 l.cm_total_wmc = row.cm_total_wmc, l.cm_avg_wmc = row.cm_avg_wmc, l.cm_max_wmc = row.cm_max_wmc,

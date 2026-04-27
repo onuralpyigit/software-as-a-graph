@@ -561,10 +561,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "API Gateway",
-        "domain_name": "Authentication",
-        "system_name": "Index Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "API Gateway",
+        "css_name": "Authentication",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -602,10 +602,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Backend Services",
-        "domain_name": "User Management",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Backend Services",
+        "css_name": "User Management",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -643,10 +643,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Payment Processing",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "Payment Processing",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -684,10 +684,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Product Catalog",
-        "system_name": "Transaction Processing"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Product Catalog",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -725,10 +725,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Search Service",
-        "system_name": "Index Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Search Service",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -766,10 +766,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -807,10 +807,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "User Management",
-        "system_name": "Transaction Processing"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "User Management",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -848,10 +848,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Payment Processing",
-        "system_name": "Transaction Processing"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Payment Processing",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -889,10 +889,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Product Catalog",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Product Catalog",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -930,10 +930,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "API Gateway",
-        "domain_name": "Search Service",
-        "system_name": "Cache Layer"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "API Gateway",
+        "css_name": "Search Service",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -971,10 +971,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Backend Services",
-        "domain_name": "Authentication",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Backend Services",
+        "css_name": "Authentication",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -1012,10 +1012,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Data Layer",
-        "domain_name": "User Management",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "Data Layer",
+        "css_name": "User Management",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -1053,10 +1053,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Data Layer",
-        "domain_name": "Payment Processing",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "Data Layer",
+        "css_name": "Payment Processing",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -1094,10 +1094,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Product Catalog",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Product Catalog",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -1135,10 +1135,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Backend Services",
-        "domain_name": "Search Service",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Backend Services",
+        "css_name": "Search Service",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -1176,10 +1176,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "Authentication",
-        "system_name": "Session Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "Authentication",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -1217,10 +1217,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Data Layer",
-        "domain_name": "User Management",
-        "system_name": "Token Validation"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Data Layer",
+        "css_name": "User Management",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -1258,10 +1258,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Backend Services",
-        "domain_name": "Payment Processing",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Backend Services",
+        "css_name": "Payment Processing",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -1299,10 +1299,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "Product Catalog",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "Product Catalog",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -1340,10 +1340,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Data Layer",
-        "domain_name": "Search Service",
-        "system_name": "Index Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Data Layer",
+        "css_name": "Search Service",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -1381,10 +1381,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "API Gateway",
-        "domain_name": "Authentication",
-        "system_name": "Token Validation"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "API Gateway",
+        "css_name": "Authentication",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -1422,10 +1422,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "User Management",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "User Management",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -1463,10 +1463,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Data Layer",
-        "domain_name": "Payment Processing",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Data Layer",
+        "css_name": "Payment Processing",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -1504,10 +1504,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Data Layer",
-        "domain_name": "Product Catalog",
-        "system_name": "Session Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Data Layer",
+        "css_name": "Product Catalog",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -1545,10 +1545,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Backend Services",
-        "domain_name": "Search Service",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Backend Services",
+        "css_name": "Search Service",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -1586,10 +1586,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Data Layer",
-        "domain_name": "Authentication",
-        "system_name": "Session Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Data Layer",
+        "css_name": "Authentication",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -1627,10 +1627,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "User Management",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "User Management",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -1668,10 +1668,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "Payment Processing",
-        "system_name": "Cache Layer"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "Payment Processing",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -1709,10 +1709,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Product Catalog",
-        "system_name": "Token Validation"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Service Mesh",
+        "css_name": "Product Catalog",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -1750,10 +1750,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "Search Service",
-        "system_name": "Session Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "Search Service",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -1791,10 +1791,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Backend Services",
-        "domain_name": "Authentication",
-        "system_name": "Cache Layer"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Backend Services",
+        "css_name": "Authentication",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -1832,10 +1832,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "User Management",
-        "system_name": "Cache Layer"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "User Management",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -1873,10 +1873,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Backend Services",
-        "domain_name": "Payment Processing",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Backend Services",
+        "css_name": "Payment Processing",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -1914,10 +1914,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Data Layer",
-        "domain_name": "Product Catalog",
-        "system_name": "Token Validation"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Data Layer",
+        "css_name": "Product Catalog",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -1955,10 +1955,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Data Layer",
-        "domain_name": "Search Service",
-        "system_name": "Session Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Data Layer",
+        "css_name": "Search Service",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -1996,10 +1996,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "Authentication",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "Authentication",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -2037,10 +2037,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Service Mesh",
-        "domain_name": "User Management",
-        "system_name": "Index Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Service Mesh",
+        "css_name": "User Management",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -2078,10 +2078,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "Payment Processing",
-        "system_name": "Session Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "Payment Processing",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -2119,10 +2119,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "Product Catalog",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "Product Catalog",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -2160,10 +2160,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Search Service",
-        "system_name": "Transaction Processing"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Search Service",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2201,10 +2201,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -2242,10 +2242,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "User Management",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "User Management",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -2283,10 +2283,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Payment Processing",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "Payment Processing",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -2324,10 +2324,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "Product Catalog",
-        "system_name": "Cache Layer"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "Product Catalog",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -2365,10 +2365,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Search Service",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Search Service",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -2406,10 +2406,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Cache Layer"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -2447,10 +2447,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Service Mesh",
-        "domain_name": "User Management",
-        "system_name": "Index Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Service Mesh",
+        "css_name": "User Management",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -2488,10 +2488,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Payment Processing",
-        "system_name": "Cache Layer"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "Payment Processing",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -2529,10 +2529,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Data Layer",
-        "domain_name": "Product Catalog",
-        "system_name": "Session Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Data Layer",
+        "css_name": "Product Catalog",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -2570,10 +2570,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Search Service",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Search Service",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -2611,10 +2611,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Cache Layer"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -2652,10 +2652,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "User Management",
-        "system_name": "Transaction Processing"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "User Management",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -2693,10 +2693,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Payment Processing",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Payment Processing",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -2734,10 +2734,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Data Layer",
-        "domain_name": "Product Catalog",
-        "system_name": "Session Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Data Layer",
+        "css_name": "Product Catalog",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -2775,10 +2775,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "Search Service",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "Search Service",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -2816,10 +2816,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "Authentication",
-        "system_name": "Cache Layer"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "Authentication",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -2857,10 +2857,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Backend Services",
-        "domain_name": "User Management",
-        "system_name": "Index Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Backend Services",
+        "css_name": "User Management",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -2898,10 +2898,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Payment Processing",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Payment Processing",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -2939,10 +2939,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Product Catalog",
-        "system_name": "Index Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Service Mesh",
+        "css_name": "Product Catalog",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -2980,10 +2980,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Data Layer",
-        "domain_name": "Search Service",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Data Layer",
+        "css_name": "Search Service",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -3021,10 +3021,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Session Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -3062,10 +3062,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "API Gateway",
-        "domain_name": "User Management",
-        "system_name": "Cache Layer"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "API Gateway",
+        "css_name": "User Management",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -3103,10 +3103,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Data Layer",
-        "domain_name": "Payment Processing",
-        "system_name": "Token Validation"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Data Layer",
+        "css_name": "Payment Processing",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -3144,10 +3144,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Product Catalog",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Product Catalog",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -3185,10 +3185,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Search Service",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Search Service",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -3226,10 +3226,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Token Validation"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -3267,10 +3267,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "User Management",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "User Management",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -3308,10 +3308,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Payment Processing",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Payment Processing",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -3349,10 +3349,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Product Catalog",
-        "system_name": "Index Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Product Catalog",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -3390,10 +3390,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Search Service",
-        "system_name": "Index Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Search Service",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -3431,10 +3431,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -3472,10 +3472,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "User Management",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "User Management",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -3513,10 +3513,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Payment Processing",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Payment Processing",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -3554,10 +3554,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "Product Catalog",
-        "system_name": "Transaction Processing"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "Product Catalog",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -3595,10 +3595,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Backend Services",
-        "domain_name": "Search Service",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Backend Services",
+        "css_name": "Search Service",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -3636,10 +3636,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -3677,10 +3677,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "User Management",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "User Management",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -3718,10 +3718,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Payment Processing",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Payment Processing",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -3759,10 +3759,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Product Catalog",
-        "system_name": "Index Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Product Catalog",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -3800,10 +3800,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Backend Services",
-        "domain_name": "Search Service",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Backend Services",
+        "css_name": "Search Service",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -3841,10 +3841,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Authentication",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Authentication",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -3882,10 +3882,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "User Management",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "User Management",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -3923,10 +3923,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Payment Processing",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Payment Processing",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -3964,10 +3964,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Product Catalog",
-        "system_name": "Transaction Processing"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Product Catalog",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4005,10 +4005,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Search Service",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "Search Service",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -4046,10 +4046,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Data Layer",
-        "domain_name": "Authentication",
-        "system_name": "Cache Layer"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Data Layer",
+        "css_name": "Authentication",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -4087,10 +4087,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Data Layer",
-        "domain_name": "User Management",
-        "system_name": "Index Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Data Layer",
+        "css_name": "User Management",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -4128,10 +4128,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "Payment Processing",
-        "system_name": "Transaction Processing"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "Payment Processing",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4169,10 +4169,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Product Catalog",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Product Catalog",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -4210,10 +4210,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Search Service",
-        "system_name": "Transaction Processing"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Search Service",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4250,10 +4250,10 @@
       "name": "service-mesh-proxy",
       "version": "1.0.9",
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "Authentication",
-        "system_name": "Transaction Processing"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "Authentication",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4288,10 +4288,10 @@
       "name": "service-mesh-proxy-1",
       "version": "2.1.4",
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -4326,10 +4326,10 @@
       "name": "tracing-lib",
       "version": "1.5.0",
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "Product Catalog",
-        "system_name": "Transaction Processing"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "Product Catalog",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4364,10 +4364,10 @@
       "name": "tracing-lib-1",
       "version": "0.2.4",
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "Authentication",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "Authentication",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -4402,10 +4402,10 @@
       "name": "metrics-sdk",
       "version": "0.8.6",
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Product Catalog",
-        "system_name": "Session Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Service Mesh",
+        "css_name": "Product Catalog",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -4440,10 +4440,10 @@
       "name": "tracing-lib-2",
       "version": "1.6.4",
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "User Management",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "User Management",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -4478,10 +4478,10 @@
       "name": "grpc-lib",
       "version": "2.1.7",
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Token Validation"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -4516,10 +4516,10 @@
       "name": "metrics-sdk-1",
       "version": "1.0.8",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Search Service",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Search Service",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -4554,10 +4554,10 @@
       "name": "tracing-lib-3",
       "version": "0.4.5",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Authentication",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Authentication",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -4592,10 +4592,10 @@
       "name": "metrics-sdk-2",
       "version": "1.0.7",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Product Catalog",
-        "system_name": "Transaction Processing"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Product Catalog",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4630,10 +4630,10 @@
       "name": "tracing-lib-4",
       "version": "2.0.7",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Backend Services",
-        "domain_name": "Search Service",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Backend Services",
+        "css_name": "Search Service",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -4668,10 +4668,10 @@
       "name": "service-mesh-proxy-2",
       "version": "0.8.9",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Search Service",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Search Service",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -4706,10 +4706,10 @@
       "name": "tracing-lib-5",
       "version": "0.5.2",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Authentication",
-        "system_name": "Index Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Authentication",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -4744,10 +4744,10 @@
       "name": "metrics-sdk-3",
       "version": "1.2.0",
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "API Gateway",
-        "domain_name": "Search Service",
-        "system_name": "Token Validation"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "API Gateway",
+        "css_name": "Search Service",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -4782,10 +4782,10 @@
       "name": "service-mesh-proxy-3",
       "version": "0.6.8",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "User Management",
-        "system_name": "Transaction Processing"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "User Management",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4820,10 +4820,10 @@
       "name": "grpc-lib-1",
       "version": "0.5.8",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Payment Processing",
-        "system_name": "Transaction Processing"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Payment Processing",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4858,10 +4858,10 @@
       "name": "metrics-sdk-4",
       "version": "1.0.6",
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "API Gateway",
-        "domain_name": "Payment Processing",
-        "system_name": "Session Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "API Gateway",
+        "css_name": "Payment Processing",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -4896,10 +4896,10 @@
       "name": "metrics-sdk-5",
       "version": "2.2.9",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Product Catalog",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Product Catalog",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -4934,10 +4934,10 @@
       "name": "grpc-lib-2",
       "version": "1.5.4",
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Service Mesh",
-        "domain_name": "User Management",
-        "system_name": "Transaction Processing"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Service Mesh",
+        "css_name": "User Management",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -4972,10 +4972,10 @@
       "name": "service-mesh-proxy-4",
       "version": "1.1.8",
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Data Layer",
-        "domain_name": "Authentication",
-        "system_name": "Session Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Data Layer",
+        "css_name": "Authentication",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -5010,10 +5010,10 @@
       "name": "tracing-lib-6",
       "version": "0.8.4",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "User Management",
-        "system_name": "Token Validation"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "User Management",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -5048,10 +5048,10 @@
       "name": "metrics-sdk-6",
       "version": "0.1.8",
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Index Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -5086,10 +5086,10 @@
       "name": "grpc-lib-3",
       "version": "0.9.5",
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Payment Processing",
-        "system_name": "Token Validation"
+        "csc_name": "Distributed Services",
+        "csci_name": "Service Mesh",
+        "css_name": "Payment Processing",
+        "csms_name": "Token Validation"
       },
       "code_metrics": {
         "size": {
@@ -5124,10 +5124,10 @@
       "name": "metrics-sdk-7",
       "version": "0.1.9",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "API Gateway",
-        "domain_name": "Product Catalog",
-        "system_name": "Index Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "API Gateway",
+        "css_name": "Product Catalog",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -5162,10 +5162,10 @@
       "name": "service-mesh-proxy-5",
       "version": "2.5.0",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Service Mesh",
-        "domain_name": "Authentication",
-        "system_name": "Transaction Processing"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Service Mesh",
+        "css_name": "Authentication",
+        "csms_name": "Transaction Processing"
       },
       "code_metrics": {
         "size": {
@@ -5200,10 +5200,10 @@
       "name": "service-mesh-proxy-6",
       "version": "2.4.5",
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "Backend Services",
-        "domain_name": "Search Service",
-        "system_name": "Index Management"
+        "csc_name": "Distributed Services",
+        "csci_name": "Backend Services",
+        "css_name": "Search Service",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -5238,10 +5238,10 @@
       "name": "metrics-sdk-8",
       "version": "0.0.7",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Authentication",
-        "system_name": "Cache Layer"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Authentication",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {
@@ -5276,10 +5276,10 @@
       "name": "grpc-lib-4",
       "version": "2.1.9",
       "system_hierarchy": {
-        "component_name": "Microservices Architecture",
-        "config_item_name": "API Gateway",
-        "domain_name": "Search Service",
-        "system_name": "Index Management"
+        "csc_name": "Microservices Architecture",
+        "csci_name": "API Gateway",
+        "css_name": "Search Service",
+        "csms_name": "Index Management"
       },
       "code_metrics": {
         "size": {
@@ -5314,10 +5314,10 @@
       "name": "grpc-lib-5",
       "version": "1.0.8",
       "system_hierarchy": {
-        "component_name": "Cloud Platform",
-        "config_item_name": "Data Layer",
-        "domain_name": "Search Service",
-        "system_name": "Session Management"
+        "csc_name": "Cloud Platform",
+        "csci_name": "Data Layer",
+        "css_name": "Search Service",
+        "csms_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -5352,10 +5352,10 @@
       "name": "service-mesh-proxy-7",
       "version": "1.8.5",
       "system_hierarchy": {
-        "component_name": "Distributed Services",
-        "config_item_name": "API Gateway",
-        "domain_name": "Authentication",
-        "system_name": "Cache Layer"
+        "csc_name": "Distributed Services",
+        "csci_name": "API Gateway",
+        "css_name": "Authentication",
+        "csms_name": "Cache Layer"
       },
       "code_metrics": {
         "size": {

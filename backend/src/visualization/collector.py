@@ -152,7 +152,7 @@ class LayerDataCollector:
                 # to the real simulation value in _collect_simulation_data().
                 data.scatter_data.append((c.id, overall, 0.0, level))
 
-            data.component_names = {
+            data.csc_names = {
                 c.id: c.structural.name
                 for c in prediction.components
                 if hasattr(c, "structural")

@@ -164,10 +164,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "Order and Payment",
-        "config_item_name": "Payment Gateway",
-        "component_name": "Fraud Protection"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "Order and Payment",
+        "csci_name": "Payment Gateway",
+        "csc_name": "Fraud Protection"
       },
       "code_metrics": {
         "size": {
@@ -205,10 +205,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "Order and Payment",
-        "config_item_name": "Payment Gateway",
-        "component_name": "Fraud Protection"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "Order and Payment",
+        "csci_name": "Payment Gateway",
+        "csc_name": "Fraud Protection"
       },
       "code_metrics": {
         "size": {
@@ -246,10 +246,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "User Experience",
-        "config_item_name": "Customer Dashboard",
-        "component_name": "Account Settings"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "User Experience",
+        "csci_name": "Customer Dashboard",
+        "csc_name": "Account Settings"
       },
       "code_metrics": {
         "size": {
@@ -287,10 +287,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "User Experience",
-        "config_item_name": "Customer Dashboard",
-        "component_name": "Account Settings"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "User Experience",
+        "csci_name": "Customer Dashboard",
+        "csc_name": "Account Settings"
       },
       "code_metrics": {
         "size": {
@@ -328,10 +328,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "User Experience",
-        "config_item_name": "Customer Dashboard",
-        "component_name": "Session Management"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "User Experience",
+        "csci_name": "Customer Dashboard",
+        "csc_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -369,10 +369,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "User Experience",
-        "config_item_name": "Search Engine",
-        "component_name": "Product Indexer"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "User Experience",
+        "csci_name": "Search Engine",
+        "csc_name": "Product Indexer"
       },
       "code_metrics": {
         "size": {
@@ -410,10 +410,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "User Experience",
-        "config_item_name": "Customer Dashboard",
-        "component_name": "Account Settings"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "User Experience",
+        "csci_name": "Customer Dashboard",
+        "csc_name": "Account Settings"
       },
       "code_metrics": {
         "size": {
@@ -451,10 +451,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "User Experience",
-        "config_item_name": "Customer Dashboard",
-        "component_name": "Account Settings"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "User Experience",
+        "csci_name": "Customer Dashboard",
+        "csc_name": "Account Settings"
       },
       "code_metrics": {
         "size": {
@@ -492,10 +492,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "Order and Payment",
-        "config_item_name": "Cart Management",
-        "component_name": "Stock Allocation"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "Order and Payment",
+        "csci_name": "Cart Management",
+        "csc_name": "Stock Allocation"
       },
       "code_metrics": {
         "size": {
@@ -532,10 +532,10 @@
       "name": "montreal",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "Order and Payment",
-        "config_item_name": "Cart Management",
-        "component_name": "Price Calculator"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "Order and Payment",
+        "csci_name": "Cart Management",
+        "csc_name": "Price Calculator"
       },
       "code_metrics": {
         "size": {
@@ -570,10 +570,10 @@
       "name": "munich",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "Order and Payment",
-        "config_item_name": "Payment Gateway",
-        "component_name": "POS Connection"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "Order and Payment",
+        "csci_name": "Payment Gateway",
+        "csc_name": "POS Connection"
       },
       "code_metrics": {
         "size": {
@@ -608,10 +608,10 @@
       "name": "hamburg",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "User Experience",
-        "config_item_name": "Customer Dashboard",
-        "component_name": "Session Management"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "User Experience",
+        "csci_name": "Customer Dashboard",
+        "csc_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -646,10 +646,10 @@
       "name": "osaka",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "User Experience",
-        "config_item_name": "Customer Dashboard",
-        "component_name": "Account Settings"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "User Experience",
+        "csci_name": "Customer Dashboard",
+        "csc_name": "Account Settings"
       },
       "code_metrics": {
         "size": {
@@ -684,10 +684,10 @@
       "name": "mandalay",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "Order and Payment",
-        "config_item_name": "Cart Management",
-        "component_name": "Stock Allocation"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "Order and Payment",
+        "csci_name": "Cart Management",
+        "csc_name": "Stock Allocation"
       },
       "code_metrics": {
         "size": {
@@ -722,10 +722,10 @@
       "name": "ponce",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "User Experience",
-        "config_item_name": "Customer Dashboard",
-        "component_name": "Session Management"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "User Experience",
+        "csci_name": "Customer Dashboard",
+        "csc_name": "Session Management"
       },
       "code_metrics": {
         "size": {
@@ -760,10 +760,10 @@
       "name": "barcelona",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "Order and Payment",
-        "config_item_name": "Cart Management",
-        "component_name": "Stock Allocation"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "Order and Payment",
+        "csci_name": "Cart Management",
+        "csc_name": "Stock Allocation"
       },
       "code_metrics": {
         "size": {
@@ -798,10 +798,10 @@
       "name": "georgetown",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "Order and Payment",
-        "config_item_name": "Cart Management",
-        "component_name": "Stock Allocation"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "Order and Payment",
+        "csci_name": "Cart Management",
+        "csc_name": "Stock Allocation"
       },
       "code_metrics": {
         "size": {
@@ -836,10 +836,10 @@
       "name": "geneva",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Modern Microservices E-Commerce",
-        "domain_name": "Order and Payment",
-        "config_item_name": "Cart Management",
-        "component_name": "Price Calculator"
+        "csms_name": "Modern Microservices E-Commerce",
+        "css_name": "Order and Payment",
+        "csci_name": "Cart Management",
+        "csc_name": "Price Calculator"
       },
       "code_metrics": {
         "size": {

@@ -371,10 +371,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Application Software",
-        "domain_name": "Software Design",
-        "system_name": "Configuration Management"
+        "csc_name": "Computer Science",
+        "csci_name": "Application Software",
+        "css_name": "Software Design",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -412,10 +412,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "Data Management",
-        "system_name": "Configuration Management"
+        "csc_name": "Information Systems",
+        "csci_name": "Application Software",
+        "css_name": "Data Management",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -453,10 +453,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Communication",
-        "system_name": "Configuration Management"
+        "csc_name": "Computing Platform",
+        "csci_name": "Systems Engineering",
+        "css_name": "Communication",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -494,10 +494,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Process Control",
-        "system_name": "Error Handling"
+        "csc_name": "Computer Science",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Process Control",
+        "csms_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
@@ -535,10 +535,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "Shared Platform",
-        "system_name": "Data Processing"
+        "csc_name": "Information Systems",
+        "csci_name": "Application Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
@@ -576,10 +576,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Application Software",
-        "domain_name": "User Interface",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Computing Platform",
+        "csci_name": "Application Software",
+        "css_name": "User Interface",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -617,10 +617,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Software Engineering",
-        "domain_name": "Software Design",
-        "system_name": "Shared Services"
+        "csc_name": "Software Systems",
+        "csci_name": "Software Engineering",
+        "css_name": "Software Design",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
@@ -658,10 +658,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "Data Management",
-        "system_name": "Data Processing"
+        "csc_name": "Information Systems",
+        "csci_name": "Application Software",
+        "css_name": "Data Management",
+        "csms_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
@@ -699,10 +699,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Application Software",
-        "domain_name": "Communication",
-        "system_name": "Error Handling"
+        "csc_name": "Computer Science",
+        "csci_name": "Application Software",
+        "css_name": "Communication",
+        "csms_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
@@ -740,10 +740,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Process Control",
-        "system_name": "Data Processing"
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Process Control",
+        "csms_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
@@ -781,10 +781,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Shared Platform",
-        "system_name": "Error Handling"
+        "csc_name": "Computer Science",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
@@ -822,10 +822,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Application Software",
-        "domain_name": "User Interface",
-        "system_name": "Error Handling"
+        "csc_name": "Computing Platform",
+        "csci_name": "Application Software",
+        "css_name": "User Interface",
+        "csms_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
@@ -863,10 +863,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Software Engineering",
-        "domain_name": "Software Design",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Information Systems",
+        "csci_name": "Software Engineering",
+        "css_name": "Software Design",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -904,10 +904,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Data Management",
-        "system_name": "Data Processing"
+        "csc_name": "Computer Science",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Data Management",
+        "csms_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
@@ -945,10 +945,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "Communication",
-        "system_name": "Error Handling"
+        "csc_name": "Information Systems",
+        "csci_name": "Application Software",
+        "css_name": "Communication",
+        "csms_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
@@ -986,10 +986,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Process Control",
-        "system_name": "Configuration Management"
+        "csc_name": "Computer Science",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Process Control",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1027,10 +1027,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Shared Platform",
-        "system_name": "Configuration Management"
+        "csc_name": "Computing Platform",
+        "csci_name": "Systems Engineering",
+        "css_name": "Shared Platform",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1068,10 +1068,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "User Interface",
-        "system_name": "Core Logic"
+        "csc_name": "Information Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "User Interface",
+        "csms_name": "Core Logic"
       },
       "code_metrics": {
         "size": {
@@ -1109,10 +1109,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Software Design",
-        "system_name": "Core Logic"
+        "csc_name": "Computing Platform",
+        "csci_name": "Systems Engineering",
+        "css_name": "Software Design",
+        "csms_name": "Core Logic"
       },
       "code_metrics": {
         "size": {
@@ -1150,10 +1150,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Data Management",
-        "system_name": "Data Processing"
+        "csc_name": "Information Systems",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Data Management",
+        "csms_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
@@ -1191,10 +1191,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "Communication",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Software Systems",
+        "csci_name": "Application Software",
+        "css_name": "Communication",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1232,10 +1232,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "Process Control",
-        "system_name": "Shared Services"
+        "csc_name": "Software Systems",
+        "csci_name": "Application Software",
+        "css_name": "Process Control",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
@@ -1273,10 +1273,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Shared Platform",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Computer Science",
+        "csci_name": "Systems Engineering",
+        "css_name": "Shared Platform",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1314,10 +1314,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Software Engineering",
-        "domain_name": "User Interface",
-        "system_name": "Data Processing"
+        "csc_name": "Software Systems",
+        "csci_name": "Software Engineering",
+        "css_name": "User Interface",
+        "csms_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
@@ -1355,10 +1355,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Software Design",
-        "system_name": "Configuration Management"
+        "csc_name": "Computer Science",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Software Design",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1396,10 +1396,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "Data Management",
-        "system_name": "Error Handling"
+        "csc_name": "Information Systems",
+        "csci_name": "Application Software",
+        "css_name": "Data Management",
+        "csms_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
@@ -1437,10 +1437,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Software Engineering",
-        "domain_name": "Communication",
-        "system_name": "Data Processing"
+        "csc_name": "Software Systems",
+        "csci_name": "Software Engineering",
+        "css_name": "Communication",
+        "csms_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
@@ -1478,10 +1478,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Software Engineering",
-        "domain_name": "Process Control",
-        "system_name": "Configuration Management"
+        "csc_name": "Software Systems",
+        "csci_name": "Software Engineering",
+        "css_name": "Process Control",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1519,10 +1519,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Shared Platform",
-        "system_name": "Core Logic"
+        "csc_name": "Computer Science",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Core Logic"
       },
       "code_metrics": {
         "size": {
@@ -1560,10 +1560,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Software Engineering",
-        "domain_name": "User Interface",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Software Systems",
+        "csci_name": "Software Engineering",
+        "css_name": "User Interface",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -1601,10 +1601,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Software Design",
-        "system_name": "Configuration Management"
+        "csc_name": "Computing Platform",
+        "csci_name": "Systems Engineering",
+        "css_name": "Software Design",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1642,10 +1642,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Data Management",
-        "system_name": "Error Handling"
+        "csc_name": "Software Systems",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Data Management",
+        "csms_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
@@ -1683,10 +1683,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Communication",
-        "system_name": "Core Logic"
+        "csc_name": "Information Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Communication",
+        "csms_name": "Core Logic"
       },
       "code_metrics": {
         "size": {
@@ -1724,10 +1724,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Process Control",
-        "system_name": "Configuration Management"
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Process Control",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1765,10 +1765,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Shared Platform",
-        "system_name": "Shared Services"
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Shared Platform",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
@@ -1806,10 +1806,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "User Interface",
-        "system_name": "Configuration Management"
+        "csc_name": "Information Systems",
+        "csci_name": "Application Software",
+        "css_name": "User Interface",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1847,10 +1847,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Software Design",
-        "system_name": "Configuration Management"
+        "csc_name": "Computer Science",
+        "csci_name": "Systems Engineering",
+        "css_name": "Software Design",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1888,10 +1888,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Data Management",
-        "system_name": "Configuration Management"
+        "csc_name": "Computing Platform",
+        "csci_name": "Systems Engineering",
+        "css_name": "Data Management",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -1929,10 +1929,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Software Engineering",
-        "domain_name": "Communication",
-        "system_name": "Core Logic"
+        "csc_name": "Information Systems",
+        "csci_name": "Software Engineering",
+        "css_name": "Communication",
+        "csms_name": "Core Logic"
       },
       "code_metrics": {
         "size": {
@@ -1970,10 +1970,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Process Control",
-        "system_name": "Error Handling"
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Process Control",
+        "csms_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
@@ -2011,10 +2011,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Shared Platform",
-        "system_name": "Configuration Management"
+        "csc_name": "Computing Platform",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2052,10 +2052,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "User Interface",
-        "system_name": "Configuration Management"
+        "csc_name": "Information Systems",
+        "csci_name": "Infrastructure Software",
+        "css_name": "User Interface",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2093,10 +2093,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Software Design",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Computer Science",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Software Design",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -2134,10 +2134,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Application Software",
-        "domain_name": "Data Management",
-        "system_name": "Core Logic"
+        "csc_name": "Computer Science",
+        "csci_name": "Application Software",
+        "css_name": "Data Management",
+        "csms_name": "Core Logic"
       },
       "code_metrics": {
         "size": {
@@ -2175,10 +2175,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Communication",
-        "system_name": "Data Processing"
+        "csc_name": "Computer Science",
+        "csci_name": "Systems Engineering",
+        "css_name": "Communication",
+        "csms_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
@@ -2216,10 +2216,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Process Control",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Information Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Process Control",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -2257,10 +2257,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Application Software",
-        "domain_name": "Shared Platform",
-        "system_name": "Core Logic"
+        "csc_name": "Computing Platform",
+        "csci_name": "Application Software",
+        "css_name": "Shared Platform",
+        "csms_name": "Core Logic"
       },
       "code_metrics": {
         "size": {
@@ -2298,10 +2298,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "User Interface",
-        "system_name": "Data Processing"
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "User Interface",
+        "csms_name": "Data Processing"
       },
       "code_metrics": {
         "size": {
@@ -2339,10 +2339,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Software Design",
-        "system_name": "Configuration Management"
+        "csc_name": "Computer Science",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Software Design",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2380,10 +2380,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Information Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "Data Management",
-        "system_name": "Error Handling"
+        "csc_name": "Information Systems",
+        "csci_name": "Application Software",
+        "css_name": "Data Management",
+        "csms_name": "Error Handling"
       },
       "code_metrics": {
         "size": {
@@ -2420,10 +2420,10 @@
       "name": "Lib-0",
       "version": "0.8.6",
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Application Software",
-        "domain_name": "Software Design",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Computer Science",
+        "csci_name": "Application Software",
+        "css_name": "Software Design",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -2458,10 +2458,10 @@
       "name": "Lib-1",
       "version": "2.8.1",
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "User Interface",
-        "system_name": "Shared Services"
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "User Interface",
+        "csms_name": "Shared Services"
       },
       "code_metrics": {
         "size": {
@@ -2496,10 +2496,10 @@
       "name": "Lib-2",
       "version": "0.2.2",
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Shared Platform",
-        "system_name": "Configuration Management"
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Shared Platform",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2534,10 +2534,10 @@
       "name": "Lib-3",
       "version": "2.8.6",
       "system_hierarchy": {
-        "component_name": "Computing Platform",
-        "config_item_name": "Infrastructure Software",
-        "domain_name": "Communication",
-        "system_name": "Configuration Management"
+        "csc_name": "Computing Platform",
+        "csci_name": "Infrastructure Software",
+        "css_name": "Communication",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2572,10 +2572,10 @@
       "name": "Lib-4",
       "version": "0.6.0",
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Process Control",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Computer Science",
+        "csci_name": "Systems Engineering",
+        "css_name": "Process Control",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -2610,10 +2610,10 @@
       "name": "Lib-5",
       "version": "0.2.8",
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Software Engineering",
-        "domain_name": "Software Design",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Computer Science",
+        "csci_name": "Software Engineering",
+        "css_name": "Software Design",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -2648,10 +2648,10 @@
       "name": "Lib-6",
       "version": "0.1.8",
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Shared Platform",
-        "system_name": "Configuration Management"
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Shared Platform",
+        "csms_name": "Configuration Management"
       },
       "code_metrics": {
         "size": {
@@ -2686,10 +2686,10 @@
       "name": "Lib-7",
       "version": "2.5.2",
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Software Design",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Software Systems",
+        "csci_name": "Systems Engineering",
+        "css_name": "Software Design",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -2724,10 +2724,10 @@
       "name": "Lib-8",
       "version": "0.5.4",
       "system_hierarchy": {
-        "component_name": "Computer Science",
-        "config_item_name": "Systems Engineering",
-        "domain_name": "Communication",
-        "system_name": "Messaging Utilities"
+        "csc_name": "Computer Science",
+        "csci_name": "Systems Engineering",
+        "css_name": "Communication",
+        "csms_name": "Messaging Utilities"
       },
       "code_metrics": {
         "size": {
@@ -2762,10 +2762,10 @@
       "name": "Lib-9",
       "version": "1.4.4",
       "system_hierarchy": {
-        "component_name": "Software Systems",
-        "config_item_name": "Application Software",
-        "domain_name": "Software Design",
-        "system_name": "Core Logic"
+        "csc_name": "Software Systems",
+        "csci_name": "Application Software",
+        "css_name": "Software Design",
+        "csms_name": "Core Logic"
       },
       "code_metrics": {
         "size": {

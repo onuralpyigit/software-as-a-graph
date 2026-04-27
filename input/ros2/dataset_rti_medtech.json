@@ -80,10 +80,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "system_name": "Health Monitoring System",
-        "domain_name": "Alert System",
-        "config_item_name": "Service Alarms",
-        "component_name": "Nurse Call Button"
+        "csms_name": "Health Monitoring System",
+        "css_name": "Alert System",
+        "csci_name": "Service Alarms",
+        "csc_name": "Nurse Call Button"
       },
       "code_metrics": {
         "size": {
@@ -121,10 +121,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "system_name": "Health Monitoring System",
-        "domain_name": "Alert System",
-        "config_item_name": "Service Alarms",
-        "component_name": "Nurse Call Button"
+        "csms_name": "Health Monitoring System",
+        "css_name": "Alert System",
+        "csci_name": "Service Alarms",
+        "csc_name": "Nurse Call Button"
       },
       "code_metrics": {
         "size": {
@@ -162,10 +162,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "system_name": "Health Monitoring System",
-        "domain_name": "Patient Data",
-        "config_item_name": "Vital Signs",
-        "component_name": "Oxygen Level Sensor"
+        "csms_name": "Health Monitoring System",
+        "css_name": "Patient Data",
+        "csci_name": "Vital Signs",
+        "csc_name": "Oxygen Level Sensor"
       },
       "code_metrics": {
         "size": {
@@ -203,10 +203,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "system_name": "Health Monitoring System",
-        "domain_name": "Alert System",
-        "config_item_name": "Service Alarms",
-        "component_name": "Critical Value Notifier"
+        "csms_name": "Health Monitoring System",
+        "css_name": "Alert System",
+        "csci_name": "Service Alarms",
+        "csc_name": "Critical Value Notifier"
       },
       "code_metrics": {
         "size": {
@@ -244,10 +244,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "system_name": "Health Monitoring System",
-        "domain_name": "Alert System",
-        "config_item_name": "Service Alarms",
-        "component_name": "Critical Value Notifier"
+        "csms_name": "Health Monitoring System",
+        "css_name": "Alert System",
+        "csci_name": "Service Alarms",
+        "csc_name": "Critical Value Notifier"
       },
       "code_metrics": {
         "size": {
@@ -284,10 +284,10 @@
       "name": "DdsUtils",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Health Monitoring System",
-        "domain_name": "Patient Data",
-        "config_item_name": "Vital Signs",
-        "component_name": "Heart Rate Monitor"
+        "csms_name": "Health Monitoring System",
+        "css_name": "Patient Data",
+        "csci_name": "Vital Signs",
+        "csc_name": "Heart Rate Monitor"
       },
       "code_metrics": {
         "size": {
@@ -322,10 +322,10 @@
       "name": "Types",
       "version": "1.0.0",
       "system_hierarchy": {
-        "system_name": "Health Monitoring System",
-        "domain_name": "Patient Data",
-        "config_item_name": "Vital Signs",
-        "component_name": "Heart Rate Monitor"
+        "csms_name": "Health Monitoring System",
+        "css_name": "Patient Data",
+        "csci_name": "Vital Signs",
+        "csc_name": "Heart Rate Monitor"
       },
       "code_metrics": {
         "size": {

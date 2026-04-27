@@ -173,7 +173,7 @@ class FailureSimulator:
             cascade_sequence=cascade_sequence,
             layer_impacts=layer_impacts,
             related_components=related,
-            component_names={c.id: c.properties.get("name", c.id) for c in self.graph.components.values()},
+            csc_names={c.id: c.properties.get("name", c.id) for c in self.graph.components.values()},
         )
     
     def simulate_exhaustive(

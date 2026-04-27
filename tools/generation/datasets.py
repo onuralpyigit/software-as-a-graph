@@ -253,20 +253,20 @@ class DomainDataset:
         """Generate a system_hierarchy dict using domain-specific pools."""
         pool = SYSTEM_HIERARCHY_POOLS.get(self.domain, GENERIC_HIERARCHY_POOL)
         return {
-            "component_name": self.rng.choice(pool["component"]),
-            "config_item_name": self.rng.choice(pool["config_item"]),
-            "domain_name": self.rng.choice(pool["domain"]),
-            "system_name": self.rng.choice(pool["system"]),
+            "csc_name": self.rng.choice(pool["component"]),
+            "csci_name": self.rng.choice(pool["config_item"]),
+            "css_name": self.rng.choice(pool["domain"]),
+            "csms_name": self.rng.choice(pool["system"]),
         }
 
 
 def get_generic_system_hierarchy(rng: random.Random) -> Dict[str, str]:
     """Generate a system_hierarchy dict from the generic pool."""
     return {
-        "component_name": rng.choice(GENERIC_HIERARCHY_POOL["component"]),
-        "config_item_name": rng.choice(GENERIC_HIERARCHY_POOL["config_item"]),
-        "domain_name": rng.choice(GENERIC_HIERARCHY_POOL["domain"]),
-        "system_name": rng.choice(GENERIC_HIERARCHY_POOL["system"]),
+        "csc_name": rng.choice(GENERIC_HIERARCHY_POOL["component"]),
+        "csci_name": rng.choice(GENERIC_HIERARCHY_POOL["config_item"]),
+        "css_name": rng.choice(GENERIC_HIERARCHY_POOL["domain"]),
+        "csms_name": rng.choice(GENERIC_HIERARCHY_POOL["system"]),
     }
 
 def get_app_type_for_name(app_name: str) -> str:

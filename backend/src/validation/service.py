@@ -711,7 +711,7 @@ class ValidationService:
             gates=gates,
             comparisons=validation_res.overall.components,
             warnings=validation_res.warnings,
-            component_names=comp_names,
+            csc_names=comp_names,
             dimensional_validation=dimensional_validation,
             dimensional_scatter=dimensional_scatter,
             confidence_intervals=confidence_intervals,

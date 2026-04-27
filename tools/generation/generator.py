@@ -538,9 +538,9 @@ class StatisticalGraphGenerator:
             ))
 
         # === Pass 1: hierarchy cluster pre-assignment ===
-        # Partition apps and topics into clusters keyed by domain_name (the
+        # Partition apps and topics into clusters keyed by css_name (the
         # third level of the MIL-STD-498 hierarchy).  Apps in the same cluster
-        # share a domain_name and will preferentially pub/sub to topics in the
+        # share a css_name and will preferentially pub/sub to topics in the
         # same cluster (Pass 2 below, p_intra = 0.65), making the hierarchy
         # signal structurally meaningful for coupling analysis instead of being
         # an independently-sampled label with no topological effect.
@@ -599,13 +599,13 @@ class StatisticalGraphGenerator:
                 app_type = name_rng.choice(APP_TYPE_OPTIONS)
                 
             code_metrics = self._generate_code_metrics(app_type)
-            # Use the pre-assigned cluster domain_name so hierarchy reflects
+            # Use the pre-assigned cluster css_name so hierarchy reflects
             # actual structural grouping rather than an independent random draw.
             hierarchy = {
-                "component_name": name_rng.choice(_hier_pool["component"]),
-                "config_item_name": name_rng.choice(_hier_pool["config_item"]),
-                "domain_name": _app_cluster_domain[i],
-                "system_name": name_rng.choice(_hier_pool["system"]),
+                "csc_name": name_rng.choice(_hier_pool["component"]),
+                "csci_name": name_rng.choice(_hier_pool["config_item"]),
+                "css_name": _app_cluster_domain[i],
+                "csms_name": name_rng.choice(_hier_pool["system"]),
             }
             apps.append(Application(
                 id=f"A{i}",
@@ -634,7 +634,7 @@ class StatisticalGraphGenerator:
 
             lib_hierarchy = domain_ds.get_system_hierarchy() if domain_ds else get_generic_system_hierarchy(name_rng)
             if not domain_ds:
-                lib_hierarchy["domain_name"] = _lib_cluster_domain[i]
+                lib_hierarchy["css_name"] = _lib_cluster_domain[i]
                 
             libs.append(Library(
                 id=f"L{i}",

@@ -145,10 +145,10 @@
       "id": "A01", "name": "RadarDataProcessingSystem", "role": "pub",
       "app_type": "processor", "version": "4.2.1", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Surveillance_Subsystem",
-        "config_item_name": "RadarProcessing_CSC",
-        "component_name": "RadarDataProcessingSystem"
+        "csms_name": "ATC_System",
+        "css_name": "Surveillance_Subsystem",
+        "csci_name": "RadarProcessing_CSC",
+        "csc_name": "RadarDataProcessingSystem"
       },
       "code_metrics": {
         "size": { "total_loc": 18500, "total_classes": 82, "total_methods": 640, "total_fields": 195 },
@@ -161,10 +161,10 @@
       "id": "A02", "name": "ADSProcessor", "role": "pub",
       "app_type": "processor", "version": "3.1.0", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Surveillance_Subsystem",
-        "config_item_name": "ADSProcessing_CSC",
-        "component_name": "ADSProcessor"
+        "csms_name": "ATC_System",
+        "css_name": "Surveillance_Subsystem",
+        "csci_name": "ADSProcessing_CSC",
+        "csc_name": "ADSProcessor"
       },
       "code_metrics": {
         "size": { "total_loc": 9800, "total_classes": 41, "total_methods": 310, "total_fields": 98 },
@@ -177,10 +177,10 @@
       "id": "A03", "name": "ADSBProcessor", "role": "pub",
       "app_type": "processor", "version": "2.3.4", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Surveillance_Subsystem",
-        "config_item_name": "ADSProcessing_CSC",
-        "component_name": "ADSBProcessor"
+        "csms_name": "ATC_System",
+        "css_name": "Surveillance_Subsystem",
+        "csci_name": "ADSProcessing_CSC",
+        "csc_name": "ADSBProcessor"
       },
       "code_metrics": {
         "size": { "total_loc": 7200, "total_classes": 28, "total_methods": 215, "total_fields": 67 },
@@ -193,10 +193,10 @@
       "id": "A04", "name": "SSRProcessor", "role": "pubsub",
       "app_type": "processor", "version": "3.0.2", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Surveillance_Subsystem",
-        "config_item_name": "RadarProcessing_CSC",
-        "component_name": "SSRProcessor"
+        "csms_name": "ATC_System",
+        "css_name": "Surveillance_Subsystem",
+        "csci_name": "RadarProcessing_CSC",
+        "csc_name": "SSRProcessor"
       },
       "code_metrics": {
         "size": { "total_loc": 6400, "total_classes": 24, "total_methods": 188, "total_fields": 55 },
@@ -209,10 +209,10 @@
       "id": "A05", "name": "FlightDataProcessingSystem", "role": "pubsub",
       "app_type": "processor", "version": "5.1.3", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "FlightDataManagement_Subsystem",
-        "config_item_name": "FlightPlanning_CSC",
-        "component_name": "FlightDataProcessingSystem"
+        "csms_name": "ATC_System",
+        "css_name": "FlightDataManagement_Subsystem",
+        "csci_name": "FlightPlanning_CSC",
+        "csc_name": "FlightDataProcessingSystem"
       },
       "code_metrics": {
         "size": { "total_loc": 22400, "total_classes": 95, "total_methods": 740, "total_fields": 230 },
@@ -225,10 +225,10 @@
       "id": "A06", "name": "ConflictDetector", "role": "pubsub",
       "app_type": "analyzer", "version": "6.0.1", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "FlightDataManagement_Subsystem",
-        "config_item_name": "ConflictManagement_CSC",
-        "component_name": "ConflictDetector"
+        "csms_name": "ATC_System",
+        "css_name": "FlightDataManagement_Subsystem",
+        "csci_name": "ConflictManagement_CSC",
+        "csc_name": "ConflictDetector"
       },
       "code_metrics": {
         "size": { "total_loc": 19800, "total_classes": 88, "total_methods": 695, "total_fields": 214 },
@@ -241,10 +241,10 @@
       "id": "A07", "name": "TrajectoryPredictor", "role": "pubsub",
       "app_type": "analyzer", "version": "4.3.0", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "FlightDataManagement_Subsystem",
-        "config_item_name": "TrajectoryManagement_CSC",
-        "component_name": "TrajectoryPredictor"
+        "csms_name": "ATC_System",
+        "css_name": "FlightDataManagement_Subsystem",
+        "csci_name": "TrajectoryManagement_CSC",
+        "csc_name": "TrajectoryPredictor"
       },
       "code_metrics": {
         "size": { "total_loc": 14200, "total_classes": 61, "total_methods": 480, "total_fields": 148 },
@@ -257,10 +257,10 @@
       "id": "A08", "name": "CollisionAvoidanceSystem", "role": "pubsub",
       "app_type": "safety", "version": "7.1.0", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Surveillance_Subsystem",
-        "config_item_name": "CollisionAvoidance_CSC",
-        "component_name": "CollisionAvoidanceSystem"
+        "csms_name": "ATC_System",
+        "css_name": "Surveillance_Subsystem",
+        "csci_name": "CollisionAvoidance_CSC",
+        "csc_name": "CollisionAvoidanceSystem"
       },
       "code_metrics": {
         "size": { "total_loc": 16900, "total_classes": 72, "total_methods": 560, "total_fields": 172 },
@@ -273,10 +273,10 @@
       "id": "A09", "name": "CPDLCGateway", "role": "pubsub",
       "app_type": "gateway", "version": "3.4.2", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "ControllerWorkingPosition_Subsystem",
-        "config_item_name": "DataLinkManagement_CSC",
-        "component_name": "CPDLCGateway"
+        "csms_name": "ATC_System",
+        "css_name": "ControllerWorkingPosition_Subsystem",
+        "csci_name": "DataLinkManagement_CSC",
+        "csc_name": "CPDLCGateway"
       },
       "code_metrics": {
         "size": { "total_loc": 11200, "total_classes": 48, "total_methods": 374, "total_fields": 115 },
@@ -289,10 +289,10 @@
       "id": "A10", "name": "DataLinkFIS", "role": "pubsub",
       "app_type": "service", "version": "2.2.1", "criticality": false,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "ControllerWorkingPosition_Subsystem",
-        "config_item_name": "DataLinkManagement_CSC",
-        "component_name": "DataLinkFIS"
+        "csms_name": "ATC_System",
+        "css_name": "ControllerWorkingPosition_Subsystem",
+        "csci_name": "DataLinkManagement_CSC",
+        "csc_name": "DataLinkFIS"
       },
       "code_metrics": {
         "size": { "total_loc": 5800, "total_classes": 22, "total_methods": 172, "total_fields": 52 },
@@ -305,10 +305,10 @@
       "id": "A11", "name": "GNSSProcessor", "role": "pub",
       "app_type": "processor", "version": "3.3.0", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Navigation_Subsystem",
-        "config_item_name": "GNSSProcessing_CSC",
-        "component_name": "GNSSProcessor"
+        "csms_name": "ATC_System",
+        "css_name": "Navigation_Subsystem",
+        "csci_name": "GNSSProcessing_CSC",
+        "csc_name": "GNSSProcessor"
       },
       "code_metrics": {
         "size": { "total_loc": 8900, "total_classes": 36, "total_methods": 278, "total_fields": 85 },
@@ -321,10 +321,10 @@
       "id": "A12", "name": "RNPMonitor", "role": "pubsub",
       "app_type": "monitor", "version": "2.5.1", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Navigation_Subsystem",
-        "config_item_name": "RNPMonitoring_CSC",
-        "component_name": "RNPMonitor"
+        "csms_name": "ATC_System",
+        "css_name": "Navigation_Subsystem",
+        "csci_name": "RNPMonitoring_CSC",
+        "csc_name": "RNPMonitor"
       },
       "code_metrics": {
         "size": { "total_loc": 6100, "total_classes": 25, "total_methods": 195, "total_fields": 60 },
@@ -337,10 +337,10 @@
       "id": "A13", "name": "ATFMSystem", "role": "pubsub",
       "app_type": "manager", "version": "4.0.2", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "ATFM_Subsystem",
-        "config_item_name": "FlowManagement_CSC",
-        "component_name": "ATFMSystem"
+        "csms_name": "ATC_System",
+        "css_name": "ATFM_Subsystem",
+        "csci_name": "FlowManagement_CSC",
+        "csc_name": "ATFMSystem"
       },
       "code_metrics": {
         "size": { "total_loc": 17600, "total_classes": 74, "total_methods": 582, "total_fields": 178 },
@@ -353,10 +353,10 @@
       "id": "A14", "name": "SlotAllocator", "role": "pubsub",
       "app_type": "service", "version": "3.1.1", "criticality": false,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "ATFM_Subsystem",
-        "config_item_name": "SlotManagement_CSC",
-        "component_name": "SlotAllocator"
+        "csms_name": "ATC_System",
+        "css_name": "ATFM_Subsystem",
+        "csci_name": "SlotManagement_CSC",
+        "csc_name": "SlotAllocator"
       },
       "code_metrics": {
         "size": { "total_loc": 8400, "total_classes": 33, "total_methods": 258, "total_fields": 79 },
@@ -369,10 +369,10 @@
       "id": "A15", "name": "ATFMFlowOptimizer", "role": "pubsub",
       "app_type": "optimizer", "version": "2.8.0", "criticality": false,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "ATFM_Subsystem",
-        "config_item_name": "FlowManagement_CSC",
-        "component_name": "ATFMFlowOptimizer"
+        "csms_name": "ATC_System",
+        "css_name": "ATFM_Subsystem",
+        "csci_name": "FlowManagement_CSC",
+        "csc_name": "ATFMFlowOptimizer"
       },
       "code_metrics": {
         "size": { "total_loc": 10200, "total_classes": 43, "total_methods": 336, "total_fields": 103 },
@@ -385,10 +385,10 @@
       "id": "A16", "name": "FlightPlanningSystem", "role": "pubsub",
       "app_type": "service", "version": "5.2.0", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "FlightDataManagement_Subsystem",
-        "config_item_name": "FlightPlanning_CSC",
-        "component_name": "FlightPlanningSystem"
+        "csms_name": "ATC_System",
+        "css_name": "FlightDataManagement_Subsystem",
+        "csci_name": "FlightPlanning_CSC",
+        "csc_name": "FlightPlanningSystem"
       },
       "code_metrics": {
         "size": { "total_loc": 12800, "total_classes": 54, "total_methods": 422, "total_fields": 130 },
@@ -401,10 +401,10 @@
       "id": "A17", "name": "SafetyManagementSystem", "role": "pubsub",
       "app_type": "safety", "version": "3.5.0", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Safety_Subsystem",
-        "config_item_name": "SafetyManagement_CSC",
-        "component_name": "SafetyManagementSystem"
+        "csms_name": "ATC_System",
+        "css_name": "Safety_Subsystem",
+        "csci_name": "SafetyManagement_CSC",
+        "csc_name": "SafetyManagementSystem"
       },
       "code_metrics": {
         "size": { "total_loc": 9600, "total_classes": 40, "total_methods": 312, "total_fields": 96 },
@@ -417,10 +417,10 @@
       "id": "A18", "name": "IncidentReporter", "role": "pubsub",
       "app_type": "service", "version": "2.1.0", "criticality": false,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Safety_Subsystem",
-        "config_item_name": "SafetyManagement_CSC",
-        "component_name": "IncidentReporter"
+        "csms_name": "ATC_System",
+        "css_name": "Safety_Subsystem",
+        "csci_name": "SafetyManagement_CSC",
+        "csc_name": "IncidentReporter"
       },
       "code_metrics": {
         "size": { "total_loc": 4200, "total_classes": 17, "total_methods": 134, "total_fields": 41 },
@@ -433,10 +433,10 @@
       "id": "A19", "name": "SearchAndRescueSystem", "role": "pubsub",
       "app_type": "safety", "version": "4.0.0", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Safety_Subsystem",
-        "config_item_name": "SearchAndRescue_CSC",
-        "component_name": "SearchAndRescueSystem"
+        "csms_name": "ATC_System",
+        "css_name": "Safety_Subsystem",
+        "csci_name": "SearchAndRescue_CSC",
+        "csc_name": "SearchAndRescueSystem"
       },
       "code_metrics": {
         "size": { "total_loc": 7800, "total_classes": 31, "total_methods": 242, "total_fields": 74 },
@@ -449,10 +449,10 @@
       "id": "A20", "name": "AirspaceManager", "role": "pubsub",
       "app_type": "manager", "version": "3.2.1", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "AirspaceManagement_Subsystem",
-        "config_item_name": "StrategicAirspace_CSC",
-        "component_name": "AirspaceManager"
+        "csms_name": "ATC_System",
+        "css_name": "AirspaceManagement_Subsystem",
+        "csci_name": "StrategicAirspace_CSC",
+        "csc_name": "AirspaceManager"
       },
       "code_metrics": {
         "size": { "total_loc": 11400, "total_classes": 47, "total_methods": 368, "total_fields": 113 },
@@ -465,10 +465,10 @@
       "id": "A21", "name": "CivilMilitaryCoordinator", "role": "pubsub",
       "app_type": "coordinator", "version": "2.6.0", "criticality": false,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "AirspaceManagement_Subsystem",
-        "config_item_name": "TacticalAirspace_CSC",
-        "component_name": "CivilMilitaryCoordinator"
+        "csms_name": "ATC_System",
+        "css_name": "AirspaceManagement_Subsystem",
+        "csci_name": "TacticalAirspace_CSC",
+        "csc_name": "CivilMilitaryCoordinator"
       },
       "code_metrics": {
         "size": { "total_loc": 5600, "total_classes": 23, "total_methods": 180, "total_fields": 55 },
@@ -481,10 +481,10 @@
       "id": "A22", "name": "RegionalATMIntegrator", "role": "pubsub",
       "app_type": "integrator", "version": "3.0.1", "criticality": false,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "RegionalIntegration_Subsystem",
-        "config_item_name": "SWIMIntegration_CSC",
-        "component_name": "RegionalATMIntegrator"
+        "csms_name": "ATC_System",
+        "css_name": "RegionalIntegration_Subsystem",
+        "csci_name": "SWIMIntegration_CSC",
+        "csc_name": "RegionalATMIntegrator"
       },
       "code_metrics": {
         "size": { "total_loc": 8100, "total_classes": 33, "total_methods": 258, "total_fields": 79 },
@@ -497,10 +497,10 @@
       "id": "A23", "name": "ATCWorkstation", "role": "sub",
       "app_type": "hmi", "version": "8.4.0", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "ControllerWorkingPosition_Subsystem",
-        "config_item_name": "DisplayManagement_CSC",
-        "component_name": "ATCWorkstation"
+        "csms_name": "ATC_System",
+        "css_name": "ControllerWorkingPosition_Subsystem",
+        "csci_name": "DisplayManagement_CSC",
+        "csc_name": "ATCWorkstation"
       },
       "code_metrics": {
         "size": { "total_loc": 31200, "total_classes": 138, "total_methods": 1080, "total_fields": 336 },
@@ -513,10 +513,10 @@
       "id": "A24", "name": "AutomatedDisplaySystem", "role": "sub",
       "app_type": "hmi", "version": "5.3.2", "criticality": true,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "ControllerWorkingPosition_Subsystem",
-        "config_item_name": "DisplayManagement_CSC",
-        "component_name": "AutomatedDisplaySystem"
+        "csms_name": "ATC_System",
+        "css_name": "ControllerWorkingPosition_Subsystem",
+        "csci_name": "DisplayManagement_CSC",
+        "csc_name": "AutomatedDisplaySystem"
       },
       "code_metrics": {
         "size": { "total_loc": 18900, "total_classes": 82, "total_methods": 640, "total_fields": 198 },
@@ -529,10 +529,10 @@
       "id": "A25", "name": "StripManager", "role": "pubsub",
       "app_type": "manager", "version": "4.1.0", "criticality": false,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "ControllerWorkingPosition_Subsystem",
-        "config_item_name": "DisplayManagement_CSC",
-        "component_name": "StripManager"
+        "csms_name": "ATC_System",
+        "css_name": "ControllerWorkingPosition_Subsystem",
+        "csci_name": "DisplayManagement_CSC",
+        "csc_name": "StripManager"
       },
       "code_metrics": {
         "size": { "total_loc": 6900, "total_classes": 28, "total_methods": 218, "total_fields": 67 },
@@ -545,10 +545,10 @@
       "id": "A26", "name": "MeteoService", "role": "pub",
       "app_type": "service", "version": "2.4.1", "criticality": false,
       "system_hierarchy": {
-        "system_name": "ATC_System",
-        "domain_name": "Meteorology_Subsystem",
-        "config_item_name": "WeatherServices_CSC",
-        "component_name": "MeteoService"
+        "csms_name": "ATC_System",
+        "css_name": "Meteorology_Subsystem",
+        "csci_name": "WeatherServices_CSC",
+        "csc_name": "MeteoService"
       },
       "code_metrics": {
         "size": { "total_loc": 5400, "total_classes": 21, "total_methods": 164, "total_fields": 50 },
@@ -563,8 +563,8 @@
     {
       "id": "L01", "name": "ASTERIXParser", "version": "6.1.0",
       "system_hierarchy": {
-        "system_name": "ATC_System", "domain_name": "Surveillance_Subsystem",
-        "config_item_name": "RadarProcessing_CSC", "component_name": "ASTERIXParser"
+        "csms_name": "ATC_System", "css_name": "Surveillance_Subsystem",
+        "csci_name": "RadarProcessing_CSC", "csc_name": "ASTERIXParser"
       },
       "code_metrics": {
         "size": { "total_loc": 12400, "total_classes": 58, "total_methods": 452, "total_fields": 138 },
@@ -576,8 +576,8 @@
     {
       "id": "L02", "name": "ICAOMessageLib", "version": "4.3.0",
       "system_hierarchy": {
-        "system_name": "ATC_System", "domain_name": "FlightDataManagement_Subsystem",
-        "config_item_name": "FlightPlanning_CSC", "component_name": "ICAOMessageLib"
+        "csms_name": "ATC_System", "css_name": "FlightDataManagement_Subsystem",
+        "csci_name": "FlightPlanning_CSC", "csc_name": "ICAOMessageLib"
       },
       "code_metrics": {
         "size": { "total_loc": 24800, "total_classes": 112, "total_methods": 876, "total_fields": 270 },
@@ -589,8 +589,8 @@
     {
       "id": "L03", "name": "CryptoLib", "version": "3.0.2",
       "system_hierarchy": {
-        "system_name": "ATC_System", "domain_name": "Safety_Subsystem",
-        "config_item_name": "SafetyManagement_CSC", "component_name": "CryptoLib"
+        "csms_name": "ATC_System", "css_name": "Safety_Subsystem",
+        "csci_name": "SafetyManagement_CSC", "csc_name": "CryptoLib"
       },
       "code_metrics": {
         "size": { "total_loc": 8600, "total_classes": 38, "total_methods": 296, "total_fields": 90 },
@@ -602,8 +602,8 @@
     {
       "id": "L04", "name": "FlightStripLib", "version": "5.2.1",
       "system_hierarchy": {
-        "system_name": "ATC_System", "domain_name": "ControllerWorkingPosition_Subsystem",
-        "config_item_name": "DisplayManagement_CSC", "component_name": "FlightStripLib"
+        "csms_name": "ATC_System", "css_name": "ControllerWorkingPosition_Subsystem",
+        "csci_name": "DisplayManagement_CSC", "csc_name": "FlightStripLib"
       },
       "code_metrics": {
         "size": { "total_loc": 6200, "total_classes": 27, "total_methods": 210, "total_fields": 64 },
@@ -615,8 +615,8 @@
     {
       "id": "L05", "name": "ATFMLib", "version": "3.4.0",
       "system_hierarchy": {
-        "system_name": "ATC_System", "domain_name": "ATFM_Subsystem",
-        "config_item_name": "FlowManagement_CSC", "component_name": "ATFMLib"
+        "csms_name": "ATC_System", "css_name": "ATFM_Subsystem",
+        "csci_name": "FlowManagement_CSC", "csc_name": "ATFMLib"
       },
       "code_metrics": {
         "size": { "total_loc": 9800, "total_classes": 43, "total_methods": 336, "total_fields": 102 },
@@ -628,8 +628,8 @@
     {
       "id": "L06", "name": "GNSSLib", "version": "4.1.0",
       "system_hierarchy": {
-        "system_name": "ATC_System", "domain_name": "Navigation_Subsystem",
-        "config_item_name": "GNSSProcessing_CSC", "component_name": "GNSSLib"
+        "csms_name": "ATC_System", "css_name": "Navigation_Subsystem",
+        "csci_name": "GNSSProcessing_CSC", "csc_name": "GNSSLib"
       },
       "code_metrics": {
         "size": { "total_loc": 11200, "total_classes": 49, "total_methods": 382, "total_fields": 117 },
@@ -641,8 +641,8 @@
     {
       "id": "L07", "name": "DataLinkProtocolLib", "version": "2.8.0",
       "system_hierarchy": {
-        "system_name": "ATC_System", "domain_name": "ControllerWorkingPosition_Subsystem",
-        "config_item_name": "DataLinkManagement_CSC", "component_name": "DataLinkProtocolLib"
+        "csms_name": "ATC_System", "css_name": "ControllerWorkingPosition_Subsystem",
+        "csci_name": "DataLinkManagement_CSC", "csc_name": "DataLinkProtocolLib"
       },
       "code_metrics": {
         "size": { "total_loc": 7400, "total_classes": 32, "total_methods": 250, "total_fields": 76 },
@@ -654,8 +654,8 @@
     {
       "id": "L08", "name": "SARLib", "version": "2.2.0",
       "system_hierarchy": {
-        "system_name": "ATC_System", "domain_name": "Safety_Subsystem",
-        "config_item_name": "SearchAndRescue_CSC", "component_name": "SARLib"
+        "csms_name": "ATC_System", "css_name": "Safety_Subsystem",
+        "csci_name": "SearchAndRescue_CSC", "csc_name": "SARLib"
       },
       "code_metrics": {
         "size": { "total_loc": 4800, "total_classes": 21, "total_methods": 164, "total_fields": 50 },

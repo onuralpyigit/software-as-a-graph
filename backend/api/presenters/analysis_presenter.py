@@ -10,7 +10,7 @@ def serialize_component(c) -> Dict[str, Any]:
     return c.to_dict()
 
 
-def serialize_edge(e, component_names: Dict[str, str]) -> Dict[str, Any]:
+def serialize_edge(e, csc_names: Dict[str, str]) -> Dict[str, Any]:
     """Convert a classified edge to API response format."""
     level = e.level.value if hasattr(e, 'level') and hasattr(e.level, 'value') else (str(e.level) if hasattr(e, 'level') else "minimal")
     scores = {}
@@ -25,8 +25,8 @@ def serialize_edge(e, component_names: Dict[str, str]) -> Dict[str, Any]:
     return {
         "source": e.source,
         "target": e.target,
-        "source_name": component_names.get(e.source, e.source),
-        "target_name": component_names.get(e.target, e.target),
+        "source_name": csc_names.get(e.source, e.source),
+        "target_name": csc_names.get(e.target, e.target),
         "type": e.dependency_type,
         "criticality_level": level,
         "scores": scores,
@@ -72,7 +72,7 @@ def build_analysis_response(
         quality_edges = [e for e in quality_edges if e.source in filtered_ids or e.target in filtered_ids]
         problems = [p for p in problems if p.entity_id in filtered_ids]
 
-    component_names = {c.id: c.name for c in all_components}
+    csc_names = {c.id: c.name for c in all_components}
 
     summary = {
         "total_components": len(all_components),
@@ -114,7 +114,7 @@ def build_analysis_response(
             "avg_degree": analysis.raw.graph_summary.avg_degree,
         },
         "components": [serialize_component(c) for c in all_components],
-        "edges": [serialize_edge(e, component_names) for e in quality_edges],
+        "edges": [serialize_edge(e, csc_names) for e in quality_edges],
         "problems": [serialize_problem(p) for p in problems],
     }
     return envelope

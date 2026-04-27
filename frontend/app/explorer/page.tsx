@@ -47,10 +47,10 @@ if (typeof window !== 'undefined' && typeof (window as any).GPUShaderStage === '
 interface AppNode {
   id: string
   name?: string
-  component_name?: string
-  config_item_name?: string
-  system_name?: string
-  domain_name?: string
+  csc_name?: string
+  csci_name?: string
+  csms_name?: string
+  css_name?: string
   csu?: string
   weight?: number
   [key: string]: unknown
@@ -92,10 +92,10 @@ const OTHER = "(Other)"
 function buildHierarchy(apps: AppNode[]): Record<string, CsmsGroup> {
   const root: Record<string, CsmsGroup> = {}
   for (const app of apps) {
-    const csmsKey = app.system_name?.trim() || OTHER
-    const cssKey  = app.domain_name?.trim()  || OTHER
-    const csciKey = app.config_item_name?.trim() || OTHER
-    const cscKey  = app.component_name?.trim()  || OTHER
+    const csmsKey = app.csms_name?.trim() || OTHER
+    const cssKey  = app.css_name?.trim()  || OTHER
+    const csciKey = app.csci_name?.trim() || OTHER
+    const cscKey  = app.csc_name?.trim()  || OTHER
 
     if (!root[csmsKey]) root[csmsKey] = { name: csmsKey, css: {} }
     const csms = root[csmsKey]
@@ -113,8 +113,8 @@ function buildHierarchy(apps: AppNode[]): Record<string, CsmsGroup> {
 function matches(app: AppNode, q: string): boolean {
   if (!q) return true
   const f = (v?: string) => v?.toLowerCase().includes(q) ?? false
-  return f(app.id) || f(app.name) || f(app.component_name) || f(app.config_item_name) ||
-         f(app.system_name) || f(app.domain_name) || f(app.csu)
+  return f(app.id) || f(app.name) || f(app.csc_name) || f(app.csci_name) ||
+         f(app.csms_name) || f(app.css_name) || f(app.csu)
 }
 
 function sortKeys(keys: string[]): string[] {
@@ -2285,7 +2285,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                       <tr><td colSpan={2} className="px-3 py-8 text-center text-muted-foreground text-[11px]">No properties available</td></tr>
                     )}
                     {(() => {
-                      const HIER_KEYS = new Set(["system_name","component_name","config_item_name","domain_name"])
+                      const HIER_KEYS = new Set(["csms_name","csc_name","csci_name","css_name"])
                       const isCmSize     = (k: string) => /^cm_total_|^loc$/.test(k)
                       const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
                       const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$/.test(k)
@@ -2449,7 +2449,7 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
     const app = node.payload as AppNode
     const entries = Object.entries(app).filter(([, v]) => v !== undefined && v !== null && v !== "")
 
-    const HIER_KEYS = new Set(["system_name","component_name","config_item_name","domain_name"])
+    const HIER_KEYS = new Set(["csms_name","csc_name","csci_name","css_name"])
     const isCmSize     = (k: string) => /^cm_total_|^loc$/.test(k)
     const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
     const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$/.test(k)

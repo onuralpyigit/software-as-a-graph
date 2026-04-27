@@ -475,10 +475,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Path Planning",
-        "system_name": "Route Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Sensor Integration",
+        "css_name": "Path Planning",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -516,10 +516,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Object Detection",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Navigation Software",
+        "css_name": "Object Detection",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -557,10 +557,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Motor Control",
-        "system_name": "Image Pipeline"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Sensor Integration",
+        "css_name": "Motor Control",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -598,10 +598,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "SLAM",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "SLAM",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -639,10 +639,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Route Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Sensor Integration",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -680,10 +680,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Localization"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Navigation Software",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -721,10 +721,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Navigation Software",
-        "domain_name": "State Estimation",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Navigation Software",
+        "css_name": "State Estimation",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -762,10 +762,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Path Planning",
-        "system_name": "Localization"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Path Planning",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -803,10 +803,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Object Detection",
-        "system_name": "Route Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Object Detection",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -844,10 +844,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Motor Control",
-        "system_name": "Image Pipeline"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Motor Control",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -885,10 +885,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "SLAM",
-        "system_name": "Image Pipeline"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "SLAM",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -926,10 +926,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Route Processing"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Navigation Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -967,10 +967,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Control Logic"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -1008,10 +1008,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "State Estimation",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "State Estimation",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -1049,10 +1049,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Path Planning",
-        "system_name": "Route Processing"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Sensor Integration",
+        "css_name": "Path Planning",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -1090,10 +1090,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Object Detection",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Sensor Integration",
+        "css_name": "Object Detection",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -1131,10 +1131,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Motor Control",
-        "system_name": "Control Logic"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Sensor Integration",
+        "css_name": "Motor Control",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -1172,10 +1172,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "SLAM",
-        "system_name": "Image Pipeline"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "SLAM",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -1213,10 +1213,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Control Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Control Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -1254,10 +1254,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Control Software",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Control Logic"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Control Software",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -1295,10 +1295,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "State Estimation",
-        "system_name": "Control Logic"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "State Estimation",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -1336,10 +1336,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Path Planning",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Navigation Software",
+        "css_name": "Path Planning",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -1377,10 +1377,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Object Detection",
-        "system_name": "Route Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "Object Detection",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -1418,10 +1418,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Motor Control",
-        "system_name": "Localization"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "Motor Control",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1459,10 +1459,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Navigation Software",
-        "domain_name": "SLAM",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Navigation Software",
+        "css_name": "SLAM",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -1500,10 +1500,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Control Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Control Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -1541,10 +1541,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Control Software",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Image Pipeline"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Control Software",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -1582,10 +1582,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "State Estimation",
-        "system_name": "Route Processing"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Sensor Integration",
+        "css_name": "State Estimation",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -1623,10 +1623,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Perception Software",
-        "domain_name": "Path Planning",
-        "system_name": "Localization"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Perception Software",
+        "css_name": "Path Planning",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1664,10 +1664,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Perception Software",
-        "domain_name": "Object Detection",
-        "system_name": "Route Processing"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Perception Software",
+        "css_name": "Object Detection",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -1705,10 +1705,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Motor Control",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Sensor Integration",
+        "css_name": "Motor Control",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -1746,10 +1746,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "SLAM",
-        "system_name": "Localization"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Sensor Integration",
+        "css_name": "SLAM",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -1787,10 +1787,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Image Pipeline"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -1828,10 +1828,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Control Software",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Control Software",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -1869,10 +1869,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "State Estimation",
-        "system_name": "Route Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Sensor Integration",
+        "css_name": "State Estimation",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -1910,10 +1910,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Perception Software",
-        "domain_name": "Path Planning",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Perception Software",
+        "css_name": "Path Planning",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -1951,10 +1951,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Object Detection",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Object Detection",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -1992,10 +1992,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Motor Control",
-        "system_name": "Image Pipeline"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Motor Control",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -2033,10 +2033,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Perception Software",
-        "domain_name": "SLAM",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Perception Software",
+        "css_name": "SLAM",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -2074,10 +2074,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Route Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -2115,10 +2115,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Navigation Software",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -2156,10 +2156,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "State Estimation",
-        "system_name": "Image Pipeline"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Sensor Integration",
+        "css_name": "State Estimation",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -2197,10 +2197,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Path Planning",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Sensor Integration",
+        "css_name": "Path Planning",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -2238,10 +2238,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Object Detection",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Object Detection",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -2279,10 +2279,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Control Software",
-        "domain_name": "Motor Control",
-        "system_name": "Image Pipeline"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Control Software",
+        "css_name": "Motor Control",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -2320,10 +2320,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "SLAM",
-        "system_name": "Control Logic"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "SLAM",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -2361,10 +2361,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Route Processing"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Sensor Integration",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -2402,10 +2402,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -2443,10 +2443,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "State Estimation",
-        "system_name": "Localization"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "State Estimation",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2484,10 +2484,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Path Planning",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "Path Planning",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -2525,10 +2525,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Object Detection",
-        "system_name": "Image Pipeline"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Sensor Integration",
+        "css_name": "Object Detection",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -2566,10 +2566,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "Motor Control",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "Motor Control",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -2607,10 +2607,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "SLAM",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Sensor Integration",
+        "css_name": "SLAM",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -2648,10 +2648,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Localization"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Navigation Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -2689,10 +2689,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Control Logic"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Sensor Integration",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -2730,10 +2730,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "State Estimation",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "State Estimation",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -2771,10 +2771,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Path Planning",
-        "system_name": "Image Pipeline"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Navigation Software",
+        "css_name": "Path Planning",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -2812,10 +2812,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Control Software",
-        "domain_name": "Object Detection",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Control Software",
+        "css_name": "Object Detection",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -2853,10 +2853,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Motor Control",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Navigation Software",
+        "css_name": "Motor Control",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -2894,10 +2894,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Perception Software",
-        "domain_name": "SLAM",
-        "system_name": "Control Logic"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Perception Software",
+        "css_name": "SLAM",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -2935,10 +2935,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Route Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -2976,10 +2976,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Sensor Integration",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -3017,10 +3017,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "State Estimation",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "State Estimation",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -3058,10 +3058,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Path Planning",
-        "system_name": "Localization"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Path Planning",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3099,10 +3099,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Object Detection",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Sensor Integration",
+        "css_name": "Object Detection",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -3140,10 +3140,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Motor Control",
-        "system_name": "Control Logic"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "Motor Control",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -3181,10 +3181,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "SLAM",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "SLAM",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -3222,10 +3222,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Localization"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3263,10 +3263,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Perception Software",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Perception Software",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -3304,10 +3304,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Control Software",
-        "domain_name": "State Estimation",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Control Software",
+        "css_name": "State Estimation",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -3345,10 +3345,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Control Software",
-        "domain_name": "Path Planning",
-        "system_name": "Control Logic"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Control Software",
+        "css_name": "Path Planning",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -3386,10 +3386,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "Object Detection",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "Object Detection",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -3427,10 +3427,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Motor Control",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "Motor Control",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -3468,10 +3468,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "SLAM",
-        "system_name": "Localization"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "SLAM",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3509,10 +3509,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -3550,10 +3550,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Image Pipeline"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -3591,10 +3591,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Control Software",
-        "domain_name": "State Estimation",
-        "system_name": "Control Logic"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Control Software",
+        "css_name": "State Estimation",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -3632,10 +3632,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Path Planning",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Navigation Software",
+        "css_name": "Path Planning",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -3673,10 +3673,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Object Detection",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Sensor Integration",
+        "css_name": "Object Detection",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size": {
@@ -3714,10 +3714,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Motor Control",
-        "system_name": "Localization"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Sensor Integration",
+        "css_name": "Motor Control",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3754,10 +3754,10 @@
       "name": "tf-lib",
       "version": "0.2.4",
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Route Processing"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -3792,10 +3792,10 @@
       "name": "cv-bridge",
       "version": "2.4.7",
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Control Software",
-        "domain_name": "State Estimation",
-        "system_name": "Localization"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Control Software",
+        "css_name": "State Estimation",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -3830,10 +3830,10 @@
       "name": "nav-core",
       "version": "0.2.4",
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "State Estimation",
-        "system_name": "Route Processing"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Sensor Integration",
+        "css_name": "State Estimation",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -3868,10 +3868,10 @@
       "name": "sensor-msgs",
       "version": "2.2.9",
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Perception Software",
-        "domain_name": "Object Detection",
-        "system_name": "Image Pipeline"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Perception Software",
+        "css_name": "Object Detection",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -3906,10 +3906,10 @@
       "name": "tf-lib-1",
       "version": "1.4.1",
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Control Software",
-        "domain_name": "State Estimation",
-        "system_name": "Route Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Control Software",
+        "css_name": "State Estimation",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -3944,10 +3944,10 @@
       "name": "cv-bridge-1",
       "version": "0.6.5",
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Control Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Control Logic"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Control Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -3982,10 +3982,10 @@
       "name": "geometry-msgs",
       "version": "0.8.3",
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "SLAM",
-        "system_name": "Control Logic"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "SLAM",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -4020,10 +4020,10 @@
       "name": "cv-bridge-2",
       "version": "0.7.7",
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Localization"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4058,10 +4058,10 @@
       "name": "sensor-msgs-1",
       "version": "0.9.7",
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Perception Software",
-        "domain_name": "Motor Control",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Perception Software",
+        "css_name": "Motor Control",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -4096,10 +4096,10 @@
       "name": "sensor-msgs-2",
       "version": "2.4.9",
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Collision Avoidance",
-        "system_name": "Control Logic"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Sensor Integration",
+        "css_name": "Collision Avoidance",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -4134,10 +4134,10 @@
       "name": "tf-lib-2",
       "version": "2.8.9",
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Perception Software",
-        "domain_name": "State Estimation",
-        "system_name": "Image Pipeline"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Perception Software",
+        "css_name": "State Estimation",
+        "csms_name": "Image Pipeline"
       },
       "code_metrics": {
         "size": {
@@ -4172,10 +4172,10 @@
       "name": "nav-core-1",
       "version": "1.9.6",
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Navigation Software",
-        "domain_name": "State Estimation",
-        "system_name": "Control Logic"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Navigation Software",
+        "css_name": "State Estimation",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -4210,10 +4210,10 @@
       "name": "cv-bridge-3",
       "version": "1.0.4",
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Path Planning",
-        "system_name": "Control Logic"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Sensor Integration",
+        "css_name": "Path Planning",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -4248,10 +4248,10 @@
       "name": "nav-core-2",
       "version": "0.8.9",
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Motor Control",
-        "system_name": "Localization"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Sensor Integration",
+        "css_name": "Motor Control",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4286,10 +4286,10 @@
       "name": "sensor-msgs-3",
       "version": "0.3.9",
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "SLAM",
-        "system_name": "Route Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "SLAM",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
@@ -4324,10 +4324,10 @@
       "name": "cv-bridge-4",
       "version": "0.0.1",
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Sensor Integration",
-        "domain_name": "Motor Control",
-        "system_name": "Localization"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Sensor Integration",
+        "css_name": "Motor Control",
+        "csms_name": "Localization"
       },
       "code_metrics": {
         "size": {
@@ -4362,10 +4362,10 @@
       "name": "tf-lib-3",
       "version": "1.5.0",
       "system_hierarchy": {
-        "component_name": "Robotic Systems",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Motor Control",
-        "system_name": "Obstacle Tracking"
+        "csc_name": "Robotic Systems",
+        "csci_name": "Navigation Software",
+        "css_name": "Motor Control",
+        "csms_name": "Obstacle Tracking"
       },
       "code_metrics": {
         "size": {
@@ -4400,10 +4400,10 @@
       "name": "tf-lib-4",
       "version": "1.5.0",
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Object Detection",
-        "system_name": "Control Logic"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Object Detection",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -4438,10 +4438,10 @@
       "name": "sensor-msgs-4",
       "version": "2.2.4",
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "Motor Control",
-        "system_name": "Control Logic"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "Motor Control",
+        "csms_name": "Control Logic"
       },
       "code_metrics": {
         "size": {
@@ -4476,10 +4476,10 @@
       "name": "cv-bridge-5",
       "version": "0.8.7",
       "system_hierarchy": {
-        "component_name": "Vehicle Computing System",
-        "config_item_name": "Control Software",
-        "domain_name": "State Estimation",
-        "system_name": "Route Processing"
+        "csc_name": "Vehicle Computing System",
+        "csci_name": "Control Software",
+        "css_name": "State Estimation",
+        "csms_name": "Route Processing"
       },
       "code_metrics": {
         "size": {
