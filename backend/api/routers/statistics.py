@@ -30,11 +30,11 @@ from api.statistics import (
     compute_topic_fanout_stats,
     compute_cross_node_heatmap_stats,
     compute_node_comm_load_stats,
-    compute_domain_comm_stats,
+    compute_segment_comm_stats,
     compute_criticality_io_stats,
     compute_lib_dependency_stats,
     compute_node_critical_density_stats,
-    compute_domain_diversity_stats,
+    compute_segment_diversity_stats,
     compute_bottleneck_stats_from_structural,
     to_serializable,
 )
@@ -265,11 +265,11 @@ _CHART_FN_MAP = {
     "topic_fanout": compute_topic_fanout_stats,
     "cross_node_heatmap": compute_cross_node_heatmap_stats,
     "node_comm_load": compute_node_comm_load_stats,
-    "domain_comm": compute_domain_comm_stats,
+    "domain_comm": compute_segment_comm_stats,
     "criticality_io": compute_criticality_io_stats,
     "lib_dependency": compute_lib_dependency_stats,
     "node_critical_density": compute_node_critical_density_stats,
-    "domain_diversity": compute_domain_diversity_stats,
+    "domain_diversity": compute_segment_diversity_stats,
 }
 
 

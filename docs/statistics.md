@@ -44,17 +44,31 @@ stats = compute_all_extras_statistics(cc)
 
 | Function | Chart | Key Outputs |
 |---|---|---|
-| `compute_topic_bandwidth` | Topic Size × Subscribers | bandwidth per topic, IQR outliers |
+| `compute_topic_bandwidth_stats` | Topic Size × Subscribers | bandwidth per topic, IQR outliers |
 | `compute_qos_risk_stats` | QoS Risk Scatter | **(Optional)** risk score per topic, outliers *(Note: REST API omits this by default)* |
-| `compute_app_balance` | App Pub/Sub Balance | per-app I/O load, quadrant classification |
-| `compute_topic_fanout` | Topic Fanout | publisher × subscriber fanout, pattern counts |
-| `compute_cross_node_heatmap` | Cross-Node Heatmap | NxN communication matrix, intra/inter-node traffic |
-| `compute_node_comm_load` | Node Communication Load | per-node pub/sub totals, coefficient of variation |
-| `compute_domain_comm` | Domain Communication | domain-to-domain matrix, cross-domain pair counts |
-| `compute_criticality_io` | Criticality × I/O | critical vs. normal app I/O comparison |
-| `compute_lib_dependency` | Library Dependency | in/out degree for apps and libraries |
-| `compute_node_critical_density` | Node Critical Density| critical vs. normal app counts per node |
-| `compute_domain_diversity` | Domain Diversity | app count, topic count, and I/O per domain |
+| `compute_app_balance_stats` | App Pub/Sub Balance | per-app I/O load, quadrant classification |
+| `compute_topic_fanout_stats` | Topic Fanout | publisher × subscriber fanout, pattern counts |
+| `compute_cross_node_heatmap_stats` | Cross-Node Heatmap | NxN communication matrix, intra/inter-node traffic |
+| `compute_node_comm_load_stats` | Node Communication Load | per-node pub/sub totals, coefficient of variation |
+| `compute_segment_comm_stats` | Segment Communication | segment-to-segment matrix, cross-segment pair counts |
+| `compute_criticality_io_stats` | Criticality × I/O | critical vs. normal app I/O comparison |
+| `compute_lib_dependency_stats` | Library Dependency | in/out degree for apps and libraries |
+| `compute_node_critical_density_stats` | Node Critical Density| critical vs. normal app counts per node |
+| `compute_segment_diversity_stats` | Segment Diversity | app count, topic count, and I/O per segment |
+
+### Architectural Interpretations & Insights
+
+The metrics computed by the API layer provide actionable insights into the system's architectural health, helping identify anti-patterns, bottlenecks, and deployment risks.
+
+- **Topic Bandwidth**: Measures the network strain per topic by calculating the theoretical data volume pushed to all consumers per publish event. High bandwidth outliers indicate topics that could saturate network links, while zero-subscriber topics indicate wasted producer resources or incomplete system integration.
+- **App Pub/Sub Balance**: Categorizes applications into quadrants based on their I/O activity. **High I/O hubs** are critical routing nodes whose failure disrupts both upstream and downstream flows. **Producer-only** apps are data sources whose failure cascades down, while **Consumer-only** apps represent system endpoints.
+- **Topic Fanout**: Evaluates message multiplication factors. A high **Max Fanout** amplifies the blast radius of bad data (e.g., if a publisher sends malformed data, it simultaneously crashes many subscribers). It also highlights 1→N (broadcast) and N→1 (aggregation) communication patterns.
+- **Cross-Node Heatmap & Node Load**: Analyzes traffic distribution across physical infrastructure. High inter-node traffic relative to intra-node traffic suggests poor deployment strategies (tightly coupled apps placed on different servers). High coefficient of variation in Node Load indicates severe resource imbalances.
+- **Segment Communication**: Evaluates logical coupling between business domains/segments. High cross-segment traffic indicates tight coupling and bleeding of segment responsibilities, which violates Domain-Driven Design (DDD) principles.
+- **Criticality × I/O Load**: Compares the I/O load of critical vs. non-critical applications. If critical applications handle significantly higher I/O loads, they represent severe bottlenecks and potential system vulnerabilities.
+- **Library Dependency**: Identifies tightly coupled shared libraries. Libraries with high "In-Degree" are foundational components; changes to these libraries carry a high risk of regression across the system.
+- **Node Critical Density**: Identifies infrastructure concentration risk. Nodes hosting a disproportionately high percentage of critical applications represent severe Single Points of Failure (SPOF) at the hardware level.
+- **Segment Diversity**: Evaluates the logical composition of segments. Low diversity (few apps/topics) may indicate a fragmented architecture, while excessively high diversity might point to a monolithic segment that has absorbed too many responsibilities.
 
 ---
 
@@ -72,6 +86,14 @@ Accessed via `src.analysis.statistics_service.StatisticsService` which delegates
 | **Dependency Depth** | `get_dependency_depth` | BFS hierarchy analysis to find deepest components and roots/leaves. |
 | **Component Isolation** | `get_component_isolation`| Classifies components as Source, Sink, Bidirectional, or Isolated. |
 | **Redundancy & SPOF** | `get_component_redundancy`| Identifies Single Points of Failure and bridge components. |
+
+### Topological Interpretations & Insights
+
+- **Degree Distribution**: Identifies structural hubs. Nodes with degree > mean + 2σ are structural bottlenecks.
+- **Connectivity Density**: A measure of overall system coupling. Sparse graphs (< 0.05) are highly decoupled, while very dense graphs (> 0.30) indicate a "big ball of mud" architecture where everything is connected to everything.
+- **Clustering Coefficient**: High clustering indicates modular, localized groups of components.
+- **Component Isolation**: Identifies detached sub-graphs. Isolated components are often deprecated features or incomplete integrations.
+- **Redundancy & SPOF**: Identifies Articulation Points (nodes whose removal splits the graph into disconnected components) and Bridges (critical edges between subsystems).
 
 ---
 
@@ -122,7 +144,7 @@ The `bin/statistics_graph.py` script provides a command-line interface for both 
       "name": "Processor", 
       "criticality": true, 
       "role": "Publisher",
-      "system_hierarchy": {"css_name": "Domain-X"}
+      "system_hierarchy": {"css_name": "Segment-X"}
     }, ...
   ],
   "topics": [
@@ -142,7 +164,7 @@ The `bin/statistics_graph.py` script provides a command-line interface for both 
 ```
 
 > [!NOTE]
-> The `applications` objects must include the `role` and `system_hierarchy.css_name` keys to ensure that domain-based charts like domain communication and diversity are generated correctly and do not silently fall back to `NOT_FOUND`.
+> The `applications` objects must include the `role` and `system_hierarchy.css_name` keys to ensure that segment-based charts like segment communication and diversity are generated correctly and do not silently fall back to `NOT_FOUND`.
 
 ## Dependencies
 

@@ -118,9 +118,9 @@ CHART_REGISTRY: Dict[str, Dict[str, Any]] = {
     "domain_comm": {
         "title": "Segment Communication Matrix",
         "summary_keys": [
-            ("domain_count",        "Segments",              "d"),
-            ("cross_domain_pairs",  "Cross-Segment Pairs",   "d"),
-            ("total_cross_traffic", "Total Cross Traffic",  "d"),
+            ("entity_count",        "Segments",              "d"),
+            ("cross_pairs",         "Cross-Segment Pairs",   "d"),
+            ("inter_total",         "Total Cross Traffic",   "d"),
             ("outlier_count",       "Outlier Pairs (IQR)",  "d"),
         ],
     },

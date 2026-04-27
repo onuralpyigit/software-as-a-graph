@@ -273,7 +273,7 @@ def extract_cross_cutting_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
         "topic_sub_count": topic_sub_count,
         "app_criticality": {a["id"]: a.get("criticality", False) for a in apps},
         "app_role": {a["id"]: a.get("role", "NOT_FOUND") for a in apps},
-        "app_domain": {
+        "app_segment": {
             a["id"]: (a.get("system_hierarchy") or {}).get("css_name", "NOT_FOUND")
             for a in apps
         },
@@ -771,24 +771,24 @@ def compute_node_comm_load_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def compute_domain_comm_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
-    """Compute domain-to-domain communication matrix statistics."""
-    app_domain = cc["app_domain"]
-    domain_set = sorted({d for d in app_domain.values() if d != "NOT_FOUND"})
+def compute_segment_comm_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute segment-to-segment communication matrix statistics."""
+    app_segment = cc["app_segment"]
+    segment_set = sorted({d for d in app_segment.values() if d != "NOT_FOUND"})
 
-    if len(domain_set) < 2:
-        return {"domain_set": domain_set, "labels": [], "matrix": np.zeros((0, 0)),
+    if len(segment_set) < 2:
+        return {"domain_set": segment_set, "labels": [], "matrix": np.zeros((0, 0)),
                 "outlier_pairs": [], "iqr_upper": 0, "iqr": 0, "summary": {}}
 
-    n = len(domain_set)
-    labels = [d[:25] for d in domain_set]
+    n = len(segment_set)
+    labels = [d[:25] for d in segment_set]
     matrix = _build_communication_matrix(
-        cc, lambda aid: app_domain.get(aid, "NOT_FOUND") if app_domain.get(aid, "NOT_FOUND") != "NOT_FOUND" else None,
-        domain_set)
+        cc, lambda aid: app_segment.get(aid, "NOT_FOUND") if app_segment.get(aid, "NOT_FOUND") != "NOT_FOUND" else None,
+        segment_set)
 
     matrix_stats = _compute_matrix_stats(matrix, labels, n)
     return {
-        "domain_set": domain_set, "labels": labels, "matrix": matrix,
+        "domain_set": segment_set, "labels": labels, "matrix": matrix,
         **matrix_stats,
     }
 
@@ -1001,45 +1001,45 @@ def compute_node_critical_density_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def compute_domain_diversity_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
-    """Compute domain application and topic diversity statistics."""
-    app_domain = cc["app_domain"]
+def compute_segment_diversity_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute segment application and topic diversity statistics."""
+    app_segment = cc["app_segment"]
     app_pub = cc["app_pub_count"]
     app_sub = cc["app_sub_count"]
 
-    domain_set = sorted({d for d in app_domain.values() if d != "NOT_FOUND"})
-    if len(domain_set) < 2:
-        return {"domain_set": domain_set, "labels": [], "app_counts": [],
+    segment_set = sorted({d for d in app_segment.values() if d != "NOT_FOUND"})
+    if len(segment_set) < 2:
+        return {"domain_set": segment_set, "labels": [], "app_counts": [],
                 "topic_counts": [], "io_vals": [], "ranked": [],
                 "summary": {}}
 
-    domain_apps: Dict[str, set] = {d: set() for d in domain_set}
-    domain_topics: Dict[str, set] = {d: set() for d in domain_set}
-    domain_io: Dict[str, int] = {d: 0 for d in domain_set}
+    segment_apps: Dict[str, set] = {d: set() for d in segment_set}
+    segment_topics: Dict[str, set] = {d: set() for d in segment_set}
+    segment_io: Dict[str, int] = {d: 0 for d in segment_set}
 
-    for aid, dom in app_domain.items():
-        if dom in domain_apps:
-            domain_apps[dom].add(aid)
-            domain_io[dom] += app_pub.get(aid, 0) + app_sub.get(aid, 0)
+    for aid, dom in app_segment.items():
+        if dom in segment_apps:
+            segment_apps[dom].add(aid)
+            segment_io[dom] += app_pub.get(aid, 0) + app_sub.get(aid, 0)
 
     for rel in cc["publishes_to"]:
         aid = rel.get("from")
         tid = rel.get("to")
-        dom = app_domain.get(aid, "NOT_FOUND")
-        if dom in domain_topics and tid:
-            domain_topics[dom].add(tid)
+        dom = app_segment.get(aid, "NOT_FOUND")
+        if dom in segment_topics and tid:
+            segment_topics[dom].add(tid)
 
     for rel in cc["subscribes_to"]:
         aid = rel.get("from")
         tid = rel.get("to")
-        dom = app_domain.get(aid, "NOT_FOUND")
-        if dom in domain_topics and tid:
-            domain_topics[dom].add(tid)
+        dom = app_segment.get(aid, "NOT_FOUND")
+        if dom in segment_topics and tid:
+            segment_topics[dom].add(tid)
 
-    labels = list(domain_set)
-    app_counts = [len(domain_apps[d]) for d in labels]
-    topic_counts = [len(domain_topics[d]) for d in labels]
-    io_vals = [domain_io[d] for d in labels]
+    labels = list(segment_set)
+    app_counts = [len(segment_apps[d]) for d in labels]
+    topic_counts = [len(segment_topics[d]) for d in labels]
+    io_vals = [segment_io[d] for d in labels]
 
     ranked = sorted(
         zip(labels, app_counts, topic_counts, io_vals),
@@ -1058,7 +1058,7 @@ def compute_domain_diversity_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         summary["io_max"] = int(np.max(io_vals))
 
     return {
-        "domain_set": domain_set, "labels": labels,
+        "domain_set": segment_set, "labels": labels,
         "app_counts": app_counts, "topic_counts": topic_counts,
         "io_vals": io_vals, "ranked": ranked,
         "summary": summary,
@@ -1197,11 +1197,11 @@ def compute_all_extras_statistics(
         "topic_fanout": compute_topic_fanout_stats(cc),
         "cross_node_heatmap": compute_cross_node_heatmap_stats(cc),
         "node_comm_load": compute_node_comm_load_stats(cc),
-        "domain_comm": compute_domain_comm_stats(cc),
+        "domain_comm": compute_segment_comm_stats(cc),
         "criticality_io": compute_criticality_io_stats(cc),
         "lib_dependency": compute_lib_dependency_stats(cc),
         "node_critical_density": compute_node_critical_density_stats(cc),
-        "domain_diversity": compute_domain_diversity_stats(cc),
+        "domain_diversity": compute_segment_diversity_stats(cc),
     }
 
     if risk_weight_fn is not None:
