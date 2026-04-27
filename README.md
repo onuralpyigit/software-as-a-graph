@@ -531,6 +531,8 @@ Architecture JSON
 | **5. Validate** | Computes Spearman ρ and Kendall τ between Q*(v) (from Analyze) or Q_ens(v) (from Predict) and I*(v); evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
 | **6. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
 
+> **Note — Generate is not part of the SaG methodology.** The `--generate` CLI flag and `bin/generate_graph.py` script produce synthetic pub-sub topologies for evaluation and benchmarking purposes only. Real deployments start at Step 1 (Import) with an actual architecture description. Synthetic graphs are useful for reproducible experiments, scale sweeps, and CI regression tests, but they are not inputs the methodology assumes or requires. Reviewers asking "is this validated on real or synthetic data?" should note that the published Spearman and F1 results use eight domain-scenario topologies in `input/`, not generated data.
+
 ### Scale Presets
 
 The synthetic generator supports five scale presets for rapid experimentation:

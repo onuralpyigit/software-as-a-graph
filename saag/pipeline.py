@@ -124,7 +124,10 @@ class Pipeline:
         # 3. Predict — inductive: GNN criticality ranks + ensemble blend
         if self._do_predict:
             if result.analysis is None:
-                raise RuntimeError("predict() requires analyze() to run first.")
+                raise RuntimeError(
+                    "predict() requires an AnalysisResult. "
+                    "Either call analyze() in this pipeline or pass a stored result via client.predict()."
+                )
             logger.info("Running GNN prediction (inductive stage)...")
             result.prediction = self.client.predict(result.analysis, **self._predict_kwargs)
 

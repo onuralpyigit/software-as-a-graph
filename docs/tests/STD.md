@@ -758,9 +758,9 @@ System tests exercise the complete pipeline through CLI tools and the Docker sta
 
 | Test ID | Scale | Description | Pass Criteria |
 |---------|-------|-------------|---------------|
-| ST-E2E-01 | Small | Full CLI pipeline (~10–25 components) | All 6 steps complete; dashboard generated |
-| ST-E2E-02 | Medium | Full CLI pipeline (~30–50 components) | All 6 steps complete; validation passes |
-| ST-E2E-03 | Large | Full CLI pipeline (~60–100 components) | All 6 steps complete within time budget |
+| ST-E2E-01 | Small | Full CLI pipeline (~10–25 components) | All 6 methodology steps complete (Import → Analyze → Predict → Simulate → Validate → Visualize); dashboard generated. Generate (Stage 0) is pre-pipeline and excluded from this count. |
+| ST-E2E-02 | Medium | Full CLI pipeline (~30–50 components) | All 6 methodology steps complete; validation passes |
+| ST-E2E-03 | Large | Full CLI pipeline (~60–100 components) | All 6 methodology steps complete within time budget |
 
 **Procedure (small scale):**
 

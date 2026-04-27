@@ -27,7 +27,7 @@ def main():
     group.add_argument("--all", action="store_true", help="Run all stages (generate -> import -> analyze -> simulate -> validate -> visualize)")
     group.add_argument("--generate", action="store_true", help="Run graph generation stage")
     group.add_argument("--input", "-i", metavar="FILE", help="System topology JSON file (input for import, output for generate)")
-    group.add_argument("--analyze", action="store_true", help="Run analysis stage (includes GNN prediction & problem detection)")
+    group.add_argument("--analyze", action="store_true", help="Run analysis stage (structural metrics, RMAV/Q scores, anti-patterns)")
     group.add_argument("--predict", action="store_true", help="Explicitly run prediction stage")
     group.add_argument("--simulate", action="store_true", help="Run failure simulation stage")
     group.add_argument("--validate", action="store_true", help="Run validation stage (compare prediction vs simulation)")
@@ -78,7 +78,7 @@ def main():
         gen_args = _ap.Namespace(**vars(args))
         gen_args.output = gen_output
 
-        display.print_header("Stage 1/6: Graph Generation")
+        display.print_header("Stage 0/6: Graph Generation (optional)")
         display.print_step("Generating synthetic topology...")
         data = dispatch_generate(gen_args)
         display.display_graph_data_summary(data)
