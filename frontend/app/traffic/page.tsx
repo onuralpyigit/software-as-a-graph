@@ -310,6 +310,18 @@ export default function TrafficSimulatorPage() {
     ? Math.max(...result.broker_usage.map(b => b.bandwidth_bps), 1)
     : 1
 
+  const maxTopicBps = result
+    ? Math.max(...result.per_topic.map(t => t.bandwidth_total_bps), 1)
+    : 1
+
+  const totalInboundBps = result
+    ? result.per_topic.reduce((s, t) => s + t.bandwidth_in_bps, 0)
+    : 0
+
+  const totalOutboundBps = result
+    ? result.per_topic.reduce((s, t) => s + t.bandwidth_out_bps, 0)
+    : 0
+
   // ------------------------------------------------------------------
   // Render
   // ------------------------------------------------------------------
@@ -876,6 +888,10 @@ export default function TrafficSimulatorPage() {
                     <Server className="h-4 w-4 mr-2" />
                     Broker Usage ({result.broker_usage.length})
                   </TabsTrigger>
+                  <TabsTrigger value="network">
+                    <Wifi className="h-4 w-4 mr-2" />
+                    Network Usage
+                  </TabsTrigger>
                   <TabsTrigger value="overview">
                     <BarChart3 className="h-4 w-4 mr-2" />
                     Overview
@@ -1027,6 +1043,108 @@ export default function TrafficSimulatorPage() {
                   </div>
                   </div>
                 )}
+              </TabsContent>
+
+              {/* Network usage tab */}
+              <TabsContent value="network">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="pt-5">
+                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                          <Activity className="h-4 w-4" />
+                          <span className="text-xs">Total inbound</span>
+                        </div>
+                        <div className="text-xl font-bold">{formatBytes(totalInboundBps)}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">publishers → brokers</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5">
+                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                          <Network className="h-4 w-4" />
+                          <span className="text-xs">Total outbound</span>
+                        </div>
+                        <div className="text-xl font-bold">{formatBytes(totalOutboundBps)}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">brokers → subscribers</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5">
+                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                          <Wifi className="h-4 w-4" />
+                          <span className="text-xs">Combined</span>
+                        </div>
+                        <div className="text-xl font-bold">{formatBytes(result.summary.total_network_bps)}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">inbound + outbound</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">
+                    Per-topic network breakdown. Inbound = publisher-side bytes arriving at the broker; Outbound = fan-out bytes delivered to all subscribers.
+                  </p>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {[...result.per_topic]
+                      .sort((a, b) => b.bandwidth_total_bps - a.bandwidth_total_bps)
+                      .map(t => {
+                        const totalRatio = t.bandwidth_total_bps / maxTopicBps
+                        const inRatio = t.bandwidth_total_bps > 0 ? t.bandwidth_in_bps / t.bandwidth_total_bps : 0
+                        const outRatio = t.bandwidth_total_bps > 0 ? t.bandwidth_out_bps / t.bandwidth_total_bps : 0
+                        return (
+                          <Card key={t.topic_id}>
+                            <CardHeader className="pb-2">
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm font-medium truncate" title={t.topic_name}>{t.topic_name}</CardTitle>
+                                <span className={`text-sm font-bold font-mono ml-2 shrink-0 ${getBandwidthColor(t.bandwidth_total_bps, maxTopicBps)}`}>
+                                  {formatBytes(t.bandwidth_total_bps)}
+                                </span>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              {/* Total bandwidth bar */}
+                              <div>
+                                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${totalRatio > 0.8 ? "bg-red-500" : totalRatio > 0.5 ? "bg-orange-500" : totalRatio > 0.2 ? "bg-yellow-500" : "bg-green-500"}`}
+                                    style={{ width: `${Math.max(2, totalRatio * 100).toFixed(1)}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Stacked in/out bar */}
+                              <div>
+                                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                                  <span>In / Out split</span>
+                                  <span>{(inRatio * 100).toFixed(0)}% / {(outRatio * 100).toFixed(0)}%</span>
+                                </div>
+                                <div className="h-2 bg-muted rounded-full overflow-hidden flex">
+                                  <div className="h-full bg-blue-500 rounded-l-full" style={{ width: `${(inRatio * 100).toFixed(1)}%` }} />
+                                  <div className="h-full bg-emerald-500 rounded-r-full" style={{ width: `${(outRatio * 100).toFixed(1)}%` }} />
+                                </div>
+                                <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-blue-500" />In {formatBytes(t.bandwidth_in_bps)}</span>
+                                  <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />Out {formatBytes(t.bandwidth_out_bps)}</span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                  <div className="text-xs text-muted-foreground">Pubs × Hz</div>
+                                  <div className="font-mono font-medium">{t.publisher_count} × {t.frequency_hz} = {t.msgs_published_per_sec.toFixed(1)} msg/s</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs text-muted-foreground">Fan-out</div>
+                                  <div className="font-mono font-medium">{t.msgs_delivered_per_sec.toFixed(1)} msg/s ({t.subscriber_count} subs)</div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                  </div>
+                </div>
               </TabsContent>
 
               {/* Overview tab */}
