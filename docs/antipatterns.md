@@ -147,18 +147,19 @@ Analysis is organized across four architectural projections, each providing a di
 
 ## 4. Detection Methodology
 
-### 4.1 The Six-Step Analysis Pipeline
+### 4.1 The Analysis Pipeline
 
-Anti-pattern detection is the third step of a six-step pipeline. Steps 1 and 2 produce the structural metric vectors on which detection is based. Step 4 validates detection findings empirically through failure simulation.
+Anti-pattern detection runs as part of the Analyze stage. The structural sub-phase produces the metric vectors on which detection is based. The Simulate stage validates detection findings empirically.
 
 ```
-Step 1: Graph Model Construction       G(V, E, w) from system topology
-Step 2: Structural Analysis            M(v) — 13 topological metrics per component
-Step 3: Prediction                Q(v) — RMAV + optional GNN criticality scores
+Step 1: Import                         G(V, E, w) from system topology
+Step 2: Analyze — structural           M(v) — 13 topological metrics per component
+Step 2: Analyze — RMAV scoring    Q(v) — deterministic AHP-weighted criticality scores
         └── Anti-Pattern Detection     Pattern(v) — smell classification  ← this document
-Step 4: Failure Simulation             I(v) — ground-truth impact scores
-Step 5: Statistical Validation         ρ(Q, I), F1 — empirical verification
-Step 6: Visualization                  Interactive dashboard with pattern annotations
+Step 3: Predict (optional)             Q_ens(v) — GNN-refined ensemble scores
+Step 4: Simulate                       I(v) — ground-truth impact scores
+Step 5: Validate                       ρ(Q, I), F1 — empirical verification
+Step 6: Visualize                      Interactive dashboard with pattern annotations
 ```
 
 ### 4.2 The Thirteen Structural Metrics

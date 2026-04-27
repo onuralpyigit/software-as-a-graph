@@ -1,8 +1,8 @@
-# Step 6: Visualization
+# Step 6: Visualize
 
 **Translate quantitative analysis into interactive dashboards for architectural decision-making.**
 
-← [Step 5: Validation](validation.md) | [README](../README.md)
+← [Step 5: Validate](validation.md) | [README](../README.md)
 
 ---
 
@@ -603,4 +603,4 @@ Step 6 completes the six-step methodology loop.
 
 ---
 
-← [Step 5: Validation](validation.md) | [README](../README.md)
+← [Step 5: Validate](validation.md) | [README](../README.md)

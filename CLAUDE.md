@@ -168,20 +168,19 @@ pytest -k "test_name"  # Run by test name pattern
 - `Dockerfile.all-in-one` and `Dockerfile.api` exist at root for alternative deployment
 - Neo4j plugins: APOC and Graph Data Science
 
-## The 6-Step Pipeline
+## The Pipeline
 
 ```
-Architecture → Graph → Metrics → Scores → Simulation → Validation → Dashboard
-   (input)     Step 1   Step 2    Step 3    Step 4       Step 5       Step 6
+Architecture → Import → Analyze → Predict → Simulate → Validate → Visualize
+   (input)     Step 1   Step 2    Step 3    Step 4      Step 5      Step 6
 ```
 
-1. **Graph Model** — Converts topology JSON to a weighted directed graph in Neo4j; derives DEPENDS_ON edges via six rules (see below).
-2. **Structural Analysis** — Computes centrality metrics (Reverse PageRank, Betweenness, Bridge Ratio, etc.).
-3. **Prediction** — Maps metrics to RMAV dimensions (AHP weights) and detects anti-patterns.
-3.5 **GNN Refinement** — (Optional) Trains/Runs GNN on topology to refine RMAV scores via Ensemble blending.
-4. **Failure Simulation** — Injects faults; runs four parallel ground-truth simulators.
-5. **Validation** — Per-dimension statistical comparison: Q(v) vs I(v).
-6. **Visualization** — Generates interactive dashboards (web or static HTML).
+1. **Import** — Converts topology JSON to a weighted directed graph in Neo4j; derives DEPENDS_ON edges via six rules (see below).
+2. **Analyze** — Deterministic, interpretable scoring from structure and metadata. Computes structural metrics (Reverse PageRank, Betweenness, Bridge Ratio, etc.), maps them to RMAV dimension scores and Q(v) via AHP-weighted closed-form formulas, and detects anti-patterns. Given the same graph, always produces the same output. _This is a rule-based model in the formal sense._
+3. **Predict** — (Optional) Inductive forecasting that generalises beyond the closed form. A HeteroGAT learns nonlinear interactions, multi-hop motifs, and cross-type embedding effects that the AHP-weighted composite cannot encode. Consumes the `StructuralAnalysisResult` produced by Analyze (no repository access); emits GNN-derived criticality ranks, edge criticality, attention weights, and ensemble-blended scores (`Q_ensemble = α·Q_GNN + (1−α)·Q_RMAV`).
+4. **Simulate** — Counterfactual cascade engine. Injects faults, runs four parallel ground-truth simulators, and produces per-RMAV impact labels IR(v)/IM(v)/IA(v)/IV(v). Also generates the training/evaluation labels consumed by Predict.
+5. **Validate** — Per-dimension statistical comparison: Predict output (and optionally raw Q(v) from Analyze) vs Simulate-derived ground truth. Reports Spearman, F1, NDCG@K, and dimension-specific metrics.
+6. **Visualize** — Generates interactive dashboards (web or static HTML).
 
 ### DEPENDS_ON Derivation Rules
 
@@ -264,8 +263,8 @@ The `AntiPatternDetector` audits quality results and flags architectural smells:
 | **CHAIN** | Weakly connected sequence length >= 4 | MEDIUM |
 | **SYSTEMIC_RISK** | `CRITICAL` nodes count > 20% of system | CRITICAL |
 
-### GNN Refinement
-Step 3.5 integrates GNN predictions via an ensemble approach:
+### Predict Stage — GNN Ensemble
+Step 3 integrates GNN predictions via an ensemble approach:
 ```
 Q_ensemble(v) = α · Q_GNN + (1 - α) · Q_RMAV
 ```

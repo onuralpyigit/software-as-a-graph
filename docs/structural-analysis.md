@@ -1,8 +1,8 @@
-# Step 2: Analysis
+# Step 2: Analyze — Structural Metrics
 
 **Compute every component's structural fingerprint — the set of numbers that explain how it can fail and who it takes down with it.**
 
-← [Step 1: Modeling](graph-model.md) | → [Step 3: Prediction](prediction.md)
+← [Step 1: Import](graph-model.md) | → [Step 2–3: Analyze & Predict](prediction.md)
 
 ---
 
@@ -837,4 +837,4 @@ Step 3 (Prediction) maps M(v) into four interpretable RMAV quality dimensions �
 
 ---
 
-← [Step 1: Modeling](graph-model.md) | → [Step 3: Prediction](prediction.md)
+← [Step 1: Import](graph-model.md) | → [Step 2–3: Analyze & Predict](prediction.md)

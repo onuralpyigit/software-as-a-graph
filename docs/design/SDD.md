@@ -33,7 +33,7 @@ This document describes the technical design of the Software-as-a-Graph framewor
 
 ### 1.2 Scope
 
-The design covers the full six-step methodology pipeline: graph model construction, structural analysis, prediction, failure simulation, statistical validation, and interactive visualization. The system follows a **four-layer architecture** (Presentation, Web Application, Pipeline Components, Core) with dependency inversion at the repository boundary: the Core layer defines the `IGraphRepository` interface, and the Neo4j adapter implements it, keeping domain logic free of infrastructure dependencies.
+The design covers the full pipeline: Import (graph model construction), Analyze (structural analysis + deterministic RMAV/Q scoring), Predict (optional inductive GNN forecasting), Simulate (failure simulation), Validate (statistical validation), and Visualize (interactive visualization). The system follows a **four-layer architecture** (Presentation, Web Application, Pipeline Components, Core) with dependency inversion at the repository boundary: the Core layer defines the `IGraphRepository` interface, and the Neo4j adapter implements it, keeping domain logic free of infrastructure dependencies.
 
 The system is delivered through two mechanisms — a **CLI pipeline** (`bin/`) and a **Genieus web application** (FastAPI backend + Next.js frontend) — both of which invoke the same underlying domain packages.
 
@@ -96,6 +96,7 @@ Section 2 describes the system context, design constraints, and guiding principl
 
 | 2.2 | February 2026 | Updated RMAV formulas to match implementation (§4.2, §5.2, §6, Appendix B); corrected architecture description to four-layer (§1.2, §3.1); fixed REST API endpoint paths to `/api/v1/` with correct HTTP methods (§8.2); added missing endpoints; added `benchmark/` to module decomposition (§3.2); added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL algorithmic descriptions (§6.13–§6.18); corrected metric-to-dimension orthogonality table (§4.2); updated Appendix A layer IDs; updated Appendix B AHP matrices; extended Appendix D traceability for SRS v2.2 requirements |
 | 2.3 | March 2026 | Refactored backend API to use **Presenters** for decoupled response formatting (§3.1, §3.2); updated module decomposition to include `backend/api/presenters/`; enhanced dependency injection in `backend/api/dependencies.py`; updated quality formulas to v2.3 (5-term Maintainability, QoS-weighted SPOF, CDPot_enh) |
+| 2.4 | April 2026 | Clarified pipeline stage semantics: **Analyze** (deterministic, closed-form RMAV/Q scoring + anti-patterns) and **Predict** (inductive GNN forecasting, optional) are now named distinct stages. Updated §1.2, §2.1, §2.3, §3.4, §4.2 to reflect Import → Analyze → Predict → Simulate → Validate → Visualize naming. Updated `saag.Pipeline`, `saag.Client`, `saag.AnalysisResult`, and `saag.PredictionResult` SDK contracts accordingly. |
 
 ---
 
@@ -115,8 +116,8 @@ The framework offers two usage modes: a **CLI pipeline** for batch analysis and 
              ┌──────────────────────▼──┐  ┌▼───────────────────────┐
              │   CLI Pipeline (bin/)   │  │  Genieus Web App        │
              │                        │  │                         │
-             │  Generate → Import →   │  │  Next.js Frontend       │
-             │  Analyze → Simulate →  │  │  (port 7000)            │
+             │  Import → Analyze →    │  │  Next.js Frontend       │
+             │  Predict → Simulate →  │  │  (port 7000)            │
              │  Validate → Visualize  │  │       │ HTTP             │
              │                        │  │  FastAPI Backend         │
              └───────────┬────────────┘  │  (port 8000)            │
@@ -149,7 +150,7 @@ Input formats: JSON topology (REQ-GM-01), GraphML topology (REQ-GM-02)
 
 The system follows SOLID principles with emphasis on three key decisions:
 
-**Separation of prediction from validation.** Steps 2–3 produce predicted scores Q(v) using only topology. Step 4 produces ground-truth scores I(v) using simulation. Step 5 compares the two. This separation prevents circular reasoning and ensures methodological rigor.
+**Separation of scoring from validation.** The Analyze stage (Step 2) produces deterministic Q(v) from topology alone; the optional Predict stage (Step 3) refines to Q_ens(v) via GNN. The Simulate stage (Step 4) produces ground-truth I(v) independently. The Validate stage (Step 5) compares the two. This separation prevents circular reasoning and ensures methodological rigor.
 
 **Layered architecture with dependency inversion.** Domain logic (models, services, algorithms) has zero dependencies on infrastructure (Neo4j, file system). Infrastructure adapters implement domain-defined interfaces, making the core testable without a database.
 
@@ -304,40 +305,41 @@ software-as-a-graph/
 JSON / GraphML Topology
      │
      ▼
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Import to   │    │ Structural  │    │  Quality    │
-│  Neo4j       │───▶│  Analyzer   │───▶│  Analyzer   │
-│  (Step 1)    │    │  (Step 2)   │    │  (Step 3)   │
-└─────────────┘    └─────────────┘    └──────┬──────┘
-                                             │
-                    G_structural             Q(v) predicted
-                         │                   │
-                         ▼                   │
-                   ┌─────────────┐           │
-                   │  Failure    │           │
-                   │  Simulator  │           │
-                   │  (Step 4)   │           │
-                   └──────┬──────┘           │
-                          │                  │
-                     I(v) actual             │
-                          │                  │
-                          ▼                  ▼
-                   ┌─────────────────────────────┐
-                   │        Validator             │
-                   │        (Step 5)              │
-                   │  Compare Q(v) vs I(v)        │
-                   └──────────────┬──────────────┘
+┌─────────────┐    ┌──────────────────────────┐    ┌─────────────────────┐
+│  Import      │    │  Analyze                 │    │  Predict (optional) │
+│  (Step 1)    │───▶│  Structural Analyzer     │───▶│  GNN Service        │
+│              │    │  + Quality Analyzer      │    │  (Step 3)           │
+│              │    │  + Anti-Pattern Detector │    │                     │
+└─────────────┘    │  (Step 2)                │    └──────────┬──────────┘
+                   └────────────┬─────────────┘               │
+                                │                              │
+                    G_analysis  Q(v) + RMAV                   Q_ens(v)
+                                │        └────────────────────┘
+                    G_structural │                Q(v) or Q_ens(v) predicted
+                         │      │                        │
+                         ▼      │                        │
+                   ┌─────────────┐                      │
+                   │  Simulate   │                      │
+                   │  (Step 4)   │                      │
+                   └──────┬──────┘                      │
+                          │                             │
+                     I(v) ground truth                  │
+                          │                             │
+                          ▼                             ▼
+                   ┌─────────────────────────────────────┐
+                   │        Validate (Step 5)             │
+                   │   Compare Q(v)/Q_ens(v) vs I(v)      │
+                   └──────────────┬──────────────────────┘
                                   │
                           All results
                                   │
                                   ▼
                    ┌─────────────────────────────┐
-                   │    Dashboard Generator       │
-                   │        (Step 6)              │
+                   │    Visualize (Step 6)        │
                    └─────────────────────────────┘
 ```
 
-**Key:** Steps 2–3 operate on **G\_analysis** (derived DEPENDS\_ON edges only). Step 4 operates on **G\_structural** (all raw relationships) for realistic cascade propagation. This separation is deliberate — analysis needs abstracted dependencies for centrality, simulation needs physical topology for cascades.
+**Key:** Steps 2–3 (Analyze and Predict) operate on **G\_analysis** (derived DEPENDS\_ON edges only). Step 4 (Simulate) operates on **G\_structural** (all raw relationships) for realistic cascade propagation. This separation is deliberate — analysis needs abstracted dependencies for centrality, simulation needs physical topology for cascades.
 
 ### 3.5 Deployment Architecture
 
@@ -404,7 +406,7 @@ Port mapping (host → container):
 
 These are Python dataclasses that flow between services. All continuous metrics are normalized to [0, 1] via min-max scaling (see §6.8).
 
-**StructuralMetrics** — output of Step 2, one per component. The output vector M(v) has up to 20 fields:
+**StructuralMetrics** — output of the Analyze stage structural sub-phase (Step 2), one per component. The output vector M(v) has up to 20 fields:
 
 | Field | Type | Symbol | Description | RMAV Usage |
 |-------|------|--------|-------------|------------|
@@ -459,7 +461,7 @@ These are Python dataclasses that flow between services. All continuous metrics 
 | Closeness | CL | — | — | — | — | Reported only |
 | Eigenvector | EV | — | — | — | — | Reported only |
 
-**QualityScores** — output of Step 3, one per component:
+**QualityScores** — output of the Analyze stage (Step 2), one per component:
 
 | Field | Type | Description |
 |-------|------|-------------|

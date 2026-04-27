@@ -98,14 +98,34 @@ class ComponentFacade:
 
 
 class AnalysisResult:
-    """Result of the structural graph analysis step."""
+    """Result of the deterministic Analyze stage: structural metrics, RMAV dimension scores, Q(v), and anti-pattern problems."""
     def __init__(self, inner: _LayerAnalysisResult):
         self._inner = inner
-    
+
     @property
     def raw(self) -> _LayerAnalysisResult:
         """Access the underlying internal model."""
         return self._inner
+
+    @property
+    def quality(self) -> _QualityAnalysisResult:
+        """RMAV quality scores and criticality levels for all components (closed-form, deterministic)."""
+        return self._inner.quality
+
+    @property
+    def critical_components(self) -> List["ComponentFacade"]:
+        """Components classified as CRITICAL by the RMAV/Q scoring."""
+        return [ComponentFacade(c) for c in self._inner.quality.get_critical_components()]
+
+    @property
+    def all_components(self) -> List["ComponentFacade"]:
+        """All assessed components with their RMAV scores and criticality levels."""
+        return [ComponentFacade(c) for c in self._inner.quality.components]
+
+    @property
+    def problems(self) -> List[_DetectedProblem]:
+        """Anti-patterns and architectural smells detected from Q(v) thresholds."""
+        return self._inner.problems or []
 
     def save(self, filepath: str) -> None:
         """Export the analysis result to a JSON file."""
@@ -113,51 +133,40 @@ class AnalysisResult:
         from pathlib import Path
         out = Path(filepath)
         out.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Using the comprehensive dictionary representation
         data = self._inner.to_dict()
         with out.open("w") as f:
             json.dump(data, f, indent=2, default=str)
 
 
 class PredictionResult:
-    """Result of the quality prediction step (Statistical or GNN)."""
-    def __init__(self, inner: Any, problems: Optional[List[_DetectedProblem]] = None):
-        self._inner = inner
-        self._problems = problems or []
+    """Result of the inductive Predict stage: GNN-derived criticality ranks, attention weights, and ensemble-blended scores.
 
-    @property
-    def problems(self) -> List[_DetectedProblem]:
-        """Detected anti-patterns and architectural smells."""
-        return self._problems
+    This stage generalises beyond the closed-form RMAV composite by learning nonlinear
+    interactions and multi-hop motifs that AHP-weighted scoring cannot encode.
+    RMAV/Q scores (deterministic) are available on AnalysisResult, not here.
+    """
+    def __init__(self, inner: Any):
+        self._inner = inner
 
     @property
     def critical_components(self) -> List[ComponentFacade]:
-        """Components identified as CRITICAL by the prediction model."""
-        if hasattr(self._inner, "get_critical_components"):
-            return [ComponentFacade(c) for c in self._inner.get_critical_components()]
-        
-        # GNN model check
-        comps = []
+        """Components identified as CRITICAL by the GNN/ensemble model."""
         source_dict = getattr(self._inner, "ensemble_scores", getattr(self._inner, "node_scores", {}))
-        for score in source_dict.values():
-            if getattr(score, "criticality_level", "") == "CRITICAL":
-                comps.append(ComponentFacade(score))
-        return comps
-        
+        return [
+            ComponentFacade(score)
+            for score in source_dict.values()
+            if getattr(score, "criticality_level", "") == "CRITICAL"
+        ]
+
     @property
     def all_components(self) -> List[ComponentFacade]:
-        """All assessed components in this layer."""
-        if hasattr(self._inner, "components") and isinstance(self._inner.components, list):
-            return [ComponentFacade(c) for c in self._inner.components]
-            
-        # GNN model check
+        """All components ranked by GNN/ensemble criticality."""
         source_dict = getattr(self._inner, "ensemble_scores", getattr(self._inner, "node_scores", {}))
-        return [ComponentFacade(c) for c in source_dict.values()]
+        return [ComponentFacade(score) for score in source_dict.values()]
 
     @property
     def raw(self) -> Any:
-        """Access the underlying internal model."""
+        """Access the underlying GNNAnalysisResult."""
         return self._inner
 
     def save(self, filepath: str) -> None:
@@ -228,12 +237,18 @@ class ValidationPipelineFacade:
 
 @dataclass
 class PipelineExecutionResult:
-    """Aggregate result from running the full Pipeline sequentially."""
+    """Aggregate result from running the full Pipeline sequentially.
+
+    Stage mapping:
+      analysis   — deterministic Analyze stage (structural metrics + RMAV/Q scores + anti-patterns)
+      prediction — inductive Predict stage (GNN criticality ranks, ensemble blend); optional
+      simulation — Simulate stage (counterfactual cascade ground truth)
+      validation — Validate stage (Predict/Analyze vs Simulate ground truth)
+    """
     analysis: Optional[AnalysisResult] = None
     prediction: Optional[PredictionResult] = None
     simulation: Optional[Any] = None
     validation: Optional[ValidationPipelineFacade] = None
-    problems: Optional[List[_DetectedProblem]] = None
 
     def save(self, filepath: str) -> None:
         """Export the full pipeline result to a JSON file."""
@@ -259,9 +274,6 @@ class PipelineExecutionResult:
                 data["simulation"] = self.simulation
         if self.validation:
             data["validation"] = self.validation.to_dict()
-        if self.problems:
-            data["problems"] = [p.to_dict() for p in self.problems]
-            
         with out.open("w") as f:
             json.dump(data, f, indent=2, default=str)
 class ImportResult:

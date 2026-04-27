@@ -1,16 +1,20 @@
-# Step 3: Prediction
+# Step 2–3: Analyze & Predict
 
 **Produce criticality predictions for every component from topology alone — before any runtime data or simulation is available.**
 
-← [Step 2: Analysis](structural-analysis.md) | → [Step 4: Simulation](failure-simulation.md)
+← [Step 2: Analyze (structural metrics)](structural-analysis.md) | → [Step 4: Simulate](failure-simulation.md)
+
+> **Stage separation.** This document covers two distinct pipeline stages that use the same input M(v) but serve different roles:
+> - **Analyze (Step 2b)** — deterministic, closed-form RMAV/Q scoring. Rule-based model. Given the same graph, always produces the same Q(v). No training required.
+> - **Predict (Step 3)** — inductive GNN forecasting that generalises beyond the closed form. Learns nonlinear interactions and multi-hop motifs that AHP-weighted scoring cannot encode. Requires simulation-labelled training data.
 
 ---
 
 ## Table of Contents
 
-1. [What This Step Does](#1-what-this-step-does)
-2. [Two Prediction Paths](#2-two-prediction-paths)
-3. [Rule-Based Prediction: RMAV](#3-rule-based-prediction-rmav)
+1. [What These Stages Do](#1-what-these-stages-do)
+2. [Two Paths: Analyze vs Predict](#2-two-paths-analyze-vs-predict)
+3. [Analyze Stage — Rule-Based RMAV Scoring](#3-analyze-stage--rule-based-rmav-scoring)
    - 3.1 [The Four Quality Dimensions](#31-the-four-quality-dimensions)
    - 3.2 [RMAV Formulas](#32-rmav-formulas)
      - [Reliability R(v)](#reliability-rv--fault-propagation-risk)
@@ -24,7 +28,7 @@
    - 3.6 [Weight Shrinkage Strategy](#36-weight-shrinkage-strategy)
    - 3.7 [Criticality Classification](#37-criticality-classification)
    - 3.8 [Interpretation Patterns](#38-interpretation-patterns)
-4. [Learning-Based Prediction: GNN](#4-learning-based-prediction-gnn)
+4. [Predict Stage — Graph Neural Network](#4-predict-stage--graph-neural-network)
    - 4.1 [Motivation](#41-motivation)
    - 4.2 [Architecture Overview](#42-architecture-overview)
    - 4.3 [Graph Data Preparation](#43-graph-data-preparation)
@@ -35,7 +39,7 @@
    - 4.8 [Training Protocol](#48-training-protocol)
    - 4.9 [Multi-Seed Stability](#49-multi-seed-stability)
    - 4.10 [Methodological Integrity](#410-methodological-integrity)
-5. [Comparing the Two Paths](#5-comparing-the-two-paths)
+5. [Comparing the Two Stages](#5-comparing-the-two-stages)
 6. [Worked Example](#6-worked-example)
 7. [Output Schema](#7-output-schema)
 8. [Commands](#8-commands)
@@ -43,57 +47,59 @@
 
 ---
 
-## 1. What This Step Does
+## 1. What These Stages Do
 
-Prediction takes the metric vector **M(v)** produced by Step 2 for every component and produces a criticality prediction Q(v) ∈ [0, 1] along with a five-level classification, using topology alone.
+The Analyze and Predict stages both take the metric vector **M(v)** produced by the structural sub-phase of Step 2 and produce a criticality prediction Q(v) ∈ [0, 1] with a five-level classification.
 
 ```
-M(v) from Step 2                     Prediction Engine                  Output
+M(v) from structural analysis        Scoring Engine                     Output
 ──────────────────────               ──────────────────────         ───────────────────────────
-Tier 1 — 13 RMAV inputs:    →       Rule-Based (RMAV)       →      R(v), M(v), A(v), V(v)
-  RPR, DG_in, MPCI, FOC              or                              Q_RMAV(v) ∈ [0, 1]
-  BT, w_out, CC, path_complexity     Learning-Based (GNN)            Q_GNN(v)
-  AP_c_dir, BR, CDI                  or                              Q_ens(v)
-  REV, RCL, w_in                     Both (Ensemble)                 Level ∈ {CRITICAL, HIGH,
-                                                                        MEDIUM, LOW, MINIMAL}
-Tier 2 — 6 diagnostic:
+Tier 1 — 13 RMAV inputs:    →       Analyze (deterministic)  →     R(v), M(v), A(v), V(v)
+  RPR, DG_in, MPCI, FOC              AHP-weighted formula            Q_RMAV(v) ∈ [0, 1]
+  BT, w_out, CC, path_complexity     Anti-pattern detection
+  AP_c_dir, BR, CDI               → Predict (inductive, opt) →     Q_GNN(v)
+  REV, RCL, w_in                     HeteroGAT trained on I(v)      Q_ens(v)
+                                                                     Level ∈ {CRITICAL, HIGH,
+Tier 2 — 6 diagnostic:                                                 MEDIUM, LOW, MINIMAL}
   PR, CL, EV, pubsub_ratio,
   in_out_ratio, degree_product
 ```
 
-**Prediction–simulation independence guarantee.** This step produces Q(v). Step 4 produces simulation ground-truth I(v). Step 5 measures the correlation between Q(v) and I(v). These pipelines must remain independent: M(v) must not be contaminated by simulation outputs, and I(v) must not read Q(v) as an input. This independence is the methodological foundation of the empirical validation claim.
+**Independence guarantee.** The Analyze stage produces Q(v). The Simulate stage (Step 4) produces ground-truth I(v). The Validate stage (Step 5) measures the correlation between Q(v) and I(v). These pipelines must remain independent: M(v) must not be contaminated by simulation outputs, and I(v) must not read Q(v) as an input. This independence is the methodological foundation of the empirical validation claim.
 
-**Validated performance.** The rule-based RMAV predictor achieves Spearman ρ = 0.876 overall (ρ = 0.943 at large scale, 150–300+ nodes) and F1-score > 0.89 across validated system scales. All results are from internal validation against simulation-derived I(v); external cross-system inductive validation remains an open item.
+**Validated performance.** The rule-based RMAV Analyze stage achieves Spearman ρ = 0.876 overall (ρ = 0.943 at large scale, 150–300+ nodes) and F1-score > 0.89 across validated system scales. All results are from internal validation against simulation-derived I(v); external cross-system inductive validation remains an open item.
 
 ---
 
-## 2. Two Prediction Paths
+## 2. Two Paths: Analyze vs Predict
 
-| | Rule-Based (RMAV) | Learning-Based (GNN) | Ensemble |
+| | Analyze — Rule-Based (RMAV) | Predict — Learning-Based (GNN) | Predict — Ensemble |
 |---|---|---|---|
+| **Pipeline stage** | Step 2 (deterministic) | Step 3 (inductive, optional) | Step 3 (inductive, optional) |
 | **Mechanism** | AHP-weighted linear combination of Tier 1 metrics | Heterogeneous Graph Attention Network | Convex blend α·Q_GNN + (1−α)·Q_RMAV |
 | **Interpretability** | Full — every score decomposes into metric contributions | Partial — attention weights and per-head outputs | Partial |
-| **Requires training data** | No | Yes (simulation-labelled) | Yes |
+| **Requires training data** | No | Yes (simulation-labelled I(v)) | Yes |
 | **Node criticality** | ✓ | ✓ | ✓ |
 | **Edge criticality** | Proxies (BR, BT of endpoints) | ✓ Direct | ✓ Direct |
+| **Anti-pattern detection** | ✓ (runs with Analyze) | — | — |
 | **Topic-type branching** | ✓ (FOC formula) | Learned | Learned |
 | **MPCI effect** | ✓ Explicit (CDPot_enh) | Learned | Learned |
 | **Generalises to unseen systems** | Immediately | Requires fine-tuning | Requires fine-tuning |
 | **Spearman ρ (validated)** | 0.876 | TBD (training on ATM dataset pending) | TBD |
-| **Primary use** | First analysis; interpretable decision support | Post-training; system-of-systems scale | Production after ablation comparison |
+| **Primary use** | First analysis; interpretable; CI gate | Post-training; system-of-systems scale | Production after ablation comparison |
 
-Both paths classify components into the same five levels and are validated against the same I(v) ground truth, making their predictions directly comparable under the Step 5 protocol.
+Both paths classify components into the same five levels and are validated against the same I(v) ground truth, making their predictions directly comparable under the Validate stage protocol.
 
 **Recommended workflow:**
-1. Run RMAV — immediate results, no training required, full interpretability.
-2. Run Step 4 Simulation to generate I(v) ground truth.
-3. Train GNN on the labelled graph.
-4. Run three-way ablation: compare ρ(Q_RMAV, I*), ρ(Q_GNN, I*), ρ(Q_ens, I*) using `--mode rmav|gnn|ensemble`.
+1. Run the **Analyze** stage — immediate results, no training required, full interpretability.
+2. Run the **Simulate** stage to generate I(v) ground truth (and GNN training labels).
+3. Train the GNN on the labelled graph (`bin/train_graph.py`).
+4. Run the **Predict** stage for three-way ablation: compare ρ(Q_RMAV, I*), ρ(Q_GNN, I*), ρ(Q_ens, I*) using `--mode rmav|gnn|ensemble`.
 5. Switch to Ensemble for production if Q_ens delivers predictive gain > 0.03 over RMAV alone.
 
 ---
 
-## 3. Rule-Based Prediction: RMAV
+## 3. Analyze Stage — Rule-Based RMAV Scoring
 
 ### 3.1 The Four Quality Dimensions
 
@@ -468,26 +474,26 @@ The combination of RMAV dimension scores characterises the *type* of risk and di
 
 ---
 
-## 4. Learning-Based Prediction: GNN
+## 4. Predict Stage — Graph Neural Network
 
 ### 4.1 Motivation
 
-The RMAV rule-based predictor has two structural limitations:
+The RMAV rule-based Analyze stage has two structural limitations:
 
 **Fixed feature interactions.** RMAV combines metrics via fixed AHP weights determined before analysis. It cannot discover that, for a specific topology, the interaction between BT and RPR is more predictive than either metric alone.
 
 **Node-only scoring.** Edges are scored only via endpoint proxies (BR, BT of endpoints). Direct edge-level criticality — identifying which specific pub-sub relationship is most dangerous to lose — requires edge-level supervision.
 
-The GNN adds a **Step 3b** layer that learns from simulation ground truth I(v) and produces directly supervised edge criticality scores alongside node scores.
+The Predict stage learns from simulation ground truth I(v) and produces directly supervised edge criticality scores alongside node scores.
 
 ---
 
 ### 4.2 Architecture Overview
 
 ```
-Step 3a: RMAV (rule-based)      Q_RMAV(v)   — AHP-weighted formula
-Step 3b: GNN  (learning-based)  Q_GNN(v)    — trained on I(v) simulation ground truth
-Step 3c: Ensemble               Q_ens(v)    = α · Q_GNN(v) + (1−α) · Q_RMAV(v)
+Step 2 — Analyze:  Q_RMAV(v)   — AHP-weighted formula (deterministic, closed-form)
+Step 3 — Predict:  Q_GNN(v)    — trained on I(v) simulation ground truth
+Step 3 — Ensemble: Q_ens(v)    = α · Q_GNN(v) + (1−α) · Q_RMAV(v)
 ```
 
 Three cooperating modules:
@@ -504,8 +510,8 @@ Three cooperating modules:
      ┌───────┼────────────┐
      ▼       ▼            ▼
   NodeGNN  EdgeGNN   EnsembleGNN
-  3L 4H    (shares    α · Q_GNN
-  HetGAT   NodeGNN   +(1-α)·Q_RMAV
+  3L 4H    (shares    α · Q_GNN     ← Step 3 output
+  HetGAT   NodeGNN   +(1-α)·Q_RMAV ← Q_RMAV from Step 2
   (N, 5)   backbone)  (N, 5)
            (E, 5)
 ```
@@ -686,9 +692,9 @@ The following table tracks the technical hardening of the GNN pipeline. All high
 
 ---
 
-## 5. Comparing the Two Paths
+## 5. Comparing the Two Stages
 
-| Property | RMAV (rule-based) | GNN (learning-based) | Ensemble |
+| Property | Analyze — RMAV (rule-based) | Predict — GNN (learning-based) | Predict — Ensemble |
 |----------|:-----------------:|:--------------------:|:--------:|
 | Requires training data | No | Yes | Yes |
 | Node criticality | ✓ | ✓ | ✓ |
@@ -899,8 +905,8 @@ python bin/predict_graph.py \
 
 ## 9. What Comes Next
 
-Step 3 produces Q(v) ∈ [0, 1] with a five-level RMAV classification, per-component blast-radius and cascade-depth metrics, and an architectural anti-pattern report. These are *topology-derived pre-deployment predictions*.
+The Analyze stage produces Q(v) ∈ [0, 1] with a five-level RMAV classification, per-component blast-radius and cascade-depth metrics, and an architectural anti-pattern report. These are *topology-derived pre-deployment predictions*. The optional Predict stage refines them to Q_ens(v) after simulation labels become available.
 
-Their empirical accuracy is quantified in Step 5 (Validation), which computes Spearman ρ, Kendall τ, F1-score, and specialist metrics (ICR@K, RCR, BCE, Predictive Gain) by comparing Q(v) against the simulation impact I(v) produced in Step 4. The pre-deployment independence guarantee — that Q(v) was produced from topology alone, with no access to I(v) — is what makes Step 5 a genuine empirical test rather than a consistency check.
+Their empirical accuracy is quantified in the Validate stage (Step 5), which computes Spearman ρ, Kendall τ, F1-score, and specialist metrics by comparing Q(v) (or Q_ens(v)) against the simulation impact I(v) produced by the Simulate stage (Step 4). The pre-deployment independence guarantee — that Q(v) was produced from topology alone, with no access to I(v) — is what makes Step 5 a genuine empirical test rather than a consistency check.
 
-→ [Step 4: Simulation](failure-simulation.md)
+→ [Step 4: Simulate](failure-simulation.md)

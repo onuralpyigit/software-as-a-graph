@@ -2,7 +2,7 @@
 saag/pipeline.py
 """
 import logging
-from typing import Optional, List, Any
+from typing import List, Optional
 
 from .client import Client
 from .models import PipelineExecutionResult
@@ -29,11 +29,12 @@ class Pipeline:
         
         self._layer: str = "system"
         self._analyze_kwargs: dict = {}
+        self._predict_kwargs: dict = {}
         self._simulate_kwargs: dict = {}
         self._visualize_kwargs: dict = {}
-        
-        # State tracking flags
+
         self._do_analyze = False
+        self._do_predict = False
         self._do_simulate = False
         self._do_validate = False
         self._do_visualize = False
@@ -59,15 +60,32 @@ class Pipeline:
         return pipeline
 
     def analyze(self, layer: str = "system", **kwargs) -> "Pipeline":
-        """Stage: Analyze structural metrics."""
+        """Stage 2: Deterministic analysis — structural metrics, RMAV/Q scores, anti-patterns.
+
+        Produces a fully deterministic AnalysisResult from topology and metadata.
+        Given the same graph, this stage always yields the same Q(v).
+        """
         self._layer = layer
         self._do_analyze = True
         self._analyze_kwargs = kwargs
         return self
 
-    def predict(self, **kwargs) -> "Pipeline":
-        """Stage: Predict."""
-        self._predict_kwargs = kwargs
+    def predict(self, mode: str = "ensemble", gnn_checkpoint: Optional[str] = None) -> "Pipeline":
+        """Stage 3: Inductive prediction — GNN criticality ranks and ensemble-blended scores.
+
+        Runs a HeteroGAT over the topology to learn patterns that the AHP-weighted
+        RMAV composite cannot encode (nonlinear interactions, multi-hop motifs).
+        Requires analyze() to have been configured first.
+
+        Parameters
+        ----------
+        mode:
+            'gnn' for raw GNN scores, 'ensemble' to blend with RMAV (default).
+        gnn_checkpoint:
+            Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
+        """
+        self._do_predict = True
+        self._predict_kwargs = {"mode": mode, "gnn_checkpoint": gnn_checkpoint}
         return self
         
     def simulate(self, layer: str = "system", mode: str = "exhaustive", **kwargs) -> "Pipeline":
@@ -92,41 +110,41 @@ class Pipeline:
     def run(self) -> PipelineExecutionResult:
         """Execute all configured stages sequentially and compile results."""
         result = PipelineExecutionResult()
-        
+
         # 1. Import
         if getattr(self, "file_path", None):
             logger.info(f"Importing topology from {self.file_path}")
-            clear = getattr(self, "_clear", False)
-            self.client.import_topology(self.file_path, clear=clear)
-        
-        # 2. Analyze
+            self.client.import_topology(self.file_path, clear=getattr(self, "_clear", False))
+
+        # 2. Analyze — deterministic: structural metrics + RMAV/Q + anti-patterns
         if self._do_analyze:
-            logger.info(f"Running structural analysis on layer: {self._layer}")
+            logger.info(f"Analyzing layer '{self._layer}': structural metrics + RMAV/Q scores + anti-patterns")
             result.analysis = self.client.analyze(layer=self._layer, **self._analyze_kwargs)
-            
-            # 3. Predict & Detect Problems
-            logger.info("Predicting quality metrics and detecting antipatterns...")
-            predict_kwargs = getattr(self, "_predict_kwargs", {})
-            result.prediction = self.client.predict(layer=self._layer, **predict_kwargs)
-            result.problems = self.client.detect_antipatterns(result.prediction)
-            
-        # 4. Simulate
+
+        # 3. Predict — inductive: GNN criticality ranks + ensemble blend
+        if self._do_predict:
+            if result.analysis is None:
+                raise RuntimeError("predict() requires analyze() to run first.")
+            logger.info("Running GNN prediction (inductive stage)...")
+            result.prediction = self.client.predict(result.analysis, **self._predict_kwargs)
+
+        # 4. Simulate — counterfactual cascade engine; generates ground-truth labels
         if self._do_simulate:
-            logger.info("Running fault simulation...")
+            logger.info("Running fault simulation (cascade ground truth)...")
             result.simulation = self.client.simulate(layer=self._layer, **self._simulate_kwargs)
-            
-        # 5. Validate
+
+        # 5. Validate — compare Predict/Analyze output against Simulate ground truth
         if self._do_validate:
-            logger.info("Validating pipeline predictions against simulation...")
+            logger.info("Validating against simulation ground truth...")
             validate_layers = getattr(self, "_validate_layers", [self._layer]) or [self._layer]
             result.validation = self.client.validate(layers=validate_layers)
-            
+
         # 6. Visualize
         if self._do_visualize:
             out_file = self._visualize_kwargs.pop("output", "report.html")
             vis_layers = self._visualize_kwargs.pop("layers", [self._layer]) or [self._layer]
-            logger.info(f"Generating visualization report to {out_file}...")
+            logger.info(f"Generating visualization report → {out_file}")
             self.client.visualize(output=out_file, layers=vis_layers, **self._visualize_kwargs)
-            
+
         logger.info("Pipeline execution complete.")
         return result

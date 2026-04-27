@@ -1,8 +1,8 @@
-# Step 1: Modeling
+# Step 1: Import
 
 **Turn your system architecture into a graph that captures who depends on whom and how strongly.**
 
-[README](../README.md) | → [Step 2: Analysis](structural-analysis.md)
+[README](../README.md) | → [Step 2: Analyze](structural-analysis.md)
 
 ---
 

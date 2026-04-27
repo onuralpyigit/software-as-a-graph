@@ -16,18 +16,18 @@
 1. [The Problem](#the-problem)
 2. [The Methodology](#the-methodology)
    - [Core Insight](#core-insight)
-   - [Graph Construction](#graph-construction)
-   - [Structural Analysis (Step 2)](#structural-analysis-step-2)
-   - [RMAV Prediction (Step 3)](#rmav-prediction-step-3)
-   - [Failure Simulation (Step 4)](#failure-simulation-step-4)
-   - [Statistical Validation (Step 5)](#statistical-validation-step-5)
+   - [Graph Construction (Import)](#graph-construction-import)
+   - [Analysis](#analyze-stage-step-2)
+   - [Prediction](#predict-stage-step-3)
+   - [Failure Simulation](#failure-simulation-step-4)
+   - [Statistical Validation](#statistical-validation-step-5)
 3. [Empirical Results](#empirical-results)
 4. [Supported Platforms](#supported-platforms)
 5. [Quick Start (Docker)](#quick-start-docker)
 6. [Web Interface — Genieus](#web-interface--genieus)
 7. [Development Setup (CLI)](#development-setup-cli)
 8. [Local Development](#local-development)
-9. [The Full 6-Step Pipeline](#the-full-6-step-pipeline)
+9. [The Pipeline](#the-pipeline)
 10. [RMAV Formulas Reference](#rmav-formulas-reference)
 11. [Anti-Pattern Detection](#anti-pattern-detection)
 12. [Python SDK (`saag`)](#python-sdk-saag)
@@ -59,7 +59,7 @@ Software-as-a-Graph (SaG) operationalises this insight into a six-step analytica
 
 ---
 
-### Graph Construction
+### Graph Construction (Import)
 
 The first step converts a system architecture JSON into a formal weighted directed graph G = (V, E, τ_V, τ_E, w):
 
@@ -100,9 +100,11 @@ The first step converts a system architecture JSON into a formal weighted direct
 
 ---
 
-### Structural Analysis (Step 2)
+### Analysis
 
-Step 2 computes a structural metric vector **M(v)** for every component in the layer-projected DEPENDS_ON graph. Thirteen metrics are computed across four theoretical families:
+Step 2 is **deterministic and interpretable**: given the same graph, it always produces the same output. It has two sub-phases that run together as a single stage.
+
+**Sub-phase 2a — Structural metrics.** Computes a structural metric vector **M(v)** for every component in the layer-projected DEPENDS_ON graph. Thirteen metrics are computed across four theoretical families:
 
 | Metric | Symbol | Theoretical family | RMAV role |
 |--------|--------|--------------------|-----------|
@@ -120,15 +122,23 @@ Step 2 computes a structural metric vector **M(v)** for every component in the l
 | Reverse Closeness Centrality | RCL | Path-based | V(v) — adversarial propagation speed |
 | QoS-Weighted In-Degree | w_in | QoS-weighted degree | V(v) — attack-surface weight |
 
+**Sub-phase 2b — RMAV scoring.** Maps M(v) to four quality dimensions using AHP-derived weights. This is the rule-based model: a closed-form function of topology and metadata with no learned parameters. Anti-pattern detection (SPOF, FAILURE_HUB, GOD_COMPONENT, etc.) also runs here, on the RMAV scores.
+
 **Why thirteen metrics?** No single metric captures all structural risk dimensions. A component can be a wide cascade propagator (high RPR, low AP_c) but not a SPOF — or be the sole connector between two clusters (high AP_c) without having many direct dependents (low DG_in). The thirteen metrics are deliberately designed to be **orthogonal**: each feeds exactly one RMAV dimension, with no metric shared across dimensions.
 
 **MPCI** is a novel metric introduced in this work. It uses the `path_count` attribute on DEPENDS_ON edges (the number of distinct shared topics mediating a dependency) to quantify *multi-channel coupling intensity*. When the same dependent pair shares three topics, each is an independent failure vector — the cascade depth is amplified accordingly.
 
 ---
 
-### RMAV Prediction (Step 3)
+### Prediction
 
-M(v) is mapped to four RMAV quality dimensions using AHP-derived weights (Analytic Hierarchy Process, consistency ratio CR < 0.02 for all matrices):
+Step 3 is **inductive**: a HeteroGAT trained on simulation ground truth learns patterns that the AHP-weighted composite cannot encode — nonlinear interactions, multi-hop motifs, cross-type embedding effects. It consumes the `StructuralAnalysisResult` produced by Step 2 (no repository access) and emits GNN-derived criticality ranks blended with RMAV via a learnable ensemble coefficient α.
+
+This stage is **optional**. The Analyze stage alone (Step 2) achieves Spearman ρ > 0.87 and F1 > 0.90. Step 3 refines those predictions after simulation-derived labels become available.
+
+#### RMAV Formulas (produced by Step 2 Analyze)
+
+The RMAV formulas below are part of the Analyze stage. They use AHP-derived weights (Analytic Hierarchy Process, consistency ratio CR < 0.02 for all matrices):
 
 #### Reliability — R(v): *How broadly does failure propagate?*
 
@@ -203,9 +213,9 @@ Five-level adaptive box-plot thresholding based on the system's own score distri
 
 Classification is applied **independently per RMAV dimension and for Q*(v)**. A component can be CRITICAL on Availability (structural SPOF) but MINIMAL on Vulnerability — this decomposition is exactly the information needed to direct targeted remediation.
 
-#### Optional GNN Refinement (Step 3.5)
+#### GNN Ensemble (Predict Stage — Step 3)
 
-An optional Graph Attention Network (GAT) layer refines predictions beyond rule-based scoring, trained on simulation ground truth I(v). Predictions are blended via a per-dimension learned ensemble:
+The Predict stage refines the Analyze-stage scores using a Graph Attention Network trained on simulation ground truth I(v). Predictions are blended via a per-dimension learned ensemble:
 
 ```
 Q_ensemble(v) = α · Q_GNN(v) + (1−α) · Q_RMAV(v)    α ∈ ℝ⁵, learned per-dimension
@@ -217,7 +227,7 @@ The HeteroGAT architecture processes 23-dimensional node feature vectors (18 top
 
 ### Failure Simulation (Step 4)
 
-Step 4 produces **independent** ground-truth impact scores I(v) using physically grounded failure simulators — independent is critical because Step 5 measures their agreement with Q*(v).
+Step 4 produces **independent** ground-truth impact scores I(v) using physically grounded failure simulators. This stage also generates the labelled training data consumed by the Predict stage (Step 3) when running GNN training. "Independent" is critical: Step 5 measures the agreement between Q*(v) from Analyze and I(v) from Simulate.
 
 Four simulators run in parallel, each aligned to one RMAV dimension:
 
@@ -374,29 +384,26 @@ npm run generate-client
 Each step has its own CLI script in `bin/`. All scripts must be run from the repo root:
 
 ```bash
-# Step 1 — Modeling: generate synthetic topology & import into Neo4j
+# Step 1 — Import: generate synthetic topology & import into Neo4j
 python bin/generate_graph.py --scale medium --output input/system.json
 python bin/import_graph.py --input input/system.json --clear
 
-# Step 2 — Analysis: structural metrics (13 topological indicators per component)
-python bin/analyze_graph.py --layer system
-
-# Step 3 — Prediction: RMAV quality scoring + anti-pattern detection
+# Step 2 — Analyze: structural metrics (13 topological indicators) + RMAV/Q scoring + anti-patterns
+#   Deterministic: given the same graph, always produces the same Q(v).
 python bin/analyze_graph.py --layer system --predict
 
-# Step 3.5 — (Optional) GNN training: train the Graph Attention Network
-python bin/train_graph.py --layer system
+# Step 3 — Predict (optional): inductive GNN forecasting beyond the closed-form RMAV
+#   Requires Step 4 simulation results for training labels first.
+python bin/train_graph.py --layer system                              # train GNN
+python bin/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model
 
-# Step 3.5 — (Optional) GNN inference: predict criticality using a trained model
-python bin/predict_graph.py --layer system
-
-# Step 4 — Simulation: failure simulation (produces per-dimension ground-truth scores)
+# Step 4 — Simulate: failure simulation (ground-truth I(v) + training labels for Step 3)
 python bin/simulate_graph.py fault-inject --input input/system.json --export-json
 
-# Step 5 — Validation: statistical validation (Spearman ρ, F1-score, per-RMAV metrics)
+# Step 5 — Validate: statistical validation (Spearman ρ, F1-score, per-RMAV metrics)
 python bin/validate_graph.py report --input input/system.json --qos
 
-# Step 6 — Visualization: interactive HTML dashboard (self-contained, no server needed)
+# Step 6 — Visualize: interactive HTML dashboard (self-contained, no server needed)
 python bin/visualize_graph.py --layer system --output output/dashboard.html --open
 ```
 
@@ -443,12 +450,12 @@ For Python-based integration, see the annotated examples in `examples/`. Run the
 | 0 | `examples/example_introduction.py` | Core concepts: why topology predicts risk (no database) | No |
 | 1 | `examples/example_generation.py` | Generating a synthetic topology programmatically | No |
 | 2 | `examples/example_import.py` | Importing a graph into Neo4j via the Python API | Yes |
-| 3 | `examples/example_analysis.py` | Structural metrics, RMAV scoring & anti-pattern detection | Yes |
-| 4 | `examples/example_simulation.py` | Exhaustive failure simulations (ground-truth I(v)) | Yes |
-| 5 | `examples/example_validation.py` | Validating predictions against ground truth | Yes |
-| 6 | `examples/example_prediction.py` | GNN-based criticality refinement | Yes |
-| 7 | `examples/example_visualization.py` | Generating self-contained HTML dashboards | Yes |
-| 8 | `examples/example_end_to_end.py` | Full 6-step pipeline in a single script | Yes |
+| 3 | `examples/example_analysis.py` | Analyze stage: structural metrics, RMAV scoring & anti-pattern detection | Yes |
+| 4 | `examples/example_simulation.py` | Simulate stage: exhaustive failure simulations (ground-truth I(v)) | Yes |
+| 5 | `examples/example_validation.py` | Validate stage: comparing Analyze output against ground truth | Yes |
+| 6 | `examples/example_prediction.py` | Predict stage: GNN-based inductive criticality refinement | Yes |
+| 7 | `examples/example_visualization.py` | Visualize stage: generating self-contained HTML dashboards | Yes |
+| 8 | `examples/example_end_to_end.py` | Full pipeline (Import → Analyze → Predict → Simulate → Validate → Visualize) | Yes |
 | 9 | `examples/example_antipatterns.py` | Anti-pattern gating for CI/CD pipelines | Yes |
 | 10 | `examples/example_compare.py` | Comparing two architectural designs side-by-side | Yes |
 
@@ -490,39 +497,39 @@ npm run dev
 
 ---
 
-## The Full 6-Step Pipeline
+## The Pipeline
 
 ```
 Architecture JSON
       │
       ▼
-┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐
-│  Step 1     │    │  Step 2     │    │  Step 3             │
-│  Modeling   │───▶│  Analysis   │───▶│  Prediction         │
-│  (Import)   │    │  (Metrics)  │    │  (RMAV + GNN +      │
-│             │    │             │    │   Anti-Patterns)     │
-└─────────────┘    └─────────────┘    └─────────────────────┘
-                                                   │
-       ┌──────────────────────────────────────┘
-       ▼
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Step 4     │    │  Step 5     │    │  Step 6     │
-│  Simulation │───▶│  Validation │───▶│  Visuali-   │
-│  (I(v) GT)  │    │  (ρ, F1)    │    │  zation     │
-└─────────────┘    └─────────────┘    └─────────────┘
-                                               │
-                                               ▼
-                                        HTML Dashboard
+┌─────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
+│  Step 1     │    │  Step 2              │    │  Step 3 (optional)  │
+│  Import     │───▶│  Analyze             │───▶│  Predict            │
+│             │    │  (M(v) + RMAV/Q(v)  │    │  (GNN ensemble;     │
+│             │    │   + Anti-Patterns)   │    │   inductive only)   │
+└─────────────┘    └──────────────────────┘    └─────────────────────┘
+                            │                             │
+       ┌────────────────────┘                            │
+       ▼                                                 ▼
+┌─────────────┐    ┌─────────────┐    ┌─────────────────────────────┐
+│  Step 4     │    │  Step 5     │    │  Step 6                     │
+│  Simulate   │───▶│  Validate   │───▶│  Visualize                  │
+│  (I(v) GT)  │    │  (ρ, F1)    │    │                             │
+└─────────────┘    └─────────────┘    └─────────────────────────────┘
+                                                     │
+                                                     ▼
+                                              HTML Dashboard
 ```
 
 | Step | What It Does | Key Output | Docs |
 |------|-------------|------------|------|
-| **1. Modeling** | Converts topology JSON to a weighted directed graph G(V, E, w); derives DEPENDS_ON edges via six rules; computes QoS-derived weights | G_structural and G_analysis(l) | [graph-model.md](docs/graph-model.md) |
-| **2. Analysis** | Computes 13 structural metrics per component: Reverse PageRank, betweenness, closeness, eigenvector centralities, MPCI, FOC, bridge ratio, directed AP score, CDI | Metric vector M(v) per component | [structural-analysis.md](docs/structural-analysis.md) |
-| **3. Prediction** | Maps M(v) to RMAV dimensions using AHP-derived weights; classifies criticality via adaptive box-plot thresholds; optionally refines with GNN; detects anti-patterns | Q*(v) composite score, five-level classification, structural smell report | [prediction.md](docs/prediction.md) |
-| **4. Simulation** | Runs four parallel simulators (cascade, change-propagation, connectivity-loss, compromise-propagation) | Per-dimension ground-truth IR(v), IM(v), IA(v), IV(v) and composite I*(v) | [failure-simulation.md](docs/failure-simulation.md) |
-| **5. Validation** | Computes Spearman ρ and Kendall τ between Q*(v) and I*(v) and per-dimension pairs; evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
-| **6. Visualization** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
+| **1. Import** | Converts topology JSON to a weighted directed graph G(V, E, w); derives DEPENDS_ON edges via six rules; computes QoS-derived weights | G_structural and G_analysis(l) | [graph-model.md](docs/graph-model.md) |
+| **2. Analyze** | Deterministic, closed-form. Computes 13 structural metrics M(v); maps them to RMAV dimension scores and Q*(v) via AHP-weighted formulas; detects anti-patterns. Given the same graph, always produces the same output. | M(v) metric vector, RMAV/Q*(v) scores, five-level classification, anti-pattern report | [structural-analysis.md](docs/structural-analysis.md) · [prediction.md](docs/prediction.md) |
+| **3. Predict** | Inductive, optional. A HeteroGAT trained on simulation labels I(v) learns interactions the AHP composite cannot encode. Consumes Analyze output only — no repository access. | GNN criticality ranks, edge criticality, ensemble-blended Q_ens(v) | [prediction.md](docs/prediction.md) |
+| **4. Simulate** | Runs four parallel simulators (cascade, change-propagation, connectivity-loss, compromise-propagation). Provides training labels for Step 3 and ground truth for Step 5. | Per-dimension ground-truth IR(v), IM(v), IA(v), IV(v) and composite I*(v) | [failure-simulation.md](docs/failure-simulation.md) |
+| **5. Validate** | Computes Spearman ρ and Kendall τ between Q*(v) (from Analyze) or Q_ens(v) (from Predict) and I*(v); evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
+| **6. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
 
 ### Scale Presets
 
@@ -632,7 +639,7 @@ Availability is dominant (0.43) because SPOF failure in a dependency graph is th
 | Multi-path sink | H | M | M | L | Deep multi-channel cascade | Reduce shared-topic count between same pair |
 | Leaf | L | L | L | L | None | Standard monitoring |
 
-### GNN Ensemble (Step 3.5)
+### GNN Ensemble (Predict Stage — Step 3)
 
 ```
 Q_ensemble(v) = α · Q_GNN(v) + (1−α) · Q_RMAV(v)
@@ -641,10 +648,10 @@ Q_ensemble(v) = α · Q_GNN(v) + (1−α) · Q_RMAV(v)
 α is a 5-dimensional per-RMAV-dimension learnable blending coefficient (α = sigmoid(logit), initialised at 0.5). The HeteroGAT model uses 3 layers, 4 attention heads, hidden dimension D = 64.
 
 ```bash
-# Train or retrain the GNN on the current dataset
+# Train or retrain the GNN on the current dataset (requires Step 4 simulation results)
 python bin/train_graph.py --layer system
 
-# Run GNN inference on a new graph
+# Run GNN inference on a new graph (ensemble blends GNN with RMAV from Analyze stage)
 python bin/predict_graph.py --layer system --mode ensemble
 ```
 
@@ -678,10 +685,10 @@ The `saag` package provides a fluent Python API for building analysis pipelines 
 ```python
 import saag
 
-# Full pipeline in 5 lines
+# Analyze + Simulate + Validate in 5 lines
 result = (
     saag.Pipeline.from_json("input/system.json", clear=True)
-        .analyze(layer="app")
+        .analyze(layer="app")          # deterministic: structural + RMAV + anti-patterns
         .simulate(layer="app", mode="exhaustive")
         .validate()
         .visualize(output="output/report.html")
@@ -690,6 +697,16 @@ result = (
 
 print(f"Spearman ρ = {result.validation.overall.spearman:.3f}")
 print(f"F1-Score   = {result.validation.overall.f1:.3f}")
+
+# Optionally add the inductive Predict stage after simulation labels are available
+result2 = (
+    saag.Pipeline.from_json("input/system.json")
+        .analyze(layer="app")
+        .predict(mode="ensemble")      # GNN; requires prior training run
+        .simulate(layer="app")
+        .validate()
+        .run()
+)
 ```
 
 **Key classes:**
@@ -697,12 +714,12 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 | Class | Purpose |
 |-------|---------|
 | `saag.Pipeline` | Fluent builder that chains and executes pipeline stages |
-| `saag.Client` | Low-level service wrapper (analysis, simulation, validation, visualization) |
-| `saag.AnalysisResult` | Holds structural metrics M(v) and RMAV quality scores Q*(v) |
-| `saag.PredictionResult` | Holds criticality levels and anti-pattern report |
-| `saag.ValidationResult` | Holds Spearman ρ, F1-score, and per-RMAV correlations |
+| `saag.Client` | Low-level service wrapper (analyze, predict, simulate, validate, visualize) |
+| `saag.AnalysisResult` | Analyze stage output: M(v) structural metrics, RMAV/Q*(v) scores, anti-patterns |
+| `saag.PredictionResult` | Predict stage output: GNN criticality ranks, ensemble-blended scores |
+| `saag.ValidationResult` | Validate stage output: Spearman ρ, F1-score, and per-RMAV correlations |
 
-**Independence guarantee:** `Q*(v)` (RMAV prediction, Step 3) is computed using only graph topology. `I*(v)` (simulation impact, Step 4) is computed using only cascade propagation rules and never reads `Q*(v)`. Measuring their agreement in Step 5 is therefore a genuine empirical test — not a consistency check.
+**Independence guarantee:** `Q*(v)` (RMAV, from the Analyze stage) is computed using only graph topology. `I*(v)` (from the Simulate stage) is computed using only cascade propagation rules and never reads `Q*(v)`. Measuring their agreement in the Validate stage is therefore a genuine empirical test — not a consistency check.
 
 ---
 
@@ -713,14 +730,14 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 ├── bin/                        # CLI pipeline scripts
 │   ├── run.py                  #   Master pipeline orchestrator (--all flag)
 │   ├── generate_graph.py       #   Synthetic topology generator
-│   ├── import_graph.py         #   Step 1: Modeling — Neo4j import & dependency derivation
-│   ├── analyze_graph.py        #   Step 2/3: Analysis & RMAV prediction
-│   ├── train_graph.py          #   Step 3.5: GNN training (optional)
-│   ├── predict_graph.py        #   Step 3.5: GNN inference on a new graph
+│   ├── import_graph.py         #   Step 1: Import — Neo4j import & dependency derivation
+│   ├── analyze_graph.py        #   Step 2: Analyze — structural metrics + RMAV/Q scoring + anti-patterns
+│   ├── train_graph.py          #   Step 3: Predict — GNN training (optional; requires Step 4 labels)
+│   ├── predict_graph.py        #   Step 3: Predict — GNN inference on a new graph
 │   ├── detect_antipatterns.py  #   Standalone anti-pattern / CI gate
-│   ├── simulate_graph.py       #   Step 4: Simulation (fault-inject | message-flow | combined)
-│   ├── validate_graph.py       #   Step 5: Validation (single | sweep | report | compare)
-│   ├── visualize_graph.py      #   Step 6: Visualization
+│   ├── simulate_graph.py       #   Step 4: Simulate (fault-inject | message-flow | combined)
+│   ├── validate_graph.py       #   Step 5: Validate (single | sweep | report | compare)
+│   ├── visualize_graph.py      #   Step 6: Visualize
 │   ├── statistics_graph.py     #   Statistics dashboard (topology & communication analytics)
 │   ├── export_graph.py         #   Export graph data from Neo4j
 │   ├── benchmark.py            #   Benchmark across scale presets
@@ -764,12 +781,12 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 ├── output/                     # Pipeline output artefacts (dashboards, reports)
 ├── results/                    # Validation results from previous runs
 └── docs/                       # Per-step methodology documentation
-    ├── graph-model.md          #   Step 1: Formal graph model & dependency derivation rules
-    ├── structural-analysis.md  #   Step 2: Metric catalogue, normalization, complexity
-    ├── prediction.md           #   Step 3: RMAV formulas, AHP derivation, GNN architecture
-    ├── failure-simulation.md   #   Step 4: Fault injection & message flow simulation
-    ├── validation.md           #   Step 5: Statistical battery & topology-class gate system
-    ├── visualization.md        #   Step 6: Dashboard & chart reference
+    ├── graph-model.md          #   Step 1 (Import): Formal graph model & dependency derivation rules
+    ├── structural-analysis.md  #   Step 2 (Analyze): Structural metric catalogue and normalization
+    ├── prediction.md           #   Step 2–3 (Analyze+Predict): RMAV formulas, AHP, GNN architecture
+    ├── failure-simulation.md   #   Step 4 (Simulate): Fault injection & message flow simulation
+    ├── validation.md           #   Step 5 (Validate): Statistical battery & topology-class gate system
+    ├── visualization.md        #   Step 6 (Visualize): Dashboard & chart reference
     ├── antipatterns.md         #   Anti-pattern catalogue & detection heuristics
     ├── statistics.md           #   Statistics calculator module reference
     ├── scenario.md             #   Domain scenario library

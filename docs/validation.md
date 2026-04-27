@@ -1,8 +1,8 @@
-# Step 5: Validation
+# Step 5: Validate
 
 **Statistically prove that topology-based predictions agree with simulation-derived cascade impact.**
 
-← [Step 4: Simulation](failure-simulation.md) | → [Step 6: Visualization](visualization.md)
+← [Step 4: Simulate](failure-simulation.md) | → [Step 6: Visualize](visualization.md)
 
 ---
 
@@ -37,8 +37,9 @@ component in the system:
 
 | Signal | Source | What it represents |
 |--------|--------|-------------------|
-| **Q(v)** | RMAV formula applied to topology (Step 3) | *Predicted* criticality — computed from graph structure alone, before any runtime data |
-| **I(v)** | Stochastic cascade simulation (Step 4) | *Proxy ground truth* — normalised damage score obtained by injecting each node as the failure origin |
+| **Q(v)** | RMAV formula applied to topology (Analyze stage, Step 2) | *Predicted* criticality — computed deterministically from graph structure alone, before any runtime data |
+| **Q_ens(v)** | GNN ensemble (Predict stage, Step 3, optional) | *Refined prediction* — inductive GNN blend; compared against I(v) in addition to or instead of Q(v) when available |
+| **I(v)** | Stochastic cascade simulation (Simulate stage, Step 4) | *Proxy ground truth* — normalised damage score obtained by injecting each node as the failure origin |
 
 High statistical agreement between Q(v) and I(v) is empirical evidence that **topology alone predicts
 failure impact** — the central claim of the Software-as-a-Graph thesis.
@@ -47,9 +48,11 @@ failure impact** — the central claim of the Software-as-a-Graph thesis.
    Graph (Step 1)
         │
    ┌────┴──────────────────────────────┐
-   │ Step 3: RMAV                      │  Step 4: Cascade Simulation
+   │ Step 2: Analyze (RMAV)            │  Step 4: Simulate (Cascade)
    │   Q(v) = w·R + w·M + w·A + w·V   │    I(v) = mean impact over N_repeats
    └────┬──────────────────────────────┘             simulation seeds
+        │    [optional: Step 3 Predict]
+        │    Q_ens(v) = α·Q_GNN + (1-α)·Q(v)
         │                   │
         └────────┬──────────┘
                  │
@@ -709,4 +712,4 @@ double-column layout.
 
 ---
 
-← [Step 4: Simulation](failure-simulation.md) | → [Step 6: Visualization](visualization.md)
+← [Step 4: Simulate](failure-simulation.md) | → [Step 6: Visualize](visualization.md)
