@@ -43,6 +43,8 @@ import {
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
 import { simulationClient } from "@/lib/api/simulation-client"
+import { TermTooltip } from "@/components/ui/term-tooltip"
+import { ScoreTooltip } from "@/components/ui/score-tooltip"
 import { apiClient } from "@/lib/api/client"
 
 // ============================================================================
@@ -1293,7 +1295,7 @@ export default function SimulationPage() {
                       <div className="rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 p-2.5 shadow-lg">
                         <Gauge className="h-5 w-5 text-white" />
                       </div>
-                      <h3 className="text-sm font-medium">Throughput</h3>
+                      <h3 className="text-sm font-medium"><TermTooltip term="throughput_per_sec">Throughput</TermTooltip></h3>
                     </div>
                     <div className="text-3xl font-bold text-blue-600">
                       {parseFloat((eventResult.metrics.throughput_per_sec || 0).toFixed(1))}
@@ -1315,7 +1317,7 @@ export default function SimulationPage() {
                       <div className="rounded-xl bg-gradient-to-br from-purple-600 via-pink-600 to-purple-700 p-2.5 shadow-lg">
                         <Clock className="h-5 w-5 text-white" />
                       </div>
-                      <h3 className="text-sm font-medium">Avg Latency</h3>
+                      <h3 className="text-sm font-medium"><TermTooltip term="avg_latency_ms">Avg Latency</TermTooltip></h3>
                     </div>
                     <div className="text-3xl font-bold text-purple-600">
                       {parseFloat((eventResult.metrics.avg_latency_ms || 0).toFixed(2))}
@@ -1366,7 +1368,7 @@ export default function SimulationPage() {
                         <span className="font-semibold text-base text-red-600 dark:text-red-400">{eventResult.metrics.messages_dropped || 0}</span>
                       </div>
                       <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
-                        <span className="text-sm font-medium">Drop Rate</span>
+                        <span className="text-sm font-medium"><TermTooltip term="drop_rate_percent">Drop Rate</TermTooltip></span>
                         <span className="font-bold text-base text-red-600 dark:text-red-400">{parseFloat((eventResult.metrics.drop_rate_percent || 0).toFixed(1))}%</span>
                       </div>
                     </div>
@@ -1386,11 +1388,11 @@ export default function SimulationPage() {
                         <span className="font-mono text-sm font-semibold">{(eventResult.metrics.min_latency_ms || 0).toFixed(2)} ms</span>
                       </div>
                       <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors">
-                        <span className="text-sm text-blue-700 dark:text-blue-300">P50 (Median)</span>
+                        <span className="text-sm text-blue-700 dark:text-blue-300"><TermTooltip term="p50_latency_ms">P50 (Median)</TermTooltip></span>
                         <span className="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400">{(eventResult.metrics.p50_latency_ms || 0).toFixed(2)} ms</span>
                       </div>
                       <div className="flex items-center justify-between p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/40 transition-colors">
-                        <span className="text-sm text-purple-700 dark:text-purple-300">P99</span>
+                        <span className="text-sm text-purple-700 dark:text-purple-300"><TermTooltip term="p99_latency_ms">P99</TermTooltip></span>
                         <span className="font-mono text-sm font-semibold text-purple-600 dark:text-purple-400">{(eventResult.metrics.p99_latency_ms || 0).toFixed(2)} ms</span>
                       </div>
                       <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/40 transition-colors">
@@ -1782,7 +1784,7 @@ export default function SimulationPage() {
                     <p className="text-xs text-muted-foreground">Architectural layer to analyze failure impact</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="failure-cascade">Cascade Probability</Label>
+                    <Label htmlFor="failure-cascade"><TermTooltip term="cascade_probability">Cascade Probability</TermTooltip></Label>
                     <Input
                       id="failure-cascade"
                       type="number"
@@ -1863,7 +1865,7 @@ export default function SimulationPage() {
                   <div className="flex items-start gap-6">
                     <div className="hidden md:flex items-center gap-4">
                       <div className="text-right">
-                        <div className="text-3xl font-bold">{(failureResult.impact.composite_impact || 0).toFixed(3)}</div>
+                        <div className="text-3xl font-bold"><ScoreTooltip score={failureResult.impact.composite_impact || 0} type="impact" side="bottom">{(failureResult.impact.composite_impact || 0).toFixed(3)}</ScoreTooltip></div>
                         <div className="text-sm text-white/80">Impact</div>
                       </div>
                       <div className="text-right">
@@ -1916,10 +1918,10 @@ export default function SimulationPage() {
                       <div className="rounded-xl bg-gradient-to-br from-red-600 via-rose-600 to-pink-700 p-2.5 shadow-lg">
                         <AlertTriangle className="h-5 w-5 text-white" />
                       </div>
-                      <h3 className="text-sm font-medium">Composite Impact</h3>
+                      <h3 className="text-sm font-medium"><TermTooltip term="composite_impact">Composite Impact</TermTooltip></h3>
                     </div>
                     <div className={`text-3xl font-bold ${getImpactColor(failureResult.impact.composite_impact || 0)}`}>
-                      {(failureResult.impact.composite_impact || 0).toFixed(4)}
+                      <ScoreTooltip score={failureResult.impact.composite_impact || 0} type="impact">{(failureResult.impact.composite_impact || 0).toFixed(4)}</ScoreTooltip>
                     </div>
                     <Progress value={(failureResult.impact.composite_impact || 0) * 100} className="h-2.5 mt-2 bg-slate-100 dark:bg-slate-800" />
                     <p className="text-xs text-muted-foreground mt-1">Overall system impact score</p>
@@ -1939,7 +1941,7 @@ export default function SimulationPage() {
                       <div className="rounded-xl bg-gradient-to-br from-orange-600 via-amber-600 to-yellow-600 p-2.5 shadow-lg">
                         <Network className="h-5 w-5 text-white" />
                       </div>
-                      <h3 className="text-sm font-medium">Reachability Loss</h3>
+                      <h3 className="text-sm font-medium"><TermTooltip term="reachability_loss">Reachability Loss</TermTooltip></h3>
                     </div>
                     <div className="text-3xl font-bold text-orange-600">
                       {parseFloat((failureResult.impact.reachability?.loss_percent || 0).toFixed(1))}%
@@ -2229,7 +2231,7 @@ export default function SimulationPage() {
                                 </div>
                                 <div className="text-right">
                                   <div className={`text-sm font-bold ${getImpactColor(impactValue)}`}>
-                                    {impactValue.toFixed(4)}
+                                    <ScoreTooltip score={impactValue} type="impact" side="left">{impactValue.toFixed(4)}</ScoreTooltip>
                                   </div>
                                   <div className="text-xs text-muted-foreground">
                                     {impactPercent}%

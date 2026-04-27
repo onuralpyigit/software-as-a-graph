@@ -268,7 +268,7 @@ class EventResult:
     component_impacts: Dict[str, float] = field(default_factory=dict)
     failed_components: List[str] = field(default_factory=list)
     drop_reasons: Dict[str, int] = field(default_factory=dict)
-    component_names: Dict[str, str] = field(default_factory=dict)
+    csc_names: Dict[str, str] = field(default_factory=dict)
     related_components: List[str] = field(default_factory=list)
     poisson_failure_log: List[Dict[str, Any]] = field(default_factory=list)
     
@@ -570,7 +570,7 @@ class FailureResult:
     cascade_sequence: List[CascadeEvent] = field(default_factory=list)
     layer_impacts: Dict[str, float] = field(default_factory=dict)
     related_components: List[str] = field(default_factory=list)
-    component_names: Dict[str, str] = field(default_factory=dict)
+    csc_names: Dict[str, str] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -598,7 +598,7 @@ class FailureResult:
         nodes.append({
             "id": self.target_id,
             "type": self.target_type,
-            "name": self.component_names.get(self.target_id, self.target_id),
+            "name": self.csc_names.get(self.target_id, self.target_id),
             "depth": 0,
             "is_target": True
         })
@@ -608,7 +608,7 @@ class FailureResult:
             nodes.append({
                 "id": event.component_id,
                 "type": event.component_type,
-                "name": self.component_names.get(event.component_id, event.component_id),
+                "name": self.csc_names.get(event.component_id, event.component_id),
                 "depth": event.depth,
                 "cause": event.cause,
                 "is_target": False
@@ -749,7 +749,7 @@ class SimulationReport:
     edge_criticality: List[EdgeCriticality] = field(default_factory=list)
     top_critical: List[Dict[str, Any]] = field(default_factory=list)
     recommendations: List[str] = field(default_factory=list)
-    component_names: Dict[str, str] = field(default_factory=dict)
+    csc_names: Dict[str, str] = field(default_factory=dict)
     library_usage: Dict[str, List[str]] = field(default_factory=dict)
     node_allocations: Dict[str, List[str]] = field(default_factory=dict)
     broker_routing: Dict[str, List[str]] = field(default_factory=dict)

@@ -128,7 +128,7 @@ class CrossLayerInsight:
       - "layer_concentration": one layer has a disproportionate CRITICAL fraction
     """
     component_id: str
-    component_name: str
+    csc_name: str
     insight_type: str
     layers_affected: List[str]
     severity: str      # "CRITICAL" | "HIGH" | "MEDIUM"
@@ -137,7 +137,7 @@ class CrossLayerInsight:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "component_id": self.component_id,
-            "component_name": self.component_name,
+            "csc_name": self.csc_name,
             "insight_type": self.insight_type,
             "layers_affected": self.layers_affected,
             "severity": self.severity,

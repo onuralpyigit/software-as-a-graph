@@ -704,7 +704,7 @@ class EventSimulator:
                 if c.state == ComponentState.FAILED
             ],
             drop_reasons=dict(self._drop_reasons),
-            component_names={
+            csc_names={
                 c.id: c.properties.get("name", c.id)
                 for c in self.graph.components.values()
             },

@@ -18,14 +18,14 @@ def get_degree_distribution(graph_data: GraphData, node_type: Optional[str] = No
     in_degree: Dict[str, int] = {}
     out_degree: Dict[str, int] = {}
     component_types: Dict[str, str] = {}
-    component_names: Dict[str, str] = {}
+    csc_names: Dict[str, str] = {}
     
     for component in graph_data.components:
         comp_id = component.id
         in_degree[comp_id] = 0
         out_degree[comp_id] = 0
         component_types[comp_id] = component.type
-        component_names[comp_id] = component.properties.get('name', comp_id)
+        csc_names[comp_id] = component.properties.get('name', comp_id)
     
     for edge in graph_data.edges:
         source = edge.source_id
@@ -52,7 +52,7 @@ def get_degree_distribution(graph_data: GraphData, node_type: Optional[str] = No
         in_degree = {k: v for k, v in in_degree.items() if k in filtered_ids}
         out_degree = {k: v for k, v in out_degree.items() if k in filtered_ids}
         component_types = {k: v for k, v in component_types.items() if k in filtered_ids}
-        component_names = {k: v for k, v in component_names.items() if k in filtered_ids}
+        csc_names = {k: v for k, v in csc_names.items() if k in filtered_ids}
     
     total_degree = {comp_id: in_degree[comp_id] + out_degree[comp_id] 
                    for comp_id in in_degree.keys()}
@@ -79,7 +79,7 @@ def get_degree_distribution(graph_data: GraphData, node_type: Optional[str] = No
         if degree > hub_threshold:
             hub_nodes.append({
                 "id": comp_id,
-                "name": component_names.get(comp_id, comp_id),
+                "name": csc_names.get(comp_id, comp_id),
                 "degree": degree,
                 "type": component_types.get(comp_id, "Unknown")
             })

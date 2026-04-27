@@ -127,10 +127,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Platform",
-        "config_item_name": "ERP Integration",
-        "domain_name": "Order Processing",
-        "system_name": "Legacy Adapter"
+        "csc_name": "Enterprise Platform",
+        "csci_name": "ERP Integration",
+        "css_name": "Order Processing",
+        "csms_name": "Legacy Adapter"
       },
       "code_metrics": {
         "size": {
@@ -168,10 +168,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Corporate IT",
-        "config_item_name": "Inventory Management",
-        "domain_name": "Customer Relations",
-        "system_name": "Workflow Engine"
+        "csc_name": "Corporate IT",
+        "csci_name": "Inventory Management",
+        "css_name": "Customer Relations",
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -209,10 +209,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Platform",
-        "config_item_name": "Inventory Management",
-        "domain_name": "Employee Portal",
-        "system_name": "Data Sync"
+        "csc_name": "Enterprise Platform",
+        "csci_name": "Inventory Management",
+        "css_name": "Employee Portal",
+        "csms_name": "Data Sync"
       },
       "code_metrics": {
         "size": {
@@ -250,10 +250,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Corporate IT",
-        "config_item_name": "CRM Software",
-        "domain_name": "Stock Management",
-        "system_name": "Legacy Adapter"
+        "csc_name": "Corporate IT",
+        "csci_name": "CRM Software",
+        "css_name": "Stock Management",
+        "csms_name": "Legacy Adapter"
       },
       "code_metrics": {
         "size": {
@@ -291,10 +291,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Corporate IT",
-        "config_item_name": "CRM Software",
-        "domain_name": "Invoice Processing",
-        "system_name": "Workflow Engine"
+        "csc_name": "Corporate IT",
+        "csci_name": "CRM Software",
+        "css_name": "Invoice Processing",
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -332,10 +332,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Corporate IT",
-        "config_item_name": "HR Systems",
-        "domain_name": "Order Processing",
-        "system_name": "Report Generation"
+        "csc_name": "Corporate IT",
+        "csci_name": "HR Systems",
+        "css_name": "Order Processing",
+        "csms_name": "Report Generation"
       },
       "code_metrics": {
         "size": {
@@ -373,10 +373,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Corporate IT",
-        "config_item_name": "HR Systems",
-        "domain_name": "Customer Relations",
-        "system_name": "Data Sync"
+        "csc_name": "Corporate IT",
+        "csci_name": "HR Systems",
+        "css_name": "Customer Relations",
+        "csms_name": "Data Sync"
       },
       "code_metrics": {
         "size": {
@@ -414,10 +414,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Corporate IT",
-        "config_item_name": "HR Systems",
-        "domain_name": "Employee Portal",
-        "system_name": "Report Generation"
+        "csc_name": "Corporate IT",
+        "csci_name": "HR Systems",
+        "css_name": "Employee Portal",
+        "csms_name": "Report Generation"
       },
       "code_metrics": {
         "size": {
@@ -455,10 +455,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Business Systems",
-        "config_item_name": "HR Systems",
-        "domain_name": "Stock Management",
-        "system_name": "Report Generation"
+        "csc_name": "Business Systems",
+        "csci_name": "HR Systems",
+        "css_name": "Stock Management",
+        "csms_name": "Report Generation"
       },
       "code_metrics": {
         "size": {
@@ -496,10 +496,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Business Systems",
-        "config_item_name": "Inventory Management",
-        "domain_name": "Invoice Processing",
-        "system_name": "Workflow Engine"
+        "csc_name": "Business Systems",
+        "csci_name": "Inventory Management",
+        "css_name": "Invoice Processing",
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -537,10 +537,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Enterprise Platform",
-        "config_item_name": "ERP Integration",
-        "domain_name": "Order Processing",
-        "system_name": "Data Sync"
+        "csc_name": "Enterprise Platform",
+        "csci_name": "ERP Integration",
+        "css_name": "Order Processing",
+        "csms_name": "Data Sync"
       },
       "code_metrics": {
         "size": {
@@ -578,10 +578,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Corporate IT",
-        "config_item_name": "HR Systems",
-        "domain_name": "Customer Relations",
-        "system_name": "Workflow Engine"
+        "csc_name": "Corporate IT",
+        "csci_name": "HR Systems",
+        "css_name": "Customer Relations",
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {
@@ -618,10 +618,10 @@
       "name": "enterprise-auth",
       "version": "2.4.8",
       "system_hierarchy": {
-        "component_name": "Enterprise Platform",
-        "config_item_name": "Inventory Management",
-        "domain_name": "Order Processing",
-        "system_name": "Legacy Adapter"
+        "csc_name": "Enterprise Platform",
+        "csci_name": "Inventory Management",
+        "css_name": "Order Processing",
+        "csms_name": "Legacy Adapter"
       },
       "code_metrics": {
         "size": {
@@ -656,10 +656,10 @@
       "name": "soap-client",
       "version": "0.8.1",
       "system_hierarchy": {
-        "component_name": "Business Systems",
-        "config_item_name": "Inventory Management",
-        "domain_name": "Employee Portal",
-        "system_name": "Notification Service"
+        "csc_name": "Business Systems",
+        "csci_name": "Inventory Management",
+        "css_name": "Employee Portal",
+        "csms_name": "Notification Service"
       },
       "code_metrics": {
         "size": {
@@ -694,10 +694,10 @@
       "name": "enterprise-auth-1",
       "version": "1.8.3",
       "system_hierarchy": {
-        "component_name": "Corporate IT",
-        "config_item_name": "CRM Software",
-        "domain_name": "Customer Relations",
-        "system_name": "Notification Service"
+        "csc_name": "Corporate IT",
+        "csci_name": "CRM Software",
+        "css_name": "Customer Relations",
+        "csms_name": "Notification Service"
       },
       "code_metrics": {
         "size": {
@@ -732,10 +732,10 @@
       "name": "xml-parser",
       "version": "2.6.6",
       "system_hierarchy": {
-        "component_name": "Business Systems",
-        "config_item_name": "ERP Integration",
-        "domain_name": "Employee Portal",
-        "system_name": "Workflow Engine"
+        "csc_name": "Business Systems",
+        "csci_name": "ERP Integration",
+        "css_name": "Employee Portal",
+        "csms_name": "Workflow Engine"
       },
       "code_metrics": {
         "size": {

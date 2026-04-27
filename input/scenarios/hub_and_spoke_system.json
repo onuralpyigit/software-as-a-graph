@@ -383,10 +383,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -424,10 +424,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Spoke Integration",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Spoke Integration",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -465,10 +465,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -506,10 +506,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Central Routing",
-        "system_name": "Queue Management"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Central Routing",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -547,10 +547,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Spoke Integration",
-        "system_name": "Queue Management"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Spoke Integration",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -588,10 +588,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Message Dispatch"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -629,10 +629,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Central Routing",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Central Routing",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -670,10 +670,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -711,10 +711,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -752,10 +752,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -793,10 +793,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Spoke Integration",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Spoke Integration",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -834,10 +834,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -875,10 +875,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Central Routing",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Central Routing",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -916,10 +916,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Spoke Integration",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Spoke Integration",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -957,10 +957,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -998,10 +998,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -1039,10 +1039,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -1080,10 +1080,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -1121,10 +1121,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -1162,10 +1162,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -1203,10 +1203,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1244,10 +1244,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Central Routing",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Message Routing Software",
+        "css_name": "Central Routing",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1285,10 +1285,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1326,10 +1326,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -1367,10 +1367,10 @@
       "role": "pub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -1408,10 +1408,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Queue Management"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -1449,10 +1449,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -1490,10 +1490,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Central Routing",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Central Routing",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1531,10 +1531,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Spoke Integration",
-        "system_name": "Queue Management"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Spoke Integration",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -1572,10 +1572,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1613,10 +1613,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1654,10 +1654,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Spoke Integration",
-        "system_name": "Queue Management"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Spoke Integration",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -1695,10 +1695,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1736,10 +1736,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Central Routing",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Central Routing",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1777,10 +1777,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Spoke Integration",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Spoke Integration",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1818,10 +1818,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -1859,10 +1859,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1900,10 +1900,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -1941,10 +1941,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -1982,10 +1982,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Central Routing",
-        "system_name": "Queue Management"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Central Routing",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -2023,10 +2023,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Spoke Integration",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Spoke Integration",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -2064,10 +2064,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -2105,10 +2105,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Central Routing",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Central Routing",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2146,10 +2146,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2187,10 +2187,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -2228,10 +2228,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -2269,10 +2269,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2310,10 +2310,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Queue Management"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -2351,10 +2351,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Message Dispatch"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2392,10 +2392,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Spoke Integration",
-        "system_name": "Queue Management"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Spoke Integration",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -2433,10 +2433,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Message Dispatch"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2474,10 +2474,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Central Routing",
-        "system_name": "Queue Management"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Central Routing",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -2515,10 +2515,10 @@
       "role": "sub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2556,10 +2556,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -2597,10 +2597,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Central Routing",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Message Routing Software",
+        "css_name": "Central Routing",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -2638,10 +2638,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Queue Management"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -2679,10 +2679,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -2720,10 +2720,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -2761,10 +2761,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Spoke Integration",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Spoke Integration",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2802,10 +2802,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -2843,10 +2843,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Central Routing",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Central Routing",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -2884,10 +2884,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2925,10 +2925,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Message Dispatch"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -2966,10 +2966,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Central Routing",
-        "system_name": "Queue Management"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Central Routing",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -3007,10 +3007,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Spoke Integration",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Spoke Integration",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -3048,10 +3048,10 @@
       "role": "sub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -3089,10 +3089,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Central Routing",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Central Routing",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -3130,10 +3130,10 @@
       "role": "pub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Spoke Integration",
-        "system_name": "Message Dispatch"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Spoke Integration",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3171,10 +3171,10 @@
       "role": "pubsub",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -3212,10 +3212,10 @@
       "role": "pubsub",
       "criticality": false,
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Central Routing",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Central Routing",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -3252,10 +3252,10 @@
       "name": "hub-utils",
       "version": "1.8.6",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Queue Management"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -3290,10 +3290,10 @@
       "name": "hub-utils-1",
       "version": "1.6.6",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Queue Management"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -3328,10 +3328,10 @@
       "name": "hub-utils-2",
       "version": "2.1.3",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Queue Management"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -3366,10 +3366,10 @@
       "name": "hub-utils-3",
       "version": "2.0.4",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Message Dispatch"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3404,10 +3404,10 @@
       "name": "rpc-client",
       "version": "2.6.9",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -3442,10 +3442,10 @@
       "name": "rpc-client-1",
       "version": "1.2.6",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3480,10 +3480,10 @@
       "name": "hub-utils-4",
       "version": "1.0.1",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Central Routing",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Central Routing",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -3518,10 +3518,10 @@
       "name": "hub-utils-5",
       "version": "1.7.9",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -3556,10 +3556,10 @@
       "name": "hub-utils-6",
       "version": "2.7.0",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -3594,10 +3594,10 @@
       "name": "rpc-client-2",
       "version": "1.9.6",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Spoke Integration",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Spoke Integration",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -3632,10 +3632,10 @@
       "name": "rpc-client-3",
       "version": "1.2.9",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Central Routing",
-        "system_name": "Queue Management"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Central Routing",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -3670,10 +3670,10 @@
       "name": "hub-utils-7",
       "version": "2.7.3",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Spoke Integration",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Spoke Integration",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -3708,10 +3708,10 @@
       "name": "rpc-client-4",
       "version": "2.5.5",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -3746,10 +3746,10 @@
       "name": "rpc-client-5",
       "version": "2.9.4",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Spoke Integration",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Message Routing Software",
+        "css_name": "Spoke Integration",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -3784,10 +3784,10 @@
       "name": "rpc-client-6",
       "version": "0.3.7",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -3822,10 +3822,10 @@
       "name": "rpc-client-7",
       "version": "1.5.5",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Queue Management"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -3860,10 +3860,10 @@
       "name": "rpc-client-8",
       "version": "0.7.8",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -3898,10 +3898,10 @@
       "name": "hub-utils-8",
       "version": "0.6.4",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Spoke Integration",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Spoke Integration",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -3936,10 +3936,10 @@
       "name": "rpc-client-9",
       "version": "0.0.8",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Spoke Integration",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Spoke Integration",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -3974,10 +3974,10 @@
       "name": "hub-utils-9",
       "version": "2.5.4",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Integration Platform",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -4012,10 +4012,10 @@
       "name": "hub-utils-10",
       "version": "1.6.5",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Hub Core",
-        "domain_name": "Spoke Integration",
-        "system_name": "Message Dispatch"
+        "csc_name": "Integration Platform",
+        "csci_name": "Hub Core",
+        "css_name": "Spoke Integration",
+        "csms_name": "Message Dispatch"
       },
       "code_metrics": {
         "size": {
@@ -4050,10 +4050,10 @@
       "name": "rpc-client-10",
       "version": "0.1.4",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {
@@ -4088,10 +4088,10 @@
       "name": "rpc-client-11",
       "version": "1.5.6",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Hub Core",
-        "domain_name": "Data Transformation",
-        "system_name": "Queue Management"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Hub Core",
+        "css_name": "Data Transformation",
+        "csms_name": "Queue Management"
       },
       "code_metrics": {
         "size": {
@@ -4126,10 +4126,10 @@
       "name": "rpc-client-12",
       "version": "1.0.6",
       "system_hierarchy": {
-        "component_name": "Integration Platform",
-        "config_item_name": "Message Routing Software",
-        "domain_name": "Data Transformation",
-        "system_name": "Data Mapping"
+        "csc_name": "Integration Platform",
+        "csci_name": "Message Routing Software",
+        "css_name": "Data Transformation",
+        "csms_name": "Data Mapping"
       },
       "code_metrics": {
         "size": {
@@ -4164,10 +4164,10 @@
       "name": "rpc-client-13",
       "version": "1.7.2",
       "system_hierarchy": {
-        "component_name": "Enterprise Service Bus",
-        "config_item_name": "Spoke Services",
-        "domain_name": "Data Transformation",
-        "system_name": "Protocol Conversion"
+        "csc_name": "Enterprise Service Bus",
+        "csci_name": "Spoke Services",
+        "css_name": "Data Transformation",
+        "csms_name": "Protocol Conversion"
       },
       "code_metrics": {
         "size": {

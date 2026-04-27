@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
 import { forceCollide } from "d3-force-3d"
@@ -46,10 +47,10 @@ if (typeof window !== 'undefined' && typeof (window as any).GPUShaderStage === '
 interface AppNode {
   id: string
   name?: string
-  component_name?: string
-  config_item_name?: string
-  system_name?: string
-  domain_name?: string
+  csc_name?: string
+  csci_name?: string
+  csms_name?: string
+  css_name?: string
   csu?: string
   weight?: number
   [key: string]: unknown
@@ -91,10 +92,10 @@ const OTHER = "(Other)"
 function buildHierarchy(apps: AppNode[]): Record<string, CsmsGroup> {
   const root: Record<string, CsmsGroup> = {}
   for (const app of apps) {
-    const csmsKey = app.system_name?.trim() || OTHER
-    const cssKey  = app.domain_name?.trim()  || OTHER
-    const csciKey = app.config_item_name?.trim() || OTHER
-    const cscKey  = app.component_name?.trim()  || OTHER
+    const csmsKey = app.csms_name?.trim() || OTHER
+    const cssKey  = app.css_name?.trim()  || OTHER
+    const csciKey = app.csci_name?.trim() || OTHER
+    const cscKey  = app.csc_name?.trim()  || OTHER
 
     if (!root[csmsKey]) root[csmsKey] = { name: csmsKey, css: {} }
     const csms = root[csmsKey]
@@ -112,8 +113,8 @@ function buildHierarchy(apps: AppNode[]): Record<string, CsmsGroup> {
 function matches(app: AppNode, q: string): boolean {
   if (!q) return true
   const f = (v?: string) => v?.toLowerCase().includes(q) ?? false
-  return f(app.id) || f(app.name) || f(app.component_name) || f(app.config_item_name) ||
-         f(app.system_name) || f(app.domain_name) || f(app.csu)
+  return f(app.id) || f(app.name) || f(app.csc_name) || f(app.csci_name) ||
+         f(app.csms_name) || f(app.css_name) || f(app.csu)
 }
 
 function sortKeys(keys: string[]): string[] {
@@ -129,7 +130,7 @@ const NODE_SIZES: Record<HGLevel, number> = {
   csms: 14, css: 10, csci: 8, csc: 6, app: 3.5,
 }
 const LEVEL_LABELS: Record<HGLevel, string> = {
-  csms: "System (CSMS)", css: "Domain (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)",
+  csms: "System (CSMS)", css: "Segment (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)",
 }
 
 // Hierarchical connections-view layout: assign a y-layer per node type
@@ -191,6 +192,273 @@ function nodeTypeColor(type: string | undefined, isDark = true): string {
 function linkTypeColor(type: string | undefined, isDark = true): string {
   if (!type) return isDark ? "#a1a1aa" : "#71717a"
   return (isDark ? CONN_LINK_TYPE_COLORS_DARK : CONN_LINK_TYPE_COLORS_LIGHT)[type] ?? hashTypeColor(type)
+}
+
+// ── Property descriptions (shown as tooltips on key labels) ─────────────────
+const PROP_DESCS: Record<string, string> = {
+  weight:                  "Operational priority weight — QoS severity of topics routed through this component (0 = low, 1 = high)",
+  path_count:              "Number of independent event-routing paths that share this dependency",
+  loc:                     "Lines of Code — total source size of this component",
+  lcom_norm:               "Normalised Lack of Cohesion of Methods — how scattered responsibilities are (0 = cohesive, 1 = fully scattered)",
+  cyclomatic_complexity:   "McCabe's Cyclomatic Complexity — number of linearly independent paths through the code",
+  instability_code:        "Martin's Instability I = Ce/(Ca+Ce) — ratio of efferent to total couplings (0 = stable, 1 = unstable)",
+  complexity_norm:         "Normalised cyclomatic complexity within the component's type population (0 = simplest, 1 = most complex)",
+  cm_avg_lcom:             "Average Lack of Cohesion of Methods across classes — higher values indicate poorly cohesive classes",
+  cm_max_lcom:             "Maximum Lack of Cohesion of Methods across all classes in this component",
+  cm_avg_wmc:              "Average Weighted Methods per Class — sum of cyclomatic complexities of all methods, averaged across classes",
+  cm_max_wmc:              "Maximum Weighted Methods per Class across all classes",
+  cm_total_wmc:            "Total Weighted Methods per Class — aggregate cyclomatic complexity across the whole component",
+  cm_avg_cbo:              "Average Coupling Between Objects — number of classes this class is directly coupled to, averaged",
+  cm_max_cbo:              "Maximum Coupling Between Objects across all classes",
+  cm_avg_rfc:              "Average Response For Class — number of methods potentially executed in response to a message, averaged",
+  cm_max_rfc:              "Maximum Response For Class across all classes",
+  cm_avg_fanin:            "Average fan-in — average number of modules/classes that directly depend on each class",
+  cm_max_fanin:            "Maximum fan-in across all classes in this component",
+  cm_avg_fanout:           "Average fan-out — average number of modules/classes each class directly depends on",
+  cm_max_fanout:           "Maximum fan-out across all classes in this component",
+  cm_total_classes:        "Total number of classes defined in this component",
+  cm_total_methods:        "Total number of methods across all classes in this component",
+  cm_total_lines:          "Total lines of code across the component",
+  cm_total_loc:            "Total lines of code across the component",
+  // Byte-sized fields
+  size:                    "Message payload size in bytes — used to compute the topic's contribution to the QoS weight (W_topic = 0.85·QoS + 0.15·size_norm)",
+  message_size:            "Message payload size in bytes used in event-flow simulation",
+  payload_size_bytes:      "Message payload size in bytes used in event-flow simulation",
+  // Time fields
+  deadline_ms:             "Maximum allowed end-to-end latency for this flow in milliseconds",
+  latency_p50_ms:          "Median (p50) observed end-to-end message latency in milliseconds",
+  latency_p95_ms:          "95th-percentile observed end-to-end message latency in milliseconds",
+  latency_p99_ms:          "99th-percentile observed end-to-end message latency in milliseconds",
+  // Queue / frequency
+  queue_size:              "Maximum number of messages this subscriber's queue can buffer before dropping",
+  frequency:               "Publishing frequency in Hz (messages per second)",
+}
+const EDGE_DESCS: Record<string, string> = {
+  weight:     "QoS severity weight [0–1] — maximum weight of topics routed through this dependency",
+  path_count: "Number of independent event-routing paths that share this dependency",
+}
+
+// ── Contextual neighborhood scenarios (replaces raw depth 1-2-3) ─────────────
+interface ConnScenario {
+  id: string
+  label: string
+  tooltip: string
+  depth: number
+  /** If set, only edges of these types are shown */
+  allowedEdgeTypes?: string[]
+  /** If set, only nodes of these types are shown (center node always kept) */
+  allowedNodeTypes?: string[]
+  /**
+   * When true, use a strict hop-by-hop BFS from the center so only nodes
+   * reachable via the EXACT intended hop path are included. Prevents transitive
+   * leakage where depth-2 queries pull in unrelated nodes via shared topics.
+   */
+  strictBFS?: boolean
+}
+
+const NODE_SCENARIOS: Record<string, ConnScenario[]> = {
+  Application: [
+    {
+      id: "direct",  label: "Direct",
+      tooltip: "Hosting node, pub/sub topics, and library dependencies",
+      depth: 1,
+      allowedNodeTypes: ["Application", "Node", "Topic", "Library"],
+      allowedEdgeTypes: ["RUNS_ON", "PUBLISHES_TO", "SUBSCRIBES_TO", "USES"],
+    },
+    {
+      id: "pubsub",  label: "Pub/Sub Context",
+      tooltip: "Topics this app publishes/subscribes to, plus other apps sharing those topics",
+      depth: 2,
+      allowedNodeTypes: ["Application", "Topic"],
+      allowedEdgeTypes: ["PUBLISHES_TO", "SUBSCRIBES_TO"],
+      strictBFS: true,
+    },
+  ],
+  Topic: [
+    {
+      id: "flows",  label: "Publishers & Subscribers",
+      tooltip: "Applications that publish or subscribe to this topic",
+      depth: 1,
+      allowedNodeTypes: ["Application"],
+      allowedEdgeTypes: ["PUBLISHES_TO", "SUBSCRIBES_TO"],
+    },
+    {
+      id: "extended",  label: "Extended",
+      tooltip: "Also includes infrastructure nodes of connected applications",
+      depth: 2,
+      allowedNodeTypes: ["Application", "Node", "Broker"],
+      allowedEdgeTypes: ["PUBLISHES_TO", "SUBSCRIBES_TO", "RUNS_ON", "ROUTES"],
+      strictBFS: true,
+    },
+  ],
+  Node: [
+    {
+      id: "apps",  label: "Hosted Apps",
+      tooltip: "Applications deployed on this infrastructure node",
+      depth: 1,
+      allowedNodeTypes: ["Application"],
+      allowedEdgeTypes: ["RUNS_ON"],
+    },
+    {
+      id: "ecosystem",  label: "App Ecosystem",
+      tooltip: "Only apps that run on this node, plus topics those specific apps publish or subscribe to",
+      depth: 2,
+      allowedNodeTypes: ["Application", "Topic"],
+      allowedEdgeTypes: ["RUNS_ON", "PUBLISHES_TO", "SUBSCRIBES_TO"],
+      strictBFS: true,
+    },
+  ],
+  Broker: [
+    {
+      id: "topics",  label: "Routed Topics",
+      tooltip: "Topics routed through this message broker",
+      depth: 1,
+      allowedNodeTypes: ["Topic"],
+      allowedEdgeTypes: ["ROUTES"],
+    },
+    {
+      id: "context",  label: "App Connections",
+      tooltip: "Routed topics plus applications that publish or subscribe to those topics",
+      depth: 2,
+      allowedNodeTypes: ["Topic", "Application"],
+      allowedEdgeTypes: ["ROUTES", "PUBLISHES_TO", "SUBSCRIBES_TO"],
+      strictBFS: true,
+    },
+  ],
+  Library: [
+    {
+      id: "users",  label: "Dependent Apps",
+      tooltip: "Applications that depend on this library",
+      depth: 1,
+      allowedNodeTypes: ["Application"],
+      allowedEdgeTypes: ["USES"],
+    },
+    {
+      id: "ecosystem",  label: "App Topics",
+      tooltip: "Dependent apps plus the topics those specific apps publish or subscribe to",
+      depth: 2,
+      allowedNodeTypes: ["Application", "Topic"],
+      allowedEdgeTypes: ["USES", "PUBLISHES_TO", "SUBSCRIBES_TO"],
+      strictBFS: true,
+    },
+  ],
+}
+const DEFAULT_SCENARIOS: ConnScenario[] = [
+  { id: "direct",   label: "Direct",   tooltip: "Direct neighbors (1 hop)",   depth: 1 },
+  { id: "extended", label: "Extended", tooltip: "2-hop neighborhood",          depth: 2 },
+]
+
+function getScenariosForType(nodeType: string | undefined): ConnScenario[] {
+  return NODE_SCENARIOS[nodeType ?? "Application"] ?? DEFAULT_SCENARIOS
+}
+
+/** Small ⓘ tooltip trigger shown inline after a property label */
+function Tip({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className="ml-1.5 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full
+            border border-muted-foreground/40 text-muted-foreground/60
+            hover:border-foreground/50 hover:text-foreground/80 cursor-help transition-colors"
+          style={{ fontSize: 8, lineHeight: 1, flexShrink: 0, verticalAlign: "middle" }}
+        >i</span>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-64 text-xs leading-relaxed">
+        {text}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+// ── Property unit suffixes & value formatting ─────────────────────────────────
+function isBytesKey(key: string): boolean {
+  return key === "size" || key === "message_size" || /bytes/.test(key)
+}
+
+/** Human-readable byte size: 41969 → "41.0 KB" */
+function formatBytes(n: number): string {
+  if (n < 1024)         return `${n} B`
+  if (n < 1024 * 1024)  return `${(n / 1024).toFixed(1)} KB`
+  if (n < 1024 ** 3)    return `${(n / 1024 ** 2).toFixed(2)} MB`
+  return `${(n / 1024 ** 3).toFixed(2)} GB`
+}
+
+/** Formatted display value for a property (applies byte/etc formatting where meaningful) */
+function propValue(key: string, v: unknown): string {
+  const n = typeof v === "number" ? v : (typeof v === "string" && v !== "" && !isNaN(Number(v)) ? Number(v) : null)
+  if (n !== null && isBytesKey(key)) return formatBytes(n)
+  return String(v)
+}
+
+function propUnit(key: string): string {
+  if (isBytesKey(key))                                return ""   // unit embedded by formatBytes
+  // Strictly bounded [0–1] fields
+  if (key === "weight")                               return "[0–1]"
+  if (key === "lcom_norm")                            return "[0–1]"
+  if (/^coupling_risk/.test(key))                     return "[0–1]"
+  // Time fields
+  if (/_ms$/.test(key) || key === "deadline_ms")      return "ms"
+  // Frequency fields
+  if (/_hz$/.test(key) || key === "frequency")        return "Hz"
+  // Queue / count fields
+  if (key === "queue_size")                           return "msgs"
+  // Raw code-metric counts (unbounded — no [0–1] claim)
+  if (key === "loc")                                  return "lines"
+  if (key === "cyclomatic_complexity")                return "CC"
+  if (key === "path_count")                           return "paths"
+  if (/^cm_(avg_|max_|total_)?lcom$/.test(key))       return "LCOM"
+  if (/fanin/.test(key))                              return "in-deps"
+  if (/fanout/.test(key))                             return "out-deps"
+  if (/\bcbo\b/.test(key))                            return "deps"
+  if (/\brfc\b/.test(key))                            return "calls"
+  if (/cm_total_classes/.test(key))                   return "classes"
+  if (/cm_total_methods/.test(key))                   return "methods"
+  if (/cm_total_(lines|loc)/.test(key))               return "lines"
+  // Other coupling_ fields are instability-derived [0–1]
+  if (/^coupling_/.test(key))                         return "[0–1]"
+  return ""
+}
+
+// ── Risk-range badge (good / bad judgement for [0–1] risk scores) ─────────────
+/**
+ * Returns true for keys whose value sits on a [0–1] risk scale where
+ * higher = worse / more risky.  These keys get a colour-coded level badge.
+ */
+function isRiskKey(key: string): boolean {
+  // RMAV quality / dimension scores
+  if (/^(reliability|maintainability|availability|vulnerability|quality_score|rmav_score|overall)$/.test(key)) return true
+  // Structural centrality metrics (all normalised to [0–1])
+  if (/^(reverse_pagerank|betweenness_centrality|betweenness|bridge_ratio|bridge_score|reverse_eigenvector|reverse_closeness|ap_score|directed_ap_score|qspof)$/.test(key)) return true
+  // Code quality [0–1] penalty inputs
+  if (/^(lcom_norm|instability_code|complexity_norm|coupling_risk|weight)$/.test(key)) return true
+  // Any coupling_ derived field
+  if (/^coupling_/.test(key)) return true
+  return false
+}
+
+const RISK_LEVELS = [
+  { min: 0.75, label: "CRIT", cls: "bg-red-500/15 text-red-500" },
+  { min: 0.50, label: "HIGH", cls: "bg-orange-500/15 text-orange-500" },
+  { min: 0.25, label: "MOD",  cls: "bg-amber-500/15 text-amber-600 dark:text-amber-500" },
+  { min: 0.00, label: "LOW",  cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-500" },
+] as const
+
+function getRiskLevel(n: number) {
+  return RISK_LEVELS.find(r => n >= r.min) ?? RISK_LEVELS[RISK_LEVELS.length - 1]
+}
+
+function RiskBadge({ k, v }: { k: string; v: unknown }) {
+  if (!isRiskKey(k)) return null
+  const n = typeof v === "number" ? v
+    : (typeof v === "string" && v !== "" && !isNaN(Number(v)) ? Number(v) : null)
+  if (n === null || n < 0 || n > 1) return null
+  const { label, cls } = getRiskLevel(n)
+  return (
+    <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wide ${cls}`}>
+      {label}
+    </span>
+  )
 }
 
 // ── Shared ReactFlow prop constants (hoisted to avoid re-renders) ─────────────
@@ -603,7 +871,7 @@ const ConnLaneNode = memo(function ConnLaneNode({ data }: NodeProps) {
 const cfNodeTypes = { conn: ConnFlowNode, lane: ConnLaneNode }
 
 // Custom edge: smooth bezier + clean fixed-size filled arrowhead
-const ConnFlowEdge = memo(function ConnFlowEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style }: EdgeProps) {
+const ConnFlowEdge = memo(function ConnFlowEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, data }: EdgeProps) {
   // Fixed arrowhead dimensions — same size on every edge
   const AW = 5  // half-width
   const AH = 8  // height
@@ -611,16 +879,32 @@ const ConnFlowEdge = memo(function ConnFlowEdge({ sourceX, sourceY, targetX, tar
   const sw = Number(style?.strokeWidth ?? 2)
   const opacity = Number(style?.opacity ?? 1)
   const dashArray = (style as any)?.strokeDasharray as string | undefined
+  const curveOffset = Number((data as any)?.curveOffset ?? 0)
   // Handles are always top/bottom — bezier arrives vertically at target
   const goingDown = targetPosition === "top"
   const dir = goingDown ? 1 : -1
   // Shorten path so the line ends at arrowhead base, not tip — no overlap
   const adjustedTY = targetY - dir * AH
-  const [edgePath] = getBezierPath({
-    sourceX, sourceY, sourcePosition,
-    targetX, targetY: adjustedTY,
-    targetPosition, curvature: 0.35,
-  })
+  // Build path: when curveOffset != 0 use a manually offset cubic bezier so
+  // parallel edges between the same pair of nodes don't overlap.
+  let edgePath: string
+  if (curveOffset === 0) {
+    ;[edgePath] = getBezierPath({
+      sourceX, sourceY, sourcePosition,
+      targetX, targetY: adjustedTY,
+      targetPosition, curvature: 0.35,
+    })
+  } else {
+    const midY = (sourceY + adjustedTY) / 2
+    const bendY = Math.abs(adjustedTY - sourceY) * 0.35
+    edgePath = [
+      `M ${sourceX} ${sourceY}`,
+      `C ${sourceX + curveOffset} ${sourceY + bendY}`,
+      `  ${targetX + curveOffset} ${adjustedTY - bendY}`,
+      `  ${targetX} ${adjustedTY}`,
+    ].join(" ")
+    void midY // suppress unused warning
+  }
   const tipY  = targetY
   const baseY = adjustedTY
   const arrowPts = `${targetX},${tipY} ${targetX - AW},${baseY} ${targetX + AW},${baseY}`
@@ -637,7 +921,7 @@ const cfEdgeTypes = { conn: ConnFlowEdge }
 // ── Hierarchy graph using @xyflow/react ──────────────────────────────────────
 
 const HIER_LEVEL_LABEL: Record<HGLevel, string> = {
-  csms: "System", css: "Domain", csci: "Config Item", csc: "Component", app: "App",
+  csms: "System", css: "Segment", csci: "Config Item", csc: "Component", app: "App",
 }
 
 const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
@@ -923,6 +1207,19 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
     const lo = weights.length ? Math.min(...weights) : 0
     const hi = weights.length ? Math.max(...weights) : 1
     const wScale = lo === hi ? () => 2.0 : (w: number) => 1.0 + ((w - lo) / (hi - lo)) * 2.5
+
+    // Detect parallel edges (same node pair, any direction) and assign lateral offsets
+    // so they fan out and don't overlap.
+    const pairGroups = new Map<string, number[]>()
+    graphData.links.forEach((l: any, i: number) => {
+      const a = typeof l.source === "object" ? l.source.id : l.source
+      const b = typeof l.target === "object" ? l.target.id : l.target
+      const key = a < b ? `${a}||${b}` : `${b}||${a}`
+      if (!pairGroups.has(key)) pairGroups.set(key, [])
+      pairGroups.get(key)!.push(i)
+    })
+    const OFFSET_STEP = 28 // px between parallel edges
+
     return graphData.links.map((l: any, i: number) => {
       const srcId = typeof l.source === "object" ? l.source.id : l.source
       const tgtId = typeof l.target === "object" ? l.target.id : l.target
@@ -937,6 +1234,16 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
       const color = isHl ? "#f59e0b" : linkTypeColor(l.type, isDark)
       const sw = isHl ? 6 : isAdj ? Math.min(wScale(Number(l.weight ?? 1)) + 0.5, 4) : 1
       const opacity = isHl ? 1 : isAdj ? 0.88 : 0.2
+
+      // Compute lateral curve offset for this edge within its parallel group
+      const a = srcId < tgtId ? srcId : tgtId
+      const b = srcId < tgtId ? tgtId : srcId
+      const pairKey = `${a}||${b}`
+      const group = pairGroups.get(pairKey) ?? [i]
+      const groupIdx = group.indexOf(i)
+      const n = group.length
+      const curveOffset = n === 1 ? 0 : (groupIdx - (n - 1) / 2) * OFFSET_STEP
+
       return {
         id: `e${i}`,
         source: srcId,
@@ -945,7 +1252,7 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
         targetHandle,
         type: "conn",
         style: { stroke: color, strokeWidth: sw, opacity, ...(isDerived ? { strokeDasharray: "6 4" } : {}) },
-        data: { link: l },
+        data: { link: l, curveOffset },
         selectable: false,
       }
     })
@@ -1009,8 +1316,9 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
   const [connData, setConnData] = useState<{ nodes: any[]; links: any[] } | null>(null)
   const [connLoading, setConnLoading] = useState(false)
   const [connError, setConnError] = useState<string | null>(null)
-  const [connTab, setConnTab] = useState<"out" | "in" | "props">("props")
-  const [connDepth, setConnDepth] = useState(1)
+  const [connTab, setConnTab] = useState<"connections" | "props">("props")
+  const [connScenario, setConnScenario] = useState("direct")
+  const [connSort, setConnSort] = useState<{ col: "node" | "type" | "dir"; asc: boolean }>({ col: "type", asc: true })
 
   const isSyncingRef = useRef(false)
 
@@ -1146,21 +1454,71 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   const connGraphData = useMemo(() => {
     if (!connData) return { nodes: [], links: [] }
+
+    // Resolve active scenario filter
+    const scenarios = getScenariosForType(selectedApp?.nodeType ?? "Application")
+    const activeScenario = scenarios.find(s => s.id === connScenario) ?? scenarios[0]
+    const centerPathKey = selectedApp?.pathKey ?? ""
+
     let links = [...connData.links]
+
+    // 1. Scenario-based edge type filter
+    if (activeScenario.allowedEdgeTypes) {
+      const allowedSet = new Set(activeScenario.allowedEdgeTypes)
+      links = links.filter(l => allowedSet.has(l.type))
+    }
+    // 2. Manual edge type hide overlay
     if (hiddenEdgeTypes.size > 0) links = links.filter(l => !hiddenEdgeTypes.has(l.type))
-    // Keep only nodes that are still referenced by remaining links or are the selected app
+
+    // 3. Strict BFS hop-by-hop reachability (prevents transitive leakage)
+    //    e.g. Node→App→Topic→OtherApp: OtherApp is NOT on this node and must be excluded
+    if (activeScenario.strictBFS && centerPathKey) {
+      const visited = new Set<string>([centerPathKey])
+      let frontier = new Set<string>([centerPathKey])
+      for (let hop = 0; hop < activeScenario.depth; hop++) {
+        const nextFrontier = new Set<string>()
+        for (const link of links) {
+          const srcId = link.source?.id ?? link.source
+          const tgtId = link.target?.id ?? link.target
+          if (frontier.has(srcId) && !visited.has(tgtId)) {
+            nextFrontier.add(tgtId)
+            visited.add(tgtId)
+          }
+          if (frontier.has(tgtId) && !visited.has(srcId)) {
+            nextFrontier.add(srcId)
+            visited.add(srcId)
+          }
+        }
+        frontier = nextFrontier
+      }
+      links = links.filter(l => visited.has(l.source?.id ?? l.source) && visited.has(l.target?.id ?? l.target))
+    }
+
+    // Keep only nodes referenced by surviving links or the center node
     const referencedIds = new Set<string>([
-      ...(selectedApp ? [selectedApp.pathKey] : []),
+      ...(selectedApp ? [centerPathKey] : []),
       ...links.flatMap(l => [l.source?.id ?? l.source, l.target?.id ?? l.target]),
     ])
     let nodes = connData.nodes.filter(n => referencedIds.has(n.id))
+
+    // 4. Scenario-based node type filter
+    if (activeScenario.allowedNodeTypes) {
+      const allowedSet = new Set(activeScenario.allowedNodeTypes)
+      const removedIds = new Set(nodes.filter(n => !allowedSet.has(n.type) && n.id !== centerPathKey).map(n => n.id))
+      if (removedIds.size > 0) {
+        nodes = nodes.filter(n => !removedIds.has(n.id))
+        links = links.filter(l => !removedIds.has(l.source?.id ?? l.source) && !removedIds.has(l.target?.id ?? l.target))
+      }
+    }
+    // 5. Manual node type hide overlay
     if (hiddenNodeTypes.size > 0) {
-      const removedIds = new Set(nodes.filter(n => hiddenNodeTypes.has(n.type) && n.id !== selectedApp?.pathKey).map(n => n.id))
+      const removedIds = new Set(nodes.filter(n => hiddenNodeTypes.has(n.type) && n.id !== centerPathKey).map(n => n.id))
       nodes = nodes.filter(n => !removedIds.has(n.id))
       links = links.filter(l => !removedIds.has(l.source?.id ?? l.source) && !removedIds.has(l.target?.id ?? l.target))
     }
+
     return { nodes, links }
-  }, [connData, selectedApp, hiddenEdgeTypes, hiddenNodeTypes])
+  }, [connData, selectedApp, connScenario, hiddenEdgeTypes, hiddenNodeTypes])
 
   // Direct neighbor id sets (relative to selected app node)
   const directOutIds = useMemo(() =>
@@ -1279,17 +1637,29 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     return () => { ro.disconnect(); if (rafId) cancelAnimationFrame(rafId) }
   }, [])
 
-  // Fetch connections whenever selected app or depth changes
+  // Reset scenario and filters when the selected node changes
+  useEffect(() => {
+    if (!selectedApp) return
+    const scenarios = getScenariosForType(selectedApp.nodeType ?? "Application")
+    setConnScenario(scenarios[0].id)
+    setHiddenNodeTypes(new Set())
+    setHiddenEdgeTypes(new Set(["DEPENDS_ON"]))
+  }, [selectedApp?.pathKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch connections whenever selected app or scenario changes
   // Two parallel calls: structural (fetch_structural=true) + derived DEPENDS_ON (fetch_structural=false)
   useEffect(() => {
     if (!selectedApp) { setConnData(null); setConnError(null); return }
+    const scenarios = getScenariosForType(selectedApp.nodeType ?? "Application")
+    const activeScenario = scenarios.find(s => s.id === connScenario) ?? scenarios[0]
+    const effectiveDepth = activeScenario.depth
     let cancelled = false
     setConnLoading(true)
     setConnError(null)
     setConnData(null)
     Promise.all([
-      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, true, connDepth),
-      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, false, connDepth),
+      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, true, effectiveDepth),
+      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, false, effectiveDepth),
     ]).then(([structural, derived]) => {
       if (cancelled) return
       // Merge nodes (deduplicate by id)
@@ -1305,7 +1675,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       .catch(e => { if (!cancelled) setConnError(e instanceof Error ? e.message : String(e)) })
       .finally(() => { if (!cancelled) setConnLoading(false) })
     return () => { cancelled = true }
-  }, [selectedApp, connDepth])
+  }, [selectedApp, connScenario])
 
   const clearSelection = useCallback(() => {
     setSelectedApp(null)
@@ -1416,8 +1786,9 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
   // Click handler — connections mode (re-center on clicked node)
   const drillIntoConn = useCallback((node: object) => {
     const n = node as any
+    if (!n || !n.id) return
     if (n.id === selectedApp?.pathKey) return
-    setSelectedApp({ id: `app:${n.id}`, name: n.label ?? n.id, level: "app", appCount: 1, pathKey: n.id })
+    setSelectedApp({ id: `app:${n.id}`, name: n.label ?? n.id, level: "app", nodeType: n.type, appCount: 1, pathKey: n.id })
     setConnTab("props")
     setConnData(null)
     const key = n.type === 'Application' ? `app:${n.id}` : `extra:${n.id}`
@@ -1527,8 +1898,8 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     return []
   }, [selectedApp, hierarchy])
 
-  const outLinks = (connData?.links ?? []).filter(l => (l.source?.id ?? l.source) === selectedApp?.pathKey)
-  const inLinks  = (connData?.links ?? []).filter(l => (l.target?.id ?? l.target) === selectedApp?.pathKey)
+  const outLinks = connGraphData.links.filter((l: any) => (l.source?.id ?? l.source) === selectedApp?.pathKey)
+  const inLinks  = connGraphData.links.filter((l: any) => (l.target?.id ?? l.target) === selectedApp?.pathKey)
   const nodeById = useMemo(() => { const m = new Map<string, any>(); connData?.nodes.forEach(n => m.set(n.id, n)); return m }, [connData])
   const peerLabel = (nodeId: string) => nodeById.get(nodeId)?.label ?? nodeId
   const appNode = connData?.nodes.find(n => n.id === selectedApp?.pathKey)
@@ -1642,42 +2013,45 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
         {/* Canvas */}
         <div ref={containerRef} className="flex-1 overflow-hidden relative" style={{ background: bgColor }}>
           {/* Filter overlay — connections mode only */}
-          {viewMode === "connections" && <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 rounded-lg border border-border/50 px-2.5 py-2 text-xs"
-            style={{ background: isDark ? "rgba(15,15,20,0.75)" : "rgba(255,255,255,0.80)", backdropFilter: "blur(8px)", minWidth: 96 }}>
-            <p className="font-medium text-muted-foreground uppercase tracking-wide text-[9px]">Filter</p>
+          {viewMode === "connections" && <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 rounded-lg border border-border/50 px-3.5 py-3 text-sm"
+            style={{ background: isDark ? "rgba(15,15,20,0.75)" : "rgba(255,255,255,0.80)", backdropFilter: "blur(8px)", minWidth: 140 }}>
+            <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px]">Filter</p>
             {viewMode !== "hierarchy" && (
               <>
-                <p className="font-medium text-muted-foreground uppercase tracking-wide text-[9px] mt-0.5">Nodes</p>
-                {Array.from(new Set((connData?.nodes as any[] ?? []).map(n => n.type).filter(Boolean))).map(t => (
+                <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px] mt-0.5">Nodes</p>
+                {Array.from(new Set([
+                  ...(connGraphData?.nodes ?? []).map((n: any) => n.type).filter(Boolean),
+                  ...Array.from(hiddenNodeTypes).filter(t => (connData?.nodes as any[] ?? []).some(n => n.type === t)),
+                ])).map(t => (
                   <button key={t} onClick={() => toggleNodeType(t as string)}
-                    className={cn("flex items-center gap-2 w-full text-left transition-opacity", hiddenNodeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
-                    <svg width="10" height="10" viewBox="0 0 10 10" className="shrink-0">
+                    className={cn("flex items-center gap-2.5 w-full text-left transition-opacity py-0.5", hiddenNodeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
+                    <svg width="12" height="12" viewBox="0 0 10 10" className="shrink-0">
                       {t === "Node"    && <rect x="1" y="1" width="8" height="8" fill={nodeTypeColor(t, isDark)} />}
                       {t === "Topic"   && <polygon points="5,1 9,5 5,9 1,5" fill={nodeTypeColor(t, isDark)} />}
                       {t === "Library" && <polygon points="5,1 9,8.5 1,8.5" fill={nodeTypeColor(t, isDark)} />}
                       {t === "Broker"  && <polygon points="5,0.5 8.3,2.5 8.3,7.5 5,9.5 1.7,7.5 1.7,2.5" fill={nodeTypeColor(t, isDark)} />}
                       {!["Node","Topic","Library","Broker"].includes(t as string) && <circle cx="5" cy="5" r="4" fill={nodeTypeColor(t as string, isDark)} />}
                     </svg>
-                    <span className={cn("truncate", hiddenNodeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
+                    <span className={cn("truncate text-xs", hiddenNodeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
                   </button>
                 ))}
-                <p className="font-medium text-muted-foreground uppercase tracking-wide text-[9px] mt-1">Edges</p>
+                <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px] mt-1">Edges</p>
                 {Array.from(new Set((connData?.links as any[] ?? []).map(l => l.type).filter(Boolean))).map(t => (
                   <button key={t} onClick={() => toggleEdgeType(t as string)}
-                    className={cn("flex items-center gap-2 w-full text-left transition-opacity", hiddenEdgeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
+                    className={cn("flex items-center gap-2.5 w-full text-left transition-opacity py-0.5", hiddenEdgeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
                     {t === "DEPENDS_ON" ? (
-                      <svg width="16" height="4" viewBox="0 0 16 4" className="shrink-0">
+                      <svg width="18" height="6" viewBox="0 0 16 4" className="shrink-0">
                         <line x1="0" y1="2" x2="16" y2="2" stroke={linkTypeColor(t as string, isDark)} strokeWidth="1.5" strokeDasharray="4 2" />
                       </svg>
                     ) : (
                       <span className="h-0.5 w-4 shrink-0 rounded-full" style={{ background: linkTypeColor(t as string, isDark) }} />
                     )}
-                    <span className={cn("truncate", hiddenEdgeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
+                    <span className={cn("truncate text-xs", hiddenEdgeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
                   </button>
                 ))}
               </>
             )}
-            <div className="border-t border-border/40 mt-1 pt-1 space-y-0.5 text-[10px] text-muted-foreground">
+            <div className="border-t border-border/40 mt-1 pt-1.5 space-y-0.5 text-xs text-muted-foreground">
               {connGraphData ? (
                 <><p>{connGraphData.nodes.length} nodes</p><p>{connGraphData.links.length} edges</p></>
               ) : null}
@@ -1766,10 +2140,14 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                     <div className="px-3 py-2 space-y-1.5">
                       <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0">From</span><span className="font-medium truncate">{srcLabel}</span></div>
                       <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0">To</span><span className="font-medium truncate">{tgtLabel}</span></div>
-                      {l.weight !== undefined && <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0">Weight</span><span className="font-mono">{typeof l.weight === "number" ? l.weight.toFixed(4) : String(l.weight)}</span></div>}
-                      {extraProps.map(([k, v]) => (
-                        <div key={k} className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 truncate">{k}</span><span className="font-mono truncate">{String(v as any)}</span></div>
-                      ))}
+                      {l.weight !== undefined && <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 inline-flex items-center">Weight{EDGE_DESCS.weight && <Tip text={EDGE_DESCS.weight} />}</span><span className="font-mono">{typeof l.weight === "number" ? l.weight.toFixed(4) : String(l.weight)}<span className="ml-1 text-[9px] opacity-55">[0–1]</span></span></div>}
+                      {extraProps.map(([k, v]) => {
+                        const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
+                        const desc = EDGE_DESCS[k] ?? PROP_DESCS[k]
+                        return (
+                          <div key={k} className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 truncate inline-flex items-center">{k}{desc && <Tip text={desc} />}</span><span className="font-mono truncate inline-flex items-center gap-0">{propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55">{unit}</span>}<RiskBadge k={k} v={v} /></span></div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
@@ -1784,65 +2162,117 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold text-white shrink-0"
-                  style={{ background: NODE_COLORS.app }}>App</span>
+                  style={{ background: nodeTypeColor(appNode?.type ?? selectedApp?.nodeType, isDark) }}>
+                  {appNode?.type ?? selectedApp?.nodeType ?? "App"}
+                </span>
                 <span className="text-xs font-semibold text-foreground truncate">{selectedApp.name}</span>
               </div>
               <button onClick={clearSelection} className="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
-              <span className="text-[11px] text-muted-foreground">Depth</span>
-              {[1, 2, 3].map(d => (
-                <button key={d} onClick={() => setConnDepth(d)}
-                  className={cn("h-6 w-6 rounded text-xs font-medium transition-colors",
-                    connDepth === d ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  )}>{d}</button>
-              ))}
-              {connData && !connLoading && (
-                <span className="ml-auto text-[11px] text-muted-foreground">{connData.links.length} edges</span>
-              )}
+            {/* Scenario selector */}
+            <div className="px-4 py-2.5 border-b border-border shrink-0">
+              {(() => {
+                const nodeType = appNode?.type ?? selectedApp?.nodeType ?? "Application"
+                const scenarios = getScenariosForType(nodeType)
+                return (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">View</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {scenarios.map(s => (
+                        <Tooltip key={s.id}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => setConnScenario(s.id)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors",
+                                connScenario === s.id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                              )}
+                            >{s.label}</button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-52 text-xs leading-relaxed">
+                            {s.tooltip}
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                      {connData && !connLoading && (
+                        <span className="ml-auto text-[11px] text-muted-foreground">{connData.links.length} edges</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
             <div className="flex border-b border-border shrink-0">
-              {(["props", "out", "in"] as const).map(tab => (
+              {(["props", "connections"] as const).map(tab => (
                 <button key={tab} onClick={() => setConnTab(tab)}
                   className={cn("flex-1 py-1.5 text-[11px] font-medium transition-colors",
                     connTab === tab ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}>
-                  {tab === "out" ? `Out (${outLinks.length})` : tab === "in" ? `In (${inLinks.length})` : "Props"}
+                  {tab === "connections" ? `Connections (${outLinks.length + inLinks.length})` : "Props"}
                 </button>
               ))}
             </div>
             <div className="flex-1 overflow-y-auto">
               {connLoading && <div className="flex items-center justify-center h-24"><LoadingSpinner className="h-5 w-5" /></div>}
               {connError && !connLoading && <p className="px-4 py-3 text-xs text-destructive">{connError}</p>}
-              {!connLoading && !connError && connTab !== "props" && (
+              {!connLoading && !connError && connTab === "connections" && (
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 bg-background z-10">
                     <tr className="border-b border-border">
-                      <th className="text-left px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                        {connTab === "out" ? "Target" : "Source"}
-                      </th>
-                      <th className="text-left px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
-                      <th className="text-right px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">W</th>
+                      {(["node", "type", "dir"] as const).map(col => (
+                        <th key={col}
+                          onClick={() => setConnSort(s => ({ col, asc: s.col === col ? !s.asc : true }))}
+                          className={cn(
+                            "py-2 text-[10px] font-semibold uppercase tracking-wide cursor-pointer select-none transition-colors hover:text-foreground",
+                            col === "dir" ? "text-right px-3" : "text-left px-3",
+                            connSort.col === col ? "text-foreground" : "text-muted-foreground"
+                          )}>
+                          {col === "node" ? "Node" : col === "type" ? "Type" : "Dir"}
+                          <span className={connSort.col === col ? "" : "opacity-30"}>{connSort.col === col ? (connSort.asc ? " ↑" : " ↓") : " ↑"}</span>
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {(connTab === "out" ? outLinks : inLinks).map((link, i) => {
-                      const peerId = connTab === "out" ? (link.target?.id ?? link.target) : (link.source?.id ?? link.source)
+                    {[
+                      ...outLinks.map(l => ({ link: l, dir: "out" as const })),
+                      ...inLinks.map(l => ({ link: l, dir: "in" as const })),
+                    ].sort((a, b) => {
+                      let cmp = 0
+                      if (connSort.col === "node") {
+                        const aId = a.dir === "out" ? (a.link.target?.id ?? a.link.target) : (a.link.source?.id ?? a.link.source)
+                        const bId = b.dir === "out" ? (b.link.target?.id ?? b.link.target) : (b.link.source?.id ?? b.link.source)
+                        cmp = peerLabel(aId).localeCompare(peerLabel(bId))
+                      } else if (connSort.col === "type") {
+                        cmp = (a.link.type ?? "").localeCompare(b.link.type ?? "")
+                      } else {
+                        cmp = a.dir.localeCompare(b.dir)
+                      }
+                      return connSort.asc ? cmp : -cmp
+                    }).map(({ link, dir }, i) => {
+                      const peerId = dir === "out" ? (link.target?.id ?? link.target) : (link.source?.id ?? link.source)
                       return (
                         <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                           <td className="px-3 py-2 font-medium text-foreground max-w-[110px] truncate" title={peerLabel(peerId)}>{peerLabel(peerId)}</td>
                           <td className="px-3 py-2 text-muted-foreground max-w-[80px] truncate text-[10px]">{link.type ?? "—"}</td>
-                          <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">
-                            {link.weight != null ? Number(link.weight).toFixed(2) : "—"}
+                          <td className="px-3 py-2 text-right">
+                            <span className={cn(
+                              "text-[9px] font-semibold px-1.5 py-0.5 rounded-full",
+                              dir === "out"
+                                ? "bg-blue-500/15 text-blue-400"
+                                : "bg-orange-500/15 text-orange-400"
+                            )}>{dir}</span>
                           </td>
                         </tr>
                       )
                     })}
-                    {(connTab === "out" ? outLinks : inLinks).length === 0 && (
+                    {outLinks.length === 0 && inLinks.length === 0 && (
                       <tr><td colSpan={3} className="px-3 py-8 text-center text-muted-foreground text-[11px]">
-                        No {connTab === "out" ? "outbound" : "inbound"} connections
+                        No connections
                       </td></tr>
                     )}
                   </tbody>
@@ -1855,7 +2285,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                       <tr><td colSpan={2} className="px-3 py-8 text-center text-muted-foreground text-[11px]">No properties available</td></tr>
                     )}
                     {(() => {
-                      const HIER_KEYS = new Set(["system_name","component_name","config_item_name","domain_name"])
+                      const HIER_KEYS = new Set(["csms_name","csc_name","csci_name","css_name"])
                       const isCmSize     = (k: string) => /^cm_total_|^loc$/.test(k)
                       const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
                       const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$/.test(k)
@@ -1870,12 +2300,20 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                       const cmCoupling = appProps.filter(([k]) => isCmCoupling(k))
                       const cmOther    = appProps.filter(([k, v]) => isCm(k) && !isCmSize(k) && !isCmComplex(k) && !isCmCohesion(k) && !isCmCoupling(k))
 
-                      const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => (
-                        <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                          <td className={`${indent ? "pl-6" : "px-3"} pr-3 py-2 font-medium text-foreground w-2/5`}>{k}</td>
-                          <td className="px-3 py-2 font-mono text-muted-foreground break-all text-[10px]">{String(v as any)}</td>
-                        </tr>
-                      )
+                      const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => {
+                        const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
+                        const desc = PROP_DESCS[k]
+                        return (
+                          <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                            <td className={`${indent ? "pl-6" : "px-3"} pr-3 py-2 font-medium text-foreground w-2/5`}>
+                              <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
+                            </td>
+                            <td className="px-3 py-2 font-mono text-muted-foreground break-all text-[10px]">
+                              {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}<RiskBadge k={k} v={v} />
+                            </td>
+                          </tr>
+                        )
+                      }
                       const GroupHeader = ({ label }: { label: string }) => (
                         <tr className="bg-muted/60 border-t border-border">
                           <td colSpan={2} className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
@@ -1931,7 +2369,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 // ── Detail Panel (left) ──────────────────────────────────────────────────────
 
 const KIND_LABEL: Record<SelectedKind, string> = {
-  csms: "System (CSMS)", css: "Domain (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)", node: "Node", topic: "Topic",
+  csms: "System (CSMS)", css: "Segment (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)", node: "Node", topic: "Topic",
 }
 const KIND_COLOR: Record<SelectedKind, string> = {
   csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#8b5cf6", node: "#ef4444", topic: "#a855f7",
@@ -1988,7 +2426,7 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
       const appCount = Object.values(css.csci).flatMap(ci => Object.values(ci.csc)).flatMap(c => c.apps).length
       return [k, csciCount, cscCount, appCount]
     })
-    content = <DetailTable headers={["Domain", "Config Item Groups", "Component Groups", "Apps"]} rows={rows} />
+    content = <DetailTable headers={["Segment", "Config Item Groups", "Component Groups", "Apps"]} rows={rows} />
   } else if (node.kind === "css") {
     const css = node.payload as CssGroup
     const rows = sortKeys(Object.keys(css.csci)).map((k) => {
@@ -2005,13 +2443,13 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
   } else if (node.kind === "csc") {
     const csc = node.payload as CscGroup
     const rows = csc.apps.map((a) => [a.id, a.csu ?? a.name ?? "—", a.weight])
-    content = <DetailTable headers={["ID", "Name / CSU", "Weight"]} rows={rows} />
+    content = <DetailTable headers={["ID", "Name / CSU", "Weight (QoS [0–1])"]} rows={rows} />
   } else {
     // app — grouped key-value table (same grouping as graph view Props panel)
     const app = node.payload as AppNode
     const entries = Object.entries(app).filter(([, v]) => v !== undefined && v !== null && v !== "")
 
-    const HIER_KEYS = new Set(["system_name","component_name","config_item_name","domain_name"])
+    const HIER_KEYS = new Set(["csms_name","csc_name","csci_name","css_name"])
     const isCmSize     = (k: string) => /^cm_total_|^loc$/.test(k)
     const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
     const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$/.test(k)
@@ -2026,12 +2464,20 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
     const cmCoupling = entries.filter(([k]) => isCmCoupling(k))
     const cmOther    = entries.filter(([k, v]) => isCm(k) && !isCmSize(k) && !isCmComplex(k) && !isCmCohesion(k) && !isCmCoupling(k))
 
-    const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => (
-      <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-        <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 font-medium text-foreground w-2/5`}>{k}</td>
-        <td className="px-4 py-2.5 font-mono text-muted-foreground break-all text-xs">{String(v as any)}</td>
-      </tr>
-    )
+    const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => {
+      const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
+      const desc = PROP_DESCS[k]
+      return (
+        <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+          <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 font-medium text-foreground w-2/5`}>
+            <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
+          </td>
+          <td className="px-4 py-2.5 font-mono text-muted-foreground break-all text-xs">
+            {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}<RiskBadge k={k} v={v} />
+          </td>
+        </tr>
+      )
+    }
     const GroupHeader = ({ label }: { label: string }) => (
       <tr className="bg-muted/60 border-t border-border">
         <td colSpan={2} className="px-4 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
@@ -2570,7 +3016,7 @@ function BrowserPageContent() {
   return (
     <AppLayout
       title="Explorer"
-      description="System (CSMS) → Domain (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)"
+      description="System (CSMS) → Segment (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)"
     >
       <div className="flex flex-col gap-5 h-full">
         {error && (
@@ -2653,7 +3099,7 @@ function BrowserPageContent() {
 export default function BrowserPage() {
   return (
     <Suspense fallback={
-      <AppLayout title="Explorer" description="System (CSMS) → Domain (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)">
+      <AppLayout title="Explorer" description="System (CSMS) → Segment (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)">
         <div className="flex items-center justify-center h-64"><LoadingSpinner /></div>
       </AppLayout>
     }>

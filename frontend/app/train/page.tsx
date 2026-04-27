@@ -35,6 +35,7 @@ import {
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
 import axios from "axios"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -124,9 +125,14 @@ function ScoreBar({ value, dim }: { value: number; dim: string }) {
     A: "bg-green-500",
     V: "bg-red-500",
   }
+  const termMap: Record<string, string> = {
+    R: "R(v)", M: "M(v)", A: "A(v)", V: "V(v)",
+  }
   return (
     <div className="flex items-center gap-2">
-      <span className="w-4 text-xs text-muted-foreground">{dim}</span>
+      <span className="w-4 text-xs text-muted-foreground">
+        <TermTooltip term={termMap[dim]}>{dim}</TermTooltip>
+      </span>
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${colors[dim] ?? "bg-gray-400"}`} style={{ width: `${Math.round(value * 100)}%` }} />
       </div>
@@ -249,7 +255,7 @@ export default function TrainPage() {
               <div>
                 <h2 className="text-2xl font-bold">Training Configuration</h2>
                 <p className="text-sm text-muted-foreground">
-                  Configure HeteroGAT hyperparameters. Checkpoints auto-saved to{" "}
+                  Configure <TermTooltip term="HeteroGAT">HeteroGAT</TermTooltip> hyperparameters. Checkpoints auto-saved to{" "}
                   <code className="text-xs bg-muted px-1 py-0.5 rounded">output/gnn_checkpoints/YYYY-MM-DD_HH-MM-SS</code>
                 </p>
               </div>
@@ -323,37 +329,37 @@ export default function TrainPage() {
                 <CollapsibleContent className="mt-4">
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="hidden">Hidden Dim</Label>
+                      <Label htmlFor="hidden"><TermTooltip term="Hidden Dim">Hidden Dim</TermTooltip></Label>
                       <Input id="hidden" type="number" min={8} max={512} value={hidden}
                         onChange={e => setHidden(Number(e.target.value))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="heads">Attn Heads</Label>
+                      <Label htmlFor="heads"><TermTooltip term="Attn Heads">Attn Heads</TermTooltip></Label>
                       <Input id="heads" type="number" min={1} max={16} value={heads}
                         onChange={e => setHeads(Number(e.target.value))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>GNN Layers</Label>
+                      <Label><TermTooltip term="GNN Layers">GNN Layers</TermTooltip></Label>
                       <Input type="number" min={1} max={8} value={gnnLayers}
                         onChange={e => setGnnLayers(Number(e.target.value))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Dropout</Label>
+                      <Label><TermTooltip term="Dropout">Dropout</TermTooltip></Label>
                       <Input type="number" step={0.05} min={0} max={0.8} value={dropout}
                         onChange={e => setDropout(Number(e.target.value))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Learning Rate</Label>
+                      <Label><TermTooltip term="Learning Rate">Learning Rate</TermTooltip></Label>
                       <Input type="number" step={0.0001} min={0.00001} max={0.01} value={lr}
                         onChange={e => setLr(Number(e.target.value))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Early-stop Patience</Label>
+                      <Label><TermTooltip term="Early-stop Patience">Early-stop Patience</TermTooltip></Label>
                       <Input type="number" min={5} max={200} value={patience}
                         onChange={e => setPatience(Number(e.target.value))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Train Ratio</Label>
+                      <Label><TermTooltip term="Train Ratio">Train Ratio</TermTooltip></Label>
                       <Input type="number" step={0.05} min={0.3} max={0.8} value={trainRatio}
                         onChange={e => setTrainRatio(Number(e.target.value))} />
                     </div>
@@ -436,7 +442,7 @@ export default function TrainPage() {
                               ["MAE", metrics.mae],
                             ].map(([k, v]) => v != null && (
                               <div key={String(k)} className="flex items-center justify-between gap-4">
-                                <span className="text-muted-foreground">{k}</span>
+                                <span className="text-muted-foreground"><TermTooltip term={String(k)}>{k}</TermTooltip></span>
                                 <span className="font-mono font-medium tabular-nums">{(v as number).toFixed(4)}</span>
                               </div>
                             ))}

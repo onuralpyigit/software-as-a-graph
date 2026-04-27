@@ -550,10 +550,10 @@ The generator produces a single JSON file with the following top-level structure
       "criticality": true,
       "version": "2.3.1",
       "system_hierarchy": {
-        "component_name": "Autonomous Vehicle Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Sensor Fusion",
-        "system_name": "Point Cloud Processing"
+        "csc_name": "Autonomous Vehicle Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Sensor Fusion",
+        "csms_name": "Point Cloud Processing"
       },
       "code_metrics": {
         "size":       { "total_loc": 1850, "total_classes": 24, "total_methods": 187, "total_fields": 48 },

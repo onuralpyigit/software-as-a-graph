@@ -418,10 +418,10 @@ The topology JSON uses a **dict-of-lists** structure for relationships. Each key
       "version": "1.0.0",
       "criticality": true,
       "system_hierarchy": {
-        "component_name": "Sensor Platform",
-        "config_item_name": "Perception Software",
-        "domain_name": "Environmental Sensing",
-        "system_name": "Temperature Monitor"
+        "csc_name": "Sensor Platform",
+        "csci_name": "Perception Software",
+        "css_name": "Environmental Sensing",
+        "csms_name": "Temperature Monitor"
       },
       "code_metrics": {
         "size":       { "total_loc": 1200, "total_classes": 12, "total_methods": 95, "total_fields": 30 },
@@ -446,10 +446,10 @@ The topology JSON uses a **dict-of-lists** structure for relationships. Each key
       "name": "NavLib",
       "version": "3.2.1",
       "system_hierarchy": {
-        "component_name": "Navigation Platform",
-        "config_item_name": "Navigation Software",
-        "domain_name": "Path Planning",
-        "system_name": "Core Navigation"
+        "csc_name": "Navigation Platform",
+        "csci_name": "Navigation Software",
+        "css_name": "Path Planning",
+        "csms_name": "Core Navigation"
       },
       "code_metrics": {
         "size":       { "total_loc": 4500, "total_classes": 42, "total_methods": 360, "total_fields": 128 },
@@ -800,7 +800,7 @@ Running `export_graph.py` (persistence format) followed by `import_graph.py` on 
 | Application `role`, `app_type`, `version`, `criticality` | Exported conditionally (only if non-null/non-empty) |
 | All six structural relationship types | `runs_on`, `routes`, `publishes_to`, `subscribes_to`, `connects_to`, `uses` |
 | `code_metrics` block (Applications and Libraries) | Flat `cm_*` properties in Neo4j are reconstructed into the nested `code_metrics` structure on export and re-flattened on re-import. CQP scores are fully reproducible after a roundtrip. |
-| `system_hierarchy` block | Flat `system_name`, `domain_name`, `component_name`, `config_item_name` properties are reconstructed and re-imported correctly |
+| `system_hierarchy` block | Flat `csms_name`, `css_name`, `csc_name`, `csci_name` properties are reconstructed and re-imported correctly |
 | `metadata` block | Stored in the `:Metadata` singleton node; reconstructed and included in the export |
 
 ### Not Preserved (Re-computed on Re-import)

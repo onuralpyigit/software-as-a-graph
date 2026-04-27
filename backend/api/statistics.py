@@ -283,6 +283,12 @@ def extract_cross_cutting_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
             for lib in raw_data.get("libraries", [])
         },
         "uses": relationships.get("uses", []),
+        "brokers": raw_data.get("brokers", []),
+        "broker_names": {
+            b["id"]: b.get("name", b["id"])
+            for b in raw_data.get("brokers", [])
+        },
+        "routes": relationships.get("routes", []),
     }
 
 
@@ -291,30 +297,37 @@ def extract_cross_cutting_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
 
 def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
     """Compute bandwidth statistics for Topic Size vs Subscriber chart."""
-    sizes, subs, labels, ids = [], [], [], []
+    sizes, subs, pubs, labels, ids = [], [], [], [], []
     for tid in cc["topic_sizes"]:
         sizes.append(cc["topic_sizes"][tid])
         subs.append(cc["topic_sub_count"].get(tid, 0))
+        pubs.append(cc["topic_pub_count"].get(tid, 0))
         labels.append(cc["topic_names"].get(tid, tid))
         ids.append(tid)
 
-    bandwidth = [s * sc for s, sc in zip(sizes, subs)]
-    nonzero_bw = [b for b in bandwidth if b > 0]
+    bandwidth_sub = [s * sc for s, sc in zip(sizes, subs)]
+    bandwidth_pub = [s * pc for s, pc in zip(sizes, pubs)]
+    bandwidth_pubsub = [s * (pc + sc) for s, pc, sc in zip(sizes, pubs, subs)]
+    # Keep legacy "bandwidth" as sub-based for backward compatibility
+    bandwidth = bandwidth_sub
+
+    nonzero_bw = [b for b in bandwidth_sub if b > 0]
     outlier_indices: List[int] = []
     iqr_upper = 0.0
     iqr_val = 0.0
     if len(nonzero_bw) >= 4:
         _, iqr_upper, iqr_val = find_1d_outliers_iqr(nonzero_bw)
         outlier_indices = [
-            i for i in range(len(bandwidth))
-            if bandwidth[i] > iqr_upper and bandwidth[i] > 0
+            i for i in range(len(bandwidth_sub))
+            if bandwidth_sub[i] > iqr_upper and bandwidth_sub[i] > 0
         ]
-        outlier_indices.sort(key=lambda i: bandwidth[i], reverse=True)
+        outlier_indices.sort(key=lambda i: bandwidth_sub[i], reverse=True)
 
     summary: Dict[str, Any] = {}
     if sizes:
         size_arr = np.array(sizes, dtype=float)
         sub_arr = np.array(subs, dtype=float)
+        pub_arr = np.array(pubs, dtype=float)
         summary = {
             "total_topics": len(sizes),
             "size_mean": float(np.mean(size_arr)),
@@ -323,6 +336,9 @@ def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
             "sub_mean": float(np.mean(sub_arr)),
             "sub_median": float(np.median(sub_arr)),
             "sub_max": int(np.max(sub_arr)),
+            "pub_mean": float(np.mean(pub_arr)),
+            "pub_median": float(np.median(pub_arr)),
+            "pub_max": int(np.max(pub_arr)),
             "zero_sub_count": sum(1 for s in subs if s == 0),
             "bw_mean": float(np.mean(nonzero_bw)) if nonzero_bw else 0,
             "bw_median": float(np.median(nonzero_bw)) if nonzero_bw else 0,
@@ -330,8 +346,10 @@ def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     return {
-        "sizes": sizes, "subs": subs, "labels": labels, "ids": ids,
-        "bandwidth": bandwidth, "nonzero_bw": nonzero_bw,
+        "sizes": sizes, "subs": subs, "pubs": pubs, "labels": labels, "ids": ids,
+        "bandwidth": bandwidth, "bandwidth_sub": bandwidth_sub,
+        "bandwidth_pub": bandwidth_pub, "bandwidth_pubsub": bandwidth_pubsub,
+        "nonzero_bw": nonzero_bw,
         "outlier_indices": outlier_indices,
         "iqr_upper": iqr_upper, "iqr": iqr_val,
         "summary": summary,
@@ -619,16 +637,78 @@ def compute_cross_node_heatmap_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
 
     if n == 0:
         return {"node_ids": [], "labels": [], "matrix": np.zeros((0, 0)),
-                "outlier_pairs": [], "iqr_upper": 0, "iqr": 0, "summary": {}}
+                "outlier_pairs": [], "iqr_upper": 0, "iqr": 0, "summary": {},
+                "per_node": {}}
 
     labels = [cc["node_names"].get(nid, nid)[:20] for nid in node_ids]
     app_node = cc["app_node"]
     matrix = _build_communication_matrix(
         cc, lambda aid: app_node.get(aid), node_ids)
 
+    # Build per-node topic lists: which topics are published/subscribed from each node
+    node_pub_topics: Dict[str, Dict[str, str]] = {nid: {} for nid in node_ids}
+    node_sub_topics: Dict[str, Dict[str, str]] = {nid: {} for nid in node_ids}
+    node_apps: Dict[str, List[Dict[str, str]]] = {nid: [] for nid in node_ids}
+
+    for app in cc["apps"]:
+        aid = app["id"]
+        nid = app_node.get(aid)
+        if nid and nid in node_apps:
+            node_apps[nid].append({"id": aid, "name": cc["app_names"].get(aid, aid)})
+
+    for rel in cc["publishes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        nid = app_node.get(aid)
+        if nid and nid in node_pub_topics and tid:
+            node_pub_topics[nid][tid] = cc["topic_names"].get(tid, tid)
+
+    for rel in cc["subscribes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        nid = app_node.get(aid)
+        if nid and nid in node_sub_topics and tid:
+            node_sub_topics[nid][tid] = cc["topic_names"].get(tid, tid)
+
+    topic_sizes = cc["topic_sizes"]
+
+    per_node = {
+        nid: {
+            "label": cc["node_names"].get(nid, nid),
+            "apps": node_apps[nid],
+            "pub_topics": [
+                {"id": tid, "name": name, "size_kb": topic_sizes.get(tid, 0)}
+                for tid, name in sorted(node_pub_topics[nid].items(), key=lambda x: x[1])
+            ],
+            "sub_topics": [
+                {"id": tid, "name": name, "size_kb": topic_sizes.get(tid, 0)}
+                for tid, name in sorted(node_sub_topics[nid].items(), key=lambda x: x[1])
+            ],
+        }
+        for nid in node_ids
+    }
+
+    # Size-weighted matrix: cell(i,j) = sum of topic sizes (KB) for shared pub→sub topics
+    idx = {nid: i for i, nid in enumerate(node_ids)}
+    matrix_kb = np.zeros((n, n))
+    # Build topic -> publishing nodes and subscribing nodes
+    topic_pub_nodes: Dict[str, set] = {}
+    topic_sub_nodes: Dict[str, set] = {}
+    for nid in node_ids:
+        for t in per_node[nid]["pub_topics"]:
+            topic_pub_nodes.setdefault(t["id"], set()).add(nid)
+        for t in per_node[nid]["sub_topics"]:
+            topic_sub_nodes.setdefault(t["id"], set()).add(nid)
+    for tid, pub_nodes in topic_pub_nodes.items():
+        sub_nodes = topic_sub_nodes.get(tid, set())
+        size = topic_sizes.get(tid, 0)
+        for pn in pub_nodes:
+            for sn in sub_nodes:
+                if pn in idx and sn in idx:
+                    matrix_kb[idx[pn]][idx[sn]] += size
+
     matrix_stats = _compute_matrix_stats(matrix, labels, n)
     return {
-        "node_ids": node_ids, "labels": labels, "matrix": matrix,
+        "node_ids": node_ids, "labels": labels, "matrix": matrix, "matrix_kb": matrix_kb,
+        "per_node": per_node,
         **matrix_stats,
     }
 
@@ -981,6 +1061,85 @@ def compute_domain_diversity_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         "domain_set": domain_set, "labels": labels,
         "app_counts": app_counts, "topic_counts": topic_counts,
         "io_vals": io_vals, "ranked": ranked,
+        "summary": summary,
+    }
+
+
+def compute_bottleneck_stats_from_structural(components: Dict[str, Any]) -> Dict[str, Any]:
+    """Identify structural bottlenecks from StructuralMetrics.
+
+    Scores each component with a composite bottleneck score based on four
+    real structural signals:
+
+        bottleneck_score = 0.40 * betweenness          # lies on many shortest paths
+                         + 0.25 * ap_c_directed        # removal hurts connectivity
+                         + 0.20 * blast_radius_norm     # downstream nodes made unreachable
+                         + 0.15 * bridge_ratio          # fraction of incident edges that are bridges
+
+    Articulation points and directed APs are flagged independently.
+    Components are ranked by this score and outliers identified via IQR.
+    """
+    if not components:
+        return {"items": [], "summary": {"total": 0, "articulation_point_count": 0, "outlier_count": 0}}
+
+    max_blast = max((c.get("blast_radius", 0) for c in components.values()), default=1)
+
+    items: List[Dict[str, Any]] = []
+    for cid, c in components.items():
+        blast_norm = c.get("blast_radius", 0) / max_blast if max_blast > 0 else 0.0
+        score = (
+            0.40 * c.get("betweenness", 0.0)
+            + 0.25 * c.get("ap_c_directed", 0.0)
+            + 0.20 * blast_norm
+            + 0.15 * c.get("bridge_ratio", 0.0)
+        )
+        items.append({
+            "id": cid,
+            "name": c.get("name", cid),
+            "type": c.get("type", "Unknown"),
+            "bottleneck_score": round(score, 4),
+            "betweenness": round(c.get("betweenness", 0.0), 4),
+            "ap_c_directed": round(c.get("ap_c_directed", 0.0), 4),
+            "blast_radius": c.get("blast_radius", 0),
+            "blast_radius_norm": round(blast_norm, 4),
+            "bridge_ratio": round(c.get("bridge_ratio", 0.0), 4),
+            "is_articulation_point": bool(c.get("is_articulation_point", False)),
+            "is_directed_ap": bool(c.get("is_directed_ap", False)),
+            "cascade_depth": c.get("cascade_depth", 0),
+            "pubsub_betweenness": round(c.get("pubsub_betweenness", 0.0), 4),
+            "weight": round(c.get("weight", 1.0), 4),
+        })
+
+    items.sort(key=lambda x: x["bottleneck_score"], reverse=True)
+
+    scores = [it["bottleneck_score"] for it in items]
+    nonzero = [s for s in scores if s > 0]
+    outlier_indices: List[int] = []
+    score_upper = 0.0
+    if len(nonzero) >= 4:
+        _, score_upper, _ = find_1d_outliers_iqr(nonzero)
+        outlier_indices = [i for i, it in enumerate(items) if it["bottleneck_score"] > score_upper]
+
+    ap_count = sum(1 for it in items if it["is_articulation_point"])
+    directed_ap_count = sum(1 for it in items if it["is_directed_ap"])
+
+    summary: Dict[str, Any] = {
+        "total": len(items),
+        "articulation_point_count": ap_count,
+        "directed_ap_count": directed_ap_count,
+        "outlier_count": len(outlier_indices),
+        "score_upper": round(score_upper, 4),
+    }
+    if scores:
+        arr = np.array(scores, dtype=float)
+        summary.update({
+            "score_mean": round(float(np.mean(arr)), 4),
+            "score_max": round(float(np.max(arr)), 4),
+        })
+
+    return {
+        "items": items,
+        "outlier_indices": outlier_indices,
         "summary": summary,
     }
 

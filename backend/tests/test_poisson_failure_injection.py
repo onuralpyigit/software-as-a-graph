@@ -141,7 +141,7 @@ class EventResult:
     component_impacts: Dict = field(default_factory=dict)
     failed_components: List[str] = field(default_factory=list)
     drop_reasons: Dict[str, int] = field(default_factory=dict)
-    component_names: Dict[str, str] = field(default_factory=dict)
+    csc_names: Dict[str, str] = field(default_factory=dict)
     related_components: List[str] = field(default_factory=list)
     poisson_failure_log: List[Dict[str, Any]] = field(default_factory=list)
 
@@ -491,7 +491,7 @@ class EventSimulator:
             failed_components=[c.id for c in self.graph.components.values()
                                 if c.state == ComponentState.FAILED],
             drop_reasons=dict(self._drop_reasons),
-            component_names={c.id: c.properties.get("name", c.id)
+            csc_names={c.id: c.properties.get("name", c.id)
                              for c in self.graph.components.values()},
             poisson_failure_log=list(self._poisson_failure_log),
         )

@@ -162,7 +162,7 @@ Insights are sorted by severity (`CRITICAL` before `HIGH`) and then by number of
 @dataclass
 class CrossLayerInsight:
     component_id:    str        # empty string for layer_concentration insights
-    component_name:  str        # human-readable name from structural metrics
+    csc_name:  str        # human-readable name from structural metrics
     insight_type:    str        # "compound_critical" | "systemic_spof" | "layer_concentration"
     layers_affected: List[str]  # e.g. ["app", "system"]
     severity:        str        # "CRITICAL" | "HIGH" | "MEDIUM"
@@ -791,7 +791,7 @@ When `--layer all` is used, the output JSON also includes a `cross_layer_insight
 "cross_layer_insights": [
   {
     "component_id": "broker-001",
-    "component_name": "MainBroker",
+    "csc_name": "MainBroker",
     "insight_type": "systemic_spof",
     "layers_affected": ["infra", "mw"],
     "severity": "CRITICAL",
@@ -799,7 +799,7 @@ When `--layer all` is used, the output JSON also includes a `cross_layer_insight
   },
   {
     "component_id": "app-core",
-    "component_name": "DataRouter",
+    "csc_name": "DataRouter",
     "insight_type": "compound_critical",
     "layers_affected": ["app", "system"],
     "severity": "CRITICAL",
@@ -807,7 +807,7 @@ When `--layer all` is used, the output JSON also includes a `cross_layer_insight
   },
   {
     "component_id": "",
-    "component_name": "",
+    "csc_name": "",
     "insight_type": "layer_concentration",
     "layers_affected": ["mw"],
     "severity": "HIGH",

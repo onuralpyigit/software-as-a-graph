@@ -26,6 +26,7 @@ from api.routers import (
     classification,
     validation,
     prediction,
+    traffic,
 )
 
 # Configure logging
@@ -61,6 +62,7 @@ app.include_router(simulation.router)
 app.include_router(classification.router)
 app.include_router(validation.router)
 app.include_router(prediction.router)
+app.include_router(traffic.router)
 
 
 if __name__ == "__main__":

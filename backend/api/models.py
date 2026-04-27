@@ -528,8 +528,107 @@ class GraphGenerationResponse(BaseModel):
     success: bool
     message: str
     metadata: Dict[str, Any]
-    stats: GraphGenerationStats
-    graph_data: Dict[str, Any]
+    stats: Optional[Dict[str, Any]] = None
+    graph_data: Optional[Dict[str, Any]] = None
+
+
+# ── Traffic Simulation Models ──────────────────────────────────────────
+
+class TopicInfoModel(BaseModel):
+    id: str
+    name: str
+    weight: float
+    publisher_count: int
+    subscriber_count: int
+    broker_ids: List[str]
+    broker_names: List[str]
+    qos_reliability: Optional[str] = None
+    qos_durability: Optional[str] = None
+    qos_transport_priority: Optional[str] = None
+    size: int = 0
+
+
+class TopicsListResponse(BaseModel):
+    success: bool
+    count: int
+    topics: List[TopicInfoModel]
+
+
+class TopicSimParams(BaseModel):
+    """Per-topic overrides for simulation parameters."""
+    frequency_hz: float = Field(default=10.0, ge=0.001, description="Message publication rate per publisher (Hz)")
+    duration_sec: float = Field(default=60.0, ge=1.0, description="Simulation window duration (seconds)")
+
+
+class TrafficSimulationRequest(BaseModel):
+    credentials: Neo4jCredentials = Field(..., description="Neo4j connection credentials")
+    topic_ids: List[str] = Field(..., description="IDs of topics to simulate traffic for")
+    frequency_hz: float = Field(default=10.0, ge=0.001, description="Default message publication rate per publisher (Hz)")
+    duration_sec: float = Field(default=60.0, ge=1.0, description="Default simulation window duration (seconds)")
+    message_size_bytes: int = Field(default=1024, ge=1, description="Default assumed average message payload size (bytes)")
+    per_topic_params: Optional[Dict[str, TopicSimParams]] = Field(
+        default=None,
+        description="Per-topic parameter overrides keyed by topic ID. Falls back to global defaults when absent.",
+    )
+
+
+class TrafficTopicsRequest(BaseModel):
+    credentials: Neo4jCredentials = Field(..., description="Neo4j connection credentials")
+
+
+class TrafficTopicMetrics(BaseModel):
+    topic_id: str
+    topic_name: str
+    weight: float
+    publisher_count: int
+    subscriber_count: int
+    broker_ids: List[str]
+    broker_names: List[str]
+    # Effective parameters used for this topic
+    frequency_hz: float
+    duration_sec: float
+    message_size_bytes: int
+    msgs_published_per_sec: float
+    msgs_delivered_per_sec: float
+    msgs_total_per_sec: float
+    msgs_published_total: float
+    msgs_delivered_total: float
+    bandwidth_in_bps: float
+    bandwidth_out_bps: float
+    bandwidth_total_bps: float
+
+
+class BrokerUsageMetrics(BaseModel):
+    broker_id: str
+    broker_name: str
+    topics_routed: List[str]
+    msgs_inbound_per_sec: float
+    msgs_outbound_per_sec: float
+    msgs_total_per_sec: float
+    bandwidth_bps: float
+    bandwidth_mbps: float
+
+
+class TrafficSummary(BaseModel):
+    selected_topics: int
+    topics_found: int
+    frequency_hz: float
+    duration_sec: float
+    message_size_bytes: int
+    total_msgs_published: float
+    total_msgs_delivered: float
+    total_network_bps: float
+    total_network_mbps: float
+    total_network_kbps: float
+    peak_topic_bps: float
+    brokers_involved: int
+
+
+class TrafficSimulationResponse(BaseModel):
+    success: bool
+    summary: TrafficSummary
+    per_topic: List[TrafficTopicMetrics]
+    broker_usage: List[BrokerUsageMetrics]
 
 
 class GenericSuccessResponse(BaseModel):

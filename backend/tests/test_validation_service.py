@@ -134,7 +134,7 @@ class TestValidationService:
         assert layer_res.passed is True
         
         # Verify data passed to validator (implicitly via result checks)
-        assert layer_res.component_names["A"] == "App A"
+        assert layer_res.csc_names["A"] == "App A"
 
     def _make_comp(self, id, overall, reliability=0.5, maintainability=0.5, availability=0.5, vulnerability=0.5):
         """Build a complex MagicMock for a component."""

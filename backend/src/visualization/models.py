@@ -201,7 +201,7 @@ class LayerData:
     anti_patterns: List[Dict[str, Any]] = field(default_factory=list)
 
     # Component ID → display name mapping
-    component_names: Dict[str, str] = field(default_factory=dict)
+    csc_names: Dict[str, str] = field(default_factory=dict)
 
     # Full component RMAV details
     component_details: List[ComponentDetail] = field(default_factory=list)

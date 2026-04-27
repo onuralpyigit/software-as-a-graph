@@ -35,7 +35,7 @@ def reconstruct_component_dict(comp: ComponentData) -> Dict[str, Any]:
     
     # 1. System Hierarchy reconstruction
     sh = {}
-    for key in ["system_name", "domain_name", "component_name", "config_item_name"]:
+    for key in ["csms_name", "css_name", "csc_name", "csci_name"]:
         if val := props.get(key):
             if val != "": # Don't export empty strings
                 sh[key] = val
@@ -193,7 +193,7 @@ def flatten_component(comp: Dict[str, Any], comp_type: str) -> Dict[str, Any]:
 
     # 2. System Hierarchy
     sh = comp.get("system_hierarchy") or {}
-    for key in ["system_name", "domain_name", "component_name", "config_item_name"]:
+    for key in ["csms_name", "css_name", "csc_name", "csci_name"]:
         res[key] = sh.get(key, "")
 
     # 3. Code Metrics

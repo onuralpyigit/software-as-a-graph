@@ -22,6 +22,7 @@ import {
   CheckCircle2
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
+import { TermTooltip } from "@/components/ui/term-tooltip"
 
 // Helper function to format keys (snake_case to Title Case)
 function formatKey(key: string): string {
@@ -193,7 +194,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent className="relative">
                 <div className="text-3xl font-bold text-purple-500">
-                  {((stats?.total_edges || 0) + (stats?.total_structural_edges || 0)).toLocaleString()}
+                  {(stats?.total_edges || 0).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Combined derived & structural edges
@@ -331,7 +332,7 @@ export default function DashboardPage() {
                   {Object.entries(stats.node_counts).map(([type, count]) => (
                     <div key={type} className="space-y-3 p-4 rounded-lg border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 hover:shadow-sm transition-all flex-1 min-w-[200px]">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold">{type}</span>
+                        <span className="text-sm font-semibold"><TermTooltip term={type}>{type}</TermTooltip></span>
                         <Badge variant="secondary" className="bg-blue-500/10 text-blue-500 px-2.5 py-0.5 border-blue-500/20">
                           {count.toLocaleString()}
                         </Badge>
@@ -414,7 +415,7 @@ export default function DashboardPage() {
                     <div key={type} className="space-y-3 p-4 rounded-lg border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 hover:shadow-sm transition-all flex-1 min-w-[200px]">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold">
-                          {formatKey(type)}
+                          <TermTooltip term={type}>{formatKey(type)}</TermTooltip>
                         </span>
                         <Badge variant="outline" className="border-purple-500/30 text-purple-500 px-2.5 py-0.5 bg-purple-500/5">
                           {count.toLocaleString()}
@@ -498,7 +499,7 @@ export default function DashboardPage() {
                     <div key={type} className="space-y-3 p-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 hover:shadow-sm transition-all flex-1 min-w-[200px]">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold">
-                          {formatKey(type)}
+                          <TermTooltip term={type}>{formatKey(type)}</TermTooltip>
                         </span>
                         <Badge variant="outline" className="border-indigo-500/30 text-indigo-500 px-2.5 py-0.5 bg-indigo-500/5">
                           {count.toLocaleString()}

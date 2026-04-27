@@ -295,7 +295,7 @@ class LayerValidationResult:
     passed: bool = False
     comparisons: List[ComponentComparison] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
-    component_names: Dict[str, str] = field(default_factory=dict)
+    csc_names: Dict[str, str] = field(default_factory=dict)
     dimensional_validation: Dict[str, Any] = field(default_factory=dict)
     gates: Dict[str, bool] = field(default_factory=dict)
     node_type_stratified: Dict[str, Dict[str, Any]] = field(default_factory=dict)

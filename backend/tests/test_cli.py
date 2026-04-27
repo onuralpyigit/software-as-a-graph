@@ -121,7 +121,7 @@ class TestSimulateGraphCLI:
         mock_event_result.metrics.avg_latency = 0.005
         mock_event_result.metrics.p99_latency = 0.01
         mock_event_result.metrics.throughput = 100.0
-        mock_event_result.component_names = {}
+        mock_event_result.csc_names = {}
         mock_event_result.source_app = "App1"
         mock_event_result.scenario = "test"
         mock_event_result.duration = 1.0

@@ -402,7 +402,7 @@ export default function DataPage() {
                     <Zap className="h-5 w-5 text-purple-500" />
                   </div>
                   <div className="text-4xl font-bold text-purple-500 mb-2">
-                    {((stats.total_edges || 0) + (stats.total_structural_edges || 0)).toLocaleString()}
+                    {(stats.total_edges || 0).toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">Combined derived & structural edges</p>
                 </CardContent>

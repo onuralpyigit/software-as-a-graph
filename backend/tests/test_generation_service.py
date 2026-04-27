@@ -122,7 +122,7 @@ class TestScenario08GoldenFile:
                 f"app {app['id']} missing system_hierarchy"
             )
             hier = app["system_hierarchy"]
-            for key in ("component_name", "config_item_name", "domain_name", "system_name"):
+            for key in ("csc_name", "csci_name", "css_name", "csms_name"):
                 assert key in hier, f"app {app['id']} system_hierarchy missing {key!r}"
 
     def test_determinism(self):

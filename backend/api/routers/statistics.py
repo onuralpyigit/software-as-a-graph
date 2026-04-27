@@ -17,9 +17,26 @@ from api.models import (
 )
 from src.analysis.statistics_service import StatisticsService
 from src.core.ports.graph_repository import IGraphRepository
-from api.dependencies import get_statistics_service, get_repository
+from src.core.layers import AnalysisLayer
+from api.bottleneck_fast import analyze_for_bottleneck
+from api.dependencies import get_statistics_service, get_repository, get_client
+from saag import Client
 from api.presenters import statistics_presenter
-from api.statistics import extract_cross_cutting_data, compute_all_extras_statistics
+from api.statistics import (
+    extract_cross_cutting_data,
+    compute_all_extras_statistics,
+    compute_topic_bandwidth_stats,
+    compute_app_balance_stats,
+    compute_topic_fanout_stats,
+    compute_cross_node_heatmap_stats,
+    compute_node_comm_load_stats,
+    compute_domain_comm_stats,
+    compute_criticality_io_stats,
+    compute_lib_dependency_stats,
+    compute_node_critical_density_stats,
+    compute_domain_diversity_stats,
+    compute_bottleneck_stats_from_structural,
+)
 
 router = APIRouter(prefix="/api/v1/stats", tags=["statistics"])
 logger = logging.getLogger(__name__)
@@ -237,3 +254,73 @@ async def get_statistics(
     except Exception as e:
         logger.error(f"Statistics failed: {e}")
         raise HTTPException(status_code=500, detail=f"Computation failed: {e}")
+
+
+# ── Per-chart lazy endpoints ─────────────────────────────────────────────
+
+_CHART_FN_MAP = {
+    "topic_bandwidth": compute_topic_bandwidth_stats,
+    "app_balance": compute_app_balance_stats,
+    "topic_fanout": compute_topic_fanout_stats,
+    "cross_node_heatmap": compute_cross_node_heatmap_stats,
+    "node_comm_load": compute_node_comm_load_stats,
+    "domain_comm": compute_domain_comm_stats,
+    "criticality_io": compute_criticality_io_stats,
+    "lib_dependency": compute_lib_dependency_stats,
+    "node_critical_density": compute_node_critical_density_stats,
+    "domain_diversity": compute_domain_diversity_stats,
+}
+
+
+@router.post("/chart/{chart_id}")
+async def get_chart_statistics(
+    chart_id: str,
+    credentials: Neo4jCredentials,
+    repo: IGraphRepository = Depends(get_repository),
+):
+    """Compute statistics for a single chart tab (lazy loading)."""
+    if chart_id not in _CHART_FN_MAP:
+        raise HTTPException(status_code=404, detail=f"Unknown chart '{chart_id}'")
+    try:
+        logger.info(f"Computing statistics for chart: {chart_id}")
+        raw_data = repo.export_json()
+        cc = extract_cross_cutting_data(raw_data)
+        result = _CHART_FN_MAP[chart_id](cc)
+        return {
+            "success": True,
+            "chart_id": chart_id,
+            "data": statistics_presenter.serialise_numpy(result),
+        }
+    except Exception as e:
+        logger.error(f"Statistics failed for chart {chart_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Computation failed: {e}")
+
+
+@router.post("/bottleneck")
+async def get_bottleneck_stats(
+    credentials: Neo4jCredentials,
+    client: Client = Depends(get_client),
+):
+    """Identify structural bottlenecks using real topological metrics.
+
+    Ranks components by a composite bottleneck score derived from:
+    - betweenness centrality (lies on many shortest paths, weight 0.40)
+    - ap_c_directed (directed articulation-point severity, weight 0.25)
+    - blast_radius_norm (fraction of graph made unreachable, weight 0.20)
+    - bridge_ratio (fraction of incident edges that are bridges, weight 0.15)
+
+    Articulation points and directed APs are also flagged explicitly.
+    """
+    try:
+        logger.info("Computing structural bottleneck statistics")
+        graph_data = client.repo.get_graph_data()
+        components_dict = analyze_for_bottleneck(graph_data, layer=AnalysisLayer.SYSTEM)
+        bottleneck_data = compute_bottleneck_stats_from_structural(components_dict)
+        return {
+            "success": True,
+            "data": statistics_presenter.serialise_numpy(bottleneck_data),
+        }
+    except Exception as e:
+        logger.error(f"Bottleneck statistics failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Computation failed: {e}")
+
