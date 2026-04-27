@@ -312,8 +312,8 @@ function MetricInsightCard({
 type BandwidthMode = "sub" | "pub" | "pubsub"
 
 const BANDWIDTH_MODE_CONFIG: Record<BandwidthMode, { label: string; multiplierLabel: string; avgKey: string; avgLabel: string }> = {
-  sub:    { label: "Subscribers",  multiplierLabel: "Size × Subscribers",  avgKey: "sub_mean",  avgLabel: "Avg Subscribers" },
-  pub:    { label: "Publishers",   multiplierLabel: "Size × Publishers",   avgKey: "pub_mean",  avgLabel: "Avg Publishers" },
+  sub:    { label: "Sub",  multiplierLabel: "Size × Subscribers",  avgKey: "sub_mean",  avgLabel: "Avg Subscribers" },
+  pub:    { label: "Pub",   multiplierLabel: "Size × Publishers",   avgKey: "pub_mean",  avgLabel: "Avg Publishers" },
   pubsub: { label: "Pub + Sub",    multiplierLabel: "Size × (Pub + Sub)",  avgKey: "sub_mean",  avgLabel: "Avg Subs" },
 }
 
@@ -657,7 +657,7 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
                         mode === m ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {m === "pub" ? "Publishers" : m === "sub" ? "Subscribers" : "Pub + Sub"}
+                      {m === "pub" ? "Pub" : m === "sub" ? "Sub" : "Pub + Sub"}
                     </button>
                   ))}
                 </div>
