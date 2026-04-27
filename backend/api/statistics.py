@@ -173,7 +173,7 @@ def calculate_outliers(
 
     Args:
         ranked_list: List of dicts with 'name', 'value', optional 'version'.
-        outlier_stats: DescriptiveStats with outlier_lower/outlier_upper.
+        outlier_stats: DescriptiveStats with outlier_upper.
         is_categorical: If True, returns empty (no outliers for categorical).
 
     Returns:
@@ -1147,6 +1147,29 @@ def compute_bottleneck_stats_from_structural(components: Dict[str, Any]) -> Dict
 # ===================== TOP-LEVEL ENTRY POINT =====================
 
 
+def to_serializable(obj: Any) -> Any:
+    """Recursively convert numpy and set types to JSON-safe Python primitives."""
+    try:
+        import numpy as np
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+    except ImportError:
+        pass
+    if isinstance(obj, dict):
+        return {k: to_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [to_serializable(i) for i in obj]
+    if isinstance(obj, set):
+        return sorted(to_serializable(i) for i in obj)
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    return obj
+
+
 def compute_all_extras_statistics(
     cc: Dict[str, Any],
     risk_weight_fn: Optional[Callable[[str, str], float]] = None,
@@ -1157,6 +1180,7 @@ def compute_all_extras_statistics(
     This is the main entry point for standalone statistics computation.
     Given cross-cutting data (from ``extract_cross_cutting_data``), this
     function computes all statistics used by the extras charts.
+    The returned dictionary is completely JSON-serializable.
 
     Args:
         cc: Cross-cutting data dict from ``extract_cross_cutting_data``.
@@ -1183,4 +1207,4 @@ def compute_all_extras_statistics(
     if risk_weight_fn is not None:
         result["qos_risk"] = compute_qos_risk_stats(cc, risk_weight_fn, w2name)
 
-    return result
+    return to_serializable(result)

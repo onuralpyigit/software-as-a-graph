@@ -48,8 +48,6 @@ if str(backend_path) not in sys.path:
 import argparse
 from bin._shared import add_neo4j_args, add_common_args, setup_logging
 from bin.common.console import ConsoleDisplay, Colors
-from api.presenters.statistics_presenter import serialise_numpy
-from api.statistics import extract_cross_cutting_data, compute_all_extras_statistics
 
 # ---------------------------------------------------------------------------
 # Chart registry — id, display name, summary key hints for rendering
@@ -118,10 +116,10 @@ CHART_REGISTRY: Dict[str, Dict[str, Any]] = {
         ],
     },
     "domain_comm": {
-        "title": "Domain Communication Matrix",
+        "title": "Segment Communication Matrix",
         "summary_keys": [
-            ("domain_count",        "Domains",              "d"),
-            ("cross_domain_pairs",  "Cross-Domain Pairs",   "d"),
+            ("domain_count",        "Segments",              "d"),
+            ("cross_domain_pairs",  "Cross-Segment Pairs",   "d"),
             ("total_cross_traffic", "Total Cross Traffic",  "d"),
             ("outlier_count",       "Outlier Pairs (IQR)",  "d"),
         ],
@@ -161,24 +159,15 @@ CHART_REGISTRY: Dict[str, Dict[str, Any]] = {
         ],
     },
     "domain_diversity": {
-        "title": "Domain Diversity",
+        "title": "Segment Diversity",
         "summary_keys": [
-            ("css_count",    "Domains (CSS)",      "d"),
-            ("app_mean",     "Avg Apps/Domain",    ".2f"),
-            ("app_max",      "Max Apps/Domain",    "d"),
-            ("topic_mean",   "Avg Topics/Domain",  ".2f"),
-            ("topic_max",    "Max Topics/Domain",  "d"),
-            ("io_mean",      "Avg I/O/Domain",     ".2f"),
-            ("io_max",       "Max I/O/Domain",     "d"),
-        ],
-    },
-    "qos_risk": {
-        "title": "Topic QoS Risk Scatter",
-        "summary_keys": [
-            ("total_topics",    "Total Topics",     "d"),
-            ("risk_mean",       "Avg Risk Score",   ".2f"),
-            ("risk_std",        "Risk Std Dev",    ".2f"),
-            ("outlier_count",   "Outliers (IQR)",   "d"),
+            ("css_count",    "Segments (CSS)",      "d"),
+            ("app_mean",     "Avg Apps/Segment",    ".2f"),
+            ("app_max",      "Max Apps/Segment",    "d"),
+            ("topic_mean",   "Avg Topics/Segment",  ".2f"),
+            ("topic_max",    "Max Topics/Segment",  "d"),
+            ("io_mean",      "Avg I/O/Segment",     ".2f"),
+            ("io_max",       "Max I/O/Segment",     "d"),
         ],
     },
 }
@@ -186,6 +175,7 @@ CHART_REGISTRY: Dict[str, Dict[str, Any]] = {
 ALL_CHART_IDS = list(CHART_REGISTRY.keys())
 
 
+# ---------------------------------------------------------------------------
 # Display helpers
 # ---------------------------------------------------------------------------
 C = Colors  # shorthand
@@ -385,14 +375,10 @@ def main() -> None:
         if args.format != "json":
             display.print_step("Computing statistics…")
 
-        def default_risk_weight_fn(_, value: str) -> float:
-            # Default weights for QoS risk scoring
-            mapping = {"High": 3.0, "Medium": 2.0, "Low": 1.0, "NOT_FOUND": 1.0}
-            return mapping.get(value, 1.0)
+        from api.statistics import extract_cross_cutting_data, compute_all_extras_statistics
 
         cc = extract_cross_cutting_data(raw_data)
-        all_stats = compute_all_extras_statistics(cc, risk_weight_fn=default_risk_weight_fn)
-        all_stats = serialise_numpy(all_stats)
+        all_stats = compute_all_extras_statistics(cc)
 
     except Exception as exc:
         display.print_error(f"Statistics computation failed: {exc}")

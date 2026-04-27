@@ -26,6 +26,9 @@ stats = compute_all_extras_statistics(cc)
 | `backend/api/statistics.py` | Visualization | Raw JSON (`dataset.json`) | Populating scatter plots, heatmaps, and distribution charts in the dashboard. |
 | `backend/src/analysis/statistics.py` | Core Analysis | `GraphData` (Domain Models) | Identifying architectural smells, SPOFs, and computing graph-theoretic metrics. |
 
+> [!WARNING]
+> Do not mix the outputs or import paths of these two modules. The API layer relies on `dataset.json` extracts and outputs JSON-safe dictionaries, while the Core Analysis layer operates directly on live `GraphData` objects within the hexagonal architecture.
+
 ---
 
 ## 1. Visualization Statistics (API Layer)
@@ -42,7 +45,7 @@ stats = compute_all_extras_statistics(cc)
 | Function | Chart | Key Outputs |
 |---|---|---|
 | `compute_topic_bandwidth` | Topic Size × Subscribers | bandwidth per topic, IQR outliers |
-| `compute_qos_risk_stats` | QoS Risk Scatter | **(Optional)** risk score per topic, outliers |
+| `compute_qos_risk_stats` | QoS Risk Scatter | **(Optional)** risk score per topic, outliers *(Note: REST API omits this by default)* |
 | `compute_app_balance` | App Pub/Sub Balance | per-app I/O load, quadrant classification |
 | `compute_topic_fanout` | Topic Fanout | publisher × subscriber fanout, pattern counts |
 | `compute_cross_node_heatmap` | Cross-Node Heatmap | NxN communication matrix, intra/inter-node traffic |
@@ -57,7 +60,7 @@ stats = compute_all_extras_statistics(cc)
 
 ## 2. Core Structural Statistics (Analysis Layer)
 
-Accessed via `src.analysis.statistics_service.StatisticsService`. These metrics operate on the live graph structure.
+Accessed via `src.analysis.statistics_service.StatisticsService` which delegates to functions inside `backend/src/analysis/statistics.py`. These metrics operate on the live graph structure.
 
 ### Topological Metrics
 
@@ -137,6 +140,9 @@ The `bin/statistics_graph.py` script provides a command-line interface for both 
   }
 }
 ```
+
+> [!NOTE]
+> The `applications` objects must include the `role` and `system_hierarchy.css_name` keys to ensure that domain-based charts like domain communication and diversity are generated correctly and do not silently fall back to `NOT_FOUND`.
 
 ## Dependencies
 

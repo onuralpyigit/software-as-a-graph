@@ -36,6 +36,7 @@ from api.statistics import (
     compute_node_critical_density_stats,
     compute_domain_diversity_stats,
     compute_bottleneck_stats_from_structural,
+    to_serializable,
 )
 
 router = APIRouter(prefix="/api/v1/stats", tags=["statistics"])
@@ -249,7 +250,7 @@ async def get_statistics(
         
         return {
             "success": True, 
-            "stats": statistics_presenter.serialise_numpy(stats)
+            "stats": stats
         }
     except Exception as e:
         logger.error(f"Statistics failed: {e}")
@@ -289,7 +290,7 @@ async def get_chart_statistics(
         return {
             "success": True,
             "chart_id": chart_id,
-            "data": statistics_presenter.serialise_numpy(result),
+            "data": to_serializable(result),
         }
     except Exception as e:
         logger.error(f"Statistics failed for chart {chart_id}: {e}")
@@ -318,7 +319,7 @@ async def get_bottleneck_stats(
         bottleneck_data = compute_bottleneck_stats_from_structural(components_dict)
         return {
             "success": True,
-            "data": statistics_presenter.serialise_numpy(bottleneck_data),
+            "data": to_serializable(bottleneck_data),
         }
     except Exception as e:
         logger.error(f"Bottleneck statistics failed: {e}")
