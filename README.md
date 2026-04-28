@@ -478,10 +478,11 @@ docker run -d --name neo4j \
 ```
 
 ```bash
-python3.11 -m venv backend/env
-source backend/env/bin/activate
-pip install -r backend/requirements.txt
-cd backend
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install torch==2.5.0 --extra-index-url https://download.pytorch.org/whl/cpu
+pip install torch-scatter torch-sparse torch-geometric -f https://data.pyg.org/whl/torch-2.5.0+cpu.html
+pip install -e ".[neo4j,api,dev]"
 uvicorn api.main:app --reload --port 8000
 ```
 
