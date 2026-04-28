@@ -14,7 +14,7 @@ class Client:
         if repo:
             self.repo = repo
         else:
-            from src.infrastructure import create_repository
+            from saag.infrastructure import create_repository
             self.repo = create_repository(uri=neo4j_uri, user=user, password=password)
         
     def import_topology(self, filepath: Optional[str] = None, graph_data: Optional[Dict[str, Any]] = None, clear: bool = False, dry_run: bool = False):
@@ -25,7 +25,7 @@ class Client:
             with open(filepath, "r") as f:
                 graph_data = json.load(f)
             
-        from src.usecases.model_graph import ModelGraphUseCase
+        from saag.usecases.model_graph import ModelGraphUseCase
         uc = ModelGraphUseCase(self.repo)
         
         stats = uc.execute(graph_data, clear=clear, dry_run=dry_run)
@@ -34,8 +34,8 @@ class Client:
 
     def analyze(self, layer: str = "app", **kwargs) -> AnalysisResult:
         """Analyze the structural graph topology."""
-        from src.usecases.analyze_graph import AnalyzeGraphUseCase
-        from src.analysis.service import AnalysisService
+        from saag.usecases.analyze_graph import AnalyzeGraphUseCase
+        from saag.analysis.service import AnalysisService
         
         service = AnalysisService(self.repo, **kwargs)
         uc = AnalyzeGraphUseCase(service)
@@ -63,8 +63,8 @@ class Client:
         gnn_checkpoint:
             Path to a GNN checkpoint directory. Defaults to output/gnn_checkpoints.
         """
-        from src.prediction.gnn_service import GNNService
-        from src.prediction.data_preparation import extract_rmav_scores_dict
+        from saag.prediction.gnn_service import GNNService
+        from saag.prediction.data_preparation import extract_rmav_scores_dict
 
         layer_result = analysis_result.raw
         structural = layer_result.structural
@@ -96,9 +96,9 @@ class Client:
 
     def simulate(self, layer: str = "system", mode: str = "exhaustive", target_id: Optional[str] = None, **kwargs) -> Any:
         """Run graph simulations (failure analysis, event propagation)."""
-        from src.usecases.simulate_graph import SimulateGraphUseCase
-        from src.simulation.service import SimulationService
-        from src.usecases.models import SimulationMode
+        from saag.usecases.simulate_graph import SimulateGraphUseCase
+        from saag.simulation.service import SimulationService
+        from saag.usecases.models import SimulationMode
         
         service = SimulationService(self.repo)
         uc = SimulateGraphUseCase(service)
@@ -115,11 +115,11 @@ class Client:
         if layers is None:
             layers = ["app", "infra", "mw", "system"]
             
-        from src.usecases.validate_graph import ValidateGraphUseCase
-        from src.analysis.service import AnalysisService
-        from src.prediction.service import PredictionService
-        from src.simulation.service import SimulationService
-        from src.validation.service import ValidationService
+        from saag.usecases.validate_graph import ValidateGraphUseCase
+        from saag.analysis.service import AnalysisService
+        from saag.prediction.service import PredictionService
+        from saag.simulation.service import SimulationService
+        from saag.validation.service import ValidationService
         
         analysis_service = AnalysisService(self.repo)
         prediction_service = PredictionService()
@@ -140,13 +140,13 @@ class Client:
         if layers is None:
             layers = ["system"]
             
-        from src.usecases.visualize_graph import VisualizeGraphUseCase
-        from src.usecases.models import VisOptions
-        from src.analysis.service import AnalysisService
-        from src.prediction.service import PredictionService
-        from src.simulation.service import SimulationService
-        from src.validation.service import ValidationService
-        from src.visualization.service import VisualizationService
+        from saag.usecases.visualize_graph import VisualizeGraphUseCase
+        from saag.usecases.models import VisOptions
+        from saag.analysis.service import AnalysisService
+        from saag.prediction.service import PredictionService
+        from saag.simulation.service import SimulationService
+        from saag.validation.service import ValidationService
+        from saag.visualization.service import VisualizationService
         
         analysis_service = AnalysisService(self.repo)
         prediction_service = PredictionService()

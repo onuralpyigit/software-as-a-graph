@@ -10,14 +10,12 @@ Prerequisites:
 Run from the project root:
     python examples/example_import.py
 """
-import sys
 import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "backend"))
 
-from src.adapters import create_repository
+from saag.adapters import create_repository
 
 
 def print_section(title: str) -> None:

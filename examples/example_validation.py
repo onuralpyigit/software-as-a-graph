@@ -23,17 +23,13 @@ Interpreting the Results:
                       that topology alone cannot capture.
   • PASS: The model's predictive accuracy meets the safety-critical threshold.
 """
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "backend"))
-
-from src.adapters import create_repository
-from src.analysis import AnalysisService
-from src.prediction import PredictionService
-from src.simulation import SimulationService
-from src.validation import ValidationService
+from saag.adapters import create_repository
+from saag.analysis import AnalysisService
+from saag.prediction import PredictionService
+from saag.simulation import SimulationService
+from saag.validation import ValidationService
 
 
 def print_section(title: str) -> None:

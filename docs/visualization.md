@@ -531,8 +531,8 @@ python bin/detect_antipatterns.py --layer system --severity critical,high
 
 # ─── Multi-seed validation + dashboard (§8 stability panel) ───────────────────
 for seed in 42 123 456 789 2024; do
-    python bin/generate_graph.py --scale medium --seed $seed --output input/s${seed}.json
-    python bin/import_graph.py --input input/s${seed}.json --clear
+    python bin/generate_graph.py --scale medium --seed $seed --output data/s${seed}.json
+    python bin/import_graph.py --input data/s${seed}.json --clear
     python bin/analyze_graph.py  --layer app --use-ahp --output results/pred_s${seed}.json
     python bin/simulate_graph.py event --all --messages 50 --layer app
     python bin/simulate_graph.py failure --exhaustive --layer app \

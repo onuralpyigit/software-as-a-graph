@@ -371,7 +371,7 @@ python bin/run.py --all --layer system
 ### Frontend (optional)
 
 ```bash
-cd frontend
+cd smart
 npm install
 npm run dev           # http://localhost:7000
 
@@ -385,8 +385,8 @@ Each step has its own CLI script in `bin/`. All scripts must be run from the rep
 
 ```bash
 # Step 1 — Import: generate synthetic topology & import into Neo4j
-python bin/generate_graph.py --scale medium --output input/system.json
-python bin/import_graph.py --input input/system.json --clear
+python bin/generate_graph.py --scale medium --output data/system.json
+python bin/import_graph.py --input data/system.json --clear
 
 # Step 2 — Analyze: structural metrics (13 topological indicators) + RMAV/Q scoring + anti-patterns
 #   Deterministic: given the same graph, always produces the same Q(v).
@@ -398,10 +398,10 @@ python bin/train_graph.py --layer system                              # train GN
 python bin/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model
 
 # Step 4 — Simulate: failure simulation (ground-truth I(v) + training labels for Step 3)
-python bin/simulate_graph.py fault-inject --input input/system.json --export-json
+python bin/simulate_graph.py fault-inject --input data/system.json --export-json
 
 # Step 5 — Validate: statistical validation (Spearman ρ, F1-score, per-RMAV metrics)
-python bin/validate_graph.py report --input input/system.json --qos
+python bin/validate_graph.py report --input data/system.json --qos
 
 # Step 6 — Visualize: interactive HTML dashboard (self-contained, no server needed)
 python bin/visualize_graph.py --layer system --output output/dashboard.html --open
@@ -478,10 +478,11 @@ docker run -d --name neo4j \
 ```
 
 ```bash
-python3.11 -m venv backend/env
-source backend/env/bin/activate
-pip install -r backend/requirements.txt
-cd backend
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install torch==2.5.0 --extra-index-url https://download.pytorch.org/whl/cpu
+pip install torch-scatter torch-sparse torch-geometric -f https://data.pyg.org/whl/torch-2.5.0+cpu.html
+pip install -e ".[neo4j,api,dev]"
 uvicorn api.main:app --reload --port 8000
 ```
 
@@ -490,7 +491,7 @@ The API will be available at http://localhost:8000 and the interactive docs at h
 ### Frontend (Next.js)
 
 ```bash
-cd frontend
+cd smart
 npm install
 npm run dev
 ```
@@ -531,7 +532,7 @@ Architecture JSON
 | **5. Validate** | Computes Spearman ρ and Kendall τ between Q*(v) (from Analyze) or Q_ens(v) (from Predict) and I*(v); evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
 | **6. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
 
-> **Note — Generate is not part of the SaG methodology.** The `--generate` CLI flag and `bin/generate_graph.py` script produce synthetic pub-sub topologies for evaluation and benchmarking purposes only. Real deployments start at Step 1 (Import) with an actual architecture description. Synthetic graphs are useful for reproducible experiments, scale sweeps, and CI regression tests, but they are not inputs the methodology assumes or requires. Reviewers asking "is this validated on real or synthetic data?" should note that the published Spearman and F1 results use eight domain-scenario topologies in `input/`, not generated data.
+> **Note — Generate is not part of the SaG methodology.** The `--generate` CLI flag and `bin/generate_graph.py` script produce synthetic pub-sub topologies for evaluation and benchmarking purposes only. Real deployments start at Step 1 (Import) with an actual architecture description. Synthetic graphs are useful for reproducible experiments, scale sweeps, and CI regression tests, but they are not inputs the methodology assumes or requires. Reviewers asking "is this validated on real or synthetic data?" should note that the published Spearman and F1 results use eight domain-scenario topologies in `data/`, not generated data.
 
 ### Scale Presets
 
@@ -689,7 +690,7 @@ import saag
 
 # Analyze + Simulate + Validate in 5 lines
 result = (
-    saag.Pipeline.from_json("input/system.json", clear=True)
+    saag.Pipeline.from_json("data/system.json", clear=True)
         .analyze(layer="app")          # deterministic: structural + RMAV + anti-patterns
         .simulate(layer="app", mode="exhaustive")
         .validate()
@@ -702,7 +703,7 @@ print(f"F1-Score   = {result.validation.overall.f1:.3f}")
 
 # Optionally add the inductive Predict stage after simulation labels are available
 result2 = (
-    saag.Pipeline.from_json("input/system.json")
+    saag.Pipeline.from_json("data/system.json")
         .analyze(layer="app")
         .predict(mode="ensemble")      # GNN; requires prior training run
         .simulate(layer="app")
@@ -778,7 +779,7 @@ result2 = (
 │   └── requirements.txt        #   Python dependencies
 │
 ├── examples/                   # Annotated Python usage examples (see examples/README.md)
-├── input/                      # Topology JSON & YAML scenario configs (8 scenarios)
+├── data/                      # Topology JSON & YAML scenario configs (8 scenarios)
 │   └── scenarios/              #   scenario_00_*.yaml … scenario_09_atm_system.yaml
 ├── output/                     # Pipeline output artefacts (dashboards, reports)
 ├── results/                    # Validation results from previous runs

@@ -7,12 +7,10 @@ SoftwareAsAGraph result structures.
 from typing import List, Optional, Any
 from dataclasses import dataclass
 
-# We use TYPE_CHECKING or direct imports since saag/__init__.py 
-# will have injected the backend into sys.path before this is imported.
-from src.analysis.models import LayerAnalysisResult as _LayerAnalysisResult, StructuralAnalysisResult as _StructuralAnalysisResult
-from src.prediction.models import QualityAnalysisResult as _QualityAnalysisResult, ComponentQuality as _ComponentQuality, DetectedProblem as _DetectedProblem
-from src.validation.models import LayerValidationResult as _LayerValidationResult
-from src.usecases.models import ImportStats as _ImportStats
+from saag.analysis.models import LayerAnalysisResult as _LayerAnalysisResult, StructuralAnalysisResult as _StructuralAnalysisResult
+from saag.prediction.models import QualityAnalysisResult as _QualityAnalysisResult, ComponentQuality as _ComponentQuality, DetectedProblem as _DetectedProblem
+from saag.validation.models import LayerValidationResult as _LayerValidationResult
+from saag.usecases.models import ImportStats as _ImportStats
 
 
 class ComponentFacade:

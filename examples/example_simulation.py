@@ -19,14 +19,10 @@ Prerequisites:
 Run from the project root:
     python examples/example_simulation.py
 """
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "backend"))
-
-from src.adapters import create_repository
-from src.simulation import SimulationService
+from saag.adapters import create_repository
+from saag.simulation import SimulationService
 
 
 def print_section(title: str) -> None:

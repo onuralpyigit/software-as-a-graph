@@ -136,7 +136,7 @@ The primary mode for validation work. A YAML configuration file fully specifies:
 When a YAML config is loaded, the generator uses `StatisticalMetric` sampling (clamped Gaussian via `random.gauss`) for continuous quantities and weighted-list sampling for categorical quantities. This produces topologies whose structural properties closely match the declared distributions, enabling repeatable validation experiments.
 
 ```bash
-python bin/generate_graph.py --config input/scenario_01_autonomous_vehicle.yaml \
+python bin/generate_graph.py --config data/scenario_01_autonomous_vehicle.yaml \
        --output output/av_system.json
 ```
 
@@ -183,12 +183,12 @@ python bin/generate_graph.py --scale small --seed 123 --output output/small_123.
 
 # Autonomous vehicle scenario from YAML config
 python bin/generate_graph.py \
-    --config input/scenario_01_autonomous_vehicle.yaml \
+    --config data/scenario_01_autonomous_vehicle.yaml \
     --output output/av_system.json
 
 # IoT scenario with domain naming
 python bin/generate_graph.py \
-    --config input/scenario_02_iot_smart_city.yaml \
+    --config data/scenario_02_iot_smart_city.yaml \
     --domain iot \
     --output output/iot_system.json
 
@@ -199,7 +199,7 @@ python bin/generate_graph.py --scale large --seed 2024 --output output/large_ben
 python bin/run.py --all --input output/av_system.json
 
 # Generation as stage 1 of run.py orchestrator
-python bin/run.py --all --config input/scenario_01_autonomous_vehicle.yaml \
+python bin/run.py --all --config data/scenario_01_autonomous_vehicle.yaml \
     --input output/av_system.json --output-dir output/av_results
 ```
 
@@ -229,9 +229,9 @@ Invoked as `python bin/generate_graph.py batch`. Generates all scenario datasets
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--input-dir` | `input/` | Directory containing `scenario_*.yaml` files. |
+| `--input-dir` | `data/` | Directory containing `scenario_*.yaml` files. |
 | `--output-dir` | `output/` | Output directory for generated JSON files. |
-| `--refresh-legacy` | off | Regenerate `input/system.json` (medium, seed=42) and `input/dataset.json` (small, seed=42) using the current generator, adding `code_metrics` and `system_hierarchy`. |
+| `--refresh-legacy` | off | Regenerate `data/system.json` (medium, seed=42) and `data/dataset.json` (small, seed=42) using the current generator, adding `code_metrics` and `system_hierarchy`. |
 | `--multi-seed` | off | Generate per-seed variants for scenarios 01–06 using all seeds in `--seeds`. Scenarios 07–09 are excluded to manage runtime. |
 | `--seeds` | `42,123,456,789,2024` | Comma-separated seed list for `--multi-seed` mode. These five seeds are the standard multi-seed stability set for the thesis. |
 | `--scenario` | — | Substring filter — only generate matching scenario names (e.g. `scenario_03`). |
@@ -295,7 +295,7 @@ The manifest JSON records the following fields for each dataset: `scenario_name`
 
 ## 7. Scenario Configuration Files
 
-Located in `input/scenario_*.yaml`. Each file is a self-contained specification for one validation scenario. The file is passed directly to `bin/generate_graph.py --config`.
+Located in `data/scenario_*.yaml`. Each file is a self-contained specification for one validation scenario. The file is passed directly to `bin/generate_graph.py --config`.
 
 ### 7.1 Scenario catalogue
 
@@ -419,7 +419,7 @@ All `*_stats` sections are optional. If a section is absent, the corresponding v
 4. Set the statistical distributions to reflect the topology you want to stress. For a fan-out scenario, increase `applications_subscribing_to_this_topic.mean`; for a dense pubsub scenario, increase `pubsub` share in `app_role_distribution`; for an anti-pattern scenario, reduce `brokers` to 2 or 3.
 5. Set the QoS distributions to match your domain. The QoS weight in RMAV A(v) is driven by durability and reliability; `PERSISTENT + RELIABLE` produces the highest QSPOF boost.
 6. Document the **expected analysis outcomes** in a comment block at the top of the file, following the pattern of the existing scenarios. This makes the scenario self-documenting as a validation fixture.
-7. Add a row to the quick-reference table in `input/scenario.md`.
+7. Add a row to the quick-reference table in `data/scenario.md`.
 
 ---
 
@@ -602,7 +602,7 @@ from tools.generation.models import GraphConfig, SCALE_PRESETS               # d
 data = generate_graph(scale="medium", seed=42)
 
 # Statistical-config mode from a YAML file
-config = load_config(Path("input/scenario_01_autonomous_vehicle.yaml"))
+config = load_config(Path("data/scenario_01_autonomous_vehicle.yaml"))
 service = GenerationService(config=config)
 data = service.generate()
 

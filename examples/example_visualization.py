@@ -20,19 +20,17 @@ Prerequisites:
 Run from the project root:
     python examples/example_visualization.py
 """
-import sys
 import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "backend"))
 
-from src.adapters import create_repository
-from src.analysis import AnalysisService
-from src.prediction import PredictionService
-from src.simulation import SimulationService
-from src.validation import ValidationService
-from src.visualization import VisualizationService
+from saag.adapters import create_repository
+from saag.analysis import AnalysisService
+from saag.prediction import PredictionService
+from saag.simulation import SimulationService
+from saag.validation import ValidationService
+from saag.visualization import VisualizationService
 
 
 def print_section(title: str) -> None:

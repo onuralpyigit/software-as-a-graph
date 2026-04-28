@@ -1,0 +1,158 @@
+# =============================================================================
+# Scenario 11 — High-Redundancy Broker Topology (Enterprise Clearing)
+# =============================================================================
+# Domain   : Enterprise clearing / settlement platform
+# Scale    : Small-medium (40 apps, 15 topics, 12 brokers, 10 nodes)
+# Purpose  : Validate that Availability scoring correctly reflects broker
+#            redundancy: with a broker-to-topic ratio of 0.8 (12 brokers /
+#            15 topics), most topics have ≥ 2 routers.  No single broker
+#            should appear as a SPOF.  This stress-tests the A(v) / IA(v)
+#            dimension in the regime where over-provisioned brokers must NOT
+#            be classified as CRITICAL.
+#
+# Topology fingerprint:
+#   • broker:topic ratio = 0.8 — far above all other scenarios (next highest
+#     is scenario_07 at 10/120 ≈ 0.08)
+#   • Low app count vs. brokers: each broker serves only ~3-4 apps on average
+#   • RELIABLE + PERSISTENT QoS dominant (enterprise SLA requirements)
+#   • No library_stats or topic_stats — app/topic model kept simple to avoid
+#     confounding variables when studying broker topology effects
+#   • Sparse criticality (10 %): scenario is about broker safety, not app rank
+#
+# Expected analysis outcomes:
+#   • Brokers should NOT appear in CRITICAL classification tier
+#   • A(v) scores for brokers should be LOW–MEDIUM (reflecting redundancy)
+#   • IA(v) simulation: removing any broker causes minimal connectivity loss
+#   • Spearman ρ(A, IA) should remain ≥ threshold despite atypical structure
+#
+# Usage:
+#   python bin/generate_graph.py --config data/scenarios/scenario_11_broker_redundancy.yaml \
+#          --output output/broker_redundancy_system.json
+# =============================================================================
+
+graph:
+  seed: 1111
+  domain: enterprise
+  scenario: enterprise
+
+  counts:
+    nodes: 10
+    applications: 40
+    libraries: 8
+    topics: 15
+    brokers: 12
+
+  # ---------------------------------------------------------------------------
+  # NODE STATISTICS
+  # ---------------------------------------------------------------------------
+  node_stats:
+    applications_per_node:
+      mean: 4.0
+      median: 4.0
+      std: 2.0
+      min: 1
+      max: 8
+      q1: 2.0
+      q3: 6.0
+      iqr: 4.0
+
+  # ---------------------------------------------------------------------------
+  # APPLICATION STATISTICS — Balanced clearing platform roles
+  # ---------------------------------------------------------------------------
+  application_stats:
+    # Clearing services: modest pub/sub fan-out (low complexity per service)
+    direct_publish_count:
+      mean: 1.5
+      median: 1.0
+      std: 1.0
+      min: 0
+      max: 4
+      q1: 1.0
+      q3: 2.0
+      iqr: 1.0
+
+    direct_subscribe_count:
+      mean: 2.0
+      median: 2.0
+      std: 1.0
+      min: 0
+      max: 5
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_publish_count_including_libraries:
+      mean: 2.0
+      median: 2.0
+      std: 1.2
+      min: 0
+      max: 6
+      q1: 1.0
+      q3: 3.0
+      iqr: 2.0
+
+    total_subscribe_count_including_libraries:
+      mean: 3.0
+      median: 2.0
+      std: 1.5
+      min: 0
+      max: 7
+      q1: 1.0
+      q3: 4.0
+      iqr: 3.0
+
+    # Balanced roles: pub (producers), sub (consumers), pubsub (processors)
+    app_role_distribution:
+      total_count: 40
+      category_counts:
+        pub: 12       # Trade producers, price publishers
+        sub: 13       # Risk monitors, audit consumers
+        pubsub: 15    # Clearing engines, netting services
+      mode: pubsub
+      mode_count: 15
+      mode_percentage: 37.5
+
+    # 10 % critical — core clearing engine + settlement gateway only
+    app_criticality_distribution:
+      total_count: 40
+      category_counts:
+        critical: 4
+        non_critical: 36
+      mode: non_critical
+      mode_count: 36
+      mode_percentage: 90.0
+
+  # ---------------------------------------------------------------------------
+  # QOS STATISTICS — Enterprise SLA: RELIABLE + PERSISTENT dominant
+  # ---------------------------------------------------------------------------
+  qos_stats:
+    qos_durability_distribution:
+      total_count: 15
+      category_counts:
+        volatile: 1          # Heartbeat / monitoring pings
+        transient_local: 3   # Short-lived state updates
+        transient: 3         # Ephemeral command-response
+        persistent: 8        # Clearing records — must survive restarts
+      mode: persistent
+      mode_count: 8
+      mode_percentage: 53.3
+
+    qos_reliability_distribution:
+      total_count: 15
+      category_counts:
+        best_effort: 2       # Low-priority diagnostics only
+        reliable: 13         # All clearing and settlement traffic
+      mode: reliable
+      mode_count: 13
+      mode_percentage: 86.7
+
+    qos_transport_priority_distribution:
+      total_count: 15
+      category_counts:
+        low: 1
+        medium: 4
+        high: 7
+        critical: 3
+      mode: high
+      mode_count: 7
+      mode_percentage: 46.7

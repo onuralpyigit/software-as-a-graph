@@ -18,17 +18,15 @@ Prerequisites:
 Run from the project root:
     python examples/example_prediction.py
 """
-import sys
 import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "backend"))
 
-from src.adapters import create_repository
-from src.analysis import AnalysisService
-from src.simulation import SimulationService
-from src.prediction import (
+from saag.adapters import create_repository
+from saag.analysis import AnalysisService
+from saag.simulation import SimulationService
+from saag.prediction import (
     GNNService,
     extract_structural_metrics_dict,
     extract_rmav_scores_dict,

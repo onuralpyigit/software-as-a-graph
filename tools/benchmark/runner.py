@@ -17,13 +17,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.infrastructure import create_repository
+from saag.infrastructure import create_repository
 from tools.generation import GenerationService, load_config
-from src.analysis import AnalysisService, StructuralAnalyzer
-from src.prediction import PredictionService
-from src.simulation import SimulationService
-from src.validation import ValidationService, ValidationTargets
-from src.validation.metric_calculator import spearman_correlation
+from saag.analysis import AnalysisService, StructuralAnalyzer
+from saag.prediction import PredictionService
+from saag.simulation import SimulationService
+from saag.validation import ValidationService, ValidationTargets
+from saag.validation.metric_calculator import spearman_correlation
 
 from .models import (
     AggregateResult,
@@ -165,7 +165,7 @@ class BenchmarkRunner:
         """Run structural analysis, return (StructuralAnalysisResult, ResultDict, elapsed_ms)."""
         t0 = time.time()
         try:
-            from src.core.layers import AnalysisLayer
+            from saag.core.layers import AnalysisLayer
             layer_enum = AnalysisLayer.from_string(layer)
             
             graph_data = self.repo.get_graph_data()

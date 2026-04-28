@@ -3,7 +3,7 @@ Dataset definitions for realistic component generation.
 """
 from typing import Dict, List, Any, Tuple
 import random
-from src.core.models import QoSPolicy
+from saag.core.models import QoSPolicy
 
 # --------------------------------------------------------------------------
 # System Hierarchy pools per domain 

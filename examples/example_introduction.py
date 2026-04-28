@@ -7,17 +7,11 @@ WITHOUT requiring a Neo4j database connection.
 It demonstrates how simple graph properties (centrality, articulation points)
 can predict which components are most likely to cause system-wide failures.
 """
-import sys
 from pathlib import Path
 
-# Add project root to path for imports
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(ROOT))
-sys.path.append(str(ROOT / "backend"))
-
-from src.infrastructure.memory_repo import MemoryRepository
-from src.analysis.structural_analyzer import StructuralAnalyzer
-from src.core.layers import AnalysisLayer
+from saag.infrastructure.memory_repo import MemoryRepository
+from saag.analysis.structural_analyzer import StructuralAnalyzer
+from saag.core.layers import AnalysisLayer
 
 def main():
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
