@@ -30,19 +30,15 @@ from typing import Dict, Any
 from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-if str(ROOT / "backend") not in sys.path:
-    sys.path.insert(0, str(ROOT / "backend"))
 
 from tools.generation import generate_graph, SCALE_PRESETS, GraphConfig
-from src.adapters import create_repository
-from src.analysis import AnalysisService
-from src.simulation import SimulationService
-from src.validation import ValidationService
-from src.visualization import VisualizationService
-from src.explanation import CLIFormatter
-from src.prediction import PredictionService, GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict, extract_simulation_dict
+from saag.adapters import create_repository
+from saag.analysis import AnalysisService
+from saag.simulation import SimulationService
+from saag.validation import ValidationService
+from saag.visualization import VisualizationService
+from saag.explanation import CLIFormatter
+from saag.prediction import PredictionService, GNNService, extract_structural_metrics_dict, extract_rmav_scores_dict, extract_simulation_dict
 
 
 # ──────────────────────────────────────────────
@@ -178,7 +174,7 @@ def step3_criticality_prediction(repo, output_dir: Path, layer: str, analysis_re
     # 3.1 Rule-based RMAV Scoring
     print("  [3.1] Computing Rule-based RMAV Quality Scores...")
     result = analysis_res["result"]
-    from src.prediction.analyzer import QualityAnalyzer
+    from saag.prediction.analyzer import QualityAnalyzer
     quality_analyzer = QualityAnalyzer()
     quality_res = quality_analyzer.analyze(result.structural)
     result.quality = quality_res
@@ -187,7 +183,7 @@ def step3_criticality_prediction(repo, output_dir: Path, layer: str, analysis_re
     print_kv("Criticality Levels", f"{len([c for c in comps if c.levels.overall.value.lower() == 'critical'])} Critical, {len([c for c in comps if c.levels.overall.value.lower() == 'high'])} High")
 
     # Replaced Top-5 Table with Component Cards
-    from src.analysis import AntiPatternDetector
+    from saag.analysis import AntiPatternDetector
     detector = AntiPatternDetector()
     smell_report = detector.detect(result.quality, layer=layer)
     

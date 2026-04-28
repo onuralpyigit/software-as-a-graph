@@ -14,13 +14,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python requirements and install
-COPY backend/requirements.txt .
+# Copy pyproject.toml and source so saag can be installed as a package
+COPY pyproject.toml .
+COPY saag/ ./saag/
+COPY tools/ ./tools/
+COPY cli/ ./cli/
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir torch==2.5.0 --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir ".[api,neo4j,gnn]"
 
 # ============================================
 # Stage 2: Next.js Frontend Dependencies
@@ -28,10 +31,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 FROM node:20-alpine AS frontend-deps
 
 RUN apk add --no-cache libc6-compat
-WORKDIR /app/frontend
+WORKDIR /app/smart
 
 # Copy package files and install dependencies
-COPY frontend/package.json frontend/package-lock.json ./
+COPY smart/package.json smart/package-lock.json ./
 RUN npm ci
 
 # ============================================
@@ -39,9 +42,9 @@ RUN npm ci
 # ============================================
 FROM node:20-alpine AS frontend-builder
 
-WORKDIR /app/frontend
-COPY --from=frontend-deps /app/frontend/node_modules ./node_modules
-COPY frontend/ .
+WORKDIR /app/smart
+COPY --from=frontend-deps /app/smart/node_modules ./node_modules
+COPY smart/ .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -56,10 +59,10 @@ FROM eclipse-temurin:17-jdk AS plugin-builder
 RUN apt-get update && apt-get install -y --no-install-recommends maven && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-COPY neo4j-plugin/graph-relationship-manager/pom.xml ./pom.xml
+COPY tools/neo4j-plugin/graph-relationship-manager/pom.xml ./pom.xml
 # Download dependencies first for better caching
 RUN mvn dependency:go-offline -B
-COPY neo4j-plugin/graph-relationship-manager/src ./src
+COPY tools/neo4j-plugin/graph-relationship-manager/src ./src
 RUN mvn clean package -DskipTests -B
 
 # ============================================
@@ -114,23 +117,22 @@ COPY --from=python-builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app/backend:/app
+    PYTHONPATH=/app
 
 # Copy Python application code
-COPY backend/src/ ./backend/src/
-COPY backend/api/ ./backend/api/
+COPY api/ ./api/
 COPY tools/ ./tools/
 COPY saag/ ./saag/
-COPY bin/ ./bin/
+COPY cli/ ./cli/
 
 # Copy input data for pipeline examples
-COPY input/ ./input/
+COPY data/ ./data/
 
 # Create output directory for CLI results
 RUN mkdir -p ./output
 
 # Make Python scripts executable
-RUN chmod +x ./bin/*.py
+RUN chmod +x ./cli/*.py
 
 # Copy Next.js built application from builder
 ENV NODE_ENV=production
@@ -141,11 +143,11 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy Next.js files
-COPY --from=frontend-builder /app/frontend/public ./frontend/public
-RUN mkdir -p ./frontend/.next && chown nextjs:nodejs ./frontend/.next
+COPY --from=frontend-builder /app/smart/public ./smart/public
+RUN mkdir -p ./smart/.next && chown nextjs:nodejs ./smart/.next
 
-COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./frontend/
-COPY --from=frontend-builder --chown=nextjs:nodejs /app/frontend/.next/static ./frontend/.next/static
+COPY --from=frontend-builder --chown=nextjs:nodejs /app/smart/.next/standalone ./smart/
+COPY --from=frontend-builder --chown=nextjs:nodejs /app/smart/.next/static ./smart/.next/static
 
 # Expose ports
 # 7474 - Neo4j HTTP
@@ -230,7 +232,7 @@ done\n\
 echo -e "\\r  ${GREEN}✓${RESET} Neo4j is ready!                    "\n\
 \n\
 echo -e "\\n${BLUE}[3/4]${RESET} ${BOLD}Starting FastAPI backend...${RESET}"\n\
-cd /app/backend\n\
+cd /app\n\
 echo -e "  ${CYAN}→${RESET} Launching uvicorn with 2 workers"\n\
 uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 2 > /tmp/backend.log 2>&1 &\n\
 BACKEND_PID=$!\n\
@@ -238,7 +240,7 @@ sleep 2\n\
 echo -e "  ${GREEN}✓${RESET} Backend started (PID: $BACKEND_PID)"\n\
 \n\
 echo -e "\\n${BLUE}[4/4]${RESET} ${BOLD}Starting Next.js frontend...${RESET}"\n\
-cd /app/frontend\n\
+cd /app/smart\n\
 echo -e "  ${CYAN}→${RESET} Launching Next.js server"\n\
 su -s /bin/bash nextjs -c "PORT=7000 HOSTNAME=0.0.0.0 node server.js" > /tmp/frontend.log 2>&1 &\n\
 FRONTEND_PID=$!\n\

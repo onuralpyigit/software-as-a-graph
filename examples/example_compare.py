@@ -4,19 +4,15 @@ examples/example_compare.py — Architectural Design Comparison
 This script demonstrates the framework's capability to compare two different 
 architectural designs side-by-side using RMAV quality dimensions.
 """
-import sys
 import json
 import argparse
 from pathlib import Path
 from typing import Dict, Any
 
-# Add project root to path for imports
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(ROOT))
-sys.path.append(str(ROOT / "backend"))
 
-from src.infrastructure.memory_repo import MemoryRepository
-from src.analysis.service import AnalysisService
+from saag.infrastructure.memory_repo import MemoryRepository
+from saag.analysis.service import AnalysisService
 
 def load_json_with_comments(path: str):
     import re

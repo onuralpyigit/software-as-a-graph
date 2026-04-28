@@ -30,7 +30,7 @@ The project is a full-stack application with four main components:
 - **Database:** Neo4j 5.x (accessed via `neo4j` Python driver)
 - **Dependencies:** `backend/requirements.txt` — `neo4j`, `networkx`, `fastapi`, `uvicorn`, `pydantic`, `matplotlib`, `numpy`, `scipy`
 
-### Frontend (`frontend/`)
+### Frontend (`smart/`)
 - **Name:** Genieus
 - **Framework:** Next.js 16 with React 19, TypeScript
 - **Styling:** Tailwind CSS 4
@@ -104,7 +104,7 @@ bash bin/run_scenarios.sh
 
 ### Running Frontend Locally
 ```bash
-cd frontend
+cd smart
 npm install
 npm run dev          # http://localhost:7000
 npm run generate-client  # Regenerate API client from OpenAPI spec
@@ -154,18 +154,18 @@ pytest -k "test_name"  # Run by test name pattern
 - **Graph layers:** The system supports four graph layers: `app`, `infra`, `mw` (middleware), `system`. The canonical definitions live in `backend/src/core/layers.py` (`LAYER_DEFINITIONS`). Key: the `app` layer includes both Application **and Library** nodes (`analyze_types = {Application, Library}`) — library blast-radius risk is visible at this layer. A mirror copy of the layer dict exists in `backend/src/infrastructure/neo4j_repo.py` and must be kept in sync with `layers.py`.
 - **Dependency types:** Six DEPENDS_ON subtypes are derived by `neo4j_repo._derive_dependencies()`: `app_to_app` (APP), `app_to_lib` (APP), `app_to_broker` (MW), `node_to_node` (INFRA), `node_to_broker` (MW), `broker_to_broker` (MW). All carry `weight ∈ [0,1]` (max QoS severity) and `path_count` (coupling intensity). The canonical mapping is `DEPENDENCY_TO_LAYER` in `layers.py`.
 - **Examples:** 11 transitionary examples in `examples/` (`example_end_to_end.py` is the most comprehensive). 
-- **Input data:** Topology JSON files in `input/` (e.g., `system.json`, `dataset.json`) and YAML configs (`graph_config.yaml`)
-- **Scenarios:** 8 domain scenarios under `input/scenario_0N_*.yaml` (autonomous vehicle, IoT, financial trading, healthcare, hub-and-spoke, microservices, enterprise XL, tiny regression)
+- **Input data:** Topology JSON files in `data/` (e.g., `system.json`, `dataset.json`) and YAML configs (`graph_config.yaml`)
+- **Scenarios:** 8 domain scenarios under `data/scenario_0N_*.yaml` (autonomous vehicle, IoT, financial trading, healthcare, hub-and-spoke, microservices, enterprise XL, tiny regression)
 
 ### Frontend
 - **App Router** (Next.js `app/` directory)
-- **Components** in `frontend/components/` — follows shadcn/ui conventions
-- **API utilities** in `frontend/lib/`
-- **OpenAPI-generated client** in `frontend/lib/api/generated/`
+- **Components** in `smart/components/` — follows shadcn/ui conventions
+- **API utilities** in `smart/lib/`
+- **OpenAPI-generated client** in `smart/lib/api/generated/`
 
 ### Docker
-- Three services: `neo4j`, `api` (builds from `backend/Dockerfile`), `frontend` (builds from `frontend/Dockerfile`)
-- `Dockerfile.all-in-one` and `Dockerfile.api` exist at root for alternative deployment
+- Three services: `neo4j`, `api` (builds from `backend/Dockerfile`), `frontend` (builds from `smart/Dockerfile`)
+- `Dockerfile.all-in-one` exists at root for all-in-one deployment; `api/Dockerfile` is the standalone API container
 - Neo4j plugins: APOC and Graph Data Science
 
 ## The Pipeline
@@ -363,11 +363,11 @@ Validation also reports statistical power tables and Spearman–Kendall gap diag
 │       ├── service.py          #     GenerationService wrapper
 │       ├── models.py           #     SCALE_PRESETS & statistical config
 │       └── datasets.py         #     Domain-specific naming & QoS mappings
-├── frontend/                   # Next.js web application (Genieus)
+├── smart/                   # Next.js web application (Genieus)
 │   ├── app/                    #   Pages and layout
 │   └── components/             #   UI components (Radix + shadcn)
 ├── bin/                        # CLI scripts and pipeline orchestrator
-├── input/                      # Topology JSONs and scenario YAMLs
+├── data/                      # Topology JSONs and scenario YAMLs
 ├── output/                     # Generated dashboards and reports
 ├── examples/                   # Tutorial scripts
 ├── docs/                       # Methodology and research documentation

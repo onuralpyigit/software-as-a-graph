@@ -628,16 +628,16 @@ bin/import_graph.py
 ```bash
 # Basic import (appends to existing database)
 python bin/import_graph.py \
-  --input input/system.json
+  --input data/system.json
 
 # Import with database wipe (recommended for fresh runs)
 python bin/import_graph.py \
-  --input input/system.json \
+  --input data/system.json \
   --clear
 
 # Import against a non-default Neo4j instance
 python bin/import_graph.py \
-  --input input/sample_topology.json \
+  --input data/sample_topology.json \
   --clear \
   --uri bolt://neo4j-host:7687 \
   --user admin \
@@ -646,7 +646,7 @@ python bin/import_graph.py \
 
 # Save import statistics to a file for CI verification
 python bin/import_graph.py \
-  --input input/system.json \
+  --input data/system.json \
   --clear \
   --output output/import_stats.json
 ```
@@ -816,7 +816,7 @@ To verify roundtrip integrity for a given topology, run:
 
 ```bash
 # Import original
-python bin/import_graph.py --input input/system.json --clear
+python bin/import_graph.py --input data/system.json --clear
 
 # Export persistence snapshot
 python bin/export_graph.py --output output/snapshot.json

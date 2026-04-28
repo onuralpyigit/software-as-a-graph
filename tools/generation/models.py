@@ -3,7 +3,7 @@ Statistical Data Models for Graph Generation
 """
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
-from src.core.models import QoSPolicy
+from saag.core.models import QoSPolicy
 
 SCALE_PRESETS: Dict[str, Dict[str, int]] = {
     "tiny":   {"apps": 5,   "topics": 5,   "brokers": 1,  "nodes": 2,  "libs": 2},

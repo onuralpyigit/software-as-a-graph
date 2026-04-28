@@ -174,7 +174,7 @@ The system follows SOLID principles with emphasis on three key decisions:
 ├─────────────────────────────────────────────────────────────────────┤
 │                    WEB APPLICATION LAYER (Genieus)                  │
 │                                                                     │
-│  frontend/        (Next.js 16, port 7000)                           │
+│  smart/           (Next.js 16, port 7000)                           │
 │  backend/api/     (FastAPI, port 8000, /api/v1/ prefix)             │
 │                                                                     │
 │  REST API exposes the same pipeline operations as the CLI.          │
@@ -228,7 +228,7 @@ software-as-a-graph/
 │   │   └── arguments.py              #     Shared argparse logic
 │   └── run_scenarios.sh              #   Batch-run all scenario configs
 │
-├── frontend/                         # Web Application Layer — Next.js 16
+├── smart/                         # Web Application Layer — Next.js 16
 │   ├── app/                          #   Next.js App Router pages
 │   ├── components/                   #   React UI components
 │   └── package.json                  #   Node.js dependencies
@@ -275,7 +275,7 @@ software-as-a-graph/
 │       │
 │
 ├── config/                           # YAML scale presets and scenario configs
-├── input/                            # Topology JSON & YAML scenario configs (8 scenarios)
+├── data/                            # Topology JSON & YAML scenario configs (8 scenarios)
 ├── output/                           # Pipeline output artefacts (dashboards, reports)
 ├── results/                          # Validation results from previous runs
 ├── benchmarks/                       # Benchmark data

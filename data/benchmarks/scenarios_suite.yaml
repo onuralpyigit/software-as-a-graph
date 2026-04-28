@@ -1,0 +1,29 @@
+scenarios:
+  - name: AutonomousVehicle
+    graph_config: ../data/scenario_01_autonomous_vehicle.yaml
+    layers: ["app", "system"]
+    runs: 1
+  - name: IoTSmartCity
+    graph_config: ../data/scenario_02_iot_smart_city.yaml
+    layers: ["app", "system"]
+    runs: 1
+  - name: FinancialTrading
+    graph_config: ../data/scenario_03_financial_trading.yaml
+    layers: ["app", "system"]
+    runs: 1
+  - name: Healthcare
+    graph_config: ../data/scenario_04_healthcare.yaml
+    layers: ["app", "system"]
+    runs: 1
+  - name: HubAndSpoke
+    graph_config: ../data/scenario_05_hub_and_spoke.yaml
+    layers: ["app", "system"]
+    runs: 1
+  - name: Microservices
+    graph_config: ../data/scenario_06_microservices.yaml
+    layers: ["app", "system"]
+    runs: 1
+  - name: EnterpriseXlarge
+    graph_config: ../data/scenario_07_enterprise_xlarge.yaml
+    layers: ["app", "system"]
+    runs: 1

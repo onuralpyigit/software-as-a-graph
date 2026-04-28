@@ -303,7 +303,7 @@ python simulate_graph.py fault-inject [options]
 
 ```bash
 python simulate_graph.py fault-inject \
-    --input input/atm_system.json \
+    --input data/atm_system.json \
     --output output/simulation/ \
     --seeds 42,123,456,789,2024 \
     --export-json
@@ -313,7 +313,7 @@ python simulate_graph.py fault-inject \
 
 ```bash
 python simulate_graph.py fault-inject \
-    --input input/atm_system.json \
+    --input data/atm_system.json \
     --nodes ConflictDetector \
     --output output/simulation/ \
     --export-json -v
@@ -323,7 +323,7 @@ python simulate_graph.py fault-inject \
 
 ```bash
 python simulate_graph.py fault-inject \
-    --input input/atm_system.json \
+    --input data/atm_system.json \
     --node-types Broker \
     --cascade-depth 2 \
     --seeds 42,123,456 \
@@ -357,7 +357,7 @@ python simulate_graph.py message-flow [options]
 
 ```bash
 python simulate_graph.py message-flow \
-    --input input/atm_system.json \
+    --input data/atm_system.json \
     --duration 300 \
     --seed 42 \
     --export-json
@@ -367,7 +367,7 @@ python simulate_graph.py message-flow \
 
 ```bash
 python simulate_graph.py message-flow \
-    --input input/atm_system.json \
+    --input data/atm_system.json \
     --duration 300 \
     --fault-node ConflictDetector \
     --fault-time 150 \
@@ -379,7 +379,7 @@ python simulate_graph.py message-flow \
 
 ```bash
 python simulate_graph.py message-flow \
-    --input input/atm_system.json \
+    --input data/atm_system.json \
     --duration 200 \
     --fault-node ASTERIX_Broker \
     --fault-time 100 \
@@ -403,7 +403,7 @@ All flags from both `fault-inject` and `message-flow` are available. The `--faul
 
 ```bash
 python simulate_graph.py combined \
-    --input input/atm_system.json \
+    --input data/atm_system.json \
     --output output/simulation/ \
     --seeds 42,123,456,789,2024 \
     --duration 300 \
@@ -652,14 +652,14 @@ ASTERIX_Broker ──ROUTES──▶  T_radar, T_tracks, T_conflicts, T_meteo, T
 ```bash
 # Step 1: Generate ground-truth I(v)
 python simulate_graph.py fault-inject \
-    --input input/atm_system.json \
+    --input data/atm_system.json \
     --output output/simulation/ \
     --seeds 42,123,456,789,2024 \
     --export-json
 
 # Step 2: Run analysis to get Q(v) predictions
 python analyze_graph.py \
-    --input input/atm_system.json \
+    --input data/atm_system.json \
     --output output/analysis/ \
     --export-json
 
@@ -676,7 +676,7 @@ python bin/validate_topology_classes.py \
 
 ```bash
 python simulate_graph.py message-flow \
-    --input input/atm_system.json \
+    --input data/atm_system.json \
     --duration 300 \
     --fault-node ConflictDetector \
     --fault-time 150 \

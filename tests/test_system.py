@@ -1,38 +1,89 @@
 import pytest
-import subprocess
-import sys
+import shutil
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
-# Provide absolute paths relative to this script
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+from tools.generation import generate_graph
+from saag.adapters import create_repository
+from saag.analysis import AnalysisService
+from saag.simulation import SimulationService
+from saag.validation import ValidationService
+from saag.prediction import GNNService
 
-@pytest.mark.e2e
-def test_cli_smoke_end_to_end(tmp_path):
+@pytest.mark.slow
+def test_system_end_to_end(tmp_path):
     """
-    True CLI smoke tests using the subprocess approach.
-    Runs the full end-to-end pipeline example on a tiny graph
-    to verify all CLI stages are correctly integrated.
+    A proper system test that replaces the legacy subprocess-based CLI scripts.
+    This exercises the actual Python API backend flow end-to-end.
+    If Neo4j is unavailable, we gracefully skip the test.
     """
-    example_script = PROJECT_ROOT / "examples" / "example_end_to_end.py"
-    
-    # We use a very small scale and skip visualization to speed up tests
-    cmd = [
-        sys.executable, str(example_script),
-        "--scale", "tiny",
-        "--output-dir", str(tmp_path),
-        "--skip-viz"
-    ]
-    
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    
-    # If Neo4j is not available, the script may fail at connection
-    # Standard practice is to assert success unless Neo4j is definitively absent
-    # We will check if the failure is just due to neo4j unavailable
-    if result.returncode != 0 and "ServiceUnavailable" in result.stderr:
-        pytest.skip("Neo4j is not running - skipping true CLI e2e test.")
+    # 1. Generate local graph
+    graph_data = generate_graph(scale="tiny", seed=42)
+    assert "nodes" in graph_data
+    assert len(graph_data["nodes"]) > 0
+
+    # 2. Try to connect to a local Neo4j DB (assumed for slow tests)
+    # If connection fails, pytest.skip()
+    try:
+        repo = create_repository(
+            uri="bolt://localhost:7687",
+            user="neo4j",
+            password="password"
+        )
+        repo.save_graph(graph_data, clear=True)
+    except Exception as e:
+        pytest.skip(f"Skipping system test: could not connect to Neo4j database or save graph ({e})")
+        return
+
+    try:
+        # 3. Analyze
+        analysis_service = AnalysisService(repo)
+        analysis_result = analysis_service.analyze_layer("app")
+        assert analysis_result is not None
         
-    assert result.returncode == 0, f"End-to-end simulation failed.\\nSTDOUT:\\n{result.stdout}\\nSTDERR:\\n{result.stderr}"
-    
-    # Verify the output graph was created
-    outputs = list(tmp_path.glob("e2e_graph_tiny_seed*.json"))
-    assert len(outputs) > 0, "Expected JSON output was not found in the output directory"
+        # 3.5 Predict (Required for ValidationService)
+        from saag.prediction.service import PredictionService
+        prediction_service = PredictionService()
+        analysis_result.quality = prediction_service.predict_quality(analysis_result.structural)
+        assert len(analysis_result.quality.components) > 0
+
+        # 4. Simulate
+        simulation_service = SimulationService(repo)
+        sim_results = simulation_service.run_failure_simulation_exhaustive(layer="app")
+        assert len(sim_results) > 0
+
+        # 5. Validate
+        validation_service = ValidationService(analysis_service, prediction_service, simulation_service, ndcg_k=5)
+        val_result = validation_service.validate_single_layer("app")
+        assert val_result is not None
+
+        # 6. Predict (GNN)
+        from saag.prediction import extract_structural_metrics_dict, extract_rmav_scores_dict, extract_simulation_dict
+        structural_dict = extract_structural_metrics_dict(analysis_result.structural)
+        rmav_dict       = extract_rmav_scores_dict(analysis_result.quality)
+        simulation_dict = extract_simulation_dict(sim_results)
+
+        gnn_service = GNNService(
+            hidden_channels=16,
+            num_heads=1,
+            num_layers=1,
+            dropout=0.1,
+            predict_edges=False,
+            checkpoint_dir=str(tmp_path / "gnn_checkpoint"),
+        )
+        
+        # We only train for 2 epochs in a test to ensure it runs fast
+        train_result = gnn_service.train(
+            graph=analysis_result.graph,
+            structural_metrics=structural_dict,
+            simulation_results=simulation_dict,
+            rmav_scores=rmav_dict,
+            num_epochs=2,
+            lr=1e-3,
+        )
+        assert train_result is not None
+        top_critical = train_result.top_critical_nodes(3)
+        assert isinstance(top_critical, list)
+
+    finally:
+        repo.close()
