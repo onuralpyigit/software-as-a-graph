@@ -8,7 +8,7 @@ DEPENDS_ON relationships derived from the system model.
 """
 import argparse
 from saag import Client
-from cli._shared import add_neo4j_args, add_common_args, setup_logging
+from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
 def main():
@@ -22,8 +22,8 @@ def main():
     parser.add_argument("--winsorize", action="store_true", help="Apply winsorization to cap extreme outliers")
     parser.add_argument("--sensitivity", action="store_true", help="Run weight sensitivity analysis")
     
-    add_neo4j_args(parser)
-    add_common_args(parser)
+    add_neo4j_arguments(parser)
+    add_common_arguments(parser)
     
     args = parser.parse_args()
     setup_logging(args)

@@ -3,17 +3,17 @@
 CLI script to export graph data from Neo4j to JSON file.
 
 Example usage:
-    python bin/export_graph.py --output output/exported_graph.json
-    python bin/export_graph.py --output graph.json --uri bolt://localhost:7687
-    python bin/export_graph.py --output graph.json --format analysis  # Export flat analysis format
-    python bin/export_graph.py --output graph.json --format analysis --include-structural # Include raw edges
+    python cli/export_graph.py --output output/exported_graph.json
+    python cli/export_graph.py --output graph.json --uri bolt://localhost:7687
+    python cli/export_graph.py --output graph.json --format analysis  # Export flat analysis format
+    python cli/export_graph.py --output graph.json --format analysis --include-structural # Include raw edges
 """
 import argparse
 import json
 from pathlib import Path
 from typing import Dict, Any
 from saag import Client
-from cli._shared import add_neo4j_args, add_common_args, setup_logging
+from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
 
@@ -23,8 +23,8 @@ def main() -> None:
         description="Export Graph Data from Neo4j to JSON",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    add_neo4j_args(parser)
-    add_common_args(parser)
+    add_neo4j_arguments(parser)
+    add_common_arguments(parser)
     
     parser.add_argument(
         "--format",

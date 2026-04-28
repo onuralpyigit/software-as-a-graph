@@ -6,7 +6,7 @@ CLI script to import graph data into Neo4j.
 import argparse
 from pathlib import Path
 from saag import Client
-from cli._shared import add_neo4j_args, add_common_args, setup_logging
+from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
 def main():
@@ -18,8 +18,8 @@ def main():
     parser.add_argument("--clear", action="store_true", help="Clear existing DB before import")
     parser.add_argument("--dry-run", action="store_true", help="Validate input without importing")
     
-    add_neo4j_args(parser)
-    add_common_args(parser)
+    add_neo4j_arguments(parser)
+    add_common_arguments(parser)
     args = parser.parse_args()
     setup_logging(args)
     console = ConsoleDisplay()

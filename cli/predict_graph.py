@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-bin/predict_graph.py — Unified Prediction & Anti-Pattern CLI
+cli/predict_graph.py — Unified Prediction & Anti-Pattern CLI
 =============================================================
 Runs the full Step 3 prediction pipeline in one command:
 
@@ -16,25 +16,25 @@ Exit codes (CI/CD gate):
 Usage examples
 --------------
   # Minimal — RMAV + antipatterns on system layer
-  python bin/predict_graph.py
+  python cli/predict_graph.py
 
   # Multi-layer
-  python bin/predict_graph.py --layer app,system
+  python cli/predict_graph.py --layer app,system
 
   # AHP-weighted RMAV + GNN ensemble
-  python bin/predict_graph.py --use-ahp --gnn-model output/gnn_checkpoints/best
+  python cli/predict_graph.py --use-ahp --gnn-model output/gnn_checkpoints/best
 
   # Strict CI gate — only CRITICAL patterns block
-  python bin/predict_graph.py --severity critical --output-antipatterns results/ap.json
+  python cli/predict_graph.py --severity critical --output-antipatterns results/ap.json
 
   # Filter to specific patterns
-  python bin/predict_graph.py --pattern SPOF,FAILURE_HUB,GOD_COMPONENT
+  python cli/predict_graph.py --pattern SPOF,FAILURE_HUB,GOD_COMPONENT
 
   # Baseline equal weights, no GNN, skip antipatterns
-  python bin/predict_graph.py --equal-weights --no-antipatterns
+  python cli/predict_graph.py --equal-weights --no-antipatterns
 
   # Print the full pattern catalog and exit
-  python bin/predict_graph.py --catalog
+  python cli/predict_graph.py --catalog
 """
 
 import json
@@ -44,7 +44,7 @@ from types import SimpleNamespace
 
 import argparse
 from saag import Client
-from cli._shared import add_neo4j_args, add_common_args, setup_logging
+from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
 logger = logging.getLogger("predict_graph")
@@ -125,8 +125,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Always exit with code 0 (disables CI/CD blocking behaviour).",
     )
 
-    add_neo4j_args(parser)
-    add_common_args(parser)  # adds --layer, --output, --verbose, --quiet
+    add_neo4j_arguments(parser)
+    add_common_arguments(parser)  # adds --layer, --output, --verbose, --quiet
     return parser
 
 

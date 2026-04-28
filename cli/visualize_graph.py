@@ -7,16 +7,16 @@ Generates multi-layer analysis dashboards using the VisualizationService.
 Usage
 -----
   # Demo (no Neo4j required)
-  python bin/visualize_graph.py --demo --open
+  python cli/visualize_graph.py --demo --open
 
   # Single layer
-  python bin/visualize_graph.py --layer system -o output/dashboard.html
+  python cli/visualize_graph.py --layer system -o output/dashboard.html
 
   # Multi-layer (comma-separated via --layer, or explicit --layers flag)
-  python bin/visualize_graph.py --layers app,infra,system -o output/dashboard.html
+  python cli/visualize_graph.py --layers app,infra,system -o output/dashboard.html
 
   # With pre-computed cascade file and multi-seed paths
-  python bin/visualize_graph.py --layer system \\
+  python cli/visualize_graph.py --layer system \\
       --cascade-file results/cascade.json \\
       --multi-seed results/val_s42.json results/val_s123.json \\
       --open
@@ -28,7 +28,7 @@ import argparse
 import webbrowser
 import os
 from saag import Client
-from cli._shared import add_neo4j_args, add_common_args, setup_logging
+from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
 
@@ -300,8 +300,8 @@ def main():
     parser.add_argument("--open", "-b", action="store_true",
                         help="Open dashboard in browser after generation")
 
-    add_neo4j_args(parser)
-    add_common_args(parser)
+    add_neo4j_arguments(parser)
+    add_common_arguments(parser)
 
     args, unknown = parser.parse_known_args()
 

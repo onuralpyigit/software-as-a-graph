@@ -6,9 +6,10 @@ Aggregates multiple validation JSON results to compute mean and standard
 deviation of Spearman correlation, verifying statistical stability.
 """
 
+import argparse
 import json
-import sys
 import math
+import sys
 from pathlib import Path
 from typing import List
 
@@ -22,11 +23,17 @@ def compute_stats(values: List[float]):
     return mean, std_dev
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python bin/multi_seed_summary.py result1.json result2.json ...")
-        sys.exit(1)
-
-    files = sys.argv[1:]
+    parser = argparse.ArgumentParser(
+        description="Aggregate multi-seed validation results and compute Spearman stability statistics.",
+    )
+    parser.add_argument(
+        "files",
+        nargs="+",
+        metavar="RESULT_JSON",
+        help="One or more validation JSON result files to aggregate.",
+    )
+    args = parser.parse_args()
+    files = args.files
     spearmans = []
     
     print(f"Aggregating {len(files)} result files...")

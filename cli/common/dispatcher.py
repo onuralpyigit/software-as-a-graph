@@ -153,7 +153,7 @@ def dispatch_predict(repo, args: argparse.Namespace):
     rmav_raw = load_json(getattr(args, 'rmav', None))
     simulation_raw = load_json(getattr(args, 'simulated', None))
     
-    # Flattening logic omitted for brevity, but should be here if needed from bin/predict_graph.py
+    # Flattening logic omitted for brevity, but should be here if needed from cli/predict_graph.py
     # For now, we assume standard pipeline usage.
 
     layer = getattr(args, 'layer', 'app')

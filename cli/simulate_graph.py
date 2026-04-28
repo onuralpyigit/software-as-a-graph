@@ -20,21 +20,21 @@ EXAMPLES
 ────────
 
   # Ground-truth generation for the ATM dataset (all Application + Broker nodes)
-  python simulate_graph.py fault-inject \\
+  python cli/simulate_graph.py fault-inject \
       --input data/atm_system.json \\
       --output output/simulation/ \\
       --seeds 42,123,456,789,2024 \\
       --export-json
 
   # Single-node fault injection for ConflictDetector only
-  python simulate_graph.py fault-inject \\
+  python cli/simulate_graph.py fault-inject \
       --input data/atm_system.json \\
       --nodes ConflictDetector \\
       --output output/simulation/ \\
       --export-json
 
   # Message-flow simulation, 300 s, fault ConflictDetector at t=150 s
-  python simulate_graph.py message-flow \\
+  python cli/simulate_graph.py message-flow \
       --input data/atm_system.json \\
       --duration 300 \\
       --fault-node ConflictDetector \\
@@ -44,7 +44,7 @@ EXAMPLES
       --export-json
 
   # Run both in one pass
-  python simulate_graph.py combined \\
+  python cli/simulate_graph.py combined \
       --input data/atm_system.json \\
       --output output/simulation/ \\
       --seeds 42,123,456 \\
@@ -71,12 +71,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# ── Logging ───────────────────────────────────────────────────────────────────
-logging.basicConfig(
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
-    datefmt="%H:%M:%S",
-    level=logging.INFO,
-)
+from cli.common.arguments import setup_logging
+
 logger = logging.getLogger("simulate_graph")
 
 
@@ -599,9 +595,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
-
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+    setup_logging(args)
 
     dispatch = {
         "fault-inject": _run_fault_inject,

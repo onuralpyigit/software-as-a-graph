@@ -8,10 +8,10 @@ runs:  generate → import → analyze → simulate → validate, collecting tim
 and accuracy metrics.
 
 Usage:
-    python bin/benchmark.py --scales tiny,small,medium --runs 3
-    python bin/benchmark.py --full-suite
-    python bin/benchmark.py --config benchmarks/suite.yaml
-    python bin/benchmark.py --scales small --layers app --runs 1 --verbose
+    python cli/benchmark.py --scales tiny,small,medium --runs 3
+    python cli/benchmark.py --full-suite
+    python cli/benchmark.py --config benchmarks/suite.yaml
+    python cli/benchmark.py --scales small --layers app --runs 1 --verbose
 """
 import argparse
 import logging
@@ -25,7 +25,7 @@ from tools.benchmark import (
     ReportGenerator,
 )
 from cli.common.console import ConsoleDisplay
-from cli.common.arguments import add_neo4j_arguments, add_common_arguments
+from cli.common.arguments import add_neo4j_arguments, add_runtime_arguments, setup_logging
 
 # Helper for color-coding terminal output (initialized in main)
 
@@ -241,7 +241,7 @@ examples:
     add_neo4j_arguments(parser)
 
     # --- Runtime ---
-    add_common_arguments(parser)
+    add_runtime_arguments(parser)
     parser.add_argument("--dry-run", action="store_true", help="Print plans without executing")
 
     return parser
@@ -256,12 +256,7 @@ def main() -> int:
     args = parser.parse_args()
     display = ConsoleDisplay()
 
-    # --- Logging ---
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.WARNING,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    setup_logging(args)
 
     # --- Build scenario list ---
     scenarios = _build_scenarios(args)

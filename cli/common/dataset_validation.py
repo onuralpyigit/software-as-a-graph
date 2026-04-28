@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-bin/validate_datasets.py
-=================================
+cli/common/dataset_validation.py
+================================
 Topology-class validation harness for the Software-as-a-Graph methodology.
 
 Validates the six-step pipeline under four structural conditions:
@@ -22,18 +22,18 @@ Two operating modes:
 
 Usage:
     # Full pipeline run (Neo4j required)
-    python bin/validate_datasets.py \\
+    python cli/generate_graph.py validate \\
         --neo4j-uri bolt://localhost:7687 \\
         --neo4j-user neo4j --neo4j-password password
 
     # Read from existing pipeline outputs
-    python bin/validate_datasets.py --from-results output/topology_validation
+    python cli/generate_graph.py validate --from-results output/topology_validation
 
     # Single topology class, verbose
-    python bin/validate_datasets.py --class fan_out --verbose
+    python cli/generate_graph.py validate --class fan_out --verbose
 
     # Dry-run — print plan without executing
-    python bin/validate_datasets.py --dry-run
+    python cli/generate_graph.py validate --dry-run
 
 Output:
     output/topology_validation/<class_id>/<scenario_name>_results/

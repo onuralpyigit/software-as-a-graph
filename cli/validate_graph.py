@@ -28,20 +28,20 @@ Pipeline
 Usage
 -----
 # Single run — topology-only baseline
-python bin/validate_graph.py single --input data/system.json
+python cli/validate_graph.py single --input data/system.json
 
 # Single run — QoS-enriched
-python bin/validate_graph.py single --input data/system.json --qos
+python cli/validate_graph.py single --input data/system.json --qos
 
 # Multi-seed stability sweep
-python bin/validate_graph.py sweep --input data/system.json --qos
+python cli/validate_graph.py sweep --input data/system.json --qos
 
 # Full report (sweep + topology-class gates + node-type strata)
-python bin/validate_graph.py report --input data/system.json \\
+python cli/validate_graph.py report --input data/system.json \\
     --output output/validation_report.json --qos
 
 # Run against ATM dataset with custom top-k
-python bin/validate_graph.py report --input datasets/atm_system.json \\
+python cli/validate_graph.py report --input datasets/atm_system.json \
     --top-k 10 --qos --output output/atm_validation.json
 
 Options
@@ -63,6 +63,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import math
 import random
 import sys
@@ -70,6 +71,8 @@ from collections import defaultdict
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from cli.common.arguments import setup_logging
 
 import networkx as nx
 import numpy as np
@@ -1047,6 +1050,7 @@ def _parse_args():
 
 def main():
     args = _parse_args()
+    setup_logging(args)
     use_color = not args.no_color
 
     G, raw = load_graph(args.input)

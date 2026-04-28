@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-bin/detect_antipatterns.py — Pub-Sub Architectural Anti-Pattern Detector
+cli/detect_antipatterns.py — Pub-Sub Architectural Anti-Pattern Detector
 ========================================================================
 Detects bad smells from GNN predictions and structural metrics.
 """
@@ -8,7 +8,7 @@ Detects bad smells from GNN predictions and structural metrics.
 import argparse
 from pathlib import Path
 from saag import Client
-from cli._shared import add_neo4j_args, add_common_args, setup_logging
+from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
 def main():
@@ -23,8 +23,8 @@ def main():
     parser.add_argument("--pattern", type=str, help="Filter by pattern ID (comma-separated, e.g. 'SPOF,CYCLE')")
     parser.add_argument("--catalog", action="store_true", help="Print the anti-pattern catalog and exit")
     
-    add_neo4j_args(parser)
-    add_common_args(parser)
+    add_neo4j_arguments(parser)
+    add_common_arguments(parser)
     args = parser.parse_args()
     setup_logging(args)
 

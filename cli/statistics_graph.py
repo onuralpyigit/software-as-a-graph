@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-bin/statistics_graph.py — Cross-Cutting Statistics CLI
+cli/statistics_graph.py — Cross-Cutting Statistics CLI
 ======================================================
 Computes and displays chart statistics for a pub-sub graph topology.
 
@@ -10,22 +10,22 @@ Two data source modes
 
 Usage examples
   # All charts from a live Neo4j instance
-  python bin/statistics_graph.py
+  python cli/statistics_graph.py
 
   # Specific charts only
-  python bin/statistics_graph.py --chart topic_bandwidth app_balance criticality_io
+  python cli/statistics_graph.py --chart topic_bandwidth app_balance criticality_io
 
   # Standalone file mode — no Neo4j required
-  python bin/statistics_graph.py --input output/dataset.json
+  python cli/statistics_graph.py --input output/dataset.json
 
   # Save results to JSON
-  python bin/statistics_graph.py --output output/stats.json
+  python cli/statistics_graph.py --output output/stats.json
 
   # Minimal one-line-per-chart summary
-  python bin/statistics_graph.py --format minimal
+  python cli/statistics_graph.py --format minimal
 
   # Raw JSON dump (machine-readable)
-  python bin/statistics_graph.py --format json --output output/stats.json
+  python cli/statistics_graph.py --format json --output output/stats.json
 """
 
 import sys
@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import argparse
-from cli._shared import add_neo4j_args, add_common_args, setup_logging
+from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay, Colors
 
 # ---------------------------------------------------------------------------
@@ -315,8 +315,8 @@ def main() -> None:
         ),
     )
 
-    add_neo4j_args(parser)
-    add_common_args(parser)
+    add_neo4j_arguments(parser)
+    add_common_arguments(parser)
     args = parser.parse_args()
     setup_logging(args)
 

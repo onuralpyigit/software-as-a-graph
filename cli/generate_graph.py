@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Optional
 from cli.common.dispatcher import dispatch_generate
-from cli.common.arguments import add_common_arguments
+from cli.common.arguments import add_runtime_arguments
 from cli.common.console import ConsoleDisplay
 from cli.common.batch_generation import run_batch_generation, add_batch_arguments
 from cli.common.dataset_validation import run_dataset_validation, add_validation_arguments
@@ -64,7 +64,7 @@ def main() -> None:
         help="Scenario mapping for QoS generation",
     )
     
-    add_common_arguments(parser)
+    add_runtime_arguments(parser)
     
     subparsers = parser.add_subparsers(dest="command", help="Optional command mode")
     

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-bin/run.py — Software-as-a-Graph Pipeline Orchestrator
+cli/run.py — Software-as-a-Graph Pipeline Orchestrator
 ======================================================
 Executes the analytical pipeline using the saag SDK.
 """
@@ -8,7 +8,7 @@ Executes the analytical pipeline using the saag SDK.
 import argparse
 from pathlib import Path
 from saag import Pipeline
-from cli._shared import add_neo4j_args, add_common_args, setup_logging
+from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
 def main():
@@ -42,8 +42,8 @@ def main():
     opts.add_argument("--no-matrix", action="store_true", help="Skip dependency matrix in visualization")
     opts.add_argument("--no-validation", action="store_true", help="Skip validation metrics in visualization")
 
-    add_neo4j_args(parser)
-    add_common_args(parser)
+    add_neo4j_arguments(parser)
+    add_common_arguments(parser)
     
     # Compatibility shim: old scripts might pass --import-file or --import
     parser.add_argument("--import-file", dest="input", help=argparse.SUPPRESS)

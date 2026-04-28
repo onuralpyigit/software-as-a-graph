@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-bin/train_graph.py — Train GNN criticality models
+cli/train_graph.py — Train GNN criticality models
 =================================================
 Trains a Heterogeneous Graph Attention Network (HeteroGAT) to predict
 component and relationship criticality using simulation ground-truth labels.
 
 Usage
 -----
-  python bin/train_graph.py --layer app
-  python bin/train_graph.py --layer system --epochs 500 --hidden 128 --heads 8
-  python bin/train_graph.py --layer app --checkpoint output/gnn_checkpoints/
+  python cli/train_graph.py --layer app
+  python cli/train_graph.py --layer system --epochs 500 --hidden 128 --heads 8
+  python cli/train_graph.py --layer app --checkpoint output/gnn_checkpoints/
 
   # Load existing structural/simulation results instead of re-running
-  python bin/train_graph.py --layer app \
+  python cli/train_graph.py --layer app \
       --structural results/metrics.json \
       --simulated  results/impact.json
 """
@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Optional
 
 from cli.common.console import ConsoleDisplay
-from cli.common.arguments import add_neo4j_arguments, add_common_arguments
+from cli.common.arguments import add_neo4j_arguments, add_runtime_arguments
 
 logging.basicConfig(
     level=logging.INFO,
@@ -80,7 +80,7 @@ def parse_args() -> argparse.Namespace:
                         help="Checkpoint directory")
     output.add_argument("--output", default=None, help="Save result JSON")
     output.add_argument("--use-ahp", action="store_true", help="Use AHP weights for RMAV")
-    add_common_arguments(parser)
+    add_runtime_arguments(parser)
 
     return parser.parse_args()
 

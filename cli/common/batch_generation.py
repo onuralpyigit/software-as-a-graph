@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-bin/generate_datasets.py — Batch dataset generator for all scenario configs.
+cli/common/batch_generation.py — Batch dataset generator for all scenario configs.
 
 Generates one JSON dataset per scenario YAML found in data/, optionally
 generates multi-seed variants for validation stability, and refreshes the
@@ -8,7 +8,7 @@ legacy data/system.json and data/dataset.json with current-format fields
 (code_metrics, system_hierarchy).
 
 Usage:
-    python bin/generate_datasets.py [OPTIONS]
+    python cli/generate_graph.py batch [OPTIONS]
 
 Options:
     --input-dir PATH      Directory containing scenario_*.yaml   [default: data/]
