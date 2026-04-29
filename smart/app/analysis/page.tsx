@@ -268,14 +268,21 @@ export default function AnalysisPage() {
     // Combine components and edges for overall system score
     const allEntities = [...components, ...edges]
 
-    // Invert raw risk scores so that high display score = good quality
-    const reliability = (1 - allEntities.reduce((sum, e) => sum + e.scores.reliability, 0) / allEntities.length) * 100
-    const maintainability = (1 - allEntities.reduce((sum, e) => sum + e.scores.maintainability, 0) / allEntities.length) * 100
-    const availability = (1 - allEntities.reduce((sum, e) => sum + e.scores.availability, 0) / allEntities.length) * 100
-    const vulnerability = (1 - allEntities.reduce((sum, e) => sum + e.scores.vulnerability, 0) / allEntities.length) * 100
-    const overall = (1 - allEntities.reduce((sum, e) => sum + e.scores.overall, 0) / allEntities.length) * 100
+    if (allEntities.length === 0) {
+      return { reliability: 0, maintainability: 0, availability: 0, vulnerability: 0, overall: 0 }
+    }
 
-    return { reliability, maintainability, availability, vulnerability, overall }
+    // Invert raw risk scores so that high display score = good quality
+    const avg = (key: keyof typeof allEntities[0]['scores']) =>
+      (1 - allEntities.reduce((sum, e) => sum + (e.scores?.[key] ?? 0), 0) / allEntities.length) * 100
+
+    return {
+      reliability: avg('reliability'),
+      maintainability: avg('maintainability'),
+      availability: avg('availability'),
+      vulnerability: avg('vulnerability'),
+      overall: avg('overall'),
+    }
   }
 
   // Get critical components
