@@ -57,6 +57,7 @@ import { useAnalysis } from "@/lib/stores/analysis-store"
 import { apiClient } from "@/lib/api/client"
 import { TermTooltip } from "@/components/ui/term-tooltip"
 import { ScoreTooltip } from "@/components/ui/score-tooltip"
+import { ItemTooltip } from "@/components/ui/item-tooltip"
 
 // Types for the new API structure
 interface ComponentAnalysis {
@@ -151,7 +152,20 @@ export default function AnalysisPage() {
   const [edgesPage, setEdgesPage] = useState(1)
   const [edgesPerPage] = useState(10)
 
+  // Node properties map for tooltip enrichment: id → { type, properties }
+  const [nodeById, setNodeById] = useState<Map<string, { type: string; properties: Record<string, unknown> }>>(new Map())
+
   const isConnected = status === 'connected'
+
+  // Fetch raw node properties once when connected
+  useEffect(() => {
+    if (!isConnected) return
+    apiClient.getGraphData().then(data => {
+      const m = new Map<string, { type: string; properties: Record<string, unknown> }>()
+      data.nodes.forEach((n: any) => m.set(n.id, { type: n.type ?? 'Application', properties: n.properties ?? {} }))
+      setNodeById(m)
+    }).catch(() => {})
+  }, [isConnected])
 
   // Generate cache key for current analysis configuration
   const getCacheKey = () => {
@@ -1907,25 +1921,35 @@ export default function AnalysisPage() {
                                 <div className="min-w-0 flex-1">
                                   {component.name && component.name !== component.id ? (
                                     <>
-                                      <button
-                                        onClick={() => router.push(`/explorer?node=${encodeURIComponent(component.id)}`)}
-                                        className="text-sm font-semibold truncate hover:text-red-700 dark:hover:text-red-300 hover:underline transition-colors block w-full text-left"
-                                        title={component.name}
+                                      <ItemTooltip
+                                        data={{ type: component.type, scores: component.scores, criticality_levels: component.criticality_levels, criticality_level: component.criticality_level, properties: nodeById.get(component.id)?.properties }}
+                                        side="right"
                                       >
-                                        {component.name}
-                                      </button>
+                                        <button
+                                          onClick={() => router.push(`/explorer?node=${encodeURIComponent(component.id)}`)}
+                                          className="text-sm font-semibold truncate hover:text-red-700 dark:hover:text-red-300 hover:underline transition-colors block w-full text-left"
+                                          title={component.name}
+                                        >
+                                          {component.name}
+                                        </button>
+                                      </ItemTooltip>
                                       <div className="text-xs text-muted-foreground/70 truncate font-mono mt-0.5" title={component.id}>
                                         {component.id}
                                       </div>
                                     </>
                                   ) : (
-                                    <button
-                                      onClick={() => router.push(`/explorer?node=${encodeURIComponent(component.id)}`)}
-                                      className="text-sm font-semibold truncate hover:text-red-700 dark:hover:text-red-300 hover:underline transition-colors block w-full text-left"
-                                      title={component.id}
+                                    <ItemTooltip
+                                      data={{ type: component.type, scores: component.scores, criticality_levels: component.criticality_levels, criticality_level: component.criticality_level, properties: nodeById.get(component.id)?.properties }}
+                                      side="right"
                                     >
-                                      {component.id}
-                                    </button>
+                                      <button
+                                        onClick={() => router.push(`/explorer?node=${encodeURIComponent(component.id)}`)}
+                                        className="text-sm font-semibold truncate hover:text-red-700 dark:hover:text-red-300 hover:underline transition-colors block w-full text-left"
+                                        title={component.id}
+                                      >
+                                        {component.id}
+                                      </button>
+                                    </ItemTooltip>
                                   )}
                                 </div>
                               </div>
@@ -2997,25 +3021,35 @@ export default function AnalysisPage() {
                                           const component = analysisData.components?.find(c => c.id === problem.entity_id)
                                           return component && component.name && component.name !== component.id ? (
                                             <div className="space-y-0.5 min-w-0">
-                                              <button
-                                                onClick={() => router.push(`/explorer?node=${encodeURIComponent(problem.entity_id)}`)}
-                                                className="text-sm font-semibold truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline transition-colors text-left w-full"
-                                                title={component.name}
+                                              <ItemTooltip
+                                                data={{ type: component.type, scores: component.scores, criticality_levels: component.criticality_levels, criticality_level: component.criticality_level, properties: nodeById.get(problem.entity_id)?.properties }}
+                                                side="right"
                                               >
-                                                {component.name}
-                                              </button>
+                                                <button
+                                                  onClick={() => router.push(`/explorer?node=${encodeURIComponent(problem.entity_id)}`)}
+                                                  className="text-sm font-semibold truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline transition-colors text-left w-full"
+                                                  title={component.name}
+                                                >
+                                                  {component.name}
+                                                </button>
+                                              </ItemTooltip>
                                               <div className="text-xs text-muted-foreground/70 truncate font-mono" title={problem.entity_id}>
                                                 {problem.entity_id}
                                               </div>
                                             </div>
                                           ) : (
-                                            <button
-                                              onClick={() => router.push(`/explorer?node=${encodeURIComponent(problem.entity_id)}`)}
-                                              className="text-sm font-semibold text-muted-foreground truncate font-mono group-hover:text-orange-600 dark:group-hover:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline transition-colors text-left w-full"
-                                              title={problem.entity_id}
+                                            <ItemTooltip
+                                              data={{ type: component.type ?? problem.type, scores: component.scores, criticality_levels: component.criticality_levels, criticality_level: component.criticality_level, properties: nodeById.get(problem.entity_id)?.properties }}
+                                              side="right"
                                             >
-                                              {problem.entity_id}
-                                            </button>
+                                              <button
+                                                onClick={() => router.push(`/explorer?node=${encodeURIComponent(problem.entity_id)}`)}
+                                                className="text-sm font-semibold text-muted-foreground truncate font-mono group-hover:text-orange-600 dark:group-hover:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:underline transition-colors text-left w-full"
+                                                title={problem.entity_id}
+                                              >
+                                                {problem.entity_id}
+                                              </button>
+                                            </ItemTooltip>
                                           )
                                         }
                                       })()}

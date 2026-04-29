@@ -12,6 +12,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { ItemTooltip, ItemTooltipContent } from "@/components/ui/item-tooltip"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
 import { forceCollide } from "d3-force-3d"
@@ -80,6 +81,7 @@ interface HGNode {
   nodeType?: string   // non-hierarchy node type (Topic, Node, Broker, Library …)
   appCount: number
   pathKey: string
+  appData?: AppNode   // raw AppNode data for app-level nodes (used in tooltips)
   // runtime fields added by force-graph simulation
   x?: number; y?: number; vx?: number; vy?: number; fx?: number; fy?: number
 }
@@ -521,7 +523,7 @@ function buildDrillData(
     case "csc": {
       for (const app of hierarchy[p[0]]?.css[p[1]]?.csci[p[2]]?.csc[p[3]]?.apps ?? []) {
         const id = `app:${app.id}`
-        nodes.push({ id, name: app.csu ?? app.name ?? app.id ?? "?", level: "app", appCount: 1, pathKey: app.id })
+        nodes.push({ id, name: app.csu ?? app.name ?? app.id ?? "?", level: "app", appCount: 1, pathKey: app.id, appData: app })
         links.push({ source: parent.id, target: id })
       }
       break
@@ -798,6 +800,8 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
   const textColor = isDark ? "#f1f5f9" : "#1e293b"
   const subColor  = isDark ? "#94a3b8" : "#64748b"
   return (
+    <Tooltip>
+    <TooltipTrigger asChild>
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
       <Handle type="target" position={Position.Top}    id="t-top" style={hs} />
       <Handle type="source" position={Position.Top}    id="s-top" style={hs} />
@@ -840,6 +844,11 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
       <Handle type="source" position={Position.Bottom} id="s-bot" style={hs} />
       <Handle type="target" position={Position.Bottom} id="t-bot" style={hs} />
     </div>
+    </TooltipTrigger>
+    <TooltipContent side="top" className="p-2.5 leading-relaxed shadow-xl border-border/60 bg-popover text-popover-foreground z-[9999]">
+      <ItemTooltipContent data={{ type: n.type, name: disp, properties: n.properties ?? {} }} />
+    </TooltipContent>
+    </Tooltip>
   )
 })
 
@@ -947,7 +956,7 @@ const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
 
   const hiddenHandle = { opacity: 0, width: 0, height: 0, minWidth: 0 }
 
-  return (
+  const nodeContent = (
     <div
       style={{
         display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
@@ -997,6 +1006,15 @@ const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
       <Handle type="source" position={Position.Bottom} id="s" style={hiddenHandle} />
     </div>
   )
+
+  if (hn.level === "app" && hn.appData) {
+    return (
+      <ItemTooltip data={{ type: "Application", name: hn.name, properties: hn.appData as Record<string, unknown> }} side="right">
+        {nodeContent}
+      </ItemTooltip>
+    )
+  }
+  return nodeContent
 })
 
 // Custom hierarchy edge with gradient stroke
@@ -2299,9 +2317,20 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                       return connSort.asc ? cmp : -cmp
                     }).map(({ link, dir }, i) => {
                       const peerId = dir === "out" ? (link.target?.id ?? link.target) : (link.source?.id ?? link.source)
+                      const peerNode = nodeById.get(peerId)
                       return (
                         <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                          <td className="px-3 py-2 font-medium text-foreground max-w-[110px] truncate" title={peerLabel(peerId)}>{peerLabel(peerId)}</td>
+                          <td className="px-3 py-2 font-medium text-foreground max-w-[110px] truncate" title={peerLabel(peerId)}>
+                            <ItemTooltip
+                              data={{
+                                type: peerNode?.type ?? "Application",
+                                properties: peerNode?.properties ?? {},
+                              }}
+                              side="left"
+                            >
+                              <span className="truncate">{peerLabel(peerId)}</span>
+                            </ItemTooltip>
+                          </td>
                           <td className="px-3 py-2 text-muted-foreground max-w-[80px] truncate text-[10px]">{link.type ?? "—"}</td>
                           <td className="px-3 py-2 text-right">
                             <span className={cn(
@@ -2675,14 +2704,16 @@ function AppTreeNode({ app, path, depth, selectedKey, onSelect }: {
   const label = app.csu ?? app.name ?? app.id ?? "?"
   const nodeKey = `app:${app.id}`
   return (
-    <TreeRow
-      depth={depth}
-      icon={<Cpu className="h-3 w-3 text-violet-500" />}
-      label={label}
-      isSelected={selectedKey === nodeKey}
-      hasChildren={false}
-      onClick={() => onSelect({ kind: "app", key: nodeKey, label, path: [...path, label], payload: app })}
-    />
+    <ItemTooltip data={{ type: "Application", name: label, properties: app as Record<string, unknown> }} side="right">
+      <TreeRow
+        depth={depth}
+        icon={<Cpu className="h-3 w-3 text-violet-500" />}
+        label={label}
+        isSelected={selectedKey === nodeKey}
+        hasChildren={false}
+        onClick={() => onSelect({ kind: "app", key: nodeKey, label, path: [...path, label], payload: app })}
+      />
+    </ItemTooltip>
   )
 }
 
