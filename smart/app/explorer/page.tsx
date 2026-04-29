@@ -16,7 +16,7 @@ import { ItemTooltip, ItemTooltipContent } from "@/components/ui/item-tooltip"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
 import { forceCollide } from "d3-force-3d"
-import { ReactFlow, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
+import { ReactFlow, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, useViewport, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { cn } from "@/lib/utils"
 import {
@@ -719,6 +719,10 @@ function ConnSvgGraph({
 // ── React Flow connections graph ─────────────────────────────────────────────
 const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
   const { n, isDark, isCenter } = data as any
+  const { zoom } = useViewport()
+  // Scale labels inversely with zoom so they stay readable at any zoom level.
+  // Never shrink below 1× (normal size when zoomed in), cap scale-up at 4×.
+  const labelScale = Math.min(4, Math.max(1, 1 / Math.max(zoom, 0.25)))
   // Uniform canvas size for all shapes so labels align consistently
   const S  = isCenter ? 44 : 28   // bounding box side
   const C  = S / 2                // center coord
@@ -813,34 +817,36 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
             strokeWidth={1.5} strokeDasharray="4 3" />
         )}
       </svg>
-      <div style={{
-        marginTop: 6,
-        padding: "2px 9px",
-        background: textBg,
-        border: `1px solid ${color}44`,
-        borderRadius: 20,
-        backdropFilter: "blur(8px)",
-        fontSize: isCenter ? 12 : 10,
-        fontWeight: isCenter ? 700 : 500,
-        color: textColor,
-        whiteSpace: "nowrap",
-        maxWidth: 160,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        lineHeight: "1.5",
-        letterSpacing: "0.01em",
-        boxShadow: `0 2px 6px ${isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.10)"}`,
-      }}>{disp}</div>
-      <div style={{
-        marginTop: 2,
-        fontSize: 8,
-        fontWeight: 600,
-        color: color,
-        opacity: 0.75,
-        whiteSpace: "nowrap",
-        letterSpacing: "0.10em",
-        textTransform: "uppercase",
-      }}>{n.type}</div>
+      <div style={{ transform: `scale(${labelScale})`, transformOrigin: "top center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div style={{
+          marginTop: 6,
+          padding: "2px 9px",
+          background: textBg,
+          border: `1px solid ${color}44`,
+          borderRadius: 20,
+          backdropFilter: "blur(8px)",
+          fontSize: isCenter ? 12 : 10,
+          fontWeight: isCenter ? 700 : 500,
+          color: textColor,
+          whiteSpace: "nowrap",
+          maxWidth: 160,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          lineHeight: "1.5",
+          letterSpacing: "0.01em",
+          boxShadow: `0 2px 6px ${isDark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.10)"}`,
+        }}>{disp}</div>
+        <div style={{
+          marginTop: 2,
+          fontSize: 8,
+          fontWeight: 600,
+          color: color,
+          opacity: 0.75,
+          whiteSpace: "nowrap",
+          letterSpacing: "0.10em",
+          textTransform: "uppercase",
+        }}>{n.type}</div>
+      </div>
       <Handle type="source" position={Position.Bottom} id="s-bot" style={hs} />
       <Handle type="target" position={Position.Bottom} id="t-bot" style={hs} />
     </div>
@@ -854,7 +860,7 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
 
 // Swimlane background node — rendered inside RF so it moves with fitView
 const ConnLaneNode = memo(function ConnLaneNode({ data }: NodeProps) {
-  const { label, color, width, height, isDark } = data as any
+  const { color, width, height, isDark } = data as any
   return (
     <div style={{
       width, height,
@@ -864,17 +870,7 @@ const ConnLaneNode = memo(function ConnLaneNode({ data }: NodeProps) {
         ? `linear-gradient(90deg, ${color}18 0%, ${color}08 25%, transparent 70%)`
         : `linear-gradient(90deg, ${color}12 0%, ${color}05 25%, transparent 70%)`,
       pointerEvents: "none",
-      display: "flex",
-      alignItems: "center",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 5, paddingLeft: 10 }}>
-        <div style={{ width: 3, height: 18, borderRadius: 2, background: color, opacity: 0.55 }} />
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
-          textTransform: "uppercase", color, opacity: 0.65, userSelect: "none" }}>
-          {label}
-        </span>
-      </div>
-    </div>
+    }} />
   )
 })
 const cfNodeTypes = { conn: ConnFlowNode, lane: ConnLaneNode }
@@ -938,6 +934,9 @@ const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
   const hn = n as HGNode
   const color = NODE_COLORS[hn.level]
   const levelLabel = HIER_LEVEL_LABEL[hn.level] ?? hn.level
+  const { zoom } = useViewport()
+  // Keep labels readable at any zoom level — scale up when zoomed out, never shrink below 1×
+  const labelScale = Math.min(4, Math.max(1, 1 / Math.max(zoom, 0.25)))
 
   // Parent (drilled-into) node is larger
   const pad = isParent ? "8px 18px" : "6px 14px"
@@ -970,6 +969,8 @@ const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
         whiteSpace: "nowrap",
         backdropFilter: "blur(8px)",
         transition: "box-shadow 0.15s, border-color 0.15s",
+        transform: `scale(${labelScale})`,
+        transformOrigin: "center center",
       }}
     >
       <Handle type="target" position={Position.Top} id="t" style={hiddenHandle} />
@@ -1195,26 +1196,11 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
   const W = dims.width  || 800
   const H = dims.height || 600
   const bandH = H * 0.20
+  // Track viewport so sticky lane labels can be repositioned on pan/zoom
+  const [vp, setVp] = useState({ x: 0, y: 0, zoom: 1 })
 
   const initialNodes = useMemo(() => {
-    // Swimlane lane nodes (rendered behind, z-index -1 via RF zIndex)
-    const laneNodes = CONN_LAYER_Y_FRACS.map((yFrac, layer) => {
-      if (!populatedLayers.has(layer)) return null
-      const typeKey = Object.keys(CONN_TYPE_LAYER).find(t => CONN_TYPE_LAYER[t] === layer) ?? ""
-      const color = (isDark ? CONN_NODE_TYPE_COLORS_DARK : CONN_NODE_TYPE_COLORS_LIGHT)[typeKey] ?? "#888"
-      return {
-        id: `lane-${layer}`,
-        type: "lane" as const,
-        position: { x: 0, y: yFrac * H - bandH / 2 },
-        origin: [0, 0] as [number, number],
-        data: { label: CONN_LAYER_LABEL[layer] ?? "", color, width: W, height: bandH, isDark },
-        selectable: false,
-        draggable: false,
-        zIndex: -1,
-      }
-    }).filter(Boolean) as any[]
-
-    const connNodes = graphData.nodes.map((n: any) => {
+    return graphData.nodes.map((n: any) => {
       const pos = positions.get(n.id) ?? { x: W / 2, y: H / 2 }
       return {
         id: n.id,
@@ -1226,7 +1212,6 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
         zIndex: 1,
       }
     })
-    return [...laneNodes, ...connNodes]
   }, [graphData.nodes, positions, isDark, selectedAppId, dims, populatedLayers])
 
   // Only reset node positions when the set of nodes changes (new data loaded).
@@ -1240,23 +1225,11 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
       setRfNodes(initialNodes)
     }
   }, [graphNodesKeyConn, initialNodes])
-  // Resize lane backgrounds without moving conn nodes
-  useEffect(() => {
-    const W2 = dims.width || 800
-    const H2 = dims.height || 600
-    const bandH2 = H2 * 0.20
-    setRfNodes(nds => nds.map((nd: any) => {
-      if (!nd.id.startsWith("lane-")) return nd
-      const layer = parseInt(nd.id.split("-")[1])
-      const yFrac = CONN_LAYER_Y_FRACS[layer]
-      return { ...nd, position: { x: 0, y: yFrac * H2 - bandH2 / 2 }, data: { ...nd.data, width: W2, height: bandH2 } }
-    }))
-  }, [dims])
   // Update theme/selectedApp in-place without touching positions
   useEffect(() => {
     setRfNodes(nds => nds.map((nd: any) => ({
       ...nd,
-      data: { ...nd.data, isDark, ...(!nd.id.startsWith("lane-") && { isCenter: nd.id === selectedAppId }) },
+      data: { ...nd.data, isDark, isCenter: nd.id === selectedAppId },
     })))
   }, [isDark, selectedAppId])
   const onNodesChange = useCallback(
@@ -1340,11 +1313,59 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
         onNodeClick={handleNodeClick}
         onEdgeClick={handleEdgeClick}
         onPaneClick={onBackgroundClick}
+        onViewportChange={setVp}
         style={RF_STYLE_CONN}
         proOptions={RF_PRO_OPTIONS}
       >
         <Background variant={BackgroundVariant.Dots} color={isDark ? "#3f3f46" : "#d4d4d8"} gap={28} size={1.5} />
       </ReactFlow>
+      {/* Sticky swimlane bands + labels — rendered outside ReactFlow's transform
+          so they stay fixed at the left edge regardless of pan/zoom.
+          Band Y tracks zoom vertically; bands always span full width. */}
+      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "hidden" }}>
+        {CONN_LAYER_Y_FRACS.map((yFrac, layer) => {
+          if (!populatedLayers.has(layer)) return null
+          const typeKey = Object.keys(CONN_TYPE_LAYER).find(t => CONN_TYPE_LAYER[t] === layer) ?? ""
+          const color = (isDark ? CONN_NODE_TYPE_COLORS_DARK : CONN_NODE_TYPE_COLORS_LIGHT)[typeKey] ?? "#888"
+          // Convert world-space lane centre → screen-space Y
+          const screenY = yFrac * H * vp.zoom + vp.y
+          // Band height also scales with zoom so it always matches the node spacing
+          const bandHScreen = H * 0.20 * vp.zoom
+          return (
+            <div key={layer} style={{
+              position: "absolute",
+              left: 0,
+              width: "100%",
+              top: screenY - bandHScreen / 2,
+              height: bandHScreen,
+              borderTop: `1px solid ${color}22`,
+              borderBottom: `1px solid ${color}22`,
+              background: isDark
+                ? `linear-gradient(90deg, ${color}18 0%, ${color}08 25%, transparent 70%)`
+                : `linear-gradient(90deg, ${color}12 0%, ${color}05 25%, transparent 70%)`,
+            }}>
+              {/* Label pinned to left edge */}
+              <div style={{
+                position: "absolute",
+                left: 0,
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                paddingLeft: 10,
+              }}>
+                <div style={{ width: 3, height: 18, borderRadius: 2, background: color, opacity: 0.6, flexShrink: 0 }} />
+                <span style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
+                  textTransform: "uppercase", color, opacity: 0.75, userSelect: "none",
+                  textShadow: isDark ? "0 1px 4px rgba(0,0,0,0.9)" : "0 1px 4px rgba(255,255,255,0.9)",
+                }}>{CONN_LAYER_LABEL[layer] ?? ""}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 })
@@ -1601,6 +1622,10 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     const W = dims.width || 800
     const H = dims.height || 600
     const margin = W * 0.20
+    // Minimum pixel gap between node centres — prevents overlap for dense layers.
+    // When the natural spread exceeds the canvas, positions extend beyond its
+    // bounds and ReactFlow's fitView zooms out to show all nodes.
+    const minGap = 140
     const centerType = connGraphData.nodes.find((n: any) => n.id === selectedApp?.pathKey)?.type ?? "Application"
     const centerLayer = CONN_TYPE_LAYER[centerType] ?? 2
     // Bucket non-center nodes per layer, sorted deterministically
@@ -1630,7 +1655,10 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       } else if (count === 1 && layer === centerLayer) {
         fx = W / 2 + W * 0.22
       } else {
-        fx = margin + (idx / (count - 1)) * (W - 2 * margin)
+        const naturalWidth = (count - 1) * minGap
+        const usable = Math.max(W - 2 * margin, naturalWidth)
+        const startX = (W - usable) / 2
+        fx = startX + (idx / (count - 1)) * usable
         if (layer === centerLayer) {
           const gap = W * 0.15
           if (Math.abs(fx - W / 2) < gap) fx = fx < W / 2 ? W / 2 - gap : W / 2 + gap
