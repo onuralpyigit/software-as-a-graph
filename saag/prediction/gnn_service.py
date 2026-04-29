@@ -525,6 +525,7 @@ class GNNService:
             rmav_scores = extract_rmav_scores_dict(rmav_scores)
 
         conv = networkx_to_hetero_data(graph, structural_metrics, simulation_results, rmav_scores)
+        self._conversion_result = conv
         # ── Run prediction ────────────────────────────────────────────────────
         return self.predict_from_data(
             conv.hetero_data, 
@@ -676,6 +677,12 @@ class GNNService:
         classification = classifier.classify(node_data, metric_name="Criticality")
         result.stats["classification"] = classification
 
+        # Assign classification levels back to each score object
+        lookup = {item.id: item.level.value for item in classification.items}
+        for k, v in result.node_scores.items():
+            v.criticality_level = lookup.get(k, "MINIMAL").upper()
+        result.stats["composite"] = classification.stats.to_dict()
+
         # Attach context for shimming
         result.layer = layer
         if structural_metrics:
@@ -688,13 +695,6 @@ class GNNService:
         from .problem_detector import ProblemDetector
         detector = ProblemDetector()
         return detector.detect(result)
-        lookup = {item.id: item.level.value for item in classification.items}
-        for k, v in result.node_scores.items():
-            v.criticality_level = lookup.get(k, "MINIMAL")
-        
-        result.stats["composite"] = classification.stats.to_dict()
-
-        return result
 
     # ── Score Population Helpers ──────────────────────────────────────────────
 
