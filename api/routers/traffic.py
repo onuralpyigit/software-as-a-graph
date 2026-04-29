@@ -11,6 +11,7 @@ import logging
 from api.models import (
     TrafficTopicsRequest,
     TopicsListResponse,
+    AppsListResponse,
     TrafficSimulationRequest,
     TrafficSimulationResponse,
 )
@@ -41,6 +42,29 @@ async def list_topics(request: TrafficTopicsRequest):
     except Exception as exc:
         logger.error("Failed to list topics: %s", exc)
         raise HTTPException(status_code=500, detail=f"Failed to list topics: {exc}")
+
+
+@router.post("/apps", response_model=AppsListResponse)
+async def list_apps(request: TrafficTopicsRequest):
+    """
+    Return all Application nodes with the topic IDs they publish/subscribe to.
+
+    Used to populate the application selector on the traffic simulator page so
+    users can select apps and automatically pull in all associated topics.
+    """
+    creds = request.credentials
+    try:
+        sim = TrafficSimulator(
+            uri=creds.uri,
+            user=creds.user,
+            password=creds.password,
+            database=creds.database,
+        )
+        apps = sim.get_all_apps()
+        return AppsListResponse(success=True, count=len(apps), apps=apps)
+    except Exception as exc:
+        logger.error("Failed to list apps: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Failed to list apps: {exc}")
 
 
 @router.post("/simulate", response_model=TrafficSimulationResponse)

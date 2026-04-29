@@ -18,6 +18,7 @@ import {
   Cpu,
   LayoutGrid,
   Wifi,
+  BookMarked,
 } from "lucide-react"
 
 const navigation = [
@@ -75,6 +76,11 @@ const navigation = [
     name: "Tutorial",
     href: "/tutorial",
     icon: BookOpen,
+  },
+  {
+    name: "Dictionary",
+    href: "/dictionary",
+    icon: BookMarked,
   },
   {
     name: "Settings",

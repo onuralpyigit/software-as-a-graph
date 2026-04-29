@@ -23,6 +23,8 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir torch==2.5.0 --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir torch-scatter==2.1.2 torch-sparse==0.6.18 \
+        -f https://data.pyg.org/whl/torch-2.5.0+cpu.html && \
     pip install --no-cache-dir ".[api,neo4j,gnn]"
 
 # ============================================

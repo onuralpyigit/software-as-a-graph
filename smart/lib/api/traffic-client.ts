@@ -20,6 +20,14 @@ export interface TopicInfo {
   size: number
 }
 
+export interface AppInfo {
+  id: string
+  name: string
+  weight: number
+  pub_topic_ids: string[]
+  sub_topic_ids: string[]
+}
+
 export interface TopicParams {
   frequency_hz: number
   duration_sec: number
@@ -117,6 +125,15 @@ class TrafficAPI {
       throw new Error(response.data.message || 'Failed to fetch topics')
     }
     return response.data.topics as TopicInfo[]
+  }
+
+  async listApps(): Promise<AppInfo[]> {
+    const body = this.getCredentials()
+    const response = await this.client.post('/api/v1/traffic/apps', body)
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to fetch apps')
+    }
+    return response.data.apps as AppInfo[]
   }
 
   async simulate(request: TrafficSimulationRequest): Promise<TrafficSimulationResult> {

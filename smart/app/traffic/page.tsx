@@ -32,7 +32,7 @@ import {
   ArrowUpDown,
 } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
-import { trafficClient, type TopicInfo, type TrafficSimulationResult, type TopicParams } from "@/lib/api/traffic-client"
+import { trafficClient, type TopicInfo, type AppInfo, type TrafficSimulationResult, type TopicParams } from "@/lib/api/traffic-client"
 import { TermTooltip } from "@/components/ui/term-tooltip"
 
 // ============================================================================
@@ -43,6 +43,7 @@ interface SavedConfig {
   id: string
   name: string
   topic_ids: string[]
+  app_ids?: string[]
   frequency_hz: number
   duration_sec: number
   message_size_bytes: number
@@ -91,6 +92,14 @@ export default function TrafficSimulatorPage() {
   const [topicsLoading, setTopicsLoading] = useState(false)
   const [topicsError, setTopicsError] = useState<string | null>(null)
 
+  // ---- Apps ----
+  const [apps, setApps] = useState<AppInfo[]>([])
+  const [appsLoading, setAppsLoading] = useState(false)
+  const [appsError, setAppsError] = useState<string | null>(null)
+  const [appSearch, setAppSearch] = useState("")
+  const [appSort, setAppSort] = useState<"name" | "weight" | "topics">("name")
+  const [selectionTab, setSelectionTab] = useState<"topics" | "apps">("topics")
+
   // ---- Selection ----
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([])
   const [topicParams, setTopicParams] = useState<Record<string, TopicParams>>({})
@@ -124,8 +133,10 @@ export default function TrafficSimulatorPage() {
   useEffect(() => {
     if (status === "connected") {
       loadTopics()
+      loadApps()
     } else {
       setTopics([])
+      setApps([])
     }
   }, [status])
 
@@ -173,6 +184,19 @@ export default function TrafficSimulatorPage() {
     }
   }
 
+  async function loadApps() {
+    setAppsLoading(true)
+    setAppsError(null)
+    try {
+      const data = await trafficClient.listApps()
+      setApps(data)
+    } catch (err: any) {
+      setAppsError(err.message || "Failed to load apps")
+    } finally {
+      setAppsLoading(false)
+    }
+  }
+
   async function runSimulation() {
     if (selectedTopicIds.length === 0) {
       setError("Please select at least one topic.")
@@ -210,6 +234,30 @@ export default function TrafficSimulatorPage() {
       }))
       return [...prev, id]
     })
+  }
+
+  function toggleApp(app: AppInfo) {
+    const appTopicIds = Array.from(new Set([...app.pub_topic_ids, ...app.sub_topic_ids]))
+    const alreadyAllSelected = appTopicIds.length > 0 && appTopicIds.every(tid => selectedTopicIds.includes(tid))
+    if (alreadyAllSelected) {
+      // Deselect all topics belonging only to this app
+      setSelectedTopicIds(prev => prev.filter(tid => !appTopicIds.includes(tid)))
+      setTopicParams(prev => {
+        const next = { ...prev }
+        for (const tid of appTopicIds) delete next[tid]
+        return next
+      })
+    } else {
+      // Select all missing topics for this app
+      setSelectedTopicIds(prev => Array.from(new Set([...prev, ...appTopicIds])))
+      setTopicParams(prev => {
+        const next = { ...prev }
+        for (const tid of appTopicIds) {
+          if (!next[tid]) next[tid] = { frequency_hz: frequencyHz, duration_sec: durationSec }
+        }
+        return next
+      })
+    }
   }
 
   function saveConfig() {
@@ -251,6 +299,24 @@ export default function TrafficSimulatorPage() {
   // ------------------------------------------------------------------
 
   const topicById = Object.fromEntries(topics.map(t => [t.id, t]))
+
+  const filteredApps = React.useMemo(() => {
+    let list = apps.filter(a =>
+      a.name.toLowerCase().includes(appSearch.toLowerCase()) ||
+      a.id.toLowerCase().includes(appSearch.toLowerCase())
+    )
+    list = [...list].sort((a, b) => {
+      if (appSort === "name")   return a.name.localeCompare(b.name)
+      if (appSort === "weight") return b.weight - a.weight
+      if (appSort === "topics") {
+        const aLen = a.pub_topic_ids.length + a.sub_topic_ids.length
+        const bLen = b.pub_topic_ids.length + b.sub_topic_ids.length
+        return bLen - aLen
+      }
+      return 0
+    })
+    return list
+  }, [apps, appSearch, appSort])
 
   const filteredTopics = React.useMemo(() => {
     let list = topics.filter(t => {
@@ -362,7 +428,8 @@ export default function TrafficSimulatorPage() {
             <CardContent className="space-y-5 text-sm text-muted-foreground pt-0">
 
               <p>
-                Pick one or more topics, set how fast messages are sent (Hz) and for how long,
+                Pick one or more topics (or select applications to pull in all their topics at once),
+                set how fast messages are sent (Hz) and for how long,
                 then hit <strong className="text-foreground">Run Simulation</strong>.
                 The simulator reads your system's topology from the graph and instantly tells you
                 how much traffic each topic and broker will carry — no guesswork needed.
@@ -396,6 +463,30 @@ export default function TrafficSimulatorPage() {
               </div>
 
               <div className="space-y-2">
+                <h4 className="font-semibold text-foreground">Selecting by application</h4>
+                <p className="text-xs">
+                  Switch to the <strong className="text-foreground">Applications</strong> tab to pick apps instead of individual topics.
+                  Selecting an app automatically includes every topic it publishes to or subscribes to.
+                  You can mix and match — select some apps, then fine-tune individual topics in the Topics tab.
+                  The simulation always runs on the final set of topic IDs regardless of how you built it.
+                </p>
+                <div className="grid sm:grid-cols-3 gap-3 text-xs">
+                  <div className="rounded-lg border bg-background/60 p-3 space-y-1">
+                    <div className="font-semibold text-foreground">Filled ✓</div>
+                    <p>All of the app's topics are currently selected.</p>
+                  </div>
+                  <div className="rounded-lg border bg-background/60 p-3 space-y-1">
+                    <div className="font-semibold text-foreground text-amber-600 dark:text-amber-400">Partial —</div>
+                    <p>Some topics are selected. This happens when you manually deselect a topic after picking the app.</p>
+                  </div>
+                  <div className="rounded-lg border bg-background/60 p-3 space-y-1">
+                    <div className="font-semibold text-foreground">Empty</div>
+                    <p>None of the app's topics are selected. Click to select them all.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <h4 className="font-semibold text-foreground">Good to know</h4>
                 <ul className="space-y-1.5 list-disc list-inside text-xs">
                   <li>Each topic can have its own <strong className="text-foreground">Hz</strong> and <strong className="text-foreground">duration</strong> — just select it and edit the fields inline.</li>
@@ -403,6 +494,7 @@ export default function TrafficSimulatorPage() {
                   <li>Broker load is the sum across all topics it routes — a busy broker shows up immediately.</li>
                   <li>Bandwidth colours are <strong className="text-green-600 dark:text-green-400">green → yellow → orange → red</strong> relative to the busiest topic/broker in your results.</li>
                   <li>No network simulation happens — results are calculated instantly from the topology.</li>
+                  <li>The app selector is a frontend convenience only — the backend receives topic IDs, never app IDs.</li>
                 </ul>
               </div>
 
@@ -413,20 +505,20 @@ export default function TrafficSimulatorPage() {
         {/* ── Configuration Panel ─────────────────────────────────── */}
         <div className="space-y-6">
 
-          {/* Topic Selection */}
+          {/* Topic/App Selection */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5" />
-                    Topic Selection
+                    Selection
                     {selectedTopicIds.length > 0 && (
-                      <Badge className="ml-1">{selectedTopicIds.length} selected</Badge>
+                      <Badge className="ml-1">{selectedTopicIds.length} topic{selectedTopicIds.length !== 1 ? "s" : ""} selected</Badge>
                     )}
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    Pick one or more pub/sub topics to include in the simulation.
+                    Pick topics directly, or select applications to auto-include all their topics.
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -462,251 +554,428 @@ export default function TrafficSimulatorPage() {
               )}
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* Sub-tabs: Topics | Apps */}
+              <div className="flex gap-1 rounded-lg border bg-muted/40 p-1 w-fit">
+                <button
+                  onClick={() => setSelectionTab("topics")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${selectionTab === "topics" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  Topics
+                  {topics.length > 0 && <span className="text-xs text-muted-foreground">({topics.length})</span>}
+                </button>
+                <button
+                  onClick={() => setSelectionTab("apps")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${selectionTab === "apps" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Server className="h-3.5 w-3.5" />
+                  Applications
+                  {apps.length > 0 && <span className="text-xs text-muted-foreground">({apps.length})</span>}
+                </button>
+              </div>
 
-              {topicsLoading ? (
-                <div className="space-y-2 py-2">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 px-1 py-2 animate-pulse">
-                      <div className="h-4 w-4 rounded bg-muted shrink-0" />
-                      <div className="w-1 h-8 rounded-full bg-muted shrink-0" />
-                      <div className="flex-1 space-y-1.5">
-                        <div className="h-3 rounded bg-muted" style={{ width: `${55 + (i * 13) % 35}%` }} />
-                        <div className="h-2.5 rounded bg-muted w-32" />
+              {/* ── Topics panel ── */}
+              {selectionTab === "topics" && (
+                topicsLoading ? (
+                  <div className="space-y-2 py-2">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 px-1 py-2 animate-pulse">
+                        <div className="h-4 w-4 rounded bg-muted shrink-0" />
+                        <div className="w-1 h-8 rounded-full bg-muted shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 rounded bg-muted" style={{ width: `${55 + (i * 13) % 35}%` }} />
+                          <div className="h-2.5 rounded bg-muted w-32" />
+                        </div>
+                        <div className="h-5 w-16 rounded-full bg-muted shrink-0" />
                       </div>
-                      <div className="h-5 w-16 rounded-full bg-muted shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              ) : topicsError ? (
-                <div className="flex items-center gap-2 text-destructive text-sm">
-                  <AlertCircle className="h-4 w-4" />
-                  {topicsError}
-                  <Button variant="ghost" size="sm" onClick={loadTopics}>Retry</Button>
-                </div>
-              ) : (
-                <>
-                  {/* Search + filter toolbar */}
-                  <div className="flex flex-wrap gap-2">
-                    <div className="relative flex-1 min-w-[180px]">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                      <Input
-                        placeholder="Search topics…"
-                        value={topicSearch}
-                        onChange={e => setTopicSearch(e.target.value)}
-                        className="pl-8 h-8 text-sm"
-                      />
-                      {topicSearch && (
-                        <button
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          onClick={() => setTopicSearch("")}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* QoS filter pills */}
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {["all", ...qosOptions].map(opt => (
-                        <button
-                          key={opt}
-                          onClick={() => setTopicQosFilter(opt)}
-                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                            topicQosFilter === opt
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "bg-background text-muted-foreground border-border hover:border-primary/50"
-                          }`}
-                        >
-                          {opt === "all" ? "All QoS" : opt}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Sort selector */}
-                    <div className="flex items-center gap-1">
-                      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-                      <select
-                        value={topicSort}
-                        onChange={e => setTopicSort(e.target.value as any)}
-                        className="h-8 text-xs rounded-md border border-input bg-background px-2 pr-6 focus:outline-none focus:ring-1 focus:ring-ring"
-                      >
-                        <option value="weight">Sort: Weight</option>
-                        <option value="name">Sort: Name</option>
-                        <option value="pub">Sort: Publishers</option>
-                        <option value="sub">Sort: Subscribers</option>
-                      </select>
-                    </div>
+                    ))}
                   </div>
-
-                  {/* Select-visible controls + count */}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>
-                      {filteredTopics.length} topic{filteredTopics.length !== 1 ? "s" : ""}
-                      {topicSearch || topicQosFilter !== "all" ? ` (filtered from ${topics.length})` : ""}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        className="hover:text-foreground underline-offset-2 hover:underline disabled:opacity-40"
-                        disabled={allVisibleSelected || filteredTopics.length === 0}
-                        onClick={selectAllVisible}
-                      >
-                        Select all visible
-                      </button>
-                      <span>·</span>
-                      <button
-                        className="hover:text-foreground underline-offset-2 hover:underline disabled:opacity-40"
-                        disabled={filteredTopics.every(t => !selectedTopicIds.includes(t.id))}
-                        onClick={deselectAllVisible}
-                      >
-                        Deselect visible
-                      </button>
-                      {selectedTopicIds.length > 0 && (
-                        <>
-                          <span>·</span>
+                ) : topicsError ? (
+                  <div className="flex items-center gap-2 text-destructive text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    {topicsError}
+                    <Button variant="ghost" size="sm" onClick={loadTopics}>Retry</Button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Search + filter toolbar */}
+                    <div className="flex flex-wrap gap-2">
+                      <div className="relative flex-1 min-w-[180px]">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                        <Input
+                          placeholder="Search topics…"
+                          value={topicSearch}
+                          onChange={e => setTopicSearch(e.target.value)}
+                          className="pl-8 h-8 text-sm"
+                        />
+                        {topicSearch && (
                           <button
-                            className="hover:text-foreground underline-offset-2 hover:underline"
-                            onClick={() => {
-                              const reset: Record<string, TopicParams> = {}
-                              for (const id of selectedTopicIds) reset[id] = { frequency_hz: frequencyHz, duration_sec: durationSec }
-                              setTopicParams(reset)
-                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            onClick={() => setTopicSearch("")}
                           >
-                            Reset params
+                            <X className="h-3.5 w-3.5" />
                           </button>
-                        </>
+                        )}
+                      </div>
+
+                      {/* QoS filter pills */}
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {["all", ...qosOptions].map(opt => (
+                          <button
+                            key={opt}
+                            onClick={() => setTopicQosFilter(opt)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              topicQosFilter === opt
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                            }`}
+                          >
+                            {opt === "all" ? "All QoS" : opt}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Sort selector */}
+                      <div className="flex items-center gap-1">
+                        <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        <select
+                          value={topicSort}
+                          onChange={e => setTopicSort(e.target.value as any)}
+                          className="h-8 text-xs rounded-md border border-input bg-background px-2 pr-6 focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="weight">Sort: Weight</option>
+                          <option value="name">Sort: Name</option>
+                          <option value="pub">Sort: Publishers</option>
+                          <option value="sub">Sort: Subscribers</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Select-visible controls + count */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        {filteredTopics.length} topic{filteredTopics.length !== 1 ? "s" : ""}
+                        {topicSearch || topicQosFilter !== "all" ? ` (filtered from ${topics.length})` : ""}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          className="hover:text-foreground underline-offset-2 hover:underline disabled:opacity-40"
+                          disabled={allVisibleSelected || filteredTopics.length === 0}
+                          onClick={selectAllVisible}
+                        >
+                          Select all visible
+                        </button>
+                        <span>·</span>
+                        <button
+                          className="hover:text-foreground underline-offset-2 hover:underline disabled:opacity-40"
+                          disabled={filteredTopics.every(t => !selectedTopicIds.includes(t.id))}
+                          onClick={deselectAllVisible}
+                        >
+                          Deselect visible
+                        </button>
+                        {selectedTopicIds.length > 0 && (
+                          <>
+                            <span>·</span>
+                            <button
+                              className="hover:text-foreground underline-offset-2 hover:underline"
+                              onClick={() => {
+                                const reset: Record<string, TopicParams> = {}
+                                for (const id of selectedTopicIds) reset[id] = { frequency_hz: frequencyHz, duration_sec: durationSec }
+                                setTopicParams(reset)
+                              }}
+                            >
+                              Reset params
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Topic list */}
+                    <div className="border rounded-lg overflow-hidden">
+                      {filteredTopics.length === 0 ? (
+                        <div className="py-10 text-center text-sm text-muted-foreground">No topics match.</div>
+                      ) : (
+                        <div className="max-h-96 overflow-y-auto divide-y">
+                          {filteredTopics.map(topic => {
+                            const selected = selectedTopicIds.includes(topic.id)
+                            const weightPct = (topic.weight / maxWeight) * 100
+                            const p = topicParams[topic.id] ?? { frequency_hz: frequencyHz, duration_sec: durationSec }
+                            const isDefault = p.frequency_hz === frequencyHz && p.duration_sec === durationSec
+
+                            return (
+                              <div
+                                key={topic.id}
+                                className={`flex items-center gap-3 px-3 transition-colors ${selected ? "bg-primary/5 dark:bg-primary/10 py-2" : "py-2.5 hover:bg-muted/60"}`}
+                              >
+                                {/* Checkbox */}
+                                <button
+                                  onClick={() => toggleTopic(topic.id)}
+                                  className="shrink-0"
+                                >
+                                  <div className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors ${selected ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
+                                    {selected && (
+                                      <svg className="h-2.5 w-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 12 12">
+                                        <path d="M10.28 2.28L3.989 8.575 1.695 6.28A1 1 0 00.28 7.695l3 3a1 1 0 001.414 0l7-7A1 1 0 0010.28 2.28z" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                </button>
+
+                                {/* Weight bar */}
+                                <div className="w-1 self-stretch rounded-full bg-muted overflow-hidden shrink-0">
+                                  <div
+                                    className="w-full rounded-full bg-blue-400 dark:bg-blue-500 transition-all"
+                                    style={{ height: `${weightPct}%`, marginTop: `${100 - weightPct}%` }}
+                                  />
+                                </div>
+
+                                {/* Name + meta */}
+                                <button
+                                  onClick={() => toggleTopic(topic.id)}
+                                  className="flex-1 min-w-0 text-left"
+                                >
+                                  <div className={`text-sm font-medium truncate ${selected ? "text-primary" : ""}`}>
+                                    {topic.name}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-xs text-muted-foreground">
+                                      {topic.publisher_count} pub · {topic.subscriber_count} sub{topic.size > 0 ? ` · ${topic.size}B` : ""}
+                                    </span>
+                                    {topic.broker_names.length > 0 && (
+                                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                                        · {topic.broker_names.slice(0, 2).join(", ")}
+                                        {topic.broker_names.length > 2 && ` +${topic.broker_names.length - 2}`}
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+
+                                {/* Per-topic param inputs (selected only) */}
+                                {selected ? (
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-muted-foreground">Hz</span>
+                                      <Input
+                                        type="number"
+                                        min={0.001}
+                                        step={1}
+                                        value={p.frequency_hz}
+                                        onChange={e => setTopicParams(prev => ({
+                                          ...prev,
+                                          [topic.id]: { ...p, frequency_hz: parseFloat(e.target.value) || frequencyHz },
+                                        }))}
+                                        className="h-6 w-16 text-xs px-1.5"
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-muted-foreground">s</span>
+                                      <Input
+                                        type="number"
+                                        min={1}
+                                        step={10}
+                                        value={p.duration_sec}
+                                        onChange={e => setTopicParams(prev => ({
+                                          ...prev,
+                                          [topic.id]: { ...p, duration_sec: parseFloat(e.target.value) || durationSec },
+                                        }))}
+                                        className="h-6 w-16 text-xs px-1.5"
+                                      />
+                                    </div>
+                                    {!isDefault && (
+                                      <button
+                                        title="Reset to defaults"
+                                        className="text-muted-foreground hover:text-foreground"
+                                        onClick={() => setTopicParams(prev => ({
+                                          ...prev,
+                                          [topic.id]: { frequency_hz: frequencyHz, duration_sec: durationSec },
+                                        }))}
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  /* Badges (unselected) */
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    {topic.qos_reliability && (
+                                      <Badge
+                                        variant="outline"
+                                        className={`text-xs ${topic.qos_reliability === "RELIABLE" ? "border-green-500/50 text-green-600 dark:text-green-400" : "border-amber-500/50 text-amber-600 dark:text-amber-400"}`}
+                                      >
+                                        {topic.qos_reliability}
+                                      </Badge>
+                                    )}
+                                    <TermTooltip term="Topic Weight" side="left">
+                                      <span className="text-xs font-mono text-muted-foreground w-12 text-right">
+                                        {topic.weight.toFixed(3)}
+                                      </span>
+                                    </TermTooltip>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
                       )}
                     </div>
-                  </div>
+                  </>
+                )
+              )}
 
-                  {/* Topic list */}
-                  <div className="border rounded-lg overflow-hidden">
-                    {filteredTopics.length === 0 ? (
-                      <div className="py-10 text-center text-sm text-muted-foreground">No topics match.</div>
-                    ) : (
-                      <div className="max-h-96 overflow-y-auto divide-y">
-                        {filteredTopics.map(topic => {
-                          const selected = selectedTopicIds.includes(topic.id)
-                          const weightPct = (topic.weight / maxWeight) * 100
-                          const p = topicParams[topic.id] ?? { frequency_hz: frequencyHz, duration_sec: durationSec }
-                          const isDefault = p.frequency_hz === frequencyHz && p.duration_sec === durationSec
-
-                          return (
-                            <div
-                              key={topic.id}
-                              className={`flex items-center gap-3 px-3 transition-colors ${selected ? "bg-primary/5 dark:bg-primary/10 py-2" : "py-2.5 hover:bg-muted/60"}`}
-                            >
-                              {/* Checkbox — always clickable to toggle */}
-                              <button
-                                onClick={() => toggleTopic(topic.id)}
-                                className="shrink-0"
-                              >
-                                <div className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors ${selected ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
-                                  {selected && (
-                                    <svg className="h-2.5 w-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 12 12">
-                                      <path d="M10.28 2.28L3.989 8.575 1.695 6.28A1 1 0 00.28 7.695l3 3a1 1 0 001.414 0l7-7A1 1 0 0010.28 2.28z" />
-                                    </svg>
-                                  )}
-                                </div>
-                              </button>
-
-                              {/* Weight bar */}
-                              <div className="w-1 self-stretch rounded-full bg-muted overflow-hidden shrink-0">
-                                <div
-                                  className="w-full rounded-full bg-blue-400 dark:bg-blue-500 transition-all"
-                                  style={{ height: `${weightPct}%`, marginTop: `${100 - weightPct}%` }}
-                                />
-                              </div>
-
-                              {/* Name + meta — click to toggle */}
-                              <button
-                                onClick={() => toggleTopic(topic.id)}
-                                className="flex-1 min-w-0 text-left"
-                              >
-                                <div className={`text-sm font-medium truncate ${selected ? "text-primary" : ""}`}>
-                                  {topic.name}
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-xs text-muted-foreground">
-                                    {topic.publisher_count} pub · {topic.subscriber_count} sub{topic.size > 0 ? ` · ${topic.size}B` : ""}
-                                  </span>
-                                  {topic.broker_names.length > 0 && (
-                                    <span className="text-xs text-muted-foreground hidden sm:inline">
-                                      · {topic.broker_names.slice(0, 2).join(", ")}
-                                      {topic.broker_names.length > 2 && ` +${topic.broker_names.length - 2}`}
-                                    </span>
-                                  )}
-                                </div>
-                              </button>
-
-                              {/* Per-topic param inputs (selected only) */}
-                              {selected ? (
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-xs text-muted-foreground">Hz</span>
-                                    <Input
-                                      type="number"
-                                      min={0.001}
-                                      step={1}
-                                      value={p.frequency_hz}
-                                      onChange={e => setTopicParams(prev => ({
-                                        ...prev,
-                                        [topic.id]: { ...p, frequency_hz: parseFloat(e.target.value) || frequencyHz },
-                                      }))}
-                                      className="h-6 w-16 text-xs px-1.5"
-                                    />
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-xs text-muted-foreground">s</span>
-                                    <Input
-                                      type="number"
-                                      min={1}
-                                      step={10}
-                                      value={p.duration_sec}
-                                      onChange={e => setTopicParams(prev => ({
-                                        ...prev,
-                                        [topic.id]: { ...p, duration_sec: parseFloat(e.target.value) || durationSec },
-                                      }))}
-                                      className="h-6 w-16 text-xs px-1.5"
-                                    />
-                                  </div>
-                                  {!isDefault && (
-                                    <button
-                                      title="Reset to defaults"
-                                      className="text-muted-foreground hover:text-foreground"
-                                      onClick={() => setTopicParams(prev => ({
-                                        ...prev,
-                                        [topic.id]: { frequency_hz: frequencyHz, duration_sec: durationSec },
-                                      }))}
-                                    >
-                                      <X className="h-3.5 w-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              ) : (
-                                /* Badges (unselected) */
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  {topic.qos_reliability && (
-                                    <Badge
-                                      variant="outline"
-                                      className={`text-xs ${topic.qos_reliability === "RELIABLE" ? "border-green-500/50 text-green-600 dark:text-green-400" : "border-amber-500/50 text-amber-600 dark:text-amber-400"}`}
-                                    >
-                                      {topic.qos_reliability}
-                                    </Badge>
-                                  )}
-                                  <TermTooltip term="Topic Weight" side="left">
-                                    <span className="text-xs font-mono text-muted-foreground w-12 text-right">
-                                      {topic.weight.toFixed(3)}
-                                    </span>
-                                  </TermTooltip>
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
+              {/* ── Apps panel ── */}
+              {selectionTab === "apps" && (
+                appsLoading ? (
+                  <div className="space-y-2 py-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 px-1 py-2.5 animate-pulse">
+                        <div className="h-4 w-4 rounded bg-muted shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 rounded bg-muted" style={{ width: `${50 + (i * 17) % 40}%` }} />
+                          <div className="h-2.5 rounded bg-muted w-40" />
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                </>
+                ) : appsError ? (
+                  <div className="flex items-center gap-2 text-destructive text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    {appsError}
+                    <Button variant="ghost" size="sm" onClick={loadApps}>Retry</Button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Search + sort toolbar */}
+                    <div className="flex flex-wrap gap-2">
+                      <div className="relative flex-1 min-w-[180px]">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                        <Input
+                          placeholder="Search applications…"
+                          value={appSearch}
+                          onChange={e => setAppSearch(e.target.value)}
+                          className="pl-8 h-8 text-sm"
+                        />
+                        {appSearch && (
+                          <button
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            onClick={() => setAppSearch("")}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        <select
+                          value={appSort}
+                          onChange={e => setAppSort(e.target.value as any)}
+                          className="h-8 text-xs rounded-md border border-input bg-background px-2 pr-6 focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="name">Sort: Name</option>
+                          <option value="weight">Sort: Weight</option>
+                          <option value="topics">Sort: Topics</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      {filteredApps.length} application{filteredApps.length !== 1 ? "s" : ""}
+                      {appSearch ? ` (filtered from ${apps.length})` : ""}
+                      {" · Selecting an app includes all its topics in the simulation."}
+                    </div>
+
+                    {/* App list */}
+                    <div className="border rounded-lg overflow-hidden">
+                      {filteredApps.length === 0 ? (
+                        <div className="py-10 text-center text-sm text-muted-foreground">
+                          {apps.length === 0 ? "No Application nodes found in the graph." : "No applications match."}
+                        </div>
+                      ) : (
+                        <div className="max-h-96 overflow-y-auto divide-y">
+                          {filteredApps.map(app => {
+                            const allTopicIds = Array.from(new Set([...app.pub_topic_ids, ...app.sub_topic_ids]))
+                            const selectedCount = allTopicIds.filter(tid => selectedTopicIds.includes(tid)).length
+                            const isFullySelected = allTopicIds.length > 0 && selectedCount === allTopicIds.length
+                            const isPartiallySelected = selectedCount > 0 && selectedCount < allTopicIds.length
+                            const hasTopics = allTopicIds.length > 0
+
+                            return (
+                              <div
+                                key={app.id}
+                                className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${isFullySelected ? "bg-primary/5 dark:bg-primary/10" : isPartiallySelected ? "bg-amber-50/50 dark:bg-amber-950/20" : "hover:bg-muted/60"}`}
+                              >
+                                {/* Checkbox */}
+                                <button
+                                  onClick={() => hasTopics && toggleApp(app)}
+                                  className="shrink-0"
+                                  disabled={!hasTopics}
+                                >
+                                  <div className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors ${
+                                    isFullySelected ? "bg-primary border-primary"
+                                    : isPartiallySelected ? "bg-amber-400 border-amber-400"
+                                    : "border-muted-foreground/40"
+                                  }`}>
+                                    {isFullySelected && (
+                                      <svg className="h-2.5 w-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 12 12">
+                                        <path d="M10.28 2.28L3.989 8.575 1.695 6.28A1 1 0 00.28 7.695l3 3a1 1 0 001.414 0l7-7A1 1 0 0010.28 2.28z" />
+                                      </svg>
+                                    )}
+                                    {isPartiallySelected && (
+                                      <svg className="h-2 w-2 text-white" fill="currentColor" viewBox="0 0 12 12">
+                                        <rect x="1" y="5" width="10" height="2" rx="1" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                </button>
+
+                                {/* Name + meta */}
+                                <button
+                                  onClick={() => hasTopics && toggleApp(app)}
+                                  className="flex-1 min-w-0 text-left"
+                                  disabled={!hasTopics}
+                                >
+                                  <div className={`text-sm font-medium truncate ${isFullySelected ? "text-primary" : isPartiallySelected ? "text-amber-700 dark:text-amber-400" : ""}`}>
+                                    {app.name}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                    {app.pub_topic_ids.length > 0 && (
+                                      <span className="text-xs text-muted-foreground">
+                                        publishes to {app.pub_topic_ids.length} topic{app.pub_topic_ids.length !== 1 ? "s" : ""}
+                                      </span>
+                                    )}
+                                    {app.pub_topic_ids.length > 0 && app.sub_topic_ids.length > 0 && (
+                                      <span className="text-xs text-muted-foreground">·</span>
+                                    )}
+                                    {app.sub_topic_ids.length > 0 && (
+                                      <span className="text-xs text-muted-foreground">
+                                        subscribes to {app.sub_topic_ids.length} topic{app.sub_topic_ids.length !== 1 ? "s" : ""}
+                                      </span>
+                                    )}
+                                    {!hasTopics && (
+                                      <span className="text-xs text-muted-foreground italic">no topics</span>
+                                    )}
+                                  </div>
+                                </button>
+
+                                {/* Right badges */}
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {isPartiallySelected && (
+                                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                      {selectedCount}/{allTopicIds.length}
+                                    </span>
+                                  )}
+                                  <span className="text-xs font-mono text-muted-foreground">
+                                    w={app.weight.toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )
               )}
             </CardContent>
           </Card>

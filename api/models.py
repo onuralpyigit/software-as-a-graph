@@ -554,6 +554,20 @@ class TopicsListResponse(BaseModel):
     topics: List[TopicInfoModel]
 
 
+class AppInfoModel(BaseModel):
+    id: str
+    name: str
+    weight: float
+    pub_topic_ids: List[str]
+    sub_topic_ids: List[str]
+
+
+class AppsListResponse(BaseModel):
+    success: bool
+    count: int
+    apps: List[AppInfoModel]
+
+
 class TopicSimParams(BaseModel):
     """Per-topic overrides for simulation parameters."""
     frequency_hz: float = Field(default=10.0, ge=0.001, description="Message publication rate per publisher (Hz)")

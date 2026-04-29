@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TermTooltip } from "@/components/ui/term-tooltip"
+import { ItemTooltip } from "@/components/ui/item-tooltip"
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -160,6 +161,145 @@ const CHART_MIN_WIDTH = 300
 const CHART_Y_MARGIN = 60
 const MAX_ITEMS = 20
 const PAGE_SIZE = 20
+
+// ── Chart helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Module-level node map, populated once when the statistics page mounts.
+ * Keyed by node id → { type, properties }. Used by chart tooltips to enrich
+ * bar chart items with type-specific raw node attributes (weight, size, CC…)
+ */
+const _nodeById = new Map<string, { type: string; properties: Record<string, unknown> }>()
+
+/** Adds fullName + nodeProps to chart data so the tooltip can show the untruncated label and essential fields */
+function toChartData<T extends { name: string; id?: string | undefined }>(items: T[], maxLen = 18) {
+  return items.map(d => ({
+    ...d,
+    name: truncate(d.name, maxLen),
+    fullName: d.name,
+    nodeProps: d.id ? (_nodeById.get(d.id)?.properties ?? undefined) : undefined,
+    nodeType:  d.id ? (_nodeById.get(d.id)?.type ?? undefined) : undefined,
+  }))
+}
+
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / 1024 ** 2).toFixed(2)} MB`
+}
+
+// Essential fields to show per node type — mirrors ItemTooltipContent
+function EssentialFields({ type, props }: { type: string; props: Record<string, unknown> }) {
+  const get = (k: string) => props[k]
+  const has = (k: string) => get(k) !== undefined && get(k) !== null && get(k) !== ""
+  const rows: { label: string; value: string }[] = []
+
+  const fmtProp = (k: string): string => {
+    const v = get(k)
+    const n = typeof v === "number" ? v : (typeof v === "string" && v !== "" && !isNaN(Number(v)) ? Number(v) : null)
+    if (n !== null && (k === "size" || k === "message_size" || /bytes/.test(k))) return fmtBytes(n)
+    if (typeof v === "boolean") return v ? "yes" : "no"
+    if (n !== null && isFinite(n)) return n < 10 ? n.toFixed(4) : n.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    return String(v ?? "—")
+  }
+
+  switch (type) {
+    case "Application":
+      if (has("weight"))                rows.push({ label: "QoS Weight",  value: fmtProp("weight") })
+      if (has("loc"))                   rows.push({ label: "LoC",          value: fmtProp("loc") + " lines" })
+      if (has("cyclomatic_complexity")) rows.push({ label: "CC",           value: fmtProp("cyclomatic_complexity") })
+      if (has("instability_code"))      rows.push({ label: "Instability",  value: fmtProp("instability_code") })
+      if (has("lcom_norm"))             rows.push({ label: "LCOM",         value: fmtProp("lcom_norm") })
+      break
+    case "Topic":
+      if (has("message_size") || has("payload_size_bytes") || has("size")) {
+        const k = has("message_size") ? "message_size" : has("payload_size_bytes") ? "payload_size_bytes" : "size"
+        rows.push({ label: "Payload", value: fmtProp(k) })
+      }
+      if (has("frequency"))   rows.push({ label: "Frequency", value: fmtProp("frequency") + " Hz" })
+      if (has("deadline_ms")) rows.push({ label: "Deadline",  value: fmtProp("deadline_ms") + " ms" })
+      if (has("queue_size"))  rows.push({ label: "Queue",     value: fmtProp("queue_size") + " msgs" })
+      if (has("weight"))      rows.push({ label: "QoS Weight", value: fmtProp("weight") })
+      break
+    case "Node":
+    case "Broker":
+      if (has("weight"))     rows.push({ label: "QoS Weight", value: fmtProp("weight") })
+      if (has("path_count")) rows.push({ label: "Paths",      value: fmtProp("path_count") })
+      break
+    case "Library":
+      if (has("weight"))                rows.push({ label: "QoS Weight", value: fmtProp("weight") })
+      if (has("cyclomatic_complexity")) rows.push({ label: "CC",          value: fmtProp("cyclomatic_complexity") })
+      if (has("lcom_norm"))             rows.push({ label: "LCOM",        value: fmtProp("lcom_norm") })
+      break
+  }
+  if (!rows.length) return null
+  return (
+    <>
+      <div className="h-px bg-border/50" />
+      {rows.map(r => (
+        <div key={r.label} className="flex items-baseline justify-between gap-3">
+          <span className="text-muted-foreground shrink-0">{r.label}</span>
+          <span className="font-mono tabular-nums">{r.value}</span>
+        </div>
+      ))}
+    </>
+  )
+}
+
+/** Factory: returns a recharts-compatible tooltip component for a given item type + metric definitions. */
+function makeStatTooltip(
+  getType: string | ((item: Record<string, unknown>) => string),
+  metricDefs: Array<{ key: string; label: string; unit?: string; fmt?: (v: number) => string }>
+) {
+  return function StatTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+    if (!active || !payload?.length) return null
+    const item = payload[0]?.payload ?? {}
+    const type = typeof getType === "function" ? getType(item) : (item.nodeType as string | undefined ?? getType)
+    const name = (item.fullName ?? item.name ?? "") as string
+    const nodeProps = item.nodeProps as Record<string, unknown> | undefined
+    return (
+      <div className="rounded-lg border bg-popover text-popover-foreground shadow-xl p-2.5 text-[11px] space-y-1.5 min-w-[160px] max-w-[240px] z-50">
+        <div className="flex items-start justify-between gap-2">
+          <span className="font-semibold leading-snug break-words flex-1">{name}</span>
+          <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-muted-foreground bg-muted/80 px-1.5 py-0.5 rounded ml-1">{type}</span>
+        </div>
+        <div className="h-px bg-border/50" />
+        <div className="space-y-1">
+          {payload.map((p: any) => {
+            const def = metricDefs.find(m => m.key === p.dataKey)
+            const label = def?.label ?? p.name ?? p.dataKey
+            const rawVal = p.value as number
+            const val = def?.fmt ? def.fmt(rawVal) : rawVal?.toLocaleString(undefined, { maximumFractionDigits: 3 }) ?? "—"
+            return (
+              <div key={p.dataKey} className="flex items-baseline justify-between gap-3">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="inline-block w-2 h-2 rounded-sm" style={{ background: p.fill ?? "#888" }} />
+                  <span className="text-muted-foreground">{label}</span>
+                </div>
+                <span className="font-mono font-semibold tabular-nums">
+                  {val}{def?.unit && <span className="ml-0.5 text-[9px] opacity-60"> {def.unit}</span>}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+        {nodeProps && <EssentialFields type={type} props={nodeProps} />}
+      </div>
+    )
+  }
+}
+
+// One stable component per chart type so recharts doesn't remount on every render
+const bwPubSubTooltip  = makeStatTooltip("Topic",       [{ key: "bandwidth_pub", label: "Pub BW", fmt: fmtBytes }, { key: "bandwidth_sub", label: "Sub BW", fmt: fmtBytes }])
+const bwSingleTooltip  = makeStatTooltip("Topic",       [{ key: "bandwidth",     label: "Bandwidth", fmt: fmtBytes }])
+const appBalanceTooltip = makeStatTooltip("Application", [{ key: "publishes", label: "Publishes" }, { key: "subscribes", label: "Subscribes" }])
+const topicFanoutTooltip = makeStatTooltip("Topic",     [{ key: "fanout", label: "Fanout" }])
+const nodeCommTooltip  = makeStatTooltip("Node",        [{ key: "publishes", label: "Publishes" }, { key: "subscribes", label: "Subscribes" }])
+const criticalityIOTooltip = makeStatTooltip("Application", [{ key: "publishes", label: "Publishes" }, { key: "subscribes", label: "Subscribes" }])
+const libDepTooltip    = makeStatTooltip("Library",     [{ key: "inbound", label: "In-degree" }, { key: "outbound", label: "Out-degree" }])
+const nodeCritDensityTooltip = makeStatTooltip("Node",  [{ key: "critical", label: "Critical" }, { key: "normal", label: "Normal" }])
+const domainDivTooltip = makeStatTooltip("Segment",      [{ key: "applications", label: "Applications" }, { key: "topics", label: "Topics" }, { key: "io", label: "I/O Load" }])
+const bottleneckTooltip = makeStatTooltip((item) => (item.type as string) ?? "Component", [{ key: "bottleneck_score", label: "Score" }])
 
 // ── Pagination + Search ─────────────────────────────────────────────────
 
@@ -328,6 +468,8 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
     name: label,
     id: data?.ids?.[i],
     bandwidth: bwArray[i] ?? 0,
+    bandwidth_pub: data?.bandwidth_pub?.[i] ?? 0,
+    bandwidth_sub: data?.bandwidth_sub?.[i] ?? 0,
   })).sort((a, b) => b.bandwidth - a.bandwidth), [data, mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
@@ -380,15 +522,31 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
           <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
         </CardHeader>
         <CardContent>
-          <SizedBarChart dataCount={pageItems.length} config={{ bandwidth: { label: "Bandwidth", color: "#8b5cf6" } }}>
-            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="bandwidth" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </SizedBarChart>
+          {mode === "pubsub" ? (
+            <SizedBarChart dataCount={pageItems.length} config={{
+              bandwidth_pub: { label: "Pub Bandwidth", color: "#3b82f6" },
+              bandwidth_sub: { label: "Sub Bandwidth", color: "#8b5cf6" },
+            }}>
+              <BarChart data={toChartData(pageItems)} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <ChartTooltip content={bwPubSubTooltip} />
+                <Bar dataKey="bandwidth_pub" fill="#3b82f6" radius={[0, 0, 0, 0]} stackId="bw" />
+                <Bar dataKey="bandwidth_sub" fill="#8b5cf6" radius={[4, 4, 0, 0]} stackId="bw" />
+              </BarChart>
+            </SizedBarChart>
+          ) : (
+            <SizedBarChart dataCount={pageItems.length} config={{ bandwidth: { label: "Bandwidth", color: "#8b5cf6" } }}>
+              <BarChart data={toChartData(pageItems)} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <ChartTooltip content={bwSingleTooltip} />
+                <Bar dataKey="bandwidth" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </SizedBarChart>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -448,11 +606,11 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
             publishes: { label: "Publishes", color: "#3b82f6" },
             subscribes: { label: "Subscribes", color: "#10b981" },
           }}>
-            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+            <BarChart data={toChartData(pageItems)} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip content={appBalanceTooltip} />
               <Bar dataKey="publishes" fill="#3b82f6" radius={[4, 4, 0, 0]} stackId="a" />
               <Bar dataKey="subscribes" fill="#10b981" radius={[4, 4, 0, 0]} stackId="a" />
             </BarChart>
@@ -512,11 +670,11 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
         </CardHeader>
         <CardContent>
           <SizedBarChart dataCount={pageItems.length} config={{ fanout: { label: "Fanout", color: "#f59e0b" } }}>
-            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+            <BarChart data={toChartData(pageItems)} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip content={topicFanoutTooltip} />
               <Bar dataKey="fanout" fill="#f59e0b" radius={[4, 4, 0, 0]} />
             </BarChart>
           </SizedBarChart>
@@ -771,8 +929,10 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
                   ? <p className="text-xs text-muted-foreground">No published topics shared in this direction.</p>
                   : <ul className="columns-2 sm:columns-3 gap-2 space-y-0.5">
                       {pubTopics.map((t) => (
-                        <li key={t.id} className="text-xs font-mono text-green-700 dark:text-green-400 truncate break-inside-avoid cursor-pointer hover:underline flex items-baseline gap-1" title={t.name} onClick={() => goToExplorer(t.id)}>
-                          <span className="truncate">{t.name}</span>
+                        <li key={t.id} className="text-xs font-mono text-green-700 dark:text-green-400 break-inside-avoid cursor-pointer hover:underline flex items-baseline gap-1" title={t.name} onClick={() => goToExplorer(t.id)}>
+                          <ItemTooltip data={{ type: "Topic", properties: { payload_size_bytes: (t.size_kb ?? 0) * 1024 } }} side="right">
+                            <span className="truncate">{t.name}</span>
+                          </ItemTooltip>
                           {showKb && <span className="text-[10px] opacity-60 shrink-0">{t.size_kb ?? 0} bytes</span>}
                         </li>
                       ))}
@@ -789,8 +949,10 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
                   ? <p className="text-xs text-muted-foreground">No subscribed topics shared in this direction.</p>
                   : <ul className="columns-2 sm:columns-3 gap-2 space-y-0.5">
                       {subTopics.map((t) => (
-                        <li key={t.id} className="text-xs font-mono text-purple-700 dark:text-purple-400 truncate break-inside-avoid cursor-pointer hover:underline flex items-baseline gap-1" title={t.name} onClick={() => goToExplorer(t.id)}>
-                          <span className="truncate">{t.name}</span>
+                        <li key={t.id} className="text-xs font-mono text-purple-700 dark:text-purple-400 break-inside-avoid cursor-pointer hover:underline flex items-baseline gap-1" title={t.name} onClick={() => goToExplorer(t.id)}>
+                          <ItemTooltip data={{ type: "Topic", properties: { payload_size_bytes: (t.size_kb ?? 0) * 1024 } }} side="right">
+                            <span className="truncate">{t.name}</span>
+                          </ItemTooltip>
                           {showKb && <span className="text-[10px] opacity-60 shrink-0">{t.size_kb ?? 0} bytes</span>}
                         </li>
                       ))}
@@ -867,11 +1029,11 @@ function NodeCommLoadSection({ data }: { data: ExtrasStats["node_comm_load"] }) 
             publishes: { label: "Publishes", color: "#3b82f6" },
             subscribes: { label: "Subscribes", color: "#ec4899" },
           }}>
-            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+            <BarChart data={toChartData(pageItems)} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip content={nodeCommTooltip} />
               <Bar dataKey="publishes" fill="#3b82f6" radius={[4, 4, 0, 0]} stackId="a" />
               <Bar dataKey="subscribes" fill="#ec4899" radius={[4, 4, 0, 0]} stackId="a" />
             </BarChart>
@@ -944,11 +1106,11 @@ function CriticalityIOSection({ data }: { data: ExtrasStats["criticality_io"] })
               publishes: { label: "Publishes", color: "#ef4444" },
               subscribes: { label: "Subscribes", color: "#f97316" },
             }}>
-              <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+              <BarChart data={toChartData(pageItems)} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip content={criticalityIOTooltip} />
                 <Bar dataKey="publishes" fill="#ef4444" radius={[4, 4, 0, 0]} stackId="a" />
                 <Bar dataKey="subscribes" fill="#f97316" radius={[4, 4, 0, 0]} stackId="a" />
               </BarChart>
@@ -1013,11 +1175,11 @@ function LibDependencySection({ data }: { data: ExtrasStats["lib_dependency"] })
             inbound: { label: "In-degree (dependents)", color: "#8b5cf6" },
             outbound: { label: "Out-degree (dependencies)", color: "#14b8a6" },
           }}>
-            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name, 20) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+            <BarChart data={toChartData(pageItems, 20)} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip content={libDepTooltip} />
               <Bar dataKey="inbound" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
               <Bar dataKey="outbound" fill="#14b8a6" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -1088,11 +1250,11 @@ function NodeCriticalDensitySection({ data }: { data: ExtrasStats["node_critical
             critical: { label: "Critical", color: "#ef4444" },
             normal: { label: "Normal", color: "#3b82f6" },
           }}>
-            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+            <BarChart data={toChartData(pageItems)} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip content={nodeCritDensityTooltip} />
               <Bar dataKey="critical" fill="#ef4444" radius={[4, 4, 0, 0]} stackId="a" />
               <Bar dataKey="normal" fill="#3b82f6" radius={[4, 4, 0, 0]} stackId="a" />
             </BarChart>
@@ -1113,41 +1275,41 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
 
   const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
 
-  if (!data || !data.labels.length) return <p className="text-sm text-muted-foreground">Insufficient domain data (need ≥ 2 domains)</p>
+  if (!data || !data.labels.length) return <p className="text-sm text-muted-foreground">Insufficient segment data (need ≥ 2 segments)</p>
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <MetricInsightCard
-          label="Avg Apps per Domain"
+          label="Avg Apps per Segment"
           value={Number(data.summary.app_mean ?? 0).toFixed(1)}
-          description="Mean number of applications per domain. Very low values may indicate overly fragmented subsystems; very high values may signal monolithic domains with unclear boundaries."
-          formula="total_apps / domain_count"
+          description="Mean number of applications per segment. Very low values may indicate overly fragmented subsystems; very high values may signal monolithic segments with unclear boundaries."
+          formula="total_apps / segment_count"
         />
         <MetricInsightCard
-          label="Avg Topics per Domain"
+          label="Avg Topics per Segment"
           value={Number(data.summary.topic_mean ?? 0).toFixed(1)}
-          description="Mean number of topics owned or used per domain. Reflects how much communication surface each subsystem exposes to the rest of the architecture."
-          formula="total_topics_touched / domain_count"
+          description="Mean number of topics owned or used per segment. Reflects how much communication surface each subsystem exposes to the rest of the architecture."
+          formula="total_topics_touched / segment_count"
         />
         <MetricInsightCard
-          label="Avg I/O per Domain"
+          label="Avg I/O per Segment"
           value={Number(data.summary.io_mean ?? 0).toFixed(1)}
-          description="Average pub/sub message load aggregated per domain. High I/O domains are communication hubs whose degradation has the widest downstream reach."
-          formula="mean(Σ pub + Σ sub per domain)"
+          description="Average pub/sub message load aggregated per segment. High I/O segments are communication hubs whose degradation has the widest downstream reach."
+          formula="mean(Σ pub + Σ sub per segment)"
         />
       </div>
       <SummaryCards summary={data.summary} keys={[
-        { key: "css_count", label: "Domains" },
-        { key: "app_mean", label: "Avg Apps/Domain" },
+        { key: "css_count", label: "Segments" },
+        { key: "app_mean", label: "Avg Apps/Segment" },
         { key: "app_max", label: "Max Apps" },
-        { key: "topic_mean", label: "Avg Topics/Domain" },
+        { key: "topic_mean", label: "Avg Topics/Segment" },
         { key: "io_mean", label: "Avg I/O" },
         { key: "io_max", label: "Max I/O" },
       ]} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Domain Diversity</CardTitle>
+          <CardTitle className="text-base">Segment Diversity</CardTitle>
           <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
         </CardHeader>
         <CardContent>
@@ -1156,11 +1318,11 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
             topics: { label: "Topics", color: "#10b981" },
             io: { label: "I/O Load", color: "#f59e0b" },
           }}>
-            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48}>
+            <BarChart data={toChartData(pageItems)} margin={{ bottom: 50 }} maxBarSize={48}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip content={domainDivTooltip} />
               <Bar dataKey="applications" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               <Bar dataKey="topics" fill="#10b981" radius={[4, 4, 0, 0]} />
               <Bar dataKey="io" fill="#f59e0b" radius={[4, 4, 0, 0]} />
@@ -1334,11 +1496,11 @@ function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
         </CardHeader>
         <CardContent>
           <SizedBarChart dataCount={pageItems.length} config={{ bottleneck_score: { label: "Bottleneck Score", color: "#ef4444" } }}>
-            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+            <BarChart data={toChartData(pageItems)} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} domain={[0, 1]} />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip content={bottleneckTooltip} />
               <Bar dataKey="bottleneck_score" fill="#ef4444" radius={[4, 4, 0, 0]} />
             </BarChart>
           </SizedBarChart>
@@ -1373,7 +1535,23 @@ function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
                     onClick={() => goToExplorer(it.id)}
                   >
                     <TableCell className="text-xs text-muted-foreground">{page * PAGE_SIZE + idx + 1}</TableCell>
-                    <TableCell className="font-medium">{it.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <ItemTooltip
+                        data={{
+                          type: it.type,
+                          metrics: {
+                            weight:              it.weight,
+                            cascade_depth:       it.cascade_depth,
+                            pubsub_betweenness:  it.pubsub_betweenness,
+                            is_articulation_point: it.is_articulation_point,
+                            is_directed_ap:      it.is_directed_ap,
+                          },
+                        }}
+                        side="right"
+                      >
+                        <span>{it.name}</span>
+                      </ItemTooltip>
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{it.type}</TableCell>
                     <TableCell className="text-right font-mono text-sm font-semibold">{fmtNum(it.bottleneck_score)}</TableCell>
                     <TableCell className="text-right font-mono text-xs">{fmtNum(it.betweenness)}</TableCell>
@@ -1403,11 +1581,11 @@ const TAB_CONFIG = [
   { id: "topic_fanout", label: "Topic Fanout", icon: Network, color: "text-amber-500", description: "Publisher-to-subscriber ratios per topic. Identifies 1-to-N broadcast, N-to-1 aggregation, and orphan patterns." },
   { id: "cross_node", label: "Cross-Node", icon: Server, color: "text-purple-500", description: "Inter-node communication intensity matrix. Reveals physical host coupling and network traffic hotspots." },
   { id: "node_load", label: "Node Load", icon: BarChart3, color: "text-pink-500", description: "Aggregate communication load per node. Highlights overloaded hosts and uneven workload distribution." },
-  { id: "domain_comm", label: "Domain Comm", icon: Layers, color: "text-cyan-500", description: "Communication flows between domains. High cross-domain traffic signals tight coupling between subsystems." },
+  { id: "domain_comm", label: "Segment Comm", icon: Layers, color: "text-cyan-500", description: "Communication flows between segments. High cross-segment traffic signals tight coupling between subsystems." },
   { id: "criticality", label: "Criticality I/O", icon: AlertTriangle, color: "text-red-500", description: "I/O comparison of critical vs. normal applications. Shows whether critical components are also communication-heavy." },
   { id: "lib_deps", label: "Library Deps", icon: BookOpen, color: "text-teal-500", description: "Library dependency density and coupling. Libraries with high in-degree are shared-fate risks across multiple consumers." },
   { id: "node_density", label: "Node Density", icon: Shield, color: "text-green-500", description: "Distribution of critical applications across physical nodes. Concentration of critical apps on few nodes increases blast radius." },
-  { id: "domain_div", label: "Domain Diversity", icon: Box, color: "text-orange-500", description: "Application and topic variety within each domain. Low diversity may indicate monolithic subsystems." },
+  { id: "domain_div", label: "Segment Diversity", icon: Box, color: "text-orange-500", description: "Application and topic variety within each segment. Low diversity may indicate monolithic subsystems." },
   { id: "bottleneck", label: "Bottlenecks", icon: Zap, color: "text-yellow-500", description: "Components with disproportionate structural load: high-I/O apps, over-connected topics, widely-shared libraries, and heavily-loaded brokers." },
 ] as const
 
@@ -1432,12 +1610,23 @@ const TAB_TO_CHART_ID: Record<TabId, keyof ExtrasStats> = {
 
 export default function StatisticsPage() {
   const { status, config, initialLoadComplete } = useConnection()
+  const isConnected = status === "connected"
   const [tabData, setTabData] = useState<Partial<ExtrasStats>>({})
   const [tabLoading, setTabLoading] = useState<Partial<Record<TabId, boolean>>>({})
   const [tabError, setTabError] = useState<Partial<Record<TabId, string>>>({})
   const [activeTab, setActiveTab] = useState<TabId>("topic_bandwidth")
 
-  const isConnected = status === "connected"
+  // Populate the module-level node map for chart tooltip enrichment
+  useEffect(() => {
+    if (!isConnected || !config) return
+    apiClient.getGraphData().then(graphData => {
+      _nodeById.clear()
+      graphData.nodes.forEach((n: any) => {
+        _nodeById.set(n.id, { type: n.type ?? "Application", properties: n.properties ?? {} })
+      })
+    }).catch(() => { /* non-critical — tooltips just won't show essential fields */ })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, config])
 
   const fetchTab = async (tabId: TabId, force = false) => {
     const chartKey = TAB_TO_CHART_ID[tabId]
@@ -1525,7 +1714,7 @@ export default function StatisticsPage() {
                   <div>
                     <h3 className="text-2xl font-bold mb-1">System Statistics</h3>
                     <p className="text-white/85 text-sm">
-                      Cross-cutting analysis: communication patterns, topic flow, node load, domain structure, and criticality distribution
+                      Cross-cutting analysis: communication patterns, topic flow, node load, segment structure, and criticality distribution
                     </p>
                   </div>
                   <Button
@@ -1604,25 +1793,25 @@ export default function StatisticsPage() {
                           )
                         } />}
                         {id === "node_load" && <NodeCommLoadSection data={tabData.node_comm_load} />}
-                        {id === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Domain-to-Domain Communication" insights={
+                        {id === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Segment-to-Segment Communication" insights={
                           tabData.domain_comm && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                               <MetricInsightCard
                                 label="Active Cell %"
                                 value={`${Number(tabData.domain_comm.summary.active_pct ?? 0).toFixed(1)}%`}
-                                description="Fraction of domain pairs with cross-domain message traffic. High values signal tight coupling between subsystems and potential dependency debt."
+                                description="Fraction of segment pairs with cross-segment message traffic. High values signal tight coupling between subsystems and potential dependency debt."
                                 formula="nonzero_cells / total_cells × 100"
                               />
                               <MetricInsightCard
-                                label="Intra-Domain Events"
+                                label="Intra-Segment Events"
                                 value={tabData.domain_comm.summary.intra_total ?? 0}
-                                description="Topic exchanges where publisher and subscriber belong to the same domain. High intra-domain traffic signals well-encapsulated, loosely coupled subsystems."
+                                description="Topic exchanges where publisher and subscriber belong to the same segment. High intra-segment traffic signals well-encapsulated, loosely coupled subsystems."
                                 formula="Σ matrix[i][i]  (diagonal sum)"
                               />
                               <MetricInsightCard
-                                label="Cross-Domain Events"
+                                label="Cross-Segment Events"
                                 value={tabData.domain_comm.summary.inter_total ?? 0}
-                                description="Topic flows that cross domain boundaries. High values indicate interdependency between subsystems and wider cascade paths under failure."
+                                description="Topic flows that cross segment boundaries. High values indicate interdependency between subsystems and wider cascade paths under failure."
                                 formula="Σ matrix[i][j]  for i ≠ j"
                               />
                             </div>
