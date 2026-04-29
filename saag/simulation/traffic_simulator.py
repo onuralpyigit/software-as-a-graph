@@ -53,6 +53,44 @@ class TrafficSimulator:
     # Public API
     # ------------------------------------------------------------------
 
+    def get_all_apps(self) -> List[Dict[str, Any]]:
+        """
+        Return all Application nodes with the topic IDs they publish/subscribe to.
+        """
+        repo = create_repository(self.uri, self.user, self.password)
+        try:
+            with repo.driver.session(database=repo.database) as session:
+                result = session.run(
+                    """
+                    MATCH (a:Application)
+                    OPTIONAL MATCH (a)-[:PUBLISHES_TO]->(pt:Topic)
+                    WITH a, collect(DISTINCT pt.id) AS pub_ids
+                    OPTIONAL MATCH (a)-[:SUBSCRIBES_TO]->(st:Topic)
+                    WITH a, pub_ids, collect(DISTINCT st.id) AS sub_ids
+                    RETURN
+                        a.id                       AS id,
+                        COALESCE(a.name, a.id)     AS name,
+                        COALESCE(a.weight, 0.5)    AS weight,
+                        pub_ids,
+                        sub_ids
+                    ORDER BY name
+                    """
+                )
+                apps: List[Dict[str, Any]] = []
+                for rec in result:
+                    apps.append(
+                        {
+                            "id": rec["id"],
+                            "name": rec["name"],
+                            "weight": float(rec["weight"]),
+                            "pub_topic_ids": list(rec["pub_ids"]),
+                            "sub_topic_ids": list(rec["sub_ids"]),
+                        }
+                    )
+                return apps
+        finally:
+            repo.close()
+
     def get_all_topics(self) -> List[Dict[str, Any]]:
         """
         Return all Topic nodes with publisher/subscriber/broker metadata.
