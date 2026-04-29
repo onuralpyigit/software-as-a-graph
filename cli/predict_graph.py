@@ -39,11 +39,13 @@ Usage examples
 
 import json
 import logging
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import argparse
 from saag import Client
+from saag.models import PredictionResult
 from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay
 
@@ -254,7 +256,7 @@ def run_gnn_inference(client: Client, nx_graph, analysis, layer: str, gnn_model:
 
     try:
         structural_dict = extract_structural_metrics_dict(analysis.raw)
-        rmav_dict = extract_rmav_scores_dict(client.predict(layer=layer, mode="rmav").raw)
+        rmav_dict = extract_rmav_scores_dict(analysis.raw.quality)
 
         gnn_svc = GNNService.from_checkpoint(gnn_model, graph=nx_graph)
         return gnn_svc.predict(
@@ -422,17 +424,14 @@ def main() -> None:
         analysis = client.analyze(
             layer=layer,
             equal_weights=args.equal_weights,
+            use_ahp=args.use_ahp,
+            ahp_shrinkage=args.ahp_shrinkage,
         )
 
         # ── RMAV prediction ──────────────────────────────────────────────────
         display.print_step(f"[{layer.upper()}] RMAV quality scoring…")
-        prediction = client.predict(
-            layer=layer,
-            mode="rmav",
-            use_ahp=args.use_ahp,
-            equal_weights=args.equal_weights,
-            ahp_shrinkage=args.ahp_shrinkage,
-        )
+        # Quality scores are already computed inside client.analyze(); wrap for uniform access.
+        prediction = PredictionResult(analysis.raw.quality)
 
         components = prediction.raw.components if prediction.raw else []
         total_components = len(components)

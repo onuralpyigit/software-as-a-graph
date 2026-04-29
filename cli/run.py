@@ -6,6 +6,7 @@ Executes the analytical pipeline using the saag SDK.
 """
 
 import argparse
+import sys
 from pathlib import Path
 from saag import Pipeline
 from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
