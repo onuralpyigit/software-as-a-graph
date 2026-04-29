@@ -6,7 +6,13 @@ Adapts CLI arguments to the Application Service.
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+# Add project root to sys.path to support direct execution (python cli/generate_graph.py)
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from typing import Optional
 from cli.common.dispatcher import dispatch_generate
 from cli.common.arguments import add_runtime_arguments
@@ -74,7 +80,18 @@ def main() -> None:
     validate_parser = subparsers.add_parser("validate", help="Topology-class validation for scenarios", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     add_validation_arguments(validate_parser)
     
+    # Handle positional output override (hack for user convenience: python cli/generate_graph.py dataset.json)
+    output_override = None
+    if len(sys.argv) > 1:
+        last_arg = sys.argv[-1]
+        # If the last arg is not a flag, not a subcommand, and not a help flag
+        if not last_arg.startswith('-') and last_arg not in ['batch', 'validate'] and last_arg != 'generate_graph.py':
+            output_override = sys.argv.pop()
+    
     args = parser.parse_args()
+    
+    if output_override:
+        args.output = Path(output_override)
     
     if getattr(args, "command", None) == "batch":
         sys.exit(run_batch_generation(args))

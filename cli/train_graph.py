@@ -22,6 +22,11 @@ import json
 import logging
 import sys
 from pathlib import Path
+
+# Add project root to sys.path to support direct execution (python cli/train_graph.py)
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from typing import Optional
 
 from cli.common.console import ConsoleDisplay

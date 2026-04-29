@@ -4,7 +4,13 @@ CLI script to import graph data into Neo4j.
 """
 
 import argparse
+import sys
 from pathlib import Path
+
+# Add project root to sys.path to support direct execution (python cli/import_graph.py)
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from saag import Client
 from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
 from cli.common.console import ConsoleDisplay

@@ -67,9 +67,14 @@ import logging
 import math
 import random
 import sys
+from pathlib import Path
+
+# Add project root to sys.path to support direct execution (python cli/validate_graph.py)
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from collections import defaultdict
 from dataclasses import dataclass, asdict, field
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from cli.common.arguments import setup_logging

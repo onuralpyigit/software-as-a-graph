@@ -11,6 +11,11 @@ import json
 import math
 import sys
 from pathlib import Path
+
+# Add project root to sys.path to support direct execution (python cli/multi_seed_summary.py)
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from typing import List
 
 def compute_stats(values: List[float]):

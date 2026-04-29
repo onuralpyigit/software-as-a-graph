@@ -29,10 +29,15 @@ Usage examples
 """
 
 import sys
+from pathlib import Path
+
+# Add project root to sys.path to support direct execution (python cli/statistics_graph.py)
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import json
 import math
 import time
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import argparse

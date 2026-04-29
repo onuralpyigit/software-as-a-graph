@@ -67,8 +67,13 @@ import argparse
 import json
 import logging
 import sys
-import time
 from pathlib import Path
+
+# Add project root to sys.path to support direct execution (python cli/simulate_graph.py)
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import time
 from typing import Any, Dict, List, Optional
 
 from cli.common.arguments import setup_logging

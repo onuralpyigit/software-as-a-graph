@@ -15,8 +15,14 @@ Usage:
 """
 import argparse
 import logging
+import sys
 import time
 from pathlib import Path
+
+# Add project root to sys.path to support direct execution (python cli/benchmark.py)
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from typing import List
 
 from tools.benchmark import (

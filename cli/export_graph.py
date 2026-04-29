@@ -10,7 +10,12 @@ Example usage:
 """
 import argparse
 import json
+import sys
 from pathlib import Path
+
+# Add project root to sys.path to support direct execution (python cli/export_graph.py)
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from typing import Dict, Any
 from saag import Client
 from cli.common.arguments import add_neo4j_arguments, add_common_arguments, setup_logging
