@@ -154,7 +154,7 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "Orphan Topic": "A topic with publishers but no subscribers, or subscribers but no publishers — a dead-end in the message flow.",
   "Cross-Node Heatmap": "Matrix showing the volume of inter-node communication — high off-diagonal values indicate tightly coupled infrastructure nodes.",
   "Node Communication Load": "Total message traffic (bytes/second) routed through a physical infrastructure node.",
-  "Domain Communication": "Message flow volume between logical system domains or segments.",
+  "Segment Communication": "Message flow volume between logical system segments.",
 
   // ── Layers ────────────────────────────────────────────────────────────────
   "Application Layer": "Analyzes only Application and Library nodes — focuses on software component blast-radius risk.",
@@ -202,5 +202,5 @@ export const TERM_TOOLTIPS: Record<string, string> = {
   "Hot Topic": "A topic with unusually high message throughput or many publisher/subscriber connections — a potential bottleneck.",
   "Library Dependency Density": "Ratio of library-consuming edges to applications — high density means many apps share the same libraries (shared-fate risk).",
   "Node Critical Density": "Fraction of critical applications concentrated on a single infrastructure node — high density means a node failure takes down many critical components.",
-  "Domain Diversity": "Variety of application and topic types within a system domain — low diversity indicates monolithic or tightly-scoped subsystems.",
+  "Segment Diversity": "Variety of application and topic types within a system segment — low diversity indicates monolithic or tightly-scoped subsystems.",
 }

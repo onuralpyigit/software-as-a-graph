@@ -298,7 +298,7 @@ const nodeCommTooltip  = makeStatTooltip("Node",        [{ key: "publishes", lab
 const criticalityIOTooltip = makeStatTooltip("Application", [{ key: "publishes", label: "Publishes" }, { key: "subscribes", label: "Subscribes" }])
 const libDepTooltip    = makeStatTooltip("Library",     [{ key: "inbound", label: "In-degree" }, { key: "outbound", label: "Out-degree" }])
 const nodeCritDensityTooltip = makeStatTooltip("Node",  [{ key: "critical", label: "Critical" }, { key: "normal", label: "Normal" }])
-const domainDivTooltip = makeStatTooltip("Domain",      [{ key: "applications", label: "Applications" }, { key: "topics", label: "Topics" }, { key: "io", label: "I/O Load" }])
+const domainDivTooltip = makeStatTooltip("Segment",      [{ key: "applications", label: "Applications" }, { key: "topics", label: "Topics" }, { key: "io", label: "I/O Load" }])
 const bottleneckTooltip = makeStatTooltip((item) => (item.type as string) ?? "Component", [{ key: "bottleneck_score", label: "Score" }])
 
 // ── Pagination + Search ─────────────────────────────────────────────────
@@ -1275,41 +1275,41 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
 
   const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
 
-  if (!data || !data.labels.length) return <p className="text-sm text-muted-foreground">Insufficient domain data (need ≥ 2 domains)</p>
+  if (!data || !data.labels.length) return <p className="text-sm text-muted-foreground">Insufficient segment data (need ≥ 2 segments)</p>
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <MetricInsightCard
-          label="Avg Apps per Domain"
+          label="Avg Apps per Segment"
           value={Number(data.summary.app_mean ?? 0).toFixed(1)}
-          description="Mean number of applications per domain. Very low values may indicate overly fragmented subsystems; very high values may signal monolithic domains with unclear boundaries."
-          formula="total_apps / domain_count"
+          description="Mean number of applications per segment. Very low values may indicate overly fragmented subsystems; very high values may signal monolithic segments with unclear boundaries."
+          formula="total_apps / segment_count"
         />
         <MetricInsightCard
-          label="Avg Topics per Domain"
+          label="Avg Topics per Segment"
           value={Number(data.summary.topic_mean ?? 0).toFixed(1)}
-          description="Mean number of topics owned or used per domain. Reflects how much communication surface each subsystem exposes to the rest of the architecture."
-          formula="total_topics_touched / domain_count"
+          description="Mean number of topics owned or used per segment. Reflects how much communication surface each subsystem exposes to the rest of the architecture."
+          formula="total_topics_touched / segment_count"
         />
         <MetricInsightCard
-          label="Avg I/O per Domain"
+          label="Avg I/O per Segment"
           value={Number(data.summary.io_mean ?? 0).toFixed(1)}
-          description="Average pub/sub message load aggregated per domain. High I/O domains are communication hubs whose degradation has the widest downstream reach."
-          formula="mean(Σ pub + Σ sub per domain)"
+          description="Average pub/sub message load aggregated per segment. High I/O segments are communication hubs whose degradation has the widest downstream reach."
+          formula="mean(Σ pub + Σ sub per segment)"
         />
       </div>
       <SummaryCards summary={data.summary} keys={[
-        { key: "css_count", label: "Domains" },
-        { key: "app_mean", label: "Avg Apps/Domain" },
+        { key: "css_count", label: "Segments" },
+        { key: "app_mean", label: "Avg Apps/Segment" },
         { key: "app_max", label: "Max Apps" },
-        { key: "topic_mean", label: "Avg Topics/Domain" },
+        { key: "topic_mean", label: "Avg Topics/Segment" },
         { key: "io_mean", label: "Avg I/O" },
         { key: "io_max", label: "Max I/O" },
       ]} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Domain Diversity</CardTitle>
+          <CardTitle className="text-base">Segment Diversity</CardTitle>
           <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
         </CardHeader>
         <CardContent>
@@ -1581,11 +1581,11 @@ const TAB_CONFIG = [
   { id: "topic_fanout", label: "Topic Fanout", icon: Network, color: "text-amber-500", description: "Publisher-to-subscriber ratios per topic. Identifies 1-to-N broadcast, N-to-1 aggregation, and orphan patterns." },
   { id: "cross_node", label: "Cross-Node", icon: Server, color: "text-purple-500", description: "Inter-node communication intensity matrix. Reveals physical host coupling and network traffic hotspots." },
   { id: "node_load", label: "Node Load", icon: BarChart3, color: "text-pink-500", description: "Aggregate communication load per node. Highlights overloaded hosts and uneven workload distribution." },
-  { id: "domain_comm", label: "Domain Comm", icon: Layers, color: "text-cyan-500", description: "Communication flows between domains. High cross-domain traffic signals tight coupling between subsystems." },
+  { id: "domain_comm", label: "Segment Comm", icon: Layers, color: "text-cyan-500", description: "Communication flows between segments. High cross-segment traffic signals tight coupling between subsystems." },
   { id: "criticality", label: "Criticality I/O", icon: AlertTriangle, color: "text-red-500", description: "I/O comparison of critical vs. normal applications. Shows whether critical components are also communication-heavy." },
   { id: "lib_deps", label: "Library Deps", icon: BookOpen, color: "text-teal-500", description: "Library dependency density and coupling. Libraries with high in-degree are shared-fate risks across multiple consumers." },
   { id: "node_density", label: "Node Density", icon: Shield, color: "text-green-500", description: "Distribution of critical applications across physical nodes. Concentration of critical apps on few nodes increases blast radius." },
-  { id: "domain_div", label: "Domain Diversity", icon: Box, color: "text-orange-500", description: "Application and topic variety within each domain. Low diversity may indicate monolithic subsystems." },
+  { id: "domain_div", label: "Segment Diversity", icon: Box, color: "text-orange-500", description: "Application and topic variety within each segment. Low diversity may indicate monolithic subsystems." },
   { id: "bottleneck", label: "Bottlenecks", icon: Zap, color: "text-yellow-500", description: "Components with disproportionate structural load: high-I/O apps, over-connected topics, widely-shared libraries, and heavily-loaded brokers." },
 ] as const
 
@@ -1714,7 +1714,7 @@ export default function StatisticsPage() {
                   <div>
                     <h3 className="text-2xl font-bold mb-1">System Statistics</h3>
                     <p className="text-white/85 text-sm">
-                      Cross-cutting analysis: communication patterns, topic flow, node load, domain structure, and criticality distribution
+                      Cross-cutting analysis: communication patterns, topic flow, node load, segment structure, and criticality distribution
                     </p>
                   </div>
                   <Button
@@ -1793,25 +1793,25 @@ export default function StatisticsPage() {
                           )
                         } />}
                         {id === "node_load" && <NodeCommLoadSection data={tabData.node_comm_load} />}
-                        {id === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Domain-to-Domain Communication" insights={
+                        {id === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Segment-to-Segment Communication" insights={
                           tabData.domain_comm && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                               <MetricInsightCard
                                 label="Active Cell %"
                                 value={`${Number(tabData.domain_comm.summary.active_pct ?? 0).toFixed(1)}%`}
-                                description="Fraction of domain pairs with cross-domain message traffic. High values signal tight coupling between subsystems and potential dependency debt."
+                                description="Fraction of segment pairs with cross-segment message traffic. High values signal tight coupling between subsystems and potential dependency debt."
                                 formula="nonzero_cells / total_cells × 100"
                               />
                               <MetricInsightCard
-                                label="Intra-Domain Events"
+                                label="Intra-Segment Events"
                                 value={tabData.domain_comm.summary.intra_total ?? 0}
-                                description="Topic exchanges where publisher and subscriber belong to the same domain. High intra-domain traffic signals well-encapsulated, loosely coupled subsystems."
+                                description="Topic exchanges where publisher and subscriber belong to the same segment. High intra-segment traffic signals well-encapsulated, loosely coupled subsystems."
                                 formula="Σ matrix[i][i]  (diagonal sum)"
                               />
                               <MetricInsightCard
-                                label="Cross-Domain Events"
+                                label="Cross-Segment Events"
                                 value={tabData.domain_comm.summary.inter_total ?? 0}
-                                description="Topic flows that cross domain boundaries. High values indicate interdependency between subsystems and wider cascade paths under failure."
+                                description="Topic flows that cross segment boundaries. High values indicate interdependency between subsystems and wider cascade paths under failure."
                                 formula="Σ matrix[i][j]  for i ≠ j"
                               />
                             </div>
