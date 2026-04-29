@@ -1102,8 +1102,24 @@ const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, sel
     draggable: true,
   })), [graphData.nodes, positions, isDark, selectedNodeId, parentNodeId])
 
+  // Only reset node positions when the set of nodes changes (new data loaded).
+  // Dims/theme/selection changes must NOT reset positions — that would discard user drags.
+  const graphNodesKeyHier = useMemo(() => graphData.nodes.map(n => n.id).join(","), [graphData.nodes])
+  const lastHierKeyRef = useRef("")
   const [rfNodes, setRfNodes] = useState(initialHierNodes)
-  useEffect(() => { setRfNodes(initialHierNodes) }, [initialHierNodes])
+  useEffect(() => {
+    if (graphNodesKeyHier !== lastHierKeyRef.current) {
+      lastHierKeyRef.current = graphNodesKeyHier
+      setRfNodes(initialHierNodes)
+    }
+  }, [graphNodesKeyHier, initialHierNodes])
+  // Update theme/selection styling in-place without touching positions
+  useEffect(() => {
+    setRfNodes(nds => nds.map(nd => ({
+      ...nd,
+      data: { ...nd.data, isDark, isSelected: nd.data.n?.id === selectedNodeId, isParent: nd.data.n?.id === parentNodeId },
+    })))
+  }, [isDark, selectedNodeId, parentNodeId])
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => setRfNodes(nds => applyNodeChanges(changes, nds) as any),
     [],
@@ -1195,8 +1211,36 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
     return [...laneNodes, ...connNodes]
   }, [graphData.nodes, positions, isDark, selectedAppId, dims, populatedLayers])
 
+  // Only reset node positions when the set of nodes changes (new data loaded).
+  // Dims/theme/selection changes must NOT reset positions — that would discard user drags.
+  const graphNodesKeyConn = useMemo(() => graphData.nodes.map((n: any) => n.id).join(","), [graphData.nodes])
+  const lastConnKeyRef = useRef("")
   const [rfNodes, setRfNodes] = useState(initialNodes)
-  useEffect(() => { setRfNodes(initialNodes) }, [initialNodes])
+  useEffect(() => {
+    if (graphNodesKeyConn !== lastConnKeyRef.current) {
+      lastConnKeyRef.current = graphNodesKeyConn
+      setRfNodes(initialNodes)
+    }
+  }, [graphNodesKeyConn, initialNodes])
+  // Resize lane backgrounds without moving conn nodes
+  useEffect(() => {
+    const W2 = dims.width || 800
+    const H2 = dims.height || 600
+    const bandH2 = H2 * 0.20
+    setRfNodes(nds => nds.map((nd: any) => {
+      if (!nd.id.startsWith("lane-")) return nd
+      const layer = parseInt(nd.id.split("-")[1])
+      const yFrac = CONN_LAYER_Y_FRACS[layer]
+      return { ...nd, position: { x: 0, y: yFrac * H2 - bandH2 / 2 }, data: { ...nd.data, width: W2, height: bandH2 } }
+    }))
+  }, [dims])
+  // Update theme/selectedApp in-place without touching positions
+  useEffect(() => {
+    setRfNodes(nds => nds.map((nd: any) => ({
+      ...nd,
+      data: { ...nd.data, isDark, ...(!nd.id.startsWith("lane-") && { isCenter: nd.id === selectedAppId }) },
+    })))
+  }, [isDark, selectedAppId])
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => setRfNodes(nds => applyNodeChanges(changes, nds) as any),
     [],

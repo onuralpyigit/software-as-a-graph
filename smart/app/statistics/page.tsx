@@ -1172,23 +1172,118 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
   )
 }
 
+function CoeffInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <input
+      type="number"
+      min={0}
+      max={1}
+      step={0.01}
+      value={value}
+      onChange={(e) => {
+        const v = parseFloat(e.target.value)
+        if (!isNaN(v) && v >= 0) onChange(v)
+      }}
+      className="w-14 h-6 rounded border bg-background px-1 text-xs font-mono text-center text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+    />
+  )
+}
+
+const BOTTLENECK_DEFAULT_W = { bt: 0.40, ap: 0.25, br: 0.20, bridge: 0.15 }
+
+function computeBottleneckItems(data: ExtrasStats["bottleneck"], w: typeof BOTTLENECK_DEFAULT_W) {
+  if (!data) return []
+  const t = (w.bt + w.ap + w.br + w.bridge) || 1
+  const wBt = w.bt / t, wAp = w.ap / t, wBr = w.br / t, wBridge = w.bridge / t
+  const scored = data.items
+    .map((it) => ({
+      ...it,
+      bottleneck_score: Math.round((wBt * it.betweenness + wAp * it.ap_c_directed + wBr * it.blast_radius_norm + wBridge * it.bridge_ratio) * 10000) / 10000,
+    }))
+    .sort((a, b) => b.bottleneck_score - a.bottleneck_score)
+  const scores = scored.map((it) => it.bottleneck_score).filter((s) => s > 0)
+  const outlierIds = new Set<string>()
+  if (scores.length >= 4) {
+    const ss = [...scores].sort((a, b) => a - b)
+    const q1 = ss[Math.floor(ss.length * 0.25)]
+    const q3 = ss[Math.floor(ss.length * 0.75)]
+    const upper = q3 + 1.5 * (q3 - q1)
+    scored.forEach((it) => { if (it.bottleneck_score > upper) outlierIds.add(it.id) })
+  }
+  return scored.map((it) => ({ ...it, outlier: outlierIds.has(it.id) }))
+}
+
 function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
-  const allItems = useMemo(() => (!data ? [] : data.items.map((it, i) => ({
-    ...it,
-    outlier: data.outlier_indices.includes(i),
-  }))), [data])
+  const [pendingW, setPendingW] = useState(BOTTLENECK_DEFAULT_W)
+  const [appliedW, setAppliedW] = useState(BOTTLENECK_DEFAULT_W)
+
+  const allItems = useMemo(() => computeBottleneckItems(data, appliedW), [data, appliedW])
 
   const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
 
   if (!data) return null
   const s = data.summary
 
+  const wTotal = appliedW.bt + appliedW.ap + appliedW.br + appliedW.bridge || 1
+  const wNorm = {
+    bt: appliedW.bt / wTotal,
+    ap: appliedW.ap / wTotal,
+    br: appliedW.br / wTotal,
+    bridge: appliedW.bridge / wTotal,
+  }
+  const isDefault = Math.abs(appliedW.bt - BOTTLENECK_DEFAULT_W.bt) < 0.001 && Math.abs(appliedW.ap - BOTTLENECK_DEFAULT_W.ap) < 0.001 &&
+    Math.abs(appliedW.br - BOTTLENECK_DEFAULT_W.br) < 0.001 && Math.abs(appliedW.bridge - BOTTLENECK_DEFAULT_W.bridge) < 0.001
+  const isDirty = pendingW.bt !== appliedW.bt || pendingW.ap !== appliedW.ap ||
+    pendingW.br !== appliedW.br || pendingW.bridge !== appliedW.bridge
+  const recomputedOutlierCount = allItems.filter((it) => it.outlier).length
+  const recomputedMaxScore = allItems.length > 0 ? allItems[0].bottleneck_score : 0
+
+  function applyWeights() { setAppliedW(pendingW) }
+  function resetWeights() { setPendingW(BOTTLENECK_DEFAULT_W); setAppliedW(BOTTLENECK_DEFAULT_W) }
+
   return (
     <div className="space-y-6">
-      {/* Score formula explanation */}
+      {/* Score formula with editable coefficients */}
       <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-        <span className="font-semibold text-foreground">Score = </span>
-        <code className="text-xs font-mono">0.40 × betweenness + 0.25 × ap_c_directed + 0.20 × blast_radius_norm + 0.15 × bridge_ratio</code>
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2 font-mono text-xs">
+          <span className="font-semibold text-foreground text-sm mr-0.5">Score =</span>
+          <CoeffInput value={pendingW.bt} onChange={(v) => setPendingW((p) => ({ ...p, bt: v }))} />
+          <span className="text-foreground">× betweenness</span>
+          <span className="text-muted-foreground">+</span>
+          <CoeffInput value={pendingW.ap} onChange={(v) => setPendingW((p) => ({ ...p, ap: v }))} />
+          <span className="text-foreground">× ap_c_directed</span>
+          <span className="text-muted-foreground">+</span>
+          <CoeffInput value={pendingW.br} onChange={(v) => setPendingW((p) => ({ ...p, br: v }))} />
+          <span className="text-foreground">× blast_radius_norm</span>
+          <span className="text-muted-foreground">+</span>
+          <CoeffInput value={pendingW.bridge} onChange={(v) => setPendingW((p) => ({ ...p, bridge: v }))} />
+          <span className="text-foreground">× bridge_ratio</span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+          <button
+            onClick={applyWeights}
+            disabled={!isDirty}
+            className="rounded border px-2.5 py-0.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed enabled:bg-primary enabled:text-primary-foreground enabled:hover:bg-primary/90"
+          >
+            Recalculate
+          </button>
+          {!isDefault && (
+            <button
+              onClick={resetWeights}
+              className="rounded border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              Reset defaults
+            </button>
+          )}
+          {!isDefault && (
+            <span className="text-muted-foreground">
+              Effective (normalized):&nbsp;
+              <span className="font-mono text-foreground">{wNorm.bt.toFixed(2)} / {wNorm.ap.toFixed(2)} / {wNorm.br.toFixed(2)} / {wNorm.bridge.toFixed(2)}</span>
+              &nbsp;(sum = 1)
+            </span>
+          )}
+          {isDefault && !isDirty && <span className="text-xs">Weights auto-normalize to sum = 1. Adjust then click Recalculate.</span>}
+        </div>
         <p className="mt-1 text-xs">
           Components with the highest score lie on the most critical structural paths — their failure disrupts the largest fraction of the system.
           Articulation points (🔴) are graph-theoretic SPOFs: their removal disconnects the graph entirely.
@@ -1211,15 +1306,15 @@ function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
         />
         <MetricInsightCard
           label="Score Outliers"
-          value={s.outlier_count ?? 0}
+          value={recomputedOutlierCount}
           description="Components whose bottleneck score exceeds the IQR upper fence. These are statistically extreme relative to the rest of the system."
           formula="score > Q3 + 1.5 × IQR"
         />
         <MetricInsightCard
           label="Max Score"
-          value={fmtNum(s.score_max ?? 0)}
+          value={fmtNum(recomputedMaxScore)}
           description="Highest composite bottleneck score in the system. Values above 0.5 indicate a severe single-point bottleneck."
-          formula="max(0.40·BT + 0.25·AP + 0.20·BR + 0.15·bridge)"
+          formula={`max(${wNorm.bt.toFixed(2)}·BT + ${wNorm.ap.toFixed(2)}·AP + ${wNorm.br.toFixed(2)}·BR + ${wNorm.bridge.toFixed(2)}·bridge)`}
         />
       </div>
 

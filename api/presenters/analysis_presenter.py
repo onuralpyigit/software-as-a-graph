@@ -4,6 +4,7 @@ Presenter for analysis results, decoupling domain models from API response forma
 
 from typing import Dict, Any, List, Optional
 from saag import AnalysisResult, PredictionResult
+from saag.models import ComponentFacade
 
 def serialize_component(c) -> Dict[str, Any]:
     """Convert a classified component to API response format."""
@@ -60,8 +61,15 @@ def build_analysis_response(
     `components`, `edges`, and `problems` are the (possibly filtered) lists
     to serialise.  Summary statistics are computed from these lists.
     """
-    # Extract values from SDK
-    all_components = prediction.all_components
+    # Extract components directly from the quality result to support both GNN and RMAV-only modes.
+    # PredictionResult.all_components only works when the inner object is GNNAnalysisResult;
+    # in the RMAV-only path the inner is QualityAnalysisResult which stores components directly.
+    _quality = prediction.raw
+    _gnn_dict = getattr(_quality, "ensemble_scores", None) or getattr(_quality, "node_scores", None)
+    if _gnn_dict:
+        all_components = [ComponentFacade(s) for s in _gnn_dict.values()]
+    else:
+        all_components = [ComponentFacade(c) for c in getattr(_quality, "components", [])]
     layer_name = analysis.raw.layer.value if hasattr(analysis.raw.layer, 'value') else str(analysis.raw.layer)
     # EdgeQuality objects (have .level) come from the prediction result
     quality_edges = list(prediction.raw.edges)
