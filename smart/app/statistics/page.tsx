@@ -328,6 +328,8 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
     name: label,
     id: data?.ids?.[i],
     bandwidth: bwArray[i] ?? 0,
+    bandwidth_pub: data?.bandwidth_pub?.[i] ?? 0,
+    bandwidth_sub: data?.bandwidth_sub?.[i] ?? 0,
   })).sort((a, b) => b.bandwidth - a.bandwidth), [data, mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { search, handleSearch, page, setPage, pageItems, totalPages, filtered } = usePaginatedSearch(allItems)
@@ -380,15 +382,31 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
           <PaginationBar search={search} onSearch={handleSearch} page={page} totalPages={totalPages} onPage={setPage} totalItems={allItems.length} filteredItems={filtered.length} />
         </CardHeader>
         <CardContent>
-          <SizedBarChart dataCount={pageItems.length} config={{ bandwidth: { label: "Bandwidth", color: "#8b5cf6" } }}>
-            <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="bandwidth" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </SizedBarChart>
+          {mode === "pubsub" ? (
+            <SizedBarChart dataCount={pageItems.length} config={{
+              bandwidth_pub: { label: "Pub Bandwidth", color: "#3b82f6" },
+              bandwidth_sub: { label: "Sub Bandwidth", color: "#8b5cf6" },
+            }}>
+              <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="bandwidth_pub" fill="#3b82f6" radius={[0, 0, 0, 0]} stackId="bw" />
+                <Bar dataKey="bandwidth_sub" fill="#8b5cf6" radius={[4, 4, 0, 0]} stackId="bw" />
+              </BarChart>
+            </SizedBarChart>
+          ) : (
+            <SizedBarChart dataCount={pageItems.length} config={{ bandwidth: { label: "Bandwidth", color: "#8b5cf6" } }}>
+              <BarChart data={pageItems.map((d) => ({ ...d, name: truncate(d.name) }))} margin={{ bottom: 50 }} maxBarSize={48} onClick={handleBarClick} className="cursor-pointer">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={70} tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="bandwidth" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </SizedBarChart>
+          )}
         </CardContent>
       </Card>
     </div>
