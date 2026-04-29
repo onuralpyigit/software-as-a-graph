@@ -62,7 +62,7 @@ G_analysis(l)          StructuralAnalyzer           Output
 The analysis step involves three layers of code. Understanding the call chain prevents confusion about where normalization, QoS profiling, and layer filtering happen.
 
 ```
-bin/analyze_graph.py          ← CLI entry point
+cli/analyze_graph.py          ← CLI entry point
 │   argparse flags:
 │     --layer, --norm, --winsorize
 │     --use-ahp, --equal-weights, --ahp-shrinkage
@@ -71,7 +71,7 @@ bin/analyze_graph.py          ← CLI entry point
 ├── saag.Client.analyze(layer, **kwargs)
 │       Thin façade — wires dependencies, returns AnalysisResult
 │
-└── src.analysis.service.AnalysisService.analyze_layer(layer)
+└── saag.analysis.service.AnalysisService.analyze_layer(layer)
         │
         ├── AnalysisLayer.from_string(layer)      ← canonical layer resolution
         ├── IGraphRepository.get_graph_data()     ← load components & edges from Neo4j
@@ -704,51 +704,51 @@ These metric vectors become the input to Step 3's RMAV formula evaluation.
 
 ```bash
 # Analyze the system layer (default — includes all component types)
-python bin/analyze_graph.py
+PYTHONPATH=. python cli/analyze_graph.py
 
 # Analyze the application layer (Apps and Libraries only)
-python bin/analyze_graph.py --layer app
+PYTHONPATH=. python cli/analyze_graph.py --layer app
 
 # Analyze the middleware layer (Brokers only)
-python bin/analyze_graph.py --layer mw
+PYTHONPATH=. python cli/analyze_graph.py --layer mw
 
 # Analyze the infrastructure layer (Nodes only)
-python bin/analyze_graph.py --layer infra
+PYTHONPATH=. python cli/analyze_graph.py --layer infra
 
 # Analyze all four layers sequentially — also produces cross_layer_insights
-python bin/analyze_graph.py --layer all
+PYTHONPATH=. python cli/analyze_graph.py --layer all
 
 # Analyze multiple specific layers (comma-separated) — also produces cross_layer_insights
-python bin/analyze_graph.py --layer app,system
+PYTHONPATH=. python cli/analyze_graph.py --layer app,system
 
 # Export full metric vectors M(v) to JSON
-python bin/analyze_graph.py --layer system --output results/metrics.json
+PYTHONPATH=. python cli/analyze_graph.py --layer system --output results/metrics.json
 
 # Multi-layer export: produces metrics_app.json, metrics_system.json
-python bin/analyze_graph.py --layer app,system --output results/metrics.json
+PYTHONPATH=. python cli/analyze_graph.py --layer app,system --output results/metrics.json
 
 # Normalization methods (default: robust / IQR scaling)
-python bin/analyze_graph.py --layer system                    # robust (default)
-python bin/analyze_graph.py --layer system --norm rank        # rank normalization
-python bin/analyze_graph.py --layer system --norm minmax      # min-max normalization
-python bin/analyze_graph.py --layer system --norm zscore      # z-score normalization
+PYTHONPATH=. python cli/analyze_graph.py --layer system                    # robust (default)
+PYTHONPATH=. python cli/analyze_graph.py --layer system --norm rank        # rank normalization
+PYTHONPATH=. python cli/analyze_graph.py --layer system --norm minmax      # min-max normalization
+PYTHONPATH=. python cli/analyze_graph.py --layer system --norm zscore      # z-score normalization
 
 # Enable winsorization to cap extreme outliers at the 95th percentile before ranking
-python bin/analyze_graph.py --layer system --winsorize
+PYTHONPATH=. python cli/analyze_graph.py --layer system --winsorize
 
 # Weight modes for Step 3 (prediction) — do not affect M(v) computation
-python bin/analyze_graph.py --layer system --use-ahp              # AHP-derived weights
-python bin/analyze_graph.py --layer system --equal-weights        # equal 0.25 per dimension
-python bin/analyze_graph.py --layer system --use-ahp --ahp-shrinkage 0.5
+PYTHONPATH=. python cli/analyze_graph.py --layer system --use-ahp              # AHP-derived weights
+PYTHONPATH=. python cli/analyze_graph.py --layer system --equal-weights        # equal 0.25 per dimension
+PYTHONPATH=. python cli/analyze_graph.py --layer system --use-ahp --ahp-shrinkage 0.5
 
 # Run AHP weight sensitivity analysis (Kendall τ stability report)
-python bin/analyze_graph.py --layer system --sensitivity
+PYTHONPATH=. python cli/analyze_graph.py --layer system --sensitivity
 
 # Connect to a non-default Neo4j instance
-python bin/analyze_graph.py --uri bolt://myhost:7687 --user neo4j --password secret
+PYTHONPATH=. python cli/analyze_graph.py --uri bolt://myhost:7687 --user neo4j --password secret
 
 # Increase logging verbosity
-python bin/analyze_graph.py --layer app --verbose
+PYTHONPATH=. python cli/analyze_graph.py --layer app --verbose
 ```
 
 ### CLI Argument Reference

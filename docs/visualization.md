@@ -200,7 +200,7 @@ Rendered when `--multi-seed` is given (with one or more validation JSON paths). 
 
 ```bash
 # Generate stability panel from five pre-validated seeds
-python bin/visualize_graph.py --layer app \
+PYTHONPATH=. python cli/visualize_graph.py --layer app \
     --multi-seed results/val_s42.json results/val_s123.json results/val_s456.json \
     --output output/dashboard_stability.html
 ```
@@ -265,7 +265,7 @@ Components downstream of `RELIABLE` / tight-deadline topics appear with a larger
 ```bash
 # Generate cascade ablation results then embed in dashboard
 python tools/qos_ablation_experiment.py --layer mw --output results/cascade.json
-python bin/visualize_graph.py --layer system \
+PYTHONPATH=. python cli/visualize_graph.py --layer system \
     --cascade-file results/cascade.json \
     --output output/dashboard_cascade.html
 ```
@@ -414,19 +414,19 @@ The `detect_antipatterns.py` tool runs the full 12-pattern catalog against any a
 
 ```bash
 # Full detection across all layers
-python bin/detect_antipatterns.py --layer system --output results/antipatterns.json
+PYTHONPATH=. python cli/detect_antipatterns.py --layer system --output results/antipatterns.json
 
 # Print human-readable catalog
-python bin/detect_antipatterns.py --catalog
+PYTHONPATH=. python cli/detect_antipatterns.py --catalog
 
 # Filter to CRITICAL only (strict gate)
-python bin/detect_antipatterns.py --layer app --severity critical
+PYTHONPATH=. python cli/detect_antipatterns.py --layer app --severity critical
 
 # Run specific patterns
-python bin/detect_antipatterns.py --layer system --pattern SPOF,SYSTEMIC_RISK,CHATTY_PAIR
+PYTHONPATH=. python cli/detect_antipatterns.py --layer system --pattern SPOF,SYSTEMIC_RISK,CHATTY_PAIR
 
 # Use AHP-derived RMAV weights (recommended)
-python bin/detect_antipatterns.py --layer system --use-ahp --output results/antipatterns.json
+PYTHONPATH=. python cli/detect_antipatterns.py --layer system --use-ahp --output results/antipatterns.json
 ```
 
 ### CI/CD Pipeline Integration (GitHub Actions example)
@@ -434,7 +434,7 @@ python bin/detect_antipatterns.py --layer system --use-ahp --output results/anti
 ```yaml
 - name: Run anti-pattern detection
   run: |
-    python bin/detect_antipatterns.py \
+    PYTHONPATH=. python cli/detect_antipatterns.py \
         --layer system \
         --severity critical,high \
         --use-ahp \
@@ -447,8 +447,8 @@ python bin/detect_antipatterns.py --layer system --use-ahp --output results/anti
 The anti-pattern report (from `--output`) feeds Section 8 of the static HTML dashboard. To include it:
 
 ```bash
-python bin/detect_antipatterns.py --layer system --output results/antipatterns.json
-python bin/visualize_graph.py \
+PYTHONPATH=. python cli/detect_antipatterns.py --layer system --output results/antipatterns.json
+PYTHONPATH=. python cli/visualize_graph.py \
     --layers app system \
     --antipatterns results/antipatterns.json \
     --output output/dashboard.html
@@ -500,54 +500,54 @@ For system-layer analysis with all five node types (Application, Library, Broker
 ```bash
 # ─── Standard dashboard generation ───────────────────────────────────────────
 # --layer accepts comma-separated values; --layers is an explicit alias
-python bin/visualize_graph.py --layer app,system --output output/dashboard.html
-python bin/visualize_graph.py --layers app,system --output output/dashboard.html
+PYTHONPATH=. python cli/visualize_graph.py --layer app,system --output output/dashboard.html
+PYTHONPATH=. python cli/visualize_graph.py --layers app,system --output output/dashboard.html
 
 # ─── With anti-pattern report ─────────────────────────────────────────────────
-python bin/detect_antipatterns.py --layer system --use-ahp --output results/antipatterns.json
-python bin/visualize_graph.py \
+PYTHONPATH=. python cli/detect_antipatterns.py --layer system --use-ahp --output results/antipatterns.json
+PYTHONPATH=. python cli/visualize_graph.py \
     --layers app,system \
     --antipatterns results/antipatterns.json \
     --output output/dashboard.html
 
 # ─── With QoS cascade risk (§9a) ──────────────────────────────────────────────
 python tools/qos_ablation_experiment.py --layer mw --output results/cascade.json
-python bin/visualize_graph.py --layer system \
+PYTHONPATH=. python cli/visualize_graph.py --layer system \
     --cascade-file results/cascade.json \
     --output output/dashboard_cascade.html
 
 # ─── Open immediately in browser (-b, not -o which is --output) ───────────────
-python bin/visualize_graph.py --layer app --open
+PYTHONPATH=. python cli/visualize_graph.py --layer app --open
 
 # ─── Skip network graph (large systems, > 80 components) ─────────────────────
-python bin/visualize_graph.py --layers system --no-network --output output/dashboard.html
+PYTHONPATH=. python cli/visualize_graph.py --layers system --no-network --output output/dashboard.html
 
 # ─── Full pipeline in one command ─────────────────────────────────────────────
-python bin/run.py --all --layer app --open
+PYTHONPATH=. python cli/run.py --all --layer app --open
 
 # ─── CI/CD gate (fail build if CRITICAL or HIGH anti-patterns detected) ───────
-python bin/detect_antipatterns.py --layer system --severity critical,high
+PYTHONPATH=. python cli/detect_antipatterns.py --layer system --severity critical,high
 # exit code 2 → CI step fails → deployment blocked
 
 # ─── Multi-seed validation + dashboard (§8 stability panel) ───────────────────
 for seed in 42 123 456 789 2024; do
-    python bin/generate_graph.py --scale medium --seed $seed --output data/s${seed}.json
-    python bin/import_graph.py --input data/s${seed}.json --clear
-    python bin/analyze_graph.py  --layer app --use-ahp --output results/pred_s${seed}.json
-    python bin/simulate_graph.py event --all --messages 50 --layer app
-    python bin/simulate_graph.py failure --exhaustive --layer app \
+    PYTHONPATH=. python cli/generate_graph.py --scale medium --seed $seed --output data/s${seed}.json
+    PYTHONPATH=. python cli/import_graph.py --input data/s${seed}.json --clear
+    PYTHONPATH=. python cli/analyze_graph.py  --layer app --use-ahp --output results/pred_s${seed}.json
+    PYTHONPATH=. python cli/simulate_graph.py event --all --messages 50 --layer app
+    PYTHONPATH=. python cli/simulate_graph.py failure --exhaustive --layer app \
                                   --output results/sim_s${seed}.json
-    python bin/validate_graph.py results/pred_s${seed}.json results/sim_s${seed}.json \
+    PYTHONPATH=. python cli/validate_graph.py results/pred_s${seed}.json results/sim_s${seed}.json \
                            --output results/val_s${seed}.json
 done
-python bin/multi_seed_summary.py results/val_s*.json
+PYTHONPATH=. python cli/multi_seed_summary.py results/val_s*.json
 # Pass expanded glob paths to --multi-seed
-python bin/visualize_graph.py --layers app \
+PYTHONPATH=. python cli/visualize_graph.py --layers app \
     --multi-seed results/val_s42.json results/val_s123.json results/val_s456.json results/val_s789.json results/val_s2024.json \
     --output output/dashboard_multiseed.html
 
 # ─── Demo mode (no Neo4j) — smoke tests all chart paths ──────────────────────
-python bin/visualize_graph.py --demo --open
+PYTHONPATH=. python cli/visualize_graph.py --demo --open
 ```
 
 ---
@@ -555,11 +555,11 @@ python bin/visualize_graph.py --demo --open
 ## Programmatic API
 
 ```python
-from src.core import create_repository
-from src.analysis import AnalysisService
-from src.simulation import SimulationService
-from src.validation import ValidationService
-from src.visualization import VisualizationService
+from saag.core import create_repository
+from saag.analysis import AnalysisService
+from saag.simulation import SimulationService
+from saag.validation import ValidationService
+from saag.visualization import VisualizationService
 
 repo       = create_repository()
 analysis   = AnalysisService(repo)

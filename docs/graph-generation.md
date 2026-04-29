@@ -59,10 +59,10 @@ The generator is used for two distinct purposes in the project:
 The generation functionality is organised in four layers, each with a single responsibility.
 
 ```
-bin/generate_graph.py              ← CLI entry point (single-graph, batch, and validate subcommands)
-bin/common/dispatcher.py           ← dispatch_generate() — bridges CLI args to service
-bin/common/batch_generation.py     ← run_batch_generation() — batch dataset generation logic
-bin/common/dataset_validation.py   ← run_dataset_validation() — topology-class validation
+cli/generate_graph.py              ← CLI entry point (single-graph, batch, and validate subcommands)
+cli/common/dispatcher.py           ← dispatch_generate() — bridges CLI args to service
+cli/common/batch_generation.py     ← run_batch_generation() — batch dataset generation logic
+cli/common/dataset_validation.py   ← run_dataset_validation() — topology-class validation
 tools/generation/service.py        ← GenerationService / generate_graph() convenience fn
 tools/generation/generator.py      ← StatisticalGraphGenerator (core logic)
 tools/generation/models.py         ← GraphConfig, SCALE_PRESETS, statistical structs
@@ -120,7 +120,7 @@ The fastest way to generate a graph. Six named presets are built in:
 In scale-preset mode, QoS values for each topic are sampled uniformly from the full option space. Node placement, publish/subscribe wiring, and library usage are assigned using simple random selection without statistical distributions. This mode is suitable for benchmarking and quick smoke tests. Total edge counts are seed-dependent; for scale-preset graphs expect roughly 4–10× the total node count in edges.
 
 ```bash
-python bin/generate_graph.py --scale medium --seed 42 --output output/graph.json
+PYTHONPATH=. python cli/generate_graph.py --scale medium --seed 42 --output output/graph.json
 ```
 
 ### 4.2 Statistical-config mode (YAML)
@@ -136,7 +136,7 @@ The primary mode for validation work. A YAML configuration file fully specifies:
 When a YAML config is loaded, the generator uses `StatisticalMetric` sampling (clamped Gaussian via `random.gauss`) for continuous quantities and weighted-list sampling for categorical quantities. This produces topologies whose structural properties closely match the declared distributions, enabling repeatable validation experiments.
 
 ```bash
-python bin/generate_graph.py --config data/scenario_01_autonomous_vehicle.yaml \
+PYTHONPATH=. python cli/generate_graph.py --config data/scenario_01_autonomous_vehicle.yaml \
        --output output/av_system.json
 ```
 
@@ -156,7 +156,7 @@ Domain and scenario can be combined with either `--scale` or `--config`. When a 
 
 ## 5. The `generate_graph.py` CLI
 
-Located at `bin/generate_graph.py`. This is the primary generation entry point. In its default mode (no subcommand) it generates a single graph file. It also exposes two subcommands: `batch` (batch dataset generation — see Section 6) and `validate` (topology-class validation — see Section 5.3).
+Located at `cli/generate_graph.py`. This is the primary generation entry point. In its default mode (no subcommand) it generates a single graph file. It also exposes two subcommands: `batch` (batch dataset generation — see Section 6) and `validate` (topology-class validation — see Section 5.3).
 
 ### 5.1 Arguments reference
 
@@ -176,30 +176,30 @@ When `--config` is provided, the seed embedded in the YAML (`graph.seed`) is use
 
 ```bash
 # Minimal: medium graph, default seed
-python bin/generate_graph.py --scale medium --output output/graph.json
+PYTHONPATH=. python cli/generate_graph.py --scale medium --output output/graph.json
 
 # Reproducible small graph for a unit test
-python bin/generate_graph.py --scale small --seed 123 --output output/small_123.json
+PYTHONPATH=. python cli/generate_graph.py --scale small --seed 123 --output output/small_123.json
 
 # Autonomous vehicle scenario from YAML config
-python bin/generate_graph.py \
+PYTHONPATH=. python cli/generate_graph.py \
     --config data/scenario_01_autonomous_vehicle.yaml \
     --output output/av_system.json
 
 # IoT scenario with domain naming
-python bin/generate_graph.py \
+PYTHONPATH=. python cli/generate_graph.py \
     --config data/scenario_02_iot_smart_city.yaml \
     --domain iot \
     --output output/iot_system.json
 
 # Quick large graph for benchmarking
-python bin/generate_graph.py --scale large --seed 2024 --output output/large_bench.json
+PYTHONPATH=. python cli/generate_graph.py --scale large --seed 2024 --output output/large_bench.json
 
 # Followed immediately by the full pipeline
-python bin/run.py --all --input output/av_system.json
+PYTHONPATH=. python cli/run.py --all --input output/av_system.json
 
 # Generation as stage 1 of run.py orchestrator
-python bin/run.py --all --config data/scenario_01_autonomous_vehicle.yaml \
+PYTHONPATH=. python cli/run.py --all --config data/scenario_01_autonomous_vehicle.yaml \
     --input output/av_system.json --output-dir output/av_results
 ```
 
@@ -210,20 +210,20 @@ python bin/run.py --all --config data/scenario_01_autonomous_vehicle.yaml \
 **`batch`** — Generates all scenario datasets in a single invocation (equivalent to the former `generate_datasets.py` standalone script, now consolidated here). Accepts all the arguments documented in Section 6.
 
 ```bash
-python bin/generate_graph.py batch [OPTIONS]
+PYTHONPATH=. python cli/generate_graph.py batch [OPTIONS]
 ```
 
-**`validate`** — Runs topology-class validation across the generated datasets, checking that each scenario falls into the correct expected class (fan-out dominated, dense pubsub, anti-pattern / SPOF, or sparse). The implementation lives in `bin/common/dataset_validation.py`.
+**`validate`** — Runs topology-class validation across the generated datasets, checking that each scenario falls into the correct expected class (fan-out dominated, dense pubsub, anti-pattern / SPOF, or sparse). The implementation lives in `cli/common/dataset_validation.py`.
 
 ```bash
-python bin/generate_graph.py validate [OPTIONS]
+PYTHONPATH=. python cli/generate_graph.py validate [OPTIONS]
 ```
 
 ---
 
 ## 6. The `generate_graph.py batch` Subcommand
 
-Invoked as `python bin/generate_graph.py batch`. Generates all scenario datasets in a single invocation, with optional multi-seed variants and legacy dataset refresh. Intended to be run once before a full validation or benchmarking session. The implementation lives in `bin/common/batch_generation.py`.
+Invoked as `PYTHONPATH=. python cli/generate_graph.py batch`. Generates all scenario datasets in a single invocation, with optional multi-seed variants and legacy dataset refresh. Intended to be run once before a full validation or benchmarking session. The implementation lives in `cli/common/batch_generation.py`.
 
 ### 6.1 Arguments reference
 
@@ -244,23 +244,23 @@ Invoked as `python bin/generate_graph.py batch`. Generates all scenario datasets
 
 ```bash
 # Generate all 9 scenario datasets (skips existing by default)
-python bin/generate_graph.py batch
+PYTHONPATH=. python cli/generate_graph.py batch
 
 # Full preparation run before a validation session
-python bin/generate_graph.py batch --multi-seed --refresh-legacy
+PYTHONPATH=. python cli/generate_graph.py batch --multi-seed --refresh-legacy
 
 # Preview the plan without writing anything
-python bin/generate_graph.py batch --multi-seed --refresh-legacy --dry-run
+PYTHONPATH=. python cli/generate_graph.py batch --multi-seed --refresh-legacy --dry-run
 
 # Regenerate only the financial and healthcare scenarios
-python bin/generate_graph.py batch --scenario scenario_03 --force
-python bin/generate_graph.py batch --scenario scenario_04 --force
+PYTHONPATH=. python cli/generate_graph.py batch --scenario scenario_03 --force
+PYTHONPATH=. python cli/generate_graph.py batch --scenario scenario_04 --force
 
 # Generate all scenarios with verbose topology output
-python bin/generate_graph.py batch --verbose
+PYTHONPATH=. python cli/generate_graph.py batch --verbose
 
 # Custom seeds for multi-seed stability sweep
-python bin/generate_graph.py batch --multi-seed --seeds 42,100,200,300,400
+PYTHONPATH=. python cli/generate_graph.py batch --multi-seed --seeds 42,100,200,300,400
 ```
 
 ### 6.3 Output layout and manifest
@@ -295,7 +295,7 @@ The manifest JSON records the following fields for each dataset: `scenario_name`
 
 ## 7. Scenario Configuration Files
 
-Located in `data/scenario_*.yaml`. Each file is a self-contained specification for one validation scenario. The file is passed directly to `bin/generate_graph.py --config`.
+Located in `data/scenario_*.yaml`. Each file is a self-contained specification for one validation scenario. The file is passed directly to `cli/generate_graph.py --config`.
 
 ### 7.1 Scenario catalogue
 
@@ -649,7 +649,7 @@ This view provides a flattened, derived representation of the graph optimized fo
 
 ## 12. Known Limitations and Open Issues
 
-*Document last updated: April 2026. Maintained alongside `tools/generation/` and `bin/generate_graph.py`.*
+*Document last updated: April 2026. Maintained alongside `tools/generation/` and `cli/generate_graph.py`.*
 
 | # | Area | Description | Status |
 |---|------|-------------|--------|

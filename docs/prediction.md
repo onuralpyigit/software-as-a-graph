@@ -93,7 +93,7 @@ Both paths classify components into the same five levels and are validated again
 **Recommended workflow:**
 1. Run the **Analyze** stage — immediate results, no training required, full interpretability.
 2. Run the **Simulate** stage to generate I(v) ground truth (and GNN training labels).
-3. Train the GNN on the labelled graph (`bin/train_graph.py`).
+3. Train the GNN on the labelled graph (`cli/train_graph.py`).
 4. Run the **Predict** stage for three-way ablation: compare ρ(Q_RMAV, I*), ρ(Q_GNN, I*), ρ(Q_ens, I*) using `--mode rmav|gnn|ensemble`.
 5. Switch to Ensemble for production if Q_ens delivers predictive gain > 0.03 over RMAV alone.
 
@@ -516,7 +516,7 @@ Three cooperating modules:
            (E, 5)
 ```
 
-All three modules are implemented in `backend/src/prediction/` and managed by `GNNService`.
+All three modules are implemented in `saag/prediction/` and managed by `GNNService`.
 
 ---
 
@@ -835,66 +835,66 @@ All prediction is now managed through the unified `predict_graph.py` CLI.
 # ─── Standard prediction ──────────────────────────────────────────────────────
 
 # RMAV + anti-pattern scan on system layer (default)
-python bin/predict_graph.py
+PYTHONPATH=. python cli/predict_graph.py
 
 # Multi-layer
-python bin/predict_graph.py --layer app,system
+PYTHONPATH=. python cli/predict_graph.py --layer app,system
 
 # AHP-derived weights (recommended for thesis results)
-python bin/predict_graph.py --use-ahp
+PYTHONPATH=. python cli/predict_graph.py --use-ahp
 
 # Equal-weight baseline (ablation condition)
-python bin/predict_graph.py --equal-weights
+PYTHONPATH=. python cli/predict_graph.py --equal-weights
 
 # Custom AHP shrinkage factor
-python bin/predict_graph.py --use-ahp --ahp-shrinkage 0.8
+PYTHONPATH=. python cli/predict_graph.py --use-ahp --ahp-shrinkage 0.8
 
 # ─── GNN inference ────────────────────────────────────────────────────────────
 
 # First, train the GNN (requires Step 4 simulation results)
-python bin/train_graph.py --layer system
+PYTHONPATH=. python cli/train_graph.py --layer system
 
 # Multi-seed stability training
-python bin/train_graph.py --layer system --seeds 42 123 456 789 2024
+PYTHONPATH=. python cli/train_graph.py --layer system --seeds 42 123 456 789 2024
 
 # Multi-graph inductive training (all domain scenarios)
-python bin/train_graph.py --layer system --multi-scenario
+PYTHONPATH=. python cli/train_graph.py --layer system --multi-scenario
 
 # Ensemble prediction using a trained checkpoint
-python bin/predict_graph.py --gnn-model output/gnn_checkpoints/best_model
+PYTHONPATH=. python cli/predict_graph.py --gnn-model output/gnn_checkpoints/best_model
 
 # ─── Anti-pattern control ─────────────────────────────────────────────────────
 
 # CRITICAL and HIGH patterns only (strict CI gate)
-python bin/predict_graph.py --severity critical,high
+PYTHONPATH=. python cli/predict_graph.py --severity critical,high
 
 # Specific patterns only
-python bin/predict_graph.py --pattern SPOF,FAILURE_HUB,GOD_COMPONENT
+PYTHONPATH=. python cli/predict_graph.py --pattern SPOF,FAILURE_HUB,GOD_COMPONENT
 
 # Skip anti-pattern detection (prediction scores only)
-python bin/predict_graph.py --no-antipatterns
+PYTHONPATH=. python cli/predict_graph.py --no-antipatterns
 
 # Print full pattern catalog
-python bin/predict_graph.py --catalog
+PYTHONPATH=. python cli/predict_graph.py --catalog
 
 # ─── CI/CD integration ────────────────────────────────────────────────────────
 # Exit code 0 = clean, 1 = MEDIUM only, 2 = HIGH or CRITICAL → blocks deployment
 
-python bin/predict_graph.py \
+PYTHONPATH=. python cli/predict_graph.py \
     --layer system \
     --use-ahp \
     --severity critical,high \
     --output-antipatterns results/antipatterns.json
 
 # Pass antipattern report to visualize_graph.py
-python bin/visualize_graph.py \
+PYTHONPATH=. python cli/visualize_graph.py \
     --layers system \
     --antipatterns results/antipatterns.json \
     --output output/dashboard.html
 
 # ─── Full results export ──────────────────────────────────────────────────────
 
-python bin/predict_graph.py \
+PYTHONPATH=. python cli/predict_graph.py \
     --layer app,system \
     --use-ahp \
     --output results/prediction.json \

@@ -35,7 +35,7 @@ This document describes the technical design of the Software-as-a-Graph framewor
 
 The design covers the full pipeline: Import (graph model construction), Analyze (structural analysis + deterministic RMAV/Q scoring), Predict (optional inductive GNN forecasting), Simulate (failure simulation), Validate (statistical validation), and Visualize (interactive visualization). The system follows a **four-layer architecture** (Presentation, Web Application, Pipeline Components, Core) with dependency inversion at the repository boundary: the Core layer defines the `IGraphRepository` interface, and the Neo4j adapter implements it, keeping domain logic free of infrastructure dependencies.
 
-The system is delivered through two mechanisms — a **CLI pipeline** (`bin/`) and a **Genieus web application** (FastAPI backend + Next.js frontend) — both of which invoke the same underlying domain packages.
+The system is delivered through two mechanisms — a **CLI pipeline** (`cli/`) and a **Genieus web application** (FastAPI backend + Next.js frontend) — both of which invoke the same underlying domain packages.
 
 ### 1.3 References
 
@@ -51,7 +51,7 @@ The system is delivered through two mechanisms — a **CLI pipeline** (`bin/`) a
 
 ### 1.4 Document Conventions
 
-- Design elements are identified by their module path (e.g., `src.analysis.service.AnalysisService`) for unambiguous cross-reference with source code.
+- Design elements are identified by their module path (e.g., `saag.analysis.service.AnalysisService`) for unambiguous cross-reference with source code.
 - Pseudocode uses indented block notation; `→` means "produces" or "returns."
 - Complexity annotations use standard Big-O notation.
 - All mathematical symbols are defined at first use or in the Glossary (§1.5).
@@ -95,7 +95,7 @@ Section 2 describes the system context, design constraints, and guiding principl
 ### 1.7 Change History
 
 | 2.2 | February 2026 | Updated RMAV formulas to match implementation (§4.2, §5.2, §6, Appendix B); corrected architecture description to four-layer (§1.2, §3.1); fixed REST API endpoint paths to `/api/v1/` with correct HTTP methods (§8.2); added missing endpoints; added `benchmark/` to module decomposition (§3.2); added CDPot, CouplingRisk, QSPOF, AP_c_directed, CDI, REV, RCL algorithmic descriptions (§6.13–§6.18); corrected metric-to-dimension orthogonality table (§4.2); updated Appendix A layer IDs; updated Appendix B AHP matrices; extended Appendix D traceability for SRS v2.2 requirements |
-| 2.3 | March 2026 | Refactored backend API to use **Presenters** for decoupled response formatting (§3.1, §3.2); updated module decomposition to include `backend/api/presenters/`; enhanced dependency injection in `backend/api/dependencies.py`; updated quality formulas to v2.3 (5-term Maintainability, QoS-weighted SPOF, CDPot_enh) |
+| 2.3 | March 2026 | Refactored backend API to use **Presenters** for decoupled response formatting (§3.1, §3.2); updated module decomposition to include `api/presenters/`; enhanced dependency injection in `api/dependencies.py`; updated quality formulas to v2.3 (5-term Maintainability, QoS-weighted SPOF, CDPot_enh) |
 | 2.4 | April 2026 | Clarified pipeline stage semantics: **Analyze** (deterministic, closed-form RMAV/Q scoring + anti-patterns) and **Predict** (inductive GNN forecasting, optional) are now named distinct stages. Updated §1.2, §2.1, §2.3, §3.4, §4.2 to reflect Import → Analyze → Predict → Simulate → Validate → Visualize naming. Updated `saag.Pipeline`, `saag.Client`, `saag.AnalysisResult`, and `saag.PredictionResult` SDK contracts accordingly. |
 
 ---
@@ -114,7 +114,7 @@ The framework offers two usage modes: a **CLI pipeline** for batch analysis and 
                          CLI commands│      │Browser (HTTP)
                                     │      │
              ┌──────────────────────▼──┐  ┌▼───────────────────────┐
-             │   CLI Pipeline (bin/)   │  │  Genieus Web App        │
+             │   CLI Pipeline (cli/)   │  │  Genieus Web App        │
              │                        │  │                         │
              │  Import → Analyze →    │  │  Next.js Frontend       │
              │  Predict → Simulate →  │  │  (port 7000)            │
@@ -166,8 +166,8 @@ The system follows SOLID principles with emphasis on three key decisions:
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        PRESENTATION LAYER                           │
 │                                                                     │
-│  bin/run.py          bin/analyze_graph.py     bin/simulate_graph.py │
-│  bin/generate_graph.py  bin/validate_graph.py  bin/visualize_graph.py│
+│  cli/run.py          cli/analyze_graph.py     cli/simulate_graph.py │
+│  cli/generate_graph.py  cli/validate_graph.py  cli/visualize_graph.py│
 │                                                                     │
 │  External CLI entry points that parse arguments and invoke          │
 │  pipeline components.                                               │
@@ -175,7 +175,7 @@ The system follows SOLID principles with emphasis on three key decisions:
 │                    WEB APPLICATION LAYER (Genieus)                  │
 │                                                                     │
 │  smart/           (Next.js 16, port 7000)                           │
-│  backend/api/     (FastAPI, port 8000, /api/v1/ prefix)             │
+│  api/     (FastAPI, port 8000, /api/v1/ prefix)             │
 │                                                                     │
 │  REST API exposes the same pipeline operations as the CLI.          │
 │  Frontend calls API; API calls the same domain services as CLI.     │
@@ -184,20 +184,20 @@ The system follows SOLID principles with emphasis on three key decisions:
 ├─────────────────────────────────────────────────────────────────────┤
 │                        PIPELINE COMPONENTS                          │
 │                                                                     │
-│  src.analysis         src.simulation           src.validation       │
+│  saag.analysis         saag.simulation           saag.validation       │
 │  (Structural/Quality) (Event/Failure)          (Statistical)        │
 │                                                                     │
-│  src.visualization    tools.generation         tools.benchmark      │
+│  saag.visualization    tools.generation         tools.benchmark      │
 │  (Dashboard/Charts)   (Synthetic Graphs)       (Benchmarking)       │
 │                                                                     │
-│  bin/common                                                         │
+│  cli/common                                                         │
 │  (Shared CLI Utilities)                                             │
 │                                                                     │
 │  Feature-based packages implementing specific pipeline steps.       │
 ├─────────────────────────────────────────────────────────────────────┤
 │                           CORE LAYER                                │
 │                                                                     │
-│  src.core                                                           │
+│  saag.core                                                           │
 │                                                                     │
 │  - Domain Models (GraphData, ComponentData)                         │
 │  - Interface (IGraphRepository)                                     │
@@ -212,7 +212,7 @@ The system follows SOLID principles with emphasis on three key decisions:
 
 ```
 software-as-a-graph/
-├── bin/                              # Presentation Layer (CLI)
+├── cli/                              # Presentation Layer (CLI)
 │   ├── run.py                        #   Pipeline orchestrator
 │   ├── generate_graph.py             #   Synthetic data generation
 │   ├── import_graph.py               #   Neo4j import
@@ -233,7 +233,7 @@ software-as-a-graph/
 │   ├── components/                   #   React UI components
 │   └── package.json                  #   Node.js dependencies
 │
-├── backend/
+├── ./
 │   ├── api/                          # Web Application Layer — FastAPI
 │   │   ├── main.py                   #   FastAPI app, CORS, health endpoint
 │   │   ├── routers/                  #   REST endpoints (thin layer)
@@ -284,7 +284,7 @@ software-as-a-graph/
 └── tests/                            # Pytest unit & integration tests (24 files)
 ```
 
-> **Relationship between CLI and Web API:** The CLI scripts in `bin/` and the FastAPI routers in `backend/api/` both import from `backend/src/`. The domain logic is written once and exposed through two delivery mechanisms. Adding the FastAPI layer required no changes to the domain packages.
+> **Relationship between CLI and Web API:** The CLI scripts in `cli/` and the FastAPI routers in `api/` both import from `saag/`. The domain logic is written once and exposed through two delivery mechanisms. Adding the FastAPI layer required no changes to the domain packages.
 
 ### 3.3 Design Patterns
 
@@ -355,7 +355,7 @@ The full stack is containerized in a single multi-stage Docker image that starts
 │   │   port 7687 (Bolt)│  │  FastAPI (uvicorn, 2 workers)   │  │
 │   └─────────────────┘   │  port 8000                      │  │
 │                         │                                 │  │
-│   ┌─────────────────┐   │  CLI scripts (bin/)             │  │
+│   ┌─────────────────┐   │  CLI scripts (cli/)             │  │
 │   │   Next.js 16    │   └─────────────────────────────────┘  │
 │   │   port 7000     │                                        │
 │   └─────────────────┘                                        │
@@ -547,7 +547,7 @@ CLI: import_graph.py  (or FastAPI POST /api/v1/graph/import)
 ### 5.2 Analysis Pipeline
 
 ```
-src.analysis.service.AnalysisService.analyze_layer(layer)
+saag.analysis.service.AnalysisService.analyze_layer(layer)
   (also exposed as FastAPI POST /api/v1/analysis/layer/{layer})
          │
     1. Export G_analysis(layer) from Neo4j → NetworkX DiGraph
@@ -577,7 +577,7 @@ src.analysis.service.AnalysisService.analyze_layer(layer)
 ### 5.3 Simulation Pipeline
 
 ```
-src.simulation.service.SimulationService.run_failure_simulation(layer)
+saag.simulation.service.SimulationService.run_failure_simulation(layer)
   (also exposed as FastAPI POST /api/v1/simulation/failure)
          │
     1. Build SimulationGraph from G_structural (all raw relationships)
@@ -602,7 +602,7 @@ src.simulation.service.SimulationService.run_failure_simulation(layer)
 ### 5.4 Validation Pipeline
 
 ```
-src.validation.service.ValidationService.validate_layer(analysis_result, simulation_results)
+saag.validation.service.ValidationService.validate_layer(analysis_result, simulation_results)
   (also exposed as FastAPI POST /api/v1/validation/run-pipeline)
          │
     1. Extract Q(v) from QualityAnalysisResult
@@ -622,7 +622,7 @@ src.validation.service.ValidationService.validate_layer(analysis_result, simulat
 ### 5.5 Visualization Pipeline
 
 ```
-src.visualization.service.VisualizationService.generate_dashboard(layers, output_file)
+saag.visualization.service.VisualizationService.generate_dashboard(layers, output_file)
          │
     1. For each layer: collect analysis + simulation + validation data
     2. DashboardGenerator (Builder pattern):
@@ -670,7 +670,7 @@ The `AntiPatternDetector` (consolidated from the legacy `SmellDetector` and `Pro
 | **Arch.** | **Isolated** | Node with zero in-layer dependencies | MEDIUM |
 | **Maint.** | **Unstable Intf.** | `coupling_risk_enh_level >= HIGH` | MEDIUM |
 
-Each detected problem is returned as a `DetectedProblem` dataclass (defined in `src.prediction.models`):
+Each detected problem is returned as a `DetectedProblem` dataclass (defined in `saag.prediction.models`):
 
 ```python
 @dataclass
@@ -1205,12 +1205,12 @@ CREATE INDEX IF NOT EXISTS FOR ()-[d:DEPENDS_ON]-() ON (d.dependency_type);
 
 ### 8.1 CLI Interface
 
-**Pipeline orchestrator** (`bin/run.py`):
+**Pipeline orchestrator** (`cli/run.py`):
 
 ```
-python bin/run.py --all --layer system [--scale medium] [--open]
-python bin/run.py --generate --import --analyze --layer app
-python bin/run.py --all --layer system --verbose
+PYTHONPATH=. python cli/run.py --all --layer system [--scale medium] [--open]
+PYTHONPATH=. python cli/run.py --generate --import --analyze --layer app
+PYTHONPATH=. python cli/run.py --all --layer system --verbose
 ```
 
 **Individual step CLIs** — all share common flags:
@@ -1302,7 +1302,7 @@ The framework provides two distinct visualization surfaces. They share the same 
 
 ### 9.1 Static HTML Dashboard
 
-Generated by `bin/visualize_graph.py`. A single self-contained file (~1–3 MB) that requires no server — open directly in any browser. Uses vis.js for the network graph and Chart.js for charts.
+Generated by `cli/visualize_graph.py`. A single self-contained file (~1–3 MB) that requires no server — open directly in any browser. Uses vis.js for the network graph and Chart.js for charts.
 
 **Dashboard layout:**
 
@@ -1501,7 +1501,7 @@ criteria_overall = [
 | REQ-VL-07 | §6.12 NDCG@K |
 | REQ-VZ-01–08 | §5.5 Visualization Pipeline; §9.1 Static Dashboard |
 | REQ-CLI-01–04 | §8.1 CLI Interface |
-| REQ-CLI-05 | §8.1 CLI Interface (`--generate` flag via `bin/run.py`) |
+| REQ-CLI-05 | §8.1 CLI Interface (`--generate` flag via `cli/run.py`) |
 | REQ-CLI-06 | §8.1 CLI Interface (`--scale` flag) |
 | REQ-CLI-07 | §8.1 CLI Interface (`--verbose` / `--quiet` flags) |
 | REQ-CLI-08 | §8.1 CLI Interface (`--open` flag) |

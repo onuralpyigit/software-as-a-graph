@@ -365,7 +365,7 @@ cp backend/.env.example backend/.env
 # Edit backend/.env: set NEO4J_HOST, NEO4J_BOLT_PORT, NEO4J_USERNAME, NEO4J_PASSWORD
 
 # Run the full pipeline in one command
-python bin/run.py --all --layer system
+python cli/run.py --all --layer system
 ```
 
 ### Frontend (optional)
@@ -381,30 +381,30 @@ npm run generate-client
 
 ### Individual Pipeline Scripts
 
-Each step has its own CLI script in `bin/`. All scripts must be run from the repo root:
+Each step has its own CLI script in `cli/`. All scripts must be run from the repo root:
 
 ```bash
 # Step 1 — Import: generate synthetic topology & import into Neo4j
-python bin/generate_graph.py --scale medium --output data/system.json
-python bin/import_graph.py --input data/system.json --clear
+python cli/generate_graph.py --scale medium --output data/system.json
+python cli/import_graph.py --input data/system.json --clear
 
 # Step 2 — Analyze: structural metrics (13 topological indicators) + RMAV/Q scoring + anti-patterns
 #   Deterministic: given the same graph, always produces the same Q(v).
-python bin/analyze_graph.py --layer system --predict
+python cli/analyze_graph.py --layer system --predict
 
 # Step 3 — Predict (optional): inductive GNN forecasting beyond the closed-form RMAV
 #   Requires Step 4 simulation results for training labels first.
-python bin/train_graph.py --layer system                              # train GNN
-python bin/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model
+python cli/train_graph.py --layer system                              # train GNN
+python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model
 
 # Step 4 — Simulate: failure simulation (ground-truth I(v) + training labels for Step 3)
-python bin/simulate_graph.py fault-inject --input data/system.json --export-json
+python cli/simulate_graph.py fault-inject --input data/system.json --export-json
 
 # Step 5 — Validate: statistical validation (Spearman ρ, F1-score, per-RMAV metrics)
-python bin/validate_graph.py report --input data/system.json --qos
+python cli/validate_graph.py report --input data/system.json --qos
 
 # Step 6 — Visualize: interactive HTML dashboard (self-contained, no server needed)
-python bin/visualize_graph.py --layer system --output output/dashboard.html --open
+python cli/visualize_graph.py --layer system --output output/dashboard.html --open
 ```
 
 The `--layer` flag accepts `app`, `infra`, `mw`, or `system` (all layers combined). The `app` layer includes both Application and Library nodes — library blast-radius risk (a shared library used by N applications is a SPOF for all N) is visible at this layer.
@@ -413,28 +413,27 @@ Additional utility scripts:
 
 ```bash
 # Standalone anti-pattern detection (CI/CD gating)
-python bin/detect_antipatterns.py --layer system --output output/antipatterns.json
+python cli/detect_antipatterns.py --layer system --output output/antipatterns.json
 
 # Export graph data from Neo4j
-python bin/export_graph.py --output output/graph_export.json
+python cli/export_graph.py --output output/graph_export.json
 
 # Benchmark across all scale presets
-python bin/benchmark.py
+python cli/benchmark.py
 
 # Run the full pipeline across all 8 domain scenarios
-bash bin/run_scenarios.sh
+bash cli/run_scenarios.sh
 
 # Ground the SPOF threshold empirically across all 8 scenarios
-python bin/ground_threshold.py
+python cli/ground_threshold.py
 
 # Statistics dashboard (CLI): topology & communication pattern analytics
-python bin/statistics_graph.py --layer system
+python cli/statistics_graph.py --layer system
 ```
 
 ### Running Tests
 
 ```bash
-cd backend
 pytest                # All tests
 pytest -x             # Stop on first failure
 pytest tests/test_analysis_service.py   # Single file
@@ -532,7 +531,7 @@ Architecture JSON
 | **5. Validate** | Computes Spearman ρ and Kendall τ between Q*(v) (from Analyze) or Q_ens(v) (from Predict) and I*(v); evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
 | **6. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
 
-> **Note — Generate is not part of the SaG methodology.** The `--generate` CLI flag and `bin/generate_graph.py` script produce synthetic pub-sub topologies for evaluation and benchmarking purposes only. Real deployments start at Step 1 (Import) with an actual architecture description. Synthetic graphs are useful for reproducible experiments, scale sweeps, and CI regression tests, but they are not inputs the methodology assumes or requires. Reviewers asking "is this validated on real or synthetic data?" should note that the published Spearman and F1 results use eight domain-scenario topologies in `data/`, not generated data.
+> **Note — Generate is not part of the SaG methodology.** The `--generate` CLI flag and `cli/generate_graph.py` script produce synthetic pub-sub topologies for evaluation and benchmarking purposes only. Real deployments start at Step 1 (Import) with an actual architecture description. Synthetic graphs are useful for reproducible experiments, scale sweeps, and CI regression tests, but they are not inputs the methodology assumes or requires. Reviewers asking "is this validated on real or synthetic data?" should note that the published Spearman and F1 results use eight domain-scenario topologies in `data/`, not generated data.
 
 ### Scale Presets
 
@@ -652,17 +651,17 @@ Q_ensemble(v) = α · Q_GNN(v) + (1−α) · Q_RMAV(v)
 
 ```bash
 # Train or retrain the GNN on the current dataset (requires Step 4 simulation results)
-python bin/train_graph.py --layer system
+python cli/train_graph.py --layer system
 
 # Run GNN inference on a new graph (ensemble blends GNN with RMAV from Analyze stage)
-python bin/predict_graph.py --layer system --mode ensemble
+python cli/predict_graph.py --layer system --mode ensemble
 ```
 
 ---
 
 ## Anti-Pattern Detection
 
-After RMAV scoring, the `AntiPatternDetector` audits results and flags architectural smells across 10 categories. Run standalone via `bin/detect_antipatterns.py` or integrated in CI/CD pipelines (see `examples/example_antipatterns.py`).
+After RMAV scoring, the `AntiPatternDetector` audits results and flags architectural smells across 10 categories. Run standalone via `cli/detect_antipatterns.py` or integrated in CI/CD pipelines (see `examples/example_antipatterns.py`).
 
 | Anti-Pattern | Trigger Condition | Severity |
 |---|---|---|
@@ -730,7 +729,7 @@ result2 = (
 
 ```
 .
-├── bin/                        # CLI pipeline scripts
+├── cli/                        # CLI pipeline scripts
 │   ├── run.py                  #   Master pipeline orchestrator (--all flag)
 │   ├── generate_graph.py       #   Synthetic topology generator
 │   ├── import_graph.py         #   Step 1: Import — Neo4j import & dependency derivation
@@ -754,48 +753,31 @@ result2 = (
 │       ├── models.py           #     Scale presets & statistical config
 │       └── datasets.py         #     Domain-specific naming & QoS mappings
 │
-├── saag/                       # Public Python SDK (fluent pipeline API)
+├── saag/                       # Core Python SDK & Logic
+│   ├── core/                   #   Domain models, ports, Neo4j & memory repos
+│   ├── analysis/               #   Structural metrics + anti-pattern detection
+│   ├── prediction/             #   RMAV quality scoring + GNN service + ensemble blending
+│   ├── simulation/             #   Four parallel failure/event simulators
+│   ├── validation/             #   Per-dimension statistical validation
+│   ├── visualization/          #   Dashboard & chart generation
+│   ├── infrastructure/         #   Neo4j drivers & data persistence
 │   ├── pipeline.py             #   saag.Pipeline — fluent builder
 │   ├── client.py               #   saag.Client — service façade
 │   └── models.py               #   Result & data model types
 │
-├── backend/                    # Python backend (hexagonal architecture)
-│   ├── api/                    #   FastAPI application & routers
-│   │   ├── presenters/         #     Response formatting & API translation
-│   │   ├── routers/            #     REST endpoints (thin layer)
-│   │   └── dependencies.py     #     Service & Repository injection
-│   ├── src/                    #   Domain source code
-│   │   ├── core/               #     Domain models, ports, Neo4j & memory repos
-│   │   │   ├── layers.py       #       Canonical LAYER_DEFINITIONS & DEPENDENCY_TO_LAYER
-│   │   │   └── neo4j_repo.py   #       Graph import, 5-phase construction, 6 derivation rules
-│   │   ├── analysis/           #     Structural metrics + anti-pattern detection
-│   │   ├── prediction/         #     RMAV quality scoring + GNN service + ensemble blending
-│   │   ├── simulation/         #     Four parallel failure/event simulators
-│   │   ├── validation/         #     Per-dimension statistical validation
-│   │   ├── visualization/      #     Dashboard & chart generation
-│   │   ├── generation/         #     Synthetic graph generation
-│   │   └── benchmark/          #     Benchmarking services
-│   ├── tests/                  #   Pytest unit & integration tests
-│   └── requirements.txt        #   Python dependencies
+├── api/                        # FastAPI application (Hexagonal Architecture)
+│   ├── presenters/             #   Response formatting & API translation
+│   ├── routers/                #   REST endpoints (thin layer)
+│   └── dependencies.py         #   Service & Repository injection
 │
-├── examples/                   # Annotated Python usage examples (see examples/README.md)
-├── data/                      # Topology JSON & YAML scenario configs (8 scenarios)
-│   └── scenarios/              #   scenario_00_*.yaml … scenario_09_atm_system.yaml
-├── output/                     # Pipeline output artefacts (dashboards, reports)
+├── smart/                      # Web Frontend (Genieus - Next.js)
+├── tests/                      # Pytest unit & integration tests
+├── examples/                   # Annotated Python usage examples
+├── data/                       # Topology JSON & YAML scenario configs
+├── output/                     # Pipeline output artefacts
 ├── results/                    # Validation results from previous runs
+├── models/                     # Trained GNN model checkpoints
 └── docs/                       # Per-step methodology documentation
-    ├── graph-model.md          #   Step 1 (Import): Formal graph model & dependency derivation rules
-    ├── structural-analysis.md  #   Step 2 (Analyze): Structural metric catalogue and normalization
-    ├── prediction.md           #   Step 2–3 (Analyze+Predict): RMAV formulas, AHP, GNN architecture
-    ├── failure-simulation.md   #   Step 4 (Simulate): Fault injection & message flow simulation
-    ├── validation.md           #   Step 5 (Validate): Statistical battery & topology-class gate system
-    ├── visualization.md        #   Step 6 (Visualize): Dashboard & chart reference
-    ├── antipatterns.md         #   Anti-pattern catalogue & detection heuristics
-    ├── statistics.md           #   Statistics calculator module reference
-    ├── scenario.md             #   Domain scenario library
-    ├── SRS.md                  #   Software Requirements Specification
-    ├── SDD.md                  #   Software Design Description
-    └── STD.md                  #   Software Test Description
 ```
 
 ---

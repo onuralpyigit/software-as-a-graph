@@ -46,7 +46,7 @@ The framework implements a six-step methodology:
 | 5. Validation | Statistically compare Q(v) against I(v) | Spearman ρ, F1, etc. |
 | 6. Visualization | Generate interactive dashboards | HTML dashboard |
 
-The framework is delivered through two interfaces: a **CLI pipeline** (`bin/`) for batch analysis and scripting, and the **Genieus web application** (FastAPI backend + Next.js frontend) for interactive browser-based exploration.
+The framework is delivered through two interfaces: a **CLI pipeline** (`cli/`) for batch analysis and scripting, and the **Genieus web application** (FastAPI backend + Next.js frontend) for interactive browser-based exploration.
 
 ### 1.3 References
 
@@ -98,7 +98,7 @@ The framework is available as a Docker Compose stack (recommended for the full e
 | Topology Input | JSON, GraphML | System architecture import |
 | Results Export | JSON, CSV, GraphML | Analysis results for external tools |
 | Static Dashboard | HTML (vis.js, Chart.js) | Archivable interactive visualization artifact |
-| CLI | Python argparse (`bin/`) | Pipeline orchestration and scripting |
+| CLI | Python argparse (`cli/`) | Pipeline orchestration and scripting |
 | REST API | FastAPI (HTTP/JSON, port 8000) | Programmatic access to all pipeline steps |
 | Web Application | Next.js 16 frontend (port 7000) | Browser-based interactive exploration (Genieus) |
 

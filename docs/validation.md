@@ -80,7 +80,7 @@ A compound test is used because no single metric is sufficient:
 
 ## 2. Validation Pipeline Overview
 
-`bin/validate_graph.py` implements the full pipeline as a single self-contained CLI.  
+`cli/validate_graph.py` implements the full pipeline as a single self-contained CLI.  
 It loads a graph JSON, derives I(v) by running the `FaultInjector` for every node, computes Q(v) via
 the central `QualityAnalyzer`, then runs the statistical battery.
 
@@ -511,36 +511,36 @@ for CI gates guarding research claims.
 
 ```bash
 # ── Quick sanity check (topology-only, single seed) ──────────────────────────
-python bin/validate_graph.py single --input data/scenarios/atm_system.json
+PYTHONPATH=. python cli/validate_graph.py single --input data/scenarios/atm_system.json
 
 # ── QoS-enriched single run ───────────────────────────────────────────────────
-python bin/validate_graph.py single --input data/scenarios/atm_system.json --qos --verbose
+PYTHONPATH=. python cli/validate_graph.py single --input data/scenarios/atm_system.json --qos --verbose
 
 # ── Multi-seed stability sweep ────────────────────────────────────────────────
-python bin/validate_graph.py sweep --input data/scenarios/atm_system.json --qos
+PYTHONPATH=. python cli/validate_graph.py sweep --input data/scenarios/atm_system.json --qos
 
 # ── Full report with JSON output ──────────────────────────────────────────────
-python bin/validate_graph.py report \
+PYTHONPATH=. python cli/validate_graph.py report \
     --input data/scenarios/atm_system.json \
     --output output/atm_validation.json \
     --qos
 
 # ── Ablation study + LaTeX table ──────────────────────────────────────────────
-python bin/validate_graph.py compare \
+PYTHONPATH=. python cli/validate_graph.py compare \
     --input data/scenarios/atm_system.json \
     --output output/ablation.json \
     --seeds 42,123,456,789,2024 \
     --latex
 
 # ── Custom K, deeper cascade, finer CI ────────────────────────────────────────
-python bin/validate_graph.py report \
+PYTHONPATH=. python cli/validate_graph.py report \
     --input data/scenarios/atm_system.json \
     --top-k 10 --cascade 10 --bootstrap 5000 \
     --qos --output output/fine_report.json
 
 # ── CI-friendly exit codes ────────────────────────────────────────────────────
 # Exit 0 = PASS;  Exit 1 = FAIL
-python bin/validate_graph.py single --input data/scenarios/atm_system.json --qos \
+PYTHONPATH=. python cli/validate_graph.py single --input data/scenarios/atm_system.json --qos \
     && echo "Validation passed"
 ```
 
@@ -700,7 +700,7 @@ For research-grade LaTeX artifacts, run `compare --latex` to generate the ablati
 from the pipeline results:
 
 ```bash
-python bin/validate_graph.py compare \
+PYTHONPATH=. python cli/validate_graph.py compare \
     --input data/scenarios/atm_system.json \
     --seeds 42,123,456,789,2024 \
     --output output/ablation_final.json \

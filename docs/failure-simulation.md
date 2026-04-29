@@ -664,10 +664,10 @@ python analyze_graph.py \
     --export-json
 
 # Step 3: Compute Spearman ρ between Q(v) and I(v)
-# (handled by ValidateUseCase / bin/validate_topology_classes.py,
+# (handled by ValidateUseCase / cli/validate_topology_classes.py,
 #  which reads output/analysis/analysis_results.json and
 #  output/simulation/impact_scores.json)
-python bin/validate_topology_classes.py \
+PYTHONPATH=. python cli/validate_topology_classes.py \
     --analysis output/analysis/analysis_results.json \
     --impact   output/simulation/impact_scores.json
 ```
@@ -766,7 +766,7 @@ Both simulators can be used as Python libraries without going through the CLI.
 ### FaultInjector
 
 ```python
-from src.simulation.fault_injector import FaultInjector
+from saag.simulation.fault_injector import FaultInjector
 import networkx as nx
 
 # graph: NetworkX DiGraph with PUBLISHES_TO, SUBSCRIBES_TO, ROUTES edges
@@ -799,7 +799,7 @@ for row in result.top_k_by_impact:
 ### MessageFlowSimulator
 
 ```python
-from src.simulation.message_flow_simulator import MessageFlowSimulator
+from saag.simulation.message_flow_simulator import MessageFlowSimulator
 
 sim = MessageFlowSimulator(
     graph=graph,

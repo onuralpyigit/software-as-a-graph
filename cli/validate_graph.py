@@ -78,6 +78,15 @@ import networkx as nx
 import numpy as np
 from scipy import stats
 
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (int, float, bool)): return obj
+        import numpy as np
+        if isinstance(obj, np.integer): return int(obj)
+        if isinstance(obj, np.floating): return float(obj)
+        if isinstance(obj, np.bool_): return bool(obj)
+        return super(NpEncoder, self).default(obj)
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # DATA STRUCTURES
@@ -1082,7 +1091,7 @@ def main():
 
         if args.output:
             report = {"validation": asdict(vr), "topology_class": topo_class}
-            Path(args.output).write_text(json.dumps(report, indent=2))
+            Path(args.output).write_text(json.dumps(report, indent=2, cls=NpEncoder))
             print(f"JSON report written to: {args.output}")
 
         sys.exit(0 if vr.overall_pass else 1)
@@ -1096,7 +1105,7 @@ def main():
         print_sweep_report(sr, use_color)
 
         if args.output:
-            Path(args.output).write_text(json.dumps(asdict(sr), indent=2))
+            Path(args.output).write_text(json.dumps(asdict(sr), indent=2, cls=NpEncoder))
             print(f"JSON report written to: {args.output}")
 
         sys.exit(0 if sr.all_gates_pass_rate == 1.0 else 1)
@@ -1117,7 +1126,7 @@ def main():
                 "topology_class": topo_class,
                 "gate_thresholds": GATE_THRESHOLDS.get(topo_class),
             }
-            Path(args.output).write_text(json.dumps(out, indent=2))
+            Path(args.output).write_text(json.dumps(out, indent=2, cls=NpEncoder))
             print(f"\nFull report written to: {args.output}")
 
         sys.exit(0 if sr.all_gates_pass_rate == 1.0 else 1)
@@ -1131,21 +1140,7 @@ def main():
         print_ablation_report(ar, use_color)
 
         if args.output:
-            def _jsonify(obj):
-                if isinstance(obj, dict):
-                    return {k: _jsonify(v) for k, v in obj.items()}
-                if isinstance(obj, list):
-                    return [_jsonify(v) for v in obj]
-                if isinstance(obj, bool):
-                    return bool(obj)   # bool is a subclass of int; keep explicit
-                if isinstance(obj, (np.bool_,)):
-                    return bool(obj)
-                if isinstance(obj, (np.integer,)):
-                    return int(obj)
-                if isinstance(obj, (np.floating,)):
-                    return float(obj)
-                return obj
-            Path(args.output).write_text(json.dumps(_jsonify(asdict(ar)), indent=2))
+            Path(args.output).write_text(json.dumps(asdict(ar), indent=2, cls=NpEncoder))
             print(f"Ablation JSON written to: {args.output}")
 
         if args.latex:

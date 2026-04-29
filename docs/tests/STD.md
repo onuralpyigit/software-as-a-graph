@@ -45,7 +45,7 @@ Testing spans six levels, each targeting a different concern:
 | Validation | Predictions statistically match simulation ground truth | [§8](#8-validation-tests) |
 | Acceptance | All user-facing requirements are satisfied | [§9](#9-acceptance-criteria) |
 
-Coverage spans both delivery mechanisms: the **CLI pipeline** (`bin/`) and the **Genieus web application** (FastAPI backend + Next.js frontend).
+Coverage spans both delivery mechanisms: the **CLI pipeline** (`cli/`) and the **Genieus web application** (FastAPI backend + Next.js frontend).
 
 ### 1.3 References
 
@@ -597,18 +597,18 @@ def test_step_completion_logged(self, caplog, linear_graph):
 
 | Module | Unit Tests | Target Coverage |
 |--------|-----------|----------------|
-| `backend/src/core/models.py` | ~15 | 85% |
-| `backend/src/core/neo4j_repo.py` | ~10 (mocked) | 75% |
-| `backend/src/core/memory_repo.py` | ~8 | 80% |
-| `backend/src/analysis/structural_analyzer.py` | ~20 | 85% |
-| `backend/src/analysis/quality_analyzer.py` | ~20 | 85% |
-| `backend/src/simulation/failure_simulator.py` | ~15 | 80% |
-| `backend/src/validation/validator.py` | ~12 | 82% |
-| `backend/src/visualization/dashboard.py` | ~8 | 75% |
+| `saag/core/models.py` | ~15 | 85% |
+| `saag/core/neo4j_repo.py` | ~10 (mocked) | 75% |
+| `saag/core/memory_repo.py` | ~8 | 80% |
+| `saag/analysis/structural_analyzer.py` | ~20 | 85% |
+| `saag/analysis/quality_analyzer.py` | ~20 | 85% |
+| `saag/simulation/failure_simulator.py` | ~15 | 80% |
+| `saag/validation/validator.py` | ~12 | 82% |
+| `saag/visualization/dashboard.py` | ~8 | 75% |
 | `tools/benchmark/service.py` | ~5 | 70% |
 | **Total** | **~118** | **≥ 80%** |
 
-> **Note on path prefix:** Most modules are in `backend/src/`, while dev utilities are in `tools/`. Both packages are importable if the project root and `backend/` are in the Python path.
+> **Note on path prefix:** Most modules are in `saag/`, while dev utilities are in `tools/`. Both packages are importable if the project root and `./` are in the Python path.
 
 ---
 
@@ -765,18 +765,18 @@ System tests exercise the complete pipeline through CLI tools and the Docker sta
 **Procedure (small scale):**
 
 ```bash
-python bin/generate_graph.py --scale small --output /tmp/test_data.json
-python bin/import_graph.py --input /tmp/test_data.json --clear
-python bin/analyze_graph.py --layer system --use-ahp --output /tmp/analysis.json
-python bin/simulate_graph.py failure --layer system --exhaustive --output /tmp/simulation.json
-python bin/validate_graph.py --layer system --output /tmp/validation.json
-python bin/visualize_graph.py --layer system --output /tmp/dashboard.html
+PYTHONPATH=. python cli/generate_graph.py --scale small --output /tmp/test_data.json
+PYTHONPATH=. python cli/import_graph.py --input /tmp/test_data.json --clear
+PYTHONPATH=. python cli/analyze_graph.py --layer system --use-ahp --output /tmp/analysis.json
+PYTHONPATH=. python cli/simulate_graph.py failure --layer system --exhaustive --output /tmp/simulation.json
+PYTHONPATH=. python cli/validate_graph.py --layer system --output /tmp/validation.json
+PYTHONPATH=. python cli/visualize_graph.py --layer system --output /tmp/dashboard.html
 ```
 
 Or as a single command:
 
 ```bash
-python bin/run.py --all --layer system --scale small
+PYTHONPATH=. python cli/run.py --all --layer system --scale small
 ```
 
 ### 6.2 CLI Command Tests
@@ -785,18 +785,18 @@ Each CLI tool is tested independently with its most common options.
 
 | Test ID | Command | Pass Criteria |
 |---------|---------|---------------|
-| ST-CLI-01 | `bin/import_graph.py --input <json>` | Exit 0; entities present in Neo4j |
-| ST-CLI-02 | `bin/import_graph.py --input <json>` (JSON format) | Correct DEPENDS\_ON edges derived |
-| ST-CLI-03 | `bin/import_graph.py --input <graphml>` | Equivalent topology as JSON import |
-| ST-CLI-04 | `bin/analyze_graph.py --layer app` | Non-empty JSON output; RMAV scores present |
-| ST-CLI-05 | `bin/simulate_graph.py failure --exhaustive` | One I(v) per component; sorted by impact |
-| ST-CLI-06 | `bin/validate_graph.py --layer app` | JSON with Spearman ρ, F1, pass/fail flag |
-| ST-CLI-07 | `bin/visualize_graph.py --layer system` | Valid HTML file; vis.js network included |
-| ST-CLI-08 | `bin/generate_graph.py --scale medium --seed 42` | Deterministic output; same topology on re-run |
-| ST-CLI-09 | `bin/run.py --all --layer system --open` | Full pipeline; browser launch attempted (mocked) |
-| ST-CLI-10 | `bin/run.py --all --layer system --verbose` | DEBUG log entries visible; timing logged per step |
-| ST-CLI-11 | `bin/run.py --generate --layer system --scale large` | Topology generated at large scale; import succeeds |
-| ST-CLI-12 | `bin/benchmark.py --scales small,medium --runs 3` | JSON benchmark output; timing within budget |
+| ST-CLI-01 | `cli/import_graph.py --input <json>` | Exit 0; entities present in Neo4j |
+| ST-CLI-02 | `cli/import_graph.py --input <json>` (JSON format) | Correct DEPENDS\_ON edges derived |
+| ST-CLI-03 | `cli/import_graph.py --input <graphml>` | Equivalent topology as JSON import |
+| ST-CLI-04 | `cli/analyze_graph.py --layer app` | Non-empty JSON output; RMAV scores present |
+| ST-CLI-05 | `cli/simulate_graph.py failure --exhaustive` | One I(v) per component; sorted by impact |
+| ST-CLI-06 | `cli/validate_graph.py --layer app` | JSON with Spearman ρ, F1, pass/fail flag |
+| ST-CLI-07 | `cli/visualize_graph.py --layer system` | Valid HTML file; vis.js network included |
+| ST-CLI-08 | `cli/generate_graph.py --scale medium --seed 42` | Deterministic output; same topology on re-run |
+| ST-CLI-09 | `cli/run.py --all --layer system --open` | Full pipeline; browser launch attempted (mocked) |
+| ST-CLI-10 | `cli/run.py --all --layer system --verbose` | DEBUG log entries visible; timing logged per step |
+| ST-CLI-11 | `cli/run.py --generate --layer system --scale large` | Topology generated at large scale; import succeeds |
+| ST-CLI-12 | `cli/benchmark.py --scales small,medium --runs 3` | JSON benchmark output; timing within budget |
 
 > **ST-CLI-10 and ST-CLI-11** cover REQ-CLI-07 (`--verbose`) and REQ-CLI-05 (`--generate`) + REQ-CLI-06 (`--scale`) from SRS v2.2.
 
@@ -843,7 +843,7 @@ All timing targets apply to the **application layer** on the designated scale, s
 
 ```bash
 # Run the full benchmark suite across all scales
-python bin/benchmark.py \
+PYTHONPATH=. python cli/benchmark.py \
     --scales tiny,small,medium,large,xlarge \
     --layers app,system \
     --runs 3 \
@@ -851,7 +851,7 @@ python bin/benchmark.py \
     --output benchmarks/benchmark_$(date +%Y%m%d).json
 
 # Verify timing targets
-python bin/benchmark.py --check-targets --results benchmarks/benchmark_latest.json
+PYTHONPATH=. python cli/benchmark.py --check-targets --results benchmarks/benchmark_latest.json
 ```
 
 The benchmark outputs a JSON file with `mean`, `std`, `min`, and `max` timing for each scale/layer combination across the specified number of runs.
@@ -929,18 +929,18 @@ Scale-specific targets are set below the aggregate primary targets to account fo
 
 ```bash
 # Deterministic validation with fixed seed
-python bin/generate_graph.py --scale medium --seed 42 --output test_data.json
-python bin/import_graph.py --input test_data.json --clear
-python bin/analyze_graph.py --layer app --use-ahp --output analysis.json
-python bin/simulate_graph.py failure --layer app --exhaustive --output simulation.json
-python bin/validate_graph.py --layer app --output validation_result.json
+PYTHONPATH=. python cli/generate_graph.py --scale medium --seed 42 --output test_data.json
+PYTHONPATH=. python cli/import_graph.py --input test_data.json --clear
+PYTHONPATH=. python cli/analyze_graph.py --layer app --use-ahp --output analysis.json
+PYTHONPATH=. python cli/simulate_graph.py failure --layer app --exhaustive --output simulation.json
+PYTHONPATH=. python cli/validate_graph.py --layer app --output validation_result.json
 
 # Inspect pass/fail
 cat validation_result.json | jq '.overall.passed'
 # Expected: true
 
 # Run full validation matrix across all scales and layers
-python bin/benchmark.py --scales small,medium,large \
+PYTHONPATH=. python cli/benchmark.py --scales small,medium,large \
     --layers app,infra,system --runs 1 --seed 42 \
     --output results/validation_matrix
 ```
@@ -1192,8 +1192,8 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
       - run: pip install flake8 mypy
-      - run: flake8 backend/src/ bin/ --max-line-length=100
-      - run: mypy backend/src/ --ignore-missing-imports
+      - run: flake8 saag/ cli/ --max-line-length=100
+      - run: mypy saag/ --ignore-missing-imports
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -1205,7 +1205,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '${{ matrix.python-version }}' }
-      - run: pip install -r backend/requirements.txt -r backend/requirements-test.txt
+      - run: pip install -r ./requirements.txt -r ./requirements-test.txt
       - run: cd backend && pytest tests/ -m "not integration and not api" --cov=src --cov-report=xml
       - uses: codecov/codecov-action@v4
 
@@ -1223,7 +1223,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-      - run: pip install -r backend/requirements.txt -r backend/requirements-test.txt
+      - run: pip install -r ./requirements.txt -r ./requirements-test.txt
       - run: cd backend && pytest tests/ -m integration -v
         env:
           NEO4J_URI: bolt://localhost:7688
@@ -1244,8 +1244,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-      - run: pip install -r backend/requirements.txt
-      - run: python bin/benchmark.py --scales small,medium --runs 3 --seed 42
+      - run: pip install -r ./requirements.txt
+      - run: PYTHONPATH=. python cli/benchmark.py --scales small,medium --runs 3 --seed 42
         env:
           NEO4J_URI: bolt://localhost:7688
           NEO4J_PASSWORD: testpassword

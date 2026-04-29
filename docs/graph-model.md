@@ -586,12 +586,12 @@ The dominant cost is Phase 4 `app_to_app` derivation. In practice, topic fan-out
 
 ## CLI Reference: Importing Graph Data
 
-`bin/import_graph.py` reads a topology JSON file and runs all five construction phases against a Neo4j instance.
+`cli/import_graph.py` reads a topology JSON file and runs all five construction phases against a Neo4j instance.
 
 ### Synopsis
 
 ```
-python bin/import_graph.py --input <file> [options]
+PYTHONPATH=. python cli/import_graph.py --input <file> [options]
 ```
 
 ### Arguments
@@ -612,7 +612,7 @@ python bin/import_graph.py --input <file> [options]
 ### Call Chain
 
 ```
-bin/import_graph.py
+cli/import_graph.py
   └─ saag.Client.import_topology(filepath, clear)
        └─ src.usecases.model_graph.ModelGraphUseCase.execute()
             └─ Neo4jRepository.save_graph()
@@ -627,16 +627,16 @@ bin/import_graph.py
 
 ```bash
 # Basic import (appends to existing database)
-python bin/import_graph.py \
+PYTHONPATH=. python cli/import_graph.py \
   --input data/system.json
 
 # Import with database wipe (recommended for fresh runs)
-python bin/import_graph.py \
+PYTHONPATH=. python cli/import_graph.py \
   --input data/system.json \
   --clear
 
 # Import against a non-default Neo4j instance
-python bin/import_graph.py \
+PYTHONPATH=. python cli/import_graph.py \
   --input data/sample_topology.json \
   --clear \
   --uri bolt://neo4j-host:7687 \
@@ -645,7 +645,7 @@ python bin/import_graph.py \
   --verbose
 
 # Save import statistics to a file for CI verification
-python bin/import_graph.py \
+PYTHONPATH=. python cli/import_graph.py \
   --input data/system.json \
   --clear \
   --output output/import_stats.json
@@ -690,12 +690,12 @@ On success, the console prints an import summary. The returned statistics dict (
 
 ## CLI Reference: Exporting Graph Data
 
-`bin/export_graph.py` reads the current Neo4j database and writes a topology JSON file that mirrors the input format, suitable for archiving, sharing, or re-importing into a fresh database.
+`cli/export_graph.py` reads the current Neo4j database and writes a topology JSON file that mirrors the input format, suitable for archiving, sharing, or re-importing into a fresh database.
 
 ### Synopsis
 
 ```
-python bin/export_graph.py --output <file> [options]
+PYTHONPATH=. python cli/export_graph.py --output <file> [options]
 ```
 
 ### Arguments
@@ -716,7 +716,7 @@ python bin/export_graph.py --output <file> [options]
 
 **Persistence format** (`--format persistence`, default):
 ```
-bin/export_graph.py
+cli/export_graph.py
   └─ saag.Client.export_topology()
        └─ Neo4jRepository.export_json()
             └─ get_graph_data(include_raw=True) + _get_metadata_dict()
@@ -726,7 +726,7 @@ bin/export_graph.py
 
 **Analysis format** (`--format analysis`):
 ```
-bin/export_graph.py
+cli/export_graph.py
   └─ saag.Client.get_graph_data(component_types, dependency_types, include_raw)
        └─ Neo4jRepository.get_graph_data()
             └─ GraphData.to_dict() → json.dump()
@@ -738,24 +738,24 @@ The layer filter (`--layer`) is applied to the analysis format only, scoping `co
 
 ```bash
 # Export full topology — nested persistence format (re-importable)
-python bin/export_graph.py \
+PYTHONPATH=. python cli/export_graph.py \
   --output output/snapshot.json
 
 # Export application-layer view — flat analysis format
-python bin/export_graph.py \
+PYTHONPATH=. python cli/export_graph.py \
   --output output/app_layer.json \
   --format analysis \
   --layer app
 
 # Export system analysis view including raw structural edges
-python bin/export_graph.py \
+PYTHONPATH=. python cli/export_graph.py \
   --output output/system_full.json \
   --format analysis \
   --layer system \
   --include-structural
 
 # Export from a remote Neo4j instance
-python bin/export_graph.py \
+PYTHONPATH=. python cli/export_graph.py \
   --output output/sample_snapshot.json \
   --uri bolt://neo4j-host:7687 \
   --user admin \
@@ -816,13 +816,13 @@ To verify roundtrip integrity for a given topology, run:
 
 ```bash
 # Import original
-python bin/import_graph.py --input data/system.json --clear
+PYTHONPATH=. python cli/import_graph.py --input data/system.json --clear
 
 # Export persistence snapshot
-python bin/export_graph.py --output output/snapshot.json
+PYTHONPATH=. python cli/export_graph.py --output output/snapshot.json
 
 # Re-import snapshot
-python bin/import_graph.py --input output/snapshot.json --clear
+PYTHONPATH=. python cli/import_graph.py --input output/snapshot.json --clear
 
 # Verify: node and edge counts, per-label counts, and topic weights
 # should all match between the original and re-import runs.

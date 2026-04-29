@@ -140,6 +140,7 @@ test_outputs/
 # Ignore output directories
 output/
 results/
+models/
 
 # Genieus (Next.js frontend)
 genieus/node_modules/

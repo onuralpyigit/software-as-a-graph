@@ -2,7 +2,7 @@
 # Test Suite for Graph-Based Criticality Prediction Methodology
 
 Each YAML file in this directory is a `--config` argument for
-`bin/generate_graph.py` and targets a distinct topological and
+`cli/generate_graph.py` and targets a distinct topological and
 domain scenario for validating the six-step methodology.
 
 ---
@@ -39,18 +39,18 @@ domain scenario for validating the six-step methodology.
 
 ```bash
 # Generate a single scenario
-python bin/generate_graph.py \
+PYTHONPATH=. python cli/generate_graph.py \
   --config data/scenario_01_autonomous_vehicle.yaml \
   --output output/av_system.json
 
 # Run the full pipeline on a generated dataset
-python bin/run.py --all --input output/av_system.json
+PYTHONPATH=. python cli/run.py --all --input output/av_system.json
 
 # Run all scenarios in sequence (bash)
 for cfg in data/scenario_*.yaml; do
   name=$(basename "$cfg" .yaml)
-  python bin/generate_graph.py --config "$cfg" --output "output/${name}.json"
-  python bin/run.py --all --input "output/${name}.json" --output-dir "output/${name}_results"
+  PYTHONPATH=. python cli/generate_graph.py --config "$cfg" --output "output/${name}.json"
+  PYTHONPATH=. python cli/run.py --all --input "output/${name}.json" --output-dir "output/${name}_results"
 done
 ```
 

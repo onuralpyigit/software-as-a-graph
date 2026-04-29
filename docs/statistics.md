@@ -2,7 +2,7 @@
 
 Comprises two distinct layers for analyzing system topology and communication patterns:
 1. **Visualization Statistics** (`api.statistics`): Operates on JSON exports to feed "Extras" charts.
-2. **Core Structural Statistics** (`src.analysis.statistics`): Operates on `GraphData` in the hexagonal core for topological analysis.
+2. **Core Structural Statistics** (`saag.analysis.statistics`): Operates on `GraphData` in the hexagonal core for topological analysis.
 
 ---
 
@@ -10,7 +10,7 @@ Comprises two distinct layers for analyzing system topology and communication pa
 
 ```python
 import json
-from backend.api.statistics import extract_cross_cutting_data, compute_all_extras_statistics
+from api.statistics import extract_cross_cutting_data, compute_all_extras_statistics
 
 with open("dataset.json") as f:
     data = json.load(f)
@@ -23,8 +23,8 @@ stats = compute_all_extras_statistics(cc)
 
 | Module | Scope | Input | Typical Use Case |
 |---|---|---|---|
-| `backend/api/statistics.py` | Visualization | Raw JSON (`dataset.json`) | Populating scatter plots, heatmaps, and distribution charts in the dashboard. |
-| `backend/src/analysis/statistics.py` | Core Analysis | `GraphData` (Domain Models) | Identifying architectural smells, SPOFs, and computing graph-theoretic metrics. |
+| `api/statistics.py` | Visualization | Raw JSON (`dataset.json`) | Populating scatter plots, heatmaps, and distribution charts in the dashboard. |
+| `saag/analysis/statistics.py` | Core Analysis | `GraphData` (Domain Models) | Identifying architectural smells, SPOFs, and computing graph-theoretic metrics. |
 
 > [!WARNING]
 > Do not mix the outputs or import paths of these two modules. The API layer relies on `dataset.json` extracts and outputs JSON-safe dictionaries, while the Core Analysis layer operates directly on live `GraphData` objects within the hexagonal architecture.
@@ -74,7 +74,7 @@ The metrics computed by the API layer provide actionable insights into the syste
 
 ## 2. Core Structural Statistics (Analysis Layer)
 
-Accessed via `src.analysis.statistics_service.StatisticsService` which delegates to functions inside `backend/src/analysis/statistics.py`. These metrics operate on the live graph structure.
+Accessed via `saag.analysis.statistics_service.StatisticsService` which delegates to functions inside `saag/analysis/statistics.py`. These metrics operate on the live graph structure.
 
 ### Topological Metrics
 
@@ -112,16 +112,16 @@ All endpoints return a `{"success": bool, "stats": {...}, "computation_time_ms":
 
 ## 4. CLI Usage
 
-The `bin/statistics_graph.py` script provides a command-line interface for both live and file-based analysis.
+The `cli/statistics_graph.py` script provides a command-line interface for both live and file-based analysis.
 
 ### Examples
 
 | Usage | Command |
 |---|---|
-| **Live Analysis** | `python bin/statistics_graph.py` |
-| **File Analysis** | `python bin/statistics_graph.py --input output/dataset.json` |
-| **Filtered Charts** | `python bin/statistics_graph.py --chart topic_fanout qos_risk` |
-| **JSON Export** | `python bin/statistics_graph.py --format json --output stats.json` |
+| **Live Analysis** | `PYTHONPATH=. python cli/statistics_graph.py` |
+| **File Analysis** | `PYTHONPATH=. python cli/statistics_graph.py --input output/dataset.json` |
+| **Filtered Charts** | `PYTHONPATH=. python cli/statistics_graph.py --chart topic_fanout qos_risk` |
+| **JSON Export** | `PYTHONPATH=. python cli/statistics_graph.py --format json --output stats.json` |
 
 ### Key Flags
 - `--chart`: Select specific chart IDs (e.g., `topic_bandwidth`, `qos_risk`).
