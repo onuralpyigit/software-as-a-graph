@@ -8,57 +8,57 @@ Published at IEEE RASSE 2025.
 
 ## Architecture
 
-The project is a full-stack application with four main components:
+The project is a full-stack framework with five top-level components:
 
-### Python SDK (`saag/`)
-- **Name:** saag (Software-as-a-Graph SDK)
-- **Purpose:** Public fluent API for programmatic pipeline execution and integration.
-- **Key classes:** `Pipeline` (fluent builder), `Client` (service façade), `AnalysisResult`, `PredictionResult`, `ValidationResult`.
-- **Logic:** Injected into `sys.path` automatically via `saag/__init__.py`.
+### Core SDK (`saag/`)
+- **Purpose:** All domain logic, services, use cases, and infrastructure adapters. Entry points for programmatic use.
+- **Key classes:** `Pipeline` (fluent builder), `Client` (step-by-step service façade), `AnalysisResult`, `PredictionResult`, `ValidationResult`.
+- **Internal packages:** `core/` (domain models, ports), `analysis/`, `prediction/`, `simulation/`, `validation/`, `visualization/`, `explanation/`, `usecases/`, `infrastructure/`.
+- **Repository pattern:** `saag/infrastructure/neo4j_repo.py` (production) and `saag/infrastructure/memory_repo.py` (testing) both implement `IGraphRepository`.
 
-### Backend (`backend/`)
-- **Language:** Python 3.9+
-- **API:** FastAPI (`backend/api/main.py`) with routers for health, graph, analysis, components, statistics, simulation, classification, and validation; **presenters** (`backend/api/presenters/`) for decoupled response formatting.
-- **Source code:** `backend/src/` — modular packages:
-  - `analysis/` — structural analyzer, quality analyzer, weight calculator (AHP), classifier, statistics service, anti-pattern (smell) detector
-  - `prediction/` — domain models (`models.py`), RMAV scoring, GNN service, ensemble blending, data preparation
-  - `validation/` — validation logic, validator, metric calculator, models
-  - `visualization/` — dashboard and visualization services
-  - `generation/` — graph generation logic
-  - `benchmark/` — benchmarking services
-  - `cli/` — CLI utilities
-- **Database:** Neo4j 5.x (accessed via `neo4j` Python driver)
-- **Dependencies:** `backend/requirements.txt` — `neo4j`, `networkx`, `fastapi`, `uvicorn`, `pydantic`, `matplotlib`, `numpy`, `scipy`
+### REST API (`api/`)
+- **Language:** Python 3.9+, FastAPI on port 8000.
+- **Routers:** `api/routers/` — health, graph, analysis, prediction, components, statistics, simulation, classification, validation, traffic.
+- **Presenters:** `api/presenters/` — decoupled response formatting (analysis, graph, simulation, statistics).
+- **Dependency injection:** `api/dependencies.py` — `get_repository`, `get_client`, `get_pipeline`, `get_prediction_service`, `get_generation_service`.
+- **OpenAPI schema:** served at `/docs`; static copy at `api/openapi.json`.
 
-### Frontend (`smart/`)
+### Web Application (`smart/`)
 - **Name:** Genieus
 - **Framework:** Next.js 16 with React 19, TypeScript
 - **Styling:** Tailwind CSS 4
-- **UI Components:** Radix UI primitives, shadcn/ui pattern (`components.json`)
-- **Key libraries:** `recharts` (charts), `react-force-graph-2d`/`3d` (graph visualization), `axios` (HTTP), `zod` (validation), `react-hook-form`
-- **API client:** Auto-generated from OpenAPI spec via `npm run generate-client`
+- **UI components:** Radix UI primitives, shadcn/ui pattern (`components.json`)
+- **Key libraries:** `recharts` (charts), `react-force-graph-2d`/`3d` (graph visualization), `axios` (HTTP), `zod` (validation)
+- **API clients:** `smart/lib/api/` — `client.ts`, `simulation-client.ts`, `traffic-client.ts`, `validation-client.ts`
+- **State:** React context stores in `smart/lib/stores/` — `connection-store`, `analysis-store`
 - **Dev server port:** 7000 (`next dev -p 7000`)
 
-### CLI Tools (`bin/`)
-Pipeline scripts that can run independently or via the orchestrator:
-- `run.py` — End-to-end pipeline orchestrator
-- `run_scenarios.sh` — Batch-run the pipeline across all 8 scenario datasets
-- `generate_graph.py` — Synthetic graph data generation
-- `import_graph.py` — Import graph data into Neo4j
-- `analyze_graph.py` — Structural and quality analysis (`--predict` for RMAV + Anti-Patterns)
-- `simulate_graph.py` — Cascade failure simulation (`--mode exhaustive|monte_carlo|single|pairwise`)
-- `validate_graph.py` — Statistical validation
-- `visualize_graph.py` — Static HTML dashboard generation
-- `detect_antipatterns.py` — Standalone anti-pattern analysis
-- `benchmark.py` — Benchmarking across scales
-- `export_graph.py` — Export graph data
-- `ground_threshold.py` — SPOF threshold grounding: sweeps all 8 scenarios, computes F1/AUC to justify the I(v) > 0.5 SPOF threshold empirically
+### CLI (`cli/`)
+Pipeline scripts that can run independently or via the orchestrator. All run from the repo root:
+- `run.py` — End-to-end pipeline orchestrator (`--all` flag, or any combination of stage flags)
+- `generate_graph.py` — Step 0: synthetic topology generation
+- `import_graph.py` / `export_graph.py` — Step 1: Model — import JSON into Neo4j; export back to JSON
+- `analyze_graph.py` — Step 2: structural metrics + RMAV/Q scoring + anti-patterns
+- `train_graph.py` / `predict_graph.py` — Step 3: GNN training and inference
+- `simulate_graph.py` — Step 4: cascade failure simulation (`--mode exhaustive|monte_carlo|single|pairwise`)
+- `validate_graph.py` — Step 5: statistical validation
+- `visualize_graph.py` — Step 6: interactive HTML dashboard
+- `detect_antipatterns.py` — Standalone anti-pattern scan (CI/CD gate; exit code 0/1/2)
+- `benchmark.py` — Benchmarking across scale presets
+- `export_graph.py` — Export graph data from Neo4j
+- `ground_threshold.py` — SPOF threshold grounding across all 8 scenarios
+- `run_scenarios.sh` — Batch pipeline across all 8 domain scenarios
+- `common/` — Shared argument parsers, dispatcher, console output
+
+### Tools (`tools/`)
+- `tools/generation/` — `StatisticalGraphGenerator`; produces synthetic pub-sub topologies. No Neo4j dependency.
+- `tools/benchmark/` — `BenchmarkRunner`; runs the full pipeline across scale presets and reports timing.
 
 ## Development
 
 ### Prerequisites
-- Python 3.9+ with a virtual environment (`software_system_env/`)
-- Node.js (for frontend)
+- Python 3.9+ with a virtual environment (`.venv/` recommended)
+- Node.js 18+ (for the frontend)
 - Neo4j 5.x (local or via Docker)
 - Docker & Docker Compose (for full-stack deployment)
 
@@ -66,40 +66,33 @@ Pipeline scripts that can run independently or via the orchestrator:
 ```bash
 docker compose up --build
 ```
+Single all-in-one container exposes:
 - **Web Dashboard:** http://localhost:7000
 - **API (Swagger docs):** http://localhost:8000/docs
 - **Neo4j Browser:** http://localhost:7474 (neo4j/password)
 
 ### Environment Variables
-Root `.env` (used by Docker Compose):
+Root `.env` (used by Docker Compose and local dev):
 ```
+NEO4J_URI=bolt://localhost:7687
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=password
-NEO4J_URI=bolt://neo4j:7687
 NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-`backend/.env` (used for local dev):
-```
-NEO4J_HOST=localhost
-NEO4J_BOLT_PORT=7687
-NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=password
 ```
 
 ### Running Backend Locally
 ```bash
-# Install dependencies
-pip install -r backend/requirements.txt
+# Install all extras (neo4j driver, GNN, API server, dev tools)
+pip install -e ".[all]"
 
 # Start the API server
-cd backend && uvicorn api.main:app --reload --port 8000
+uvicorn api.main:app --reload --port 8000
 
 # Run CLI pipeline (single scenario)
-python bin/run.py --all --layer system
+python cli/run.py --all --layer system
 
 # Run all 8 scenarios
-bash bin/run_scenarios.sh
+bash cli/run_scenarios.sh
 ```
 
 ### Running Frontend Locally
@@ -112,17 +105,16 @@ npm run generate-client  # Regenerate API client from OpenAPI spec
 
 ### Running Tests
 ```bash
-cd backend
 pytest               # All tests (verbose, short traceback by default)
 pytest -x            # Stop on first failure
 pytest tests/test_analysis_service.py  # Single test file
 pytest -k "test_name"  # Run by test name pattern
 ```
 
-**Test configuration:** `backend/pytest.ini`  
+**Test configuration:** `pyproject.toml` (pytest section)  
 **Test markers:** `slow` (skip with `--quick`), `integration`  
 **Test timeout:** 120 seconds per test  
-**Test files:** `backend/tests/test_*.py` — coverage includes:
+**Test files:** `tests/test_*.py` — coverage includes:
   - `test_analysis_service.py` — structural & quality analysis
   - `test_simulation_service.py` — failure and event simulation
   - `test_validation_service.py` — validation pipeline
@@ -146,16 +138,17 @@ pytest -k "test_name"  # Run by test name pattern
 
 ## Key Patterns & Conventions
 
-### Python Backend
-- **Internal Repository pattern:** `core/neo4j_repo.py` (production) and `core/memory_repo.py` (testing) implement the same interface.
-- **SDK Entry Point:** Prefer `saag.Pipeline` for programmatic use. It handles repository lifecycle and stage orchestration.
-- **CLI scripts** in `bin/` import from `backend/src/` — they must be run from the repo root (e.g., `python bin/analyze_graph.py`).
-- **API routers** in `backend/api/routers/` follow a consistent pattern with dependency injection via `backend/api/dependencies.py`.
-- **Graph layers:** The system supports four graph layers: `app`, `infra`, `mw` (middleware), `system`. The canonical definitions live in `backend/src/core/layers.py` (`LAYER_DEFINITIONS`). Key: the `app` layer includes both Application **and Library** nodes (`analyze_types = {Application, Library}`) — library blast-radius risk is visible at this layer. A mirror copy of the layer dict exists in `backend/src/infrastructure/neo4j_repo.py` and must be kept in sync with `layers.py`.
-- **Dependency types:** Six DEPENDS_ON subtypes are derived by `neo4j_repo._derive_dependencies()`: `app_to_app` (APP), `app_to_lib` (APP), `app_to_broker` (MW), `node_to_node` (INFRA), `node_to_broker` (MW), `broker_to_broker` (MW). All carry `weight ∈ [0,1]` (max QoS severity) and `path_count` (coupling intensity). The canonical mapping is `DEPENDENCY_TO_LAYER` in `layers.py`.
-- **Examples:** 11 transitionary examples in `examples/` (`example_end_to_end.py` is the most comprehensive). 
-- **Input data:** Topology JSON files in `data/` (e.g., `system.json`, `dataset.json`) and YAML configs (`graph_config.yaml`)
-- **Scenarios:** 8 domain scenarios under `data/scenario_0N_*.yaml` (autonomous vehicle, IoT, financial trading, healthcare, hub-and-spoke, microservices, enterprise XL, tiny regression)
+### Python
+- **Repository pattern:** `saag/infrastructure/neo4j_repo.py` (production) and `saag/infrastructure/memory_repo.py` (testing) both implement `IGraphRepository` from `saag/core/ports/graph_repository.py`. Tests never require a live Neo4j instance.
+- **SDK entry point:** Prefer `saag.Pipeline` for programmatic use. It handles repository lifecycle and stage orchestration. Use `saag.Client` for step-by-step control.
+- **CLI scripts** in `cli/` import from `saag/` — all must be run from the repo root (e.g., `python cli/analyze_graph.py`).
+- **API routers** in `api/routers/` follow a consistent pattern with dependency injection via `api/dependencies.py`. Each router delegates to a use case or service; it holds no business logic.
+- **Graph layers:** Four layers: `app`, `infra`, `mw`, `system`. Canonical definitions are in `saag/core/layers.py` (`LAYER_DEFINITIONS`, `DEPENDENCY_TO_LAYER`). Key: the `app` layer includes both Application **and Library** nodes — library blast-radius risk is visible at this layer.
+- **Dependency types:** Six DEPENDS_ON subtypes derived by `Neo4jRepository._derive_dependencies()`: `app_to_app`, `app_to_lib`, `app_to_broker`, `node_to_node`, `node_to_broker`, `broker_to_broker`. All carry `weight ∈ [0,1]` (max QoS severity) and `path_count` (coupling intensity).
+- **Use cases:** Each pipeline stage has a dedicated `UseCase` class in `saag/usecases/`. These are the boundary between the API/CLI layer and the service layer.
+- **Examples:** `examples/` — `example_end_to_end.py` is the most comprehensive. Run from the repo root.
+- **Input data:** Topology JSON files in `data/` (e.g., `system.json`) and YAML scenario configs (`data/scenario_0N_*.yaml`).
+- **Scenarios:** 8 domain scenarios (autonomous vehicle, IoT, financial trading, healthcare, hub-and-spoke, microservices, enterprise XL, tiny regression).
 
 ### Frontend
 - **App Router** (Next.js `app/` directory)
@@ -164,27 +157,29 @@ pytest -k "test_name"  # Run by test name pattern
 - **OpenAPI-generated client** in `smart/lib/api/generated/`
 
 ### Docker
-- Three services: `neo4j`, `api` (builds from `backend/Dockerfile`), `frontend` (builds from `smart/Dockerfile`)
-- `Dockerfile.all-in-one` exists at root for all-in-one deployment; `api/Dockerfile` is the standalone API container
-- Neo4j plugins: APOC and Graph Data Science
+- Single all-in-one container (`docker-compose.yml`): Neo4j + FastAPI + Next.js bundled in one image.
+- Ports: 7474 (Neo4j Browser), 7687 (Bolt), 8000 (FastAPI), 7000 (Next.js).
+- `Dockerfile` at root builds the all-in-one image.
+- Neo4j plugins: APOC and Graph Data Science.
 
 ## The Pipeline
 
 ```
-Architecture → Import → Analyze → Predict → Simulate → Validate → Visualize
-   (input)     Step 1   Step 2    Step 3    Step 4      Step 5      Step 6
+Generate → Model  → Analyze → Predict → Simulate → Validate → Visualize
+ Step 0    Step 1   Step 2    Step 3    Step 4      Step 5      Step 6
 ```
 
-1. **Import** — Converts topology JSON to a weighted directed graph in Neo4j; derives DEPENDS_ON edges via six rules (see below).
+0. **Generate** — Produces a synthetic pub-sub topology JSON using `StatisticalGraphGenerator`. Used for experiments, benchmarks, and CI regression tests. Real deployments skip this step and start from Step 1 with an actual architecture description.
+1. **Model** — Converts topology JSON to a weighted directed graph in Neo4j; derives DEPENDS_ON edges via six rules (see below). Also covers export (JSON ↔ Neo4j round-trip).
 2. **Analyze** — Deterministic, interpretable scoring from structure and metadata. Computes structural metrics (Reverse PageRank, Betweenness, Bridge Ratio, etc.), maps them to RMAV dimension scores and Q(v) via AHP-weighted closed-form formulas, and detects anti-patterns. Given the same graph, always produces the same output. _This is a rule-based model in the formal sense._
-3. **Predict** — (Optional) Inductive forecasting that generalises beyond the closed form. A HeteroGAT learns nonlinear interactions, multi-hop motifs, and cross-type embedding effects that the AHP-weighted composite cannot encode. Consumes the `StructuralAnalysisResult` produced by Analyze (no repository access); emits GNN-derived criticality ranks, edge criticality, attention weights, and ensemble-blended scores (`Q_ensemble = α·Q_GNN + (1−α)·Q_RMAV`).
-4. **Simulate** — Counterfactual cascade engine. Injects faults, runs four parallel ground-truth simulators, and produces per-RMAV impact labels IR(v)/IM(v)/IA(v)/IV(v). Also generates the training/evaluation labels consumed by Predict.
+3. **Predict** — (Optional) Inductive forecasting that generalises beyond the closed form. Sub-steps: 3a `train_graph.py` (HeteroGAT training on simulation labels), 3b `predict_graph.py` (inference + ensemble blend). Consumes the `StructuralAnalysisResult` from Analyze (no repository access); emits GNN-derived criticality ranks, edge criticality, attention weights, and ensemble-blended scores (`Q_ensemble = α·Q_GNN + (1−α)·Q_RMAV`).
+4. **Simulate** — Counterfactual cascade engine. Injects faults, runs four parallel ground-truth simulators, and produces per-RMAV impact labels IR(v)/IM(v)/IA(v)/IV(v). Also generates the training/evaluation labels consumed by Step 3.
 5. **Validate** — Per-dimension statistical comparison: Predict output (and optionally raw Q(v) from Analyze) vs Simulate-derived ground truth. Reports Spearman, F1, NDCG@K, and dimension-specific metrics.
 6. **Visualize** — Generates interactive dashboards (web or static HTML).
 
 ### DEPENDS_ON Derivation Rules
 
-`neo4j_repo._derive_dependencies()` reads structural edges and emits DEPENDS_ON edges. Direction: **dependent → dependency**. All rules set `weight ∈ [0,1]` (max QoS severity) and `path_count` (coupling intensity).
+`Neo4jRepository._derive_dependencies()` (`saag/infrastructure/neo4j_repo.py`) reads structural edges and emits DEPENDS_ON edges. Direction: **dependent → dependency**. All rules set `weight ∈ [0,1]` (max QoS severity) and `path_count` (coupling intensity).
 
 | Rule | `dependency_type` | Source pattern | Weight |
 |------|-------------------|----------------|--------|
@@ -195,7 +190,7 @@ Architecture → Import → Analyze → Predict → Simulate → Validate → Vi
 | 5 | `app_to_lib` | App → Library (USES). Simultaneous multi-consumer blast, not sequential cascade. | `app.weight` (set in aggregate phase) |
 | 6 | `broker_to_broker` | Bidirectional colocation edge between brokers sharing a physical Node. Symmetric shared-fate risk. | `node.weight` |
 
-Simulation operates on **G_structural** (raw edges), not on DEPENDS_ON. Library cascade (`CascadeRule.LIBRARY`) and physical cascade (`CascadeRule.PHYSICAL`) in `failure_simulator.py` already cover Rules 5 and 6 semantics correctly without additional cascade rules.
+Simulation operates on **G_structural** (raw edges), not on DEPENDS_ON. Library cascade (`CascadeRule.LIBRARY`) and physical cascade (`CascadeRule.PHYSICAL`) in `saag/simulation/failure_simulator.py` already cover Rules 5 and 6 semantics correctly without additional cascade rules.
 
 ## RMAV Prediction Formulas
 
@@ -345,32 +340,56 @@ Validation also reports statistical power tables and Spearman–Kendall gap diag
 
 ```text
 .
-├── saag/                       # Public Python SDK (fluent pipeline API)
-│   ├── pipeline.py             #   saag.Pipeline — fluent builder
-│   ├── client.py               #   saag.Client — service façade
-│   └── models.py               #   Result & data model types
-├── backend/                    # Python backend (hexagonal architecture)
-│   ├── api/                    #   FastAPI application (routers & presenters)
-│   ├── src/                    #   Core business logic (analysis, simulation, etc.)
-│   │   ├── core/               #     Domain models, ports, layer definitions
-│   │   │   ├── layers.py       #       Canonical LAYER_DEFINITIONS & DEPENDENCY_TO_LAYER
-│   │   │   └── neo4j_repo.py   #       Mirror LAYER_DEFINITIONS + 6 derivation rules
-│   │   └── simulation/         #     failure_simulator.py, graph.py (G_structural only)
-│   └── tests/                  #   Unit and integration tests (pytest)
+├── saag/                       # Core SDK — all domain logic, services, use cases
+│   ├── pipeline.py             #   saag.Pipeline — fluent builder (entry point)
+│   ├── client.py               #   saag.Client — step-by-step service façade
+│   ├── models.py               #   Public result & data model types
+│   ├── core/                   #   Domain models, ports, layer definitions
+│   │   ├── models.py           #     ComponentData, EdgeData, GraphData, domain entities
+│   │   ├── metrics.py          #     StructuralMetrics, ComponentQuality
+│   │   ├── layers.py           #     Canonical LAYER_DEFINITIONS & DEPENDENCY_TO_LAYER
+│   │   ├── criticality.py      #     CriticalityLevel, BoxPlotStats
+│   │   └── ports/              #     IGraphRepository protocol
+│   ├── analysis/               #   StructuralAnalyzer, AntiPatternDetector, AnalysisService
+│   ├── prediction/             #   QualityAnalyzer (RMAV), GNNService, PredictionService
+│   ├── simulation/             #   FailureSimulator, EventSimulator, SimulationService
+│   ├── validation/             #   Validator, MetricCalculator, ValidationService
+│   ├── visualization/          #   DashboardGenerator, VisualizationService
+│   ├── explanation/            #   ExplanationEngine (natural-language failure narratives)
+│   ├── usecases/               #   One UseCase per pipeline stage (clean architecture boundary)
+│   └── infrastructure/         #   Neo4jRepository (production), MemoryRepository (testing)
+├── api/                        # FastAPI REST API (port 8000)
+│   ├── main.py                 #   App init, CORS, router registration
+│   ├── dependencies.py         #   Dependency injection (get_repository, get_client, ...)
+│   ├── models.py               #   Pydantic request/response schemas
+│   ├── routers/                #   health, graph, analysis, prediction, components,
+│   │                           #   statistics, simulation, classification, validation, traffic
+│   └── presenters/             #   Decoupled response formatters
+├── cli/                        # CLI pipeline scripts (run from repo root)
+│   ├── run.py                  #   Orchestrator — --all or individual stage flags
+│   ├── generate_graph.py       #   Step 0: Generate
+│   ├── import_graph.py         #   Step 1: Model (import)
+│   ├── export_graph.py         #   Step 1: Model (export)
+│   ├── analyze_graph.py        #   Step 2: Analyze
+│   ├── train_graph.py          #   Step 3: Predict (GNN training)
+│   ├── predict_graph.py        #   Step 3: Predict (inference)
+│   ├── simulate_graph.py       #   Step 4: Simulate
+│   ├── validate_graph.py       #   Step 5: Validate
+│   ├── visualize_graph.py      #   Step 6: Visualize
+│   └── common/                 #   Shared argument parsers, dispatcher, console output
 ├── tools/                      # Standalone tooling (no Neo4j dependency)
-│   └── generation/             #   Statistical pub-sub topology generator
-│       ├── generator.py        #     Produces structural edges only (no DEPENDS_ON)
-│       ├── service.py          #     GenerationService wrapper
-│       ├── models.py           #     SCALE_PRESETS & statistical config
-│       └── datasets.py         #     Domain-specific naming & QoS mappings
-├── smart/                   # Next.js web application (Genieus)
-│   ├── app/                    #   Pages and layout
-│   └── components/             #   UI components (Radix + shadcn)
-├── bin/                        # CLI scripts and pipeline orchestrator
-├── data/                      # Topology JSONs and scenario YAMLs
+│   ├── generation/             #   StatisticalGraphGenerator, GenerationService
+│   └── benchmark/              #   BenchmarkRunner, reporting
+├── smart/                      # Next.js web application (Genieus) — port 7000
+│   ├── app/                    #   13 App Router pages (dashboard, analysis, explorer, ...)
+│   ├── components/             #   UI components (Radix + shadcn)
+│   └── lib/                    #   API clients, context stores, TypeScript types
+├── tests/                      # Pytest test suite (uses MemoryRepository — no Neo4j needed)
+├── data/                       # Topology JSONs and scenario YAMLs
+├── models/                     # Trained GNN checkpoints
 ├── output/                     # Generated dashboards and reports
-├── examples/                   # Tutorial scripts
-├── docs/                       # Methodology and research documentation
-├── Dockerfile                  # API container definition
-└── docker-compose.yaml         # Full-stack orchestration
+├── examples/                   # Annotated programmatic usage examples
+├── docs/                       # Per-step methodology documentation
+├── pyproject.toml              # Python package config, dependencies, entry points
+└── docker-compose.yml          # Full-stack orchestration (single all-in-one container)
 ```

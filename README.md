@@ -357,12 +357,8 @@ Use the CLI when you want to run individual pipeline stages, integrate with scri
 ### Backend & CLI
 
 ```bash
-# Install Python dependencies
-pip install -r backend/requirements.txt
-
-# Copy and configure environment variables
-cp backend/.env.example backend/.env
-# Edit backend/.env: set NEO4J_HOST, NEO4J_BOLT_PORT, NEO4J_USERNAME, NEO4J_PASSWORD
+# Install Python dependencies (all extras: neo4j, gnn, api, dev)
+pip install -e ".[all]"
 
 # Run the full pipeline in one command
 python cli/run.py --all --layer system
@@ -384,8 +380,10 @@ npm run generate-client
 Each step has its own CLI script in `cli/`. All scripts must be run from the repo root:
 
 ```bash
-# Step 1 — Import: generate synthetic topology & import into Neo4j
+# Step 0 — Generate: produce a synthetic pub-sub topology
 python cli/generate_graph.py --scale medium --output data/system.json
+
+# Step 1 — Model: import topology into Neo4j and derive DEPENDS_ON edges
 python cli/import_graph.py --input data/system.json --clear
 
 # Step 2 — Analyze: structural metrics (13 topological indicators) + RMAV/Q scoring + anti-patterns
@@ -394,8 +392,8 @@ python cli/analyze_graph.py --layer system --predict
 
 # Step 3 — Predict (optional): inductive GNN forecasting beyond the closed-form RMAV
 #   Requires Step 4 simulation results for training labels first.
-python cli/train_graph.py --layer system                              # train GNN
-python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model
+python cli/train_graph.py --layer system                              # 3a: train GNN
+python cli/predict_graph.py --layer system --gnn-model output/gnn_checkpoints/best_model  # 3b: inference
 
 # Step 4 — Simulate: failure simulation (ground-truth I(v) + training labels for Step 3)
 python cli/simulate_graph.py fault-inject --input data/system.json --export-json
@@ -454,7 +452,7 @@ For Python-based integration, see the annotated examples in `examples/`. Run the
 | 5 | `examples/example_validation.py` | Validate stage: comparing Analyze output against ground truth | Yes |
 | 6 | `examples/example_prediction.py` | Predict stage: GNN-based inductive criticality refinement | Yes |
 | 7 | `examples/example_visualization.py` | Visualize stage: generating self-contained HTML dashboards | Yes |
-| 8 | `examples/example_end_to_end.py` | Full pipeline (Import → Analyze → Predict → Simulate → Validate → Visualize) | Yes |
+| 8 | `examples/example_end_to_end.py` | Full pipeline (Model → Analyze → Predict → Simulate → Validate → Visualize) | Yes |
 | 9 | `examples/example_antipatterns.py` | Anti-pattern gating for CI/CD pipelines | Yes |
 | 10 | `examples/example_compare.py` | Comparing two architectural designs side-by-side | Yes |
 
@@ -500,14 +498,17 @@ npm run dev
 ## The Pipeline
 
 ```
-Architecture JSON
-      │
-      ▼
+        ┌─────────────┐
+        │  Step 0     │
+        │  Generate   │  (synthetic topologies for experiments & benchmarks)
+        └──────┬──────┘
+               │ topology JSON
+               ▼
 ┌─────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
 │  Step 1     │    │  Step 2              │    │  Step 3 (optional)  │
-│  Import     │───▶│  Analyze             │───▶│  Predict            │
-│             │    │  (M(v) + RMAV/Q(v)  │    │  (GNN ensemble;     │
-│             │    │   + Anti-Patterns)   │    │   inductive only)   │
+│  Model      │───▶│  Analyze             │───▶│  Predict            │
+│  (import +  │    │  (M(v) + RMAV/Q(v)  │    │  (GNN ensemble;     │
+│   export)   │    │   + Anti-Patterns)   │    │   inductive only)   │
 └─────────────┘    └──────────────────────┘    └─────────────────────┘
                             │                             │
        ┌────────────────────┘                            │
@@ -524,14 +525,15 @@ Architecture JSON
 
 | Step | What It Does | Key Output | Docs |
 |------|-------------|------------|------|
-| **1. Import** | Converts topology JSON to a weighted directed graph G(V, E, w); derives DEPENDS_ON edges via six rules; computes QoS-derived weights | G_structural and G_analysis(l) | [graph-model.md](docs/graph-model.md) |
+| **0. Generate** | Produces a synthetic pub-sub topology for experiments, benchmarks, or CI regression tests | Topology JSON (`data/system.json`) | — |
+| **1. Model** | Converts topology JSON to a weighted directed graph G(V, E, w) in Neo4j; derives DEPENDS_ON edges via six rules; computes QoS-derived weights | G_structural and G_analysis(l) | [graph-model.md](docs/graph-model.md) |
 | **2. Analyze** | Deterministic, closed-form. Computes 13 structural metrics M(v); maps them to RMAV dimension scores and Q*(v) via AHP-weighted formulas; detects anti-patterns. Given the same graph, always produces the same output. | M(v) metric vector, RMAV/Q*(v) scores, five-level classification, anti-pattern report | [structural-analysis.md](docs/structural-analysis.md) · [prediction.md](docs/prediction.md) |
 | **3. Predict** | Inductive, optional. A HeteroGAT trained on simulation labels I(v) learns interactions the AHP composite cannot encode. Consumes Analyze output only — no repository access. | GNN criticality ranks, edge criticality, ensemble-blended Q_ens(v) | [prediction.md](docs/prediction.md) |
 | **4. Simulate** | Runs four parallel simulators (cascade, change-propagation, connectivity-loss, compromise-propagation). Provides training labels for Step 3 and ground truth for Step 5. | Per-dimension ground-truth IR(v), IM(v), IA(v), IV(v) and composite I*(v) | [failure-simulation.md](docs/failure-simulation.md) |
 | **5. Validate** | Computes Spearman ρ and Kendall τ between Q*(v) (from Analyze) or Q_ens(v) (from Predict) and I*(v); evaluates F1, PG, SPOF-F1, FTR, Bootstrap CI, Wilcoxon | Statistical evidence of predictive validity | [validation.md](docs/validation.md) |
 | **6. Visualize** | Renders interactive dashboards with network graphs, dependency matrices, cascade heatmaps, and RMAV radar charts | `dashboard.html` (fully self-contained) | [visualization.md](docs/visualization.md) |
 
-> **Note — Generate is not part of the SaG methodology.** The `--generate` CLI flag and `cli/generate_graph.py` script produce synthetic pub-sub topologies for evaluation and benchmarking purposes only. Real deployments start at Step 1 (Import) with an actual architecture description. Synthetic graphs are useful for reproducible experiments, scale sweeps, and CI regression tests, but they are not inputs the methodology assumes or requires. Reviewers asking "is this validated on real or synthetic data?" should note that the published Spearman and F1 results use eight domain-scenario topologies in `data/`, not generated data.
+> **Step 0 vs real deployments.** The `cli/generate_graph.py` script produces synthetic pub-sub topologies for evaluation, benchmarking, and reproducible experiments. Real deployments start at Step 1 (Model) with an actual architecture description. The published Spearman and F1 results use the eight domain-scenario topologies in `data/`, not generated data.
 
 ### Scale Presets
 
@@ -731,15 +733,16 @@ result2 = (
 .
 ├── cli/                        # CLI pipeline scripts
 │   ├── run.py                  #   Master pipeline orchestrator (--all flag)
-│   ├── generate_graph.py       #   Synthetic topology generator
-│   ├── import_graph.py         #   Step 1: Import — Neo4j import & dependency derivation
+│   ├── generate_graph.py       #   Step 0: Generate — synthetic pub-sub topology
+│   ├── import_graph.py         #   Step 1: Model — Neo4j import & dependency derivation
+│   ├── export_graph.py         #   Step 1: Model — export graph from Neo4j to JSON
 │   ├── analyze_graph.py        #   Step 2: Analyze — structural metrics + RMAV/Q scoring + anti-patterns
 │   ├── train_graph.py          #   Step 3: Predict — GNN training (optional; requires Step 4 labels)
 │   ├── predict_graph.py        #   Step 3: Predict — GNN inference on a new graph
 │   ├── detect_antipatterns.py  #   Standalone anti-pattern / CI gate
-│   ├── simulate_graph.py       #   Step 4: Simulate (fault-inject | message-flow | combined)
-│   ├── validate_graph.py       #   Step 5: Validate (single | sweep | report | compare)
-│   ├── visualize_graph.py      #   Step 6: Visualize
+│   ├── simulate_graph.py       #   Step 4: Simulate — fault-inject | message-flow | combined
+│   ├── validate_graph.py       #   Step 5: Validate — single | sweep | report | compare
+│   ├── visualize_graph.py      #   Step 6: Visualize — interactive HTML dashboard
 │   ├── statistics_graph.py     #   Statistics dashboard (topology & communication analytics)
 │   ├── export_graph.py         #   Export graph data from Neo4j
 │   ├── benchmark.py            #   Benchmark across scale presets
