@@ -68,7 +68,7 @@ class EvalMetrics:
 
 
 class GNNTrainer:
-    """Manages the training process for HeteroGAT models with early stopping."""
+    """Manages the training process for HGT models with early stopping."""
 
     def __init__(
         self,
@@ -78,6 +78,7 @@ class GNNTrainer:
         num_epochs: int = 300,
         patience: int = 30,
         weight_decay: float = 1e-4,
+        warmup_T0: Optional[int] = None,
     ):
         self.model = model
         self.checkpoint_dir = Path(checkpoint_dir)
@@ -85,132 +86,159 @@ class GNNTrainer:
         self.num_epochs = num_epochs
         self.patience = patience
         self.weight_decay = weight_decay
+        # T_0 for CosineAnnealingWarmRestarts; defaults to num_epochs // 4
+        self.warmup_T0 = warmup_T0 or max(50, num_epochs // 4)
 
         self.loss_fn = CriticalityLoss()
         self.device = next(model.parameters()).device
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    def train(self, data: 'HeteroData') -> Tuple[Dict[str, List[float]], Optional[EvalMetrics]]:
-        """Run the full training loop with early stopping.
-        
-        Returns:
-            Tuple of (history_dict, best_val_metrics).
-        """
-        logger.info(
-            "Starting training | epochs=%d | lr=%.2e | device=%s",
-            self.num_epochs, self.lr, self.device
-        )
+    def _compute_val_loss(self, data: "HeteroData") -> float:
+        """Compute loss on validation-masked nodes (no grad)."""
+        self.model.eval()
+        with torch.no_grad():
+            x_dict = {nt: data[nt].x for nt in data.node_types if hasattr(data[nt], "x")}
+            ei_dict = {rel: data[rel].edge_index for rel in data.edge_types}
+            ea_dict = {rel: data[rel].edge_attr for rel in data.edge_types if hasattr(data[rel], "edge_attr")}
+            output = self.model(x_dict, ei_dict, ea_dict)
+            node_preds = output[0] if isinstance(output, tuple) else output
 
-        optimizer = torch.optim.AdamW(
-            self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
-        )
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=self.num_epochs
-        )
+            total = 0.0
+            count = 0
+            for nt, preds in node_preds.items():
+                store = data[nt]
+                if not (hasattr(store, "y") and hasattr(store, "val_mask")):
+                    continue
+                mask = store.val_mask
+                if mask.sum() == 0:
+                    continue
+                rmav_target = store.y_rmav if hasattr(store, "y_rmav") else None
+                loss, _ = self.loss_fn(preds, store.y, mask, rmav_target)
+                total += loss.item()
+                count += 1
+        return total / max(count, 1)
 
-        # Handle single HeteroData vs DataLoader
-        if isinstance(data, HeteroData):
-            loader = DataLoader([data], batch_size=1)
-        else:
-            loader = data
+    def _run_epoch(self, loader, optimizer) -> float:
+        """Run one training epoch; return average loss."""
+        self.model.train()
+        epoch_loss = 0.0
+        num_batches = 0
+        for batch in loader:
+            batch = batch.to(self.device)
+            optimizer.zero_grad()
+            x_dict = {nt: batch[nt].x for nt in batch.node_types if hasattr(batch[nt], "x")}
+            ei_dict = {rel: batch[rel].edge_index for rel in batch.edge_types}
+            ea_dict = {rel: batch[rel].edge_attr for rel in batch.edge_types if hasattr(batch[rel], "edge_attr")}
+            output = self.model(x_dict, ei_dict, ea_dict)
+            node_preds = output[0] if isinstance(output, tuple) else output
+            batch_loss = self._node_loss(node_preds, batch)
+            batch_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+            optimizer.step()
+            epoch_loss += batch_loss.item()
+            num_batches += 1
+        return epoch_loss / max(num_batches, 1)
 
-        # Initial logging of split sizes (first batch only)
-        first_batch = next(iter(loader))
-        first_batch = first_batch.to(self.device)
-        for nt in first_batch.node_types:
-            if hasattr(first_batch[nt], "train_mask"):
-                n_train = first_batch[nt].train_mask.sum().item()
-                n_val = first_batch[nt].val_mask.sum().item()
+    def _node_loss(self, node_preds: Dict, batch) -> Tensor:
+        """Accumulate loss over all labelled node types in a batch."""
+        total = torch.tensor(0.0, device=self.device, requires_grad=True)
+        for nt, preds in node_preds.items():
+            store = batch[nt]
+            if not (hasattr(store, "y") and hasattr(store, "train_mask")):
+                continue
+            mask = store.train_mask
+            if mask.sum() == 0:
+                continue
+            rmav_target = store.y_rmav if hasattr(store, "y_rmav") else None
+            loss, _ = self.loss_fn(preds, store.y, mask, rmav_target)
+            total = total + loss
+        return total
+
+    def _update_best(
+        self,
+        val_metrics: EvalMetrics,
+        val_loss: float,
+        best_combined: float,
+        best_val_loss: float,
+    ) -> Tuple[float, bool]:
+        """Compute combined metric and return (combined_score, is_improved)."""
+        loss_improvement = max(0.0, 1.0 - val_loss / (best_val_loss + 1e-8))
+        combined = 0.6 * val_metrics.spearman_rho + 0.4 * loss_improvement
+        return combined, combined > best_combined
+
+    def _log_split_sizes(self, batch) -> None:
+        for nt in batch.node_types:
+            if hasattr(batch[nt], "train_mask"):
+                n_train = batch[nt].train_mask.sum().item()
+                n_val = batch[nt].val_mask.sum().item()
                 if n_train > 0 or n_val > 0:
                     logger.info("  [%s] Train: %d | Val: %d", nt, n_train, n_val)
 
-        best_val_rho = -1.0
+    def train(self, data: "HeteroData") -> Tuple[Dict[str, List[float]], Optional[EvalMetrics]]:
+        """Run the full training loop with combined-metric early stopping."""
+        logger.info(
+            "Starting training | epochs=%d | lr=%.2e | device=%s",
+            self.num_epochs, self.lr, self.device,
+        )
+        optimizer = torch.optim.AdamW(
+            self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
+        )
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            optimizer, T_0=self.warmup_T0, T_mult=2, eta_min=self.lr * 0.01,
+        )
+        loader = DataLoader([data], batch_size=1) if isinstance(data, HeteroData) else data
+        first_batch = next(iter(loader))
+        first_batch = first_batch.to(self.device)
+        self._log_split_sizes(first_batch)
+
+        best_combined = -1.0
+        best_val_loss = float("inf")
         best_val_metrics: Optional[EvalMetrics] = None
         epochs_without_improvement = 0
-        history = {"train_loss": [], "val_loss": [], "val_rho": []}
+        history: Dict[str, List[float]] = {"train_loss": [], "val_loss": [], "val_rho": []}
 
         for epoch in range(1, self.num_epochs + 1):
-            # ── Train ────────────────────────────────────────────────────────
-            self.model.train()
-            epoch_loss = 0.0
-            num_batches = 0
-
-            for batch in loader:
-                batch = batch.to(self.device)
-                optimizer.zero_grad()
-
-                # Forward pass
-                x_dict = {nt: batch[nt].x for nt in batch.node_types if hasattr(batch[nt], "x")}
-                ei_dict = {rel: batch[rel].edge_index for rel in batch.edge_types}
-                ea_dict = {rel: batch[rel].edge_attr for rel in batch.edge_types if hasattr(batch[rel], "edge_attr")}
-
-                # Handle both NodeCriticalityGNN and EdgeCriticalityGNN
-                output = self.model(x_dict, ei_dict, ea_dict)
-                if isinstance(output, tuple):
-                    node_preds, _ = output
-                else:
-                    node_preds = output
-
-                # Compute loss over training nodes of all types
-                batch_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
-                for nt, preds in node_preds.items():
-                    store = batch[nt]
-                    if not (hasattr(store, "y") and hasattr(store, "train_mask")):
-                        continue
-                    mask = store.train_mask
-                    if mask.sum() == 0:
-                        continue
-
-                    # Pass both simulation labels (y) and RMAV scores (y_rmav)
-                    rmav_target = store.y_rmav if hasattr(store, "y_rmav") else None
-                    loss, _ = self.loss_fn(preds, store.y, mask, rmav_target)
-                    batch_loss = batch_loss + loss
-
-                batch_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-                optimizer.step()
-                
-                epoch_loss += batch_loss.item()
-                num_batches += 1
-
+            avg_loss = self._run_epoch(loader, optimizer)
             scheduler.step()
-            avg_epoch_loss = epoch_loss / max(num_batches, 1)
 
-            # ── Validation ───────────────────────────────────────────────────
-            self.model.eval()
-            # If DataLoader, evaluate on all validation sets or just the first one?
-            # Standard multi-graph behavior: evaluate on the loader but validation usually needs consistent set.
-            # For simplicity, we evaluate on the first batch (often the primary graph) or the full loader if small.
             val_metrics = evaluate(self.model, first_batch, "val_mask", self.device)
-            val_rho = val_metrics.spearman_rho
+            val_loss = self._compute_val_loss(first_batch)
+            self.model.train()
 
-            history["train_loss"].append(avg_epoch_loss)
-            history["val_rho"].append(val_rho)
+            if epoch == 1:
+                best_val_loss = val_loss
 
-            if val_rho > best_val_rho:
-                best_val_rho = val_rho
+            combined, improved = self._update_best(
+                val_metrics, val_loss, best_combined, best_val_loss
+            )
+            if improved:
+                best_combined = combined
+                best_val_loss = min(best_val_loss, val_loss)
                 best_val_metrics = val_metrics
                 epochs_without_improvement = 0
                 self._save_checkpoint("best_model.pt")
             else:
                 epochs_without_improvement += 1
 
+            history["train_loss"].append(avg_loss)
+            history["val_loss"].append(val_loss)
+            history["val_rho"].append(val_metrics.spearman_rho)
+
             if epoch % 20 == 0 or epoch == 1:
                 logger.info(
-                    "Epoch %3d | Loss: %.4f | Val ρ: %.4f | Heads: %s",
-                    epoch, avg_epoch_loss, val_rho,
-                    "↑" if epochs_without_improvement == 0 else " "
+                    "Epoch %3d | Loss: %.4f | Val ρ: %.4f | Combined: %.4f | %s",
+                    epoch, avg_loss, val_metrics.spearman_rho, combined,
+                    "↑" if improved else " ",
                 )
 
             if epochs_without_improvement >= self.patience:
-                logger.info("Early stopping triggered at epoch %d.", epoch)
+                logger.info("Early stopping at epoch %d (combined=%.4f).", epoch, best_combined)
                 break
 
-        # Restore best model
         best_path = self.checkpoint_dir / "best_model.pt"
         if best_path.exists():
             self.model.load_state_dict(torch.load(best_path, map_location=self.device))
-            logger.info("Restored best model with validation rho: %.4f", best_val_rho)
+            logger.info("Restored best model (combined=%.4f).", best_combined)
 
         return history, best_val_metrics
 

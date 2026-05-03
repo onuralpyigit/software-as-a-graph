@@ -354,7 +354,7 @@ class GNNService:
         patience: int = 30,
         inductive_graphs: Optional[List['HeteroData']] = None,
         seeds: Optional[List[int]] = None,
-        mode: str = "ensemble",
+        mode: str = "gnn",
         layer: str = "app",
     ) -> GNNAnalysisResult:
         """Process graphs and train the GNN model using a multi-seed approach.
@@ -435,7 +435,11 @@ class GNNService:
             create_node_splits(data, train_ratio, val_ratio, seed=seed)
             if inductive_graphs:
                 for ig in inductive_graphs:
-                     create_node_splits(ig, train_ratio, val_ratio, seed=seed)
+                    create_node_splits(ig, train_ratio, val_ratio, seed=seed)
+
+            # IQR-normalize labels to reduce outlier impact on loss scale
+            from .data_preparation import normalize_labels_robust
+            normalize_labels_robust(data)
 
             # Initialise models for this seed
             self._init_models(data.metadata())
@@ -493,7 +497,7 @@ class GNNService:
         structural_metrics=None,
         rmav_scores=None,
         simulation_results=None,
-        mode: str = "ensemble",
+        mode: str = "gnn",
     ) -> GNNAnalysisResult:
         """Run inference on a graph without training.
 
@@ -539,7 +543,7 @@ class GNNService:
         self, 
         data, 
         simulation_results=None, 
-        mode: str = "ensemble", 
+        mode: str = "gnn",
         structural_metrics: Optional[Dict[str, Any]] = None,
         layer: str = "system"
     ) -> GNNAnalysisResult:
@@ -885,7 +889,7 @@ class GNNService:
         d = save_dir or self.checkpoint_dir
         d.mkdir(parents=True, exist_ok=True)
         with open(d / "service_config.json", "w") as f:
-            from .models import NODE_TYPE_TO_DIM
+            from .data_preparation import NODE_TYPE_TO_DIM
             json.dump(
                 {
                     "hidden_channels": self.hidden_channels,
@@ -896,9 +900,63 @@ class GNNService:
                     "node_feature_dims": NODE_TYPE_TO_DIM,
                     "best_seed": self._best_seed,
                     "layer": self.layer,
+                    "feature_version": 2,
+                    "default_mode": "gnn",
                 },
                 f, indent=2,
             )
+
+    @staticmethod
+    def _validate_feature_dims(cfg: dict) -> None:
+        """Validate checkpoint feature dims against current code; raise on mismatch for v2+."""
+        from .data_preparation import NODE_TYPE_TO_DIM
+        feature_version = cfg.get("feature_version", 1)
+        if feature_version < 2:
+            logger.warning(
+                "Checkpoint uses feature_version=%d (current is 2). "
+                "Node dims changed: Broker 18→19, Topic 18→20, Node 18→20. "
+                "Re-training recommended. Loading in strict=False mode.",
+                feature_version,
+            )
+        if "node_feature_dims" not in cfg:
+            if "hidden_channels" in cfg:
+                logger.warning("Checkpoint lacks 'node_feature_dims'. Proceeding with risk.")
+            return
+        saved = cfg["node_feature_dims"]
+        mismatches = [
+            (nt, saved[nt], dim)
+            for nt, dim in NODE_TYPE_TO_DIM.items()
+            if nt in saved and saved[nt] != dim
+        ]
+        if not mismatches:
+            return
+        if feature_version >= 2:
+            details = ", ".join(f"{nt}: ckpt={s} code={c}" for nt, s, c in mismatches)
+            raise ValueError(f"GNN Feature Dimension Mismatch ({details}). Re-training required.")
+        logger.warning(
+            "Feature dim mismatches (loading with strict=False): %s",
+            ", ".join(f"{nt}:{s}→{c}" for nt, s, c in mismatches),
+        )
+
+    def _load_model_weights(self, ckpt_dir: Path) -> None:
+        """Load node_model, edge_model, and ensemble state dicts from ckpt_dir."""
+        paths = {
+            "node": ckpt_dir / "node_model.pt",
+            "edge": ckpt_dir / "edge_model.pt",
+            "ensemble": ckpt_dir / "ensemble.pt",
+        }
+        models = {
+            "node": self._node_model,
+            "edge": self._edge_model,
+            "ensemble": self._ensemble,
+        }
+        for key, path in paths.items():
+            model = models[key]
+            if path.exists() and model is not None:
+                sd = torch.load(path, map_location=self.device)
+                strict = key == "ensemble"
+                model.load_state_dict(sd, strict=strict)
+                logger.info("Loaded %s model from '%s'.", key, path)
 
     @classmethod
     def from_checkpoint(
@@ -909,40 +967,19 @@ class GNNService:
         device: Optional[torch.device] = None,
         layer: Optional[str] = None,
     ) -> "GNNService":
-        """Load a previously trained GNNService from disk.
-
-        Parameters
-        ----------
-        checkpoint_dir:
-            Path to the directory created by :meth:`save`.
-        metadata:
-            PyG metadata tuple ``(node_types, edge_types_as_triples)``.
-            Required if ``graph`` is not provided.
-        graph:
-            NetworkX DiGraph used to reconstruct metadata automatically.
-        device:
-            Optional device override.
-        layer:
-            Requested inference layer. If provided, it is validated against
-            the training layer recorded in the checkpoint.
-        """
+        """Load a previously trained GNNService from disk."""
         ckpt_dir = Path(checkpoint_dir)
         cfg_path = ckpt_dir / "service_config.json"
+        cfg = json.load(open(cfg_path)) if cfg_path.exists() else {}
 
-        if cfg_path.exists():
-            with open(cfg_path) as f:
-                cfg = json.load(f)
-        else:
-            cfg = {}
-
-        # ── Layer Validation (Issue G13) ──────────────────────────────────────
         ckpt_layer = cfg.get("layer", "unknown")
         if layer and ckpt_layer != "unknown" and layer != ckpt_layer:
             raise ValueError(
-                f"GNN Layer Mismatch: Checkpoint was trained for '{ckpt_layer}', "
-                f"but inference requested for '{layer}'. Loading across layers "
-                "is unsafe due to different node/edge type distributions."
+                f"GNN Layer Mismatch: Checkpoint trained for '{ckpt_layer}', "
+                f"inference requested for '{layer}'."
             )
+
+        cls._validate_feature_dims(cfg)
 
         service = cls(
             hidden_channels=cfg.get("hidden_channels", 64),
@@ -956,43 +993,12 @@ class GNNService:
         service._best_seed = cfg.get("best_seed", 42)
         service.layer = ckpt_layer
 
-        # ── Dimension Validation (Issue G1) ───────────────────────────────────
-        if "node_feature_dims" in cfg:
-            from .models import NODE_TYPE_TO_DIM
-            saved_dims = cfg["node_feature_dims"]
-            for nt, dim in NODE_TYPE_TO_DIM.items():
-                if nt in saved_dims and saved_dims[nt] != dim:
-                    raise ValueError(
-                        f"GNN Feature Dimension Mismatch for node type '{nt}': "
-                        f"Checkpoint has {saved_dims[nt]}, Code has {dim}. "
-                        "Re-training required."
-                    )
-        elif "hidden_channels" in cfg:
-             # Legacy checkpoint without node_feature_dims
-             logger.warning("Checkpoint lacks 'node_feature_dims'. Proceeding with risk.")
-
         if metadata is None and graph is not None:
             conv = networkx_to_hetero_data(graph)
             metadata = conv.hetero_data.metadata()
 
         if metadata is not None:
             service._init_models(metadata)
-            nm_path = ckpt_dir / "node_model.pt"
-            em_path = ckpt_dir / "edge_model.pt"
-            ens_path = ckpt_dir / "ensemble.pt"
-
-            if nm_path.exists() and service._node_model:
-                node_sd = torch.load(nm_path, map_location=service.device)
-                service._node_model.load_state_dict(node_sd, strict=False)
-                logger.info("Loaded node model from '%s' (strict=False).", nm_path)
-            if em_path.exists() and service._edge_model:
-                edge_sd = torch.load(em_path, map_location=service.device)
-                service._edge_model.load_state_dict(edge_sd, strict=False)
-                logger.info("Loaded edge model from '%s' (strict=False).", em_path)
-            if ens_path.exists() and service._ensemble:
-                service._ensemble.load_state_dict(
-                    torch.load(ens_path, map_location=service.device)
-                )
-                logger.info("Loaded ensemble from '%s'.", ens_path)
+            service._load_model_weights(ckpt_dir)
 
         return service

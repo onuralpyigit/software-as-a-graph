@@ -15,72 +15,70 @@ Design principles
   quality scorer are reused directly as node features so GNN predictions are
   directly comparable to RMAV predictions under the same validation protocol.
 
+* **Runtime-enriched features**: Broker, Topic, and Node types carry
+  additional infrastructure/runtime features (max_connections, subscriber/
+  publisher counts, cpu_cores, memory_gb) beyond the base topology metrics.
+
 * **Multi-task labels**: All five simulation ground-truth dimensions
   (I*(v), IR(v), IM(v), IA(v), IV(v)) are stored as multi-column label
   tensors, enabling multi-task learning or single-task ablations.
 
-* **Edge labels**: Edge criticality scores are derived from the endpoint nodes'
-  composite impact scores (max pooling), enabling link-level criticality
-  prediction as a companion task.
-
 Node feature vector (heterogeneous)
-----------------------------------
-Each node type HAS ITS OWN feature dimension. Node-type one-hot is removed
-as the HeteroGAT architecture handles type specific projections.
+------------------------------------
+Each node type HAS ITS OWN feature dimension.
 
 Base Topological Metrics (dim = 18) - all node types:
-Index  Metric
-  0    PageRank (PR)
-  1    Reverse PageRank (RPR)
-  2    Betweenness Centrality (BT)
-  3    Closeness Centrality (CL)
-  4    Eigenvector Centrality (EV)
-  5    In-Degree normalised (DG_in)
-  6    Out-Degree normalised (DG_out)
-  7    Clustering Coefficient (CC)
-  8    AP_c undirected
-  9    Bridge Ratio (BR)
- 10    QoS aggregate weight (w)
- 11    QoS weighted in-degree (w_in)
- 12    QoS weighted out-degree (w_out)
- 13    MPCI
- 14    Path Complexity (path_complexity)
- 15    Fan-Out Criticality (FOC)
- 16    AP_c directed
- 17    CDI
+  0  PageRank (PR)
+  1  Reverse PageRank (RPR)
+  2  Betweenness Centrality (BT)
+  3  Closeness Centrality (CL)
+  4  Eigenvector Centrality (EV)
+  5  In-Degree normalised (DG_in)
+  6  Out-Degree normalised (DG_out)
+  7  Clustering Coefficient (CC)
+  8  AP_c undirected
+  9  Bridge Ratio (BR)
+ 10  QoS aggregate weight (w)
+ 11  QoS weighted in-degree (w_in)
+ 12  QoS weighted out-degree (w_out)
+ 13  MPCI
+ 14  Path Complexity (path_complexity)
+ 15  Fan-Out Criticality (FOC)
+ 16  AP_c directed
+ 17  CDI
 
-Code Quality Metrics (dim = 5) - Application and Library ONLY:
-Index  Metric
- 18    Normalised LOC (loc_norm)
- 19    Normalised Complexity (complexity_norm)
- 20    Instability I = Ce/(Ca+Ce) (instability_code)
- 21    Normalised LCOM (lcom_norm)
- 22    Code Quality Penalty (CQP)
+Code Quality Metrics (dim = 5) - Application and Library ONLY (indices 18-22):
+ 18  Normalised LOC (loc_norm)
+ 19  Normalised Complexity (complexity_norm)
+ 20  Instability I = Ce/(Ca+Ce) (instability_code)
+ 21  Normalised LCOM (lcom_norm)
+ 22  Code Quality Penalty (CQP)
+
+Infrastructure/Runtime Extras:
+  Broker (index 18): max_connections_norm
+  Topic  (18, 19):   subscriber_count_norm, publisher_count_norm
+  Node   (18, 19):   cpu_cores_norm, memory_gb_norm
 
 Total dimensions:
-- Application, Library: 23
-- Broker, Topic, Node: 18
+  Application, Library: 23
+  Broker:               19
+  Topic:                20
+  Node:                 20
 
-Edge feature vector (dim = 8)
-------------------------------
-Index  Feature
-  0    QoS-derived edge weight (normalised)
-  1-7  Edge-type one-hot (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES,
-                          RUNS_ON, CONNECTS_TO, USES, DEPENDS_ON)
-
-Edge feature vector (dim = 8)
-------------------------------
-Index  Feature
-  0    QoS-derived edge weight (normalised)
-  1-7  Edge-type one-hot (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES,
+Edge feature vector (dim = 9)
+-------------------------------
+  0  QoS-derived edge weight (normalised)
+  1  path_count_norm (log2-scaled coupling intensity)
+  2-8  Edge-type one-hot (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES,
                           RUNS_ON, CONNECTS_TO, USES, DEPENDS_ON)
 """
 
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
@@ -105,9 +103,7 @@ EDGE_TYPES: List[str] = [
 NODE_TYPE_INDEX: Dict[str, int] = {t: i for i, t in enumerate(NODE_TYPES)}
 EDGE_TYPE_INDEX: Dict[str, int] = {t: i for i, t in enumerate(EDGE_TYPES)}
 
-# The 22 topological metrics extracted from the structural analysis result.
-# Order matches Step 3: Prediction doc (indices 0-21)
-# Base topological metrics applicable to all node types
+# Base topological metrics applicable to all node types (18 dims)
 BASE_METRIC_KEYS: List[str] = [
     "pagerank",              # 0
     "reverse_pagerank",      # 1
@@ -129,26 +125,40 @@ BASE_METRIC_KEYS: List[str] = [
     "cdi",                   # 17
 ]
 
-# Code quality metrics applicable only to code-bearing types
+# Code quality metrics for Application and Library (appended to base, indices 18-22)
 CQ_METRIC_KEYS: List[str] = [
-    "loc_norm",              # 18 (absolute index)
+    "loc_norm",              # 18
     "complexity_norm",       # 19
     "instability_code",      # 20
     "lcom_norm",             # 21
     "code_quality_penalty",  # 22
 ]
 
-TOPOLOGICAL_METRIC_KEYS = BASE_METRIC_KEYS + CQ_METRIC_KEYS
+TOPOLOGICAL_METRIC_KEYS = BASE_METRIC_KEYS + CQ_METRIC_KEYS  # 23 dims for App/Lib
+
+# Infrastructure/runtime extra feature keys (appended to BASE_METRIC_KEYS per type)
+NODE_INFRA_KEYS: List[str] = ["cpu_cores_norm", "memory_gb_norm"]      # indices 18-19
+BROKER_EXTRA_KEYS: List[str] = ["max_connections_norm"]                  # index 18
+TOPIC_RUNTIME_KEYS: List[str] = ["subscriber_count_norm", "publisher_count_norm"]  # 18-19
+
+# Per-type feature key mapping used during feature extraction
+KEYS_BY_TYPE: Dict[str, List[str]] = {
+    "Application": TOPOLOGICAL_METRIC_KEYS,
+    "Library":     TOPOLOGICAL_METRIC_KEYS,
+    "Broker":      BASE_METRIC_KEYS + BROKER_EXTRA_KEYS,
+    "Topic":       BASE_METRIC_KEYS + TOPIC_RUNTIME_KEYS,
+    "Node":        BASE_METRIC_KEYS + NODE_INFRA_KEYS,
+}
 
 NODE_TYPE_TO_DIM: Dict[str, int] = {
     "Application": 23,
-    "Library": 23,
-    "Broker": 18,
-    "Topic": 18,
-    "Node": 18,
+    "Library":     23,
+    "Broker":      19,   # +1: max_connections_norm
+    "Topic":       20,   # +2: subscriber_count_norm, publisher_count_norm
+    "Node":        20,   # +2: cpu_cores_norm, memory_gb_norm
 }
 
-EDGE_FEATURE_DIM = 1 + len(EDGE_TYPES)                              # 8
+EDGE_FEATURE_DIM = 2 + len(EDGE_TYPES)  # 9: weight + path_count_norm + 7 type one-hot
 
 # Label column indices in the (N, 5) label matrix
 LABEL_COLS = {
@@ -159,30 +169,89 @@ LABEL_COLS = {
     "vulnerability": 4,
 }
 
+# ── Infrastructure feature helpers ─────────────────────────────────────────────
+
+def _normalize_infra_features(
+    graph: nx.DiGraph,
+    structural_metrics: Optional[Dict[str, Dict[str, float]]] = None,
+) -> Dict[str, Dict[str, float]]:
+    """Compute normalized infrastructure/runtime features per node.
+
+    Derives:
+    - Node: cpu_cores_norm, memory_gb_norm  (from graph attrs or structural_metrics)
+    - Broker: max_connections_norm          (from graph attrs or structural_metrics)
+    - Topic: subscriber_count_norm, publisher_count_norm  (from graph edge topology)
+
+    All values are normalized to [0, 1] via per-graph max.
+    """
+    node_cpu: Dict[str, float] = {}
+    node_mem: Dict[str, float] = {}
+    broker_conn: Dict[str, float] = {}
+    topic_subs: Dict[str, float] = {}
+    topic_pubs: Dict[str, float] = {}
+
+    for n, attrs in graph.nodes(data=True):
+        nt = attrs.get("type") or attrs.get("component_type") or "Application"
+        sm = (structural_metrics or {}).get(n, {})
+        if nt == "Node":
+            cpu = float(attrs.get("cpu_cores", sm.get("cpu_cores", 0)) or 0)
+            mem = float(attrs.get("memory_gb", sm.get("memory_gb", 0)) or 0)
+            node_cpu[n] = cpu
+            node_mem[n] = mem
+        elif nt == "Broker":
+            conn = float(attrs.get("max_connections", sm.get("max_connections", 0)) or 0)
+            broker_conn[n] = conn
+
+    # PUBLISHES_TO: Application → Topic; SUBSCRIBES_TO: Application → Topic.
+    # Both counts are from the Topic's perspective (how many publishers/subscribers it has).
+    for src, dst, attrs in graph.edges(data=True):
+        etype = attrs.get("type", "")
+        if etype == "SUBSCRIBES_TO":
+            topic_subs[dst] = topic_subs.get(dst, 0.0) + 1.0
+        elif etype == "PUBLISHES_TO":
+            topic_pubs[dst] = topic_pubs.get(dst, 0.0) + 1.0
+
+    max_cpu = max(node_cpu.values(), default=1.0) or 1.0
+    max_mem = max(node_mem.values(), default=1.0) or 1.0
+    max_conn = max(broker_conn.values(), default=1.0) or 1.0
+    max_subs = max(topic_subs.values(), default=1.0) or 1.0
+    max_pubs = max(topic_pubs.values(), default=1.0) or 1.0
+
+    infra: Dict[str, Dict[str, float]] = {}
+    for n in node_cpu:
+        infra[n] = {
+            "cpu_cores_norm": node_cpu[n] / max_cpu,
+            "memory_gb_norm": node_mem.get(n, 0.0) / max_mem,
+        }
+    for n, v in broker_conn.items():
+        infra[n] = {"max_connections_norm": v / max_conn}
+    all_topic_nodes = set(topic_subs) | set(topic_pubs)
+    for n in all_topic_nodes:
+        infra[n] = {
+            "subscriber_count_norm": topic_subs.get(n, 0.0) / max_subs,
+            "publisher_count_norm": topic_pubs.get(n, 0.0) / max_pubs,
+        }
+    return infra
+
+
 # ── Public API ─────────────────────────────────────────────────────────────────
 
 @dataclass
 class GraphConversionResult:
     """Output of :func:`networkx_to_hetero_data`."""
 
-    # Core PyG HeteroData object — import lazily to avoid hard dependency
     hetero_data: object
 
-    # Mapping from (node_type, local_index) → global node name (string ID)
     node_id_map: Dict[str, List[str]] = field(default_factory=dict)
 
-    # Reverse: global node name → (node_type, local_index)
     node_name_to_idx: Dict[str, Tuple[str, int]] = field(default_factory=dict)
 
-    # Mapping from (src_type, rel, dst_type) → list of (src_name, dst_name)
     edge_name_map: Dict[Tuple[str, str, str], List[Tuple[str, str]]] = field(
         default_factory=dict
     )
 
-    # Number of labelled nodes (nodes with simulation ground truth)
     num_labelled_nodes: int = 0
 
-    # List of node types actually present in this graph
     present_node_types: List[str] = field(default_factory=list)
 
 
@@ -197,30 +266,22 @@ def networkx_to_hetero_data(
     Parameters
     ----------
     graph:
-        The full structural NetworkX graph produced by Step 1 of the pipeline.
+        The full structural NetworkX graph from Step 1.
         Nodes must carry a ``type`` attribute (one of NODE_TYPES).
         Edges must carry a ``type`` attribute (one of EDGE_TYPES) and
-        optionally a ``weight`` attribute (float).
+        optionally ``weight`` and ``path_count`` attributes.
     structural_metrics:
-        ``{node_name: {metric_key: value}}`` dict produced by the
-        ``StructuralAnalyzer``.  When provided, the 13 topological metrics
-        are used as node features.  When absent, features default to zeros
-        (inference mode without pre-computed metrics).
+        ``{node_name: {metric_key: value}}`` from ``StructuralAnalyzer``.
     simulation_results:
         ``{node_name: {composite, reliability, maintainability,
-                        availability, vulnerability}}`` dict produced by
-        the ``SimulationService``.  Used as training labels.
+                        availability, vulnerability}}`` training labels.
     rmav_scores:
         ``{node_name: {overall, reliability, maintainability,
-                        availability, vulnerability}}`` produced by
-        the ``AnalysisService``.  Stored as an alternative label tensor
-        (``y_rmav``) for comparison / ensemble purposes.
+                        availability, vulnerability}}`` for ensemble blending.
 
     Returns
     -------
     GraphConversionResult
-        Contains the HeteroData object plus index maps needed to map
-        GNN predictions back to named components.
     """
     try:
         from torch_geometric.data import HeteroData
@@ -237,10 +298,13 @@ def networkx_to_hetero_data(
     type_to_nodes: Dict[str, List[str]] = {t: [] for t in NODE_TYPES}
 
     for node, attrs in graph.nodes(data=True):
-        # Support both 'type' (used in fallback/simple graphs) 
-        # and 'component_type' (used by StructuralAnalyzer/AnalysisService)
-        node_type = attrs.get("type") or attrs.get("component_type") or "Application"
-        
+        node_type = attrs.get("type") or attrs.get("component_type")
+        if node_type is None:
+            logger.warning(
+                "Node '%s' has no 'type' or 'component_type'; defaulting to 'Application'.",
+                node,
+            )
+            node_type = "Application"
         if node_type not in type_to_nodes:
             logger.warning(
                 "Unknown node type '%s' for node '%s'; treating as Application.",
@@ -249,7 +313,6 @@ def networkx_to_hetero_data(
             node_type = "Application"
         type_to_nodes[node_type].append(node)
 
-    # Build index maps
     for node_type, nodes in type_to_nodes.items():
         if not nodes:
             continue
@@ -258,23 +321,25 @@ def networkx_to_hetero_data(
         for local_idx, name in enumerate(nodes):
             result.node_name_to_idx[name] = (node_type, local_idx)
 
+    # Pre-compute infrastructure/runtime features (Topic counts, Node/Broker infra)
+    infra_features = _normalize_infra_features(graph, structural_metrics)
+
     # ── 2. Build node feature tensors per type ────────────────────────────────
     for node_type in result.present_node_types:
         nodes = result.node_id_map[node_type]
         n = len(nodes)
-        dim = NODE_TYPE_TO_DIM.get(node_type, 18)
+        dim = NODE_TYPE_TO_DIM.get(node_type, len(BASE_METRIC_KEYS))
         feat_matrix = np.zeros((n, dim), dtype=np.float32)
 
-        # Identify which keys to use for this type
-        keys_to_use = BASE_METRIC_KEYS
-        if node_type in ["Application", "Library"]:
-            keys_to_use = TOPOLOGICAL_METRIC_KEYS # Base + CQ
+        keys_to_use = KEYS_BY_TYPE.get(node_type, BASE_METRIC_KEYS)
 
         for local_idx, name in enumerate(nodes):
-            if structural_metrics and name in structural_metrics:
-                metrics = structural_metrics[name]
-                for col, key in enumerate(keys_to_use):
-                    feat_matrix[local_idx, col] = float(metrics.get(key, 0.0))
+            base_source = (structural_metrics or {}).get(name, {})
+            infra_source = infra_features.get(name, {})
+            for col, key in enumerate(keys_to_use):
+                # Base metrics come from structural_metrics; infra keys from infra_source
+                val = base_source.get(key, infra_source.get(key, 0.0))
+                feat_matrix[local_idx, col] = float(val)
 
         data[node_type].x = torch.from_numpy(feat_matrix)
         data[node_type].num_nodes = n
@@ -295,7 +360,7 @@ def networkx_to_hetero_data(
             data[node_type].y = torch.from_numpy(label_matrix)
             result.num_labelled_nodes += labelled_count
 
-        # ── RMAV scores (for ensemble / comparison) ───────────────────────────
+        # ── RMAV scores (for ensemble / consistency regularization) ───────────
         if rmav_scores:
             rmav_matrix = np.zeros((n, 5), dtype=np.float32)
             for local_idx, name in enumerate(nodes):
@@ -309,18 +374,16 @@ def networkx_to_hetero_data(
             data[node_type].y_rmav = torch.from_numpy(rmav_matrix)
 
     # ── 3. Build edge index and feature tensors per relation ──────────────────
-    # Pre-compute bridges for grounded edge labeling
     try:
         bridges = set(nx.bridges(graph.to_undirected()))
     except Exception:
         bridges = set()
 
-    # Group edges by (src_type, edge_type, dst_type)
     rel_edges: Dict[Tuple[str, str, str], Tuple[List[int], List[int], List[List[float]]]] = {}
 
     for src, dst, attrs in graph.edges(data=True):
         if src not in result.node_name_to_idx or dst not in result.node_name_to_idx:
-            continue  # skip edges whose endpoints weren't indexed
+            continue
 
         src_type, src_local = result.node_name_to_idx[src]
         dst_type, dst_local = result.node_name_to_idx[dst]
@@ -336,43 +399,35 @@ def networkx_to_hetero_data(
         rel_edges[rel_key][1].append(dst_local)
         result.edge_name_map[rel_key].append((src, dst))
 
-        # Edge features: [weight, type_onehot x7]
+        # Edge features: [weight, path_count_norm, type_onehot x7]
         weight = float(attrs.get("weight", 1.0))
+        path_count_raw = float(attrs.get("path_count", 1) or 1)
+        path_count_norm = math.log2(1.0 + path_count_raw) / math.log2(17.0)
         type_onehot = [0.0] * len(EDGE_TYPES)
         if edge_type in EDGE_TYPE_INDEX:
             type_onehot[EDGE_TYPE_INDEX[edge_type]] = 1.0
-        rel_edges[rel_key][2].append([weight] + type_onehot)
+        rel_edges[rel_key][2].append([weight, path_count_norm] + type_onehot)
 
-    # Write edge stores into HeteroData
     for (src_type, edge_type, dst_type), (srcs, dsts, feats) in rel_edges.items():
         rel = (src_type, edge_type, dst_type)
-        edge_index = torch.tensor([srcs, dsts], dtype=torch.long)
-        edge_attr = torch.tensor(feats, dtype=torch.float32)
+        data[rel].edge_index = torch.tensor([srcs, dsts], dtype=torch.long)
+        data[rel].edge_attr = torch.tensor(feats, dtype=torch.float32)
 
-        data[rel].edge_index = edge_index
-        data[rel].edge_attr = edge_attr
-
-        # Edge labels: grounded in structural bridge property (Issue G3)
+        # Edge labels: grounded in structural bridge property (Issue G3 workaround)
         if simulation_results:
             src_nodes = result.node_id_map[src_type]
             dst_nodes = result.node_id_map[dst_type]
             edge_labels = np.zeros((len(srcs), 5), dtype=np.float32)
-            
             for i, (s_idx, d_idx) in enumerate(zip(srcs, dsts)):
                 s_name = src_nodes[s_idx]
                 d_name = dst_nodes[d_idx]
-                
-                # Check if this edge (s, d) is a structural bridge
                 is_bridge = (s_name, d_name) in bridges or (d_name, s_name) in bridges
                 bridge_multiplier = 1.0 if is_bridge else 0.1
-                
                 s_sim = simulation_results.get(s_name, {})
                 for col, key in enumerate(
                     ["composite", "reliability", "maintainability", "availability", "vulnerability"]
                 ):
-                    # Grounded label: I*(u) * bridge_indicator(e) + I*(u) * epsilon
                     edge_labels[i, col] = float(s_sim.get(key, 0.0)) * bridge_multiplier
-
             data[rel].y_edge = torch.from_numpy(edge_labels)
 
     logger.info(
@@ -398,22 +453,7 @@ def create_node_splits(
     val_ratio: float = 0.2,
     seed: int = 42,
 ) -> None:
-    """Add train/val/test boolean masks to every node store in-place.
-
-    When only a single graph is available (transductive setting), we randomly
-    split labelled nodes into train/val/test sets for each node type
-    independently.
-
-    Parameters
-    ----------
-    hetero_data:
-        The HeteroData object returned by :func:`networkx_to_hetero_data`.
-    train_ratio, val_ratio:
-        Fractions of labelled nodes assigned to train and validation sets.
-        Remaining nodes form the test set.
-    seed:
-        Random seed for reproducibility.
-    """
+    """Add train/val/test boolean masks to every node store in-place."""
     rng = np.random.default_rng(seed)
 
     for store in hetero_data.node_stores:
@@ -438,24 +478,49 @@ def create_node_splits(
         store.test_mask = test_mask
 
 
+def normalize_labels_robust(hetero_data) -> None:
+    """In-place IQR normalization of .y label tensors across all node types.
+
+    Computes global median and IQR over all labelled nodes, then maps each
+    label through (x - median) / IQR, clamps to [-3, 3], and applies sigmoid
+    to keep values in (0, 1) for use with the sigmoid output heads.
+    """
+    all_labels = [
+        hetero_data[nt].y
+        for nt in hetero_data.node_types
+        if hasattr(hetero_data[nt], "y") and hetero_data[nt].y.numel() > 0
+    ]
+    if not all_labels:
+        return
+    concat = torch.cat(all_labels, dim=0)   # (N_total, 5)
+    q25 = torch.quantile(concat, 0.25, dim=0)
+    q75 = torch.quantile(concat, 0.75, dim=0)
+    iqr = (q75 - q25).clamp(min=1e-6)
+    median = torch.median(concat, dim=0).values
+    for nt in hetero_data.node_types:
+        store = hetero_data[nt]
+        if hasattr(store, "y"):
+            store.y = torch.sigmoid(((store.y - median) / iqr).clamp(-3.0, 3.0))
+
+
+# ── Extraction utilities ───────────────────────────────────────────────────────
+
 def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, Dict[str, float]]:
     """Normalise Simulation output to common flat dict format."""
     out: Dict[str, Dict[str, float]] = {}
-    
-    # Handle the new SimulationReport dict structure
+
     if isinstance(simulation_results, dict) and "component_criticality" in simulation_results:
         for c in simulation_results["component_criticality"]:
             name = c.get("id")
             out[name] = {
                 "composite": float(c.get("combined_impact", 0.0)),
-                "reliability": float(c.get("failure_impact", 0.0)), # Map failure_impact to reliability ground truth
-                "maintainability": 0.0, # Not available in summary
-                "availability": float(c.get("failure_impact", 0.0)), # Often same or similar in summary
+                "reliability": float(c.get("failure_impact", 0.0)),
+                "maintainability": 0.0,
+                "availability": float(c.get("failure_impact", 0.0)),
                 "vulnerability": 0.0,
             }
         return out
 
-    # Handle standard list of FailureResult objects/dicts
     results_list = simulation_results
     if isinstance(simulation_results, dict) and "results" in simulation_results:
         results_list = simulation_results["results"]
@@ -476,8 +541,9 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
             }
         elif isinstance(r, dict):
             name = r.get("target_id")
-            if not name: continue
-            impact = r.get("impact", r) # Might be nested or flat
+            if not name:
+                continue
+            impact = r.get("impact", r)
             out[name] = {
                 "composite": float(impact.get("composite_impact", 0.0)),
                 "reliability": float(impact.get("reliability_impact", 0.0)),
@@ -489,11 +555,7 @@ def extract_simulation_dict(simulation_results: Union[list, dict]) -> Dict[str, 
 
 
 def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, float]]:
-    """Normalise StructuralAnalyzer output to the flat dict expected by this module.
-
-    Handles both the ``StructuralAnalysisResult`` dataclass returned by the
-    ``AnalysisService`` and raw dict representations.
-    """
+    """Normalise StructuralAnalyzer output to the flat dict expected by this module."""
     out: Dict[str, Dict[str, float]] = {}
 
     def _from_component(comp):
@@ -515,6 +577,7 @@ def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, fl
             "ap_c_directed": float(_get(comp, "ap_c_directed")),
             "cdi": float(_get(comp, "cdi")),
             "mpci": float(_get(comp, "mpci")),
+            "path_complexity": float(_get(comp, "path_complexity")),
             "fan_out_criticality": float(_get(comp, "fan_out_criticality")),
             "bridge_ratio": float(_get(comp, "bridge_ratio")),
             "qos_weight": float(_get(comp, "weight", 1.0)),
@@ -525,24 +588,23 @@ def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, fl
             "instability_code": float(_get(comp, "instability_code")),
             "lcom_norm": float(_get(comp, "lcom_norm")),
             "code_quality_penalty": float(_get(comp, "code_quality_penalty")),
+            # Infrastructure attributes (used by _normalize_infra_features)
+            "cpu_cores": float(_get(comp, "cpu_cores", 0)),
+            "memory_gb": float(_get(comp, "memory_gb", 0)),
+            "max_connections": float(_get(comp, "max_connections", 0)),
         }
 
-    # Handle StructuralAnalysisResult with .components list
     if hasattr(structural_result, "components"):
-        # Support both components list and dict
         components = structural_result.components
         if hasattr(components, "values"):
             components = components.values()
-        
         for comp in components:
             name = getattr(comp, "component_id", getattr(comp, "name", str(getattr(comp, "id", comp))))
             out[name] = _from_component(comp)
-    # Handle dict of {name: component_dict} or nested structural dict
     elif isinstance(structural_result, dict):
         components = structural_result.get("components", structural_result)
-        # If it was a nested dict with 'components' field, it might be a list or a dict
         if isinstance(components, dict):
-             for name, comp in components.items():
+            for name, comp in components.items():
                 out[name] = _from_component(comp)
         elif isinstance(components, list):
             for comp in components:
@@ -551,7 +613,6 @@ def extract_structural_metrics_dict(structural_result) -> Dict[str, Dict[str, fl
                     name = comp.get("component_id", comp.get("name", comp.get("id", str(comp))))
                 out[name] = _from_component(comp)
         else:
-            # Fallback for unexpected formats
             for name, comp in structural_result.items():
                 out[name] = _from_component(comp)
 
@@ -574,7 +635,6 @@ def extract_rmav_scores_dict(quality_result) -> Dict[str, Dict[str, float]]:
                     "availability": float(getattr(scores, "availability", 0.0)),
                     "vulnerability": float(getattr(scores, "vulnerability", 0.0)),
                 }
-    # Handle dict of {name: scores_dict} or nested quality dict
     elif isinstance(quality_result, dict):
         components = quality_result.get("components", quality_result)
         if isinstance(components, list):

@@ -26,7 +26,10 @@ from saag.core.metrics import StructuralMetrics
 def test_node_feature_dimensions():
     """GNN-CQ-001: Verify type-specific feature dimensions."""
     assert NODE_TYPE_TO_DIM["Application"] == 23
-    assert NODE_TYPE_TO_DIM["Broker"] == 18
+    assert NODE_TYPE_TO_DIM["Library"] == 23
+    assert NODE_TYPE_TO_DIM["Broker"] == 19   # +1 max_connections_norm
+    assert NODE_TYPE_TO_DIM["Topic"] == 20    # +2 subscriber/publisher counts
+    assert NODE_TYPE_TO_DIM["Node"] == 20     # +2 cpu_cores_norm, memory_gb_norm
 
 
 def test_networkx_to_hetero_data_feature_mapping():
@@ -61,10 +64,9 @@ def test_networkx_to_hetero_data_feature_mapping():
     # Check widths
     assert data["Application"].x.shape[1] == 23
     assert data["Library"].x.shape[1] == 23
-    assert data["Broker"].x.shape[1] == 18
+    assert data["Broker"].x.shape[1] == 19   # 18 base + max_connections_norm
 
-    # Check A1 features
-    # Indices 18-22 should be CQ metrics
+    # Check A1 CQ features at indices 18-22
     a1_x = data["Application"].x[0].numpy()
     assert a1_x[18] == pytest.approx(0.5)  # loc_norm
     assert a1_x[19] == pytest.approx(0.6)  # complexity_norm
@@ -72,11 +74,10 @@ def test_networkx_to_hetero_data_feature_mapping():
     assert a1_x[21] == pytest.approx(0.8)  # lcom_norm
     assert a1_x[22] == pytest.approx(0.9)  # code_quality_penalty
 
-    # Check B1 features (Broker)
-    # CQ indices should not exist for Broker (dim is 18)
+    # Check B1 features (Broker): 19 dims, index 0 = pagerank
     b1_x = data["Broker"].x[0].numpy()
-    assert b1_x.shape[0] == 18
-    assert b1_x[0] == pytest.approx(0.05) # pagerank
+    assert b1_x.shape[0] == 19
+    assert b1_x[0] == pytest.approx(0.05)  # pagerank
 
 
 def test_extract_structural_metrics_dict_includes_cq():

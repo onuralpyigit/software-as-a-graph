@@ -428,6 +428,7 @@ async def predict_gnn(
             graph=nx_graph,
             structural_metrics=structural_dict,
             rmav_scores=rmav_dict,
+            mode="gnn",
         )
         name_lookup = {node: attrs.get("name", node) for node, attrs in nx_graph.nodes(data=True)}
         return ckpt_dir, gnn_result, name_lookup

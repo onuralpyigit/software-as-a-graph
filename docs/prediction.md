@@ -32,7 +32,7 @@
    - 4.1 [Motivation](#41-motivation)
    - 4.2 [Architecture Overview](#42-architecture-overview)
    - 4.3 [Graph Data Preparation](#43-graph-data-preparation)
-   - 4.4 [HeteroGAT Model](#44-heterogat-model)
+   - 4.4 [HGT Model (Heterogeneous Graph Transformer)](#44-hgt-model-heterogeneous-graph-transformer)
    - 4.5 [Multi-Task Prediction Heads](#45-multi-task-prediction-heads)
    - 4.6 [Edge Criticality Prediction](#46-edge-criticality-prediction)
    - 4.7 [Ensemble: GNN + RMAV](#47-ensemble-gnn--rmav)
@@ -76,7 +76,7 @@ Tier 2 — 6 diagnostic:                                                 MEDIUM,
 | | Analyze — Rule-Based (RMAV) | Predict — Learning-Based (GNN) | Predict — Ensemble |
 |---|---|---|---|
 | **Pipeline stage** | Step 2 (deterministic) | Step 3 (inductive, optional) | Step 3 (inductive, optional) |
-| **Mechanism** | AHP-weighted linear combination of Tier 1 metrics | Heterogeneous Graph Attention Network | Convex blend α·Q_GNN + (1−α)·Q_RMAV |
+| **Mechanism** | AHP-weighted linear combination of Tier 1 metrics | Heterogeneous Graph Transformer (HGTConv) with EdgeFeatureEncoder | Convex blend α·Q_GNN + (1−α)·Q_RMAV |
 | **Interpretability** | Full — every score decomposes into metric contributions | Partial — attention weights and per-head outputs | Partial |
 | **Requires training data** | No | Yes (simulation-labelled I(v)) | Yes |
 | **Node criticality** | ✓ | ✓ | ✓ |
@@ -86,16 +86,16 @@ Tier 2 — 6 diagnostic:                                                 MEDIUM,
 | **MPCI effect** | ✓ Explicit (CDPot_enh) | Learned | Learned |
 | **Generalises to unseen systems** | Immediately | Requires fine-tuning | Requires fine-tuning |
 | **Spearman ρ (validated)** | 0.876 | TBD (training on ATM dataset pending) | TBD |
-| **Primary use** | First analysis; interpretable; CI gate | Post-training; system-of-systems scale | Production after ablation comparison |
+| **Primary use** | First analysis; interpretable; CI gate; fallback when no checkpoint | Default predictor after checkpoint is available | Research comparison; activate with `--mode ensemble` |
 
 Both paths classify components into the same five levels and are validated against the same I(v) ground truth, making their predictions directly comparable under the Validate stage protocol.
 
 **Recommended workflow:**
-1. Run the **Analyze** stage — immediate results, no training required, full interpretability.
+1. Run the **Analyze** stage — immediate results, no training required, full interpretability. RMAV scores serve as the fallback when no GNN checkpoint exists.
 2. Run the **Simulate** stage to generate I(v) ground truth (and GNN training labels).
-3. Train the GNN on the labelled graph (`cli/train_graph.py`).
-4. Run the **Predict** stage for three-way ablation: compare ρ(Q_RMAV, I*), ρ(Q_GNN, I*), ρ(Q_ens, I*) using `--mode rmav|gnn|ensemble`.
-5. Switch to Ensemble for production if Q_ens delivers predictive gain > 0.03 over RMAV alone.
+3. Train the GNN on the labelled graph (`cli/train_graph.py`). The GNN becomes the primary predictor automatically.
+4. Run the **Predict** stage (`--mode gnn`, the default once a checkpoint exists). RMAV scores are still computed as regularisation input and ensemble right-hand side.
+5. For ablation: compare ρ(Q_RMAV, I*), ρ(Q_GNN, I*), ρ(Q_ens, I*) using `--mode rmav|gnn|ensemble`. Switch to ensemble only if Q_ens delivers predictive gain Δρ > 0.03 over GNN alone.
 
 ---
 
@@ -501,19 +501,20 @@ Three cooperating modules:
 ```
     NetworkX DiGraph (Step 1 output)
              │
-  ┌──────────▼───────────────────┐
-  │   Data Preparation           │  Type-specific node features (23/18)
-  │   networkx_to_hetero_data()  │   8-dim edge features per relation
-  │   HeteroData + splits        │   5-dim simulation labels y = I*(v)
-  └──────────┬───────────────────┘   5-dim RMAV scores  y_rmav = Q_RMAV(v)
-             │
+  ┌──────────▼───────────────────────┐
+  │   Data Preparation               │  Type-specific node features:
+  │   networkx_to_hetero_data()      │    App/Lib=23, Broker=19, Topic=20, Node=20
+  │   HeteroData + splits            │   9-dim edge features (weight, path_count_norm,
+  └──────────┬───────────────────────┘    7-bit type one-hot)
+             │                            5-dim simulation labels y = I*(v)
+             │                            5-dim RMAV scores  y_rmav = Q_RMAV(v)
      ┌───────┼────────────┐
      ▼       ▼            ▼
   NodeGNN  EdgeGNN   EnsembleGNN
-  3L 4H    (shares    α · Q_GNN     ← Step 3 output
-  HetGAT   NodeGNN   +(1-α)·Q_RMAV ← Q_RMAV from Step 2
-  (N, 5)   backbone)  (N, 5)
-           (E, 5)
+  3L HGT   TypedEdge  α · Q_GNN     ← Step 3 output (default mode="gnn")
+  +EdgeFea  Encoder  +(1-α)·Q_RMAV ← Q_RMAV from Step 2
+  +BiDir   (E, 5)    (N, 5)
+  (N, 5)
 ```
 
 All three modules are implemented in `saag/prediction/` and managed by `GNNService`.
@@ -524,13 +525,21 @@ All three modules are implemented in `saag/prediction/` and managed by `GNNServi
 
 `networkx_to_hetero_data()` in `data_preparation.py` converts the Step 1 NetworkX graph to a PyTorch Geometric `HeteroData` object, partitioning nodes and edges by type.
 
-#### Node Feature Vector (23 or 18 dimensions)
+#### Node Feature Vector (type-specific dimensions)
 
-Each node `v` is represented by a feature vector whose dimension depends on its type. Code-bearing types (**Application**, **Library**) have **23 dimensions** (Topological + Code Quality). Other types (**Broker**, **Topic**, **Node**) have **18 dimensions** (Topological only).
+Each node `v` is represented by a feature vector whose dimension depends on its type. The first 18 indices are the shared topological base present for all node types. Type-specific extra features follow at indices 18+.
 
-> **Implementation note.** The HeteroGAT architecture handles type-specific projections internally, so a global one-hot node-type vector is **not required** and has been removed to reduce parameter bloat. The constant `NODE_TYPE_TO_DIM` in `models.py` defines the authoritative widths.
+| Node type | Total dim | Extra features (indices 18+) |
+|-----------|:---------:|------------------------------|
+| Application | 23 | +5 code quality attributes (indices 18–22) |
+| Library | 23 | +5 code quality attributes (indices 18–22) |
+| Broker | 19 | +1 `max_connections_norm` (index 18) |
+| Topic | 20 | +2 `subscriber_count_norm`, `publisher_count_norm` (indices 18–19) |
+| Node (infra) | 20 | +2 `cpu_cores_norm`, `memory_gb_norm` (indices 18–19) |
 
-**Topological metrics — indices 0–17 (18 features):**
+> **Implementation note.** The HGT architecture handles type-specific projections internally, so a global one-hot node-type vector is **not required** and has been removed to reduce parameter bloat. The constant `NODE_TYPE_TO_DIM` in `data_preparation.py` defines the authoritative widths. Infrastructure extra features (`cpu_cores_norm`, `memory_gb_norm`, `max_connections_norm`) are derived by per-graph min-max normalization of node attributes in `_normalize_infra_features()`. Topic runtime features (`subscriber_count_norm`, `publisher_count_norm`) are derived by counting `SUBSCRIBES_TO`/`PUBLISHES_TO` edges per Topic node and dividing by the graph maximum.
+
+**Topological metrics — indices 0–17 (base for all node types):**
 
 | Index | Metric | RMAV role |
 |:-----:|--------|-----------|
@@ -553,7 +562,7 @@ Each node `v` is represented by a feature vector whose dimension depends on its 
 | 16 | AP_c_directed | A(v) directly and via QSPOF |
 | 17 | CDI (Connectivity Degradation) | A(v) |
 
-**Code quality metrics — indices 18–22 (5 features; Applications/Libraries only):**
+**Code quality metrics — indices 18–22 (Application and Library only):**
 
 | Index | Metric | RMAV role |
 |:-----:|--------|-----------|
@@ -563,12 +572,23 @@ Each node `v` is represented by a feature vector whose dimension depends on its 
 | 21 | lcom_norm | M(v) via CQP |
 | 22 | code_quality_penalty (CQP) | M(v) directly |
 
-#### Edge Features (8 dimensions)
+**Infrastructure metrics — indices 18–19 (Broker, Topic, Node only):**
+
+| Index | Metric | Node type | Source |
+|:-----:|--------|-----------|--------|
+| 18 | max_connections_norm | Broker | Node attribute, normalized per Broker subgraph |
+| 18 | subscriber_count_norm | Topic | SUBSCRIBES_TO in-edge count, normalized per graph |
+| 19 | publisher_count_norm | Topic | PUBLISHES_TO in-edge count, normalized per graph |
+| 18 | cpu_cores_norm | Node | Node attribute, normalized per Node subgraph |
+| 19 | memory_gb_norm | Node | Node attribute, normalized per Node subgraph |
+
+#### Edge Features (9 dimensions)
 
 | Index | Feature |
 |:-----:|---------|
 | 0 | QoS weight w(e) |
-| 1–7 | Edge-type one-hot (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO, USES, DEPENDS_ON) |
+| 1 | path_count_norm = log₂(1 + path_count) / log₂(17) — coupling intensity (capped at 16 paths) |
+| 2–8 | Edge-type one-hot (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO, USES, DEPENDS_ON) |
 
 **Node labels** (`data[type].y`, shape (n, 5)): simulation ground-truth per-dimension impact scores `[I*(v), IR(v), IM(v), IA(v), IV(v)]`.
 
@@ -576,23 +596,33 @@ Each node `v` is represented by a feature vector whose dimension depends on its 
 
 ---
 
-### 4.4 HeteroGAT Model
+### 4.4 HGT Model (Heterogeneous Graph Transformer)
 
-The model uses a **3-layer, 4-head Heterogeneous Graph Attention Network (HeteroGAT)** with separate weight matrices per relation type:
+The model uses a **3-layer Heterogeneous Graph Transformer (HGTConv)** with type-dependent key/query/value projections. For each `(src_type, edge_type, dst_type)` triple, HGT learns separate attention parameters — the correct inductive bias for a graph with 5 node types and 7+ edge types. This is a stronger inductive bias than GAT-within-HeteroConv, which does not model joint source-relation-target type context.
+
+**HGTConv does not accept raw edge_attr tensors.** A dedicated `EdgeFeatureEncoder` bridges this gap by aggregating edge features into destination-node embeddings via scatter-mean before each HGT layer.
 
 ```
 Layer 0 — Type-specific input projection:
-  h_v^(0) = GELU( LayerNorm( W_{type(v)} · x_v + b_{type(v)} ) )
+  h_v^(0) = GELU( LayerNorm( W_{type(v)} · x_v ) )
 
-Layer k — Message passing per relation r ∈ edge_types:
-  α_{uv}^r = softmax_u( a_r^T · [ h_u^(k) ‖ h_v^(k) ] )
-  m_v^(r,k) = Σ_{u ∈ N_r(v)}  α_{uv}^r · W_r^(k) · h_u^(k)
+Pre-layer edge injection (EdgeFeatureEncoder, applied per layer k):
+  e_v^(k) = scatter_mean_{u → v}( W_e · e_{uv} )     ← 9-dim edge → D-dim
+  h_v^(k) ← h_v^(k) + e_v^(k)                        ← edge signal added before MP
 
-  Aggregate across relation types:
-  h_v^(k+1) = GELU( LayerNorm( Σ_r  W_{agg,r} · m_v^(r,k)  +  W_self · h_v^(k) ) )
+Layer k — HGT message passing per (src_type s, edge_type r, dst_type d):
+  ATT(u,v) = softmax( (K_s^(k) h_u)^T · (Q_d^(k) h_v) / √D_h · W_{ATT}^(s,r,d) )
+  MSG(u,v) = V_s^(k) h_u · W_{MSG}^(s,r,d)
+  m_v^(k)  = Σ_{u,r} ATT(u,v) · MSG(u,v)
+  h_v^(k+1) = GELU( LayerNorm( W_{agg} · m_v^(k)  +  h_v^(k) ) )   ← residual
+
+Reverse pass (use_bidirectional=True, computed on-the-fly within encode()):
+  rev_ei = { (dst, "rev_"+etype, src) : flip(edge_index) }  for each relation
+  h_rev  = rev_conv(h, rev_ei)
+  h_v   ← h_v + 0.5 · h_rev[v]                              ← upstream signal
 ```
 
-Residual connections between layers. Hidden dimension D = 64. Dropout p = 0.2. All weight matrices are independent per relation type, ensuring the model learns distinct aggregation semantics for, e.g., PUBLISHES_TO vs DEPENDS_ON edges.
+Residual connections between layers. Hidden dimension D = 64. Dropout p = 0.2. The reverse pass captures upstream (subscriber ← topic failure) and downstream (publisher → consumer cascade) structural signals without modifying data preparation — reverse edge indices are built on-the-fly inside `encode()`.
 
 ---
 
@@ -613,10 +643,12 @@ All outputs pass through sigmoid activation, producing scores in [0, 1]. The com
 ### 4.6 Edge Criticality Prediction
 
 ```
-score(u, v) = MLP_E( h_u ‖ h_v ‖ e_{uv} )
+score(u, v) = TypedEdgeEncoder_r( h_u, h_v, e_{uv} )
 
-e_{uv} ∈ ℝ^8: QoS weight + 7-bit edge-type one-hot
+e_{uv} ∈ ℝ^9: QoS weight + path_count_norm + 7-bit edge-type one-hot
 ```
+
+The `TypedEdgeEncoder` replaces the former shared MLP. Each relation type `r` has a dedicated linear projection `W_r ∈ ℝ^{9×D}` learned independently. The per-relation projected edge feature is fused with source and destination node embeddings via a shared `[h_src ‖ h_dst ‖ e_proj]` → LayerNorm → GELU layer before the output head. This ensures the model learns distinct edge-criticality semantics for PUBLISHES_TO vs DEPENDS_ON edges rather than forcing them through a common feature space.
 
 **Edge labels.** Training labels for edges are derived as:
 
@@ -639,27 +671,41 @@ Q_ens(v) = α · Q_GNN(v)  +  (1−α) · Q_RMAV(v)
 
 The ensemble is a thin `EnsembleGNN` module containing only the 5-dimensional `alpha_logit` parameter. It is fine-tuned after the main GNN training loop using the training-node subset.
 
+> **Default mode.** The default prediction mode is `"gnn"` (GNN-only output) after a checkpoint exists. `"ensemble"` must be explicitly requested via `--mode ensemble`. RMAV remains the fallback when no checkpoint is found (`predict_quality_with_gnn()` in `PredictionService` detects checkpoint availability via `_has_checkpoint()`).
+
 > **Implementation note.** `EnsembleGNN.forward()` requires `y_rmav` to be present in the HeteroData object. At inference time, if `rmav_scores` are not passed to `networkx_to_hetero_data()`, `y_rmav` will be absent and the ensemble silently falls back to GNN-only output while still labelling the result as `ensemble_scores`. The `GNNAnalysisResult` should expose a `prediction_mode` field (`"ensemble"` | `"gnn_only"`) so callers can distinguish these cases. This is an open implementation gap.
 
 ---
 
 ### 4.8 Training Protocol
 
-**Transductive (single graph, default).** 60/20/20 train/val/test split applied per node type via `create_node_splits()`. Early stopping on validation Spearman ρ with patience = 30 epochs. Maximum 300 epochs.
+**Transductive (single graph, default).** 60/20/20 train/val/test split applied per node type via `create_node_splits()`. Maximum 300 epochs.
+
+**Label normalization.** Before node splits are created, all simulation labels are normalized in-place via `normalize_labels_robust()`: IQR-based robust normalization `sigmoid((y − median) / IQR)` with the IQR clipped to a minimum of 1e-6, applied jointly across all node types. This reduces the influence of simulation outliers (extreme cascade cascades at small-graph scales) on the training signal.
+
+**Early stopping.** Combined-metric early stopping with patience = 30 epochs:
+```
+combined = 0.6 × val_rho  +  0.4 × max(0,  1 − val_loss / (best_val_loss + ε))
+```
+This balances ranking quality (Spearman ρ) with absolute loss improvement, reducing cases where high ρ hides a degraded loss surface or vice versa.
 
 **Loss function:**
 
 ```
-L = L_composite  +  0.5 × L_dimension  +  0.3 × L_rank
+L = L_composite  +  0.5 × L_dimension  +  0.3 × L_rank  +  0.1 × L_pairwise
 
-L_composite   = MSE( Î*(v),   I*(v) )          — composite impact prediction
-L_dimension   = Σ_d  MSE( d̂(v),  I_d*(v) )    — per-dimension impact prediction
-L_rank        = −(1/N) Σ_v  log P(rank of v)   — ListMLE ranking loss
+L_composite   = MSE( Î*(v),   I*(v) )                  — composite impact
+L_dimension   = Σ_d  MSE( d̂(v),  I_d*(v) )            — per-dimension impact
+L_rank        = −(1/N) Σ_v  log P(rank of v)           — ListMLE list-level ranking
+L_pairwise    = Σ_{i,j: t_i−t_j > m}  max(0, m − (s_i−s_j)) / n_pairs  — pairwise margin
+                margin m = 0.05
 ```
 
-> **Note on L_dimension.** Each per-RMAV head is supervised against the simulation-derived per-dimension impact `I_d*(v)` (not against `Q_RMAV_d(v)` scores). This is the correct formulation: the GNN learns to predict simulation impact, not to reproduce the RMAV formula. The name `L_RMAV` used in some internal comments can be misleading; `L_dimension` is the correct term.
+> **Note on L_dimension.** Each per-RMAV head is supervised against the simulation-derived per-dimension impact `I_d*(v)` (not against `Q_RMAV_d(v)` scores). The GNN learns to predict simulation impact, not to reproduce the RMAV formula. `L_RMAV` used in older internal comments is a misnomer; `L_dimension` is the correct term.
 
-**Optimizer:** AdamW, lr = 3×10⁻⁴, weight_decay = 10⁻⁴, cosine annealing, gradient clipping max_norm = 1.0.
+> **Note on L_pairwise.** L_pairwise enforces pairwise ordering: if component i should rank strictly above j (target difference > margin), the model is penalised when its predicted scores fail to preserve that ordering. It supplements ListMLE's list-level signal with direct pair-level correctness.
+
+**Optimizer and scheduler:** AdamW, lr = 3×10⁻⁴, weight_decay = 10⁻⁴, gradient clipping max_norm = 1.0. Learning rate schedule: `CosineAnnealingWarmRestarts(T_0 = max(50, epochs//4), T_mult=2, η_min = lr×0.01)`. Warm restarts help escape local minima that are common when training on heterogeneous graphs with varying simulation label density across scenarios.
 
 **Ensemble fine-tuning.** After the main training loop, `EnsembleGNN.alpha_logit` is fine-tuned for 100 epochs using Adam at lr = 1×10⁻³. GNN predictions are computed under `torch.no_grad()` during this step, so gradients flow only through α. This limits ensemble adaptation to a global blend scalar and cannot correct systematic biases in the GNN's direction of error.
 
@@ -679,16 +725,20 @@ The following table tracks the technical hardening of the GNN pipeline. All high
 
 | ID | Issue | Severity | Status | Solution / Mitigation |
 |----|-------|:--------:|--------|-----------------------|
-| G1 | `NODE_FEATURE_DIM` mismatch | High | **Resolved** | Enforced 23/18 split; added dimension check in `from_checkpoint()` |
-| G2 | Edge labels as node proxies | Medium | Open | Current: `max(I*(u), I*(v))`. Future: direct removal impact |
-| G3 | Redundant type encoding | Low | Open | Type-specific projections are used, but zero-padding remains in raw tensors |
+| G1 | Node feature dim mismatch | High | **Resolved** | Per-type dims enforced (App/Lib=23, Broker=19, Topic=20, Node=20); `feature_version=2` in checkpoint config; old checkpoints load with `strict=False` + warning rather than hard error |
+| G2 | Edge labels as node proxies | Medium | Open | Current: `max(I*(u), I*(v))`. Future: direct removal impact per edge |
+| G3 | Redundant type encoding | Low | **Resolved** | Zero-padding removed; `KEYS_BY_TYPE` selects only type-appropriate features |
 | G4 | Transductive leakage | High | Open | Test nodes are present in MP graph. Requires pure inductive split for SoS claims |
 | G5 | Best seed weight saving | High | **Resolved** | `best_state` is now restored before `train()` returns |
 | G6 | Ensemble α bias | Medium | Open | α is a global blend; cannot correct local directional GNN errors |
-| G7 | Predicton seed overwrite | High | **Resolved** | `predict_from_data()` now uses persisted `self._best_seed` for mask consistency |
+| G7 | Prediction seed overwrite | High | **Resolved** | `predict_from_data()` now uses persisted `self._best_seed` for mask consistency |
 | G8 | Ensemble validation gap | High | **Resolved** | `ensemble_metrics` now computed via `evaluate_scores` in prediction path |
 | G9 | Silent ensemble fallback | Medium | **Resolved** | Added `prediction_mode` field and explicit fallback logging |
 | G10 | Layer compatibility check | Medium | **Resolved** | `from_checkpoint()` validates `layer` alias against checkpoint metadata |
+| G11 | Edge feature dim mismatch | Medium | **Resolved** | `EDGE_FEATURE_DIM` changed 8→9; `path_count_norm` added at index 1; existing checkpoints must be retrained (architectural change) |
+| G12 | HGTConv edge_attr incompatibility | Medium | **Resolved** | `EdgeFeatureEncoder` (scatter-mean projection) injects edge signals into dst-node embeddings before each HGT layer |
+| G13 | Single-cycle LR decay | Low | **Resolved** | `CosineAnnealingWarmRestarts` with T_0, T_mult=2 replaces single-cycle decay; warm restarts escape local minima |
+| G14 | Spearman-only early stopping | Low | **Resolved** | Combined score `0.6×ρ + 0.4×loss_improvement`; prevents ρ-high/loss-degraded runs from being saved |
 
 ---
 
@@ -707,7 +757,7 @@ The following table tracks the technical hardening of the GNN pipeline. All high
 | Spearman ρ (ATM, validated) | 0.876 overall; 0.943 large-scale | Pending | Pending |
 | F1-score (ATM, validated) | 0.893 | Pending | Pending |
 | Transductive leakage risk | None (formula-based) | Present (G4) | Present |
-| Primary use | First analysis; interpretable; CI gate | Post-training; SoS scale | Production after ablation |
+| Primary use | First analysis; interpretable; CI gate; fallback when no checkpoint | Default predictor after training; RMAV = fallback | Research comparison; use `--mode ensemble` |
 
 **Three-way ablation protocol.** Before claiming that GNN or Ensemble outperforms RMAV, run the controlled ablation using `--mode rmav|gnn|ensemble` in `predict_graph.py`. Use Wilcoxon signed-rank test on per-component ρ values across seeds. Predictive gain threshold for switching: Δρ > 0.03 (one standard deviation on the ATM dataset).
 
