@@ -2216,7 +2216,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       )}
       {/* Spread slider — controls horizontal distance between nodes */}
       <div style={{
-        position: "absolute", top: 10, right: 10, zIndex: 10,
+        position: "absolute", top: 10, left: 10, zIndex: 10,
         display: "flex", alignItems: "center", gap: 8,
         padding: "6px 10px",
         borderRadius: 8,
@@ -4274,17 +4274,17 @@ function BrowserPageContent() {
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0">
-          <div className="flex items-center justify-between mb-4 shrink-0">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0 gap-0">
+          <div className="flex items-center justify-between mb-2 shrink-0">
             <TabsList>
               <TabsTrigger value="browse" className="flex items-center gap-2">
-                <List className="h-4 w-4" />List
+                <List className="h-4 w-4" />Components
               </TabsTrigger>
               <TabsTrigger value="forcegraph" className="flex items-center gap-2">
-                <Share2 className="h-4 w-4" />Force Graph
+                <Share2 className="h-4 w-4" />Topology
               </TabsTrigger>
               <TabsTrigger value="graph" className="flex items-center gap-2">
-                <Network className="h-4 w-4" />Tree
+                <Network className="h-4 w-4" />Hierarchy
               </TabsTrigger>
             </TabsList>
 
