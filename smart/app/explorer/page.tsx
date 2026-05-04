@@ -2947,7 +2947,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
         {/* Side panel */}
         {selectedApp && (
           <div className="w-72 shrink-0 border-l border-border bg-background flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold text-white shrink-0"
                   style={{ background: nodeTypeColor(appNode?.type ?? selectedApp?.nodeType, isDark) }}>
@@ -2962,7 +2962,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             <div className="flex border-b border-border shrink-0">
               {(["props", "connections"] as const).map(tab => (
                 <button key={tab} onClick={() => setConnTab(tab)}
-                  className={cn("flex-1 py-1.5 text-[11px] font-medium transition-colors",
+                  className={cn("flex-1 py-2.5 text-[11px] font-medium transition-colors",
                     connTab === tab ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}>
                   {tab === "connections" ? `Connections (${outLinks.length + inLinks.length})` : "Props"}
@@ -3025,10 +3025,8 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                           <td className="px-3 py-2 text-muted-foreground max-w-[80px] truncate text-[10px]">{link.type ?? "—"}</td>
                           <td className="px-3 py-2 text-right">
                             <span className={cn(
-                              "text-[9px] font-semibold px-1.5 py-0.5 rounded-full",
-                              dir === "out"
-                                ? "bg-blue-500/15 text-blue-400"
-                                : "bg-orange-500/15 text-orange-400"
+                              "text-[10px] font-semibold uppercase tracking-wide",
+                              dir === "out" ? "text-blue-400" : "text-orange-400"
                             )}>{dir}</span>
                           </td>
                         </tr>
