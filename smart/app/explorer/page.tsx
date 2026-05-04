@@ -79,6 +79,7 @@ interface HGNode {
   nodeType?: string   // non-hierarchy node type (Topic, Node, Broker, Library …)
   appCount: number
   pathKey: string
+  instanceKey?: string // full path within hierarchy tree: "app:csms/css/csci/csc/appId"
   appData?: AppNode   // raw AppNode data for app-level nodes (used in tooltips)
   // runtime fields added by force-graph simulation
   x?: number; y?: number; vx?: number; vy?: number; fx?: number; fy?: number
@@ -1706,8 +1707,10 @@ function buildConnSubtree(
     unique.sort((a, b) => (a.node.label ?? a.node.id ?? "").localeCompare(b.node.label ?? b.node.id ?? ""))
     const ec = linkTypeColor(edgeType, isDark)
     const groupPath = `${parentPath}/${edgeType}`
+    const groupId = `cg:${groupPath}:${centerNodeId}`
     return {
-      name: `${edgeType}  (${unique.length})\x00${groupPath}:${centerNodeId}`,
+      id: groupId,
+      name: `${edgeType}  (${unique.length})\x00${groupId}`,
       value: `__cg__${edgeType}__${centerNodeId}`,
       _isConnGroup: true,
       collapsed: false,
@@ -1721,9 +1724,11 @@ function buildConnSubtree(
         const trimLbl = lbl.length > 26 ? lbl.slice(0, 24) + "…" : lbl
         const nc = nodeTypeColor(node.type, isDark)
         const instanceKey = `${groupPath}:${node.id}`
+        const leafId = `cl:${instanceKey}`
         const leafData = expandedLeaves.get(instanceKey)
         return {
-          name: (dir === "out" ? "→ " : "← ") + trimLbl + `\x00${instanceKey}`,
+          id: leafId,
+          name: (dir === "out" ? "→ " : "← ") + trimLbl + `\x00${leafId}`,
           value: node.id,
           _raw: node,
           _isConnLeaf: true,
@@ -1742,7 +1747,8 @@ function buildConnSubtree(
 
 function buildMergedTree(
   hierarchy: Record<string, CsmsGroup>,
-  selectedAppPathKey: string | null,
+  selectedInstanceKey: string | null,
+  selectedPathKey: string | null,
   connDataMap: Map<string, { nodes: any[]; links: any[] }>,
   expandedLeaves: Map<string, { nodes: any[]; links: any[] }>,
   isDark: boolean,
@@ -1754,8 +1760,11 @@ function buildMergedTree(
       for (const [ik, csci] of Object.entries(css.csci)) {
         for (const [pk, csc] of Object.entries(csci.csc)) {
           for (const app of csc.apps) {
-            if (connDataMap.has(app.id) || app.id === selectedAppPathKey) {
-              ancMap.set(app.id, { csmsKey: ck, cssKey: sk, csciKey: ik, cscKey: pk })
+            const instKey = `app:${ck}/${sk}/${ik}/${pk}/${app.id}`
+            const hasData = connDataMap.has(instKey)
+            const isSelected = selectedInstanceKey ? instKey === selectedInstanceKey : app.id === selectedPathKey
+            if (hasData || isSelected) {
+              ancMap.set(instKey, { csmsKey: ck, cssKey: sk, csciKey: ik, cscKey: pk })
             }
           }
         }
@@ -1764,47 +1773,60 @@ function buildMergedTree(
   }
 
   return {
+    id: "root",
     name: "System",
     itemStyle: { color: "#64748b" },
     label: { show: false },
     children: sortKeys(Object.keys(hierarchy)).map(csmsKey => {
       const csms = hierarchy[csmsKey]
+      const csmsId = `csms:${csmsKey}`
       const isCsms = Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey)
       return {
-        name: csms.name + `\x00csms:${csmsKey}`,
+        id: csmsId,
+        name: csms.name + `\x00${csmsId}`,
         ...(isCsms && { collapsed: false }),
         itemStyle: { color: NODE_COLORS.csms },
         lineStyle: { color: NODE_COLORS.csms + "88" },
         children: sortKeys(Object.keys(csms.css)).map(cssKey => {
           const css = csms.css[cssKey]
+          const cssId = `css:${csmsKey}/${cssKey}`
           const isCss = isCsms && Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey)
           return {
-            name: css.name + `\x00css:${csmsKey}/${cssKey}`,
+            id: cssId,
+            name: css.name + `\x00${cssId}`,
             ...(isCss && { collapsed: false }),
             itemStyle: { color: NODE_COLORS.css },
             lineStyle: { color: NODE_COLORS.css + "88" },
             children: sortKeys(Object.keys(css.csci)).map(csciKey => {
               const csci = css.csci[csciKey]
+              const csciId = `csci:${csmsKey}/${cssKey}/${csciKey}`
               const isCsci = isCss && Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey && a.csciKey === csciKey)
               return {
-                name: csci.name + `\x00csci:${csmsKey}/${cssKey}/${csciKey}`,
+                id: csciId,
+                name: csci.name + `\x00${csciId}`,
                 ...(isCsci && { collapsed: false }),
                 itemStyle: { color: NODE_COLORS.csci },
                 lineStyle: { color: NODE_COLORS.csci + "88" },
                 children: sortKeys(Object.keys(csci.csc)).map(cscKey => {
                   const csc = csci.csc[cscKey]
+                  const cscId = `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`
                   const isCsc = isCsci && Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey && a.csciKey === csciKey && a.cscKey === cscKey)
                   return {
-                    name: csc.name + `\x00csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`,
+                    id: cscId,
+                    name: csc.name + `\x00${cscId}`,
                     ...(isCsc && { collapsed: false }),
                     itemStyle: { color: NODE_COLORS.csc },
                     lineStyle: { color: NODE_COLORS.csc + "88" },
                     children: csc.apps.map(app => {
-                      const isSel = selectedAppPathKey !== null && app.id === selectedAppPathKey
-                      const appConnData = connDataMap.get(app.id)
-                      const appChildren = appConnData ? buildConnSubtree(app.id, appConnData, expandedLeaves, isDark) : []
+                      const instancePathKey = `app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}`
+                      const isSel = selectedInstanceKey
+                        ? instancePathKey === selectedInstanceKey
+                        : selectedPathKey !== null && app.id === selectedPathKey
+                      const appConnData = connDataMap.get(instancePathKey)
+                      const appChildren = appConnData ? buildConnSubtree(app.id, appConnData, expandedLeaves, isDark, instancePathKey) : []
                       return {
-                        name: (app.csu ?? app.name ?? app.id ?? "?") + `\x00app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}`,
+                        id: instancePathKey,
+                        name: (app.csu ?? app.name ?? app.id ?? "?") + `\x00${instancePathKey}`,
                         value: app.weight,
                         _app: app,
                         ...(appConnData && { collapsed: false }),
@@ -1836,15 +1858,15 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
   selectedApp: HGNode | null
   dims: { width: number; height: number }
   isDark: boolean
-  onAppNodeClick: (app: AppNode) => void
+  onAppNodeClick: (app: AppNode, instanceKey: string) => void
   onConnNodeClick: (nodeId: string, instanceKey: string) => void
 }) {
   const W = dims.width || 800
   const H = dims.height || 600
 
   const treeData = useMemo(
-    () => buildMergedTree(hierarchy, selectedApp?.pathKey ?? null, connDataMap, expandedLeaves, isDark),
-    [hierarchy, selectedApp?.pathKey, connDataMap, expandedLeaves, isDark],
+    () => buildMergedTree(hierarchy, selectedApp?.instanceKey ?? null, selectedApp?.pathKey ?? null, connDataMap, expandedLeaves, isDark),
+    [hierarchy, selectedApp?.instanceKey, selectedApp?.pathKey, connDataMap, expandedLeaves, isDark],
   )
 
   const option = useMemo(() => ({
@@ -1917,12 +1939,18 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       const d = params.data
       if (!d) return
       if (d._isConnLeaf) {
-        const instanceKey: string = (d.name as string).includes('\x00') ? (d.name as string).split('\x00')[1] : String(d.value)
+        const rawKey: string = (d.name as string).includes('\x00') ? (d.name as string).split('\x00')[1] : `cl:${d.value}`
+        // strip the "cl:" prefix that was added for ECharts node uniqueness
+        const instanceKey = rawKey.startsWith('cl:') ? rawKey.slice(3) : rawKey
         onConnNodeClick(String(d.value ?? ''), instanceKey)
         return
       }
       if (d._isConnGroup) return
-      if (d._app) { onAppNodeClick(d._app); return }
+      if (d._app) {
+        const instanceKey: string = (d.name as string).includes('\x00') ? (d.name as string).split('\x00')[1] : `app:${d._app.id}`
+        onAppNodeClick(d._app, instanceKey)
+        return
+      }
     },
   }), [onAppNodeClick, onConnNodeClick])
 
@@ -2139,7 +2167,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
           for (const [cscKey, csc] of Object.entries(csci.csc)) {
             result.push({ id: `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`, name: csc.name, level: "csc", appCount: csc.apps.length, pathKey: `${csmsKey}/${cssKey}/${csciKey}/${cscKey}` })
             for (const app of csc.apps)
-              result.push({ id: `app:${app.id}`, name: app.name ?? app.id, level: "app", appCount: 1, pathKey: app.id })
+              result.push({ id: `app:${app.id}`, name: app.name ?? app.id, level: "app", appCount: 1, pathKey: app.id, instanceKey: `app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}` })
           }
         }
       }
@@ -2424,7 +2452,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       .then(structural => {
         if (cancelled) return
         setConnData({ nodes: structural.nodes, links: structural.links })
-        setConnDataMap(prev => new Map(prev).set(selectedApp.pathKey, { nodes: structural.nodes, links: structural.links }))
+        setConnDataMap(prev => new Map(prev).set(selectedApp.instanceKey ?? selectedApp.pathKey, { nodes: structural.nodes, links: structural.links }))
       })
       .catch(e => { if (!cancelled) setConnError(e instanceof Error ? e.message : String(e)) })
       .finally(() => { if (!cancelled) setConnLoading(false) })
@@ -2473,7 +2501,9 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
   const onConnLeafClick = useCallback((nodeId: string, instanceKey: string) => {
     // Update right panel to show the clicked node
     const existingData = connDataMap.get(nodeId)
-    const hgNode: HGNode = { id: `app:${nodeId}`, name: nodeId, level: "app", appCount: 1, pathKey: nodeId }
+    // Use a "conn:" prefixed instanceKey so the hierarchy tree never highlights/expands this node
+    const connInstanceKey = `conn:${nodeId}`
+    const hgNode: HGNode = { id: `app:${nodeId}`, name: nodeId, level: "app", appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey }
     setSelectedApp(hgNode)
     setConnTab("props")
     if (existingData) setConnData(existingData)
@@ -2491,7 +2521,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
         // Update name from fetched data
         const fetchedNode = structural.nodes.find((n: any) => n.id === nodeId)
         if (fetchedNode) {
-          setSelectedApp({ id: `app:${nodeId}`, name: (fetchedNode as any).label ?? (fetchedNode as any).name ?? nodeId, level: "app", nodeType: (fetchedNode as any).type, appCount: 1, pathKey: nodeId })
+          setSelectedApp({ id: `app:${nodeId}`, name: (fetchedNode as any).label ?? (fetchedNode as any).name ?? nodeId, level: "app", nodeType: (fetchedNode as any).type, appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey })
         }
       }).catch(() => {})
   }, [expandedLeaves, connDataMap])
@@ -2592,9 +2622,9 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             selectedApp={selectedApp}
             dims={dims}
             isDark={isDark}
-            onAppNodeClick={(app: AppNode) => {
-              const hgNode: HGNode = { id: `app:${app.id}`, name: app.csu ?? app.name ?? app.id ?? "?", level: "app", appCount: 1, pathKey: app.id, appData: app }
-              if (selectedApp?.id === hgNode.id) { clearSelection(); return }
+            onAppNodeClick={(app: AppNode, instanceKey: string) => {
+              const hgNode: HGNode = { id: `app:${app.id}`, name: app.csu ?? app.name ?? app.id ?? "?", level: "app", appCount: 1, pathKey: app.id, instanceKey, appData: app }
+              if (selectedApp?.instanceKey === instanceKey) { clearSelection(); return }
               setSelectedApp(hgNode)
               setConnTab("props")
               setConnData(null)
