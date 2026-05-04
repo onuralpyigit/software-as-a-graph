@@ -3507,7 +3507,7 @@ function BrowserPageContent() {
   return (
     <AppLayout
       title="Explorer"
-      description="System (CSMS) → Segment (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)"
+      description="Browse your system topology, inspect components, and explore dependency relationships."
     >
       <div className="flex flex-col gap-5 h-full">
         {error && (
