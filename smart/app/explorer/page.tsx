@@ -15,7 +15,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { ItemTooltip, ItemTooltipContent } from "@/components/ui/item-tooltip"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
-import { forceCollide } from "d3-force-3d"
 import { ReactFlow, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, useViewport, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { cn } from "@/lib/utils"
@@ -35,8 +34,7 @@ import {
   X,
 } from "lucide-react"
 
-const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false })
-const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), { ssr: false })
+const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false })
 
 // Polyfill GPUShaderStage to prevent errors when WebGPU is not available
 if (typeof window !== 'undefined' && typeof (window as any).GPUShaderStage === 'undefined') {
@@ -1181,6 +1179,254 @@ const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, sel
   )
 })
 
+// ── ECharts connections tree ──────────────────────────────────────────────────
+
+// ── ECharts connections tree ──────────────────────────────────────────────────
+
+const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDark, selectedAppId, onNodeClick, onBackgroundClick }: {
+  graphData: { nodes: any[]; links: any[] }
+  dims: { width: number; height: number }
+  isDark: boolean
+  selectedAppId: string | null
+  selectedLink: { link: any } | null
+  onNodeClick: (n: any) => void
+  onEdgeClick: (link: any, event: React.MouseEvent) => void
+  onBackgroundClick: () => void
+}) {
+  const W = dims.width || 800
+  const H = dims.height || 600
+
+  // Build edge-type-grouped tree:  root → [EdgeTypeGroup…] → target nodes
+  const treeData = useMemo(() => {
+    const nodes: any[] = graphData.nodes
+    const links: any[] = graphData.links
+    if (nodes.length === 0) return null
+
+    const rootNode = nodes.find(n => n.id === selectedAppId) ?? nodes[0]
+    const rootId = rootNode.id
+    const rootColor = nodeTypeColor(rootNode.type, isDark)
+    const rootLabel: string = rootNode.label ?? rootNode.name ?? rootId
+    const trimRoot = rootLabel.length > 28 ? rootLabel.slice(0, 26) + "…" : rootLabel
+    const nodeById = new Map(nodes.map(n => [n.id, n]))
+
+    // Group links by edge type; each entry: { edgeType, peer node, direction }
+    const edgeGroups = new Map<string, Array<{ node: any; dir: "out" | "in" }>>()
+    for (const l of links) {
+      const srcId = l.source?.id ?? l.source
+      const tgtId = l.target?.id ?? l.target
+      const type: string = l.type ?? "CONNECTED"
+
+      if (srcId === rootId) {
+        const peer = nodeById.get(tgtId)
+        if (!peer) continue
+        if (!edgeGroups.has(type)) edgeGroups.set(type, [])
+        edgeGroups.get(type)!.push({ node: peer, dir: "out" })
+      } else if (tgtId === rootId) {
+        const peer = nodeById.get(srcId)
+        if (!peer) continue
+        if (!edgeGroups.has(type)) edgeGroups.set(type, [])
+        edgeGroups.get(type)!.push({ node: peer, dir: "in" })
+      }
+    }
+
+    // Sort groups: known types first (in CONN_LINK_TYPE_COLORS order), then unknown alphabetically
+    const knownOrder = Object.keys(isDark ? CONN_LINK_TYPE_COLORS_DARK : CONN_LINK_TYPE_COLORS_LIGHT)
+    const sortedEdgeTypes = Array.from(edgeGroups.keys()).sort((a, b) => {
+      const ai = knownOrder.indexOf(a)
+      const bi = knownOrder.indexOf(b)
+      if (ai !== -1 && bi !== -1) return ai - bi
+      if (ai !== -1) return -1
+      if (bi !== -1) return 1
+      return a.localeCompare(b)
+    })
+
+    const children = sortedEdgeTypes.map(edgeType => {
+      const entries = edgeGroups.get(edgeType)!
+      // De-duplicate peers (a node may appear via multiple edges of same type)
+      const seen = new Set<string>()
+      const unique = entries.filter(e => { if (seen.has(e.node.id)) return false; seen.add(e.node.id); return true })
+      unique.sort((a, b) => (a.node.label ?? a.node.id ?? "").localeCompare(b.node.label ?? b.node.id ?? ""))
+
+      const edgeColor = linkTypeColor(edgeType, isDark)
+
+      const leafNodes = unique.map(({ node, dir }) => {
+        const lbl: string = node.label ?? node.name ?? node.id ?? ""
+        const trimLbl = lbl.length > 30 ? lbl.slice(0, 28) + "…" : lbl
+        const nc = nodeTypeColor(node.type, isDark)
+        const dirArrow = dir === "out" ? "→ " : "← "
+        return {
+          name: dirArrow + trimLbl,
+          value: node.id,
+          _raw: node,
+          _isGroup: false,
+          symbolSize: ({ Application: 12, Node: 14, Broker: 12, Topic: 8, Library: 8 }[node.type as string] ?? 8),
+          itemStyle: { color: nc, borderWidth: 0 },
+          label: {
+            fontSize: 9,
+            fontWeight: 400,
+            color: isDark ? "#a1a1aa" : "#6b7280",
+          },
+        }
+      })
+
+      return {
+        name: `${edgeType}  (${unique.length})`,
+        value: `__group__${edgeType}`,
+        _raw: null,
+        _isGroup: true,
+        symbol: "diamond",
+        symbolSize: 16,
+        itemStyle: {
+          color: edgeColor,
+          borderWidth: 0,
+        },
+        label: {
+          fontSize: 9,
+          fontWeight: 700,
+          color: edgeColor,
+        },
+        children: leafNodes,
+      }
+    })
+
+    return {
+      name: trimRoot,
+      value: rootId,
+      _raw: rootNode,
+      _isGroup: false,
+      symbolSize: 20,
+      itemStyle: {
+        color: rootColor,
+        borderColor: isDark ? "#ffffff" : "#1e293b",
+        borderWidth: 2.5,
+        shadowBlur: 14,
+        shadowColor: rootColor + "99",
+      },
+      label: {
+        fontSize: 12,
+        fontWeight: 700,
+        color: isDark ? "#e5e7eb" : "#1e293b",
+      },
+      children,
+    }
+  }, [graphData, selectedAppId, isDark])
+
+  const option = useMemo(() => {
+    if (!treeData) return {}
+    return {
+      backgroundColor: "transparent",
+      tooltip: {
+        trigger: "item",
+        triggerOn: "mousemove",
+        formatter: (params: any) => {
+          const d = params.data
+          if (d?._isGroup) return `<b>${d.name}</b>`
+          const n = d?._raw
+          if (!n) return ""
+          const typeLabel = n.type ?? "Node"
+          const w = typeof n.weight === "number" ? n.weight.toFixed(3) : (typeof n.properties?.weight === "number" ? n.properties.weight.toFixed(3) : "—")
+          const lbl = n.label ?? n.name ?? n.id ?? ""
+          return `<div style="font-size:12px;line-height:1.7"><b>${lbl}</b><br/><span style="opacity:0.7">${typeLabel}</span><br/>Weight: <b>${w}</b></div>`
+        },
+      },
+      series: [{
+        type: "tree",
+        data: [treeData],
+        top: "6%",
+        left: "3%",
+        bottom: "6%",
+        right: "3%",
+        orient: "TB",
+        expandAndCollapse: true,
+        initialTreeDepth: -1,
+        roam: true,
+        lineStyle: {
+          width: 1.2,
+          curveness: 0.4,
+          color: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.14)",
+        },
+        label: {
+          position: "bottom",
+          verticalAlign: "top",
+          align: "center",
+          fontSize: 9,
+          color: isDark ? "#d4d4d8" : "#374151",
+          formatter: (p: any) => p.name ?? "",
+        },
+        leaves: {
+          label: {
+            position: "bottom",
+            verticalAlign: "top",
+            align: "center",
+          },
+        },
+        emphasis: {
+          focus: "descendant",
+          itemStyle: { shadowBlur: 10 },
+        },
+        animationDuration: 350,
+        animationDurationUpdate: 250,
+      }],
+    }
+  }, [treeData, isDark])
+
+  const onEvents = useMemo(() => ({
+    click: (params: any) => {
+      if (params.componentType === "series" && params.data?._raw && !params.data._isGroup) {
+        onNodeClick(params.data._raw)
+      } else if (!params.data || params.data._isGroup) {
+        // group label click → collapse/expand handled by ECharts; no nav
+      }
+    },
+  }), [onNodeClick])
+
+  if (!treeData) return (
+    <div style={{ width: W, height: H, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ fontSize: 13, color: isDark ? "#71717a" : "#a1a1aa" }}>Select a node to view connections</span>
+    </div>
+  )
+
+  return (
+    <div style={{ width: W, height: H, position: "relative" }}>
+      {/* Legend */}
+      <div style={{
+        position: "absolute", bottom: 10, left: 10, zIndex: 10,
+        display: "flex", flexWrap: "wrap", gap: "6px 12px",
+        padding: "5px 10px",
+        borderRadius: 8,
+        background: isDark ? "rgba(15,15,20,0.70)" : "rgba(255,255,255,0.80)",
+        backdropFilter: "blur(8px)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+        fontSize: 9,
+        color: isDark ? "#94a3b8" : "#64748b",
+        pointerEvents: "none",
+      }}>
+        {Object.keys(isDark ? CONN_LINK_TYPE_COLORS_DARK : CONN_LINK_TYPE_COLORS_LIGHT).map(type => (
+          <span key={type} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 18, height: 2, background: linkTypeColor(type, isDark), flexShrink: 0, borderRadius: 1 }} />
+            {type}
+          </span>
+        ))}
+      </div>
+      {/* Hint */}
+      <div style={{
+        position: "absolute", top: 8, right: 8, zIndex: 10,
+        fontSize: 10, color: isDark ? "#52525b" : "#a1a1aa",
+        pointerEvents: "none",
+      }}>
+        Click groups to collapse · Scroll to zoom · Drag to pan
+      </div>
+      <ReactECharts
+        option={option}
+        style={{ width: W, height: H }}
+        onEvents={onEvents}
+        notMerge={true}
+        theme={isDark ? "dark" : undefined}
+      />
+    </div>
+  )
+})
+
 const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, isDark, populatedLayers, selectedAppId, selectedLink, onNodeClick, onEdgeClick, onBackgroundClick }: {
   graphData: { nodes: any[]; links: any[] }
   positions: Map<string, { x: number; y: number }>
@@ -1370,32 +1616,495 @@ const ConnFlowGraph = memo(function ConnFlowGraph({ graphData, positions, dims, 
   )
 })
 
+// ── ECharts full-tree view ────────────────────────────────────────────────────
+
+function buildEChartsTree(hierarchy: Record<string, CsmsGroup>): object {
+  return {
+    name: "System",
+    itemStyle: { color: "#64748b" },
+    label: { show: false },
+    children: sortKeys(Object.keys(hierarchy)).map(csmsKey => {
+      const csms = hierarchy[csmsKey]
+      return {
+        name: csms.name,
+        itemStyle: { color: NODE_COLORS.csms },
+        lineStyle: { color: NODE_COLORS.csms + "88" },
+        children: sortKeys(Object.keys(csms.css)).map(cssKey => {
+          const css = csms.css[cssKey]
+          return {
+            name: css.name,
+            itemStyle: { color: NODE_COLORS.css },
+            lineStyle: { color: NODE_COLORS.css + "88" },
+            children: sortKeys(Object.keys(css.csci)).map(csciKey => {
+              const csci = css.csci[csciKey]
+              return {
+                name: csci.name,
+                itemStyle: { color: NODE_COLORS.csci },
+                lineStyle: { color: NODE_COLORS.csci + "88" },
+                children: sortKeys(Object.keys(csci.csc)).map(cscKey => {
+                  const csc = csci.csc[cscKey]
+                  return {
+                    name: csc.name,
+                    itemStyle: { color: NODE_COLORS.csc },
+                    lineStyle: { color: NODE_COLORS.csc + "88" },
+                    children: csc.apps.map(app => ({
+                      name: app.csu ?? app.name ?? app.id ?? "?",
+                      value: app.weight,
+                      itemStyle: { color: NODE_COLORS.app },
+                      lineStyle: { color: NODE_COLORS.app + "66" },
+                      // carry raw app data for tooltip
+                      _app: app,
+                    })),
+                  }
+                }),
+              }
+            }),
+          }
+        }),
+      }
+    }),
+  }
+}
+
+// ── Merged hierarchy + connections tree ──────────────────────────────────────
+
+function buildConnSubtree(
+  centerNodeId: string,
+  connData: { nodes: any[]; links: any[] },
+  expandedLeaves: Map<string, { nodes: any[]; links: any[] }>,
+  isDark: boolean,
+  parentPath: string = "",
+): any[] {
+  if (!centerNodeId || connData.nodes.length === 0) return []
+  const nodeById = new Map(connData.nodes.map((n: any) => [n.id, n]))
+  const groups = new Map<string, Array<{ node: any; dir: "out" | "in" }>>()
+  for (const l of connData.links) {
+    const src = l.source?.id ?? l.source
+    const tgt = l.target?.id ?? l.target
+    const type: string = l.type ?? "CONNECTED"
+    if (src === centerNodeId) {
+      const peer = nodeById.get(tgt); if (!peer) continue
+      if (!groups.has(type)) groups.set(type, [])
+      groups.get(type)!.push({ node: peer, dir: "out" })
+    } else if (tgt === centerNodeId) {
+      const peer = nodeById.get(src); if (!peer) continue
+      if (!groups.has(type)) groups.set(type, [])
+      groups.get(type)!.push({ node: peer, dir: "in" })
+    }
+  }
+  const knownOrder = Object.keys(isDark ? CONN_LINK_TYPE_COLORS_DARK : CONN_LINK_TYPE_COLORS_LIGHT)
+  const sortedTypes = Array.from(groups.keys()).sort((a, b) => {
+    const ai = knownOrder.indexOf(a); const bi = knownOrder.indexOf(b)
+    if (ai !== -1 && bi !== -1) return ai - bi
+    if (ai !== -1) return -1; if (bi !== -1) return 1
+    return a.localeCompare(b)
+  })
+  return sortedTypes.map(edgeType => {
+    const entries = groups.get(edgeType)!
+    const seen = new Set<string>()
+    const unique = entries.filter(e => { if (seen.has(e.node.id)) return false; seen.add(e.node.id); return true })
+    unique.sort((a, b) => (a.node.label ?? a.node.id ?? "").localeCompare(b.node.label ?? b.node.id ?? ""))
+    const ec = linkTypeColor(edgeType, isDark)
+    const groupPath = `${parentPath}/${edgeType}`
+    return {
+      name: `${edgeType}  (${unique.length})\x00${groupPath}:${centerNodeId}`,
+      value: `__cg__${edgeType}__${centerNodeId}`,
+      _isConnGroup: true,
+      collapsed: false,
+      symbol: "diamond",
+      symbolSize: 14,
+      itemStyle: { color: ec, borderWidth: 0 },
+      lineStyle: { color: ec + "88" },
+      label: { fontSize: 9, fontWeight: 700, color: ec },
+      children: unique.map(({ node, dir }) => {
+        const lbl: string = node.label ?? node.name ?? node.id ?? ""
+        const trimLbl = lbl.length > 26 ? lbl.slice(0, 24) + "…" : lbl
+        const nc = nodeTypeColor(node.type, isDark)
+        const instanceKey = `${groupPath}:${node.id}`
+        const leafData = expandedLeaves.get(instanceKey)
+        return {
+          name: (dir === "out" ? "→ " : "← ") + trimLbl + `\x00${instanceKey}`,
+          value: node.id,
+          _raw: node,
+          _isConnLeaf: true,
+          collapsed: !leafData,
+          symbol: "circle",
+          symbolSize: ({ Application: 12, Node: 12, Broker: 10, Topic: 8, Library: 8 } as Record<string, number>)[node.type] ?? 8,
+          itemStyle: { color: nc, borderWidth: leafData ? 1.5 : 0, ...(leafData ? { borderColor: isDark ? "#e5e7eb" : "#374151" } : {}) },
+          lineStyle: { color: nc + "55" },
+          label: { fontSize: 8, color: isDark ? "#a1a1aa" : "#6b7280" },
+          ...(leafData ? { children: buildConnSubtree(node.id, leafData, expandedLeaves, isDark, instanceKey) } : {}),
+        }
+      }),
+    }
+  })
+}
+
+function buildMergedTree(
+  hierarchy: Record<string, CsmsGroup>,
+  selectedAppPathKey: string | null,
+  connDataMap: Map<string, { nodes: any[]; links: any[] }>,
+  expandedLeaves: Map<string, { nodes: any[]; links: any[] }>,
+  isDark: boolean,
+): object {
+  // Find ancestor paths for ALL apps that have connection data loaded
+  const ancMap = new Map<string, { csmsKey: string; cssKey: string; csciKey: string; cscKey: string }>()
+  for (const [ck, csms] of Object.entries(hierarchy)) {
+    for (const [sk, css] of Object.entries(csms.css)) {
+      for (const [ik, csci] of Object.entries(css.csci)) {
+        for (const [pk, csc] of Object.entries(csci.csc)) {
+          for (const app of csc.apps) {
+            if (connDataMap.has(app.id) || app.id === selectedAppPathKey) {
+              ancMap.set(app.id, { csmsKey: ck, cssKey: sk, csciKey: ik, cscKey: pk })
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    name: "System",
+    itemStyle: { color: "#64748b" },
+    label: { show: false },
+    children: sortKeys(Object.keys(hierarchy)).map(csmsKey => {
+      const csms = hierarchy[csmsKey]
+      const isCsms = Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey)
+      return {
+        name: csms.name + `\x00csms:${csmsKey}`,
+        ...(isCsms && { collapsed: false }),
+        itemStyle: { color: NODE_COLORS.csms },
+        lineStyle: { color: NODE_COLORS.csms + "88" },
+        children: sortKeys(Object.keys(csms.css)).map(cssKey => {
+          const css = csms.css[cssKey]
+          const isCss = isCsms && Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey)
+          return {
+            name: css.name + `\x00css:${csmsKey}/${cssKey}`,
+            ...(isCss && { collapsed: false }),
+            itemStyle: { color: NODE_COLORS.css },
+            lineStyle: { color: NODE_COLORS.css + "88" },
+            children: sortKeys(Object.keys(css.csci)).map(csciKey => {
+              const csci = css.csci[csciKey]
+              const isCsci = isCss && Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey && a.csciKey === csciKey)
+              return {
+                name: csci.name + `\x00csci:${csmsKey}/${cssKey}/${csciKey}`,
+                ...(isCsci && { collapsed: false }),
+                itemStyle: { color: NODE_COLORS.csci },
+                lineStyle: { color: NODE_COLORS.csci + "88" },
+                children: sortKeys(Object.keys(csci.csc)).map(cscKey => {
+                  const csc = csci.csc[cscKey]
+                  const isCsc = isCsci && Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey && a.csciKey === csciKey && a.cscKey === cscKey)
+                  return {
+                    name: csc.name + `\x00csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`,
+                    ...(isCsc && { collapsed: false }),
+                    itemStyle: { color: NODE_COLORS.csc },
+                    lineStyle: { color: NODE_COLORS.csc + "88" },
+                    children: csc.apps.map(app => {
+                      const isSel = selectedAppPathKey !== null && app.id === selectedAppPathKey
+                      const appConnData = connDataMap.get(app.id)
+                      const appChildren = appConnData ? buildConnSubtree(app.id, appConnData, expandedLeaves, isDark) : []
+                      return {
+                        name: (app.csu ?? app.name ?? app.id ?? "?") + `\x00app:${csmsKey}/${cssKey}/${csciKey}/${cscKey}/${app.id}`,
+                        value: app.weight,
+                        _app: app,
+                        ...(appConnData && { collapsed: false }),
+                        itemStyle: {
+                          color: NODE_COLORS.app,
+                          ...(isSel ? { borderColor: isDark ? "#fff" : "#1e293b", borderWidth: 2, shadowBlur: 10, shadowColor: NODE_COLORS.app + "99" } : {}),
+                        },
+                        lineStyle: { color: NODE_COLORS.app + "66" },
+                        ...(appChildren.length > 0 ? { children: appChildren } : {}),
+                      }
+                    }),
+                  }
+                }),
+              }
+            }),
+          }
+        }),
+      }
+    }),
+  }
+}
+
+const MergedEChartsTree = memo(function MergedEChartsTree({
+  hierarchy, connDataMap, expandedLeaves, selectedApp, dims, isDark, onAppNodeClick, onConnNodeClick,
+}: {
+  hierarchy: Record<string, CsmsGroup>
+  connDataMap: Map<string, { nodes: any[]; links: any[] }>
+  expandedLeaves: Map<string, { nodes: any[]; links: any[] }>
+  selectedApp: HGNode | null
+  dims: { width: number; height: number }
+  isDark: boolean
+  onAppNodeClick: (app: AppNode) => void
+  onConnNodeClick: (nodeId: string, instanceKey: string) => void
+}) {
+  const W = dims.width || 800
+  const H = dims.height || 600
+
+  const treeData = useMemo(
+    () => buildMergedTree(hierarchy, selectedApp?.pathKey ?? null, connDataMap, expandedLeaves, isDark),
+    [hierarchy, selectedApp?.pathKey, connDataMap, expandedLeaves, isDark],
+  )
+
+  const option = useMemo(() => ({
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "item",
+      triggerOn: "mousemove",
+      formatter: (params: any) => {
+        const d = params.data
+        const dispName = (s: string) => s?.split("\x00")[0] ?? s
+        if (d?._isConnGroup) return `<b>${dispName(d.name)}</b>`
+        if (d?._isConnLeaf) {
+          const n = d._raw
+          const w = typeof n.weight === "number" ? n.weight.toFixed(3) : (typeof n.properties?.weight === "number" ? n.properties.weight.toFixed(3) : "—")
+          return `<div style="font-size:12px;line-height:1.7"><b>${n.label ?? n.name ?? n.id ?? ""}</b><br/><span style="opacity:0.7">${n.type ?? "Node"}</span><br/>Weight: <b>${w}</b></div>`
+        }
+        if (d?._app) {
+          const w = typeof d._app.weight === "number" ? d._app.weight.toFixed(3) : "—"
+          return `<div style="font-size:12px;line-height:1.7"><b>${dispName(d.name)}</b><br/><span style="opacity:0.7">App (CSU)</span><br/>Weight: <b>${w}</b></div>`
+        }
+        const depth = params.treeAncestors ? params.treeAncestors.length - 1 : 0
+        const lvlName = (["System", "CSMS", "CSS", "CSCI", "CSC", "App"] as string[])[depth] ?? "Node"
+        const countLine = d?.children?.length ? `<br/><span style="opacity:0.7">Children: ${d.children.length}</span>` : ""
+        return `<div style="font-size:12px;line-height:1.7"><b>${dispName(d?.name ?? "")}</b><br/><span style="opacity:0.7">${lvlName}</span>${countLine}</div>`
+      },
+    },
+    series: [{
+      type: "tree",
+      data: [treeData],
+      top: "5%",
+      left: "3%",
+      bottom: "12%",
+      right: "3%",
+      orient: "TB",
+      expandAndCollapse: true,
+      initialTreeDepth: 3,
+      roam: true,
+      symbolSize: (_val: number, params: any) => {
+        const depth = (params.treeAncestors?.length ?? 1) - 1
+        return ([0, 14, 10, 8, 6, 9] as number[])[Math.min(depth, 5)] ?? 6
+      },
+      symbol: "circle",
+      itemStyle: { borderWidth: 0 },
+      lineStyle: { width: 1.2, curveness: 0.5, opacity: 0.6 },
+      label: {
+        position: "bottom",
+        verticalAlign: "top",
+        align: "center",
+        fontSize: 10,
+        color: isDark ? "#e5e7eb" : "#374151",
+        formatter: (params: any) => {
+          const raw: string = params.name ?? ""
+          const name = raw.split("\x00")[0]
+          const d = params.data
+          if (d?._isConnLeaf || d?._isConnGroup) return name
+          return name.length > 18 ? name.slice(0, 16) + "…" : name
+        },
+      },
+      leaves: {
+        label: { position: "bottom", verticalAlign: "top", align: "center", fontSize: 8 },
+      },
+      emphasis: { focus: "descendant", itemStyle: { shadowBlur: 8 } },
+      animationDuration: 350,
+      animationDurationUpdate: 250,
+    }],
+  }), [treeData, isDark])
+
+  const onEvents = useMemo(() => ({
+    click: (params: any) => {
+      const d = params.data
+      if (!d) return
+      if (d._isConnLeaf) {
+        const instanceKey: string = (d.name as string).includes('\x00') ? (d.name as string).split('\x00')[1] : String(d.value)
+        onConnNodeClick(String(d.value ?? ''), instanceKey)
+        return
+      }
+      if (d._isConnGroup) return
+      if (d._app) { onAppNodeClick(d._app); return }
+    },
+  }), [onAppNodeClick, onConnNodeClick])
+
+  return (
+    <div style={{ width: W, height: H, position: "relative" }}>
+      {W > 0 && H > 0 && (
+        <ReactECharts
+          key={isDark ? "dark" : "light"}
+          option={option}
+          style={{ width: W, height: H }}
+          onEvents={onEvents}
+          notMerge={false}
+          lazyUpdate
+          theme={isDark ? "dark" : undefined}
+        />
+      )}
+    </div>
+  )
+})
+
+// ── Legacy split-panel components (kept for reference) ────────────────────────
+
+const HierEChartsTree = memo(function HierEChartsTree({
+  hierarchy, dims, isDark, onNodeClick,
+}: {
+  hierarchy: Record<string, CsmsGroup>
+  dims: { width: number; height: number }
+  isDark: boolean
+  onNodeClick?: (level: HGLevel, pathKey: string, name: string) => void
+}) {
+  const treeData = useMemo(() => buildEChartsTree(hierarchy), [hierarchy])
+
+  const option = useMemo(() => ({
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "item",
+      triggerOn: "mousemove",
+      formatter: (params: any) => {
+        const d = params.data
+        const level = params.treeAncestors ? params.treeAncestors.length - 1 : 0
+        const levelNames: Record<number, string> = { 0: "System", 1: "CSMS", 2: "CSS", 3: "CSCI", 4: "CSC", 5: "App" }
+        const lbl = levelNames[level] ?? `Level ${level}`
+        if (d._app) {
+          const w = typeof d._app.weight === "number" ? d._app.weight.toFixed(3) : "—"
+          return `<div style="font-size:12px;line-height:1.7">
+            <b>${d.name}</b><br/>
+            <span style="opacity:0.7">App (CSU)</span><br/>
+            Weight: <b>${w}</b>
+          </div>`
+        }
+        const countLine = d.children?.length ? `<br/><span style="opacity:0.7">Children: ${d.children.length}</span>` : ""
+        return `<div style="font-size:12px;line-height:1.7"><b>${d.name}</b><br/><span style="opacity:0.7">${lbl}</span>${countLine}</div>`
+      },
+    },
+    series: [{
+      type: "tree",
+      data: [treeData],
+      top: "5%",
+      left: "6%",
+      bottom: "5%",
+      right: "18%",
+      symbolSize: (val: number, params: any) => {
+        const depth = (params.treeAncestors?.length ?? 1) - 1
+        const sizes = [0, 14, 10, 8, 6, 4]
+        return sizes[depth] ?? 4
+      },
+      symbol: "circle",
+      orient: "LR",
+      expandAndCollapse: true,
+      initialTreeDepth: 3,
+      roam: true,
+      label: {
+        position: "right",
+        rotate: 0,
+        verticalAlign: "middle",
+        align: "left",
+        fontSize: (params: any) => {
+          const depth = (params.treeAncestors?.length ?? 1) - 1
+          return [0, 12, 11, 10, 9, 8][depth] ?? 8
+        },
+        color: isDark ? "#e5e7eb" : "#374151",
+        formatter: (params: any) => {
+          const name: string = params.name ?? ""
+          return name.length > 28 ? name.slice(0, 26) + "…" : name
+        },
+      },
+      leaves: {
+        label: {
+          position: "right",
+          verticalAlign: "middle",
+          align: "left",
+          fontSize: 8,
+          color: isDark ? "#a1a1aa" : "#6b7280",
+        },
+      },
+      itemStyle: {
+        borderWidth: 0,
+      },
+      lineStyle: {
+        width: 1.2,
+        curveness: 0.5,
+        opacity: 0.6,
+      },
+      emphasis: {
+        focus: "ancestor",
+        itemStyle: { shadowBlur: 8 },
+      },
+      animationDuration: 350,
+      animationDurationUpdate: 250,
+    }],
+  }), [treeData, isDark])
+
+  const onEvents = useMemo(() => ({
+    click: (params: any) => {
+      if (!onNodeClick) return
+      const depth = (params.treeAncestors?.length ?? 1) - 1
+      const levels: HGLevel[] = ["csms", "csms", "css", "csci", "csc", "app"]
+      const level = levels[depth] ?? "app"
+      // Build path key from ancestor names
+      const ancestors: string[] = (params.treeAncestors ?? []).map((a: any) => a.name).slice(1) // skip root "System"
+      const name: string = params.name ?? ""
+      const pathKey = [...ancestors, name].join("/")
+      onNodeClick(level, pathKey, name)
+    },
+  }), [onNodeClick])
+
+  return (
+    <div style={{ width: dims.width, height: dims.height, position: "relative" }}>
+      {/* Legend */}
+      <div style={{
+        position: "absolute", bottom: 10, left: 10, zIndex: 10,
+        display: "flex", flexWrap: "wrap", gap: "8px 14px",
+        padding: "6px 10px",
+        borderRadius: 8,
+        background: isDark ? "rgba(15,15,20,0.70)" : "rgba(255,255,255,0.80)",
+        backdropFilter: "blur(8px)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+        fontSize: 10,
+        color: isDark ? "#94a3b8" : "#64748b",
+        pointerEvents: "none",
+      }}>
+        {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => (
+          <span key={lvl} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: NODE_COLORS[lvl], flexShrink: 0 }} />
+            {LEVEL_LABELS[lvl]}
+          </span>
+        ))}
+      </div>
+      {/* Hint */}
+      <div style={{
+        position: "absolute", top: 8, right: 8, zIndex: 10,
+        fontSize: 10, color: isDark ? "#52525b" : "#a1a1aa",
+        pointerEvents: "none",
+      }}>
+        Click nodes to collapse · Scroll to zoom · Drag to pan
+      </div>
+      <ReactECharts
+        option={option}
+        style={{ width: dims.width, height: dims.height }}
+        onEvents={onEvents}
+        notMerge={false}
+        lazyUpdate
+        theme={isDark ? "dark" : undefined}
+      />
+    </div>
+  )
+})
+
 function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, syncKey = null, onNodeSelect }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null; syncKey?: string | null; onNodeSelect?: (key: string) => void }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
 
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const fgRef = useRef<any>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const [dims, setDims] = useState({ width: 800, height: 580 })
 
   const [drillNode, setDrillNode] = useState<HGNode | null>(null)
   const [drillStack, setDrillStack] = useState<HGNode[]>([])
   const [selectedApp, setSelectedApp] = useState<HGNode | null>(null)
-  const [viewMode, setViewMode] = useState<"hierarchy" | "connections">("hierarchy")
-  const [is3D, setIs3D] = useState(false)
-  const [threeReady, setThreeReady] = useState(false)
-
-  // Load Three.js and SpriteText for 3D labels
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    Promise.all([
-      import('three-spritetext').then(m => { (window as any).__SpriteText = m.default }),
-      import('three').then(m => { (window as any).__THREE = m }),
-    ]).then(() => setThreeReady(true)).catch(() => {})
-  }, [])
-
+  const [expandedLeaves, setExpandedLeaves] = useState<Map<string, { nodes: any[]; links: any[] }>>(new Map())
+  const [connDataMap, setConnDataMap] = useState<Map<string, { nodes: any[]; links: any[] }>>(new Map())
   const [connData, setConnData] = useState<{ nodes: any[]; links: any[] } | null>(null)
   const [connLoading, setConnLoading] = useState(false)
   const [connError, setConnError] = useState<string | null>(null)
@@ -1407,7 +2116,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   const [hiddenLevels, setHiddenLevels] = useState<Set<HGLevel>>(new Set())
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set())
-  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set(["DEPENDS_ON"]))
+  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set())
 
   const toggleLevel = (lvl: HGLevel) => setHiddenLevels(prev => { const s = new Set(prev); s.has(lvl) ? s.delete(lvl) : s.add(lvl); return s })
   const toggleNodeType = (t: string) => setHiddenNodeTypes(prev => { const s = new Set(prev); s.has(t) ? s.delete(t) : s.add(t); return s })
@@ -1467,12 +2176,10 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     isSyncingRef.current = false
     if (node.level === "app") {
       setSelectedApp(node)
-      setViewMode("connections")
       setConnTab("props")
       setConnData(null)
     } else {
       setSelectedApp(null)
-      setViewMode("hierarchy")
       setConnData(null)
       setConnError(null)
       const parts = node.pathKey.split("/")
@@ -1678,39 +2385,6 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     return layers
   }, [connGraphData])
 
-  // Forces — hierarchy
-  useEffect(() => {
-    if (viewMode !== "hierarchy") return
-    const fg = fgRef.current
-    if (!fg) return
-    fg.d3Force("x", null)
-    fg.d3Force("y", null)
-    fg.d3Force("charge")?.strength(-600).distanceMax(800)
-    fg.d3Force("link")?.distance(100)
-    fg.d3Force("collide", forceCollide((node: any) => {
-      const n = node as HGNode
-      const base = NODE_SIZES[n.level] ?? 6
-      const labelPad = { csms: 50, css: 40, csci: 35, csc: 30, app: 22 }[n.level as HGLevel] ?? 30
-      return base * (n.id === drillNode?.id ? 1.5 : 1) + labelPad
-    }).strength(1).iterations(4))
-    fg.d3ReheatSimulation()
-  }, [graphData, viewMode, drillNode])
-
-  // Forces — connections 3D only (2D is handled by ConnFlowGraph)
-  useEffect(() => {
-    if (viewMode !== "connections" || !is3D) return
-    const fg = fgRef.current
-    if (!fg) return
-    fg.d3Force("x", null)
-    fg.d3Force("y", null)
-    fg.d3Force("charge")?.strength(-800).distanceMax(800)
-    fg.d3Force("link")?.distance(150)
-    fg.d3Force("collide", forceCollide((node: any) => {
-      return (node.id === selectedApp?.pathKey ? 10 : 4) + 28
-    }).strength(1).iterations(4))
-    fg.d3ReheatSimulation()
-  }, [connGraphData, viewMode, selectedApp, is3D])
-
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -1733,11 +2407,10 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     const scenarios = getScenariosForType(selectedApp.nodeType ?? "Application")
     setConnScenario(scenarios[0].id)
     setHiddenNodeTypes(new Set())
-    setHiddenEdgeTypes(new Set(["DEPENDS_ON"]))
+    setHiddenEdgeTypes(new Set())
   }, [selectedApp?.pathKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch connections whenever selected app or scenario changes
-  // Two parallel calls: structural (fetch_structural=true) + derived DEPENDS_ON (fetch_structural=false)
   useEffect(() => {
     if (!selectedApp) { setConnData(null); setConnError(null); return }
     const scenarios = getScenariosForType(selectedApp.nodeType ?? "Application")
@@ -1747,21 +2420,12 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     setConnLoading(true)
     setConnError(null)
     setConnData(null)
-    Promise.all([
-      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, true, effectiveDepth),
-      apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, false, effectiveDepth),
-    ]).then(([structural, derived]) => {
-      if (cancelled) return
-      // Merge nodes (deduplicate by id)
-      const nodeMap = new Map<string, any>()
-      for (const n of [...structural.nodes, ...derived.nodes]) nodeMap.set(n.id, n)
-      // Merge links (structural first, then DEPENDS_ON from derived)
-      const linkKey = (l: any) => `${l.source?.id ?? l.source}→${l.target?.id ?? l.target}→${l.type}`
-      const linkMap = new Map<string, any>()
-      for (const l of structural.links) linkMap.set(linkKey(l), l)
-      for (const l of derived.links) { const k = linkKey(l); if (!linkMap.has(k)) linkMap.set(k, l) }
-      setConnData({ nodes: Array.from(nodeMap.values()), links: Array.from(linkMap.values()) })
-    })
+    apiClient.getNodeConnectionsWithDepth(selectedApp.pathKey, true, effectiveDepth)
+      .then(structural => {
+        if (cancelled) return
+        setConnData({ nodes: structural.nodes, links: structural.links })
+        setConnDataMap(prev => new Map(prev).set(selectedApp.pathKey, { nodes: structural.nodes, links: structural.links }))
+      })
       .catch(e => { if (!cancelled) setConnError(e instanceof Error ? e.message : String(e)) })
       .finally(() => { if (!cancelled) setConnLoading(false) })
     return () => { cancelled = true }
@@ -1769,90 +2433,12 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   const clearSelection = useCallback(() => {
     setSelectedApp(null)
-    setViewMode("hierarchy")
     setConnData(null)
     setConnError(null)
     setSelectedLink(null)
+    setExpandedLeaves(new Map())
+    setConnDataMap(new Map())
   }, [])
-
-  // ── 3D node objects with in-scene labels + selection ring ─────────────────
-  const hierNodeThreeObj = useCallback((node: any) => {
-    const n = node as HGNode
-    const SpriteText = (window as any).__SpriteText
-    const THREE = (window as any).__THREE
-    if (!SpriteText || !THREE) return undefined
-
-    const isParent = drillNode !== null && n.id === drillNode.id
-    const isSelectedApp = selectedApp?.id === n.id
-    const r = isParent ? NODE_SIZES[n.level] * 1.5 : NODE_SIZES[n.level]
-
-    const group = new THREE.Group()
-
-    const label = n.name.length > 24 ? n.name.slice(0, 22) + '\u2026' : n.name
-    const sprite = new SpriteText(label)
-    sprite.color = isDark ? '#e5e7eb' : '#374151'
-    sprite.textHeight = Math.max(3, r * 0.85)
-    sprite.position.set(0, r + sprite.textHeight + 2, 0)
-    group.add(sprite)
-
-    if (isParent || isSelectedApp) {
-      const hexColor = isParent ? '#ffffff' : '#fbbf24'
-      const tc = new THREE.Color(hexColor)
-      const rc = Math.round(tc.r * 255), gc = Math.round(tc.g * 255), bc = Math.round(tc.b * 255)
-      const cvs = document.createElement('canvas'); cvs.width = 128; cvs.height = 128
-      const ctx2d = cvs.getContext('2d')!
-      const grd = ctx2d.createRadialGradient(64, 64, r * 0.5, 64, 64, 64)
-      grd.addColorStop(0,   `rgba(${rc},${gc},${bc},0.55)`)
-      grd.addColorStop(0.4, `rgba(${rc},${gc},${bc},0.25)`)
-      grd.addColorStop(1,   `rgba(${rc},${gc},${bc},0)`)
-      ctx2d.fillStyle = grd; ctx2d.fillRect(0, 0, 128, 128)
-      const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cvs), transparent: true, depthWrite: false }))
-      const sz = (r + 2) * 5
-      glowSprite.scale.set(sz, sz, 1)
-      group.add(glowSprite)
-    }
-
-    return group
-  }, [threeReady, drillNode, selectedApp, isDark])
-
-  const connNodeThreeObj = useCallback((node: any) => {
-    const n = node as any
-    const SpriteText = (window as any).__SpriteText
-    const THREE = (window as any).__THREE
-    if (!SpriteText || !THREE) return undefined
-
-    const isCenter = n.id === selectedApp?.pathKey
-    const r = isCenter ? 10 : 4
-    const color = nodeTypeColor(n.type, isDark)
-
-    const group = new THREE.Group()
-
-    const raw = n.label ?? n.id ?? '?'
-    const labelText = raw.length > 26 ? raw.slice(0, 24) + '\u2026' : raw
-    const sprite = new SpriteText(labelText)
-    sprite.color = isDark ? '#e5e7eb' : '#374151'
-    sprite.textHeight = Math.max(3, r * 0.8)
-    sprite.position.set(0, r + sprite.textHeight + 2, 0)
-    group.add(sprite)
-
-    if (isCenter) {
-      const tc = new THREE.Color(color)
-      const rc = Math.round(tc.r * 255), gc = Math.round(tc.g * 255), bc = Math.round(tc.b * 255)
-      const cvs = document.createElement('canvas'); cvs.width = 128; cvs.height = 128
-      const ctx2d = cvs.getContext('2d')!
-      const grd = ctx2d.createRadialGradient(64, 64, r * 0.5, 64, 64, 64)
-      grd.addColorStop(0,   `rgba(${rc},${gc},${bc},0.6)`)
-      grd.addColorStop(0.4, `rgba(${rc},${gc},${bc},0.28)`)
-      grd.addColorStop(1,   `rgba(${rc},${gc},${bc},0)`)
-      ctx2d.fillStyle = grd; ctx2d.fillRect(0, 0, 128, 128)
-      const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cvs), transparent: true, depthWrite: false }))
-      const sz = (r + 2) * 4.5
-      glowSprite.scale.set(sz, sz, 1)
-      group.add(glowSprite)
-    }
-
-    return group
-  }, [threeReady, selectedApp, isDark])
 
   // Click handler — hierarchy mode
   const drillInto = useCallback((node: object) => {
@@ -1861,7 +2447,6 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     if (n.level === "app") {
       if (selectedApp?.id === n.id) { clearSelection(); return }
       setSelectedApp(n)
-      setViewMode("connections")
       setConnTab("props")
       onNodeSelect?.(n.id)
       return
@@ -1884,6 +2469,32 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     const key = n.type === 'Application' ? `app:${n.id}` : `extra:${n.id}`
     onNodeSelect?.(key)
   }, [selectedApp, onNodeSelect])
+
+  const onConnLeafClick = useCallback((nodeId: string, instanceKey: string) => {
+    // Update right panel to show the clicked node
+    const existingData = connDataMap.get(nodeId)
+    const hgNode: HGNode = { id: `app:${nodeId}`, name: nodeId, level: "app", appCount: 1, pathKey: nodeId }
+    setSelectedApp(hgNode)
+    setConnTab("props")
+    if (existingData) setConnData(existingData)
+
+    // Toggle expansion
+    if (expandedLeaves.has(instanceKey)) {
+      setExpandedLeaves(prev => { const next = new Map(prev); next.delete(instanceKey); return next })
+      return
+    }
+    apiClient.getNodeConnectionsWithDepth(nodeId, true, 1)
+      .then(structural => {
+        setExpandedLeaves(prev => new Map(prev).set(instanceKey, { nodes: structural.nodes, links: structural.links }))
+        setConnDataMap(prev => new Map(prev).set(nodeId, { nodes: structural.nodes, links: structural.links }))
+        setConnData({ nodes: structural.nodes, links: structural.links })
+        // Update name from fetched data
+        const fetchedNode = structural.nodes.find((n: any) => n.id === nodeId)
+        if (fetchedNode) {
+          setSelectedApp({ id: `app:${nodeId}`, name: (fetchedNode as any).label ?? (fetchedNode as any).name ?? nodeId, level: "app", nodeType: (fetchedNode as any).type, appCount: 1, pathKey: nodeId })
+        }
+      }).catch(() => {})
+  }, [expandedLeaves, connDataMap])
 
   const drillTo = useCallback((idx: number) => {
     clearSelection()
@@ -1926,43 +2537,6 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       }
     }, [drillNode, selectedApp, isDark])
 
-  const connLinkColor = useCallback((link: any) => {
-    if (selectedLink && link === selectedLink.link) return "#f59e0b"
-    return linkTypeColor(link.type, isDark)
-  }, [selectedLink, isDark])
-
-  // Map edge weights → pixel widths, clamped to [MIN_LINK_W, MAX_LINK_W]
-  const LINK_W_MIN = 0.8
-  const LINK_W_MAX = 5.0
-  const linkWeightScale = useMemo(() => {
-    const weights = connGraphData.links.map((l: any) => Number(l.weight ?? 1)).filter(w => isFinite(w))
-    if (weights.length === 0) return () => 1.5
-    const lo = Math.min(...weights)
-    const hi = Math.max(...weights)
-    if (lo === hi) return () => (LINK_W_MIN + LINK_W_MAX) / 2
-    return (w: number) => {
-      const t = (w - lo) / (hi - lo)              // 0 → 1
-      return LINK_W_MIN + t * (LINK_W_MAX - LINK_W_MIN)
-    }
-  }, [connGraphData.links])
-
-  const connLinkWidth = useCallback((link: any) => {
-    if (selectedLink && link === selectedLink.link) return 5.0
-    const w = linkWeightScale(Number(link.weight ?? 1))
-    const src = link.source?.id ?? link.source
-    const tgt = link.target?.id ?? link.target
-    const isAdjacentToCenter = src === selectedApp?.pathKey || tgt === selectedApp?.pathKey
-    // Bump adjacent-to-center edges slightly but keep weight proportions
-    return isAdjacentToCenter ? Math.min(w + 0.8, LINK_W_MAX) : w
-  }, [selectedApp, selectedLink, linkWeightScale])
-
-  const handleLinkClick = useCallback((link: any, event: MouseEvent) => {
-    const rect = containerRef.current?.getBoundingClientRect()
-    const x = rect ? event.clientX - rect.left : event.clientX
-    const y = rect ? event.clientY - rect.top : event.clientY
-    setSelectedLink(prev => (prev?.link === link ? null : { link, x, y }))
-  }, [])
-
   const hierLinkColor = isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.30)"
   const bgColor = isDark ? "#09090b" : "#ffffff"
   const breadcrumbs = [
@@ -1997,253 +2571,37 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   return (
     <div className="flex flex-col gap-3 h-full">
-      {/* Nav bar */}
-      <div className="flex items-center gap-1 text-sm flex-wrap min-h-[32px] bg-muted/50 border border-border/60 rounded-lg px-3 py-1.5">
-        {viewMode === "hierarchy" ? (
-          <>
-            {breadcrumbs.map((bc, i) => (
-              <span key={bc.idx} className="flex items-center gap-1">
-                {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                <button className="text-foreground/60 hover:text-foreground transition-colors hover:underline underline-offset-2 text-xs font-medium"
-                  onClick={() => drillTo(bc.idx)}>{bc.label}</button>
-              </span>
-            ))}
-            {drillNode && (
-              <span className="flex items-center gap-1.5">
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: NODE_COLORS[drillNode.level] }} />
-                <span className="font-semibold text-foreground text-sm">{drillNode.name}</span>
-              </span>
-            )}
-            {!drillNode && <span className="ml-3 text-xs text-muted-foreground">click a node to drill in</span>}
-          </>
-        ) : (
-          <>
-            {/* Reuse the same drillStack breadcrumbs as hierarchy mode — all clickable */}
-            {breadcrumbs.map((bc, i) => (
-              <span key={bc.idx} className="flex items-center gap-1">
-                {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                <button className="text-foreground/60 hover:text-foreground transition-colors hover:underline underline-offset-2 text-xs font-medium"
-                  onClick={() => drillTo(bc.idx)}>{bc.label}</button>
-              </span>
-            ))}
-            {/* drillNode (parent level) — clicking goes back to hierarchy at that level */}
-            {drillNode && (
-              <span className="flex items-center gap-1">
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: NODE_COLORS[drillNode.level] }} />
-                <button className="text-foreground/60 hover:text-foreground transition-colors hover:underline underline-offset-2 text-xs font-medium"
-                  onClick={clearSelection}>{drillNode.name}</button>
-              </span>
-            )}
-            {/* Current selected app/node — not clickable */}
-            <span className="flex items-center gap-1">
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: nodeTypeColor(appNode?.type ?? selectedApp?.nodeType, isDark) }} />
-              <span className="text-sm font-semibold text-foreground truncate max-w-64">{selectedApp?.name}</span>
-            </span>
-            {connLoading && <LoadingSpinner className="h-3.5 w-3.5 ml-1 text-muted-foreground" />}
-            {!connLoading && <span className="ml-2 text-xs text-muted-foreground">click a node to re-center</span>}
-          </>
-        )}
-
-        {/* Search — always visible on the right */}
-        <div className="relative shrink-0 ml-auto">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-            <input
-              ref={searchRef}
-              className="h-7 pl-7 pr-7 text-xs rounded-md border border-border bg-muted/40 focus:outline-none focus:ring-1 focus:ring-ring w-48 placeholder:text-muted-foreground"
-              placeholder="Search nodes…"
-              value={appSearch}
-              onChange={e => { setAppSearch(e.target.value); setSearchOpen(true) }}
-              onFocus={() => setSearchOpen(true)}
-              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-            />
-            {appSearch && (
-              <button className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                onMouseDown={e => { e.preventDefault(); setAppSearch(""); setSearchOpen(false) }}>
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          {searchOpen && filteredNodes.length > 0 && (
-            <div className="absolute right-0 top-full mt-1 z-50 w-80 rounded-md border border-border bg-popover shadow-lg overflow-hidden">
-              <div className="max-h-72 overflow-y-auto py-1">
-                {filteredNodes.map(node => (
-                  <button
-                    key={node.id}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground text-left transition-colors"
-                    onMouseDown={e => { e.preventDefault(); jumpToNode(node) }}
-                  >
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ background: node.nodeType ? nodeTypeColor(node.nodeType, isDark) : NODE_COLORS[node.level] }} />
-                    <span className="font-medium truncate">{node.name}</span>
-                    <span className="ml-auto flex items-center gap-1.5 shrink-0">
-                      <span className="text-[10px] text-muted-foreground">{node.nodeType ?? LEVEL_LABELS[node.level]}</span>
-                      {node.level !== "app" && !node.nodeType && <span className="text-[10px] text-muted-foreground">{node.appCount} apps</span>}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="border-t border-border px-3 py-1.5 text-[10px] text-muted-foreground">
-                {filteredNodes.length} result{filteredNodes.length !== 1 ? "s" : ""}{filteredNodes.length === 25 ? " (showing first 25)" : ""}
-              </div>
-            </div>
-          )}
-          {searchOpen && appSearch.trim() && filteredNodes.length === 0 && (
-            <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg px-3 py-2.5 text-xs text-muted-foreground">
-              No results for &ldquo;{appSearch.trim()}&rdquo;
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Main row */}
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* Canvas */}
-        <div ref={containerRef} className="flex-1 overflow-hidden relative" style={{ background: bgColor }}>
-          {/* Filter overlay — connections mode only */}
-          {viewMode === "connections" && <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 rounded-lg border border-border/50 px-3.5 py-3 text-sm"
-            style={{ background: isDark ? "rgba(15,15,20,0.75)" : "rgba(255,255,255,0.80)", backdropFilter: "blur(8px)", minWidth: 140 }}>
-            <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px]">Filter</p>
-            {viewMode !== "hierarchy" && (
-              <>
-                <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px] mt-0.5">Nodes</p>
-                {Array.from(new Set([
-                  ...(connGraphData?.nodes ?? []).map((n: any) => n.type).filter(Boolean),
-                  ...Array.from(hiddenNodeTypes).filter(t => (connData?.nodes as any[] ?? []).some(n => n.type === t)),
-                ])).map(t => (
-                  <button key={t} onClick={() => toggleNodeType(t as string)}
-                    className={cn("flex items-center gap-2.5 w-full text-left transition-opacity py-0.5", hiddenNodeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
-                    <svg width="12" height="12" viewBox="0 0 10 10" className="shrink-0">
-                      {t === "Node"    && <rect x="1" y="1" width="8" height="8" fill={nodeTypeColor(t, isDark)} />}
-                      {t === "Topic"   && <polygon points="5,1 9,5 5,9 1,5" fill={nodeTypeColor(t, isDark)} />}
-                      {t === "Library" && <polygon points="5,1 9,8.5 1,8.5" fill={nodeTypeColor(t, isDark)} />}
-                      {t === "Broker"  && <polygon points="5,0.5 8.3,2.5 8.3,7.5 5,9.5 1.7,7.5 1.7,2.5" fill={nodeTypeColor(t, isDark)} />}
-                      {!["Node","Topic","Library","Broker"].includes(t as string) && <circle cx="5" cy="5" r="4" fill={nodeTypeColor(t as string, isDark)} />}
-                    </svg>
-                    <span className={cn("truncate text-xs", hiddenNodeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
-                  </button>
-                ))}
-                <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px] mt-1">Edges</p>
-                {Array.from(new Set((connData?.links as any[] ?? []).map(l => l.type).filter(Boolean))).map(t => (
-                  <button key={t} onClick={() => toggleEdgeType(t as string)}
-                    className={cn("flex items-center gap-2.5 w-full text-left transition-opacity py-0.5", hiddenEdgeTypes.has(t as string) ? "opacity-30" : "opacity-100")}>
-                    {t === "DEPENDS_ON" ? (
-                      <svg width="18" height="6" viewBox="0 0 16 4" className="shrink-0">
-                        <line x1="0" y1="2" x2="16" y2="2" stroke={linkTypeColor(t as string, isDark)} strokeWidth="1.5" strokeDasharray="4 2" />
-                      </svg>
-                    ) : (
-                      <span className="h-0.5 w-4 shrink-0 rounded-full" style={{ background: linkTypeColor(t as string, isDark) }} />
-                    )}
-                    <span className={cn("truncate text-xs", hiddenEdgeTypes.has(t as string) ? "line-through" : "")}>{t as string}</span>
-                  </button>
-                ))}
-              </>
-            )}
-            <div className="border-t border-border/40 mt-1 pt-1.5 space-y-0.5 text-xs text-muted-foreground">
-              {connGraphData ? (
-                <><p>{connGraphData.nodes.length} nodes</p><p>{connGraphData.links.length} edges</p></>
-              ) : null}
+        {/* Canvas — merged hierarchy + connections tree */}
+        <div ref={containerRef} className="flex-1 overflow-hidden relative min-w-0" style={{ background: bgColor }}>
+          {connLoading && !connData && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/60">
+              <LoadingSpinner className="h-8 w-8" />
             </div>
-          </div>}
-          {viewMode === "hierarchy" ? (
-            <HierFlowGraph
-              graphData={filteredGraphData}
-              dims={dims}
-              isDark={isDark}
-              selectedNodeId={drillNode?.id ?? null}
-              onNodeClick={drillInto}
-            />
-          ) : (
-            <>
-              {connLoading && !connData && (
-                <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/60">
-                  <LoadingSpinner className="h-8 w-8" />
-                </div>
-              )}
-              {connError && (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <p className="text-sm text-destructive bg-background/90 px-4 py-2 rounded border">{connError}</p>
-                </div>
-              )}
-              {is3D ? (
-                <ForceGraph3D
-                  graphData={connGraphData as any}
-                  width={dims.width}
-                  height={dims.height}
-                  backgroundColor={bgColor}
-                  nodeColor={(n: any) => nodeTypeColor(n.type, isDark)}
-                  nodeVal={(n: any) => n.id === selectedApp?.pathKey ? 10 : 4}
-                  nodeLabel=""
-                  nodeThreeObject={threeReady ? connNodeThreeObj : undefined}
-                  nodeThreeObjectExtend={true}
-                  onNodeClick={(node: any) => { setSelectedLink(null); drillIntoConn(node) }}
-                  onBackgroundClick={() => { setSelectedLink(null) }}
-                  onLinkClick={handleLinkClick as any}
-                  linkColor={connLinkColor}
-                  linkWidth={connLinkWidth}
-                  linkDirectionalArrowLength={9}
-                  linkDirectionalArrowRelPos={0.85}
-                  linkDirectionalArrowColor={connLinkColor}
-                  cooldownTicks={200}
-                  d3AlphaDecay={0.02}
-                  d3VelocityDecay={0.3}
-                  ref={fgRef}
-                />
-              ) : (
-                <ConnFlowGraph
-                  graphData={connGraphData}
-                  positions={connTargetPositions}
-                  dims={dims}
-                  isDark={isDark}
-                  populatedLayers={connPopulatedLayers}
-                  selectedAppId={selectedApp?.pathKey ?? null}
-                  selectedLink={selectedLink}
-                  onNodeClick={(node: any) => { setSelectedLink(null); drillIntoConn(node) }}
-                  onEdgeClick={(link: any, event: React.MouseEvent) => {
-                    const rect = containerRef.current?.getBoundingClientRect()
-                    const x = rect ? event.clientX - rect.left : event.clientX
-                    const y = rect ? event.clientY - rect.top : event.clientY
-                    setSelectedLink(prev => (prev?.link === link ? null : { link, x, y }))
-                  }}
-                  onBackgroundClick={() => { setSelectedLink(null) }}
-                />
-              )}
-              {/* Edge props popover */}
-              {selectedLink && (() => {
-                const l = selectedLink.link
-                const srcId = l.source?.id ?? l.source
-                const tgtId = l.target?.id ?? l.target
-                const srcLabel = nodeById.get(srcId)?.label ?? srcId
-                const tgtLabel = nodeById.get(tgtId)?.label ?? tgtId
-                const extraProps = l.properties ? Object.entries(l.properties as object).filter(([, v]) => v !== undefined && v !== null) : []
-                const clampX = Math.min(selectedLink.x, dims.width - 224)
-                const clampY = Math.min(selectedLink.y + 12, dims.height - 20)
-                return (
-                  <div className="absolute z-20 w-56 rounded-lg border border-border bg-popover shadow-xl text-xs"
-                    style={{ left: clampX, top: clampY }}>
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                      <span className="font-semibold text-foreground" style={{ color: linkTypeColor(l.type, isDark) }}>{l.type ?? "Edge"}</span>
-                      <button onClick={() => setSelectedLink(null)} className="text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
-                    </div>
-                    <div className="px-3 py-2 space-y-1.5">
-                      <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0">From</span><span className="font-medium truncate">{srcLabel}</span></div>
-                      <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0">To</span><span className="font-medium truncate">{tgtLabel}</span></div>
-                      {l.weight !== undefined && <div className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 inline-flex items-center">Weight{EDGE_DESCS.weight && <Tip text={EDGE_DESCS.weight} />}</span><span className="font-mono">{typeof l.weight === "number" ? l.weight.toFixed(4) : String(l.weight)}<span className="ml-1 text-[9px] opacity-55">[0–1]</span></span></div>}
-                      {extraProps.map(([k, v]) => {
-                        const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
-                        const desc = EDGE_DESCS[k] ?? PROP_DESCS[k]
-                        return (
-                          <div key={k} className="flex gap-1.5"><span className="text-muted-foreground w-10 shrink-0 truncate inline-flex items-center">{k}{desc && <Tip text={desc} />}</span><span className="font-mono truncate inline-flex items-center gap-0">{propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55">{unit}</span>}<RiskBadge k={k} v={v} /></span></div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })()}
-            </>
           )}
+          {connError && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <p className="text-sm text-destructive bg-background/90 px-4 py-2 rounded border">{connError}</p>
+            </div>
+          )}
+          <MergedEChartsTree
+            hierarchy={hierarchy}
+            connDataMap={connDataMap}
+            expandedLeaves={expandedLeaves}
+            selectedApp={selectedApp}
+            dims={dims}
+            isDark={isDark}
+            onAppNodeClick={(app: AppNode) => {
+              const hgNode: HGNode = { id: `app:${app.id}`, name: app.csu ?? app.name ?? app.id ?? "?", level: "app", appCount: 1, pathKey: app.id, appData: app }
+              if (selectedApp?.id === hgNode.id) { clearSelection(); return }
+              setSelectedApp(hgNode)
+              setConnTab("props")
+              setConnData(null)
+              onNodeSelect?.(hgNode.id)
+            }}
+            onConnNodeClick={onConnLeafClick}
+          />
         </div>
 
         {/* Side panel */}
@@ -3139,12 +3497,6 @@ function BrowserPageContent() {
               </TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="px-3 py-1">
-                <Layers className="h-3.5 w-3.5 mr-1.5" />{csmsKeys.length} CSMS
-              </Badge>
-              <Badge variant="secondary" className="px-3 py-1">
-                <Cpu className="h-3.5 w-3.5 mr-1.5" />{totalApps} Apps
-              </Badge>
               <Button variant="outline" size="sm" onClick={() => fetchData(selectedNode?.payload?.id ?? nodeId)} disabled={loading}>
                 {loading ? <LoadingSpinner className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
                 <span className="ml-2">Refresh</span>
