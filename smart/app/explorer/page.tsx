@@ -144,40 +144,45 @@ const CONN_LAYER_LABEL: Record<number, string> = {
   0: "Node", 1: "Broker", 2: "Application", 3: "Topic", 4: "Library",
 }
 
-// Node-type → color (matches Explorer page — theme-aware via isDark flag passed at callsite)
-// Dark variants used at runtime; light variants noted for reference.
+// Node-type → color. Single source of truth shared with the Force Graph tab
+// (FORCE_CATEGORIES) so item-type colours are consistent across List, Tree,
+// and Force Graph views. Same values for both themes — Force Graph does not
+// theme-switch, and consistency across tabs trumps per-theme contrast tuning.
 const CONN_NODE_TYPE_COLORS_DARK: Record<string, string> = {
   Application: "#3b82f6",
-  Node:        "#ef4444",
-  Broker:      "#a1a1aa",
-  Topic:       "#facc15",
-  Library:     "#06b6d4",
+  Node:        "#8b5cf6",
+  Broker:      "#f59e0b",
+  Topic:       "#10b981",
+  Library:     "#ec4899",
 }
 const CONN_NODE_TYPE_COLORS_LIGHT: Record<string, string> = {
-  Application: "#2563eb",
-  Node:        "#dc2626",
-  Broker:      "#71717a",
-  Topic:       "#eab308",
-  Library:     "#0891b2",
+  Application: "#3b82f6",
+  Node:        "#8b5cf6",
+  Broker:      "#f59e0b",
+  Topic:       "#10b981",
+  Library:     "#ec4899",
 }
-// Link-type → color (matches Explorer page)
+// Link-type → color. Aligned with the Force Graph tab's EDGE_COLORS so
+// relationship-type colours are consistent across List, Tree, and Force Graph.
+// DEPENDS_ON / CONNECTS_TO are not part of EDGE_COLORS but are kept here for
+// the Tree-tab connection groups; they reuse semantically related hues.
 const CONN_LINK_TYPE_COLORS_DARK: Record<string, string> = {
-  RUNS_ON:       "#a855f7",
+  RUNS_ON:       "#6366f1",
   PUBLISHES_TO:  "#22c55e",
   SUBSCRIBES_TO: "#f97316",
+  USES:          "#a855f7",
+  ROUTES:        "#14b8a6",
   DEPENDS_ON:    "#ef4444",
   CONNECTS_TO:   "#22c55e",
-  ROUTES:        "#a1a1aa",
-  USES:          "#06b6d4",
 }
 const CONN_LINK_TYPE_COLORS_LIGHT: Record<string, string> = {
-  RUNS_ON:       "#9333ea",
-  PUBLISHES_TO:  "#16a34a",
-  SUBSCRIBES_TO: "#ea580c",
-  DEPENDS_ON:    "#dc2626",
-  CONNECTS_TO:   "#16a34a",
-  ROUTES:        "#71717a",
-  USES:          "#0891b2",
+  RUNS_ON:       "#6366f1",
+  PUBLISHES_TO:  "#22c55e",
+  SUBSCRIBES_TO: "#f97316",
+  USES:          "#a855f7",
+  ROUTES:        "#14b8a6",
+  DEPENDS_ON:    "#ef4444",
+  CONNECTS_TO:   "#22c55e",
 }
 /** Deterministic fallback color for unknown types */
 function hashTypeColor(type: string): string {
@@ -3022,8 +3027,11 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 const KIND_LABEL: Record<SelectedKind, string> = {
   csms: "System", css: "Segment", csci: "Config Item", csc: "Component", app: "Application", node: "Node", topic: "Topic",
 }
+// Hierarchy levels (csms/css/csci/csc) keep their grouping palette.
+// Item-type kinds (app/node/topic) align with the Force Graph palette so
+// the type badge in the List tab matches the Force Graph node colour.
 const KIND_COLOR: Record<SelectedKind, string> = {
-  csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#8b5cf6", node: "#ef4444", topic: "#a855f7",
+  csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#3b82f6", node: "#8b5cf6", topic: "#10b981",
 }
 
 function DetailTable({ headers, rows }: {
