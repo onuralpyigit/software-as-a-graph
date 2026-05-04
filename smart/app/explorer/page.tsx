@@ -2036,13 +2036,13 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       symbolSize: (_val: number, params: any) => {
         // treeAncestors includes the invisible "System" root — subtract 2 so CSMS = depth 0
         const depth = (params.treeAncestors?.length ?? 2) - 2
-        return ([14, 10, 8, 6, 9] as number[])[Math.min(Math.max(depth, 0), 4)] ?? 6
+        return ([22, 16, 13, 10, 14] as number[])[Math.min(Math.max(depth, 0), 4)] ?? 10
       },
       label: {
         position: "bottom",
         verticalAlign: "top",
         align: "center",
-        fontSize: 10,
+        fontSize: 12,
         color: isDark ? "#e5e7eb" : "#374151",
         formatter: (params: any) => {
           const raw: string = params.name ?? ""
@@ -2063,7 +2063,6 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       backgroundColor: "transparent",
       tooltip: {
         trigger: "item",
-        triggerOn: "mousemove",
         formatter: (params: any) => {
           const d = params.data
           const dispName = (s: string) => s?.split("\x00")[0] ?? s
@@ -2847,41 +2846,6 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
-            {/* Scenario selector */}
-            <div className="px-4 py-2.5 border-b border-border shrink-0">
-              {(() => {
-                const nodeType = appNode?.type ?? selectedApp?.nodeType ?? "Application"
-                const scenarios = getScenariosForType(nodeType)
-                return (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">View</span>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {scenarios.map(s => (
-                        <Tooltip key={s.id}>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => setConnScenario(s.id)}
-                              className={cn(
-                                "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors",
-                                connScenario === s.id
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                              )}
-                            >{s.label}</button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="max-w-52 text-xs leading-relaxed">
-                            {s.tooltip}
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                      {connData && !connLoading && (
-                        <span className="ml-auto text-[11px] text-muted-foreground">{connData.links.length} edges</span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })()}
-            </div>
             <div className="flex border-b border-border shrink-0">
               {(["props", "connections"] as const).map(tab => (
                 <button key={tab} onClick={() => setConnTab(tab)}
@@ -3056,7 +3020,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 // ── Detail Panel (left) ──────────────────────────────────────────────────────
 
 const KIND_LABEL: Record<SelectedKind, string> = {
-  csms: "System", css: "Segment", csci: "Config Item", csc: "Component", app: "App", node: "Node", topic: "Topic",
+  csms: "System", css: "Segment", csci: "Config Item", csc: "Component", app: "Application", node: "Node", topic: "Topic",
 }
 const KIND_COLOR: Record<SelectedKind, string> = {
   csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#8b5cf6", node: "#ef4444", topic: "#a855f7",
@@ -4248,7 +4212,11 @@ function BrowserPageContent() {
           {/* ── Graph tab ── */}
           <TabsContent forceMount value="graph" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
             {csmsKeys.length > 0
-              ? <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} />
+              ? (
+                <div className="border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
+                  <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} />
+                </div>
+              )
               : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
             }
           </TabsContent>
