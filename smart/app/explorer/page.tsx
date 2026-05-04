@@ -15,7 +15,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { ItemTooltip, ItemTooltipContent } from "@/components/ui/item-tooltip"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
-import { ReactFlow, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, useViewport, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
+import { ReactFlow, ReactFlowProvider, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, useViewport, useReactFlow, MarkerType, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { cn } from "@/lib/utils"
 import {
@@ -31,6 +31,7 @@ import {
   Network,
   List,
   X,
+  Share2,
 } from "lucide-react"
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false })
@@ -3435,6 +3436,451 @@ function CsmsTreeNode({ name, csms, selectedKey, onSelect, openSet, toggle, q }:
   )
 }
 
+// ── Force-layout ECharts tab ──────────────────────────────────────────────────
+
+type SwimlaneType = "Node" | "Application" | "Topic" | "Library" | "Broker"
+
+const FORCE_CATEGORIES: { name: SwimlaneType; color: string }[] = [
+  { name: "Application", color: "#3b82f6" },
+  { name: "Node",        color: "#8b5cf6" },
+  { name: "Topic",       color: "#10b981" },
+  { name: "Broker",      color: "#f59e0b" },
+  { name: "Library",     color: "#ec4899" },
+]
+
+const EDGE_COLORS: Record<string, string> = {
+  RUNS_ON:       "#6366f1",
+  PUBLISHES_TO:  "#22c55e",
+  SUBSCRIBES_TO: "#f97316",
+  USES:          "#a855f7",
+  ROUTES:        "#14b8a6",
+}
+const EDGE_COLOR_FALLBACK = "#94a3b8"
+
+function ForceGraphEChart({
+  nodesList,
+  appsList,
+  topicsList,
+  brokersList,
+  libsList,
+  graphLinks,
+  linksLoading,
+  selectedKey,
+  onNodeClick,
+}: {
+  nodesList: any[]
+  appsList: any[]
+  topicsList: any[]
+  brokersList: any[]
+  libsList: any[]
+  graphLinks: Array<{ source: string; target: string; type: string; weight?: number }>
+  linksLoading: boolean
+  selectedKey: string | null
+  onNodeClick: (rawNode: any, nodeType: SwimlaneType) => void
+}) {
+  const { theme, systemTheme } = useTheme()
+  const isDark = (theme === "system" ? systemTheme : theme) === "dark"
+  const selectedId = selectedKey ? selectedKey.replace(/^[^:]+:/, "") : null
+
+  // Search state
+  const [graphSearch, setGraphSearch] = useState("")
+  const [searchFocused, setSearchFocused] = useState(false)
+
+  // Legend filter state
+  const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set())
+  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState<Set<string>>(new Set())
+  const toggleNodeType = useCallback((name: string) =>
+    setHiddenNodeTypes(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n }), [])
+  const toggleEdgeType = useCallback((t: string) =>
+    setHiddenEdgeTypes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n }), [])
+
+  // Track which nodes have been expanded (clicked) in the graph
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() =>
+    selectedId ? new Set([selectedId]) : new Set()
+  )
+
+  // When selection changes from *outside* (List tab), reset expansion.
+  // When the click originates from the graph itself we skip the reset.
+  const skipResetRef = useRef(false)
+  const prevSelectedIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (selectedId !== prevSelectedIdRef.current) {
+      prevSelectedIdRef.current = selectedId
+      if (skipResetRef.current) {
+        skipResetRef.current = false
+      } else {
+        setExpandedIds(selectedId ? new Set([selectedId]) : new Set())
+      }
+    }
+  }, [selectedId])
+
+  // Map nodeId → { raw, type } for click handler
+  const nodeMap = useMemo(() => {
+    const m = new Map<string, { raw: any; type: SwimlaneType }>()
+    appsList.forEach(n  => m.set(String(n.id), { raw: n, type: "Application" }))
+    nodesList.forEach(n => m.set(String(n.id), { raw: n, type: "Node" }))
+    topicsList.forEach(n => m.set(String(n.id), { raw: n, type: "Topic" }))
+    brokersList.forEach(n => m.set(String(n.id), { raw: n, type: "Broker" }))
+    libsList.forEach(n  => m.set(String(n.id), { raw: n, type: "Library" }))
+    return m
+  }, [appsList, nodesList, topicsList, brokersList, libsList])
+
+  // Search results derived from nodeMap
+  const searchResults = useMemo(() => {
+    const q = graphSearch.trim().toLowerCase()
+    if (!q) return []
+    const results: Array<{ id: string; name: string; type: SwimlaneType }> = []
+    nodeMap.forEach(({ raw, type }, id) => {
+      const name = raw.name ?? raw.csu ?? id
+      if (String(name).toLowerCase().includes(q) || id.toLowerCase().includes(q))
+        results.push({ id, name: String(name), type })
+    })
+    return results.slice(0, 20)
+  }, [nodeMap, graphSearch])
+
+  const eLinks = useMemo(() => {
+    const filtered = graphLinks.filter(l => {
+      if (l.type === "DEPENDS_ON" || l.type === "CONNECTS_TO") return false
+      if (hiddenEdgeTypes.has(l.type ?? "")) return false
+      const srcType = nodeMap.get(String(l.source))?.type
+      const tgtType = nodeMap.get(String(l.target))?.type
+      if (srcType && hiddenNodeTypes.has(srcType)) return false
+      if (tgtType && hiddenNodeTypes.has(tgtType)) return false
+      return true
+    })
+    const visible = !expandedIds.size
+      ? filtered
+      : filtered.filter(l => expandedIds.has(String(l.source)) || expandedIds.has(String(l.target)))
+
+    // Count how many edges exist per unordered pair so we can spread them with curveness
+    const pairCount = new Map<string, number>()
+    const pairIndex = new Map<string, number>()
+    for (const l of visible) {
+      const key = [String(l.source), String(l.target)].sort().join("||")
+      pairCount.set(key, (pairCount.get(key) ?? 0) + 1)
+    }
+
+    return visible.map(l => {
+      const key = [String(l.source), String(l.target)].sort().join("||")
+      const total = pairCount.get(key) ?? 1
+      const idx   = pairIndex.get(key) ?? 0
+      pairIndex.set(key, idx + 1)
+      // Spread curves symmetrically: 0 edges → 0, 2 edges → ±0.3, 3 → -0.3/0/0.3 …
+      const curveness = total === 1 ? 0 : (idx / (total - 1) - 0.5) * 0.6
+      return {
+        source: String(l.source),
+        target: String(l.target),
+        edgeType: l.type ?? "",
+        label: { show: true, formatter: l.type ?? "", fontSize: 9 },
+        lineStyle: {
+          opacity: 0.55,
+          width: Math.max(0.5, (l.weight ?? 0.5) * 2),
+          curveness,
+          color: EDGE_COLORS[l.type ?? ""] ?? EDGE_COLOR_FALLBACK,
+        },
+      }
+    })
+  }, [graphLinks, expandedIds, hiddenEdgeTypes, hiddenNodeTypes, nodeMap])
+
+  const visibleNodeIds = useMemo(() => {
+    if (!expandedIds.size) return null
+    const ids = new Set<string>(expandedIds)
+    eLinks.forEach(l => { ids.add(String(l.source)); ids.add(String(l.target)) })
+    return ids
+  }, [expandedIds, eLinks])
+
+  const eNodes = useMemo(() => {
+    const catIdx: Record<SwimlaneType, number> = {
+      Application: 0, Node: 1, Topic: 2, Broker: 3, Library: 4,
+    }
+    const rows: [any[], SwimlaneType][] = [
+      [appsList,   "Application"],
+      [nodesList,  "Node"],
+      [topicsList, "Topic"],
+      [brokersList,"Broker"],
+      [libsList,   "Library"],
+    ]
+    return rows.flatMap(([list, type]) =>
+      list
+        .filter(n => !visibleNodeIds || visibleNodeIds.has(String(n.id)))
+        .filter(() => !hiddenNodeTypes.has(type as string))
+        .map(n => {
+          const id   = String(n.id)
+          const name = n.name ?? n.csu ?? id
+          const sel  = id === selectedId
+          return {
+            id,
+            name,
+            category: catIdx[type],
+            symbolSize: sel ? 72 : 40,
+            itemStyle: sel
+              ? {
+                  borderWidth: 4,
+                  borderColor: "#f97316",
+                  borderType: "solid",
+                  shadowBlur: 18,
+                  shadowColor: "rgba(249,115,22,0.7)",
+                }
+              : undefined,
+            label: {
+              show: true,
+              formatter: (p: any) => {
+                const n = p.data?.name ?? p.name ?? ""
+                return n.length > 12 ? n.slice(0, 11) + "…" : n
+              },
+              fontSize: sel ? 12 : 9,
+              fontWeight: sel ? 700 : 400,
+              color: "#fff",
+              position: "inside",
+              overflow: "truncate",
+            },
+            z: sel ? 10 : 1,
+            emphasis: { label: { show: true } },
+          }
+        })
+    )
+  }, [appsList, nodesList, topicsList, brokersList, libsList, selectedId, visibleNodeIds, hiddenNodeTypes])
+
+  // All edge types present in data (unfiltered) — used for legend so hidden items remain visible
+  const edgeTypesInView = useMemo(() => {
+    const types = graphLinks
+      .filter(l => l.type !== "DEPENDS_ON" && l.type !== "CONNECTS_TO")
+      .map(l => l.type)
+      .filter(Boolean)
+    return [...new Set(types)] as string[]
+  }, [graphLinks])
+
+  // All node types present in data (unfiltered) — used for legend
+  const nodeTypesInView = useMemo(() => {
+    const present = new Set<string>()
+    nodeMap.forEach(({ type }) => present.add(type))
+    return FORCE_CATEGORIES.filter(c => present.has(c.name))
+  }, [nodeMap])
+
+  const selectedConnections = useMemo(() => {
+    if (!selectedId) return null
+    const relevant = graphLinks.filter(l =>
+      l.type !== "DEPENDS_ON" && l.type !== "CONNECTS_TO" &&
+      !hiddenEdgeTypes.has(l.type ?? "")
+    )
+    const outgoing = relevant.filter(l => {
+      if (String(l.source) !== selectedId) return false
+      const targetType = nodeMap.get(String(l.target))?.type
+      return !targetType || !hiddenNodeTypes.has(targetType)
+    })
+    const incoming = relevant.filter(l => {
+      if (String(l.target) !== selectedId) return false
+      const srcType = nodeMap.get(String(l.source))?.type
+      return !srcType || !hiddenNodeTypes.has(srcType)
+    })
+    const getName = (id: string) => nodeMap.get(id)?.raw?.name ?? nodeMap.get(id)?.raw?.csu ?? id
+    return { outgoing, incoming, getName }
+  }, [selectedId, graphLinks, nodeMap, hiddenNodeTypes, hiddenEdgeTypes])
+
+  const option = useMemo(() => ({
+    backgroundColor: "transparent",
+    legend: { show: false },
+    tooltip: {
+      trigger: "item",
+      formatter: (p: any) => {
+        if (p.dataType === "node") return `<b>${p.data?.name ?? p.name}</b>`
+        return `${p.data?.source} → ${p.data?.target}`
+      },
+    },
+    series: [{
+      type:          "graph",
+      layout:        "force",
+      data:          eNodes,
+      links:         eLinks,
+      categories:    FORCE_CATEGORIES.map(c => ({
+        name:      c.name,
+        itemStyle: { color: c.color },
+      })),
+      roam:          true,
+      focusNodeAdjacency: true,
+      label:         { show: true, position: "inside", fontSize: 9 },
+      edgeSymbol:    ["none", "arrow"],
+      edgeSymbolSize: 8,
+      edgeLabel:     { show: true, fontSize: 9, position: "middle" },
+      lineStyle:     { opacity: 0.55 },
+      force: {
+        repulsion:       500,
+        gravity:         0.05,
+        edgeLength:      [90, 180],
+        friction:        0.6,
+        layoutAnimation: true,
+      },
+      emphasis: {
+        focus:     "adjacency",
+        lineStyle: { opacity: 0.7 },
+        label:     { show: true },
+      },
+    }],
+  }), [eNodes, eLinks, isDark])
+
+  const onEvents = useMemo(() => ({
+    click: (p: any) => {
+      if (p.dataType !== "node") return
+      const id = String(p.data?.id ?? "")
+      // Expand this node's connections and make it selected
+      setExpandedIds(prev => new Set([...prev, id]))
+      const entry = nodeMap.get(id)
+      if (entry) {
+        skipResetRef.current = true
+        onNodeClick(entry.raw, entry.type)
+      }
+    },
+  }), [nodeMap, onNodeClick])
+
+  return (
+    <div className="relative w-full h-full">
+      {linksLoading && (
+        <div className="absolute top-2 right-3 z-10 text-xs text-muted-foreground">Loading edges…</div>
+      )}
+
+      {/* Search bar overlay */}
+      <div className="absolute top-2 left-3 z-20 w-56">
+        <div className="relative flex items-center">
+          <Search className="absolute left-2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
+          <Input
+            className="h-7 pl-6 pr-6 text-xs bg-background/90 rounded-md border-border shadow-sm focus-visible:ring-1 focus-visible:ring-primary/50 backdrop-blur"
+            placeholder="Search nodes…"
+            value={graphSearch}
+            onChange={e => setGraphSearch(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+          />
+          {graphSearch && (
+            <button
+              className="absolute right-2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+              onMouseDown={e => { e.preventDefault(); setGraphSearch("") }}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+        {searchFocused && searchResults.length > 0 && (
+          <div className="mt-1 rounded-md border border-border bg-background shadow-md overflow-hidden max-h-64 overflow-y-auto">
+            {searchResults.map(r => (
+              <button
+                key={r.id}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors"
+                onMouseDown={e => {
+                  e.preventDefault()
+                  const entry = nodeMap.get(r.id)
+                  if (!entry) return
+                  setExpandedIds(prev => new Set([...prev, r.id]))
+                  skipResetRef.current = true
+                  onNodeClick(entry.raw, entry.type)
+                  setGraphSearch("")
+                }}
+              >
+                <span
+                  className="inline-block w-2 h-2 rounded-full shrink-0"
+                  style={{ background: FORCE_CATEGORIES.find(c => c.name === r.type)?.color ?? "#94a3b8" }}
+                />
+                <span className="truncate">{r.name}</span>
+                <span className="ml-auto text-muted-foreground/50 shrink-0">{r.type}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {(nodeTypesInView.length > 0 || edgeTypesInView.length > 0) && (
+        <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/80 px-3 py-2 text-xs backdrop-blur max-h-[60%] overflow-y-auto">
+          {nodeTypesInView.length > 0 && (
+            <>
+              <span className="font-medium text-muted-foreground mb-0.5">Nodes</span>
+              {nodeTypesInView.map(c => {
+                const hidden = hiddenNodeTypes.has(c.name)
+                return (
+                  <button key={c.name} onClick={() => toggleNodeType(c.name)}
+                    className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity">
+                    <svg width="12" height="12" className="shrink-0">
+                      <circle cx="6" cy="6" r="5" fill={hidden ? "transparent" : c.color} stroke={c.color} strokeWidth="1.5" />
+                    </svg>
+                    <span style={{ color: hidden ? (isDark ? "#71717a" : "#a1a1aa") : (isDark ? "#e4e4e7" : "#3f3f46") }}
+                      className={hidden ? "line-through" : ""}>{c.name}</span>
+                  </button>
+                )
+              })}
+            </>
+          )}
+          {nodeTypesInView.length > 0 && edgeTypesInView.length > 0 && (
+            <hr className="my-1 border-border" />
+          )}
+          {edgeTypesInView.length > 0 && (
+            <>
+              <span className="font-medium text-muted-foreground mb-0.5">Relationships</span>
+              {edgeTypesInView.map(t => {
+                const hidden = hiddenEdgeTypes.has(t)
+                const color = EDGE_COLORS[t] ?? EDGE_COLOR_FALLBACK
+                return (
+                  <button key={t} onClick={() => toggleEdgeType(t)}
+                    className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity">
+                    <svg width="22" height="10" className="shrink-0">
+                      <line x1="0" y1="5" x2="22" y2="5" stroke={hidden ? (isDark ? "#52525b" : "#d4d4d8") : color} strokeWidth="2"
+                        strokeDasharray={hidden ? "3 2" : undefined} />
+                    </svg>
+                    <span style={{ color: hidden ? (isDark ? "#71717a" : "#a1a1aa") : (isDark ? "#e4e4e7" : "#3f3f46") }}
+                      className={hidden ? "line-through" : ""}>{t}</span>
+                  </button>
+                )
+              })}
+            </>
+          )}
+        </div>
+      )}
+      <ReactECharts
+        option={option}
+        onEvents={onEvents}
+        style={{ width: "100%", height: "100%" }}
+        theme={isDark ? "dark" : undefined}
+        opts={{ renderer: "canvas" }}
+        notMerge={false}
+        lazyUpdate={false}
+      />
+
+      {/* Connections panel */}
+      {selectedConnections && (selectedConnections.outgoing.length > 0 || selectedConnections.incoming.length > 0) && (
+        <div className="absolute top-2 right-3 z-10 w-56 max-h-[70%] overflow-y-auto rounded-md border border-border bg-background/90 text-xs backdrop-blur shadow-md">
+          <div className="px-3 py-2 font-medium border-b border-border text-muted-foreground sticky top-0 bg-background/90">
+            Connections
+          </div>
+          {selectedConnections.outgoing.length > 0 && (
+            <div className="px-3 py-2">
+              <p className="font-medium text-muted-foreground mb-1">Outgoing</p>
+              {selectedConnections.outgoing.map((l, i) => (
+                <div key={i} className="flex items-center gap-1.5 py-0.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: EDGE_COLORS[l.type] ?? EDGE_COLOR_FALLBACK }} />
+                  <span className="truncate">{selectedConnections.getName(String(l.target))}</span>
+                  <span className="ml-auto text-muted-foreground/50 shrink-0">{l.type}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {selectedConnections.outgoing.length > 0 && selectedConnections.incoming.length > 0 && (
+            <hr className="border-border" />
+          )}
+          {selectedConnections.incoming.length > 0 && (
+            <div className="px-3 py-2">
+              <p className="font-medium text-muted-foreground mb-1">Incoming</p>
+              {selectedConnections.incoming.map((l, i) => (
+                <div key={i} className="flex items-center gap-1.5 py-0.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: EDGE_COLORS[l.type] ?? EDGE_COLOR_FALLBACK }} />
+                  <span className="truncate">{selectedConnections.getName(String(l.source))}</span>
+                  <span className="ml-auto text-muted-foreground/50 shrink-0">{l.type}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function BrowserPageContent() {
@@ -3456,6 +3902,10 @@ function BrowserPageContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null)
+  const [activeTab, setActiveTab] = useState<"browse" | "graph" | "forcegraph">("browse")
+  const [layerGraphLinks, setLayerGraphLinks] = useState<Array<{ source: string; target: string; type: string; weight?: number }>>([])
+  const [layerLinksLoading, setLayerLinksLoading] = useState(false)
+  const layerLinksLoadedRef = useRef(false)
 
   const toggle = useCallback((key: string) => {
     setOpenSet((prev) => {
@@ -3639,7 +4089,47 @@ function BrowserPageContent() {
     })
   }, [])
 
+  const fetchLayerLinks = useCallback(async () => {
+    if (layerLinksLoadedRef.current) return
+    layerLinksLoadedRef.current = true
+    setLayerLinksLoading(true)
+    try {
+      const data = await apiClient.getGraphData()
+      setLayerGraphLinks(data.links.map(l => ({ source: String(l.source), target: String(l.target), type: l.type, weight: l.weight })))
+    } catch {
+      // edges are optional — silently ignore failures
+    } finally {
+      setLayerLinksLoading(false)
+    }
+  }, [])
 
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab as "browse" | "graph" | "forcegraph")
+    if (tab === "forcegraph") fetchLayerLinks()
+  }, [fetchLayerLinks])
+
+  const handleLayersNodeClick = useCallback((rawNode: any, nodeType: SwimlaneType) => {
+    const id = String(rawNode.id ?? "")
+    if (nodeType === "Application") {
+      const app = appsList.find(a => a.id === id)
+      if (app) {
+        const label = app.csu ?? app.name ?? id
+        setSelectedNode({ kind: "app", key: `app:${id}`, label, path: [label], payload: app })
+        setSideInitialTab("apps")
+        return
+      }
+    }
+    const kindMap: Record<SwimlaneType, SelectedKind> = {
+      Node: "node", Application: "app", Topic: "topic", Library: "node", Broker: "node",
+    }
+    const tabMap: Record<SwimlaneType, "nodes" | "brokers" | "libs" | "apps" | "topics"> = {
+      Node: "nodes", Application: "apps", Topic: "topics", Library: "libs", Broker: "brokers",
+    }
+    const kind: SelectedKind = kindMap[nodeType] ?? "node"
+    const label: string = rawNode.name ?? rawNode.id ?? "?"
+    setSelectedNode({ kind, key: `${kind}:${id}`, label, path: [label], payload: rawNode })
+    setSideInitialTab(tabMap[nodeType] ?? "nodes")
+  }, [appsList])
 
   if (!initialLoadComplete) {
     return <AppLayout><div className="flex items-center justify-center h-64"><LoadingSpinner /></div></AppLayout>
@@ -3663,14 +4153,17 @@ function BrowserPageContent() {
           </div>
         )}
 
-        <Tabs defaultValue="browse" className="flex flex-col flex-1 min-h-0">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 min-h-0">
           <div className="flex items-center justify-between mb-4 shrink-0">
             <TabsList>
               <TabsTrigger value="browse" className="flex items-center gap-2">
                 <List className="h-4 w-4" />List
               </TabsTrigger>
+              <TabsTrigger value="forcegraph" className="flex items-center gap-2">
+                <Share2 className="h-4 w-4" />Force Graph
+              </TabsTrigger>
               <TabsTrigger value="graph" className="flex items-center gap-2">
-                <Network className="h-4 w-4" />Graph
+                <Network className="h-4 w-4" />Tree
               </TabsTrigger>
             </TabsList>
 
@@ -3716,6 +4209,28 @@ function BrowserPageContent() {
           <TabsContent forceMount value="graph" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
             {csmsKeys.length > 0
               ? <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} />
+              : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
+            }
+          </TabsContent>
+
+          {/* ── Force-graph tab ── */}
+          <TabsContent forceMount value="forcegraph" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
+            {(appsList.length > 0 || nodesList.length > 0 || topicsList.length > 0)
+              ? (
+                <div className="border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
+                  <ForceGraphEChart
+                    nodesList={nodesList}
+                    appsList={appsList}
+                    topicsList={topicsList}
+                    libsList={libsList}
+                    brokersList={brokersList}
+                    graphLinks={layerGraphLinks}
+                    linksLoading={layerLinksLoading}
+                    selectedKey={selectedNode?.key ?? null}
+                    onNodeClick={handleLayersNodeClick}
+                  />
+                </div>
+              )
               : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
             }
           </TabsContent>
