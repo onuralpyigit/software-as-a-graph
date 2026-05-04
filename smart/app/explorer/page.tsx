@@ -2951,7 +2951,10 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
               <div className="flex items-center gap-2 min-w-0">
                 <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold text-white shrink-0"
                   style={{ background: nodeTypeColor(appNode?.type ?? selectedApp?.nodeType, isDark) }}>
-                  {appNode?.type ?? selectedApp?.nodeType ?? "App"}
+                  {(() => {
+                    const t = appNode?.type ?? selectedApp?.nodeType ?? "App"
+                    return t.toLowerCase() === "mqtt" ? "Broker" : t
+                  })()}
                 </span>
                 <span className="text-xs font-semibold text-foreground truncate">{selectedApp.name}</span>
               </div>
