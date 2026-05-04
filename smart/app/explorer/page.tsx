@@ -2507,6 +2507,15 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     setConnTab("props")
     if (existingData) setConnData(existingData)
 
+    // Notify parent so list view stays in sync — apps use app: prefix, all others use extra:
+    const isHierarchyApp = flatNodes.some(n => n.level === "app" && n.pathKey === nodeId)
+    const extraNode = extraNodes.find((n: any) => n.id === nodeId)
+    if (isHierarchyApp || extraNode?.type === "Application") {
+      onNodeSelect?.(`app:${nodeId}`)
+    } else {
+      onNodeSelect?.(`extra:${nodeId}`)
+    }
+
     // Toggle expansion
     if (expandedLeaves.has(instanceKey)) {
       setExpandedLeaves(prev => { const next = new Map(prev); next.delete(instanceKey); return next })
@@ -2523,7 +2532,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
           setSelectedApp({ id: `app:${nodeId}`, name: (fetchedNode as any).label ?? (fetchedNode as any).name ?? nodeId, level: "app", nodeType: (fetchedNode as any).type, appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey })
         }
       }).catch(() => {})
-  }, [expandedLeaves, connDataMap])
+  }, [expandedLeaves, connDataMap, flatNodes, extraNodes, onNodeSelect])
 
   const drillTo = useCallback((idx: number) => {
     clearSelection()
@@ -3284,7 +3293,7 @@ function BrowserPageContent() {
   const [search, setSearch] = useState("")
   const [sideSearch, setSideSearch] = useState("")
   const [browseSearchOpen, setBrowseSearchOpen] = useState(false)
-  const [sideInitialTab, setSideInitialTab] = useState<"system" | "nodes" | "apps" | "topics">("system")
+  const [sideInitialTab, setSideInitialTab] = useState<"system" | "nodes" | "brokers" | "libs" | "apps" | "topics">("system")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null)
@@ -3348,7 +3357,11 @@ function BrowserPageContent() {
             const kind: SelectedKind = topics.some((t: any) => t.id === targetNodeId) ? "topic" : "node"
             const label = extra.name ?? extra.id ?? "?"
             setSelectedNode({ kind, key: `${kind}:${extra.id}`, label, path: [label], payload: extra })
-            setSideInitialTab(kind === "topic" ? "topics" : "nodes")
+            setSideInitialTab(
+              topics.some((t: any) => t.id === targetNodeId) ? "topics" :
+              brokers.some((b: any) => b.id === targetNodeId) ? "brokers" :
+              libs.some((l: any) => l.id === targetNodeId) ? "libs" : "nodes"
+            )
           } else {
             // Unknown id — fall back to default first-CSMS selection
             const firstCsmsKey = sortKeys(Object.keys(h))[0]
@@ -3430,19 +3443,43 @@ function BrowserPageContent() {
 
   const jumpToBrowseNode = useCallback((entry: FlatBrowseEntry) => {
     setSelectedNode({ kind: entry.kind, key: entry.key, label: entry.label, path: entry.path, payload: entry.payload })
-    setOpenSet(prev => {
-      const next = new Set(prev)
-      const parts = entry.key.replace(/^[^:]+:/, "").split("/")
-      const [csmsKey, cssKey, csciKey] = parts
-      if (csmsKey) next.add(`csms:${csmsKey}`)
-      if (cssKey)  next.add(`css:${csmsKey}/${cssKey}`)
-      if (csciKey) next.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
-      next.add(entry.key)
-      return next
-    })
+    if (entry.kind === 'app') {
+      // App keys are "app:appId" — must search hierarchy to find ancestor CSMS/CSS/CSCI/CSC keys
+      const appId = entry.key.slice(4)
+      outer: for (const [csmsKey, csms] of Object.entries(hierarchy)) {
+        for (const [cssKey, css] of Object.entries(csms.css)) {
+          for (const [csciKey, csci] of Object.entries(css.csci)) {
+            for (const [cscKey, csc] of Object.entries(csci.csc)) {
+              if (csc.apps.some(a => a.id === appId)) {
+                setOpenSet(prev => {
+                  const next = new Set(prev)
+                  next.add(`csms:${csmsKey}`)
+                  next.add(`css:${csmsKey}/${cssKey}`)
+                  next.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
+                  next.add(`csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`)
+                  return next
+                })
+                break outer
+              }
+            }
+          }
+        }
+      }
+    } else {
+      setOpenSet(prev => {
+        const next = new Set(prev)
+        const parts = entry.key.replace(/^[^:]+:/, "").split("/")
+        const [csmsKey, cssKey, csciKey] = parts
+        if (csmsKey) next.add(`csms:${csmsKey}`)
+        if (cssKey)  next.add(`css:${csmsKey}/${cssKey}`)
+        if (csciKey) next.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
+        next.add(entry.key)
+        return next
+      })
+    }
     setSearch("")
     setBrowseSearchOpen(false)
-  }, [])
+  }, [hierarchy])
 
   const expandPath = useCallback((keys: string[]) => {
     setOpenSet(prev => {
@@ -3469,17 +3506,43 @@ function BrowserPageContent() {
       if (!entry) return
       if (selectedNode?.key === entry.key) return  // already selected
       setSelectedNode({ kind: entry.kind, key: entry.key, label: entry.label, path: entry.path, payload: entry.payload })
-      // Expand tree ancestors
-      setOpenSet(prev => {
-        const next = new Set(prev)
-        const rawPath = key.replace(/^[^:]+:/, "").split("/")
-        const [k0, k1, k2] = rawPath
-        if (k0) next.add(`csms:${k0}`)
-        if (k1) next.add(`css:${k0}/${k1}`)
-        if (k2) next.add(`csci:${k0}/${k1}/${k2}`)
-        next.add(key)
-        return next
-      })
+      setSideInitialTab("system")
+      if (key.startsWith('app:')) {
+        // App keys are "app:appId" — app ID alone can't encode the hierarchy path,
+        // so we must search the hierarchy to find the ancestor CSMS/CSS/CSCI/CSC keys.
+        const appId = key.slice(4)
+        outer: for (const [csmsKey, csms] of Object.entries(hierarchy)) {
+          for (const [cssKey, css] of Object.entries(csms.css)) {
+            for (const [csciKey, csci] of Object.entries(css.csci)) {
+              for (const [cscKey, csc] of Object.entries(csci.csc)) {
+                if (csc.apps.some(a => a.id === appId)) {
+                  setOpenSet(prev => {
+                    const next = new Set(prev)
+                    next.add(`csms:${csmsKey}`)
+                    next.add(`css:${csmsKey}/${cssKey}`)
+                    next.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
+                    next.add(`csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`)
+                    return next
+                  })
+                  break outer
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // Non-app hierarchy keys embed their full path: csms:k0, css:k0/k1, csci:k0/k1/k2, csc:k0/k1/k2/k3
+        setOpenSet(prev => {
+          const next = new Set(prev)
+          const rawPath = key.replace(/^[^:]+:/, "").split("/")
+          const [k0, k1, k2] = rawPath
+          if (k0) next.add(`csms:${k0}`)
+          if (k1) next.add(`css:${k0}/${k1}`)
+          if (k2) next.add(`csci:${k0}/${k1}/${k2}`)
+          next.add(key)
+          return next
+        })
+      }
     } else if (key.startsWith('extra:')) {
       const rawId = key.slice(6)
       const allExtra = [...nodesList, ...topicsList, ...brokersList, ...libsList]
@@ -3489,9 +3552,13 @@ function BrowserPageContent() {
       const newKey = `${kind}:${rawId}`
       if (selectedNode?.key === newKey) return  // already selected
       setSelectedNode({ kind, key: newKey, label: extra.name ?? rawId, path: [extra.name ?? rawId], payload: extra })
-      setSideInitialTab(kind === 'topic' ? 'topics' : 'nodes')
+      setSideInitialTab(
+        topicsList.some((t: any)  => t.id === rawId) ? 'topics' :
+        brokersList.some((b: any) => b.id === rawId) ? 'brokers' :
+        libsList.some((l: any)    => l.id === rawId) ? 'libs' : 'nodes'
+      )
     }
-  }, [flatBrowseNodes, nodesList, topicsList, brokersList, libsList, selectedNode])
+  }, [flatBrowseNodes, nodesList, topicsList, brokersList, libsList, selectedNode, hierarchy])
 
   if (!initialLoadComplete) {
     return <AppLayout><div className="flex items-center justify-center h-64"><LoadingSpinner /></div></AppLayout>
@@ -3529,7 +3596,7 @@ function BrowserPageContent() {
           </div>
 
           {/* ── Browse tab ── */}
-          <TabsContent value="browse" className="flex-1 min-h-0 mt-0">
+          <TabsContent forceMount value="browse" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
             <div className="flex border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
               {/* Left: Detail / table panel */}
               <div className="flex-1 overflow-auto border-r border-border min-w-0">
@@ -3547,6 +3614,8 @@ function BrowserPageContent() {
                   nodesList={nodesList}
                   appsList={appsList}
                   topicsList={topicsList}
+                  brokersList={brokersList}
+                  libsList={libsList}
                   hierarchy={hierarchy}
                   openSet={openSet}
                   toggle={toggle}
@@ -3563,7 +3632,7 @@ function BrowserPageContent() {
           </TabsContent>
 
           {/* ── Graph tab ── */}
-          <TabsContent value="graph" className="flex-1 min-h-0 mt-0 h-full">
+          <TabsContent forceMount value="graph" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
             {csmsKeys.length > 0
               ? <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} syncKey={graphSyncKey} onNodeSelect={handleGraphNodeSelect} />
               : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
@@ -3628,11 +3697,13 @@ function SimpleVirtualList({ items, renderItem, itemHeight = 34 }: {
 // ── Side List Panel ───────────────────────────────────────────────────────────
 
 function SideListPanel({
-  nodesList, appsList, topicsList, hierarchy, openSet, toggle, expandPath, selectedKey, onSelect, search, onSearchChange, loading, initialTab,
+  nodesList, appsList, topicsList, brokersList = [], libsList = [], hierarchy, openSet, toggle, expandPath, selectedKey, onSelect, search, onSearchChange, loading, initialTab,
 }: {
   nodesList: any[]
   appsList: AppNode[]
   topicsList: any[]
+  brokersList?: any[]
+  libsList?: any[]
   hierarchy: Record<string, CsmsGroup>
   openSet: Set<string>
   toggle: (k: string) => void
@@ -3642,9 +3713,9 @@ function SideListPanel({
   search: string
   onSearchChange: (v: string) => void
   loading: boolean
-  initialTab?: "system" | "nodes" | "apps" | "topics"
+  initialTab?: "system" | "nodes" | "brokers" | "libs" | "apps" | "topics"
 }) {
-  const [sideTab, setSideTab] = useState<"system" | "nodes" | "apps" | "topics">(initialTab ?? "system")
+  const [sideTab, setSideTab] = useState<"system" | "nodes" | "brokers" | "libs" | "apps" | "topics">(initialTab ?? "system")
 
   // Sync if parent changes the initial tab (e.g. via URL param auto-select)
   const prevInitialTab = useRef(initialTab)
@@ -3659,14 +3730,14 @@ function SideListPanel({
   const deferredSearch = useDeferredValue(search)
   const q = deferredSearch.toLowerCase()
 
-  const switchTab = (tab: "system" | "nodes" | "apps" | "topics") => {
+  const switchTab = (tab: "system" | "nodes" | "brokers" | "libs" | "apps" | "topics") => {
     setSideTab(tab)
     onSearchChange("")
   }
 
   // Flat list of all hierarchy nodes for System tab suggestions
   const flatNodes = useMemo(() => {
-    type Entry = { kind: SelectedKind; key: string; label: string; path: string[]; payload: CsmsGroup | CssGroup | CsciGroup | CscGroup | AppNode; treePath: string[]; tab: "system" | "nodes" | "apps" | "topics" }
+    type Entry = { kind: SelectedKind; key: string; label: string; path: string[]; payload: CsmsGroup | CssGroup | CsciGroup | CscGroup | AppNode; treePath: string[]; tab: "system" | "nodes" | "brokers" | "libs" | "apps" | "topics" }
     const result: Entry[] = []
     for (const [csmsKey, csms] of Object.entries(hierarchy)) {
       const csmsPath = [csms.name]
@@ -3690,20 +3761,24 @@ function SideListPanel({
         }
       }
     }
-    // Add nodes, topics as flat entries
+    // Add nodes, brokers, libs, topics as flat entries
     for (const n of nodesList)
       result.push({ kind: "node", key: `node:${n.id}`, label: n.name ?? n.id ?? "?", path: [n.name ?? n.id ?? "?"], payload: n, treePath: [], tab: "nodes" })
+    for (const b of brokersList)
+      result.push({ kind: "node", key: `node:${b.id}`, label: b.name ?? b.id ?? "?", path: [b.name ?? b.id ?? "?"], payload: b, treePath: [], tab: "brokers" })
+    for (const l of libsList)
+      result.push({ kind: "node", key: `node:${l.id}`, label: l.name ?? l.id ?? "?", path: [l.name ?? l.id ?? "?"], payload: l, treePath: [], tab: "libs" })
     for (const t of topicsList)
       result.push({ kind: "topic", key: `topic:${t.id}`, label: t.name ?? t.id ?? "?", path: [t.name ?? t.id ?? "?"], payload: t, treePath: [], tab: "topics" })
     return result
-  }, [hierarchy, nodesList, topicsList])
+  }, [hierarchy, nodesList, brokersList, libsList, topicsList])
 
   const suggestions = useMemo(() => {
     if (!q) return []
     return flatNodes.filter(n => n.label.toLowerCase().includes(q) || n.key.toLowerCase().includes(q)).slice(0, 30)
   }, [flatNodes, q])
 
-  const handleJump = (entry: { kind: SelectedKind; key: string; label: string; path: string[]; payload: any; treePath: string[]; tab: "system" | "nodes" | "apps" | "topics" }) => {
+  const handleJump = (entry: { kind: SelectedKind; key: string; label: string; path: string[]; payload: any; treePath: string[]; tab: "system" | "nodes" | "brokers" | "libs" | "apps" | "topics" }) => {
     onSelect({ kind: entry.kind, key: entry.key, label: entry.label, path: entry.path, payload: entry.payload })
     if (entry.tab === "system") expandPath(entry.treePath)
     setSideTab(entry.tab)
@@ -3711,7 +3786,9 @@ function SideListPanel({
     setSuggestOpen(false)
   }
 
-  const filteredNodes  = useMemo(() => nodesList.filter(n => !q || (n.name ?? n.id ?? "").toLowerCase().includes(q) || (n.id ?? "").toLowerCase().includes(q)), [nodesList, q])
+  const filteredNodes   = useMemo(() => nodesList.filter(n  => !q || (n.name ?? n.id ?? "").toLowerCase().includes(q) || (n.id ?? "").toLowerCase().includes(q)), [nodesList, q])
+  const filteredBrokers = useMemo(() => brokersList.filter(b => !q || (b.name ?? b.id ?? "").toLowerCase().includes(q) || (b.id ?? "").toLowerCase().includes(q)), [brokersList, q])
+  const filteredLibs    = useMemo(() => libsList.filter(l    => !q || (l.name ?? l.id ?? "").toLowerCase().includes(q) || (l.id ?? "").toLowerCase().includes(q)), [libsList, q])
   const filteredApps   = useMemo(() => appsList.filter(a  => !q || (a.csu ?? a.name ?? a.id ?? "").toLowerCase().includes(q) || (a.id ?? "").toLowerCase().includes(q)), [appsList, q])
   const filteredTopics = useMemo(() => topicsList.filter(t => !q || (t.name ?? t.id ?? "").toLowerCase().includes(q) || (t.id ?? "").toLowerCase().includes(q)), [topicsList, q])
 
@@ -3721,6 +3798,8 @@ function SideListPanel({
       : (item.name ?? item.id ?? "?")
     const key = `${kind}:${item.id}`
     const isSelected = selectedKey === key
+    // Show a type badge for Broker and Library items in the nodes tab
+    const subType: string | null = kind === "node" && item.type && item.type !== "Node" ? item.type : null
     return (
       <button
         key={key}
@@ -3732,6 +3811,9 @@ function SideListPanel({
       >
         <span className="h-2 w-2 rounded-full shrink-0" style={{ background: KIND_COLOR[kind] }} />
         <span className="flex-1 truncate">{label}</span>
+        {subType && (
+          <span className={cn("text-[10px] shrink-0", isSelected ? "text-accent-foreground/60" : "text-muted-foreground/60")}>{subType}</span>
+        )}
         {item.weight != null && (
           <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{typeof item.weight === "number" ? item.weight.toFixed(2) : item.weight}</span>
         )}
@@ -3745,26 +3827,29 @@ function SideListPanel({
     <>
       {/* Tab bar */}
       <div className="border-b border-border shrink-0">
-        <div className="flex text-xs">
-          {(["system", "nodes", "apps", "topics"] as const).map(tab => {
-            const count = tab === "system" ? csmsKeys.length : tab === "nodes" ? nodesList.length : tab === "apps" ? appsList.length : topicsList.length
-            const label = tab === "system" ? "System" : tab === "nodes" ? "Nodes" : tab === "apps" ? "Apps" : "Topics"
-            return (
-              <button
-                key={tab}
-                className={cn(
-                  "flex-1 py-2 px-1 transition-colors border-b-2 text-[11px]",
-                  sideTab === tab
-                    ? "border-primary text-foreground font-medium"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => switchTab(tab)}
-              >
-                {label}{" "}
-                <span className={cn("text-[10px]", sideTab === tab ? "text-muted-foreground" : "text-muted-foreground/60")}>{count}</span>
-              </button>
-            )
-          })}
+        <div className="flex flex-wrap text-xs">
+          {([
+            { id: "system",  label: "System",  count: csmsKeys.length },
+            { id: "nodes",   label: "Nodes",   count: nodesList.length },
+            { id: "brokers", label: "Brokers", count: brokersList.length },
+            { id: "libs",    label: "Libs",    count: libsList.length },
+            { id: "apps",    label: "Apps",    count: appsList.length },
+            { id: "topics",  label: "Topics",  count: topicsList.length },
+          ] as const).map(tab => (
+            <button
+              key={tab.id}
+              className={cn(
+                "flex-1 py-2 px-1 transition-colors border-b-2 text-[11px] min-w-0",
+                sideTab === tab.id
+                  ? "border-primary text-foreground font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+              onClick={() => switchTab(tab.id)}
+            >
+              {tab.label}{" "}
+              <span className={cn("text-[10px]", sideTab === tab.id ? "text-muted-foreground" : "text-muted-foreground/60")}>{tab.count}</span>
+            </button>
+          ))}
         </div>
         {/* Search */}
         <div className="px-2 py-2">
@@ -3834,9 +3919,11 @@ function SideListPanel({
               ))
             : !loading && <p className="text-center text-muted-foreground py-8 text-xs px-4">No data loaded. Import a graph first.</p>
         )}
-        {sideTab === "nodes"  && (filteredNodes.length  > 0 ? <SimpleVirtualList items={filteredNodes}  renderItem={n => makeRow(n, "node")}  itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No nodes found.</p>)}
-        {sideTab === "apps"   && (filteredApps.length   > 0 ? <SimpleVirtualList items={filteredApps}   renderItem={a => makeRow(a, "app")}   itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No apps found.</p>)}
-        {sideTab === "topics" && (filteredTopics.length > 0 ? <SimpleVirtualList items={filteredTopics} renderItem={t => makeRow(t, "topic")} itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No topics found.</p>)}
+        {sideTab === "nodes"   && (filteredNodes.length   > 0 ? <SimpleVirtualList items={filteredNodes}   renderItem={n => makeRow(n, "node")}  itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No nodes found.</p>)}
+        {sideTab === "brokers" && (filteredBrokers.length > 0 ? <SimpleVirtualList items={filteredBrokers} renderItem={b => makeRow(b, "node")}  itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No brokers found.</p>)}
+        {sideTab === "libs"    && (filteredLibs.length    > 0 ? <SimpleVirtualList items={filteredLibs}    renderItem={l => makeRow(l, "node")}  itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No libraries found.</p>)}
+        {sideTab === "apps"    && (filteredApps.length    > 0 ? <SimpleVirtualList items={filteredApps}    renderItem={a => makeRow(a, "app")}   itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No apps found.</p>)}
+        {sideTab === "topics"  && (filteredTopics.length  > 0 ? <SimpleVirtualList items={filteredTopics}  renderItem={t => makeRow(t, "topic")} itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No topics found.</p>)}
       </div>
       {/* Tree legend (System tab only) */}
       {sideTab === "system" && (
