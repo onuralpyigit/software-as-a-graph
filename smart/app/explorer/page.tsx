@@ -2973,7 +2973,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
               {connLoading && <div className="flex items-center justify-center h-24"><LoadingSpinner className="h-5 w-5" /></div>}
               {connError && !connLoading && <p className="px-4 py-3 text-xs text-destructive">{connError}</p>}
               {!connLoading && !connError && connTab === "connections" && (
-                <table className="w-full text-xs">
+                <table className="w-full text-[11px]">
                   <thead className="sticky top-0 bg-background z-10">
                     <tr className="border-b border-border">
                       {(["node", "type", "dir"] as const).map(col => (
@@ -3022,10 +3022,10 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                               <span className="truncate">{peerLabel(peerId)}</span>
                             </ItemTooltip>
                           </td>
-                          <td className="px-3 py-2 text-muted-foreground max-w-[80px] truncate text-[10px]">{link.type ?? "—"}</td>
+                          <td className="px-3 py-2 text-muted-foreground max-w-[80px] truncate">{link.type ?? "—"}</td>
                           <td className="px-3 py-2 text-right">
                             <span className={cn(
-                              "text-[10px] font-semibold uppercase tracking-wide",
+                              "font-semibold uppercase tracking-wide",
                               dir === "out" ? "text-blue-400" : "text-orange-400"
                             )}>{dir}</span>
                           </td>
