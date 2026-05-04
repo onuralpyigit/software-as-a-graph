@@ -22,7 +22,6 @@ import {
   ChevronDown,
   ChevronRight,
   Search,
-  RefreshCw,
   FolderOpen,
   Folder,
   Box,
@@ -3526,12 +3525,7 @@ function BrowserPageContent() {
                 <Network className="h-4 w-4" />Graph
               </TabsTrigger>
             </TabsList>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => fetchData(selectedNode?.payload?.id ?? nodeId)} disabled={loading}>
-                {loading ? <LoadingSpinner className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
-                <span className="ml-2">Refresh</span>
-              </Button>
-            </div>
+
           </div>
 
           {/* ── Browse tab ── */}
