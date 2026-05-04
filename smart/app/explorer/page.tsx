@@ -1924,7 +1924,10 @@ function buildMergedTree(
   return {
     id: "root",
     name: "System",
-    itemStyle: { color: "#64748b" },
+    symbol: "none",
+    symbolSize: 0,
+    itemStyle: { color: "transparent", borderWidth: 0, opacity: 0 },
+    lineStyle: { opacity: 0 },
     label: { show: false },
     children: sortKeys(Object.keys(hierarchy)).map(csmsKey => {
       const csms = hierarchy[csmsKey]
@@ -1935,7 +1938,9 @@ function buildMergedTree(
         name: csms.name + `\x00${csmsId}`,
         ...(isCsms && { collapsed: false }),
         itemStyle: { color: NODE_COLORS.csms },
-        lineStyle: { color: NODE_COLORS.csms + "88" },
+        // Hide the edge from the invisible synthetic root to this CSMS
+        // (ECharts tree styles parent→child edges via the child's lineStyle).
+        lineStyle: { opacity: 0, width: 0 },
         children: sortKeys(Object.keys(csms.css)).map(cssKey => {
           const css = csms.css[cssKey]
           const cssId = `css:${csmsKey}/${cssKey}`
@@ -2018,48 +2023,21 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
     [hierarchy, selectedApp?.instanceKey, selectedApp?.pathKey, connDataMap, expandedLeaves, isDark],
   )
 
-  const option = useMemo(() => ({
-    backgroundColor: "transparent",
-    tooltip: {
-      trigger: "item",
-      triggerOn: "mousemove",
-      formatter: (params: any) => {
-        const d = params.data
-        const dispName = (s: string) => s?.split("\x00")[0] ?? s
-        if (d?._isConnGroup) return `<b>${dispName(d.name)}</b>`
-        if (d?._isConnLeaf) {
-          const n = d._raw
-          const w = typeof n.weight === "number" ? n.weight.toFixed(3) : (typeof n.properties?.weight === "number" ? n.properties.weight.toFixed(3) : "—")
-          return `<div style="font-size:12px;line-height:1.7"><b>${n.label ?? n.name ?? n.id ?? ""}</b><br/><span style="opacity:0.7">${n.type ?? "Node"}</span><br/>Weight: <b>${w}</b></div>`
-        }
-        if (d?._app) {
-          const w = typeof d._app.weight === "number" ? d._app.weight.toFixed(3) : "—"
-          return `<div style="font-size:12px;line-height:1.7"><b>${dispName(d.name)}</b><br/><span style="opacity:0.7">App (CSU)</span><br/>Weight: <b>${w}</b></div>`
-        }
-        const depth = params.treeAncestors ? params.treeAncestors.length - 1 : 0
-        const lvlName = (["System", "CSMS", "CSS", "CSCI", "CSC", "App"] as string[])[depth] ?? "Node"
-        const countLine = d?.children?.length ? `<br/><span style="opacity:0.7">Children: ${d.children.length}</span>` : ""
-        return `<div style="font-size:12px;line-height:1.7"><b>${dispName(d?.name ?? "")}</b><br/><span style="opacity:0.7">${lvlName}</span>${countLine}</div>`
-      },
-    },
-    series: [{
+  const option = useMemo(() => {
+    const sharedProps = {
       type: "tree",
-      data: [treeData],
-      top: "5%",
-      left: "3%",
-      bottom: "12%",
-      right: "3%",
       orient: "TB",
       expandAndCollapse: true,
-      initialTreeDepth: 3,
+      initialTreeDepth: 4,
       roam: true,
-      symbolSize: (_val: number, params: any) => {
-        const depth = (params.treeAncestors?.length ?? 1) - 1
-        return ([0, 14, 10, 8, 6, 9] as number[])[Math.min(depth, 5)] ?? 6
-      },
       symbol: "circle",
       itemStyle: { borderWidth: 0 },
       lineStyle: { width: 1.2, curveness: 0.5, opacity: 0.6 },
+      symbolSize: (_val: number, params: any) => {
+        // treeAncestors includes the invisible "System" root — subtract 2 so CSMS = depth 0
+        const depth = (params.treeAncestors?.length ?? 2) - 2
+        return ([14, 10, 8, 6, 9] as number[])[Math.min(Math.max(depth, 0), 4)] ?? 6
+      },
       label: {
         position: "bottom",
         verticalAlign: "top",
@@ -2080,8 +2058,42 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       emphasis: { focus: "descendant", itemStyle: { shadowBlur: 8 } },
       animationDuration: 350,
       animationDurationUpdate: 250,
-    }],
-  }), [treeData, isDark])
+    }
+    return {
+      backgroundColor: "transparent",
+      tooltip: {
+        trigger: "item",
+        triggerOn: "mousemove",
+        formatter: (params: any) => {
+          const d = params.data
+          const dispName = (s: string) => s?.split("\x00")[0] ?? s
+          if (d?._isConnGroup) return `<b>${dispName(d.name)}</b>`
+          if (d?._isConnLeaf) {
+            const n = d._raw
+            const w = typeof n.weight === "number" ? n.weight.toFixed(3) : (typeof n.properties?.weight === "number" ? n.properties.weight.toFixed(3) : "—")
+            return `<div style="font-size:12px;line-height:1.7"><b>${n.label ?? n.name ?? n.id ?? ""}</b><br/><span style="opacity:0.7">${n.type ?? "Node"}</span><br/>Weight: <b>${w}</b></div>`
+          }
+          if (d?._app) {
+            const w = typeof d._app.weight === "number" ? d._app.weight.toFixed(3) : "—"
+            return `<div style="font-size:12px;line-height:1.7"><b>${dispName(d.name)}</b><br/><span style="opacity:0.7">App (CSU)</span><br/>Weight: <b>${w}</b></div>`
+          }
+          const idPrefix = String(d?.id ?? "").split(":")[0]
+          const lvlName = ({ csms: "CSMS", css: "CSS", csci: "CSCI", csc: "CSC", app: "App" } as Record<string, string>)[idPrefix] ?? "Node"
+          const countLine = d?.children?.length ? `<br/><span style="opacity:0.7">Children: ${d.children.length}</span>` : ""
+          return `<div style="font-size:12px;line-height:1.7"><b>${dispName(d?.name ?? "")}</b><br/><span style="opacity:0.7">${lvlName}</span>${countLine}</div>`
+        },
+      },
+      series: [{
+        ...sharedProps,
+        data: [treeData],
+        left: "1%",
+        right: "1%",
+        // The synthetic root reserves a row; pull layout up so CSMS sits at the visual top.
+        top: "0%",
+        bottom: "5%",
+      }],
+    }
+  }, [treeData, isDark])
 
   const onEvents = useMemo(() => ({
     click: (params: any) => {
@@ -2782,7 +2794,35 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             isDark={isDark}
             onAppNodeClick={(app: AppNode, instanceKey: string) => {
               const hgNode: HGNode = { id: `app:${app.id}`, name: app.csu ?? app.name ?? app.id ?? "?", level: "app", appCount: 1, pathKey: app.id, instanceKey, appData: app }
-              if (selectedApp?.instanceKey === instanceKey) { clearSelection(); return }
+              // If this app is already expanded (has fetched connection data), single-click collapses it.
+              const isExpanded = connDataMap.has(instanceKey) || connDataMap.has(app.id)
+              if (isExpanded) {
+                // Collapse just this app — keep other apps' expanded subtrees visible.
+                const wasSelected = selectedApp?.instanceKey === instanceKey
+                if (wasSelected) {
+                  setSelectedApp(null)
+                  setConnData(null)
+                  setConnError(null)
+                  setSelectedLink(null)
+                }
+                setConnDataMap(prev => {
+                  const next = new Map(prev)
+                  next.delete(instanceKey)
+                  next.delete(app.id) // legacy key
+                  return next
+                })
+                setExpandedLeaves(prev => {
+                  const next = new Map(prev)
+                  // expandedLeaves are keyed by `${parentPath}:${nodeId}` — drop any rooted at this app.
+                  for (const k of Array.from(next.keys())) {
+                    if (k === instanceKey || k.startsWith(`${instanceKey}:`) || k.startsWith(`${instanceKey}/`)) {
+                      next.delete(k)
+                    }
+                  }
+                  return next
+                })
+                return
+              }
               setSelectedApp(hgNode)
               setConnTab("props")
               setConnData(null)
