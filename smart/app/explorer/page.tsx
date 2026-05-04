@@ -196,18 +196,99 @@ function linkTypeColor(type: string | undefined, isDark = true): string {
 
 // ── Property descriptions (shown as tooltips on key labels) ─────────────────
 const PROP_DESCS: Record<string, string> = {
+  // ── System hierarchy ──────────────────────────────────────────────────────
+  csms_name:               "Computer Software Management System — top-level system boundary this component belongs to",
+  css_name:                "Computer Software Segment — functional grouping within the CSMS",
+  csci_name:               "Computer Software Configuration Item — deployable unit within the CSS",
+  csc_name:                "Computer Software Component — the immediate architectural parent of this application",
+  // ── Identity / classification ──────────────────────────────────────────────
+  id:                      "Unique identifier for this component in the graph",
+  name:                    "Human-readable display name",
+  type:                    "Component type (Application, Library, Node, Broker, Topic)",
+  app_type:                "Application sub-type (e.g. publisher, subscriber, service)",
+  role:                    "Functional role of this application within the system",
+  criticality:             "Statically declared criticality tier (CRITICAL / HIGH / MEDIUM / LOW)",
+  version:                 "Software version string for this component",
+  layer:                   "Architectural layer this component belongs to (app, infra, mw, system)",
+  // ── Infrastructure node ────────────────────────────────────────────────────
+  ip_address:              "IP address of the physical or virtual host node",
+  cpu_cores:               "Number of logical CPU cores available on this host",
+  memory_gb:               "RAM capacity of this host in gigabytes",
+  os_type:                 "Operating system type running on this host (e.g. Linux, Windows)",
+  // ── Broker ────────────────────────────────────────────────────────────────
+  host:                    "Hostname or IP address where this broker is reachable",
+  max_connections:         "Maximum number of concurrent client connections this broker accepts",
+  broker_type:             "Middleware protocol/type of this broker (e.g. MQTT, DDS, ROS2)",
+  // ── Topic / QoS ───────────────────────────────────────────────────────────
+  qos_reliability:         "QoS Reliability policy — BEST_EFFORT (0) or RELIABLE (1); drives delivery guarantee weight",
+  qos_durability:          "QoS Durability policy — how long the broker retains messages for late-joining subscribers (VOLATILE < TRANSIENT_LOCAL < TRANSIENT < PERSISTENT)",
+  qos_transport_priority:  "QoS Transport Priority — routing urgency level (LOW / MEDIUM / HIGH / URGENT)",
+  subscriber_count:        "Number of active subscribers registered on this topic",
+  // ── Operational weight ────────────────────────────────────────────────────
   weight:                  "Operational priority weight — QoS severity of topics routed through this component (0 = low, 1 = high)",
   path_count:              "Number of independent event-routing paths that share this dependency",
+  dependency_weight_in:    "Sum of incoming dependency weights — total inbound QoS exposure",
+  dependency_weight_out:   "Sum of outgoing dependency weights — total outbound QoS coupling",
+  // ── Centrality ────────────────────────────────────────────────────────────
+  pagerank:                "PageRank — global importance in the forward dependency graph; high value = many (important) dependents",
+  reverse_pagerank:        "Reverse PageRank on G^T — fault-propagation reach; high value = failure spreads widely",
+  betweenness:             "Betweenness centrality — fraction of shortest paths passing through this node; proxy for structural bottleneck",
+  closeness:               "Closeness centrality — inverse average distance to all other nodes; high = fast change propagation",
+  reverse_closeness:       "Reverse Closeness on G^T — adversarial propagation speed; how quickly a compromise reaches others",
+  eigenvector:             "Eigenvector centrality — influence weighted by the importance of neighbours",
+  reverse_eigenvector:     "Reverse Eigenvector on G^T — strategic attack reach; high value = many high-value nodes depend on this",
+  // ── Degree ────────────────────────────────────────────────────────────────
+  degree:                  "Normalised total degree (in + out) centrality",
+  in_degree:               "Normalised in-degree — fraction of components that directly depend on this node",
+  out_degree:              "Normalised out-degree — fraction of components this node directly depends on",
+  in_degree_raw:           "Raw count of direct dependents (components that depend on this node)",
+  out_degree_raw:          "Raw count of direct dependencies (components this node depends on)",
+  // ── Resilience ────────────────────────────────────────────────────────────
+  is_articulation_point:   "True if removing this node disconnects the graph — a structural Single Point of Failure (SPOF)",
+  is_directed_ap:          "True if removing this node reduces the reachable set from source nodes — directed SPOF",
+  is_isolated:             "True if this node has no connections at all",
+  bridge_count:            "Number of bridge edges incident to this node (edges whose removal disconnects the graph)",
+  bridge_ratio:            "Fraction of this node's incident edges that are bridges; high ratio = low redundancy",
+  ap_c_directed:           "Directed articulation-point SPOF severity score ∈ [0,1]",
+  cdi:                     "Connectivity Degradation Index — normalised increase in average path length when this node is removed",
+  blast_radius:            "Number of nodes that become unreachable from the rest of the graph if this node fails",
+  cascade_depth:           "Longest failure-propagation chain reachable from this node",
+  clustering_coefficient:  "Local clustering coefficient — probability that two neighbours are also connected; higher = more redundant paths",
+  publisher_spof:          "Sole-publisher risk — non-zero when this app is the only publisher on a high-weight topic",
+  // ── Pub-sub topology ──────────────────────────────────────────────────────
+  pubsub_degree:           "Number of topics this app publishes to or subscribes to in the pub-sub bipartite graph",
+  pubsub_betweenness:      "Betweenness centrality computed on the pub-sub bipartite graph",
+  broker_exposure:         "Number of distinct brokers routing topics touched by this component",
+  fan_out_criticality:     "Topic fan-out criticality — number of distinct subscribers scaled by topic weight (Topic nodes only)",
+  mpci:                    "Multi-Path Coupling Intensity — mean log-scaled path count across efferent dependencies; measures coupling via multiple routes",
+  path_complexity:         "Efferent path count complexity: mean(log2(1 + path_count)) across outgoing dependencies",
+  // ── Code size ─────────────────────────────────────────────────────────────
   loc:                     "Lines of Code — total source size of this component",
-  lcom_norm:               "Normalised Lack of Cohesion of Methods — how scattered responsibilities are (0 = cohesive, 1 = fully scattered)",
+  loc_norm:                "Normalised Lines-of-Code within the component's type population (0 = smallest, 1 = largest)",
+  cm_total_loc:            "Total lines of code across the component",
+  cm_total_lines:          "Total lines of code across the component",
+  cm_total_classes:        "Total number of classes defined in this component",
+  cm_total_methods:        "Total number of methods across all classes in this component",
+  cm_total_fields:         "Total number of fields (instance variables) across all classes in this component",
+  duplicated_lines_density:"Percentage of lines that are duplicated within the codebase (SonarQube); higher = more copy-paste debt",
+  // ── Complexity ────────────────────────────────────────────────────────────
   cyclomatic_complexity:   "McCabe's Cyclomatic Complexity — number of linearly independent paths through the code",
-  instability_code:        "Martin's Instability I = Ce/(Ca+Ce) — ratio of efferent to total couplings (0 = stable, 1 = unstable)",
   complexity_norm:         "Normalised cyclomatic complexity within the component's type population (0 = simplest, 1 = most complex)",
-  cm_avg_lcom:             "Average Lack of Cohesion of Methods across classes — higher values indicate poorly cohesive classes",
-  cm_max_lcom:             "Maximum Lack of Cohesion of Methods across all classes in this component",
   cm_avg_wmc:              "Average Weighted Methods per Class — sum of cyclomatic complexities of all methods, averaged across classes",
   cm_max_wmc:              "Maximum Weighted Methods per Class across all classes",
   cm_total_wmc:            "Total Weighted Methods per Class — aggregate cyclomatic complexity across the whole component",
+  // ── Cohesion ──────────────────────────────────────────────────────────────
+  lcom:                    "Raw Lack of Cohesion of Methods — measures how scattered the responsibilities of a class are (lower is better)",
+  lcom_norm:               "Normalised Lack of Cohesion of Methods — how scattered responsibilities are (0 = cohesive, 1 = fully scattered)",
+  cm_avg_lcom:             "Average Lack of Cohesion of Methods across classes — higher values indicate poorly cohesive classes",
+  cm_max_lcom:             "Maximum Lack of Cohesion of Methods across all classes in this component",
+  // ── Coupling ──────────────────────────────────────────────────────────────
+  coupling_afferent:       "Afferent coupling (Ca) — number of external components that directly depend on this component; high = hard to change",
+  coupling_efferent:       "Efferent coupling (Ce) — number of components this component directly depends on; high = many external dependencies",
+  instability_code:        "Martin's Instability I = Ce/(Ca+Ce) — ratio of efferent to total couplings (0 = stable, 1 = unstable)",
+  complexity_norm:         "Normalised cyclomatic complexity within the component's type population (0 = simplest, 1 = most complex)",
+  coupling_risk:           "Coupling Risk = 1 − |2·Instability − 1| — maximised at 0.5 (deeply embedded on both sides); measures bi-directional coupling exposure",
+  code_quality_penalty:    "Composite Code Quality Penalty (CQP) = 0.40·complexity + 0.35·instability + 0.25·LCOM; used as M(v) sub-score",
   cm_avg_cbo:              "Average Coupling Between Objects — number of classes this class is directly coupled to, averaged",
   cm_max_cbo:              "Maximum Coupling Between Objects across all classes",
   cm_avg_rfc:              "Average Response For Class — number of methods potentially executed in response to a message, averaged",
@@ -216,20 +297,20 @@ const PROP_DESCS: Record<string, string> = {
   cm_max_fanin:            "Maximum fan-in across all classes in this component",
   cm_avg_fanout:           "Average fan-out — average number of modules/classes each class directly depends on",
   cm_max_fanout:           "Maximum fan-out across all classes in this component",
-  cm_total_classes:        "Total number of classes defined in this component",
-  cm_total_methods:        "Total number of methods across all classes in this component",
-  cm_total_lines:          "Total lines of code across the component",
-  cm_total_loc:            "Total lines of code across the component",
-  // Byte-sized fields
+  // ── SonarQube quality ─────────────────────────────────────────────────────
+  sqale_debt_ratio:        "SonarQube SQALE Debt Ratio — technical debt as a percentage of estimated time to rewrite the component from scratch (lower is better)",
+  bugs:                    "Number of static bug issues detected by the static analyser (e.g. SonarQube)",
+  vulnerabilities:         "Number of static security vulnerability issues detected by the static analyser",
+  // ── Byte-sized fields ─────────────────────────────────────────────────────
   size:                    "Message payload size in bytes — used to compute the topic's contribution to the QoS weight (W_topic = 0.85·QoS + 0.15·size_norm)",
   message_size:            "Message payload size in bytes used in event-flow simulation",
   payload_size_bytes:      "Message payload size in bytes used in event-flow simulation",
-  // Time fields
+  // ── Time fields ───────────────────────────────────────────────────────────
   deadline_ms:             "Maximum allowed end-to-end latency for this flow in milliseconds",
   latency_p50_ms:          "Median (p50) observed end-to-end message latency in milliseconds",
   latency_p95_ms:          "95th-percentile observed end-to-end message latency in milliseconds",
   latency_p99_ms:          "99th-percentile observed end-to-end message latency in milliseconds",
-  // Queue / frequency
+  // ── Queue / frequency ─────────────────────────────────────────────────────
   queue_size:              "Maximum number of messages this subscriber's queue can buffer before dropping",
   frequency:               "Publishing frequency in Hz (messages per second)",
 }
@@ -388,35 +469,103 @@ function formatBytes(n: number): string {
 function propValue(key: string, v: unknown): string {
   const n = typeof v === "number" ? v : (typeof v === "string" && v !== "" && !isNaN(Number(v)) ? Number(v) : null)
   if (n !== null && isBytesKey(key)) return formatBytes(n)
+  if (n !== null && !Number.isInteger(n)) return n.toFixed(2)
   return String(v)
+}
+
+function formatKey(key: string): string {
+  return key
+    .replace(/^cm_/, "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function propUnit(key: string): string {
   if (isBytesKey(key))                                return ""   // unit embedded by formatBytes
-  // Strictly bounded [0–1] fields
+
+  // ── Strictly bounded [0–1] ─────────────────────────────────────────────────
   if (key === "weight")                               return "[0–1]"
   if (key === "lcom_norm")                            return "[0–1]"
+  if (key === "instability_code")                     return "[0–1]"
+  if (key === "complexity_norm")                      return "[0–1]"
+  if (key === "loc_norm")                             return "[0–1]"
+  if (key === "code_quality_penalty")                 return "[0–1]"
   if (/^coupling_risk/.test(key))                     return "[0–1]"
-  // Time fields
-  if (/_ms$/.test(key) || key === "deadline_ms")      return "ms"
-  // Frequency fields
-  if (/_hz$/.test(key) || key === "frequency")        return "Hz"
-  // Queue / count fields
-  if (key === "queue_size")                           return "msgs"
-  // Raw code-metric counts (unbounded — no [0–1] claim)
-  if (key === "loc")                                  return "lines"
-  if (key === "cyclomatic_complexity")                return "CC"
+  if (/^coupling_/.test(key))                         return "[0–1]"
+  if (key === "sqale_debt_ratio")                     return "%"
+  if (key === "duplicated_lines_density")             return "%"
+
+  // ── Centraliy / graph scores (all [0–1] normalised) ───────────────────────
+  if (key === "pagerank")                             return "[0–1]"
+  if (key === "reverse_pagerank")                     return "[0–1]"
+  if (key === "betweenness")                          return "[0–1]"
+  if (key === "closeness")                            return "[0–1]"
+  if (key === "reverse_closeness")                    return "[0–1]"
+  if (key === "eigenvector")                          return "[0–1]"
+  if (key === "reverse_eigenvector")                  return "[0–1]"
+  if (key === "degree")                               return "[0–1]"
+  if (key === "in_degree")                            return "[0–1]"
+  if (key === "out_degree")                           return "[0–1]"
+  if (key === "bridge_ratio")                         return "[0–1]"
+  if (key === "ap_c_directed")                        return "[0–1]"
+  if (key === "cdi")                                  return "[0–1]"
+  if (key === "clustering_coefficient")               return "[0–1]"
+  if (key === "publisher_spof")                       return "[0–1]"
+  if (key === "pubsub_betweenness")                   return "[0–1]"
+  if (key === "mpci")                                 return "[0–1]"
+  if (key === "path_complexity")                      return "[0–1]"
+  if (key === "dependency_weight_in")                 return "[0–1]"
+  if (key === "dependency_weight_out")                return "[0–1]"
+
+  // ── Raw degree / topology counts ──────────────────────────────────────────
+  if (key === "in_degree_raw")                        return "deps"
+  if (key === "out_degree_raw")                       return "deps"
+  if (key === "blast_radius")                         return "nodes"
+  if (key === "cascade_depth")                        return "hops"
+  if (key === "bridge_count")                         return "edges"
+  if (key === "pubsub_degree")                        return "topics"
+  if (key === "broker_exposure")                      return "brokers"
   if (key === "path_count")                           return "paths"
-  if (/^cm_(avg_|max_|total_)?lcom$/.test(key))       return "LCOM"
-  if (/fanin/.test(key))                              return "in-deps"
-  if (/fanout/.test(key))                             return "out-deps"
-  if (/\bcbo\b/.test(key))                            return "deps"
-  if (/\brfc\b/.test(key))                            return "calls"
+  if (key === "subscriber_count")                     return "subs"
+  if (key === "fan_out_criticality")                  return "subs"
+  if (key === "max_connections")                      return "conns"
+  if (key === "cpu_cores")                            return "cores"
+  if (key === "memory_gb")                            return "GB"
+
+  // ── Time fields ───────────────────────────────────────────────────────────
+  if (/_ms$/.test(key) || key === "deadline_ms")      return "ms"
+
+  // ── Frequency ─────────────────────────────────────────────────────────────
+  if (/_hz$/.test(key) || key === "frequency")        return "Hz"
+
+  // ── Queue ─────────────────────────────────────────────────────────────────
+  if (key === "queue_size")                           return "msgs"
+
+  // ── Code size ─────────────────────────────────────────────────────────────
+  if (key === "loc")                                  return "lines"
+  if (key === "cyclomatic_complexity")                return "paths"
+  if (/cm_total_(lines|loc)/.test(key))               return "lines"
   if (/cm_total_classes/.test(key))                   return "classes"
   if (/cm_total_methods/.test(key))                   return "methods"
-  if (/cm_total_(lines|loc)/.test(key))               return "lines"
-  // Other coupling_ fields are instability-derived [0–1]
-  if (/^coupling_/.test(key))                         return "[0–1]"
+  if (/cm_total_fields/.test(key))                    return "fields"
+  if (/cm_total_wmc/.test(key))                       return "CC"
+  if (/cm_(avg_|max_)wmc/.test(key))                  return "CC/class"
+
+  // ── Cohesion ──────────────────────────────────────────────────────────────
+  if (/cm_(avg_|max_)?lcom$|^lcom$/.test(key))        return "LCOM"
+
+  // ── Coupling ──────────────────────────────────────────────────────────────
+  if (/fanin/.test(key))                              return "in-deps"
+  if (/fanout/.test(key))                             return "out-deps"
+  if (/cbo/.test(key))                                return "classes"
+  if (/rfc/.test(key))                                return "calls"
+  if (key === "coupling_afferent")                    return "components"
+  if (key === "coupling_efferent")                    return "components"
+
+  // ── Issue counts ──────────────────────────────────────────────────────────
+  if (key === "bugs")                                 return "issues"
+  if (key === "vulnerabilities")                      return "issues"
+
   return ""
 }
 
@@ -2783,11 +2932,11 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                     )}
                     {(() => {
                       const HIER_KEYS = new Set(["csms_name","csc_name","csci_name","css_name"])
-                      const isCmSize     = (k: string) => /^cm_total_|^loc$/.test(k)
+                      const isCmSize     = (k: string) => /^cm_total_|^loc$|^duplicated_lines_density$/.test(k)
                       const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
-                      const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$/.test(k)
+                      const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$|^lcom(_norm)?$/.test(k)
                       const isCmCoupling = (k: string) => /^cm_(avg_|max_)(cbo|rfc|fanin|fanout)$|^coupling_/.test(k)
-                      const isCm         = (k: string) => /^cm_|^cyclomatic_complexity$|^coupling_|^loc$/.test(k)
+                      const isCm         = (k: string) => /^cm_|^cyclomatic_complexity$|^coupling_|^loc$|^duplicated_lines_density$|^lcom(_norm)?$|^sqale_debt_ratio$/.test(k)
 
                       const primitives = appProps.filter(([k, v]) => typeof v !== "object" && !HIER_KEYS.has(k) && !isCm(k))
                       const hierarchy  = appProps.filter(([k]) => HIER_KEYS.has(k))
@@ -2801,12 +2950,12 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                         const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
                         const desc = PROP_DESCS[k]
                         return (
-                          <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                          <tr className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                             <td className={`${indent ? "pl-6" : "px-3"} pr-3 py-2 font-medium text-foreground w-2/5`}>
                               <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
                             </td>
                             <td className="px-3 py-2 font-mono text-muted-foreground break-all text-[10px]">
-                              {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}<RiskBadge k={k} v={v} />
+                              {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}
                             </td>
                           </tr>
                         )
@@ -2818,7 +2967,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                       )
                       const SubHeader = ({ label }: { label: string }) => (
                         <tr className="bg-muted/30 border-t border-border/50">
-                          <td colSpan={2} className="pl-5 pr-3 py-1 text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest">{label}</td>
+                          <td colSpan={2} className="pl-5 pr-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
                         </tr>
                       )
 
@@ -2866,7 +3015,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 // ── Detail Panel (left) ──────────────────────────────────────────────────────
 
 const KIND_LABEL: Record<SelectedKind, string> = {
-  csms: "System (CSMS)", css: "Segment (CSS)", csci: "Config Item (CSCI)", csc: "Component (CSC)", app: "App (CSU)", node: "Node", topic: "Topic",
+  csms: "System", css: "Segment", csci: "Config Item", csc: "Component", app: "App", node: "Node", topic: "Topic",
 }
 const KIND_COLOR: Record<SelectedKind, string> = {
   csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#8b5cf6", node: "#ef4444", topic: "#a855f7",
@@ -2947,11 +3096,11 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
     const entries = Object.entries(app).filter(([, v]) => v !== undefined && v !== null && v !== "")
 
     const HIER_KEYS = new Set(["csms_name","csc_name","csci_name","css_name"])
-    const isCmSize     = (k: string) => /^cm_total_|^loc$/.test(k)
+    const isCmSize     = (k: string) => /^cm_total_|^loc$|^duplicated_lines_density$/.test(k)
     const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
-    const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$/.test(k)
+    const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$|^lcom(_norm)?$/.test(k)
     const isCmCoupling = (k: string) => /^cm_(avg_|max_)(cbo|rfc|fanin|fanout)$|^coupling_/.test(k)
-    const isCm         = (k: string) => /^cm_|^cyclomatic_complexity$|^coupling_|^loc$/.test(k)
+    const isCm         = (k: string) => /^cm_|^cyclomatic_complexity$|^coupling_|^loc$|^duplicated_lines_density$|^lcom(_norm)?$|^sqale_debt_ratio$/.test(k)
 
     const primitives = entries.filter(([k, v]) => typeof v !== "object" && !HIER_KEYS.has(k) && !isCm(k))
     const hierarchyEntries = entries.filter(([k]) => HIER_KEYS.has(k))
@@ -2965,12 +3114,12 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
       const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
       const desc = PROP_DESCS[k]
       return (
-        <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+        <tr className="border-b border-border/50 hover:bg-muted/20 transition-colors">
           <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 font-medium text-foreground w-2/5`}>
             <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
           </td>
           <td className="px-4 py-2.5 font-mono text-muted-foreground break-all text-xs">
-            {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}<RiskBadge k={k} v={v} />
+            {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}
           </td>
         </tr>
       )
@@ -2982,16 +3131,16 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
     )
     const SubHeader = ({ label }: { label: string }) => (
       <tr className="bg-muted/30 border-t border-border/50">
-        <td colSpan={2} className="pl-7 pr-4 py-1 text-[10px] font-medium text-muted-foreground/70 uppercase tracking-widest">{label}</td>
+        <td colSpan={2} className="pl-7 pr-4 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
       </tr>
     )
 
     content = (
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-background z-10">
+        <thead className="sticky top-0 bg-muted z-10">
           <tr className="border-b border-border">
-            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-2/5">Property</th>
-            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Value</th>
+            <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-2/5">Property</th>
+            <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Value</th>
           </tr>
         </thead>
         <tbody>
@@ -3033,19 +3182,30 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-5 py-4 border-b border-border shrink-0">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span
-            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
-            style={{ background: KIND_COLOR[node.kind] }}
-          >
-            {KIND_LABEL[node.kind]}
-          </span>
+      <div className="px-5 border-b border-border shrink-0 flex items-center" style={{ height: 76 }}>
+        <div className="flex items-start justify-between gap-2 w-full">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-foreground leading-tight truncate">{node.label}</h2>
+            {node.path.length > 1 && (
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">{node.path.join(" › ")}</p>
+            )}
+          </div>
+          {(() => {
+            const rawType: string = node.kind === "node" ? ((node.payload as any).type ?? "Node") : KIND_LABEL[node.kind]
+            const actualType = rawType.toLowerCase() === "mqtt" ? "Broker" : rawType
+            const color = node.kind === "node"
+              ? (CONN_NODE_TYPE_COLORS_DARK[actualType] ?? KIND_COLOR[node.kind])
+              : KIND_COLOR[node.kind]
+            return (
+              <span
+                className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium text-white shrink-0"
+                style={{ background: color }}
+              >
+                {actualType}
+              </span>
+            )
+          })()}
         </div>
-        <h2 className="text-base font-semibold text-foreground leading-tight">{node.label}</h2>
-        {node.path.length > 1 && (
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">{node.path.join(" › ")}</p>
-        )}
       </div>
       <div className="flex-1 overflow-auto">{content}</div>
     </div>
@@ -3292,8 +3452,7 @@ function BrowserPageContent() {
   const [openSet, setOpenSet] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState("")
   const [sideSearch, setSideSearch] = useState("")
-  const [browseSearchOpen, setBrowseSearchOpen] = useState(false)
-  const [sideInitialTab, setSideInitialTab] = useState<"system" | "nodes" | "brokers" | "libs" | "apps" | "topics">("system")
+  const [sideInitialTab, setSideInitialTab] = useState<"nodes" | "brokers" | "libs" | "apps" | "topics">("nodes")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null)
@@ -3341,7 +3500,7 @@ function BrowserPageContent() {
                   const cscOpenKey  = `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`
                   setOpenSet(new Set([csmsOpenKey, cssOpenKey, csciOpenKey, cscOpenKey]))
                   setSelectedNode({ kind: "app", key: `app:${app.id}`, label, path: [csmsKey, cssKey, csciKey, cscKey, label], payload: app })
-                  setSideInitialTab("system")
+                  setSideInitialTab("apps")
                   found = true
                   break outer
                 }
@@ -3369,23 +3528,15 @@ function BrowserPageContent() {
               const firstCsms = h[firstCsmsKey]
               setOpenSet(new Set([`csms:${firstCsmsKey}`]))
               setSelectedNode({ kind: "csms", key: `csms:${firstCsmsKey}`, label: firstCsms.name, path: [firstCsms.name], payload: firstCsms })
-              setSideInitialTab("system")
+              setSideInitialTab("nodes")
             }
           }
         }
       } else {
-        setSideInitialTab("system")
-        const firstCsmsKey = sortKeys(Object.keys(h))[0]
-        if (firstCsmsKey) {
-          const firstCsms = h[firstCsmsKey]
-          setOpenSet(new Set([`csms:${firstCsmsKey}`]))
-          setSelectedNode({
-            kind: "csms",
-            key: `csms:${firstCsmsKey}`,
-            label: firstCsms.name,
-            path: [firstCsms.name],
-            payload: firstCsms,
-          })
+        setSideInitialTab("nodes")
+        if (nodes.length > 0) {
+          const first = nodes[0]
+          setSelectedNode({ kind: "node", key: `node:${first.id}`, label: first.name ?? first.id ?? "?", path: [first.name ?? first.id ?? "?"], payload: first })
         }
       }
     } catch (e: unknown) {
@@ -3478,7 +3629,6 @@ function BrowserPageContent() {
       })
     }
     setSearch("")
-    setBrowseSearchOpen(false)
   }, [hierarchy])
 
   const expandPath = useCallback((keys: string[]) => {
@@ -3489,76 +3639,7 @@ function BrowserPageContent() {
     })
   }, [])
 
-  // Derive the key in the graph's internal format for the currently selected list node
-  const graphSyncKey = useMemo(() => {
-    if (!selectedNode) return null
-    if (selectedNode.kind === 'node' || selectedNode.kind === 'topic') {
-      return `extra:${(selectedNode.payload as any).id}`
-    }
-    return selectedNode.key  // app:id, csms:k, css:k/k, csci:k/k/k, csc:k/k/k/k — already match graph ids
-  }, [selectedNode])
 
-  // Handle selection coming from the graph view — sync it into the list view
-  const handleGraphNodeSelect = useCallback((key: string) => {
-    if (!key) return
-    if (key.startsWith('app:') || key.startsWith('csms:') || key.startsWith('css:') || key.startsWith('csci:') || key.startsWith('csc:')) {
-      const entry = flatBrowseNodes.find(e => e.key === key)
-      if (!entry) return
-      if (selectedNode?.key === entry.key) return  // already selected
-      setSelectedNode({ kind: entry.kind, key: entry.key, label: entry.label, path: entry.path, payload: entry.payload })
-      setSideInitialTab("system")
-      if (key.startsWith('app:')) {
-        // App keys are "app:appId" — app ID alone can't encode the hierarchy path,
-        // so we must search the hierarchy to find the ancestor CSMS/CSS/CSCI/CSC keys.
-        const appId = key.slice(4)
-        outer: for (const [csmsKey, csms] of Object.entries(hierarchy)) {
-          for (const [cssKey, css] of Object.entries(csms.css)) {
-            for (const [csciKey, csci] of Object.entries(css.csci)) {
-              for (const [cscKey, csc] of Object.entries(csci.csc)) {
-                if (csc.apps.some(a => a.id === appId)) {
-                  setOpenSet(prev => {
-                    const next = new Set(prev)
-                    next.add(`csms:${csmsKey}`)
-                    next.add(`css:${csmsKey}/${cssKey}`)
-                    next.add(`csci:${csmsKey}/${cssKey}/${csciKey}`)
-                    next.add(`csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`)
-                    return next
-                  })
-                  break outer
-                }
-              }
-            }
-          }
-        }
-      } else {
-        // Non-app hierarchy keys embed their full path: csms:k0, css:k0/k1, csci:k0/k1/k2, csc:k0/k1/k2/k3
-        setOpenSet(prev => {
-          const next = new Set(prev)
-          const rawPath = key.replace(/^[^:]+:/, "").split("/")
-          const [k0, k1, k2] = rawPath
-          if (k0) next.add(`csms:${k0}`)
-          if (k1) next.add(`css:${k0}/${k1}`)
-          if (k2) next.add(`csci:${k0}/${k1}/${k2}`)
-          next.add(key)
-          return next
-        })
-      }
-    } else if (key.startsWith('extra:')) {
-      const rawId = key.slice(6)
-      const allExtra = [...nodesList, ...topicsList, ...brokersList, ...libsList]
-      const extra = allExtra.find((n: any) => n.id === rawId)
-      if (!extra) return
-      const kind: SelectedKind = topicsList.some((t: any) => t.id === rawId) ? 'topic' : 'node'
-      const newKey = `${kind}:${rawId}`
-      if (selectedNode?.key === newKey) return  // already selected
-      setSelectedNode({ kind, key: newKey, label: extra.name ?? rawId, path: [extra.name ?? rawId], payload: extra })
-      setSideInitialTab(
-        topicsList.some((t: any)  => t.id === rawId) ? 'topics' :
-        brokersList.some((b: any) => b.id === rawId) ? 'brokers' :
-        libsList.some((l: any)    => l.id === rawId) ? 'libs' : 'nodes'
-      )
-    }
-  }, [flatBrowseNodes, nodesList, topicsList, brokersList, libsList, selectedNode, hierarchy])
 
   if (!initialLoadComplete) {
     return <AppLayout><div className="flex items-center justify-center h-64"><LoadingSpinner /></div></AppLayout>
@@ -3634,7 +3715,7 @@ function BrowserPageContent() {
           {/* ── Graph tab ── */}
           <TabsContent forceMount value="graph" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
             {csmsKeys.length > 0
-              ? <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} syncKey={graphSyncKey} onNodeSelect={handleGraphNodeSelect} />
+              ? <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} />
               : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
             }
           </TabsContent>
@@ -3647,7 +3728,7 @@ function BrowserPageContent() {
 export default function BrowserPage() {
   return (
     <Suspense fallback={
-      <AppLayout title="Explorer" description="System (CSMS) → Segment (CSS) → Config Item (CSCI) → Component (CSC) → App (CSU)">
+      <AppLayout title="Explorer" description="Browse your system topology, inspect components, and explore dependency relationships.">
         <div className="flex items-center justify-center h-64"><LoadingSpinner /></div>
       </AppLayout>
     }>
@@ -3713,9 +3794,9 @@ function SideListPanel({
   search: string
   onSearchChange: (v: string) => void
   loading: boolean
-  initialTab?: "system" | "nodes" | "brokers" | "libs" | "apps" | "topics"
+  initialTab?: "nodes" | "brokers" | "libs" | "apps" | "topics"
 }) {
-  const [sideTab, setSideTab] = useState<"system" | "nodes" | "brokers" | "libs" | "apps" | "topics">(initialTab ?? "system")
+  const [sideTab, setSideTab] = useState<"nodes" | "brokers" | "libs" | "apps" | "topics">(initialTab ?? "nodes")
 
   // Sync if parent changes the initial tab (e.g. via URL param auto-select)
   const prevInitialTab = useRef(initialTab)
@@ -3725,65 +3806,13 @@ function SideListPanel({
       prevInitialTab.current = initialTab
     }
   }, [initialTab])
-  const [suggestOpen, setSuggestOpen] = useState(false)
   // Defer expensive filter/tree work so the search input stays responsive
   const deferredSearch = useDeferredValue(search)
   const q = deferredSearch.toLowerCase()
 
-  const switchTab = (tab: "system" | "nodes" | "brokers" | "libs" | "apps" | "topics") => {
+  const switchTab = (tab: "nodes" | "brokers" | "libs" | "apps" | "topics") => {
     setSideTab(tab)
     onSearchChange("")
-  }
-
-  // Flat list of all hierarchy nodes for System tab suggestions
-  const flatNodes = useMemo(() => {
-    type Entry = { kind: SelectedKind; key: string; label: string; path: string[]; payload: CsmsGroup | CssGroup | CsciGroup | CscGroup | AppNode; treePath: string[]; tab: "system" | "nodes" | "brokers" | "libs" | "apps" | "topics" }
-    const result: Entry[] = []
-    for (const [csmsKey, csms] of Object.entries(hierarchy)) {
-      const csmsPath = [csms.name]
-      const csmsOpenKey = `csms:${csmsKey}`
-      result.push({ kind: "csms", key: csmsOpenKey, label: csms.name, path: csmsPath, payload: csms, treePath: [csmsOpenKey], tab: "system" })
-      for (const [cssKey, css] of Object.entries(csms.css)) {
-        const cssPath = [...csmsPath, css.name]
-        const cssOpenKey = `css:${csmsKey}/${cssKey}`
-        result.push({ kind: "css", key: cssOpenKey, label: css.name, path: cssPath, payload: css, treePath: [csmsOpenKey, cssOpenKey], tab: "system" })
-        for (const [csciKey, csci] of Object.entries(css.csci)) {
-          const csciPath = [...cssPath, csci.name]
-          const csciOpenKey = `csci:${csmsKey}/${cssKey}/${csciKey}`
-          result.push({ kind: "csci", key: csciOpenKey, label: csci.name, path: csciPath, payload: csci, treePath: [csmsOpenKey, cssOpenKey, csciOpenKey], tab: "system" })
-          for (const [cscKey, csc] of Object.entries(csci.csc)) {
-            const cscPath = [...csciPath, csc.name]
-            const cscOpenKey = `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`
-            result.push({ kind: "csc", key: cscOpenKey, label: csc.name, path: cscPath, payload: csc, treePath: [csmsOpenKey, cssOpenKey, csciOpenKey, cscOpenKey], tab: "system" })
-            for (const app of csc.apps)
-              result.push({ kind: "app", key: `app:${app.id}`, label: app.csu ?? app.name ?? app.id ?? "?", path: [...cscPath, app.csu ?? app.name ?? app.id ?? "?"], payload: app, treePath: [csmsOpenKey, cssOpenKey, csciOpenKey, cscOpenKey], tab: "system" })
-          }
-        }
-      }
-    }
-    // Add nodes, brokers, libs, topics as flat entries
-    for (const n of nodesList)
-      result.push({ kind: "node", key: `node:${n.id}`, label: n.name ?? n.id ?? "?", path: [n.name ?? n.id ?? "?"], payload: n, treePath: [], tab: "nodes" })
-    for (const b of brokersList)
-      result.push({ kind: "node", key: `node:${b.id}`, label: b.name ?? b.id ?? "?", path: [b.name ?? b.id ?? "?"], payload: b, treePath: [], tab: "brokers" })
-    for (const l of libsList)
-      result.push({ kind: "node", key: `node:${l.id}`, label: l.name ?? l.id ?? "?", path: [l.name ?? l.id ?? "?"], payload: l, treePath: [], tab: "libs" })
-    for (const t of topicsList)
-      result.push({ kind: "topic", key: `topic:${t.id}`, label: t.name ?? t.id ?? "?", path: [t.name ?? t.id ?? "?"], payload: t, treePath: [], tab: "topics" })
-    return result
-  }, [hierarchy, nodesList, brokersList, libsList, topicsList])
-
-  const suggestions = useMemo(() => {
-    if (!q) return []
-    return flatNodes.filter(n => n.label.toLowerCase().includes(q) || n.key.toLowerCase().includes(q)).slice(0, 30)
-  }, [flatNodes, q])
-
-  const handleJump = (entry: { kind: SelectedKind; key: string; label: string; path: string[]; payload: any; treePath: string[]; tab: "system" | "nodes" | "brokers" | "libs" | "apps" | "topics" }) => {
-    onSelect({ kind: entry.kind, key: entry.key, label: entry.label, path: entry.path, payload: entry.payload })
-    if (entry.tab === "system") expandPath(entry.treePath)
-    setSideTab(entry.tab)
-    onSearchChange("")
-    setSuggestOpen(false)
   }
 
   const filteredNodes   = useMemo(() => nodesList.filter(n  => !q || (n.name ?? n.id ?? "").toLowerCase().includes(q) || (n.id ?? "").toLowerCase().includes(q)), [nodesList, q])
@@ -3798,25 +3827,19 @@ function SideListPanel({
       : (item.name ?? item.id ?? "?")
     const key = `${kind}:${item.id}`
     const isSelected = selectedKey === key
-    // Show a type badge for Broker and Library items in the nodes tab
-    const subType: string | null = kind === "node" && item.type && item.type !== "Node" ? item.type : null
     return (
       <button
         key={key}
         className={cn(
-          "w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors",
-          isSelected ? "bg-accent text-accent-foreground font-medium" : "hover:bg-muted/50 text-foreground",
+          "w-full flex items-center gap-3 px-3 text-left text-xs transition-colors border-l-2",
+          isSelected
+            ? "bg-muted border-l-primary text-foreground font-medium"
+            : "border-l-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
         )}
+        style={{ height: 32 }}
         onClick={() => onSelect({ kind, key, label, path: [label], payload: item })}
       >
-        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: KIND_COLOR[kind] }} />
         <span className="flex-1 truncate">{label}</span>
-        {subType && (
-          <span className={cn("text-[10px] shrink-0", isSelected ? "text-accent-foreground/60" : "text-muted-foreground/60")}>{subType}</span>
-        )}
-        {item.weight != null && (
-          <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{typeof item.weight === "number" ? item.weight.toFixed(2) : item.weight}</span>
-        )}
       </button>
     )
   }
@@ -3826,116 +3849,60 @@ function SideListPanel({
   return (
     <>
       {/* Tab bar */}
-      <div className="border-b border-border shrink-0">
-        <div className="flex flex-wrap text-xs">
+      <div className="shrink-0">
+        <div className="flex text-xs" style={{ height: 36 }}>
           {([
-            { id: "system",  label: "System",  count: csmsKeys.length },
             { id: "nodes",   label: "Nodes",   count: nodesList.length },
-            { id: "brokers", label: "Brokers", count: brokersList.length },
-            { id: "libs",    label: "Libs",    count: libsList.length },
             { id: "apps",    label: "Apps",    count: appsList.length },
             { id: "topics",  label: "Topics",  count: topicsList.length },
+            { id: "libs",    label: "Libs",    count: libsList.length },
+            { id: "brokers", label: "Brokers", count: brokersList.length },
           ] as const).map(tab => (
             <button
               key={tab.id}
               className={cn(
-                "flex-1 py-2 px-1 transition-colors border-b-2 text-[11px] min-w-0",
+                "flex-1 px-1 transition-colors border-b-2 text-[11px] min-w-0",
                 sideTab === tab.id
-                  ? "border-primary text-foreground font-medium"
+                  ? "border-primary text-foreground font-semibold"
                   : "border-transparent text-muted-foreground hover:text-foreground",
               )}
               onClick={() => switchTab(tab.id)}
             >
-              {tab.label}{" "}
-              <span className={cn("text-[10px]", sideTab === tab.id ? "text-muted-foreground" : "text-muted-foreground/60")}>{tab.count}</span>
+              {tab.label}
             </button>
           ))}
         </div>
         {/* Search */}
-        <div className="px-2 py-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <div className="px-3 border-b border-border bg-muted/20" style={{ height: 40 }}>
+          <div className="relative flex items-center h-full">
+            <Search className="absolute left-2 h-3 w-3 text-muted-foreground/40 pointer-events-none" />
             <Input
-              className="pl-8 h-7 text-xs bg-muted/30"
-              placeholder="Search…"
+              className="h-7 pl-6 pr-6 text-xs bg-background rounded-sm border-border shadow-none focus-visible:ring-1 focus-visible:ring-primary/50"
+              placeholder="Filter…"
               value={search}
-              onChange={(e) => { onSearchChange(e.target.value); setSuggestOpen(true) }}
-              onFocus={() => setSuggestOpen(true)}
-              onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
+              onChange={(e) => onSearchChange(e.target.value)}
             />
             {search && (
               <button
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                onClick={() => { onSearchChange(""); setSuggestOpen(false) }}
+                className="absolute right-2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                onClick={() => onSearchChange("")}
               >
                 <X className="h-3 w-3" />
               </button>
-            )}
-            {/* Global suggestions dropdown */}
-            {suggestOpen && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover shadow-lg overflow-hidden">
-                <div className="max-h-64 overflow-y-auto py-1">
-                  {suggestions.map(n => (
-                    <button
-                      key={n.key}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground text-left transition-colors"
-                      onMouseDown={e => { e.preventDefault(); handleJump(n) }}
-                    >
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: KIND_COLOR[n.kind] }} />
-                      <span className="flex-1 truncate font-medium">{n.label}</span>
-                      <span className="text-[10px] text-muted-foreground shrink-0 capitalize">{n.tab}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="border-t border-border px-3 py-1 text-[10px] text-muted-foreground">
-                  {suggestions.length} result{suggestions.length !== 1 ? "s" : ""}{suggestions.length === 30 ? " (first 30)" : ""}
-                </div>
-              </div>
-            )}
-            {suggestOpen && search.trim() && suggestions.length === 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover shadow-lg px-3 py-2.5 text-xs text-muted-foreground">
-                No results for &ldquo;{search.trim()}&rdquo;
-              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* List / Tree */}
-      <div className={`flex-1 ${sideTab === "system" ? "overflow-y-auto" : "overflow-hidden"}`}>
-        {sideTab === "system" && (
-          csmsKeys.length > 0
-            ? csmsKeys.map(k => (
-                <CsmsTreeNode
-                  key={k}
-                  name={k}
-                  csms={hierarchy[k]}
-                  selectedKey={selectedKey}
-                  onSelect={onSelect}
-                  openSet={openSet}
-                  toggle={toggle}
-                  q=""
-                />
-              ))
-            : !loading && <p className="text-center text-muted-foreground py-8 text-xs px-4">No data loaded. Import a graph first.</p>
-        )}
-        {sideTab === "nodes"   && (filteredNodes.length   > 0 ? <SimpleVirtualList items={filteredNodes}   renderItem={n => makeRow(n, "node")}  itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No nodes found.</p>)}
-        {sideTab === "brokers" && (filteredBrokers.length > 0 ? <SimpleVirtualList items={filteredBrokers} renderItem={b => makeRow(b, "node")}  itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No brokers found.</p>)}
-        {sideTab === "libs"    && (filteredLibs.length    > 0 ? <SimpleVirtualList items={filteredLibs}    renderItem={l => makeRow(l, "node")}  itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No libraries found.</p>)}
-        {sideTab === "apps"    && (filteredApps.length    > 0 ? <SimpleVirtualList items={filteredApps}    renderItem={a => makeRow(a, "app")}   itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No apps found.</p>)}
-        {sideTab === "topics"  && (filteredTopics.length  > 0 ? <SimpleVirtualList items={filteredTopics}  renderItem={t => makeRow(t, "topic")} itemHeight={34} /> : <p className="text-center text-muted-foreground py-8 text-xs px-4">No topics found.</p>)}
+      {/* List */}
+      <div className="flex-1 overflow-hidden">
+        {sideTab === "nodes"   && (filteredNodes.length   > 0 ? <SimpleVirtualList items={filteredNodes}   renderItem={n => makeRow(n, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No nodes.</p>)}
+        {sideTab === "brokers" && (filteredBrokers.length > 0 ? <SimpleVirtualList items={filteredBrokers} renderItem={b => makeRow(b, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No brokers.</p>)}
+        {sideTab === "libs"    && (filteredLibs.length    > 0 ? <SimpleVirtualList items={filteredLibs}    renderItem={l => makeRow(l, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No libraries.</p>)}
+        {sideTab === "apps"    && (filteredApps.length    > 0 ? <SimpleVirtualList items={filteredApps}    renderItem={a => makeRow(a, "app")}   itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No apps.</p>)}
+        {sideTab === "topics"  && (filteredTopics.length  > 0 ? <SimpleVirtualList items={filteredTopics}  renderItem={t => makeRow(t, "topic")} itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No topics.</p>)}
       </div>
-      {/* Tree legend (System tab only) */}
-      {sideTab === "system" && (
-        <div className="border-t border-border px-3 py-2 shrink-0 flex flex-wrap gap-x-3 gap-y-1">
-          {(["csms", "css", "csci", "csc", "app"] as const).map(k => (
-            <span key={k} className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: NODE_COLORS[k] }} />
-              {KIND_LABEL[k]}
-            </span>
-          ))}
-        </div>
-      )}
+
     </>
   )
 }
