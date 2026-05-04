@@ -1873,7 +1873,7 @@ function buildConnSubtree(
       symbolSize: 14,
       itemStyle: { color: ec, borderWidth: 0 },
       lineStyle: { color: ec + "88" },
-      label: { fontSize: 9, fontWeight: 700, color: ec },
+      label: { fontSize: 11, fontWeight: 700, color: ec },
       children: unique.map(({ node, dir }) => {
         const lbl: string = node.label ?? node.name ?? node.id ?? ""
         const trimLbl = lbl.length > 26 ? lbl.slice(0, 24) + "…" : lbl
@@ -1893,7 +1893,7 @@ function buildConnSubtree(
           symbolSize: 10,
           itemStyle: { color: nc, borderWidth: leafData ? 1.5 : 0, ...(leafData ? { borderColor: isDark ? "#e5e7eb" : "#374151" } : {}) },
           lineStyle: { color: ec + "88" },
-          label: { fontSize: 8, color: isDark ? "#a1a1aa" : "#6b7280" },
+          label: { fontSize: 11, color: isDark ? "#a1a1aa" : "#6b7280" },
           ...(leafData ? { children: buildConnSubtree(node.id, leafData, expandedLeaves, isDark, instanceKey) } : {}),
         }
       }),
@@ -2025,6 +2025,10 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
   const W = dims.width || 800
   const H = dims.height || 600
 
+  // Horizontal spread multiplier. 1.0 = fits viewport, >1 widens layout
+  // (panning enabled via roam: true). Controlled by the slider overlay below.
+  const [spread, setSpread] = useState(1)
+
   const treeData = useMemo(
     () => buildMergedTree(hierarchy, selectedApp?.instanceKey ?? null, selectedApp?.pathKey ?? null, connDataMap, expandedLeaves, isDark),
     [hierarchy, selectedApp?.instanceKey, selectedApp?.pathKey, connDataMap, expandedLeaves, isDark],
@@ -2050,7 +2054,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         position: "bottom",
         verticalAlign: "top",
         align: "center",
-        fontSize: 12,
+        fontSize: 14,
         color: isDark ? "#e5e7eb" : "#374151",
         formatter: (params: any) => {
           const raw: string = params.name ?? ""
@@ -2061,7 +2065,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         },
       },
       leaves: {
-        label: { position: "bottom", verticalAlign: "top", align: "center", fontSize: 8 },
+        label: { position: "bottom", verticalAlign: "top", align: "center", fontSize: 11 },
       },
       emphasis: { focus: "descendant", itemStyle: { shadowBlur: 8 } },
       animationDuration: 350,
@@ -2164,15 +2168,18 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       series: [{
         ...sharedProps,
         data: [treeData],
-        left: "1%",
-        right: "1%",
+        // Horizontal extents shrink as `spread` grows so the tree's own
+        // bounding box widens (extending past the viewport when spread > 1).
+        // Roam is enabled, so users can pan to reach the edges.
+        left: `${(1 - spread) * 50 + 1}%`,
+        right: `${(1 - spread) * 50 + 1}%`,
         // The synthetic root reserves a row; pull layout up with a negative
         // top so the first visible level (CSMS) sits near the top of the viewport.
         top: "-18%",
         bottom: "5%",
       }],
     }
-  }, [treeData, isDark])
+  }, [treeData, isDark, spread])
 
   const onEvents = useMemo(() => ({
     click: (params: any) => {
@@ -2207,6 +2214,32 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
           theme={isDark ? "dark" : undefined}
         />
       )}
+      {/* Spread slider — controls horizontal distance between nodes */}
+      <div style={{
+        position: "absolute", top: 10, right: 10, zIndex: 10,
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "6px 10px",
+        borderRadius: 8,
+        background: isDark ? "rgba(15,15,20,0.78)" : "rgba(255,255,255,0.88)",
+        backdropFilter: "blur(8px)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+        fontSize: 11,
+        color: isDark ? "#e4e4e7" : "#3f3f46",
+      }}>
+        <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.8 }}>Spread</span>
+        <input
+          type="range"
+          min={0.5}
+          max={4}
+          step={0.1}
+          value={spread}
+          onChange={(e) => setSpread(parseFloat(e.target.value))}
+          style={{ width: 120, accentColor: isDark ? "#a1a1aa" : "#71717a" }}
+        />
+        <span style={{ fontSize: 10, fontVariantNumeric: "tabular-nums", opacity: 0.7, minWidth: 28, textAlign: "right" }}>
+          {spread.toFixed(1)}×
+        </span>
+      </div>
     </div>
   )
 })
