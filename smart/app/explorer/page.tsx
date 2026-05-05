@@ -2075,94 +2075,13 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       backgroundColor: "transparent",
       tooltip: {
         trigger: "item",
-        backgroundColor: isDark ? "rgba(15,15,20,0.92)" : "rgba(255,255,255,0.96)",
-        borderColor: isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)",
-        borderWidth: 1,
-        borderRadius: 8,
-        padding: [10, 12, 10, 12],
-        textStyle: {
-          color: isDark ? "#e4e4e7" : "#3f3f46",
-          fontSize: 11,
-        },
-        extraCssText: `box-shadow: 0 6px 20px ${isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.12)"}; backdrop-filter: blur(8px);`,
         formatter: (params: any) => {
           const d = params.data
           const dispName = (s: string) => s?.split("\x00")[0] ?? s
-          const headerColor = isDark ? "#fafafa" : "#18181b"
-          const dividerColor = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.10)"
-          const subColor = isDark ? "#a1a1aa" : "#71717a"
-
-          // Common header block: bold name + thin divider line
-          const headerBlock = (name: string) => `
-            <div style="font-size:12px;font-weight:700;color:${headerColor};margin-bottom:4px;">${name}</div>
-            <div style="height:1px;background:${dividerColor};margin-bottom:6px;"></div>`
-
-          // Row helpers
-          const dotRow = (label: string, color: string) => `
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
-              <span>${label}</span>
-            </div>`
-          const swatchRow = (label: string, color: string) => `
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="width:18px;height:2px;background:${color};flex-shrink:0;border-radius:1px;display:inline-block;"></span>
-              <span>${label}</span>
-            </div>`
-          const kvRow = (k: string, v: string) => `
-            <div style="display:flex;justify-content:space-between;gap:10px;color:${subColor};">
-              <span>${k}</span><span style="color:${headerColor};font-weight:600;">${v}</span>
-            </div>`
-
-          if (d?._isConnGroup) {
-            // Relationship-type group node
-            const raw: string = dispName(d.name)
-            // group label is "EDGE_TYPE  (count)"
-            const m = raw.match(/^(\S+)\s+\((\d+)\)\s*$/)
-            const edgeType = m?.[1] ?? raw
-            const count = m?.[2]
-            const color = linkTypeColor(edgeType, isDark)
-            return `
-              <div style="min-width:160px;display:flex;flex-direction:column;gap:6px;">
-                ${headerBlock("Relationship")}
-                ${swatchRow(edgeType, color)}
-                ${count ? kvRow("Count", count) : ""}
-              </div>`
-          }
-          if (d?._isConnLeaf) {
-            const n = d._raw
-            const w = typeof n.weight === "number" ? n.weight.toFixed(3) : (typeof n.properties?.weight === "number" ? n.properties.weight.toFixed(3) : "—")
-            const type = n.type ?? "Node"
-            const color = nodeTypeColor(type, isDark)
-            const lbl = n.label ?? n.name ?? n.id ?? ""
-            return `
-              <div style="min-width:160px;display:flex;flex-direction:column;gap:6px;">
-                ${headerBlock(lbl)}
-                ${dotRow(type, color)}
-                ${kvRow("Weight", w)}
-              </div>`
-          }
-          if (d?._app) {
-            const w = typeof d._app.weight === "number" ? d._app.weight.toFixed(3) : "—"
-            const color = nodeTypeColor("Application", isDark)
-            return `
-              <div style="min-width:160px;display:flex;flex-direction:column;gap:6px;">
-                ${headerBlock(dispName(d.name))}
-                ${dotRow("Application", color)}
-                ${kvRow("Weight", w)}
-              </div>`
-          }
-          const idPrefix = String(d?.id ?? "").split(":")[0]
-          const lvlName = ({ csms: "CSMS", css: "CSS", csci: "CSCI", csc: "CSC", app: "App" } as Record<string, string>)[idPrefix] ?? "Node"
-          const lvlColor = ({
-            csms: NODE_COLORS.csms, css: NODE_COLORS.css, csci: NODE_COLORS.csci, csc: NODE_COLORS.csc, app: NODE_COLORS.app,
-          } as Record<string, string>)[idPrefix] ?? (isDark ? "#a1a1aa" : "#71717a")
-          const childCount = d?.children?.length
-          return `
-            <div style="min-width:160px;display:flex;flex-direction:column;gap:6px;">
-              ${headerBlock(dispName(d?.name ?? ""))}
-              ${dotRow(lvlName, lvlColor)}
-              ${childCount ? kvRow("Children", String(childCount)) : ""}
-            </div>`
+          if (d?._isConnGroup) return dispName(d.name)
+          if (d?._isConnLeaf) return dispName(d.name)
+          if (d?._app) return dispName(d.name)
+          return dispName(d?.name ?? "")
         },
       },
       series: [{
@@ -2263,22 +2182,6 @@ const HierEChartsTree = memo(function HierEChartsTree({
     tooltip: {
       trigger: "item",
       triggerOn: "mousemove",
-      formatter: (params: any) => {
-        const d = params.data
-        const level = params.treeAncestors ? params.treeAncestors.length - 1 : 0
-        const levelNames: Record<number, string> = { 0: "System", 1: "CSMS", 2: "CSS", 3: "CSCI", 4: "CSC", 5: "App" }
-        const lbl = levelNames[level] ?? `Level ${level}`
-        if (d._app) {
-          const w = typeof d._app.weight === "number" ? d._app.weight.toFixed(3) : "—"
-          return `<div style="font-size:12px;line-height:1.7">
-            <b>${d.name}</b><br/>
-            <span style="opacity:0.7">App (CSU)</span><br/>
-            Weight: <b>${w}</b>
-          </div>`
-        }
-        const countLine = d.children?.length ? `<br/><span style="opacity:0.7">Children: ${d.children.length}</span>` : ""
-        return `<div style="font-size:12px;line-height:1.7"><b>${d.name}</b><br/><span style="opacity:0.7">${lbl}</span>${countLine}</div>`
-      },
     },
     series: [{
       type: "tree",

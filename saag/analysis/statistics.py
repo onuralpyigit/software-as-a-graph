@@ -1,304 +1,1504 @@
 """
-Statistics calculations for graph metrics.
-Ported from legacy StatisticsService.
+Statistics calculator module.
+
+This module provides functions to calculate descriptive statistics
+(mean, median, std, boxplot) for various system components.
+
+Can be used standalone with dataset.json to compute all statistics
+without needing the reporter module:
+
+    import json
+    from saag.analysis.statistics import extract_cross_cutting_data, compute_all_extras_statistics
+
+    with open("dataset.json") as f:
+        data = json.load(f)
+
+    cc = extract_cross_cutting_data(data)
+    stats = compute_all_extras_statistics(cc)
 """
-import statistics
-import time
-from typing import Dict, Any, List, Optional
-from collections import defaultdict, deque
 
-from saag.core.models import GraphData
+import math
+import statistics as stats
+from collections import deque
+from typing import Dict, List, Any, Tuple, Callable, Optional, Set
 
-def get_degree_distribution(graph_data: GraphData, node_type: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Calculate degree distribution statistics.
-    """
-    start_time = time.time()
+from dataclasses import dataclass
+
+import networkx as nx
+import numpy as np
+
+from saag.analysis.structural_analyzer import extract_layer_subgraph
+from saag.core.layers import AnalysisLayer, get_layer_definition
+
+
+@dataclass
+class DescriptiveStats:
+    """Descriptive statistics for a metric."""
+    count: int
+    mean: float
+    median: float
+    std: float
+    min_val: float
+    max_val: float
+    q1: float
+    q3: float
+    iqr: float
+    outlier_upper: float  # Upper IQR fence
     
-    in_degree: Dict[str, int] = {}
-    out_degree: Dict[str, int] = {}
-    component_types: Dict[str, str] = {}
-    csc_names: Dict[str, str] = {}
-    
-    for component in graph_data.components:
-        comp_id = component.id
-        in_degree[comp_id] = 0
-        out_degree[comp_id] = 0
-        component_types[comp_id] = component.type
-        csc_names[comp_id] = component.properties.get('name', comp_id)
-    
-    for edge in graph_data.edges:
-        source = edge.source_id
-        target = edge.target_id
-        if source in out_degree:
-            out_degree[source] += 1
-        if target in in_degree:
-            in_degree[target] += 1
-    
-    total_degree_all = {comp_id: in_degree[comp_id] + out_degree[comp_id] 
-                       for comp_id in in_degree.keys()}
-    
-    all_degrees = list(total_degree_all.values())
-    if all_degrees:
-        all_mean = statistics.mean(all_degrees)
-        all_std = statistics.stdev(all_degrees) if len(all_degrees) > 1 else 0
-        hub_threshold = all_mean + 2 * all_std
-    else:
-        hub_threshold = 0
-    
-    if node_type:
-        filtered_ids = {comp_id for comp_id, comp_type in component_types.items() 
-                      if comp_type == node_type}
-        in_degree = {k: v for k, v in in_degree.items() if k in filtered_ids}
-        out_degree = {k: v for k, v in out_degree.items() if k in filtered_ids}
-        component_types = {k: v for k, v in component_types.items() if k in filtered_ids}
-        csc_names = {k: v for k, v in csc_names.items() if k in filtered_ids}
-    
-    total_degree = {comp_id: in_degree[comp_id] + out_degree[comp_id] 
-                   for comp_id in in_degree.keys()}
-    
-    def compute_stats(degree_dict: Dict[str, int]) -> Dict[str, float]:
-        values = list(degree_dict.values())
-        if not values:
-            return {"mean": 0, "median": 0, "max": 0, "min": 0, "std": 0}
-        
+    def to_dict(self) -> Dict[str, float]:
         return {
-            "mean": statistics.mean(values),
-            "median": statistics.median(values),
-            "max": max(values),
-            "min": min(values),
-            "std": statistics.stdev(values) if len(values) > 1 else 0
+            "count": self.count,
+            "mean": round(self.mean, 4),
+            "median": round(self.median, 4),
+            "std": round(self.std, 4),
+            "min": round(self.min_val, 4),
+            "max": round(self.max_val, 4),
+            "q1": round(self.q1, 4),
+            "q3": round(self.q3, 4),
+            "iqr": round(self.iqr, 4),
+            "outlier_upper": round(self.outlier_upper, 4),
         }
-    
-    in_stats = compute_stats(in_degree)
-    out_stats = compute_stats(out_degree)
-    total_stats = compute_stats(total_degree)
-    
-    hub_nodes = []
-    for comp_id, degree in total_degree.items():
-        if degree > hub_threshold:
-            hub_nodes.append({
-                "id": comp_id,
-                "name": csc_names.get(comp_id, comp_id),
-                "degree": degree,
-                "type": component_types.get(comp_id, "Unknown")
-            })
-    
-    hub_nodes.sort(key=lambda x: x["degree"], reverse=True)
-    
-    isolated_count = sum(1 for d in total_degree_all.values() if d == 0)
-    
-    computation_time = (time.time() - start_time) * 1000
-    
-    return {
-        "in_degree": in_stats,
-        "out_degree": out_stats,
-        "total_degree": total_stats,
-        "hub_nodes": hub_nodes,
-        "isolated_nodes": isolated_count,
-        "total_nodes": len(total_degree),
-        "hub_threshold": round(hub_threshold, 2),
-        "computation_time_ms": round(computation_time, 2)
-    }
 
-def get_connectivity_density(graph_data: GraphData, node_type: Optional[str] = None) -> Dict[str, Any]:
-    """Calculate connectivity density statistics."""
-    start_time = time.time()
-    
-    total_nodes = len(graph_data.components)
-    total_edges = len(graph_data.edges)
-    
-    max_possible_edges = total_nodes * (total_nodes - 1) if total_nodes > 1 else 0
-    density = total_edges / max_possible_edges if max_possible_edges > 0 else 0
-    
-    component_degrees = {c.id: 0 for c in graph_data.components}
-    component_info = {c.id: {"name": c.properties.get('name', c.id), "type": c.type} for c in graph_data.components}
-    component_types = {c.id: c.type for c in graph_data.components}
-    
-    for edge in graph_data.edges:
-        if edge.source_id in component_degrees: component_degrees[edge.source_id] += 1
-        if edge.target_id in component_degrees: component_degrees[edge.target_id] += 1
-    
-    if node_type:
-        filtered_ids = {cid for cid, ct in component_types.items() if ct == node_type}
-        component_degrees = {k: v for k, v in component_degrees.items() if k in filtered_ids}
-        component_info = {k: v for k, v in component_info.items() if k in filtered_ids}
-    
-    most_dense_components = []
-    sorted_components = sorted(component_degrees.items(), key=lambda x: x[1], reverse=True)
-    
-    for comp_id, degree in sorted_components[:10]:
-        if degree > 0:
-            info = component_info.get(comp_id, {})
-            most_dense_components.append({
-                "id": comp_id,
-                "name": info.get("name", comp_id),
-                "type": info.get("type", "Unknown"),
-                "degree": degree,
-                "density_contribution": round((degree / (2 * total_edges)) * 100, 2) if total_edges > 0 else 0
-            })
-    
-    if density < 0.05: interpretation, category = "Sparse - Low coupling, good modularity", "sparse"
-    elif density < 0.15: interpretation, category = "Moderate - Balanced connectivity", "moderate"
-    elif density < 0.30: interpretation, category = "Dense - High coupling", "dense"
-    else: interpretation, category = "Very Dense - Very high coupling", "very_dense"
-    
-    computation_time = (time.time() - start_time) * 1000
-    
-    return {
-        "density": round(density, 6),
-        "total_nodes": total_nodes,
-        "total_edges": total_edges,
-        "max_possible_edges": max_possible_edges,
-        "interpretation": interpretation,
-        "category": category,
-        "most_dense_components": most_dense_components,
-        "computation_time_ms": round(computation_time, 2)
-    }
 
-def get_clustering_coefficient(graph_data: GraphData, node_type: Optional[str] = None) -> Dict[str, Any]:
-    """Calculate clustering coefficient statistics."""
-    start_time = time.time()
+@dataclass
+class CategoricalStats:
+    """Statistics for categorical (distribution) metrics."""
+    total_count: int        # Total number of items
+    category_count: int     # Number of distinct categories
+    mode: str               # Most frequent category
+    mode_count: int         # Count of most frequent category
+    mode_percentage: float  # Percentage of most frequent category
     
-    neighbors = defaultdict(set)
-    component_info = {c.id: {"name": c.properties.get('name', c.id), "type": c.type} for c in graph_data.components}
-    component_types = {c.id: c.type for c in graph_data.components}
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_count": self.total_count,
+            "category_count": self.category_count,
+            "mode": self.mode,
+            "mode_count": self.mode_count,
+            "mode_percentage": round(self.mode_percentage, 2),
+        }
+
+
+def calculate_categorical_stats(category_counts: Dict[str, int]) -> CategoricalStats:
+    """Calculate statistics for categorical variables."""
+    if not category_counts:
+        return CategoricalStats(
+            total_count=0, category_count=0, mode="N/A", 
+            mode_count=0, mode_percentage=0.0
+        )
     
-    for edge in graph_data.edges:
-        neighbors[edge.source_id].add(edge.target_id)
-        neighbors[edge.target_id].add(edge.source_id)
+    total = sum(category_counts.values())
+    category_count = len(category_counts)
     
-    local_coefficients = {}
-    for node in component_info:
-        node_neighbors = neighbors.get(node, set())
-        degree = len(node_neighbors)
-        if degree < 2:
-            local_coefficients[node] = 0.0
-            continue
-        
-        triangles = 0
-        neighbor_list = list(node_neighbors)
-        for i in range(len(neighbor_list)):
-            for j in range(i + 1, len(neighbor_list)):
-                if neighbor_list[j] in neighbors[neighbor_list[i]]:
-                    triangles += 1
-        
-        possible = degree * (degree - 1) / 2
-        local_coefficients[node] = triangles / possible if possible > 0 else 0.0
+    # Find mode (most frequent category)
+    mode = max(category_counts, key=category_counts.get)
+    mode_count = category_counts[mode]
+    mode_pct = (mode_count / total * 100) if total > 0 else 0.0
     
-    avg_clustering = sum(local_coefficients.values()) / len(local_coefficients) if local_coefficients else 0.0
+    return CategoricalStats(
+        total_count=total,
+        category_count=category_count,
+        mode=mode,
+        mode_count=mode_count,
+        mode_percentage=mode_pct
+    )
+
+
+def calculate_descriptive_stats(values: List[float]) -> DescriptiveStats:
+    """Calculate descriptive statistics for a list of values."""
+    if not values:
+        return DescriptiveStats(
+            count=0, mean=0, median=0, std=0,
+            min_val=0, max_val=0, q1=0, q3=0, iqr=0,
+            outlier_upper=0
+        )
     
-    if node_type:
-        filtered_ids = {cid for cid, ct in component_types.items() if ct == node_type}
-        # We still use the global context for triangles, but filter the results
-        local_coefficients_filtered = {k: v for k, v in local_coefficients.items() if k in filtered_ids}
+    sorted_vals = sorted(values)
+    n = len(sorted_vals)
+    
+    mean_val = stats.mean(sorted_vals)
+    median_val = stats.median(sorted_vals)
+    std_val = stats.stdev(sorted_vals) if n > 1 else 0.0
+    
+    # Quartiles
+    if n < 4:
+        q1 = median_val
+        q3 = median_val
     else:
-        local_coefficients_filtered = local_coefficients
+        q1 = _percentile(sorted_vals, 25)
+        q3 = _percentile(sorted_vals, 75)
     
-    highly_clustered = []
-    sorted_nodes = sorted([(n, c) for n, c in local_coefficients_filtered.items() if c > 0],
-                          key=lambda x: (x[1], len(neighbors[x[0]])), reverse=True)
+    iqr = q3 - q1
+    outlier_upper = q3 + 1.5 * iqr
     
-    for node, coef in sorted_nodes[:10]:
-        info = component_info.get(node, {})
-        highly_clustered.append({
-            "id": node,
-            "name": info.get("name", node),
-            "type": info.get("type", "Unknown"),
-            "coefficient": round(coef, 4),
-            "degree": len(neighbors[node]),
-            "triangles": int(coef * len(neighbors[node]) * (len(neighbors[node]) - 1) / 2)
-        })
-    
-    non_zero = [c for c in local_coefficients.values() if c > 0]
-    std_coef = statistics.stdev(non_zero) if len(non_zero) > 1 else 0
-    
-    if avg_clustering < 0.1: interpretation, category = "Low clustering", "low"
-    elif avg_clustering < 0.3: interpretation, category = "Moderate clustering", "moderate"
-    else: interpretation, category = "High clustering", "high"
-    
+    return DescriptiveStats(
+        count=n,
+        mean=mean_val,
+        median=median_val,
+        std=std_val,
+        min_val=sorted_vals[0],
+        max_val=sorted_vals[-1],
+        q1=q1,
+        q3=q3,
+        iqr=iqr,
+        outlier_upper=outlier_upper
+    )
+
+
+def _percentile(data: List[float], p: float) -> float:
+    """Calculate p-th percentile using linear interpolation."""
+    k = (len(data) - 1) * p / 100
+    f = int(k)
+    c = f + 1 if f + 1 < len(data) else f
+    return data[f] + (k - f) * (data[c] - data[f])
+
+
+# ===================== OUTLIER DETECTION =====================
+
+
+def find_1d_outliers_iqr(values: List[float]) -> Tuple[float, float, float]:
+    """Compute IQR fences for 1D outlier detection.
+
+    Returns:
+        (lower_fence, upper_fence, iqr)
+    """
+    if len(values) < 4:
+        return float('-inf'), float('inf'), 0.0
+    q1, q3 = float(np.percentile(values, 25)), float(np.percentile(values, 75))
+    iqr = q3 - q1
+    return q1 - 1.5 * iqr, q3 + 1.5 * iqr, iqr
+
+
+def calculate_outliers(
+    ranked_list: List[Dict],
+    outlier_stats: "DescriptiveStats",
+    *,
+    is_categorical: bool = False,
+) -> List[Tuple[str, float]]:
+    """Calculate outliers using IQR method from a ranked list and stats.
+
+    Args:
+        ranked_list: List of dicts with 'name', 'value', optional 'version'.
+        outlier_stats: DescriptiveStats with outlier_upper.
+        is_categorical: If True, returns empty (no outliers for categorical).
+
+    Returns:
+        List of (display_name, value) tuples.
+    """
+    if is_categorical or outlier_stats.count == 0:
+        return []
+
+    upper_bound = outlier_stats.outlier_upper
+
+    outliers: List[Tuple[str, float]] = []
+    for item in ranked_list:
+        value = item.get("value", 0)
+        name = item.get("name", item.get("id", "?"))
+        version = item.get("version", "")
+        display_name = f"{name} ({version})" if version and version != "NOT_FOUND" else str(name)
+        if value > upper_bound:
+            outliers.append((display_name, value))
+    return outliers
+
+
+# ===================== DATA EXTRACTION =====================
+
+
+def extract_cross_cutting_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract and pre-process data needed for cross-cutting charts from raw JSON.
+
+    This is the main data extraction function that preprocesses the raw
+    aggregated JSON into lookup dictionaries usable by both chart and
+    statistics functions.
+    """
+    nodes = raw_data.get("nodes", [])
+    apps = raw_data.get("applications", [])
+    topics = raw_data.get("topics", [])
+    relationships = raw_data.get("relationships", {})
+
+    runs_on = relationships.get("runs_on", [])
+    publishes_to = relationships.get("publishes_to", [])
+    subscribes_to = relationships.get("subscribes_to", [])
+
+    node_names = {n["id"]: n.get("name", n["id"]) for n in nodes}
+    app_names = {a["id"]: a.get("name", a["id"]) for a in apps}
+
+    app_node: Dict[str, str] = {}
+    for rel in runs_on:
+        app_id = rel.get("from")
+        node_id = rel.get("to")
+        if app_id and node_id:
+            app_node[app_id] = node_id
+
+    topic_names = {t["id"]: t.get("name", t["id"]) for t in topics}
+    topic_sizes: Dict[str, float] = {}
+    topic_qos: Dict[str, Dict[str, str]] = {}
+    for t in topics:
+        size = t.get("size", 0)
+        topic_sizes[t["id"]] = max(0, size) if size is not None else 0
+        topic_qos[t["id"]] = t.get("qos", {})
+
+    app_pub_count: Dict[str, int] = {a["id"]: 0 for a in apps}
+    app_sub_count: Dict[str, int] = {a["id"]: 0 for a in apps}
+    for rel in publishes_to:
+        aid = rel.get("from")
+        if aid in app_pub_count:
+            app_pub_count[aid] += 1
+    for rel in subscribes_to:
+        aid = rel.get("from")
+        if aid in app_sub_count:
+            app_sub_count[aid] += 1
+
+    topic_pub_count: Dict[str, int] = {t["id"]: 0 for t in topics}
+    topic_sub_count: Dict[str, int] = {t["id"]: 0 for t in topics}
+    for rel in publishes_to:
+        tid = rel.get("to")
+        if tid in topic_pub_count:
+            topic_pub_count[tid] += 1
+    for rel in subscribes_to:
+        tid = rel.get("to")
+        if tid in topic_sub_count:
+            topic_sub_count[tid] += 1
+
     return {
-        "avg_clustering_coefficient": round(avg_clustering, 6),
-        "interpretation": interpretation,
-        "category": category,
-        "highly_clustered_components": highly_clustered,
-        "computation_time_ms": round((time.time() - start_time) * 1000, 2)
+        "nodes": nodes,
+        "apps": apps,
+        "topics": topics,
+        "runs_on": runs_on,
+        "publishes_to": publishes_to,
+        "subscribes_to": subscribes_to,
+        "node_names": node_names,
+        "app_names": app_names,
+        "app_node": app_node,
+        "topic_names": topic_names,
+        "topic_sizes": topic_sizes,
+        "topic_qos": topic_qos,
+        "app_pub_count": app_pub_count,
+        "app_sub_count": app_sub_count,
+        "topic_pub_count": topic_pub_count,
+        "topic_sub_count": topic_sub_count,
+        "app_criticality": {a["id"]: a.get("criticality", False) for a in apps},
+        "app_role": {a["id"]: a.get("role", "NOT_FOUND") for a in apps},
+        "app_segment": {
+            a["id"]: (a.get("system_hierarchy") or {}).get("css_name", "NOT_FOUND")
+            for a in apps
+        },
+        "libs": raw_data.get("libraries", []),
+        "lib_names": {
+            lib["id"]: lib.get("name", lib["id"])
+            for lib in raw_data.get("libraries", [])
+        },
+        "uses": relationships.get("uses", []),
+        "brokers": raw_data.get("brokers", []),
+        "broker_names": {
+            b["id"]: b.get("name", b["id"])
+            for b in raw_data.get("brokers", [])
+        },
+        "routes": relationships.get("routes", []),
     }
 
-def get_dependency_depth(graph_data: GraphData) -> Dict[str, Any]:
-    """Calculate dependency depth statistics."""
-    start_time = time.time()
-    
-    outgoing = defaultdict(list)
-    incoming = defaultdict(list)
-    component_info = {c.id: {"name": c.properties.get('name', c.id), "type": c.type} for c in graph_data.components}
-    
-    for edge in graph_data.edges:
-        outgoing[edge.source_id].append(edge.target_id)
-        incoming[edge.target_id].append(edge.source_id)
-    
-    node_depths = {}
-    for node in component_info:
-        max_d = 0
-        visited = {node}
-        queue = deque([(node, 0)])
-        while queue:
-            curr, d = queue.popleft()
-            max_d = max(max_d, d)
-            for neighbor in outgoing[curr]:
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    queue.append((neighbor, d + 1))
-        node_depths[node] = max_d
-        
-    avg_depth = statistics.mean(node_depths.values()) if node_depths else 0
-    max_depth = max(node_depths.values()) if node_depths else 0
-    
-    deepest = []
-    sorted_nodes = sorted(node_depths.items(), key=lambda x: (x[1], len(outgoing[x[0]])), reverse=True)
-    for n, d in sorted_nodes[:10]:
-        info = component_info[n]
-        deepest.append({
-            "id": n, "name": info["name"], "type": info["type"], "depth": d,
-            "dependencies": len(outgoing[n]), "dependents": len(incoming[n])
-        })
-    
+
+# ===================== PER-CHART STATISTICS =====================
+
+
+def compute_topic_bandwidth_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute bandwidth statistics for Topic Size vs Subscriber chart."""
+    sizes, subs, pubs, labels, ids = [], [], [], [], []
+    for tid in cc["topic_sizes"]:
+        sizes.append(cc["topic_sizes"][tid])
+        subs.append(cc["topic_sub_count"].get(tid, 0))
+        pubs.append(cc["topic_pub_count"].get(tid, 0))
+        labels.append(cc["topic_names"].get(tid, tid))
+        ids.append(tid)
+
+    bandwidth_sub = [s * sc for s, sc in zip(sizes, subs)]
+    bandwidth_pub = [s * pc for s, pc in zip(sizes, pubs)]
+    bandwidth_pubsub = [s * (pc + sc) for s, pc, sc in zip(sizes, pubs, subs)]
+    # Keep legacy "bandwidth" as sub-based for backward compatibility
+    bandwidth = bandwidth_sub
+
+    nonzero_bw = [b for b in bandwidth_sub if b > 0]
+    outlier_indices: List[int] = []
+    iqr_upper = 0.0
+    iqr_val = 0.0
+    if len(nonzero_bw) >= 4:
+        _, iqr_upper, iqr_val = find_1d_outliers_iqr(nonzero_bw)
+        outlier_indices = [
+            i for i in range(len(bandwidth_sub))
+            if bandwidth_sub[i] > iqr_upper and bandwidth_sub[i] > 0
+        ]
+        outlier_indices.sort(key=lambda i: bandwidth_sub[i], reverse=True)
+
+    summary: Dict[str, Any] = {}
+    if sizes:
+        size_arr = np.array(sizes, dtype=float)
+        sub_arr = np.array(subs, dtype=float)
+        pub_arr = np.array(pubs, dtype=float)
+        summary = {
+            "total_topics": len(sizes),
+            "size_mean": float(np.mean(size_arr)),
+            "size_median": float(np.median(size_arr)),
+            "size_max": float(np.max(size_arr)),
+            "sub_mean": float(np.mean(sub_arr)),
+            "sub_median": float(np.median(sub_arr)),
+            "sub_max": int(np.max(sub_arr)),
+            "pub_mean": float(np.mean(pub_arr)),
+            "pub_median": float(np.median(pub_arr)),
+            "pub_max": int(np.max(pub_arr)),
+            "zero_sub_count": sum(1 for s in subs if s == 0),
+            "bw_mean": float(np.mean(nonzero_bw)) if nonzero_bw else 0,
+            "bw_median": float(np.median(nonzero_bw)) if nonzero_bw else 0,
+            "outlier_count": len(outlier_indices),
+        }
+
     return {
-        "avg_depth": round(avg_depth, 3),
-        "max_depth": max_depth,
-        "deepest_components": deepest,
-        "computation_time_ms": round((time.time() - start_time) * 1000, 2)
+        "sizes": sizes, "subs": subs, "pubs": pubs, "labels": labels, "ids": ids,
+        "bandwidth": bandwidth, "bandwidth_sub": bandwidth_sub,
+        "bandwidth_pub": bandwidth_pub, "bandwidth_pubsub": bandwidth_pubsub,
+        "nonzero_bw": nonzero_bw,
+        "outlier_indices": outlier_indices,
+        "iqr_upper": iqr_upper, "iqr": iqr_val,
+        "summary": summary,
     }
 
-def get_component_isolation(graph_data: GraphData) -> Dict[str, Any]:
-    """Calculate component isolation statistics."""
-    start_time = time.time()
-    
-    incoming = defaultdict(int)
-    outgoing = defaultdict(int)
-    component_info = {c.id: {"name": c.properties.get('name', c.id), "type": c.type} for c in graph_data.components}
-    
-    for edge in graph_data.edges:
-        outgoing[edge.source_id] += 1
-        incoming[edge.target_id] += 1
-        
-    isolated, sources, sinks, bidirectional = [], [], [], []
-    for cid in component_info:
-        inc = incoming[cid]
-        outc = outgoing[cid]
-        data = {"id": cid, "name": component_info[cid]["name"], "type": component_info[cid]["type"], "in_degree": inc, "out_degree": outc}
-        if inc == 0 and outc == 0: isolated.append(data)
-        elif inc == 0: sources.append(data)
-        elif outc == 0: sinks.append(data)
-        else: bidirectional.append(data)
-        
-    total = len(component_info)
-    return {
-        "total_components": total,
-        "isolated_count": len(isolated),
-        "source_count": len(sources),
-        "sink_count": len(sinks),
-        "bidirectional_count": len(bidirectional),
-        "isolated_percentage": round(len(isolated)/total*100, 2) if total > 0 else 0,
-        "computation_time_ms": round((time.time() - start_time) * 1000, 2)
+
+def compute_qos_risk_stats(
+    cc: Dict[str, Any],
+    risk_weight_fn: Callable[[str, str], float],
+    w2name: Optional[Dict[str, Dict[float, str]]] = None,
+) -> Dict[str, Any]:
+    """Compute QoS risk statistics for QoS scatter chart.
+
+    Args:
+        cc: Cross-cutting data from extract_cross_cutting_data.
+        risk_weight_fn: Callable(dimension, value) -> float weight.
+        w2name: Optional weight-to-name maps per dimension for display.
+    """
+    topic_data: List[Dict[str, Any]] = []
+    for tid, qos in cc["topic_qos"].items():
+        size = cc["topic_sizes"].get(tid, 0)
+        tname = cc["topic_names"].get(tid, tid)
+        dur_w = risk_weight_fn("durability", str(qos.get("durability", "NOT_FOUND")))
+        rel_w = risk_weight_fn("reliability", str(qos.get("reliability", "NOT_FOUND")))
+        tp_w = risk_weight_fn("transport_priority", str(qos.get("transport_priority", "NOT_FOUND")))
+        risk = (dur_w * rel_w * tp_w) * math.log2(size + 1)
+
+        dur_name = w2name["durability"].get(dur_w, str(qos.get("durability", "-"))) if w2name else str(dur_w)
+        rel_name = w2name["reliability"].get(rel_w, str(qos.get("reliability", "-"))) if w2name else str(rel_w)
+        tp_name = w2name["transport_priority"].get(tp_w, str(qos.get("transport_priority", "-"))) if w2name else str(tp_w)
+
+        topic_data.append({
+            "name": tname, "size": size, "risk": risk,
+            "durability": dur_w, "reliability": rel_w, "transport_priority": tp_w,
+            "dur_name": dur_name, "rel_name": rel_name, "tp_name": tp_name,
+        })
+
+    topic_data.sort(key=lambda d: d["risk"], reverse=True)
+    risk_values = [td["risk"] for td in topic_data if td["risk"] > 0]
+    top_outliers: List[Dict[str, Any]] = []
+    risk_upper = 0.0
+    risk_iqr = 0.0
+    if len(risk_values) >= 4:
+        _, risk_upper, risk_iqr = find_1d_outliers_iqr(risk_values)
+        top_outliers = [td for td in topic_data if td["risk"] > risk_upper]
+    else:
+        top_outliers = topic_data[:10]
+
+    summary: Dict[str, Any] = {
+        "total_topics": len(topic_data),
+        "outlier_count": len(top_outliers),
     }
+    if risk_values:
+        risk_arr = np.array(risk_values, dtype=float)
+        summary.update({
+            "risk_mean": float(np.mean(risk_arr)),
+            "risk_median": float(np.median(risk_arr)),
+            "risk_std": float(np.std(risk_arr)),
+        })
+
+    qos_distribution: Dict[str, Dict[float, int]] = {}
+    for dim_key in ("durability", "reliability", "transport_priority"):
+        w_counts: Dict[float, int] = {}
+        for td in topic_data:
+            w = td[dim_key]
+            w_counts[w] = w_counts.get(w, 0) + 1
+        qos_distribution[dim_key] = w_counts
+    summary["qos_distribution"] = qos_distribution
+
+    return {
+        "topic_data": topic_data,
+        "top_outliers": top_outliers,
+        "risk_upper": risk_upper,
+        "risk_iqr": risk_iqr,
+        "summary": summary,
+    }
+
+
+def compute_app_balance_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute pub/sub balance statistics for App Balance chart."""
+    pubs, subs, labels, ids = [], [], [], []
+    for aid in cc["app_pub_count"]:
+        pubs.append(cc["app_pub_count"][aid])
+        subs.append(cc["app_sub_count"].get(aid, 0))
+        labels.append(cc["app_names"].get(aid, aid))
+        ids.append(aid)
+
+    io_load = [p + s for p, s in zip(pubs, subs)]
+    nonzero_io = [v for v in io_load if v > 0]
+    outlier_indices: List[int] = []
+    io_upper = 0.0
+    io_iqr = 0.0
+    if len(nonzero_io) >= 4:
+        _, io_upper, io_iqr = find_1d_outliers_iqr(nonzero_io)
+        outlier_indices = [
+            i for i in range(len(io_load))
+            if io_load[i] > io_upper and io_load[i] > 0
+        ]
+        outlier_indices.sort(key=lambda i: io_load[i], reverse=True)
+
+    summary: Dict[str, Any] = {}
+    if pubs:
+        pub_arr = np.array(pubs, dtype=float)
+        sub_arr = np.array(subs, dtype=float)
+        mean_p = float(np.mean(pub_arr))
+        mean_s = float(np.mean(sub_arr))
+        summary = {
+            "total_apps": len(pubs),
+            "pub_mean": mean_p,
+            "pub_median": float(np.median(pub_arr)),
+            "pub_max": int(np.max(pub_arr)),
+            "sub_mean": mean_s,
+            "sub_median": float(np.median(sub_arr)),
+            "sub_max": int(np.max(sub_arr)),
+            "q_high_io": sum(1 for p, s in zip(pubs, subs) if p > mean_p and s > mean_s),
+            "q_consumer": sum(1 for p, s in zip(pubs, subs) if p <= mean_p and s > mean_s),
+            "q_producer": sum(1 for p, s in zip(pubs, subs) if p > mean_p and s <= mean_s),
+            "q_low": sum(1 for p, s in zip(pubs, subs) if p <= mean_p and s <= mean_s),
+            "zero_activity": sum(1 for p, s in zip(pubs, subs) if p == 0 and s == 0),
+            "outlier_count": len(outlier_indices),
+        }
+
+    return {
+        "pubs": pubs, "subs": subs, "labels": labels, "ids": ids,
+        "io_load": io_load,
+        "outlier_indices": outlier_indices,
+        "io_upper": io_upper, "io_iqr": io_iqr,
+        "summary": summary,
+    }
+
+
+def compute_topic_fanout_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute fanout statistics for Topic Fanout chart."""
+    pubs, subs, labels, ids = [], [], [], []
+    for tid in cc["topic_pub_count"]:
+        pubs.append(cc["topic_pub_count"][tid])
+        subs.append(cc["topic_sub_count"].get(tid, 0))
+        labels.append(cc["topic_names"].get(tid, tid))
+        ids.append(tid)
+
+    fanout = [p * s for p, s in zip(pubs, subs)]
+    nonzero_fanout = [v for v in fanout if v > 0]
+    outlier_indices: List[int] = []
+    fanout_upper = 0.0
+    fanout_iqr = 0.0
+    if len(nonzero_fanout) >= 4:
+        _, fanout_upper, fanout_iqr = find_1d_outliers_iqr(nonzero_fanout)
+        outlier_indices = [
+            i for i in range(len(fanout))
+            if fanout[i] > fanout_upper and fanout[i] > 0
+        ]
+        outlier_indices.sort(key=lambda i: fanout[i], reverse=True)
+
+    summary: Dict[str, Any] = {}
+    if pubs:
+        pub_arr = np.array(pubs, dtype=float)
+        sub_arr = np.array(subs, dtype=float)
+        summary = {
+            "total_topics": len(pubs),
+            "pub_mean": float(np.mean(pub_arr)),
+            "pub_median": float(np.median(pub_arr)),
+            "pub_max": int(np.max(pub_arr)),
+            "sub_mean": float(np.mean(sub_arr)),
+            "sub_median": float(np.median(sub_arr)),
+            "sub_max": int(np.max(sub_arr)),
+            "one_to_many": sum(1 for p, s in zip(pubs, subs) if p == 1 and s > 1),
+            "many_to_one": sum(1 for p, s in zip(pubs, subs) if p > 1 and s == 1),
+            "many_to_many": sum(1 for p, s in zip(pubs, subs) if p > 1 and s > 1),
+            "orphan": sum(1 for p, s in zip(pubs, subs) if p == 0 or s == 0),
+            "fanout_mean": float(np.mean(nonzero_fanout)) if nonzero_fanout else 0,
+            "fanout_max": int(np.max(nonzero_fanout)) if nonzero_fanout else 0,
+            "outlier_count": len(outlier_indices),
+        }
+
+    return {
+        "pubs": pubs, "subs": subs, "labels": labels, "ids": ids,
+        "fanout": fanout, "nonzero_fanout": nonzero_fanout,
+        "outlier_indices": outlier_indices,
+        "fanout_upper": fanout_upper, "fanout_iqr": fanout_iqr,
+        "summary": summary,
+    }
+
+
+def _build_communication_matrix(
+    cc: Dict[str, Any],
+    entity_key_fn: Callable[[str], Optional[str]],
+    entity_ids: List[str],
+) -> "np.ndarray":
+    """Build an NxN communication matrix for a set of entities.
+
+    Cell (i,j) = number of topics where an entity-i app publishes
+    and an entity-j app subscribes.
+
+    Args:
+        cc: Cross-cutting data.
+        entity_key_fn: Maps app_id -> entity identifier (node_id or domain).
+        entity_ids: Ordered list of entity identifiers.
+    """
+    idx = {eid: i for i, eid in enumerate(entity_ids)}
+    n = len(entity_ids)
+
+    topic_pub_entities: Dict[str, set] = {}
+    topic_sub_entities: Dict[str, set] = {}
+
+    for rel in cc["publishes_to"]:
+        app_id = rel.get("from")
+        topic_id = rel.get("to")
+        eid = entity_key_fn(app_id)
+        if eid and topic_id:
+            topic_pub_entities.setdefault(topic_id, set()).add(eid)
+
+    for rel in cc["subscribes_to"]:
+        app_id = rel.get("from")
+        topic_id = rel.get("to")
+        eid = entity_key_fn(app_id)
+        if eid and topic_id:
+            topic_sub_entities.setdefault(topic_id, set()).add(eid)
+
+    matrix = np.zeros((n, n))
+    all_topics = set(topic_pub_entities.keys()) | set(topic_sub_entities.keys())
+    for tid in all_topics:
+        pub_ents = topic_pub_entities.get(tid, set())
+        sub_ents = topic_sub_entities.get(tid, set())
+        for pe in pub_ents:
+            for se in sub_ents:
+                if pe in idx and se in idx:
+                    matrix[idx[pe]][idx[se]] += 1
+    return matrix
+
+
+def _compute_matrix_stats(
+    matrix: "np.ndarray",
+    labels: List[str],
+    n: int,
+) -> Dict[str, Any]:
+    """Compute IQR outliers and summary statistics for a communication matrix."""
+    nonzero_vals = matrix[matrix > 0].flatten()
+    outlier_pairs: List[Tuple[str, str, int, float]] = []
+    iqr_upper = 0.0
+    iqr_val = 0.0
+
+    if len(nonzero_vals) >= 4:
+        _, iqr_upper, iqr_val = find_1d_outliers_iqr(nonzero_vals.tolist())
+        for i in range(n):
+            for j in range(n):
+                val = matrix[i][j]
+                if val > iqr_upper and val > 0:
+                    dev = (val - iqr_upper) / iqr_val if iqr_val > 0 else 0.0
+                    outlier_pairs.append((labels[i], labels[j], int(val), dev))
+        outlier_pairs.sort(key=lambda x: x[2], reverse=True)
+
+    total_cells = n * n
+    nonzero_count = int(np.count_nonzero(matrix))
+    diag_total = sum(int(matrix[i][i]) for i in range(n))
+    off_diag_total = int(matrix.sum()) - diag_total
+    cross_pairs = sum(1 for i in range(n) for j in range(n) if i != j and matrix[i][j] > 0)
+
+    summary: Dict[str, Any] = {
+        "entity_count": n,
+        "total_cells": total_cells,
+        "nonzero_count": nonzero_count,
+        "active_pct": (nonzero_count / total_cells * 100) if total_cells > 0 else 0,
+        "intra_total": diag_total,
+        "inter_total": off_diag_total,
+        "cross_pairs": cross_pairs,
+        "outlier_count": len(outlier_pairs),
+    }
+    if len(nonzero_vals) > 0:
+        summary["cell_mean"] = float(np.mean(nonzero_vals))
+        summary["cell_median"] = float(np.median(nonzero_vals))
+        summary["cell_max"] = int(np.max(nonzero_vals))
+
+    return {
+        "outlier_pairs": outlier_pairs,
+        "iqr_upper": iqr_upper,
+        "iqr": iqr_val,
+        "summary": summary,
+    }
+
+
+def compute_cross_node_heatmap_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute cross-node communication heatmap statistics."""
+    node_ids = [n["id"] for n in cc["nodes"]]
+    n = len(node_ids)
+
+    if n == 0:
+        return {"node_ids": [], "labels": [], "matrix": np.zeros((0, 0)),
+                "outlier_pairs": [], "iqr_upper": 0, "iqr": 0, "summary": {},
+                "per_node": {}}
+
+    labels = [cc["node_names"].get(nid, nid)[:20] for nid in node_ids]
+    app_node = cc["app_node"]
+    matrix = _build_communication_matrix(
+        cc, lambda aid: app_node.get(aid), node_ids)
+
+    # Build per-node topic lists: which topics are published/subscribed from each node
+    node_pub_topics: Dict[str, Dict[str, str]] = {nid: {} for nid in node_ids}
+    node_sub_topics: Dict[str, Dict[str, str]] = {nid: {} for nid in node_ids}
+    node_apps: Dict[str, List[Dict[str, str]]] = {nid: [] for nid in node_ids}
+
+    for app in cc["apps"]:
+        aid = app["id"]
+        nid = app_node.get(aid)
+        if nid and nid in node_apps:
+            node_apps[nid].append({"id": aid, "name": cc["app_names"].get(aid, aid)})
+
+    for rel in cc["publishes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        nid = app_node.get(aid)
+        if nid and nid in node_pub_topics and tid:
+            node_pub_topics[nid][tid] = cc["topic_names"].get(tid, tid)
+
+    for rel in cc["subscribes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        nid = app_node.get(aid)
+        if nid and nid in node_sub_topics and tid:
+            node_sub_topics[nid][tid] = cc["topic_names"].get(tid, tid)
+
+    topic_sizes = cc["topic_sizes"]
+
+    per_node = {
+        nid: {
+            "label": cc["node_names"].get(nid, nid),
+            "apps": node_apps[nid],
+            "pub_topics": [
+                {"id": tid, "name": name, "size_kb": topic_sizes.get(tid, 0)}
+                for tid, name in sorted(node_pub_topics[nid].items(), key=lambda x: x[1])
+            ],
+            "sub_topics": [
+                {"id": tid, "name": name, "size_kb": topic_sizes.get(tid, 0)}
+                for tid, name in sorted(node_sub_topics[nid].items(), key=lambda x: x[1])
+            ],
+        }
+        for nid in node_ids
+    }
+
+    # Size-weighted matrix: cell(i,j) = sum of topic sizes (KB) for shared pub→sub topics
+    idx = {nid: i for i, nid in enumerate(node_ids)}
+    matrix_kb = np.zeros((n, n))
+    # Build topic -> publishing nodes and subscribing nodes
+    topic_pub_nodes: Dict[str, set] = {}
+    topic_sub_nodes: Dict[str, set] = {}
+    for nid in node_ids:
+        for t in per_node[nid]["pub_topics"]:
+            topic_pub_nodes.setdefault(t["id"], set()).add(nid)
+        for t in per_node[nid]["sub_topics"]:
+            topic_sub_nodes.setdefault(t["id"], set()).add(nid)
+    for tid, pub_nodes in topic_pub_nodes.items():
+        sub_nodes = topic_sub_nodes.get(tid, set())
+        size = topic_sizes.get(tid, 0)
+        for pn in pub_nodes:
+            for sn in sub_nodes:
+                if pn in idx and sn in idx:
+                    matrix_kb[idx[pn]][idx[sn]] += size
+
+    matrix_stats = _compute_matrix_stats(matrix, labels, n)
+    return {
+        "node_ids": node_ids, "labels": labels, "matrix": matrix, "matrix_kb": matrix_kb,
+        "per_node": per_node,
+        **matrix_stats,
+    }
+
+
+def compute_node_comm_load_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute node communication load statistics."""
+    node_ids = [n["id"] for n in cc["nodes"]]
+    node_labels = [cc["node_names"].get(nid, nid) for nid in node_ids]
+
+    node_total_pub = {nid: 0 for nid in node_ids}
+    node_total_sub = {nid: 0 for nid in node_ids}
+    for aid, nid in cc["app_node"].items():
+        if nid in node_total_pub:
+            node_total_pub[nid] += cc["app_pub_count"].get(aid, 0)
+            node_total_sub[nid] += cc["app_sub_count"].get(aid, 0)
+
+    pub_vals = [node_total_pub[nid] for nid in node_ids]
+    sub_vals = [node_total_sub[nid] for nid in node_ids]
+    totals = [p + s for p, s in zip(pub_vals, sub_vals)]
+
+    sorted_idx = sorted(range(len(totals)), key=lambda i: totals[i], reverse=True)
+    sorted_labels = [node_labels[i][:25] for i in sorted_idx]
+    sorted_ids = [node_ids[i] for i in sorted_idx]
+    sorted_pub = [pub_vals[i] for i in sorted_idx]
+    sorted_sub = [sub_vals[i] for i in sorted_idx]
+    all_totals = [sorted_pub[i] + sorted_sub[i] for i in range(len(sorted_labels))]
+
+    outliers: List[Tuple[str, int, int, int, float]] = []
+    iqr_upper = 0.0
+    iqr_val = 0.0
+    if len(all_totals) >= 4:
+        _, iqr_upper, iqr_val = find_1d_outliers_iqr(all_totals)
+        for i in range(len(sorted_labels)):
+            t = all_totals[i]
+            if t > iqr_upper:
+                dev = (t - iqr_upper) / iqr_val if iqr_val > 0 else 0.0
+                outliers.append((sorted_labels[i], sorted_pub[i], sorted_sub[i], t, dev))
+        outliers.sort(key=lambda x: x[3], reverse=True)
+
+    summary: Dict[str, Any] = {"node_count": len(sorted_labels), "outlier_count": len(outliers)}
+    if all_totals:
+        total_arr = np.array(all_totals, dtype=float)
+        pub_total = sum(sorted_pub)
+        sub_total = sum(sorted_sub)
+        summary.update({
+            "pub_total": pub_total, "sub_total": sub_total,
+            "load_mean": float(np.mean(total_arr)),
+            "load_median": float(np.median(total_arr)),
+            "load_std": float(np.std(total_arr)),
+            "cv": float(np.std(total_arr) / np.mean(total_arr) * 100) if np.mean(total_arr) > 0 else 0,
+            "zero_load": sum(1 for t in all_totals if t == 0),
+        })
+
+    return {
+        "node_ids": node_ids, "sorted_labels": sorted_labels, "sorted_ids": sorted_ids,
+        "sorted_pub": sorted_pub, "sorted_sub": sorted_sub,
+        "all_totals": all_totals,
+        "outliers": outliers, "iqr_upper": iqr_upper, "iqr": iqr_val,
+        "summary": summary,
+    }
+
+
+def compute_segment_comm_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute segment-to-segment communication matrix statistics."""
+    app_segment = cc["app_segment"]
+    segment_set = sorted({d for d in app_segment.values() if d != "NOT_FOUND"})
+
+    if len(segment_set) < 2:
+        return {"domain_set": segment_set, "labels": [], "matrix": np.zeros((0, 0)),
+                "outlier_pairs": [], "iqr_upper": 0, "iqr": 0, "summary": {}}
+
+    n = len(segment_set)
+    labels = [d[:25] for d in segment_set]
+    matrix = _build_communication_matrix(
+        cc, lambda aid: app_segment.get(aid, "NOT_FOUND") if app_segment.get(aid, "NOT_FOUND") != "NOT_FOUND" else None,
+        segment_set)
+
+    matrix_stats = _compute_matrix_stats(matrix, labels, n)
+    return {
+        "domain_set": segment_set, "labels": labels, "matrix": matrix,
+        **matrix_stats,
+    }
+
+
+def compute_criticality_io_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute criticality × I/O load statistics."""
+    app_criticality = cc["app_criticality"]
+    app_pub = cc["app_pub_count"]
+    app_sub = cc["app_sub_count"]
+    app_names = cc["app_names"]
+
+    crit_pubs, crit_subs, crit_labels, crit_ids = [], [], [], []
+    norm_pubs, norm_subs, norm_labels, norm_ids = [], [], [], []
+
+    for aid in app_pub:
+        p = app_pub[aid]
+        s = app_sub.get(aid, 0)
+        name = app_names.get(aid, aid)
+        if app_criticality.get(aid, False):
+            crit_pubs.append(p)
+            crit_subs.append(s)
+            crit_labels.append(name)
+            crit_ids.append(aid)
+        else:
+            norm_pubs.append(p)
+            norm_subs.append(s)
+            norm_labels.append(name)
+            norm_ids.append(aid)
+
+    crit_io = [p + s for p, s in zip(crit_pubs, crit_subs)]
+    nonzero_crit = [v for v in crit_io if v > 0]
+    outliers: List[Tuple[str, int, int, int]] = []
+    iqr_upper = 0.0
+    if len(nonzero_crit) >= 4:
+        _, iqr_upper, _ = find_1d_outliers_iqr(nonzero_crit)
+        outliers = [
+            (crit_labels[i], crit_pubs[i], crit_subs[i], crit_io[i])
+            for i in range(len(crit_io)) if crit_io[i] > iqr_upper
+        ]
+        outliers.sort(key=lambda x: x[3], reverse=True)
+
+    total_apps = len(crit_pubs) + len(norm_pubs)
+    summary: Dict[str, Any] = {
+        "total_apps": total_apps,
+        "crit_count": len(crit_pubs),
+        "crit_pct": (len(crit_pubs) / total_apps * 100) if total_apps > 0 else 0,
+        "outlier_count": len(outliers),
+    }
+    if crit_io:
+        crit_arr = np.array(crit_io, dtype=float)
+        summary.update({
+            "crit_io_mean": float(np.mean(crit_arr)),
+            "crit_io_median": float(np.median(crit_arr)),
+            "crit_io_max": int(np.max(crit_arr)),
+        })
+    norm_io = [p + s for p, s in zip(norm_pubs, norm_subs)]
+    if norm_io:
+        norm_arr = np.array(norm_io, dtype=float)
+        summary.update({
+            "norm_io_mean": float(np.mean(norm_arr)),
+            "norm_io_median": float(np.median(norm_arr)),
+            "norm_io_max": int(np.max(norm_arr)),
+        })
+    if crit_io and norm_io:
+        crit_mean = float(np.mean(crit_io))
+        norm_mean = float(np.mean(norm_io))
+        if norm_mean > 0:
+            summary["crit_norm_ratio"] = crit_mean / norm_mean
+
+    return {
+        "crit_pubs": crit_pubs, "crit_subs": crit_subs, "crit_labels": crit_labels, "crit_ids": crit_ids,
+        "norm_pubs": norm_pubs, "norm_subs": norm_subs, "norm_labels": norm_labels, "norm_ids": norm_ids,
+        "crit_io": crit_io,
+        "outliers": outliers, "iqr_upper": iqr_upper,
+        "summary": summary,
+    }
+
+
+def compute_lib_dependency_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute library dependency density statistics."""
+    uses = cc["uses"]
+    lib_names = cc["lib_names"]
+    app_names = cc["app_names"]
+
+    if not uses:
+        return {
+            "active_ids": [], "display_ids": [], "labels": [],
+            "in_vals": [], "out_vals": [],
+            "outliers": [], "iqr_upper": 0, "iqr": 0,
+            "summary": {"total_relations": 0},
+        }
+
+    all_ids = set(app_names.keys()) | set(lib_names.keys())
+    entity_names = {**app_names, **lib_names}
+
+    in_degree: Dict[str, int] = {eid: 0 for eid in all_ids}
+    out_degree: Dict[str, int] = {eid: 0 for eid in all_ids}
+    for rel in uses:
+        src = rel.get("from")
+        dst = rel.get("to")
+        if src in all_ids and dst in all_ids:
+            out_degree[src] = out_degree.get(src, 0) + 1
+            in_degree[dst] = in_degree.get(dst, 0) + 1
+
+    active_ids = [eid for eid in all_ids if in_degree.get(eid, 0) > 0 or out_degree.get(eid, 0) > 0]
+    active_ids.sort(key=lambda eid: in_degree.get(eid, 0) + out_degree.get(eid, 0), reverse=True)
+
+    display_ids = active_ids[:40]
+    labels = [entity_names.get(eid, eid)[:30] for eid in display_ids]
+    in_vals = [in_degree.get(eid, 0) for eid in display_ids]
+    out_vals = [out_degree.get(eid, 0) for eid in display_ids]
+
+    all_in = [in_degree.get(eid, 0) for eid in active_ids]
+    nonzero_in = [v for v in all_in if v > 0]
+    outliers: List[Tuple[str, int, int]] = []
+    iqr_upper = 0.0
+    iqr_val = 0.0
+    if len(nonzero_in) >= 4:
+        _, iqr_upper, iqr_val = find_1d_outliers_iqr(nonzero_in)
+        outliers = [
+            (entity_names.get(eid, eid), in_degree.get(eid, 0), out_degree.get(eid, 0))
+            for eid in active_ids if in_degree.get(eid, 0) > iqr_upper
+        ]
+        outliers.sort(key=lambda x: x[1], reverse=True)
+
+    all_out = [out_degree.get(eid, 0) for eid in active_ids]
+    nonzero_out = [v for v in all_out if v > 0]
+
+    lib_count = sum(1 for eid in active_ids if eid in lib_names)
+    app_count = len(active_ids) - lib_count
+
+    summary: Dict[str, Any] = {
+        "total_relations": len(uses),
+        "active_count": len(active_ids),
+        "app_count": app_count,
+        "lib_count": lib_count,
+        "outlier_count": len(outliers),
+    }
+    if nonzero_in:
+        summary["in_mean"] = float(np.mean(nonzero_in))
+        summary["in_max"] = int(np.max(nonzero_in))
+    if nonzero_out:
+        summary["out_mean"] = float(np.mean(nonzero_out))
+        summary["out_max"] = int(np.max(nonzero_out))
+
+    return {
+        "active_ids": active_ids, "display_ids": display_ids,
+        "labels": labels, "in_vals": in_vals, "out_vals": out_vals,
+        "entity_names": entity_names, "lib_names_set": set(lib_names.keys()),
+        "outliers": outliers, "iqr_upper": iqr_upper, "iqr": iqr_val,
+        "summary": summary,
+    }
+
+
+def compute_node_critical_density_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute node critical application density statistics."""
+    node_ids = [n["id"] for n in cc["nodes"]]
+    node_labels = [cc["node_names"].get(nid, nid) for nid in node_ids]
+    app_criticality = cc["app_criticality"]
+    app_node = cc["app_node"]
+
+    node_crit = {nid: 0 for nid in node_ids}
+    node_norm = {nid: 0 for nid in node_ids}
+    for aid, nid in app_node.items():
+        if nid in node_crit:
+            if app_criticality.get(aid, False):
+                node_crit[nid] += 1
+            else:
+                node_norm[nid] += 1
+
+    crit_vals = [node_crit[nid] for nid in node_ids]
+    norm_vals = [node_norm[nid] for nid in node_ids]
+    totals = [c + n for c, n in zip(crit_vals, norm_vals)]
+
+    sorted_idx = sorted(range(len(totals)), key=lambda i: totals[i], reverse=True)
+    sorted_labels = [node_labels[i][:25] for i in sorted_idx]
+    sorted_ids = [node_ids[i] for i in sorted_idx]
+    sorted_crit = [crit_vals[i] for i in sorted_idx]
+    sorted_norm = [norm_vals[i] for i in sorted_idx]
+
+    total_crit = sum(crit_vals)
+    total_norm = sum(norm_vals)
+    total_all = total_crit + total_norm
+
+    crit_ratios = [c / (c + n) * 100 if (c + n) > 0 else 0 for c, n in zip(crit_vals, norm_vals)]
+    max_ratio_idx = max(range(len(crit_ratios)), key=lambda i: crit_ratios[i]) if crit_ratios else 0
+
+    summary: Dict[str, Any] = {
+        "node_count": len(node_ids),
+        "total_all": total_all,
+        "total_crit": total_crit,
+        "total_norm": total_norm,
+        "system_crit_pct": (total_crit / total_all * 100) if total_all > 0 else 0,
+        "zero_crit": sum(1 for c in crit_vals if c == 0),
+    }
+    if crit_vals:
+        crit_arr = np.array(crit_vals, dtype=float)
+        summary["crit_per_node_mean"] = float(np.mean(crit_arr))
+        summary["crit_per_node_max"] = int(np.max(crit_arr))
+    if crit_ratios and node_labels:
+        summary["max_ratio_node"] = node_labels[max_ratio_idx]
+        summary["max_ratio_pct"] = crit_ratios[max_ratio_idx]
+
+    return {
+        "node_ids": node_ids, "node_labels": node_labels,
+        "sorted_labels": sorted_labels, "sorted_ids": sorted_ids,
+        "sorted_crit": sorted_crit, "sorted_norm": sorted_norm,
+        "crit_vals": crit_vals, "norm_vals": norm_vals,
+        "summary": summary,
+    }
+
+
+def compute_segment_diversity_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute segment application and topic diversity statistics."""
+    app_segment = cc["app_segment"]
+    app_pub = cc["app_pub_count"]
+    app_sub = cc["app_sub_count"]
+
+    segment_set = sorted({d for d in app_segment.values() if d != "NOT_FOUND"})
+    if len(segment_set) < 2:
+        return {"domain_set": segment_set, "labels": [], "app_counts": [],
+                "topic_counts": [], "io_vals": [], "ranked": [],
+                "summary": {}}
+
+    segment_apps: Dict[str, set] = {d: set() for d in segment_set}
+    segment_topics: Dict[str, set] = {d: set() for d in segment_set}
+    segment_io: Dict[str, int] = {d: 0 for d in segment_set}
+
+    for aid, dom in app_segment.items():
+        if dom in segment_apps:
+            segment_apps[dom].add(aid)
+            segment_io[dom] += app_pub.get(aid, 0) + app_sub.get(aid, 0)
+
+    for rel in cc["publishes_to"]:
+        aid = rel.get("from")
+        tid = rel.get("to")
+        dom = app_segment.get(aid, "NOT_FOUND")
+        if dom in segment_topics and tid:
+            segment_topics[dom].add(tid)
+
+    for rel in cc["subscribes_to"]:
+        aid = rel.get("from")
+        tid = rel.get("to")
+        dom = app_segment.get(aid, "NOT_FOUND")
+        if dom in segment_topics and tid:
+            segment_topics[dom].add(tid)
+
+    labels = list(segment_set)
+    app_counts = [len(segment_apps[d]) for d in labels]
+    topic_counts = [len(segment_topics[d]) for d in labels]
+    io_vals = [segment_io[d] for d in labels]
+
+    ranked = sorted(
+        zip(labels, app_counts, topic_counts, io_vals),
+        key=lambda x: x[3], reverse=True,
+    )
+
+    summary: Dict[str, Any] = {"css_count": len(labels)}
+    if app_counts:
+        summary["app_mean"] = float(np.mean(app_counts))
+        summary["app_max"] = int(np.max(app_counts))
+    if topic_counts:
+        summary["topic_mean"] = float(np.mean(topic_counts))
+        summary["topic_max"] = int(np.max(topic_counts))
+    if io_vals:
+        summary["io_mean"] = float(np.mean(io_vals))
+        summary["io_max"] = int(np.max(io_vals))
+
+    return {
+        "domain_set": segment_set, "labels": labels,
+        "app_counts": app_counts, "topic_counts": topic_counts,
+        "io_vals": io_vals, "ranked": ranked,
+        "summary": summary,
+    }
+
+
+# ===================== BOTTLENECK FAST ANALYSIS (Stat 11) =====================
+
+_APPROX_THRESHOLD = 512   # nodes above which approx betweenness is used
+_APPROX_K         = 512   # pivot count for approximation
+
+
+def _build_distance_graph(G: nx.DiGraph) -> nx.DiGraph:
+    """Return a copy of G with weights inverted for distance-based betweenness."""
+    G_dist = G.copy()
+    for u, v, data in G_dist.edges(data=True):
+        w = data.get("weight", 1.0)
+        data["weight"] = 1.0 / w if w > 0 else 1.0
+    return G_dist
+
+
+def _art_points_disconnected(U: nx.Graph) -> Set[str]:
+    """Articulation points across all connected components."""
+    pts: Set[str] = set()
+    for comp in nx.connected_components(U):
+        sub = U.subgraph(comp)
+        if len(sub) >= 3:
+            pts.update(nx.articulation_points(sub))
+    return pts
+
+
+def _bridges_disconnected(U: nx.Graph) -> Set:
+    """Bridges across all connected components."""
+    br = set()
+    for comp in nx.connected_components(U):
+        sub = U.subgraph(comp)
+        if len(sub) >= 2:
+            br.update(nx.bridges(sub))
+    return br
+
+
+def _compute_ap_c_fast(
+    G_undir: nx.Graph,
+    art_points: Set[str],
+    n: int,
+) -> Dict[str, float]:
+    """
+    Compute ap_c = 1 − largest_component/(n−1) for all nodes.
+
+    Non-articulation points short-circuit to 0.0.  For articulation points,
+    BFS from each neighbour of the AP (skipping the AP itself) finds the
+    resulting component sizes without copying the graph.
+
+    Complexity: O(|AP| · avg_BFS_size) instead of O(V · (V+E)).
+    """
+    result: Dict[str, float] = {v: 0.0 for v in G_undir.nodes}
+    if n <= 2 or not art_points:
+        return result
+
+    ccs: List[Set[str]] = list(nx.connected_components(G_undir))
+    cc_of_node: Dict[str, int] = {node: i for i, cc in enumerate(ccs) for node in cc}
+    cc_sizes = [len(cc) for cc in ccs]
+
+    for v in art_points:
+        v_cc_idx = cc_of_node.get(v)
+        if v_cc_idx is None:
+            continue
+
+        other_max = max(
+            (s for i, s in enumerate(cc_sizes) if i != v_cc_idx), default=0
+        )
+
+        sub = G_undir.subgraph(ccs[v_cc_idx])
+        visited: Set[str] = {v}
+        component_sizes: List[int] = []
+
+        for start in sub.neighbors(v):
+            if start in visited:
+                continue
+            queue: deque = deque([start])
+            visited.add(start)
+            size = 1
+            while queue:
+                curr = queue.popleft()
+                for nb in sub.neighbors(curr):
+                    if nb not in visited:
+                        visited.add(nb)
+                        queue.append(nb)
+                        size += 1
+            component_sizes.append(size)
+
+        local_max = max(component_sizes, default=0)
+        largest   = max(local_max, other_max)
+        result[v] = 1.0 - largest / (n - 1)
+
+    return result
+
+
+def _compute_blast_radius_fast(G: nx.DiGraph) -> Dict[str, int]:
+    """
+    Compute blast_radius[v] = reachable nodes from v (excluding v) via SCC condensation.
+
+    blast_radius[v] = (|SCC(v)| − 1) + Σ |SCC(w)| for w in descendants(SCC(v))
+
+    Complexity: O(V+E) for condensation + O(V_c·(V_c+E_c)) for DAG traversal.
+    """
+    if G.number_of_nodes() == 0:
+        return {}
+
+    dag = nx.condensation(G)
+
+    scc_blast: Dict[int, int] = {}
+    for scc_id in dag.nodes:
+        members    = dag.nodes[scc_id]["members"]
+        own_size   = len(members)
+        downstream = sum(
+            len(dag.nodes[rid]["members"])
+            for rid in nx.descendants(dag, scc_id)
+        )
+        scc_blast[scc_id] = (own_size - 1) + downstream
+
+    blast_radius: Dict[str, int] = {}
+    for scc_id in dag.nodes:
+        for node in dag.nodes[scc_id]["members"]:
+            blast_radius[node] = scc_blast[scc_id]
+
+    return blast_radius
+
+
+def _compute_directed_aps_fast(G: nx.DiGraph) -> Set[str]:
+    """
+    Identify directed articulation points via BFS with node exclusion.
+
+    A node v is a directed AP if its removal reduces the set of nodes
+    reachable from all in-degree-0 roots.  Uses explicit exclusion in BFS
+    rather than graph copies, eliminating O(V+E) allocation overhead per node.
+
+    Complexity: O(|base_reachable| · (V+E)) time, O(V+E) space.
+    """
+    roots = [n for n in G.nodes if G.in_degree(n) == 0]
+    if not roots:
+        return set()
+
+    base_reachable: Set[str] = set()
+    for r in roots:
+        if r not in base_reachable:
+            stack = [r]
+            base_reachable.add(r)
+            while stack:
+                curr = stack.pop()
+                for nb in G.successors(curr):
+                    if nb not in base_reachable:
+                        base_reachable.add(nb)
+                        stack.append(nb)
+
+    if not base_reachable:
+        return set()
+
+    target = len(base_reachable) - 1
+    directed_aps: Set[str] = set()
+
+    for v in base_reachable:
+        reachable: Set[str] = set()
+        stack = []
+        for r in roots:
+            if r != v and r not in reachable:
+                reachable.add(r)
+                stack.append(r)
+        while stack:
+            curr = stack.pop()
+            for nb in G.successors(curr):
+                if nb != v and nb not in reachable:
+                    reachable.add(nb)
+                    stack.append(nb)
+        if len(reachable) < target:
+            directed_aps.add(v)
+
+    return directed_aps
+
+
+def analyze_for_bottleneck(
+    graph_data: Any,
+    layer: AnalysisLayer = AnalysisLayer.SYSTEM,
+) -> Dict[str, Dict[str, Any]]:
+    """Compute per-component bottleneck metrics from graph topology.
+
+    Fast path that computes only the four metrics needed for the bottleneck
+    score formula:
+
+        score = 0.40·betweenness + 0.25·ap_c_directed
+              + 0.20·blast_radius_norm + 0.15·bridge_ratio
+
+    Performance improvements over running the full StructuralAnalyzer:
+    * Approximate betweenness (k-pivot sampling) for graphs > 512 nodes.
+    * ap_c_directed via BFS-per-AP without graph copies.
+    * blast_radius via SCC condensation → O(V+E).
+    * Directed APs via BFS-with-exclusion (no per-node graph allocation).
+    * Skips PageRank, closeness, eigenvector, pubsub metrics, code quality.
+
+    Returns a dict ``{component_id: metric_dict}`` ready to pass directly
+    to ``compute_bottleneck_stats_from_structural``.
+    """
+    defn = get_layer_definition(layer)
+    G = extract_layer_subgraph(graph_data, layer)
+
+    if G.number_of_nodes() == 0:
+        return {}
+
+    analyze_types = defn.types_to_analyze
+    n_nodes = G.number_of_nodes()
+
+    # Betweenness (approximate for large graphs)
+    G_dist = _build_distance_graph(G)
+    if n_nodes > _APPROX_THRESHOLD:
+        k = min(_APPROX_K, n_nodes)
+        betweenness = nx.betweenness_centrality(G_dist, k=k, weight="weight", normalized=True)
+    else:
+        betweenness = nx.betweenness_centrality(G_dist, weight="weight", normalized=True)
+
+    # Degree
+    in_deg  = dict(G.in_degree())
+    out_deg = dict(G.out_degree())
+
+    # Resilience (undirected)
+    U = G.to_undirected()
+    art_points = (
+        set(nx.articulation_points(U))
+        if nx.is_connected(U)
+        else _art_points_disconnected(U)
+    )
+    bridges = (
+        set(nx.bridges(U))
+        if nx.is_connected(U)
+        else _bridges_disconnected(U)
+    )
+    node_bridge_count: Dict[str, int] = {}
+    for (u, v) in bridges:
+        node_bridge_count[u] = node_bridge_count.get(u, 0) + 1
+        node_bridge_count[v] = node_bridge_count.get(v, 0) + 1
+
+    # ap_c_directed (BFS-per-AP, no graph copies)
+    ap_c_out = _compute_ap_c_fast(U, art_points, n_nodes)
+    U_T = G.reverse(copy=False).to_undirected()
+    art_points_T = (
+        set(nx.articulation_points(U_T))
+        if nx.is_connected(U_T)
+        else _art_points_disconnected(U_T)
+    )
+    ap_c_in = _compute_ap_c_fast(U_T, art_points_T, n_nodes)
+    ap_c_directed: Dict[str, float] = {
+        nid: max(ap_c_out.get(nid, 0.0), ap_c_in.get(nid, 0.0))
+        for nid in G.nodes
+    }
+
+    # Blast radius (SCC condensation)
+    blast_radius = _compute_blast_radius_fast(G)
+
+    # Directed APs (BFS with exclusion, no graph copies)
+    directed_aps = _compute_directed_aps_fast(G)
+
+    # Assemble result dicts
+    result: Dict[str, Dict[str, Any]] = {}
+    for nid in G.nodes:
+        ntype = G.nodes[nid].get("component_type", "Unknown")
+        if ntype not in analyze_types:
+            continue
+
+        raw_in    = in_deg.get(nid, 0)
+        raw_out   = out_deg.get(nid, 0)
+        total_raw = raw_in + raw_out
+        bc        = node_bridge_count.get(nid, 0)
+
+        result[nid] = {
+            "id": nid,
+            "name": G.nodes[nid].get("name", nid),
+            "type": ntype,
+            "betweenness": betweenness.get(nid, 0.0),
+            "ap_c_directed": ap_c_directed.get(nid, 0.0),
+            "blast_radius": blast_radius.get(nid, 0),
+            "bridge_count": bc,
+            "bridge_ratio": bc / total_raw if total_raw > 0 else 0.0,
+            "is_articulation_point": nid in art_points,
+            "is_directed_ap": nid in directed_aps,
+            "is_isolated": total_raw == 0,
+            "weight": G.nodes[nid].get("weight", 1.0),
+            "dependency_weight_in": 0.0,
+            "dependency_weight_out": 0.0,
+            "cascade_depth": 0,
+            "pubsub_betweenness": 0.0,
+        }
+
+    return result
+
+
+def compute_bottleneck_stats_from_structural(components: Dict[str, Any]) -> Dict[str, Any]:
+    """Identify structural bottlenecks from StructuralMetrics.
+
+    Scores each component with a composite bottleneck score based on four
+    real structural signals:
+
+        bottleneck_score = 0.40 * betweenness          # lies on many shortest paths
+                         + 0.25 * ap_c_directed        # removal hurts connectivity
+                         + 0.20 * blast_radius_norm     # downstream nodes made unreachable
+                         + 0.15 * bridge_ratio          # fraction of incident edges that are bridges
+
+    Articulation points and directed APs are flagged independently.
+    Components are ranked by this score and outliers identified via IQR.
+    """
+    if not components:
+        return {"items": [], "summary": {"total": 0, "articulation_point_count": 0, "outlier_count": 0}}
+
+    max_blast = max((c.get("blast_radius", 0) for c in components.values()), default=1)
+
+    items: List[Dict[str, Any]] = []
+    for cid, c in components.items():
+        blast_norm = c.get("blast_radius", 0) / max_blast if max_blast > 0 else 0.0
+        score = (
+            0.40 * c.get("betweenness", 0.0)
+            + 0.25 * c.get("ap_c_directed", 0.0)
+            + 0.20 * blast_norm
+            + 0.15 * c.get("bridge_ratio", 0.0)
+        )
+        items.append({
+            "id": cid,
+            "name": c.get("name", cid),
+            "type": c.get("type", "Unknown"),
+            "bottleneck_score": round(score, 4),
+            "betweenness": round(c.get("betweenness", 0.0), 4),
+            "ap_c_directed": round(c.get("ap_c_directed", 0.0), 4),
+            "blast_radius": c.get("blast_radius", 0),
+            "blast_radius_norm": round(blast_norm, 4),
+            "bridge_ratio": round(c.get("bridge_ratio", 0.0), 4),
+            "is_articulation_point": bool(c.get("is_articulation_point", False)),
+            "is_directed_ap": bool(c.get("is_directed_ap", False)),
+            "cascade_depth": c.get("cascade_depth", 0),
+            "pubsub_betweenness": round(c.get("pubsub_betweenness", 0.0), 4),
+            "weight": round(c.get("weight", 1.0), 4),
+        })
+
+    items.sort(key=lambda x: x["bottleneck_score"], reverse=True)
+
+    scores = [it["bottleneck_score"] for it in items]
+    nonzero = [s for s in scores if s > 0]
+    outlier_indices: List[int] = []
+    score_upper = 0.0
+    if len(nonzero) >= 4:
+        _, score_upper, _ = find_1d_outliers_iqr(nonzero)
+        outlier_indices = [i for i, it in enumerate(items) if it["bottleneck_score"] > score_upper]
+
+    ap_count = sum(1 for it in items if it["is_articulation_point"])
+    directed_ap_count = sum(1 for it in items if it["is_directed_ap"])
+
+    summary: Dict[str, Any] = {
+        "total": len(items),
+        "articulation_point_count": ap_count,
+        "directed_ap_count": directed_ap_count,
+        "outlier_count": len(outlier_indices),
+        "score_upper": round(score_upper, 4),
+    }
+    if scores:
+        arr = np.array(scores, dtype=float)
+        summary.update({
+            "score_mean": round(float(np.mean(arr)), 4),
+            "score_max": round(float(np.max(arr)), 4),
+        })
+
+    return {
+        "items": items,
+        "outlier_indices": outlier_indices,
+        "summary": summary,
+    }
+
+
+# ===================== TOP-LEVEL ENTRY POINT =====================
+
+
+def to_serializable(obj: Any) -> Any:
+    """Recursively convert numpy and set types to JSON-safe Python primitives."""
+    try:
+        import numpy as np
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+    except ImportError:
+        pass
+    if isinstance(obj, dict):
+        return {k: to_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [to_serializable(i) for i in obj]
+    if isinstance(obj, set):
+        return sorted(to_serializable(i) for i in obj)
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    return obj
+
+
+def compute_all_extras_statistics(
+    cc: Dict[str, Any],
+    risk_weight_fn: Optional[Callable[[str, str], float]] = None,
+    w2name: Optional[Dict[str, Dict[float, str]]] = None,
+) -> Dict[str, Any]:
+    """Compute all extras chart statistics from cross-cutting data.
+
+    This is the main entry point for standalone statistics computation.
+    Given cross-cutting data (from ``extract_cross_cutting_data``), this
+    function computes all statistics used by the extras charts.
+    The returned dictionary is completely JSON-serializable.
+
+    Args:
+        cc: Cross-cutting data dict from ``extract_cross_cutting_data``.
+        risk_weight_fn: Callable(dimension, value) -> float weight for QoS
+            risk scoring.  When *None* the QoS chart is skipped.
+        w2name: Weight-to-display-name maps per QoS dimension.
+
+    Returns:
+        Dict keyed by chart identifier with each chart's statistics.
+    """
+    result: Dict[str, Any] = {
+        "topic_bandwidth": compute_topic_bandwidth_stats(cc),
+        "app_balance": compute_app_balance_stats(cc),
+        "topic_fanout": compute_topic_fanout_stats(cc),
+        "cross_node_heatmap": compute_cross_node_heatmap_stats(cc),
+        "node_comm_load": compute_node_comm_load_stats(cc),
+        "domain_comm": compute_segment_comm_stats(cc),
+        "criticality_io": compute_criticality_io_stats(cc),
+        "lib_dependency": compute_lib_dependency_stats(cc),
+        "node_critical_density": compute_node_critical_density_stats(cc),
+        "domain_diversity": compute_segment_diversity_stats(cc),
+    }
+
+    if risk_weight_fn is not None:
+        result["qos_risk"] = compute_qos_risk_stats(cc, risk_weight_fn, w2name)
+
+    return to_serializable(result)

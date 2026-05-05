@@ -370,7 +370,7 @@ def main() -> None:
         if args.format != "json":
             display.print_step("Computing statistics…")
 
-        from api.statistics import extract_cross_cutting_data, compute_all_extras_statistics
+        from saag.analysis.statistics import extract_cross_cutting_data, compute_all_extras_statistics
 
         cc = extract_cross_cutting_data(raw_data)
         all_stats = compute_all_extras_statistics(cc)
