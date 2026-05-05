@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import {
   Waypoints, Database, TrendingUp,
@@ -123,9 +124,62 @@ export default function DashboardPage() {
   if (!initialLoadComplete || status === 'connecting' || (isConnected && !stats)) {
     return (
       <AppLayout title="Dashboard" description="Distributed system at a glance">
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner size="lg"
-            text={status === 'connecting' ? 'Connecting to database…' : 'Loading dashboard…'} />
+        <div className="space-y-5">
+          {/* KPI tiles skeleton */}
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-2.5 w-28" />
+              </div>
+            ))}
+          </div>
+          {/* CTA banners skeleton */}
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-muted/20 px-5 py-4 flex items-center gap-3">
+                <Skeleton className="h-9 w-9 rounded-lg shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-40" />
+                  <Skeleton className="h-2.5 w-56" />
+                </div>
+                <Skeleton className="h-5 w-5 rounded shrink-0" />
+              </div>
+            ))}
+          </div>
+          {/* Chart cards skeleton */}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {/* Donut chart */}
+            <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+              <Skeleton className="h-4 w-36" />
+              <div className="flex items-center justify-center gap-6 py-2">
+                <Skeleton className="h-28 w-28 rounded-full" />
+                <div className="space-y-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Skeleton className="h-2.5 w-2.5 rounded-sm shrink-0" />
+                      <Skeleton className="h-2.5" style={{ width: `${50 + (i * 13) % 40}px` }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* Bar charts */}
+            {Array.from({ length: 2 }).map((_, ci) => (
+              <div key={ci} className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                <Skeleton className="h-4 w-44" />
+                <div className="space-y-2 pt-1">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Skeleton className="h-2.5 w-24 shrink-0" />
+                      <Skeleton className="h-4 rounded-sm" style={{ width: `${30 + (i * 19 + ci * 7) % 55}%` }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </AppLayout>
     )

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -2963,11 +2964,12 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 }
 // ── Graph Tab Side Panel ─────────────────────────────────────────────────────
 
-function GraphTabSidePanel({ selectedNode, links, nodeLabels, onSelect }: {
+function GraphTabSidePanel({ selectedNode, links, nodeLabels, onSelect, loading = false }: {
   selectedNode: SelectedNodeInfo | null
   links: any[]
   nodeLabels: Map<string, { label: string; type: string }>
   onSelect: (id: string) => void
+  loading?: boolean
 }) {
   const [tab, setTab] = useState<"details" | "connections">("details")
 
@@ -2997,6 +2999,7 @@ function GraphTabSidePanel({ selectedNode, links, nodeLabels, onSelect }: {
               links={links}
               nodeLabels={nodeLabels}
               onSelect={(id) => { onSelect(id); setTab("details") }}
+              loading={loading}
             />
         }
       </div>
@@ -4134,7 +4137,55 @@ function BrowserPageContent() {
   }, [appsList])
 
   if (!initialLoadComplete) {
-    return <AppLayout><div className="flex items-center justify-center h-64"><LoadingSpinner /></div></AppLayout>
+    return (
+      <AppLayout title="Explorer" description="Browse your system topology, inspect components, and explore dependency relationships.">
+        <div className="space-y-3">
+          {/* Tabs skeleton */}
+          <div className="flex gap-1 border-b border-border pb-0">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 rounded-b-none" style={{ width: `${64 + i * 24}px` }} />
+            ))}
+          </div>
+          {/* 3-column layout skeleton */}
+          <div className="flex gap-0 border border-border rounded-lg overflow-hidden" style={{ minHeight: "520px" }}>
+            {/* Left: list panel */}
+            <div className="w-56 shrink-0 border-r border-border p-3 space-y-2">
+              <Skeleton className="h-7 w-full rounded-md mb-3" />
+              {Array.from({ length: 14 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2 px-1">
+                  <Skeleton className="h-3" style={{ width: `${50 + (i * 13) % 40}%` }} />
+                </div>
+              ))}
+            </div>
+            {/* Middle: detail panel */}
+            <div className="flex-1 p-4 space-y-3 border-r border-border">
+              <div className="flex items-center gap-3 pb-3 border-b border-border/60">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-5 w-16 ml-auto rounded-full" />
+              </div>
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 py-1">
+                  <Skeleton className="h-3" style={{ width: `${25 + (i * 17) % 30}%` }} />
+                  <Skeleton className="h-3" style={{ width: `${20 + (i * 11) % 25}%` }} />
+                </div>
+              ))}
+            </div>
+            {/* Right: connections panel */}
+            <div className="w-64 shrink-0 p-3 space-y-2">
+              <Skeleton className="h-2.5 w-24 mb-1.5" />
+              <Skeleton className="h-2.5 w-16 mb-3" />
+              <Skeleton className="h-7 w-full rounded-md mb-2" />
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2 py-1.5 border-b border-border/40">
+                  <Skeleton className="h-3" style={{ width: `${40 + (i * 19) % 40}%` }} />
+                  <Skeleton className="h-4 w-14 rounded ml-auto" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    )
   }
   if (!isConnected) {
     return <AppLayout><NoConnectionInfo /></AppLayout>
@@ -4198,7 +4249,20 @@ function BrowserPageContent() {
               {/* Middle: Detail / table panel */}
               <div className="flex-1 overflow-auto min-w-0 border-r border-border">
                 {loading && !csmsKeys.length
-                  ? <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
+                  ? (
+                    <div className="p-4 flex flex-col gap-3">
+                      <div className="flex items-center gap-3 pb-3 border-b border-border/60">
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-5 w-16 ml-auto rounded-full" />
+                      </div>
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-4 py-1">
+                          <Skeleton className="h-3" style={{ width: `${30 + (i * 17) % 30}%` }} />
+                          <Skeleton className="h-3" style={{ width: `${20 + (i * 11) % 25}%` }} />
+                        </div>
+                      ))}
+                    </div>
+                  )
                   : selectedNode
                     ? <NodeDetailPanel node={selectedNode} />
                     : <EmptyDetailState />
@@ -4211,6 +4275,7 @@ function BrowserPageContent() {
                   selectedNode={selectedNode}
                   links={layerGraphLinks}
                   nodeLabels={allNodeLabels}
+                  loading={layerLinksLoading}
                   onSelect={(id) => {
                     const info = allNodeLabels.get(id)
                     if (!info) return
@@ -4257,6 +4322,7 @@ function BrowserPageContent() {
                       selectedNode={hierSelectedNode}
                       links={layerGraphLinks}
                       nodeLabels={allNodeLabels}
+                      loading={layerLinksLoading}
                       onSelect={(id) => {
                         const info = allNodeLabels.get(id)
                         if (!info) return
@@ -4300,6 +4366,7 @@ function BrowserPageContent() {
                       selectedNode={selectedNode}
                       links={layerGraphLinks}
                       nodeLabels={allNodeLabels}
+                      loading={layerLinksLoading}
                       onSelect={(id) => {
                         const info = allNodeLabels.get(id)
                         if (!info) return
@@ -4383,11 +4450,12 @@ const CONN_TYPE_COLORS: Record<string, string> = {
 }
 function connTypeColor(type: string) { return CONN_TYPE_COLORS[type] ?? "#71717a" }
 
-function ConnectionsColumn({ selectedNode, links, nodeLabels, onSelect }: {
+function ConnectionsColumn({ selectedNode, links, nodeLabels, onSelect, loading = false }: {
   selectedNode: SelectedNode | null
   links: Array<{ source: string; target: string; type: string; weight?: number }>
   nodeLabels: Map<string, { label: string; type: string }>
   onSelect: (id: string) => void
+  loading?: boolean
 }) {
   const nodeId = selectedNode ? selectedNode.key.replace(/^[^:]+:/, "") : null
   const [activeRelTypes, setActiveRelTypes] = useState<Set<string>>(new Set())
@@ -4482,6 +4550,26 @@ function ConnectionsColumn({ selectedNode, links, nodeLabels, onSelect }: {
     </div>
   )
 
+  if (loading && links.length === 0) return (
+    <div className="flex flex-col h-full">
+      <div className="px-3 pt-3 pb-2 border-b border-border/60 shrink-0">
+        <Skeleton className="h-2.5 w-24 mb-1.5" />
+        <Skeleton className="h-2.5 w-16" />
+      </div>
+      <div className="px-2 py-1.5 border-b border-border/60 shrink-0">
+        <Skeleton className="h-7 w-full rounded-md" />
+      </div>
+      <div className="flex-1 overflow-y-auto p-1">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-2 px-3 py-2 border-b border-border/40">
+            <Skeleton className="h-3 flex-1" style={{ width: `${40 + (i * 19) % 40}%`, flex: "none" }} />
+            <Skeleton className="h-4 w-14 rounded ml-auto" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -4542,6 +4630,20 @@ function ConnectionsColumn({ selectedNode, links, nodeLabels, onSelect }: {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ── Skeleton list ─────────────────────────────────────────────────────────────
+
+function SkeletonList({ count = 10 }: { count?: number }) {
+  return (
+    <div className="flex flex-col gap-0">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-3 h-8">
+          <Skeleton className="h-3 flex-1" style={{ width: `${50 + (i * 13) % 40}%`, flex: "none" }} />
+        </div>
+      ))}
     </div>
   )
 }
@@ -4666,11 +4768,11 @@ function SideListPanel({
 
       {/* List */}
       <div className="flex-1 overflow-hidden">
-        {sideTab === "nodes"   && (filteredNodes.length   > 0 ? <SimpleVirtualList items={filteredNodes}   renderItem={n => makeRow(n, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No nodes.</p>)}
-        {sideTab === "brokers" && (filteredBrokers.length > 0 ? <SimpleVirtualList items={filteredBrokers} renderItem={b => makeRow(b, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No brokers.</p>)}
-        {sideTab === "libs"    && (filteredLibs.length    > 0 ? <SimpleVirtualList items={filteredLibs}    renderItem={l => makeRow(l, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No libraries.</p>)}
-        {sideTab === "apps"    && (filteredApps.length > 0 ? <SimpleVirtualList items={filteredApps} renderItem={a => makeRow(a, "app")} itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No apps.</p>)}
-        {sideTab === "topics"  && (filteredTopics.length  > 0 ? <SimpleVirtualList items={filteredTopics}  renderItem={t => makeRow(t, "topic")} itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No topics.</p>)}
+        {sideTab === "nodes"   && (loading && !filteredNodes.length   ? <SkeletonList /> : filteredNodes.length   > 0 ? <SimpleVirtualList items={filteredNodes}   renderItem={n => makeRow(n, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No nodes.</p>)}
+        {sideTab === "brokers" && (loading && !filteredBrokers.length ? <SkeletonList /> : filteredBrokers.length > 0 ? <SimpleVirtualList items={filteredBrokers} renderItem={b => makeRow(b, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No brokers.</p>)}
+        {sideTab === "libs"    && (loading && !filteredLibs.length    ? <SkeletonList /> : filteredLibs.length    > 0 ? <SimpleVirtualList items={filteredLibs}    renderItem={l => makeRow(l, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No libraries.</p>)}
+        {sideTab === "apps"    && (loading && !filteredApps.length    ? <SkeletonList /> : filteredApps.length    > 0 ? <SimpleVirtualList items={filteredApps}    renderItem={a => makeRow(a, "app")}   itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No apps.</p>)}
+        {sideTab === "topics"  && (loading && !filteredTopics.length  ? <SkeletonList /> : filteredTopics.length  > 0 ? <SimpleVirtualList items={filteredTopics}  renderItem={t => makeRow(t, "topic")} itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No topics.</p>)}
       </div>
 
     </>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect } from "react"
 import { 
   CheckCircle2, XCircle, Loader2, Server, Database, AlertCircle, 
@@ -38,9 +39,11 @@ export default function SettingsPage() {
   const [apiError, setApiError] = useState<string | null>(null)
   const [lastCheckedUrl, setLastCheckedUrl] = useState<string>('')
   const [isTestingConnection, setIsTestingConnection] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   // Check API connection on mount
   useEffect(() => {
+    setMounted(true)
     checkApiConnection()
   }, [])
 
@@ -100,6 +103,52 @@ export default function SettingsPage() {
 
   // Detect if URL has changed since last successful connection
   const hasUrlChanged = apiBaseUrl !== lastCheckedUrl && lastCheckedUrl !== ''
+
+  if (!mounted) {
+    return (
+      <AppLayout title="Settings" description="Configure your analysis environment">
+        <div className="space-y-5">
+          {/* Status tiles skeleton */}
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-8 w-28" />
+                <Skeleton className="h-2.5 w-20" />
+              </div>
+            ))}
+          </div>
+          {/* Config card skeleton */}
+          <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            </div>
+            <Skeleton className="h-9 w-full rounded-md" />
+            <Skeleton className="h-9 w-32 rounded-md" />
+          </div>
+          {/* Neo4j config card skeleton */}
+          <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-44" />
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Skeleton className="h-9 w-full rounded-md" />
+              <Skeleton className="h-9 w-full rounded-md" />
+            </div>
+            <Skeleton className="h-9 w-28 rounded-md" />
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
 
   return (
     <AppLayout title="Settings" description="Configure your analysis environment">

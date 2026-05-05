@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { useConnection } from "@/lib/stores/connection-store"
 import { API_BASE_URL } from "@/lib/config/api"
@@ -767,7 +768,6 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
   insights?: React.ReactNode
 }) {
   const [showKb, setShowKb] = useState(false)
-  const [selectedCell, setSelectedCell] = useState<{ rowId: string; colId: string; rowLabel: string; colLabel: string } | null>(null)
   const [search, setSearch] = useState("")
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme !== "light"
@@ -836,6 +836,8 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
     return String(v)
   }
 
+  const perEntity = data.per_node ?? data.per_segment
+
   const heatmapOption = {
     backgroundColor: "transparent",
     tooltip: {
@@ -848,7 +850,20 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
         const rLabel = labels[ri] ?? ri
         const cLabel = labels[ci] ?? ci
         const fmtVal = fmtCellVal(val) || "0"
-        return `<div style="font-size:12px;line-height:1.7;color:${tooltipText}"><b>${rLabel} → ${cLabel}</b><br/><span style="color:${tooltipMuted}">${fmtVal}</span></div>`
+        let topicsHtml = ""
+        if (ids && perEntity && val > 0) {
+          const rowId = ids[ri]
+          const colId = ids[ci]
+          const colSubIds = new Set(perEntity[colId]?.sub_topics.map((t) => t.id) ?? [])
+          const shared = (perEntity[rowId]?.pub_topics ?? []).filter((t) => colSubIds.has(t.id))
+          if (shared.length > 0) {
+            const topicItems = shared.map((t) =>
+              `<div style="font-family:monospace;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;color:${tooltipMuted}">${t.name}</div>`
+            ).join("")
+            topicsHtml = `<div style="margin-top:5px;border-top:1px solid ${tooltipBorder};padding-top:4px">${topicItems}</div>`
+          }
+        }
+        return `<div style="font-size:12px;line-height:1.7;color:${tooltipText}"><b>${rLabel} → ${cLabel}</b><br/><span style="color:${tooltipMuted}">${fmtVal}</span>${topicsHtml}</div>`
       },
     },
     grid: { top: 20, right: 20, bottom: n > 10 ? 80 : 50, left: n > 10 ? 120 : 80 },
@@ -886,32 +901,7 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
     }],
   }
 
-  const heatmapEvents = (modeToggle && ids)
-    ? { click: (params: { data?: [number, number, number] }) => {
-        if (!params.data) return
-        const [ci, ri] = params.data
-        handleCellClick(ri, ci)
-      }}
-    : {}
-
-  function handleCellClick(ri: number, ci: number) {
-    const perEntity = data?.per_node ?? data?.per_segment
-    if (!ids || !modeToggle || !perEntity) return
-    const rowId = ids[ri], colId = ids[ci]
-    const rowLabel = perEntity[rowId]?.label ?? rowId
-    const colLabel = perEntity[colId]?.label ?? colId
-    setSelectedCell((prev) =>
-      prev?.rowId === rowId && prev?.colId === colId ? null : { rowId, colId, rowLabel, colLabel }
-    )
-  }
-
-  // Compute topics where row publishes and col subscribes
-  let pubTopics: { id: string; name: string }[] = []
-  const perEntity = data.per_node ?? data.per_segment
-  if (selectedCell && perEntity) {
-    const colSubIds = new Set(perEntity[selectedCell.colId]?.sub_topics.map((t) => t.id) ?? [])
-    pubTopics = (perEntity[selectedCell.rowId]?.pub_topics ?? []).filter((t) => colSubIds.has(t.id))
-  }
+  const heatmapEvents = {}
 
   return (
     <div className="space-y-4">
@@ -929,7 +919,7 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">{title}</CardTitle>
             <div className="flex items-center gap-2">
-              <ChartSearchBar search={search} onSearch={(v) => { setSearch(v); setSelectedCell(null) }} count={filteredIndices.length} total={totalLabels} />
+              <ChartSearchBar search={search} onSearch={(v) => setSearch(v)} count={filteredIndices.length} total={totalLabels} />
               {data.matrix_kb && (
                 <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
                   {[false, true].map((kb) => (
@@ -949,46 +939,12 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="min-w-0 flex-1">
-              <ReactECharts
+          <ReactECharts
                 option={heatmapOption}
                 notMerge={true}
                 style={{ height: `${chartHeight}px`, width: "100%" }}
                 onEvents={heatmapEvents as Record<string, (params: { data?: [number, number, number] }) => void>}
               />
-            </div>
-            {selectedCell && (data.per_node ?? data.per_segment) && (
-              <div className="w-56 shrink-0 flex flex-col rounded-md border border-border overflow-hidden self-start sticky top-4">
-                <div className="flex items-center justify-between px-3 py-2 bg-muted/40 border-b border-border gap-2">
-                  <div className="flex items-center gap-1 min-w-0 text-xs">
-                    <span className="font-semibold text-foreground truncate">{selectedCell.rowLabel}</span>
-                    <span className="text-muted-foreground shrink-0">→</span>
-                    <span className="font-semibold text-foreground truncate">{selectedCell.colLabel}</span>
-                  </div>
-                  <button
-                    onClick={() => setSelectedCell(null)}
-                    className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs mt-0.5"
-                  >✕</button>
-                </div>
-                <div className="px-3 py-2.5 overflow-y-auto max-h-64">
-                  <p className="text-xs text-muted-foreground mb-1.5">{pubTopics.length} {pubTopics.length === 1 ? "topic" : "topics"}</p>
-                  {pubTopics.length === 0
-                    ? <p className="text-xs text-muted-foreground italic">No shared topics.</p>
-                    : <ul className="space-y-0.5">
-                        {pubTopics.map((t) => (
-                          <li
-                            key={t.id}
-                            className="text-xs font-mono text-foreground/80 truncate cursor-pointer hover:text-foreground transition-colors"
-                            onClick={() => goToExplorer(t.id)}
-                          >{t.name}</li>
-                        ))}
-                      </ul>
-                  }
-                </div>
-              </div>
-            )}
-          </div>
         </CardContent>
       </Card>
 
@@ -1597,7 +1553,7 @@ const TAB_CONFIG = [
   { id: "topic_fanout", label: "Topic Fanout", icon: Network, color: "text-amber-500", description: "Publisher × subscriber count per topic. High fanout amplifies blast radius when a publisher fails." },
   { id: "cross_node", label: "Cross-Node", icon: Server, color: "text-purple-500", description: "Inter-node message flow matrix. Highlights tightly-coupled physical hosts and network hotspots." },
   { id: "node_load", label: "Node Load", icon: BarChart3, color: "text-pink-500", description: "Total pub/sub activity per physical node. Identifies overloaded hosts and deployment imbalances." },
-  { id: "domain_comm", label: "Segment Comm", icon: Layers, color: "text-cyan-500", description: "Message flow between architectural segments. High cross-segment traffic signals tight subsystem coupling." },
+  { id: "domain_comm", label: "Segment Communication", icon: Layers, color: "text-cyan-500", description: "Message flow between architectural segments. High cross-segment traffic signals tight subsystem coupling." },
   { id: "criticality", label: "Criticality I/O", icon: AlertTriangle, color: "text-red-500", description: "I/O load of critical vs. normal applications. Shows whether mission-critical components are also communication hotspots." },
   { id: "lib_deps", label: "Library Deps", icon: BookOpen, color: "text-teal-500", description: "In/out-degree per library. High in-degree means a shared-fate risk — one library failure hits many consumers." },
   { id: "node_density", label: "Node Density", icon: Shield, color: "text-green-500", description: "Critical application density per physical node. Concentrated critical apps mean a single host failure causes outsized impact." },
@@ -1697,8 +1653,18 @@ export default function StatisticsPage() {
   if (!initialLoadComplete || status === "connecting") {
     return (
       <AppLayout title="Statistics" description="Structural and communication metrics across topics, applications, nodes, and libraries">
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner size="lg" text={status === "connecting" ? "Connecting…" : "Loading…"} />
+        <div className="space-y-5">
+          {/* Section card grid skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="rounded-lg border border-border bg-muted/20 p-6 space-y-3">
+                <Skeleton className="h-6 w-6 rounded-md" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+              </div>
+            ))}
+          </div>
         </div>
       </AppLayout>
     )
@@ -1751,8 +1717,51 @@ export default function StatisticsPage() {
                     <span className="text-sm text-muted-foreground">— {cfg.description}</span>
                   </div>
                   {isLoading && (
-                    <div className="flex h-64 items-center justify-center">
-                      <LoadingSpinner size="lg" text="Computing statistics…" />
+                    <div className="space-y-4">
+                      {/* Summary cards skeleton */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="rounded-lg border border-border bg-background p-4 space-y-2">
+                            <Skeleton className="h-3 w-24" />
+                            <Skeleton className="h-7 w-16" />
+                            <Skeleton className="h-2.5 w-32" />
+                          </div>
+                        ))}
+                      </div>
+                      {/* Bar chart skeleton */}
+                      <div className="rounded-lg border border-border bg-background p-4">
+                        <Skeleton className="h-4 w-36 mb-4" />
+                        <div className="flex items-end gap-2 h-52 pt-2">
+                          {Array.from({ length: 16 }).map((_, i) => (
+                            <Skeleton
+                              key={i}
+                              className="flex-1 rounded-sm"
+                              style={{ height: `${20 + (i * 23 + 31) % 75}%` }}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex gap-3 mt-3">
+                          {Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className="flex items-center gap-1.5">
+                              <Skeleton className="h-2.5 w-2.5 rounded-sm" />
+                              <Skeleton className="h-2.5 w-14" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Table / ranked list skeleton */}
+                      <div className="rounded-lg border border-border bg-background p-4">
+                        <Skeleton className="h-4 w-48 mb-4" />
+                        <div className="space-y-2.5">
+                          {Array.from({ length: 7 }).map((_, i) => (
+                            <div key={i} className="flex items-center gap-3">
+                              <Skeleton className="h-3 shrink-0" style={{ width: `${55 + (i * 19) % 80}px` }} />
+                              <Skeleton className="h-4 flex-1 rounded-sm" />
+                              <Skeleton className="h-3 w-10 shrink-0" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                   {!isLoading && error && (
@@ -1794,7 +1803,7 @@ export default function StatisticsPage() {
                         )
                       } />}
                       {selectedSection === "node_load" && <NodeCommLoadSection data={tabData.node_comm_load} />}
-                      {selectedSection === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Segment Comm" modeToggle insights={
+                      {selectedSection === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Segment Communication" modeToggle insights={
                         tabData.domain_comm && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             <MetricInsightCard

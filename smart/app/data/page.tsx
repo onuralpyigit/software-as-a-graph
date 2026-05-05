@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import {
   Database,
@@ -326,8 +327,36 @@ export default function DataPage() {
   if (!initialLoadComplete || status === 'connecting') {
     return (
       <AppLayout title="Data" description="Generate and import graph data">
-        <div className="flex h-full items-center justify-center">
-          <LoadingSpinner size="lg" text={status === 'connecting' ? "Connecting to database..." : "Loading data management..."} />
+        <div className="space-y-5">
+          {/* KPI tiles skeleton */}
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-8 w-12" />
+                <Skeleton className="h-2.5 w-24" />
+              </div>
+            ))}
+          </div>
+          {/* Action cards skeleton */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-muted/20 p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {Array.from({ length: 2 }).map((_, j) => (
+                    <Skeleton key={j} className="h-9 w-full rounded-md" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </AppLayout>
     )

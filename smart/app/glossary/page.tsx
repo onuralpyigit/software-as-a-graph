@@ -1,10 +1,11 @@
 ﻿"use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { BookMarked, Search, Hash } from "lucide-react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ const ALL_TERMS: Term[] = [
   { term: "Bridge Ratio", definition: "Fraction of a component's incident edges that are bridges. Higher values mean most connections are single-path with no redundancy.", formula: "bridge_ratio = bridge_edges / total_incident_edges" },
   { term: "Broadcast Topic", definition: "A topic with exactly one publisher and multiple subscribers (1→N pattern). A publisher failure on this topic simultaneously silences all consumers." },
   { term: "Broker", definition: "A routing node that relays messages between publishers and subscribers across named topic channels. Shown as a node type in the Explorer." },
+  { term: "Broker Load", definition: "Sum of inbound + outbound traffic across all topics routed by a broker. A topic routed by multiple brokers is counted in full for each — each broker independently carries the full load for every topic it routes. Shown in the Traffic Simulator Broker Usage tab." },
   { term: "Broker Type", definition: "Classification of broker middleware (e.g., DDS, MQTT, custom). Stored as the type property on Broker nodes in Neo4j. Identifies the routing protocol family used by this broker." },
   { term: "bugs", definition: "Number of bugs detected by static analysis (e.g., SonarQube). An optional property on Application and Library nodes in Neo4j; contributes to maintainability risk assessment when present." },
   // C
@@ -111,6 +113,7 @@ const ALL_TERMS: Term[] = [
   // E
   { term: "Edge Types", definition: "Classification of graph connections. Includes six DEPENDS_ON subtypes and six structural relationship types. Shown on the Dashboard as a KPI tile." },
   // F
+  { term: "Fan-out Multiplier", definition: "Ratio of subscriber count to publisher count per topic. A high multiplier (e.g. 10×) means one publisher drives significant broker outbound load. The delivered count in the summary reflects cumulative fan-out across all selected topics.", formula: "subscriber_count / publisher_count" },
   { term: "Fanout", definition: "The product of publisher count and subscriber count for a topic. High fanout amplifies the blast radius of a publisher failure.", formula: "fanout = pub_count × sub_count" },
   { term: "Flags", definition: "Visual indicators in the Bottlenecks table. 🔴 marks undirected articulation points, 🟠 marks directed articulation points, ⚡ marks score outliers." },
   // G
@@ -121,7 +124,9 @@ const ALL_TERMS: Term[] = [
   { term: "host", definition: "Hostname or network address where a Broker is deployed. Stored as the host property on Broker nodes in Neo4j; used in physical-layer analysis and heatmap drill-down enrichment." },
   // I
   { term: "Idle Nodes", definition: "Physical nodes hosting no communicating applications. May indicate orphaned infrastructure, pure compute nodes, or deployment imbalances.", formula: "count(nodes where load = 0)" },
+  { term: "In (msg/s)", definition: "Inbound message rate arriving at the broker per topic: publisher_count × frequency_hz. Total messages over the window = In × duration_sec. Shown in the Traffic Simulator per-topic table." },
   { term: "In-Degree", definition: "Number of incoming edges to a component — how many other components directly depend on this node. Shown in Statistics Library Deps." },
+  { term: "Inbound Rate", definition: "Messages arriving at a broker per second from all publishers across its routed topics. Formula: Σ(publisher_count × Hz) over all routed topics. Shown in the Broker Usage panel of the Traffic Simulator." },
   { term: "Inter-Entity Traffic", definition: "Message traffic flowing between different entities in the cross-node or segment communication heatmap — the off-diagonal cells." },
   { term: "Intra-Entity Traffic", definition: "Message traffic within the same entity in the heatmap — the diagonal cells representing self-routing." },
   { term: "Intra-Node Events", definition: "Topics where both publisher and subscriber run on the same physical node — the diagonal sum of the cross-node heatmap. This local traffic is unaffected by inter-node network failures.", formula: "Σ matrix[i][i]  (diagonal sum)" },
@@ -141,7 +146,12 @@ const ALL_TERMS: Term[] = [
   { term: "Max Library In-Degree", definition: "The highest number of applications depending on a single library. A shared-fate risk — its failure or API change affects all dependents simultaneously." },
   { term: "Max Score", definition: "Highest composite Bottleneck Score in the system. Values above 0.5 indicate a severe structural single-point of failure whose removal would disrupt the largest fraction of the system." },
   { term: "memory_gb", definition: "Total RAM in gigabytes on an infrastructure Node. Stored as a property on Node vertices in Neo4j to model resource capacity in Node Density and workload analysis." },
+  { term: "Message Size", definition: "Payload size per message in bytes. Sourced from the topic's size property in the graph; falls back to 1 024 B when absent. Affects bandwidth calculations only — not message rates." },
+  { term: "Messages Delivered", definition: "Total fan-out deliveries received by all subscribers: Σ(published_per_topic × subscriber_count). Always ≥ Messages Published when any topic has multiple subscribers.", formula: "Σ(published_per_topic × subscriber_count)" },
+  { term: "Messages Published", definition: "Total messages sent across all publishers during the simulation window: Σ(publisher_count × frequency_hz × duration_sec). This is the inbound side only.", formula: "Σ(publisher_count × Hz × duration_sec)" },
   // N
+  { term: "Network Bandwidth", definition: "Total estimated byte throughput across the entire simulation: sum of all topic bandwidths. Each topic = (inbound + outbound) × message_size_bytes. Colour scale: green (<20% max) · yellow (20–50%) · orange (50–80%) · red (>80% max)." },
+  { term: "Network Utilisation", definition: "Ratio of simulated total bandwidth to the configured network capacity, expressed as a percentage. Shown as a gauge on the Traffic Simulator results page. Colour-coded: green (<60%), orange (60–85%), red (>85%)." },
   { term: "Node", definition: "A physical or virtual infrastructure host on which applications and brokers are deployed. Shown as a node type in the Explorer." },
   { term: "Node Density", definition: "Distribution of critical versus normal applications across physical infrastructure nodes. Shown in the Statistics Node Density tab." },
   { term: "Node Load", definition: "Total message traffic (publish + subscribe connections) routed through a physical node. Shown in the Statistics Node Load tab." },
@@ -151,13 +161,16 @@ const ALL_TERMS: Term[] = [
   // O
   { term: "Orphan Topic", definition: "A topic missing either a publisher or a subscriber — a dead-end in the message flow. Counted in the Statistics Topic Fanout tab.", formula: "count(pub_count = 0 OR sub_count = 0)" },
   { term: "os_type", definition: "Operating system type running on an infrastructure Node (e.g., Linux, Windows, QNX). Stored as a property on Node vertices in Neo4j for physical-layer segmentation and capacity analysis." },
+  { term: "Out (msg/s)", definition: "Outbound fan-out rate leaving the broker per topic: In (msg/s) × subscriber_count. The broker delivers one copy to every subscriber. Shown in the Traffic Simulator per-topic table." },
   { term: "Out-Degree", definition: "Number of outgoing edges from a component — how many components this node depends on. Shown in Statistics Library Deps." },
+  { term: "Outbound Rate", definition: "Fan-out deliveries leaving a broker per second. Each inbound message is copied once per subscriber. Formula: Σ(inbound × subscriber_count) over all routed topics. Shown in the Broker Usage panel of the Traffic Simulator." },
   { term: "Outlier", definition: "A data point that exceeds the IQR upper fence. Statistically extreme relative to the population; highlighted in charts and outlier tables.", formula: "outlier if value > Q3 + 1.5 × IQR" },
   { term: "Outlier Nodes", definition: "Infrastructure nodes whose combined pub/sub load is statistically extreme. Listed in the outlier table at the bottom of the Statistics Node Load tab." },
   { term: "Outlier Pairs", definition: "Node or segment pairs whose message-flow count is statistically extreme relative to all other pairs in the heatmap. Shown in the outlier table below the Cross-Node and Segment Comm heatmaps." },
   // P
   { term: "path_count", definition: "Number of shared topics (for app_to_app / app_to_broker) or shared nodes (for broker_to_broker) that establish a single DEPENDS_ON edge. Higher values indicate stronger coupling — multiple simultaneous failure vectors exist between the same component pair.", formula: "path_count = |shared topics or nodes between the pair|" },
   { term: "Path Length", definition: "Minimum number of hops between two nodes. Average path length is linked from the Dashboard statistics card." },
+  { term: "Peak Topic Bandwidth", definition: "Highest single-topic bandwidth in the simulation set. The busiest topic is always rendered in red on the bandwidth colour scale. Useful as a reference for relative load across topics." },
   { term: "Producer-Only App", definition: "An application that publishes above the system mean but subscribes below it. Upstream failure causes downstream data loss.", formula: "pub > avg_pub AND sub ≤ avg_sub" },
   { term: "Producers", definition: "Application nodes that publish messages to topics — sources in the message flow. Shown in Statistics App Balance." },
   { term: "Publisher Count", definition: "Number of distinct applications actively publishing messages to a topic. Displayed in topic tooltip enrichment." },
@@ -174,11 +187,14 @@ const ALL_TERMS: Term[] = [
   { term: "ROUTES", definition: "Structural edge from a Broker to a Topic indicating that the broker is responsible for routing messages on that channel. Direction: Broker → Topic. Used in Rules 2 and 4 of DEPENDS_ON derivation.", formula: "(Broker) -[:ROUTES]→ (Topic)" },
   { term: "RUNS_ON", definition: "Structural edge from an Application or Broker to the infrastructure Node it is deployed on. Direction: App/Broker → Node. Used in Rules 3–6 to lift application-level dependencies to the node and broker levels.", formula: "(Application|Broker) -[:RUNS_ON]→ (Node)" },
   // S
+  { term: "Saved Config", definition: "A named topic-selection and parameter set (frequency, duration, message size) stored in browser local storage. Can be reloaded to repeat previous Traffic Simulator runs without reconfiguring." },
   { term: "Score Outlier", definition: "A component whose bottleneck score exceeds the IQR upper fence. Flagged ⚡ in the Bottlenecks table.", formula: "score > Q3 + 1.5 × IQR" },
   { term: "Segment", definition: "A logical grouping of related components sharing a common operational concern or data boundary — the CSS level in the hierarchy." },
   { term: "Segment Communication", definition: "Volume of message flow between architectural segments. High cross-segment traffic signals tight subsystem coupling. Shown in the Statistics Segment Comm tab." },
   { term: "Segment Diversity", definition: "Variety of applications, topics, and I/O load per segment. Low diversity flags monolithic subsystems; high I/O flags communication hubs. Statistics Segment Diversity tab." },
   { term: "Shared Topics", definition: "The drill-down panel that appears when clicking a cell in the Cross-Node or Segment Comm heatmap. Lists topics where the row entity publishes and the column entity subscribes — showing the exact inter-entity data paths." },
+  { term: "Simulation Duration", definition: "Simulated time window in seconds. Affects total message counts but not bandwidth rates.", formula: "total_messages = frequency_hz × duration_sec × publisher_count" },
+  { term: "Simulation Frequency", definition: "How many messages each publisher sends per second (Hz). Can be set globally or overridden per topic in the Traffic Simulator. Typical ranges: 1 Hz (slow telemetry) · 10 Hz (moderate control loop) · 100 Hz (high-frequency sensor)." },
   { term: "size", definition: "Message payload size in bytes for a topic. Stored as the size property on Topic nodes in Neo4j. Used in the topic weight formula and all bandwidth calculations.", formula: "bandwidth = size × subscriber_count (or publisher_count)" },
   { term: "sqale_debt_ratio", definition: "SQALE technical debt ratio: estimated remediation effort as a percentage of total development cost, as reported by SonarQube. High values indicate significant accumulated code quality debt. Stored on Application and Library nodes." },
   { term: "SUBSCRIBES_TO", definition: "Structural edge from an Application or Library to a Topic it receives messages from. Direction: App/Lib → Topic. Part of G_structural; weight is inherited from the target topic's QoS weight. Fan-out is derived from this edge in Phase 2.", formula: "(Application|Library) -[:SUBSCRIBES_TO]→ (Topic)" },
@@ -191,6 +207,7 @@ const ALL_TERMS: Term[] = [
   { term: "Topic", definition: "A named message channel. Publishers write to it; subscribers read from it. Shown as a node type in the Explorer." },
   { term: "Topic Bandwidth", definition: "Total estimated data throughput per topic based on message size and the number of connected publishers or subscribers. Statistics Topic Bandwidth tab.", formula: "bandwidth_sub = size × sub_count" },
   { term: "Topic Fanout", definition: "Publisher × subscriber count per topic. High fanout amplifies failure blast radius. Statistics Topic Fanout tab.", formula: "fanout = pub_count × sub_count" },
+  { term: "Topic Weight", definition: "QoS-based operational priority weight ∈ [0, 1] assigned to a topic. Derived from its reliability and durability QoS settings. 0.0 = minimal priority · 1.0 = highest criticality. Feeds the RMAV scoring pipeline and Traffic Simulator weighting." },
   { term: "Total Dependencies", definition: "Total number of application-to-library USES edges in the system. Measures overall coupling density between the application and library layers.", formula: "count(USES relationships)" },
   { term: "Total Edges", definition: "Combined count of derived (DEPENDS_ON) and structural graph edges. Shown as a KPI tile on the Dashboard." },
   // U
@@ -225,10 +242,15 @@ const ABBREVIATIONS: Abbreviation[] = [
   { abbr: "CV",   expansion: "Coefficient of Variation",              definition: "Standard deviation / mean of node load, as a percentage. High CV means uneven workload distribution." },
   { abbr: "DAG",  expansion: "Directed Acyclic Graph",                definition: "A graph with no cycles. Healthy dependency graphs aim to approximate a DAG." },
   { abbr: "DDS",  expansion: "Data Distribution Service",             definition: "Publish-subscribe middleware standard used in real-time systems and robotics." },
+  { abbr: "GB/s", expansion: "Gigabytes per Second",                  definition: "Bandwidth unit in the Traffic Simulator. 1 GB/s = 1 000 MB/s. Displayed when total simulation throughput exceeds 1 000 MB/s." },
+  { abbr: "Hz",   expansion: "Hertz (messages per second)",           definition: "Simulation frequency unit. Specifies how many messages each publisher sends per second. Set globally or overridden per topic in the Traffic Simulator." },
   { abbr: "I/O",  expansion: "Input / Output",                        definition: "Combined publish and subscribe activity count for a component. Used to classify High I/O Apps in Statistics." },
   { abbr: "IQR",  expansion: "Interquartile Range",                   definition: "Spread between Q1 (25th percentile) and Q3 (75th percentile). Used to detect outliers across all Statistics charts." },
+  { abbr: "KB/s", expansion: "Kilobytes per Second",                  definition: "Bandwidth unit in the Traffic Simulator. 1 KB/s = 1 000 B/s. Displayed for low-throughput topics." },
   { abbr: "LCOM", expansion: "Lack of Cohesion of Methods",           definition: "Measures how unrelated the methods in a class are. Values near 1 indicate poor cohesion. Stored as lcom / cm_avg_lcom / cm_max_lcom on Application and Library nodes." },
   { abbr: "LOC",  expansion: "Lines of Code",                         definition: "Raw or SonarQube-measured source line count for a component. Stored as loc and cm_total_loc. Input to the Code Quality Penalty in M(v)." },
+  { abbr: "MB/s", expansion: "Megabytes per Second",                  definition: "Primary bandwidth unit in the Traffic Simulator. 1 MB/s = 1 000 KB/s. Typical simulator result columns display values in MB/s." },
+  { abbr: "msg/s",expansion: "Messages per Second",                   definition: "Message rate unit used in the Traffic Simulator. Inbound rate = publishers × Hz; outbound rate = inbound × subscribers (fan-out)." },
   { abbr: "MQTT", expansion: "Message Queuing Telemetry Transport",   definition: "Lightweight pub-sub protocol designed for IoT and constrained-network devices." },
   { abbr: "N→1",  expansion: "Many-to-One (Aggregation)",             definition: "A topic with multiple publishers and one subscriber. Any publisher failure reduces data feed completeness." },
   { abbr: "N→N",  expansion: "Many-to-Many (Mesh)",                   definition: "A topic with multiple publishers and multiple subscribers. Mesh communication pattern." },
@@ -261,7 +283,10 @@ const TOTAL_ABBR  = ABBREVIATIONS.length
 export default function GlossaryPage() {
   const [search, setSearch]       = useState("")
   const [activeLetter, setActive] = useState<string>("All")
+  const [mounted, setMounted]     = useState(false)
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  useEffect(() => { setMounted(true) }, [])
 
   const q = search.trim().toLowerCase()
 
@@ -297,6 +322,44 @@ export default function GlossaryPage() {
 
   function scrollTo(letter: string) {
     sectionRefs.current[letter]?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  if (!mounted) {
+    return (
+      <AppLayout title="Glossary" description="Key terms, metrics, and abbreviations used across the platform.">
+        <div className="space-y-5">
+          {/* Search skeleton */}
+          <Skeleton className="h-9 w-72 rounded-md" />
+          {/* Letter nav skeleton */}
+          <div className="flex flex-wrap gap-1">
+            {Array.from({ length: 28 }).map((_, i) => (
+              <Skeleton key={i} className="h-6 w-8 rounded" />
+            ))}
+          </div>
+          {/* Stats strip skeleton */}
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-3 w-2" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          {/* Terms skeleton */}
+          <div className="space-y-6">
+            {Array.from({ length: 4 }).map((_, gi) => (
+              <div key={gi} className="space-y-3">
+                <Skeleton className="h-5 w-6 rounded" />
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="rounded-lg border border-border bg-muted/20 p-4 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3" style={{ width: `${60 + (i * 17) % 35}%` }} />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </AppLayout>
+    )
   }
 
   return (
