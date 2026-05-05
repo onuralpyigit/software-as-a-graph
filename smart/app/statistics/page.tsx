@@ -280,7 +280,7 @@ function EBarChart({
         )
       },
     },
-    grid: { left: 55, right: 10, top: 10, bottom: showZoom ? 110 : 80 },
+    grid: { left: 80, right: 10, top: 10, bottom: showZoom ? 110 : 80 },
     xAxis: {
       type: "category" as const,
       data: labels,
@@ -849,7 +849,7 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
         return `${rLabel} → ${cLabel}: <strong>${fmtVal}</strong>`
       },
     },
-    grid: { top: 10, right: 20, bottom: n > 10 ? 120 : 80, left: n > 10 ? 90 : 70 },
+    grid: { top: 20, right: 20, bottom: n > 10 ? 120 : 80, left: n > 10 ? 120 : 80 },
     xAxis: {
       type: "category" as const,
       data: labels,
@@ -967,19 +967,19 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
                     className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs mt-0.5"
                   >✕</button>
                 </div>
-                <div className="px-3 py-2.5 space-y-1.5 overflow-y-auto max-h-64">
-                  <p className="text-xs text-muted-foreground font-mono">{pubTopics.length} {pubTopics.length === 1 ? "topic" : "topics"}</p>
+                <div className="px-3 py-2.5 overflow-y-auto max-h-64">
+                  <p className="text-xs text-muted-foreground mb-1.5">{pubTopics.length} {pubTopics.length === 1 ? "topic" : "topics"}</p>
                   {pubTopics.length === 0
                     ? <p className="text-xs text-muted-foreground italic">No shared topics.</p>
-                    : <div className="flex flex-col gap-1">
+                    : <ul className="space-y-0.5">
                         {pubTopics.map((t) => (
-                          <span
+                          <li
                             key={t.id}
-                            className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs font-mono border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-colors truncate"
+                            className="text-xs font-mono text-foreground/80 truncate cursor-pointer hover:text-foreground transition-colors"
                             onClick={() => goToExplorer(t.id)}
-                          >{t.name}</span>
+                          >{t.name}</li>
                         ))}
-                      </div>
+                      </ul>
                   }
                 </div>
               </div>
