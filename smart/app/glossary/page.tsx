@@ -302,7 +302,7 @@ export default function GlossaryPage() {
   return (
     <AppLayout
       title="Glossary"
-      description="Definitions of terms used in Dashboard, Explorer, and Statistics"
+      description="Key terms, metrics, and abbreviations used across the platform."
     >
       <div className="space-y-5">
 
