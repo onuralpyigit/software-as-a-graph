@@ -160,8 +160,7 @@ const PAGE_SIZE = 20
 
 /**
  * Module-level node map, populated once when the statistics page mounts.
- * Keyed by node id → { type, properties }. Used by chart tooltips to enrich
- * bar chart items with type-specific raw node attributes (weight, size, CC…)
+ * Keyed by node id → { type, properties }. Used by chart tooltips.
  */
 const _nodeById = new Map<string, { type: string; properties: Record<string, unknown> }>()
 
@@ -169,56 +168,6 @@ function fmtBytes(n: number): string {
   if (n < 1024) return `${n} B`
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
   return `${(n / 1024 ** 2).toFixed(2)} MB`
-}
-
-function buildEssentialFieldsHtml(type: string, props: Record<string, unknown>): string {
-  const get = (k: string) => props[k]
-  const has = (k: string) => get(k) !== undefined && get(k) !== null && get(k) !== ""
-  const rows: { label: string; value: string }[] = []
-  const fmtProp = (k: string): string => {
-    const v = get(k)
-    const n = typeof v === "number" ? v : (typeof v === "string" && v !== "" && !isNaN(Number(v)) ? Number(v) : null)
-    if (n !== null && (k === "size" || k === "message_size" || /bytes/.test(k))) return fmtBytes(n)
-    if (typeof v === "boolean") return v ? "yes" : "no"
-    if (n !== null && isFinite(n)) return n < 10 ? n.toFixed(4) : n.toLocaleString(undefined, { maximumFractionDigits: 2 })
-    return String(v ?? "—")
-  }
-  switch (type) {
-    case "Application":
-      if (has("weight"))                rows.push({ label: "QoS Weight", value: fmtProp("weight") })
-      if (has("loc"))                   rows.push({ label: "LoC", value: fmtProp("loc") + " lines" })
-      if (has("cyclomatic_complexity")) rows.push({ label: "CC", value: fmtProp("cyclomatic_complexity") })
-      if (has("instability_code"))      rows.push({ label: "Instability", value: fmtProp("instability_code") })
-      if (has("lcom_norm"))             rows.push({ label: "LCOM", value: fmtProp("lcom_norm") })
-      break
-    case "Topic":
-      if (has("message_size") || has("payload_size_bytes") || has("size")) {
-        const k = has("message_size") ? "message_size" : has("payload_size_bytes") ? "payload_size_bytes" : "size"
-        rows.push({ label: "Payload", value: fmtProp(k) })
-      }
-      if (has("frequency"))   rows.push({ label: "Frequency", value: fmtProp("frequency") + " Hz" })
-      if (has("deadline_ms")) rows.push({ label: "Deadline", value: fmtProp("deadline_ms") + " ms" })
-      if (has("queue_size"))  rows.push({ label: "Queue", value: fmtProp("queue_size") + " msgs" })
-      if (has("weight"))      rows.push({ label: "QoS Weight", value: fmtProp("weight") })
-      break
-    case "Node":
-    case "Broker":
-      if (has("weight"))     rows.push({ label: "QoS Weight", value: fmtProp("weight") })
-      if (has("path_count")) rows.push({ label: "Paths", value: fmtProp("path_count") })
-      break
-    case "Library":
-      if (has("weight"))                rows.push({ label: "QoS Weight", value: fmtProp("weight") })
-      if (has("cyclomatic_complexity")) rows.push({ label: "CC", value: fmtProp("cyclomatic_complexity") })
-      if (has("lcom_norm"))             rows.push({ label: "LCOM", value: fmtProp("lcom_norm") })
-      break
-  }
-  if (!rows.length) return ""
-  return `<hr style="margin:4px 0;border-color:rgba(128,128,128,0.3)"/>` +
-    rows.map(r =>
-      `<div style="display:flex;justify-content:space-between;gap:12px;margin:2px 0">` +
-      `<span style="color:rgba(156,163,175,1)">${r.label}</span>` +
-      `<span style="font-family:monospace">${r.value}</span></div>`
-    ).join("")
 }
 
 interface EBarSeries {
@@ -256,8 +205,28 @@ function EBarChart({
         const item = items[idx]
         const id = item.id as string | undefined
         const nodeEntry = id ? _nodeById.get(id) : undefined
-        const type = nodeEntry?.type ?? "Component"
+        const type = nodeEntry?.type ?? ""
         const fullName = item.name
+        let extra = ""
+        if (nodeEntry?.properties) {
+          const props = nodeEntry.properties
+          const get = (k: string) => props[k]
+          if (type === "Application") {
+            const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
+          } else if (type === "Topic") {
+            const qr = get("qos_reliability"); if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${qr}</span>`
+            const qd = get("qos_durability");  if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">Durability: ${qd}</span>`
+            const qt = get("qos_transport_priority"); if (qt != null && qt !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${qt}</span>`
+            const szRaw = get("message_size") ?? get("payload_size_bytes") ?? get("size")
+            if (szRaw != null && szRaw !== "") { const szN = typeof szRaw === "number" ? szRaw : Number(szRaw); extra += `<br/><span style="opacity:0.7">Size: ${isFinite(szN) ? fmtBytes(szN) : String(szRaw)}</span>` }
+          } else if (type === "Library") {
+            const ver = get("version"); if (ver != null && ver !== "") extra += `<br/><span style="opacity:0.7">Version: ${ver}</span>`
+          } else if (type === "Broker") {
+            const bt = get("broker_type"); if (bt != null && bt !== "") extra += `<br/><span style="opacity:0.7">Protocol: ${bt}</span>`
+          } else if (type === "Node") {
+            const ip = get("ip_address"); if (ip != null && ip !== "") extra += `<br/><span style="opacity:0.7">IP: ${ip}</span>`
+          }
+        }
         const serRows = ps.map(p => {
           const ser = series.find(s => s.label === p.seriesName)
           const val = ser?.fmt ? ser.fmt(p.value) : (p.value?.toLocaleString(undefined, { maximumFractionDigits: 3 }) ?? "—")
@@ -265,18 +234,16 @@ function EBarChart({
             `<div style="display:flex;justify-content:space-between;gap:12px;margin:2px 0">` +
             `<div style="display:flex;align-items:center;gap:6px">` +
             `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${p.color}"></span>` +
-            `<span style="color:rgba(156,163,175,1)">${p.seriesName}</span></div>` +
+            `<span style="opacity:0.7">${p.seriesName}</span></div>` +
             `<span style="font-family:monospace;font-weight:600">${val}</span></div>`
           )
         }).join("")
-        const extraHtml = nodeEntry?.properties ? buildEssentialFieldsHtml(type, nodeEntry.properties) : ""
+        const typeStr = type ? `<br/><span style="opacity:0.7">${type}</span>` : ""
         return (
-          `<div style="font-size:11px;min-width:160px;max-width:240px;padding:2px">` +
-          `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">` +
-          `<span style="font-weight:600;word-break:break-word;flex:1">${fullName}</span>` +
-          `<span style="font-size:9px;font-weight:700;text-transform:uppercase;background:rgba(128,128,128,0.2);padding:1px 5px;border-radius:3px;white-space:nowrap">${type}</span></div>` +
-          `<hr style="margin:4px 0;border-color:rgba(128,128,128,0.3)"/>` +
-          serRows + extraHtml + `</div>`
+          `<div style="font-size:12px;line-height:1.7;min-width:160px;max-width:240px">` +
+          `<b>${fullName}</b>${typeStr}${extra}` +
+          (serRows ? `<hr style="margin:4px 0;border-color:rgba(128,128,128,0.3)"/>${serRows}` : "") +
+          `</div>`
         )
       },
     },
@@ -847,7 +814,7 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
         const rLabel = labels[ri] ?? ri
         const cLabel = labels[ci] ?? ci
         const fmtVal = fmtCellVal(val) || "0"
-        return `${rLabel} → ${cLabel}: <strong>${fmtVal}</strong>`
+        return `<div style="font-size:12px;line-height:1.7"><b>${rLabel} → ${cLabel}</b><br/><span style="opacity:0.7">${fmtVal}</span></div>`
       },
     },
     grid: { top: 20, right: 20, bottom: n > 10 ? 80 : 50, left: n > 10 ? 120 : 80 },
@@ -1638,7 +1605,7 @@ export default function StatisticsPage() {
       graphData.nodes.forEach((n: any) => {
         _nodeById.set(n.id, { type: n.type ?? "Application", properties: n.properties ?? {} })
       })
-    }).catch(() => { /* non-critical — tooltips just won't show essential fields */ })
+    }).catch(() => { /* non-critical — tooltips just won't show node type */ })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, config])
 

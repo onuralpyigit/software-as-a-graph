@@ -159,8 +159,9 @@ function TypeSpecificRows({ type, properties }: { type: string; properties: Reco
         const k = hasKey("message_size") ? "message_size" : hasKey("payload_size_bytes") ? "payload_size_bytes" : "size"
         rows.push({ key: k, label: "Payload Size" })
       }
-      if (hasKey("qos_reliability")) rows.push({ key: "qos_reliability", label: "QoS Reliability" })
-      if (hasKey("qos_durability"))  rows.push({ key: "qos_durability",  label: "QoS Durability" })
+      if (hasKey("qos_reliability"))        rows.push({ key: "qos_reliability",        label: "Reliability" })
+      if (hasKey("qos_durability"))         rows.push({ key: "qos_durability",         label: "Durability" })
+      if (hasKey("qos_transport_priority")) rows.push({ key: "qos_transport_priority", label: "Transport Priority" })
       if (hasKey("frequency"))   rows.push({ key: "frequency",   label: "Frequency",  unit: "Hz" })
       if (hasKey("deadline_ms")) rows.push({ key: "deadline_ms", label: "Deadline",   unit: "ms" })
       if (hasKey("queue_size"))  rows.push({ key: "queue_size",  label: "Queue Size", unit: "msgs" })

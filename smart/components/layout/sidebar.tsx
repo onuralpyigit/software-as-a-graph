@@ -9,7 +9,6 @@ import {
   FileText,
   Settings,
   Database,
-  BookOpen,
   Network,
   Zap,
   BarChart3,
@@ -72,13 +71,8 @@ const navigation = [
     icon: Database,
   },
   {
-    name: "Tutorial",
-    href: "/tutorial",
-    icon: BookOpen,
-  },
-  {
-    name: "Dictionary",
-    href: "/dictionary",
+    name: "Glossary",
+    href: "/glossary",
     icon: BookMarked,
   },
   {

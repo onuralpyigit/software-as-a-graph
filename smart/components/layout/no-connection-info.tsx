@@ -114,16 +114,6 @@ export function NoConnectionInfo({
                 Go to Settings
               </Button>
               
-              <Button
-                onClick={() => router.push('/tutorial')}
-                variant="outline"
-                size="lg"
-                className="flex-1 bg-white/10 dark:bg-white/10 text-foreground border-purple-500/30 hover:bg-purple-500/10 hover:border-purple-500/50 backdrop-blur-sm transition-all duration-300 group"
-              >
-                <Info className="mr-2 h-4 w-4" />
-                View Tutorial
-                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
-              </Button>
             </div>
           )}
         </CardContent>

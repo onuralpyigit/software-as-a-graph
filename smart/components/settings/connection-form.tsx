@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, CheckCircle2, XCircle, Database, AlertTriangle } from "lucide-react"
 import { useConnection } from "@/lib/stores/connection-store"
@@ -53,95 +53,58 @@ export function ConnectionForm() {
   const isConnecting = status === 'connecting' || isSubmitting
 
   return (
-    <Card className={`relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 ${
-      status === 'connected'
-        ? 'hover:shadow-green-500/20'
-        : status === 'connecting'
-        ? 'hover:shadow-blue-500/20'
-        : status === 'error'
-        ? 'hover:shadow-red-500/20'
-        : 'hover:shadow-slate-500/20'
-    }`}>
-      {/* Gradient border */}
-      <div className={`absolute inset-0 rounded-lg p-[2px] ${
-        status === 'connected'
-          ? 'bg-gradient-to-r from-green-400 via-emerald-500 to-teal-600'
-          : status === 'connecting'
-          ? 'bg-gradient-to-r from-blue-400 via-indigo-500 to-violet-600'
-          : status === 'error'
-          ? 'bg-gradient-to-r from-red-400 via-rose-500 to-pink-600'
-          : 'bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-800 dark:to-slate-700'
-      }`}>
-        <div className="w-full h-full bg-background rounded-lg" />
-      </div>
-      
-      {/* Background gradient overlay */}
-      <div className={`absolute inset-[2px] rounded-lg ${
-        status === 'connected'
-          ? 'bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-green-500/35 via-green-500/20 to-green-500/5'
-          : status === 'connecting'
-          ? 'bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-blue-500/25 via-blue-500/15 to-blue-500/3'
-          : status === 'error'
-          ? 'bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-red-500/35 via-red-500/20 to-red-500/5'
-          : 'bg-[radial-gradient(circle_at_bottom_right,var(--tw-gradient-stops))] from-slate-500/15 via-slate-500/8 to-transparent'
-      }`} />
-      
-      <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-3">
-        <div className="flex items-center gap-3">
-          <div className={`rounded-xl p-2.5 ${
-            status === 'connected'
-              ? 'bg-green-500/10'
-              : status === 'connecting'
-              ? 'bg-blue-500/10'
-              : status === 'error'
-              ? 'bg-red-500/10'
-              : 'bg-slate-500/10'
+    <Card className={`bg-background`}>
+      <CardHeader className="pb-1 flex flex-row items-center justify-between space-y-0">
+        <div className="flex items-center gap-2.5">
+          <div className={`rounded-lg p-1.5 ${
+            status === 'connected' ? 'bg-green-500/10'
+            : status === 'connecting' ? 'bg-blue-500/10'
+            : status === 'error' ? 'bg-red-500/10'
+            : 'bg-slate-500/10'
           }`}>
             <Database className={`h-4 w-4 ${
-              status === 'connected'
-                ? 'text-green-500'
-                : status === 'connecting'
-                ? 'text-blue-500'
-                : status === 'error'
-                ? 'text-red-500'
-                : 'text-slate-500'
+              status === 'connected' ? 'text-green-400'
+              : status === 'connecting' ? 'text-blue-400'
+              : status === 'error' ? 'text-red-400'
+              : 'text-slate-400'
             }`} />
           </div>
           <div>
             <CardTitle className="text-sm font-semibold">Graph Database</CardTitle>
-            <CardDescription className="text-xs mt-0.5">
+            <p className="text-[11px] text-muted-foreground">
               {isConnected ? 'Connected to your system graph' : 'Configure Neo4j connection'}
-            </CardDescription>
+            </p>
           </div>
         </div>
         <div>
           {status === 'connected' && (
-            <Badge variant="outline" className="text-green-600 border-green-600">Connected</Badge>
+            <Badge className="bg-green-500/10 text-green-400 border-green-500/20 text-[11px] px-2">Connected</Badge>
           )}
           {status === 'disconnected' && (
-            <Badge variant="outline">Disconnected</Badge>
+            <Badge variant="outline" className="text-[11px] px-2">Disconnected</Badge>
           )}
           {status === 'error' && (
-            <Badge variant="destructive">Error</Badge>
+            <Badge variant="destructive" className="text-[11px] px-2">Error</Badge>
           )}
           {status === 'connecting' && (
-            <Badge variant="secondary">
+            <Badge variant="secondary" className="text-[11px] px-2">
               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
               Connecting...
             </Badge>
           )}
         </div>
       </CardHeader>
-      <CardContent className="relative space-y-4">{/* Error message */}
+      <CardContent className="pt-1 space-y-4">
+        {/* Error message */}
         {error && (
-          <div className="rounded-xl bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-950/30 dark:to-pink-950/30 border border-red-200 dark:border-red-900 p-4">
+          <div className="rounded-xl border border-red-500/20 bg-red-500/[0.07] p-4">
             <div className="flex items-start gap-3">
-              <div className="rounded-lg bg-red-100 dark:bg-red-900 p-2 mt-0.5">
-                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+              <div className="rounded-lg bg-red-500/10 p-1.5 mt-0.5">
+                <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
               </div>
-              <div className="space-y-2 text-sm">
-                <p className="font-medium text-red-900 dark:text-red-100">Connection Failed</p>
-                <p className="text-red-800 dark:text-red-200">{error}</p>
+              <div className="space-y-1 text-sm">
+                <p className="font-medium">Connection Failed</p>
+                <p className="text-muted-foreground">{error}</p>
               </div>
             </div>
           </div>

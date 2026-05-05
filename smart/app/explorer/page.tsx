@@ -12,7 +12,6 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { ItemTooltip, ItemTooltipContent } from "@/components/ui/item-tooltip"
 import { useConnection } from "@/lib/stores/connection-store"
 import { apiClient } from "@/lib/api/client"
 import { ReactFlow, ReactFlowProvider, Background, BackgroundVariant, Handle, Position, getBezierPath, applyNodeChanges, useViewport, useReactFlow, MarkerType, type NodeProps, type EdgeProps, type NodeChange } from "@xyflow/react"
@@ -958,8 +957,6 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
   const textColor = isDark ? "#f1f5f9" : "#1e293b"
   const subColor  = isDark ? "#94a3b8" : "#64748b"
   return (
-    <Tooltip>
-    <TooltipTrigger asChild>
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
       <Handle type="target" position={Position.Top}    id="t-top" style={hs} />
       <Handle type="source" position={Position.Top}    id="s-top" style={hs} />
@@ -1004,11 +1001,6 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
       <Handle type="source" position={Position.Bottom} id="s-bot" style={hs} />
       <Handle type="target" position={Position.Bottom} id="t-bot" style={hs} />
     </div>
-    </TooltipTrigger>
-    <TooltipContent side="top" className="p-2.5 leading-relaxed shadow-xl border-border/60 bg-popover text-popover-foreground z-[9999]">
-      <ItemTooltipContent data={{ type: n.type, name: disp, properties: { ...n, ...(n.properties ?? {}) } }} />
-    </TooltipContent>
-    </Tooltip>
   )
 })
 
@@ -1163,11 +1155,7 @@ const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
   )
 
   if (hn.level === "app" && hn.appData) {
-    return (
-      <ItemTooltip data={{ type: "Application", name: hn.name, properties: hn.appData as Record<string, unknown> }} side="right">
-        {nodeContent}
-      </ItemTooltip>
-    )
+    return nodeContent
   }
   return nodeContent
 })
@@ -1488,8 +1476,11 @@ const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDar
           if (typeLabel === "Application") {
             const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
           } else if (typeLabel === "Topic") {
-            const qr = get("qos_reliability"); if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">QoS Reliability: ${qr}</span>`
-            const qd = get("qos_durability");  if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">QoS Durability: ${qd}</span>`
+            const qr = get("qos_reliability"); if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${qr}</span>`
+            const qd = get("qos_durability");  if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">Durability: ${qd}</span>`
+            const qt = get("qos_transport_priority"); if (qt != null && qt !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${qt}</span>`
+            const szRaw = get("message_size") ?? get("payload_size_bytes") ?? get("size")
+            if (szRaw != null && szRaw !== "") { const szN = Number(szRaw); const szFmt = isFinite(szN) ? (szN >= 1048576 ? `${(szN/1048576).toFixed(2)} MB` : szN >= 1024 ? `${(szN/1024).toFixed(1)} KB` : `${szN} B`) : String(szRaw); extra += `<br/><span style="opacity:0.7">Size: ${szFmt}</span>` }
           } else if (typeLabel === "Library") {
             const ver = get("version"); if (ver != null && ver !== "") extra += `<br/><span style="opacity:0.7">Version: ${ver}</span>`
           } else if (typeLabel === "Broker") {
@@ -2052,7 +2043,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       type: "tree",
       orient: "TB",
       expandAndCollapse: true,
-      initialTreeDepth: 4,
+      initialTreeDepth: 1,
       roam: true,
       symbol: "circle",
       itemStyle: { borderWidth: 0 },
@@ -2107,8 +2098,12 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
             if (type === "Topic") {
               const qr = n.properties?.qos_reliability ?? n.qos_reliability
               const qd = n.properties?.qos_durability ?? n.qos_durability
-              if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">QoS Reliability: ${qr}</span>`
-              if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">QoS Durability: ${qd}</span>`
+              if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${qr}</span>`
+              if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">Durability: ${qd}</span>`
+              const qt = n.properties?.qos_transport_priority ?? n.qos_transport_priority
+              if (qt != null && qt !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${qt}</span>`
+              const szRaw = n.properties?.message_size ?? n.message_size ?? n.properties?.payload_size_bytes ?? n.payload_size_bytes ?? n.properties?.size ?? n.size
+              if (szRaw != null && szRaw !== "") { const szN = Number(szRaw); const szFmt = isFinite(szN) ? (szN >= 1048576 ? `${(szN/1048576).toFixed(2)} MB` : szN >= 1024 ? `${(szN/1024).toFixed(1)} KB` : `${szN} B`) : String(szRaw); extra += `<br/><span style="opacity:0.7">Size: ${szFmt}</span>` }
             } else if (type === "Library") {
               const ver = n.properties?.version ?? n.version
               if (ver != null && ver !== "") extra += `<br/><span style="opacity:0.7">Version: ${ver}</span>`
@@ -2132,10 +2127,8 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         // Roam is enabled, so users can pan to reach the edges.
         left: `${(1 - spread) * 50 + 1}%`,
         right: `${(1 - spread) * 50 + 1}%`,
-        // The synthetic root reserves a row; pull layout up with a negative
-        // top so the first visible level (CSMS) sits near the top of the viewport.
-        top: "-18%",
-        bottom: "5%",
+        top: "5%",
+        bottom: "50%",
       }],
     }
   }, [treeData, isDark, spread])
@@ -3290,16 +3283,14 @@ function AppTreeNode({ app, path, depth, selectedKey, onSelect }: {
   const label = app.csu ?? app.name ?? app.id ?? "?"
   const nodeKey = `app:${app.id}`
   return (
-    <ItemTooltip data={{ type: "Application", name: label, properties: app as Record<string, unknown> }} side="right">
-      <TreeRow
-        depth={depth}
-        icon={<Cpu className="h-3 w-3 text-violet-500" />}
-        label={label}
-        isSelected={selectedKey === nodeKey}
-        hasChildren={false}
-        onClick={() => onSelect({ kind: "app", key: nodeKey, label, path: [...path, label], payload: app })}
-      />
-    </ItemTooltip>
+    <TreeRow
+      depth={depth}
+      icon={<Cpu className="h-3 w-3 text-violet-500" />}
+      label={label}
+      isSelected={selectedKey === nodeKey}
+      hasChildren={false}
+      onClick={() => onSelect({ kind: "app", key: nodeKey, label, path: [...path, label], payload: app })}
+    />
   )
 }
 
@@ -3626,8 +3617,10 @@ function ForceGraphEChart({
             nodeType: type as string,
             ...(type === "Application" ? { _role: n.role ?? n.properties?.role ?? "" } : {}),
             ...(type === "Topic" ? {
-              _qos_reliability: n.qos_reliability ?? n.properties?.qos_reliability ?? "",
-              _qos_durability:  n.qos_durability  ?? n.properties?.qos_durability  ?? "",
+              _qos_reliability:        n.qos_reliability            ?? n.properties?.qos_reliability            ?? "",
+              _qos_durability:         n.qos_durability             ?? n.properties?.qos_durability             ?? "",
+              _qos_transport_priority: n.qos_transport_priority     ?? n.properties?.qos_transport_priority     ?? "",
+              _size:                   n.message_size ?? n.properties?.message_size ?? n.payload_size_bytes ?? n.properties?.payload_size_bytes ?? n.size ?? n.properties?.size ?? "",
             } : {}),
             ...(type === "Library" ? { _version: n.version ?? n.properties?.version ?? "" } : {}),
             ...(type === "Broker" ? { _broker_type: n.broker_type ?? n.properties?.broker_type ?? "" } : {}),
@@ -3699,8 +3692,10 @@ function ForceGraphEChart({
           let extra = ""
           if (type === "Application" && d._role) extra += `<br/><span style="opacity:0.7">Role: ${d._role}</span>`
           if (type === "Topic") {
-            if (d._qos_reliability != null && d._qos_reliability !== "") extra += `<br/><span style="opacity:0.7">QoS Reliability: ${d._qos_reliability}</span>`
-            if (d._qos_durability  != null && d._qos_durability  !== "") extra += `<br/><span style="opacity:0.7">QoS Durability: ${d._qos_durability}</span>`
+            if (d._qos_reliability        != null && d._qos_reliability        !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${d._qos_reliability}</span>`
+            if (d._qos_durability         != null && d._qos_durability         !== "") extra += `<br/><span style="opacity:0.7">Durability: ${d._qos_durability}</span>`
+            if (d._qos_transport_priority != null && d._qos_transport_priority !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${d._qos_transport_priority}</span>`
+            if (d._size != null && d._size !== "") { const szN = Number(d._size); const szFmt = isFinite(szN) ? (szN >= 1048576 ? `${(szN/1048576).toFixed(2)} MB` : szN >= 1024 ? `${(szN/1024).toFixed(1)} KB` : `${szN} B`) : String(d._size); extra += `<br/><span style="opacity:0.7">Size: ${szFmt}</span>` }
           }
           if (type === "Library" && d._version) extra += `<br/><span style="opacity:0.7">Version: ${d._version}</span>`
           if (type === "Broker" && d._broker_type) extra += `<br/><span style="opacity:0.7">Protocol: ${d._broker_type}</span>`
