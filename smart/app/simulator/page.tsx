@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
+import { NoConnectionInfo } from "@/components/layout/no-connection-info"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -300,10 +301,7 @@ export default function TrafficSimulatorPage() {
   if (status !== "connected") {
     return (
       <AppLayout title="Simulator" description="Estimate pub-sub network and broker load">
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <AlertCircle className="h-12 w-12 text-muted-foreground" />
-          <p className="text-muted-foreground">Connect to Neo4j to use the traffic simulator.</p>
-        </div>
+        <NoConnectionInfo description="Connect to your Neo4j database to use the traffic simulator" />
       </AppLayout>
     )
   }
