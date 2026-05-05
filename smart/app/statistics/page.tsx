@@ -568,16 +568,18 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <CardTitle className="text-base">Topic Bandwidth ({cfg.multiplierLabel})</CardTitle>
-            <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
-              {(["pubsub", "pub", "sub"] as BandwidthMode[]).map((m) => (
-                <button key={m} onClick={() => setMode(m)}
-                  className={`px-2.5 py-0.5 text-xs rounded transition-colors ${mode === m ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"}`}>
-                  {BANDWIDTH_MODE_CONFIG[m].label}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+              <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
+                {(["pubsub", "pub", "sub"] as BandwidthMode[]).map((m) => (
+                  <button key={m} onClick={() => setMode(m)}
+                    className={`px-2.5 py-0.5 text-xs rounded transition-colors ${mode === m ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"}`}>
+                    {BANDWIDTH_MODE_CONFIG[m].label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
         </CardHeader>
         <CardContent>
           {mode === "pubsub" ? (
@@ -658,16 +660,18 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <CardTitle className="text-base"><TermTooltip term="Pub/Sub Balance">Application Pub/Sub Balance</TermTooltip></CardTitle>
-            <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
-              {(["pubsub", "pub", "sub"] as AppBalanceMode[]).map((m) => (
-                <button key={m} onClick={() => setMode(m)}
-                  className={`px-2.5 py-0.5 text-xs rounded transition-colors ${mode === m ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"}`}>
-                  {m === "pubsub" ? "Pub + Sub" : m === "pub" ? "Pub" : "Sub"}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+              <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
+                {(["pubsub", "pub", "sub"] as AppBalanceMode[]).map((m) => (
+                  <button key={m} onClick={() => setMode(m)}
+                    className={`px-2.5 py-0.5 text-xs rounded transition-colors ${mode === m ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"}`}>
+                    {m === "pubsub" ? "Pub + Sub" : m === "pub" ? "Pub" : "Sub"}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
         </CardHeader>
         <CardContent>
           {mode === "pubsub" ? (
@@ -742,8 +746,10 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
       ]} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base"><TermTooltip term="Topic Fanout">Topic Fanout (Publishers × Subscribers)</TermTooltip></CardTitle>
-          <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base"><TermTooltip term="Topic Fanout">Topic Fanout (Publishers × Subscribers)</TermTooltip></CardTitle>
+            <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+          </div>
         </CardHeader>
         <CardContent>
           <EBarChart
@@ -918,23 +924,25 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <CardTitle className="text-base">{title}</CardTitle>
-            {data.matrix_kb && (
-              <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
-                {[false, true].map((kb) => (
-                  <button
-                    key={String(kb)}
-                    onClick={() => setShowKb(kb)}
-                    className={`px-2.5 py-0.5 text-xs rounded transition-colors ${
-                      showKb === kb ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {kb ? "Bytes" : "Count"}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <ChartSearchBar search={search} onSearch={(v) => { setSearch(v); setSelectedCell(null) }} count={filteredIndices.length} total={totalLabels} />
+              {data.matrix_kb && (
+                <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
+                  {[false, true].map((kb) => (
+                    <button
+                      key={String(kb)}
+                      onClick={() => setShowKb(kb)}
+                      className={`px-2.5 py-0.5 text-xs rounded transition-colors ${
+                        showKb === kb ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {kb ? "Bytes" : "Count"}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <ChartSearchBar search={search} onSearch={(v) => { setSearch(v); setSelectedCell(null) }} count={filteredIndices.length} total={totalLabels} />
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
@@ -1043,16 +1051,18 @@ function NodeCommLoadSection({ data }: { data: ExtrasStats["node_comm_load"] }) 
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <CardTitle className="text-base">Node Communication Load</CardTitle>
-            <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
-              {(["pubsub", "pub", "sub"] as NodeLoadMode[]).map((m) => (
-                <button key={m} onClick={() => setMode(m)}
-                  className={`px-2.5 py-0.5 text-xs rounded transition-colors ${mode === m ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"}`}>
-                  {m === "pubsub" ? "Pub + Sub" : m === "pub" ? "Pub" : "Sub"}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+              <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
+                {(["pubsub", "pub", "sub"] as NodeLoadMode[]).map((m) => (
+                  <button key={m} onClick={() => setMode(m)}
+                    className={`px-2.5 py-0.5 text-xs rounded transition-colors ${mode === m ? "bg-background shadow font-medium" : "text-muted-foreground hover:text-foreground"}`}>
+                    {m === "pubsub" ? "Pub + Sub" : m === "pub" ? "Pub" : "Sub"}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
         </CardHeader>
         <CardContent>
           {mode === "pubsub" ? (
@@ -1132,8 +1142,10 @@ function CriticalityIOSection({ data }: { data: ExtrasStats["criticality_io"] })
       {allItems.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Critical Applications I/O</CardTitle>
-            <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">Critical Applications I/O</CardTitle>
+              <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+            </div>
           </CardHeader>
           <CardContent>
             <EBarChart
@@ -1196,8 +1208,10 @@ function LibDependencySection({ data }: { data: ExtrasStats["lib_dependency"] })
       ]} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base"><TermTooltip term="Library Dependency Density">Library Dependency Density</TermTooltip></CardTitle>
-          <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base"><TermTooltip term="Library Dependency Density">Library Dependency Density</TermTooltip></CardTitle>
+            <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+          </div>
         </CardHeader>
         <CardContent>
           <EBarChart
@@ -1261,8 +1275,10 @@ function NodeCriticalDensitySection({ data }: { data: ExtrasStats["node_critical
       ]} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base"><TermTooltip term="Node Critical Density">Node Critical Application Density</TermTooltip></CardTitle>
-          <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base"><TermTooltip term="Node Critical Density">Node Critical Application Density</TermTooltip></CardTitle>
+            <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+          </div>
         </CardHeader>
         <CardContent>
           <EBarChart
@@ -1323,8 +1339,10 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
       ]} />
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Segment Diversity</CardTitle>
-          <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">Segment Diversity</CardTitle>
+            <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+          </div>
         </CardHeader>
         <CardContent>
           <EBarChart
@@ -1490,12 +1508,14 @@ function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
       {/* Bottleneck bar chart */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">
-            <TermTooltip term="Bottleneck Score" description="Composite structural score: betweenness (path coverage) + ap_c_directed (SPOF severity) + blast_radius (reachability loss) + bridge_ratio (structural fragility).">
-              Bottleneck Score by Component
-            </TermTooltip>
-          </CardTitle>
-          <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">
+              <TermTooltip term="Bottleneck Score" description="Composite structural score: betweenness (path coverage) + ap_c_directed (SPOF severity) + blast_radius (reachability loss) + bridge_ratio (structural fragility).">
+                Bottleneck Score by Component
+              </TermTooltip>
+            </CardTitle>
+            <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
+          </div>
         </CardHeader>
         <CardContent>
           <EBarChart
@@ -1698,7 +1718,7 @@ export default function StatisticsPage() {
                   <button
                     key={id}
                     onClick={() => { handleTabChange(id); setSelectedSection(id) }}
-                    className="text-left p-6 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                    className="text-left p-6 rounded-lg border border-border bg-card hover:border-primary/50 hover:bg-muted/50 transition-colors"
                   >
                     <Icon className={`h-6 w-6 ${color} mb-3`} />
                     <div className="font-semibold text-sm mb-2">{label}</div>
