@@ -4136,15 +4136,15 @@ function BrowserPageContent() {
     setSideInitialTab(tabMap[nodeType] ?? "nodes")
   }, [appsList])
 
-  if (!initialLoadComplete) {
+  if (!initialLoadComplete || (isConnected && loading && nodesList.length === 0)) {
     return (
       <AppLayout title="Explorer" description="Browse your system topology, inspect components, and explore dependency relationships.">
         <div className="space-y-3">
           {/* Tabs skeleton */}
-          <div className="flex gap-1 border-b border-border pb-0">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-8 rounded-b-none" style={{ width: `${64 + i * 24}px` }} />
-            ))}
+          <div className="flex items-center gap-1 mb-2 shrink-0">
+            <Skeleton className="h-9 w-20 rounded-md" />
+            <Skeleton className="h-9 w-20 rounded-md" />
+            <Skeleton className="h-9 w-20 rounded-md" />
           </div>
           {/* 3-column layout skeleton */}
           <div className="flex gap-0 border border-border rounded-lg overflow-hidden" style={{ minHeight: "520px" }}>
@@ -4394,11 +4394,7 @@ function BrowserPageContent() {
 
 export default function BrowserPage() {
   return (
-    <Suspense fallback={
-      <AppLayout title="Explorer" description="Browse your system topology, inspect components, and explore dependency relationships.">
-        <div className="flex items-center justify-center h-64"><LoadingSpinner /></div>
-      </AppLayout>
-    }>
+    <Suspense fallback={null}>
       <BrowserPageContent />
     </Suspense>
   )
