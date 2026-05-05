@@ -412,52 +412,6 @@ export default function DataPage() {
           </div>
 
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-            {/* Generate Sample */}
-            <button
-              onClick={handleDownloadGraph}
-              disabled={isGenerating || isImporting || isDownloading || isDownloadingNeo4j || isClearing}
-              className="text-left disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="rounded-xl border border-border p-4 transition-colors hover:border-blue-500/40 hover:bg-blue-500/[0.04]">
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="shrink-0 rounded-lg bg-blue-500/10 p-2">
-                    {isDownloading
-                      ? <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
-                      : <Download className="h-4 w-4 text-blue-400" />}
-                  </div>
-                </div>
-                <p className="text-lg font-bold leading-tight text-blue-400 mb-0.5">
-                  {isDownloading ? 'Generating…' : 'Generate Sample'}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Download a synthetic JSON graph
-                </p>
-              </div>
-            </button>
-
-            {/* Export Database */}
-            <button
-              onClick={handleDownloadNeo4jData}
-              disabled={isDownloadingNeo4j || isGenerating || isImporting || isDownloading || isClearing || !stats || stats.total_nodes === 0}
-              className="text-left disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="rounded-xl border border-border p-4 transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/[0.04]">
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="shrink-0 rounded-lg bg-emerald-500/10 p-2">
-                    {isDownloadingNeo4j
-                      ? <Loader2 className="h-4 w-4 text-emerald-400 animate-spin" />
-                      : <HardDrive className="h-4 w-4 text-emerald-400" />}
-                  </div>
-                </div>
-                <p className="text-lg font-bold leading-tight text-emerald-400 mb-0.5">
-                  {isDownloadingNeo4j ? 'Exporting…' : 'Export Database'}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Download current Neo4j graph as JSON
-                </p>
-              </div>
-            </button>
-
             {/* Import Graph */}
             <div className="relative">
               <input
@@ -490,6 +444,52 @@ export default function DataPage() {
                 </div>
               </button>
             </div>
+
+            {/* Export Database */}
+            <button
+              onClick={handleDownloadNeo4jData}
+              disabled={isDownloadingNeo4j || isGenerating || isImporting || isDownloading || isClearing || !stats || stats.total_nodes === 0}
+              className="text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="rounded-xl border border-border p-4 transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/[0.04]">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="shrink-0 rounded-lg bg-emerald-500/10 p-2">
+                    {isDownloadingNeo4j
+                      ? <Loader2 className="h-4 w-4 text-emerald-400 animate-spin" />
+                      : <HardDrive className="h-4 w-4 text-emerald-400" />}
+                  </div>
+                </div>
+                <p className="text-lg font-bold leading-tight text-emerald-400 mb-0.5">
+                  {isDownloadingNeo4j ? 'Exporting…' : 'Export Database'}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Download current Neo4j graph as JSON
+                </p>
+              </div>
+            </button>
+
+            {/* Generate Sample */}
+            <button
+              onClick={handleDownloadGraph}
+              disabled={isGenerating || isImporting || isDownloading || isDownloadingNeo4j || isClearing}
+              className="text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="rounded-xl border border-border p-4 transition-colors hover:border-blue-500/40 hover:bg-blue-500/[0.04]">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="shrink-0 rounded-lg bg-blue-500/10 p-2">
+                    {isDownloading
+                      ? <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
+                      : <Download className="h-4 w-4 text-blue-400" />}
+                  </div>
+                </div>
+                <p className="text-lg font-bold leading-tight text-blue-400 mb-0.5">
+                  {isDownloading ? 'Generating…' : 'Generate Sample'}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Download a synthetic JSON graph
+                </p>
+              </div>
+            </button>
 
             {/* Erase Database */}
             <button
