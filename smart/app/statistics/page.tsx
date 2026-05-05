@@ -280,15 +280,16 @@ function EBarChart({
         )
       },
     },
-    grid: { left: 80, right: 10, top: 10, bottom: showZoom ? 110 : 80 },
+    grid: { left: 80, right: 10, top: 10, bottom: showZoom ? 80 : 80 },
     xAxis: {
       type: "category" as const,
       data: labels,
-      axisLabel: { rotate: -45, fontSize: 10, interval: 0 },
+      axisLabel: { rotate: -45, fontSize: 10, interval: 0, color: "#94a3b8" },
     },
     yAxis: {
       type: "value" as const,
-      axisLabel: { fontSize: 11 },
+      axisLabel: { fontSize: 11, color: "#94a3b8" },
+      splitLine: { lineStyle: { color: "rgba(148,163,184,0.15)" } },
       ...(yDomain ? { min: yDomain[0], max: yDomain[1] } : {}),
     },
     series: series.map(s => {
@@ -434,7 +435,7 @@ function SummaryCards({ summary, keys }: { summary: SummaryDict; keys: { key: st
         const val = summary[key]
         if (val === undefined) return null
         return (
-          <div key={key} className="rounded-lg border bg-card p-3">
+          <div key={key} className="rounded-lg border bg-background p-3">
             <p className="text-xs text-muted-foreground">{label}</p>
             <p className="text-lg font-semibold">{format ? format(val) : fmtNum(val)}</p>
           </div>
@@ -489,7 +490,7 @@ function MetricInsightCard({
   unit?: string
 }) {
   return (
-    <div className="rounded-lg border bg-card p-4 flex flex-col gap-1.5">
+    <div className="rounded-lg border bg-background p-4 flex flex-col gap-1.5">
       <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest leading-none">{label}</p>
       <p className="text-xl font-bold leading-tight">
         {typeof value === "number" ? fmtNum(value) : value}
@@ -564,10 +565,10 @@ function TopicBandwidthSection({ data }: { data: ExtrasStats["topic_bandwidth"] 
         { key: cfg.avgKey, label: cfg.avgLabel },
         { key: "outlier_count", label: "Outliers" },
       ]} />
-      <Card>
+      <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <CardTitle className="text-base">Topic Bandwidth ({cfg.multiplierLabel})</CardTitle>
+            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Topic Bandwidth</CardTitle>
             <div className="flex items-center gap-2">
               <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
               <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
@@ -656,10 +657,10 @@ function AppBalanceSection({ data }: { data: ExtrasStats["app_balance"] }) {
         { key: "zero_activity", label: "Zero Activity" },
         { key: "outlier_count", label: "Outliers" },
       ]} />
-      <Card>
+      <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <CardTitle className="text-base"><TermTooltip term="Pub/Sub Balance">Application Pub/Sub Balance</TermTooltip></CardTitle>
+            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">App Balance</CardTitle>
             <div className="flex items-center gap-2">
               <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
               <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
@@ -744,10 +745,10 @@ function TopicFanoutSection({ data }: { data: ExtrasStats["topic_fanout"] }) {
         { key: "fanout_max", label: "Max Fanout" },
         { key: "outlier_count", label: "Outliers" },
       ]} />
-      <Card>
+      <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base"><TermTooltip term="Topic Fanout">Topic Fanout (Publishers × Subscribers)</TermTooltip></CardTitle>
+            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Topic Fanout</CardTitle>
             <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
           </div>
         </CardHeader>
@@ -849,12 +850,12 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
         return `${rLabel} → ${cLabel}: <strong>${fmtVal}</strong>`
       },
     },
-    grid: { top: 20, right: 20, bottom: n > 10 ? 120 : 80, left: n > 10 ? 120 : 80 },
+    grid: { top: 20, right: 20, bottom: n > 10 ? 80 : 50, left: n > 10 ? 120 : 80 },
     xAxis: {
       type: "category" as const,
       data: labels,
       axisLabel: { rotate: 45, fontSize: 11, color: "#94a3b8" },
-      axisLine: { lineStyle: { color: "#334155" } },
+      axisLine: { lineStyle: { color: "#94a3b8" } },
       splitArea: { show: true, areaStyle: { color: ["rgba(30,41,59,0.3)", "rgba(15,23,42,0.3)"] } },
     },
     yAxis: {
@@ -862,7 +863,7 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
       data: labels,
       inverse: true,
       axisLabel: { fontSize: 11, color: "#94a3b8" },
-      axisLine: { lineStyle: { color: "#334155" } },
+      axisLine: { lineStyle: { color: "#94a3b8" } },
       splitArea: { show: true, areaStyle: { color: ["rgba(30,41,59,0.3)", "rgba(15,23,42,0.3)"] } },
     },
     visualMap: {
@@ -920,10 +921,10 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
         { key: "inter_total", label: "Inter-entity" },
         { key: "outlier_count", label: "Outliers" },
       ]} />
-      <Card>
+      <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <CardTitle className="text-base">{title}</CardTitle>
+            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">{title}</CardTitle>
             <div className="flex items-center gap-2">
               <ChartSearchBar search={search} onSearch={(v) => { setSearch(v); setSelectedCell(null) }} count={filteredIndices.length} total={totalLabels} />
               {data.matrix_kb && (
@@ -956,10 +957,10 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
             </div>
             {selectedCell && (data.per_node ?? data.per_segment) && (
               <div className="w-56 shrink-0 flex flex-col rounded-md border border-border overflow-hidden self-start sticky top-4">
-                <div className="flex items-start justify-between px-3 py-2 bg-muted/40 border-b border-border gap-2">
-                  <div className="flex flex-col gap-0.5 min-w-0 text-xs">
+                <div className="flex items-center justify-between px-3 py-2 bg-muted/40 border-b border-border gap-2">
+                  <div className="flex items-center gap-1 min-w-0 text-xs">
                     <span className="font-semibold text-foreground truncate">{selectedCell.rowLabel}</span>
-                    <span className="text-muted-foreground">↓</span>
+                    <span className="text-muted-foreground shrink-0">→</span>
                     <span className="font-semibold text-foreground truncate">{selectedCell.colLabel}</span>
                   </div>
                   <button
@@ -1047,10 +1048,10 @@ function NodeCommLoadSection({ data }: { data: ExtrasStats["node_comm_load"] }) 
         { key: "zero_load", label: "Zero Load" },
         { key: "outlier_count", label: "Outliers" },
       ]} />
-      <Card>
+      <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <CardTitle className="text-base">Node Communication Load</CardTitle>
+            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Node Load</CardTitle>
             <div className="flex items-center gap-2">
               <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
               <div className="flex items-center gap-1 rounded-md border p-0.5 bg-muted/50">
@@ -1140,10 +1141,10 @@ function CriticalityIOSection({ data }: { data: ExtrasStats["criticality_io"] })
         { key: "crit_norm_ratio", label: "Crit/Normal Ratio" },
       ]} />
       {allItems.length > 0 && (
-        <Card>
+        <Card className="bg-background pb-3">
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base">Critical Applications I/O</CardTitle>
+              <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Criticality I/O</CardTitle>
               <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
             </div>
           </CardHeader>
@@ -1206,10 +1207,10 @@ function LibDependencySection({ data }: { data: ExtrasStats["lib_dependency"] })
         { key: "in_max", label: "Max In-degree" },
         { key: "outlier_count", label: "Outliers" },
       ]} />
-      <Card>
+      <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base"><TermTooltip term="Library Dependency Density">Library Dependency Density</TermTooltip></CardTitle>
+            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Library Deps</CardTitle>
             <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
           </div>
         </CardHeader>
@@ -1273,10 +1274,10 @@ function NodeCriticalDensitySection({ data }: { data: ExtrasStats["node_critical
         { key: "crit_per_node_max", label: "Max Crit/Node" },
         { key: "zero_crit", label: "No Critical" },
       ]} />
-      <Card>
+      <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base"><TermTooltip term="Node Critical Density">Node Critical Application Density</TermTooltip></CardTitle>
+            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Node Density</CardTitle>
             <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
           </div>
         </CardHeader>
@@ -1337,10 +1338,10 @@ function DomainDiversitySection({ data }: { data: ExtrasStats["domain_diversity"
         { key: "io_mean", label: "Avg I/O" },
         { key: "io_max", label: "Max I/O" },
       ]} />
-      <Card>
+      <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">Segment Diversity</CardTitle>
+            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Segment Diversity</CardTitle>
             <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
           </div>
         </CardHeader>
@@ -1429,9 +1430,9 @@ function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
   function resetWeights() { setPendingW(BOTTLENECK_DEFAULT_W); setAppliedW(BOTTLENECK_DEFAULT_W) }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Score formula with editable coefficients */}
-      <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+      <div className="rounded-lg border bg-background px-4 py-3 text-sm text-muted-foreground">
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2 font-mono text-xs">
           <span className="font-semibold text-foreground text-sm mr-0.5">Score =</span>
           <CoeffInput value={pendingW.bt} onChange={(v) => setPendingW((p) => ({ ...p, bt: v }))} />
@@ -1506,14 +1507,10 @@ function BottleneckSection({ data }: { data: ExtrasStats["bottleneck"] }) {
       </div>
 
       {/* Bottleneck bar chart */}
-      <Card>
+      <Card className="bg-background pb-3">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">
-              <TermTooltip term="Bottleneck Score" description="Composite structural score: betweenness (path coverage) + ap_c_directed (SPOF severity) + blast_radius (reachability loss) + bridge_ratio (structural fragility).">
-                Bottleneck Score by Component
-              </TermTooltip>
-            </CardTitle>
+            <CardTitle className="text-[11px] text-muted-foreground uppercase tracking-widest">Bottlenecks</CardTitle>
             <ChartSearchBar search={search} onSearch={handleSearch} count={filtered.length} total={allItems.length} />
           </div>
         </CardHeader>
@@ -1718,7 +1715,7 @@ export default function StatisticsPage() {
                   <button
                     key={id}
                     onClick={() => { handleTabChange(id); setSelectedSection(id) }}
-                    className="text-left p-6 rounded-lg border border-border bg-card hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                    className="text-left p-6 rounded-lg border border-border bg-background hover:border-primary/50 hover:bg-muted/50 transition-colors"
                   >
                     <Icon className={`h-6 w-6 ${color} mb-3`} />
                     <div className="font-semibold text-sm mb-2">{label}</div>
@@ -1769,7 +1766,7 @@ export default function StatisticsPage() {
                       {selectedSection === "topic_bandwidth" && <TopicBandwidthSection data={tabData.topic_bandwidth} />}
                       {selectedSection === "app_balance" && <AppBalanceSection data={tabData.app_balance} />}
                       {selectedSection === "topic_fanout" && <TopicFanoutSection data={tabData.topic_fanout} />}
-                      {selectedSection === "cross_node" && <HeatmapSection data={tabData.cross_node_heatmap} title="Cross-Node Communication Heatmap" modeToggle insights={
+                      {selectedSection === "cross_node" && <HeatmapSection data={tabData.cross_node_heatmap} title="Cross-Node" modeToggle insights={
                         tabData.cross_node_heatmap && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             <MetricInsightCard
@@ -1794,7 +1791,7 @@ export default function StatisticsPage() {
                         )
                       } />}
                       {selectedSection === "node_load" && <NodeCommLoadSection data={tabData.node_comm_load} />}
-                      {selectedSection === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Segment-to-Segment Communication" modeToggle insights={
+                      {selectedSection === "domain_comm" && <HeatmapSection data={tabData.domain_comm} title="Segment Comm" modeToggle insights={
                         tabData.domain_comm && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             <MetricInsightCard
