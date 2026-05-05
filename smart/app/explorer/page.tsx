@@ -4052,41 +4052,7 @@ function ForceGraphEChart({
         lazyUpdate={false}
       />
 
-      {/* Connections panel */}
-      {selectedConnections && (selectedConnections.outgoing.length > 0 || selectedConnections.incoming.length > 0) && (
-        <div className="absolute top-2 right-3 z-10 w-56 max-h-[70%] overflow-y-auto rounded-md border border-border bg-background/90 text-xs backdrop-blur shadow-md">
-          <div className="px-3 py-2 font-medium border-b border-border text-muted-foreground sticky top-0 bg-background/90">
-            Connections
-          </div>
-          {selectedConnections.outgoing.length > 0 && (
-            <div className="px-3 py-2">
-              <p className="font-medium text-muted-foreground mb-1">Outgoing</p>
-              {selectedConnections.outgoing.map((l, i) => (
-                <div key={i} className="flex items-center gap-1.5 py-0.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: EDGE_COLORS[l.type] ?? EDGE_COLOR_FALLBACK }} />
-                  <span className="truncate">{selectedConnections.getName(String(l.target))}</span>
-                  <span className="ml-auto text-muted-foreground/50 shrink-0">{l.type}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {selectedConnections.outgoing.length > 0 && selectedConnections.incoming.length > 0 && (
-            <hr className="border-border" />
-          )}
-          {selectedConnections.incoming.length > 0 && (
-            <div className="px-3 py-2">
-              <p className="font-medium text-muted-foreground mb-1">Incoming</p>
-              {selectedConnections.incoming.map((l, i) => (
-                <div key={i} className="flex items-center gap-1.5 py-0.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ background: EDGE_COLORS[l.type] ?? EDGE_COLOR_FALLBACK }} />
-                  <span className="truncate">{selectedConnections.getName(String(l.source))}</span>
-                  <span className="ml-auto text-muted-foreground/50 shrink-0">{l.type}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Connections panel removed — available in the Table view's third column */}
     </div>
   )
 }
@@ -4463,18 +4429,39 @@ function BrowserPageContent() {
           <TabsContent forceMount value="forcegraph" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
             {(appsList.length > 0 || nodesList.length > 0 || topicsList.length > 0)
               ? (
-                <div className="border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
-                  <ForceGraphEChart
-                    nodesList={nodesList}
-                    appsList={appsList}
-                    topicsList={topicsList}
-                    libsList={libsList}
-                    brokersList={brokersList}
-                    graphLinks={layerGraphLinks}
-                    linksLoading={layerLinksLoading}
-                    selectedKey={selectedNode?.key ?? null}
-                    onNodeClick={handleLayersNodeClick}
-                  />
+                <div className="flex border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <ForceGraphEChart
+                      nodesList={nodesList}
+                      appsList={appsList}
+                      topicsList={topicsList}
+                      libsList={libsList}
+                      brokersList={brokersList}
+                      graphLinks={layerGraphLinks}
+                      linksLoading={layerLinksLoading}
+                      selectedKey={selectedNode?.key ?? null}
+                      onNodeClick={handleLayersNodeClick}
+                    />
+                  </div>
+                  <div className="w-64 shrink-0 border-l border-border flex flex-col overflow-hidden">
+                    <ConnectionsColumn
+                      selectedNode={selectedNode}
+                      links={layerGraphLinks}
+                      nodeLabels={allNodeLabels}
+                      onSelect={(id) => {
+                        const info = allNodeLabels.get(id)
+                        if (!info) return
+                        const kind: SelectedKind = info.type === "Application" ? "app" : info.type === "Topic" ? "topic" : "node"
+                        const raw = appsList.find(a => String(a.id) === id)
+                          ?? nodesList.find(n => String(n.id) === id)
+                          ?? topicsList.find(t => String(t.id) === id)
+                          ?? brokersList.find(b => String(b.id) === id)
+                          ?? libsList.find(l => String(l.id) === id)
+                        if (!raw) return
+                        setSelectedNode({ kind, key: `${kind}:${id}`, label: info.label, path: [info.label], payload: raw })
+                      }}
+                    />
+                  </div>
                 </div>
               )
               : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
