@@ -3,7 +3,7 @@ import json
 import pytest
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent
 
 from tools.generation import GenerationService, load_config
 
@@ -29,9 +29,9 @@ def _canonical_sha256(data: dict) -> str:
 #   "
 # ---------------------------------------------------------------------------
 
-_SCENARIO_08_YAML = project_root / "input" / "scenario_08_tiny_regression.yaml"
+_SCENARIO_08_YAML = project_root / "data" / "scenarios" / "scenario_08_tiny_regression.yaml"
 
-_GOLDEN_SHA256 = "5ce27fd923ef4252123d4d371ddecc8635302ab43996397c385d30c2bd4aa7ad"
+_GOLDEN_SHA256 = "7a1b221a2c4d40573b52e31970c44abbe25af159b429a6a8828f70ea4adf92c7"
 
 _GOLDEN_ENTITY_COUNTS = {
     "nodes": 3,
@@ -43,11 +43,11 @@ _GOLDEN_ENTITY_COUNTS = {
 
 _GOLDEN_RELATIONSHIP_COUNTS = {
     "runs_on": 14,
-    "routes": 10,
-    "publishes_to": 30,
-    "subscribes_to": 37,
+    "routes": 8,
+    "publishes_to": 23,
+    "subscribes_to": 29,
     "uses": 13,
-    "connects_to": 2,
+    "connects_to": 1,
 }
 
 

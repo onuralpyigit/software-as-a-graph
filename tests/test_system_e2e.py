@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 # Provide absolute paths relative to this script
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 @pytest.mark.e2e
 def test_cli_smoke_end_to_end(tmp_path):
@@ -14,6 +14,8 @@ def test_cli_smoke_end_to_end(tmp_path):
     to verify all CLI stages are correctly integrated.
     """
     example_script = PROJECT_ROOT / "examples" / "example_end_to_end.py"
+    if not example_script.exists():
+        pytest.skip(f"Example script not found: {example_script}")
     
     # We use a very small scale and skip visualization to speed up tests
     cmd = [

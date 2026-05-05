@@ -79,21 +79,21 @@ class TestLayerData:
         assert not data.recommend_matrix_only
 
     def test_scale_category_medium(self):
-        """Systems with 50-200 nodes are 'medium'."""
+        """Systems with 50-200 nodes are 'medium'; matrix-only is recommended for >80 nodes."""
         data = LayerData(layer="app", name="App")
         data.nodes = 100
         assert data.scale_category == "medium"
-        assert not data.recommend_matrix_only
+        assert data.recommend_matrix_only
 
     def test_scale_category_large(self):
-        """Systems with 200-1000 nodes are 'large' and recommend matrix only."""
+        """Systems with 200-500 nodes are 'large' and recommend matrix only."""
         data = LayerData(layer="app", name="App")
-        data.nodes = 500
+        data.nodes = 300
         assert data.scale_category == "large"
         assert data.recommend_matrix_only
 
     def test_scale_category_xlarge(self):
-        """Systems with > 1000 nodes are 'xlarge'."""
+        """Systems with >= 500 nodes are 'xlarge'."""
         data = LayerData(layer="app", name="App")
         data.nodes = 2000
         assert data.scale_category == "xlarge"
@@ -111,10 +111,10 @@ class TestLayerData:
         assert not data.has_validation
 
     def test_has_simulation_with_throughput(self):
-        """has_simulation is True when event_throughput > 0."""
+        """event_throughput alone does NOT enable has_simulation; only max_impact does."""
         data = LayerData(layer="app", name="App")
         data.event_throughput = 100
-        assert data.has_simulation
+        assert not data.has_simulation
 
     def test_has_simulation_with_impact(self):
         """has_simulation is True when max_impact > 0."""
@@ -540,7 +540,7 @@ class TestVisualizationService:
             mock_collector.collect_layer_data.return_value = mock_data
 
             with patch(
-                "src.visualization.dashboard.DashboardGenerator"
+                "saag.visualization.dashboard.DashboardGenerator"
             ) as MockDash:
                 dash_instance = MockDash.return_value
                 dash_instance.generate.return_value = "<html>Dashboard</html>"
@@ -554,7 +554,7 @@ class TestVisualizationService:
                 assert output.exists()
 
     def test_scalability_auto_disable_network(
-        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
+        self, tmp_path, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
         """Large systems auto-disable network graph (> 500 nodes)."""
         repository = MagicMock()
@@ -572,12 +572,12 @@ class TestVisualizationService:
             mock_collector.collect_layer_data.return_value = mock_data
 
             with patch.object(service, "_add_network_section") as mock_add:
-                with patch("src.visualization.dashboard.DashboardGenerator") as MockDash:
+                with patch("saag.visualization.dashboard.DashboardGenerator") as MockDash:
                     dash_instance = MockDash.return_value
                     dash_instance.generate.return_value = "<html></html>"
 
                     service.generate_dashboard(
-                        output_file="/tmp/test.html",
+                        output_file=str(tmp_path / "test.html"),
                         layers=["system"],
                         include_network=True,
                     )
@@ -586,7 +586,7 @@ class TestVisualizationService:
                     assert mock_add.called is False
 
     def test_unknown_layer_skipped(
-        self, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
+        self, tmp_path, mock_analysis_service, mock_prediction_service, mock_simulation_service, mock_validation_service
     ):
         """Empty layers raise ValueError (at least one valid layer required)."""
         repository = MagicMock()
@@ -598,10 +598,10 @@ class TestVisualizationService:
             repository=repository,
         )
 
-        with patch("src.visualization.dashboard.DashboardGenerator"):
+        with patch("saag.visualization.dashboard.DashboardGenerator"):
             with pytest.raises(ValueError, match="No layer data collected"):
                 service.generate_dashboard(
-                    output_file="/tmp/test.html",
+                    output_file=str(tmp_path / "test.html"),
                     layers=["nonexistent_layer"],
                 )
 

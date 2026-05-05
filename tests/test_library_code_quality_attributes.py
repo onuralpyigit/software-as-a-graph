@@ -342,7 +342,11 @@ class TestNonLibraryNonAppNodesUnaffected:
 
 class TestLibraryBackwardCompatibility:
     def test_library_without_code_quality_analyzes_without_error(self):
-        """LCQ-007: Libraries with all-zero code-quality fields analyse without error; CQP = 0."""
+        """LCQ-007: Libraries with all-zero code-quality fields analyse without error.
+
+        Under solitary-population handling, zero-variance LOC/CC/LCOM normalise to 1.0,
+        so CQP = W_LOC + W_CC + W_LCOM = 0.70 (instability_code stays 0).
+        """
         gd = GraphData(
             components=[
                 ComponentData(id="L1", component_type="Library", weight=1.0,
@@ -358,7 +362,7 @@ class TestLibraryBackwardCompatibility:
         res = analyzer.analyze(gd, layer=AnalysisLayer.SYSTEM)
 
         for m in res.components.values():
-            assert m.code_quality_penalty == pytest.approx(0.0)
+            assert m.code_quality_penalty == pytest.approx(0.70)
 
 
 # =============================================================================

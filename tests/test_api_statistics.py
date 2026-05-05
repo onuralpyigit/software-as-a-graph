@@ -24,7 +24,7 @@ def test_get_graph_stats(mock_service):
     
     try:
         # Call endpoint
-        response = client.post("/api/v1/stats", json={
+        response = client.post("/api/v1/stats/summary", json={
             "uri": "bolt://localhost:7687",
             "user": "neo4j",
             "password": "password"

@@ -5,7 +5,7 @@ def test_simulation_does_not_import_prediction():
     """Enforce the independence guarantee: I(v) must not derive from Q(v)."""
     
     # Locate saag/simulation relative to this test file (tests/ at repo root)
-    repo_root = pathlib.Path(__file__).resolve().parent
+    repo_root = pathlib.Path(__file__).resolve().parent.parent
     sim_dir = repo_root / "saag" / "simulation"
     
     assert sim_dir.exists(), f"Directory not found: {sim_dir}"

@@ -36,8 +36,8 @@ def test_mask_consistency_best_seed(mock_gnn_service):
     from saag.prediction.trainer import EvalMetrics
     mock_metrics = EvalMetrics(0.9, 0.8, 0.1, 0.1, 1.0, 1.0, 1.0)
     
-    with patch("src.prediction.gnn_service.create_node_splits") as mock_split:
-        with patch("src.prediction.gnn_service.evaluate", return_value=mock_metrics):
+    with patch("saag.prediction.gnn_service.create_node_splits") as mock_split:
+        with patch("saag.prediction.gnn_service.evaluate", return_value=mock_metrics):
             service._node_model.return_value = {"Application": torch.randn(2, 5)}
             service.predict_from_data(data, simulation_results={"app1": {}})
             
@@ -64,7 +64,7 @@ def test_ensemble_metrics_computation(mock_gnn_service):
     # Mock evaluate_scores
     from saag.prediction.trainer import EvalMetrics
     
-    with patch("src.prediction.trainer.evaluate_scores") as mock_eval_scores:
+    with patch("saag.prediction.trainer.evaluate_scores") as mock_eval_scores:
         mock_eval_scores.return_value = EvalMetrics(0.95, 0.9, 0.05, 0.05, 1.0, 1.0, 1.0)
         
         # We need ensemble_scores to be populated
