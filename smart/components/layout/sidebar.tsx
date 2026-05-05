@@ -98,7 +98,7 @@ export function Sidebar() {
     >
       {/* Logo/Title */}
       <div className={cn(
-        "flex h-16 items-center border-b bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30",
+        "flex h-16 items-center border-b bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30",
         collapsed ? "justify-center px-0" : "px-6"
       )}>
         <Image
@@ -109,7 +109,7 @@ export function Sidebar() {
           className="rounded-lg shadow-lg shrink-0"
         />
         {!collapsed && (
-          <span className="ml-3 text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent whitespace-nowrap overflow-hidden">Genieus</span>
+          <span className="ml-3 text-lg font-bold bg-gradient-to-r from-cyan-500 to-blue-700 dark:from-cyan-400 dark:to-blue-500 bg-clip-text text-transparent whitespace-nowrap overflow-hidden">Genieus</span>
         )}
       </div>
 
@@ -129,8 +129,8 @@ export function Sidebar() {
                 "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 collapsed ? "justify-center gap-0" : "gap-3",
                 isActive
-                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md shadow-blue-500/20 dark:shadow-blue-500/30"
-                  : "text-muted-foreground hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-950/50 dark:hover:to-purple-950/50 hover:text-foreground hover:shadow-sm"
+                  ? "bg-gradient-to-r from-cyan-400 to-blue-600 text-white shadow-md shadow-cyan-500/20 dark:shadow-cyan-500/30"
+                  : "text-muted-foreground hover:bg-gradient-to-r hover:from-cyan-50 hover:to-blue-50 dark:hover:from-cyan-950/50 dark:hover:to-blue-950/50 hover:text-foreground hover:shadow-sm"
               )}
             >
               <Icon className="h-5 w-5 shrink-0" />
