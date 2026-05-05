@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from saag.explanation.cli import CLIFormatter
-from saag.explanation.engine import ComponentExplanation, DimensionExplanation
+from saag.explanation.engine import ComponentExplanation, DimensionExplanation, SystemReport
 from saag.prediction.models import QualityAnalysisResult, ComponentQuality
 from saag.core.metrics import QualityLevels
 from saag.core.criticality import CriticalityLevel
@@ -54,9 +54,10 @@ def test_print_critical_report():
     
     res = MagicMock(spec=QualityAnalysisResult)
     res.components = [comp]
+    res.layer = "system"
     
     # Mock ExplanationEngine in the module
-    with patch("src.explanation.cli.ExplanationEngine") as mock_engine_class:
+    with patch("saag.explanation.cli.ExplanationEngine") as mock_engine_class:
         mock_engine = mock_engine_class.return_value
         mock_engine.explain_component.return_value = ComponentExplanation(
             component_id="TestComp",
@@ -67,6 +68,17 @@ def test_print_critical_report():
             dimensions=[],
             priority_action="fix it",
             anti_patterns=[]
+        )
+        mock_engine.explain_system.return_value = SystemReport(
+            total_components=1,
+            critical_count=1,
+            high_count=0,
+            deployment_blocked=True,
+            reason="1 CRITICAL component",
+            top_risk_summary="Single critical component requires action.",
+            by_stakeholder={},
+            component_explanations=[],
+            remediation_plan=[],
         )
         
         with patch("builtins.print") as mock_print:

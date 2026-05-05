@@ -39,13 +39,11 @@ def test_availability_orthogonality():
         a_bridge_ratio=0.0,
         a_ap_c_directed=0.0,
         a_cdi=0.0,
-        a_articulation=0.0,    # Deprecated
-        a_qos_weight=0.0,      # Deprecated
+        a_qos_weight=0.0,
         r_reverse_pagerank=1.0,
         r_pagerank=0.0,
         r_in_degree=0.0,
     )
-
     analyzer = QualityAnalyzer(weights=weights, use_ahp=False, normalization_method="max")
     quality_result = analyzer.analyze(result)
 

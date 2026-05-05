@@ -32,7 +32,7 @@ def _parse_imports(py_file: pathlib.Path) -> list[tuple[str, set[str]]]:
 def test_prediction_usecase_does_not_import_simulation():
     """PredictGraphUseCase must not reference simulation symbols."""
     backend_dir = pathlib.Path(__file__).resolve().parent.parent
-    predict_uc = backend_dir / "src" / "usecases" / "predict_graph.py"
+    predict_uc = backend_dir / "saag" / "usecases" / "predict_graph.py"
 
     assert predict_uc.exists(), f"File not found: {predict_uc}"
 
@@ -55,7 +55,7 @@ def test_prediction_usecase_does_not_import_simulation():
 def test_prediction_module_does_not_import_simulation():
     """No file in src/prediction/ may import from src/simulation/."""
     backend_dir = pathlib.Path(__file__).resolve().parent.parent
-    pred_dir = backend_dir / "src" / "prediction"
+    pred_dir = backend_dir / "saag" / "prediction"
 
     assert pred_dir.exists(), f"Directory not found: {pred_dir}"
 

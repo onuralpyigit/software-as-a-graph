@@ -152,6 +152,7 @@ def test_analyze_full_system(mock_analysis_result):
         data = response.json()
         assert data["success"] is True
         assert "analysis" in data
-        mock_client_instance.analyze.assert_called_once_with(layer="system")
+        # NOTE: Endpoint bypasses client.analyze() and runs StructuralAnalyzer directly
+        # against client.repo.get_graph_data() — see api/routers/analysis.py::_structural_analyze
     finally:
         app.dependency_overrides = {}

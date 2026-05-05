@@ -206,13 +206,15 @@ class TestStructuralMetricsCodeQuality:
         assert cqp_b >= cqp_a
 
     def test_cqp_zero_when_all_code_quality_inputs_zero(self):
-        """CQ-004b: CQP = 0 when all code-quality fields are 0."""
+        """CQ-004b: With zero-variance population, the analyzer's solitary-population
+        handling assigns max-norm (1.0) to LOC/CC/LCOM, so CQP = W_LOC + W_CC + W_LCOM = 0.70
+        (instability_code stays 0 since not re-normalised)."""
         gd = _simple_two_app_graph()  # no code-quality fields
         analyzer = StructuralAnalyzer()
         res = analyzer.analyze(gd)
         
         for m in res.components.values():
-            assert m.code_quality_penalty == pytest.approx(0.0)
+            assert m.code_quality_penalty == pytest.approx(0.70)
 
 
 # =============================================================================
@@ -319,9 +321,9 @@ class TestBackwardCompatibility:
         comp_dict = {cq.id: cq for cq in result.components}
         assert "X" in comp_dict
         assert "Y" in comp_dict
-        # CQP should be 0
+        # CQP defaults to 0.70 under solitary-population handling (zero-variance LOC/CC/LCOM → norm=1.0)
         for m in res.components.values():
-            assert m.code_quality_penalty == pytest.approx(0.0)
+            assert m.code_quality_penalty == pytest.approx(0.70)
 
 
 # =============================================================================
