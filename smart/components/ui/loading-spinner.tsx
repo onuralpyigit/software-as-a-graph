@@ -9,9 +9,9 @@ interface LoadingSpinnerProps {
 
 export function LoadingSpinner({ size = "md", text, className }: LoadingSpinnerProps) {
   const sizeClasses = {
-    sm: "h-5 w-5",
-    md: "h-10 w-10",
-    lg: "h-16 w-16",
+    sm: "h-4 w-4",
+    md: "h-6 w-6",
+    lg: "h-8 w-8",
   }
 
   const textSizeClasses = {
@@ -21,22 +21,8 @@ export function LoadingSpinner({ size = "md", text, className }: LoadingSpinnerP
   }
 
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-3", className)}>
-      <div className="relative">
-        {/* Single spinning ring with gradient */}
-        <div
-          className={cn(
-            "rounded-full border-2 border-slate-200 dark:border-slate-800",
-            sizeClasses[size]
-          )}
-        />
-        <div
-          className={cn(
-            "absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 border-r-purple-500 animate-spin",
-            sizeClasses[size]
-          )}
-        />
-      </div>
+    <div className={cn("flex flex-col items-center justify-center gap-2", className)}>
+      <Loader2 className={cn("animate-spin text-muted-foreground", sizeClasses[size])} />
       {text && (
         <p className={cn("font-medium text-muted-foreground", textSizeClasses[size])}>
           {text}
