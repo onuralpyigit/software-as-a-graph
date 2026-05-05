@@ -2394,7 +2394,7 @@ const HierEChartsTree = memo(function HierEChartsTree({
   )
 })
 
-function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, syncKey = null, onNodeSelect }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null; syncKey?: string | null; onNodeSelect?: (key: string) => void }) {
+function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, syncKey = null, onNodeSelect, onSelectInfo }: { hierarchy: Record<string, CsmsGroup>; extraNodes?: any[]; initialNodeId?: string | null; syncKey?: string | null; onNodeSelect?: (key: string) => void; onSelectInfo?: (pathKey: string, name: string, nodeType?: string) => void }) {
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
 
@@ -2481,6 +2481,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       setSelectedApp(node)
       setConnTab("props")
       setConnData(null)
+      onSelectInfo?.(node.pathKey, node.name, node.nodeType)
     } else {
       setSelectedApp(null)
       setConnData(null)
@@ -2503,7 +2504,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
       setDrillNode({ id: node.id, name: node.name, level: node.level, appCount: node.appCount, pathKey: node.pathKey })
     }
     if (!wasSyncing) onNodeSelect?.(node.id)
-  }, [hierarchy, onNodeSelect])
+  }, [hierarchy, onNodeSelect, onSelectInfo])
 
   // Sync selection when syncKey changes (cross-view sync or URL param)
   const prevSyncKeyRef = useRef<string | null | undefined>(undefined)
@@ -2778,19 +2779,16 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     const existingData = connDataMap.get(nodeId)
     // Use a "conn:" prefixed instanceKey so the hierarchy tree never highlights/expands this node
     const connInstanceKey = `conn:${nodeId}`
-    const hgNode: HGNode = { id: `app:${nodeId}`, name: nodeId, level: "app", appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey }
+    const extraNode = extraNodes.find((n: any) => n.id === nodeId)
+    const nodeName = extraNode?.name ?? extraNode?.label ?? nodeId
+    const nodeType = extraNode?.type
+    const hgNode: HGNode = { id: `app:${nodeId}`, name: nodeName, level: "app", appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey, nodeType }
     setSelectedApp(hgNode)
     setConnTab("props")
     if (existingData) setConnData(existingData)
 
-    // Notify parent so list view stays in sync — apps use app: prefix, all others use extra:
-    const isHierarchyApp = flatNodes.some(n => n.level === "app" && n.pathKey === nodeId)
-    const extraNode = extraNodes.find((n: any) => n.id === nodeId)
-    if (isHierarchyApp || extraNode?.type === "Application") {
-      onNodeSelect?.(`app:${nodeId}`)
-    } else {
-      onNodeSelect?.(`extra:${nodeId}`)
-    }
+    // Notify parent so side panel and list view stay in sync
+    onSelectInfo?.(nodeId, nodeName, nodeType)
 
     // Toggle expansion
     if (expandedLeaves.has(instanceKey)) {
@@ -2802,13 +2800,16 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
         setExpandedLeaves(prev => new Map(prev).set(instanceKey, { nodes: structural.nodes, links: structural.links }))
         setConnDataMap(prev => new Map(prev).set(nodeId, { nodes: structural.nodes, links: structural.links }))
         setConnData({ nodes: structural.nodes, links: structural.links })
-        // Update name from fetched data
+        // Update name/type from fetched data and re-notify parent side panel
         const fetchedNode = structural.nodes.find((n: any) => n.id === nodeId)
         if (fetchedNode) {
-          setSelectedApp({ id: `app:${nodeId}`, name: (fetchedNode as any).label ?? (fetchedNode as any).name ?? nodeId, level: "app", nodeType: (fetchedNode as any).type, appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey })
+          const fetchedName = (fetchedNode as any).label ?? (fetchedNode as any).name ?? nodeId
+          const fetchedType = (fetchedNode as any).type
+          setSelectedApp({ id: `app:${nodeId}`, name: fetchedName, level: "app", nodeType: fetchedType, appCount: 1, pathKey: nodeId, instanceKey: connInstanceKey })
+          onSelectInfo?.(nodeId, fetchedName, fetchedType)
         }
       }).catch(() => {})
-  }, [expandedLeaves, connDataMap, flatNodes, extraNodes, onNodeSelect])
+  }, [expandedLeaves, connDataMap, extraNodes, onNodeSelect, onSelectInfo])
 
   const drillTo = useCallback((idx: number) => {
     clearSelection()
@@ -2941,6 +2942,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
               setConnTab("props")
               setConnData(null)
               onNodeSelect?.(hgNode.id)
+              onSelectInfo?.(hgNode.pathKey, hgNode.name, hgNode.nodeType)
             }}
             onConnNodeClick={onConnLeafClick}
           />
@@ -3012,202 +3014,48 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+// ── Graph Tab Side Panel ─────────────────────────────────────────────────────
 
-        {/* Side panel */}
-        {selectedApp && (
-          <div className="w-72 shrink-0 border-l border-border bg-background flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold text-white shrink-0"
-                  style={{ background: nodeTypeColor(appNode?.type ?? selectedApp?.nodeType, isDark) }}>
-                  {(() => {
-                    const t = appNode?.type ?? selectedApp?.nodeType ?? "App"
-                    return t.toLowerCase() === "mqtt" ? "Broker" : t
-                  })()}
-                </span>
-                <span className="text-xs font-semibold text-foreground truncate">{selectedApp.name}</span>
-              </div>
-              <button onClick={clearSelection} className="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <div className="flex border-b border-border shrink-0">
-              {(["props", "connections"] as const).map(tab => (
-                <button key={tab} onClick={() => setConnTab(tab)}
-                  className={cn("flex-1 py-2.5 text-[11px] font-medium transition-colors",
-                    connTab === tab ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"
-                  )}>
-                  {tab === "connections" ? `Connections (${outLinks.length + inLinks.length})` : "Props"}
-                </button>
-              ))}
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {connLoading && <div className="flex items-center justify-center h-24"><LoadingSpinner className="h-5 w-5" /></div>}
-              {connError && !connLoading && <p className="px-4 py-3 text-xs text-destructive">{connError}</p>}
-              {!connLoading && !connError && connTab === "connections" && (
-                <table className="w-full text-[11px]">
-                  <thead className="sticky top-0 bg-background z-10">
-                    <tr className="border-b border-border">
-                      {(["node", "type", "dir"] as const).map(col => (
-                        <th key={col}
-                          onClick={() => setConnSort(s => ({ col, asc: s.col === col ? !s.asc : true }))}
-                          className={cn(
-                            "py-2 text-[10px] font-semibold uppercase tracking-wide cursor-pointer select-none transition-colors hover:text-foreground",
-                            col === "dir" ? "text-right px-3" : "text-left px-3",
-                            connSort.col === col ? "text-foreground" : "text-muted-foreground"
-                          )}>
-                          {col === "node" ? "Node" : col === "type" ? "Type" : "Dir"}
-                          <span className={connSort.col === col ? "" : "opacity-30"}>{connSort.col === col ? (connSort.asc ? " ↑" : " ↓") : " ↑"}</span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      ...outLinks.map(l => ({ link: l, dir: "out" as const })),
-                      ...inLinks.map(l => ({ link: l, dir: "in" as const })),
-                    ].sort((a, b) => {
-                      let cmp = 0
-                      if (connSort.col === "node") {
-                        const aId = a.dir === "out" ? (a.link.target?.id ?? a.link.target) : (a.link.source?.id ?? a.link.source)
-                        const bId = b.dir === "out" ? (b.link.target?.id ?? b.link.target) : (b.link.source?.id ?? b.link.source)
-                        cmp = peerLabel(aId).localeCompare(peerLabel(bId))
-                      } else if (connSort.col === "type") {
-                        cmp = (a.link.type ?? "").localeCompare(b.link.type ?? "")
-                      } else {
-                        cmp = a.dir.localeCompare(b.dir)
-                      }
-                      return connSort.asc ? cmp : -cmp
-                    }).map(({ link, dir }, i) => {
-                      const peerId = dir === "out" ? (link.target?.id ?? link.target) : (link.source?.id ?? link.source)
-                      const peerNode = nodeById.get(peerId)
-                      return (
-                        <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                          <td className="px-3 py-2 font-medium text-foreground max-w-[110px] truncate" title={peerLabel(peerId)}>
-                            <ItemTooltip
-                              data={{
-                                type: peerNode?.type ?? "Application",
-                                properties: peerNode?.properties ?? {},
-                              }}
-                              side="left"
-                            >
-                              <span className="truncate">{peerLabel(peerId)}</span>
-                            </ItemTooltip>
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground max-w-[80px] truncate">{link.type ?? "—"}</td>
-                          <td className="px-3 py-2 text-right">
-                            <span className={cn(
-                              "font-semibold uppercase tracking-wide",
-                              dir === "out" ? "text-blue-400" : "text-orange-400"
-                            )}>{dir}</span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                    {outLinks.length === 0 && inLinks.length === 0 && (
-                      <tr><td colSpan={3} className="px-3 py-8 text-center text-muted-foreground text-[11px]">
-                        No connections
-                      </td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-              {!connLoading && !connError && connTab === "props" && (
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-background/95 backdrop-blur z-10">
-                    <tr className="border-b border-border/60">
-                      <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest w-2/5">Property</th>
-                      <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {appProps.length === 0 && (
-                      <tr><td colSpan={2} className="px-3 py-8 text-center text-muted-foreground text-[11px]">No properties available</td></tr>
-                    )}
-                    {(() => {
-                      const HIER_KEYS = new Set(["csms_name","csc_name","csci_name","css_name"])
-                      const isCmSize     = (k: string) => /^cm_total_|^loc$|^duplicated_lines_density$/.test(k)
-                      const isCmComplex  = (k: string) => /^cm_(total_|avg_|max_)wmc$|^cyclomatic_complexity$/.test(k)
-                      const isCmCohesion = (k: string) => /^cm_(avg_|max_)lcom$|^lcom(_norm)?$/.test(k)
-                      const isCmCoupling = (k: string) => /^cm_(avg_|max_)(cbo|rfc|fanin|fanout)$|^coupling_/.test(k)
-                      const isCm         = (k: string) => /^cm_|^cyclomatic_complexity$|^coupling_|^loc$|^duplicated_lines_density$|^lcom(_norm)?$|^sqale_debt_ratio$/.test(k)
+function GraphTabSidePanel({ selectedNode, links, nodeLabels, onSelect }: {
+  selectedNode: SelectedNodeInfo | null
+  links: any[]
+  nodeLabels: Map<string, { label: string; type: string }>
+  onSelect: (id: string) => void
+}) {
+  const [tab, setTab] = useState<"details" | "connections">("details")
 
-                      const primitives = appProps.filter(([k, v]) => typeof v !== "object" && !HIER_KEYS.has(k) && !isCm(k))
-                      const hierarchy  = appProps.filter(([k]) => HIER_KEYS.has(k))
-                      const cmSize     = appProps.filter(([k]) => isCmSize(k))
-                      const cmComplex  = appProps.filter(([k]) => isCmComplex(k))
-                      const cmCohesion = appProps.filter(([k]) => isCmCohesion(k))
-                      const cmCoupling = appProps.filter(([k]) => isCmCoupling(k))
-                      const cmOther    = appProps.filter(([k, v]) => isCm(k) && !isCmSize(k) && !isCmComplex(k) && !isCmCohesion(k) && !isCmCoupling(k))
-
-                      const PrimRow = ({ k, v, indent = false }: { k: string; v: unknown; indent?: boolean }) => {
-                        const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
-                        const desc = PROP_DESCS[k]
-                        return (
-                          <tr className="border-b border-border/40 hover:bg-muted/20 transition-colors">
-                            <td className={`${indent ? "pl-6" : "px-3"} pr-3 py-2 w-2/5`}>
-                              <span className="inline-flex items-center gap-0 text-[11px] text-foreground">{k}{desc && <Tip text={desc} />}</span>
-                            </td>
-                            <td className="px-3 py-2 font-mono text-foreground break-all text-xs">
-                              {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-50 not-italic">{unit}</span>}
-                            </td>
-                          </tr>
-                        )
-                      }
-                      const GroupHeader = ({ label }: { label: string }) => (
-                        <tr>
-                          <td colSpan={2} className="px-3 pt-4 pb-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">{label}</span>
-                              <div className="flex-1 h-px bg-border/50" />
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                      const SubHeader = ({ label }: { label: string }) => (
-                        <tr>
-                          <td colSpan={2} className="pl-6 pr-3 pt-2 pb-0.5">
-                            <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">{label}</span>
-                          </td>
-                        </tr>
-                      )
-
-                      return <>
-                        {primitives.map(([k, v]) => <PrimRow key={k} k={k} v={v} />)}
-
-                        {hierarchy.length > 0 && <>
-                          <GroupHeader label="System Hierarchy" />
-                          {hierarchy.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                        </>}
-
-                        {(cmSize.length + cmComplex.length + cmCohesion.length + cmCoupling.length + cmOther.length) > 0 && <>
-                          <GroupHeader label="Code Metrics" />
-                          {cmSize.length > 0 && <>
-                            <SubHeader label="Size" />
-                            {cmSize.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                          </>}
-                          {cmComplex.length > 0 && <>
-                            <SubHeader label="Complexity" />
-                            {cmComplex.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                          </>}
-                          {cmCohesion.length > 0 && <>
-                            <SubHeader label="Cohesion" />
-                            {cmCohesion.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                          </>}
-                          {cmCoupling.length > 0 && <>
-                            <SubHeader label="Coupling" />
-                            {cmCoupling.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                          </>}
-                          {cmOther.map(([k, v]) => <PrimRow key={k} k={k} v={v} indent />)}
-                        </>}
-                      </>
-                    })()}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        )}
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex shrink-0 border-b border-border">
+        {(["details", "connections"] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "flex-1 py-2.5 text-[11px] font-medium transition-colors capitalize",
+              tab === t
+                ? "border-b-2 border-primary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto">
+        {tab === "details"
+          ? (selectedNode ? <NodeDetailPanel node={selectedNode} /> : <EmptyDetailState />)
+          : <ConnectionsColumn
+              selectedNode={selectedNode}
+              links={links}
+              nodeLabels={nodeLabels}
+              onSelect={(id) => { onSelect(id); setTab("details") }}
+            />
+        }
       </div>
     </div>
   )
@@ -4078,6 +3926,7 @@ function BrowserPageContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null)
+  const [hierSelectedNode, setHierSelectedNode] = useState<SelectedNode | null>(null)
   const [activeTab, setActiveTab] = useState<"browse" | "graph" | "forcegraph">("browse")
   const [layerGraphLinks, setLayerGraphLinks] = useState<Array<{ source: string; target: string; type: string; weight?: number }>>([])
   const [layerLinksLoading, setLayerLinksLoading] = useState(false)
@@ -4417,8 +4266,44 @@ function BrowserPageContent() {
           <TabsContent forceMount value="graph" className="flex-1 min-h-0 mt-0 h-full data-[state=inactive]:hidden">
             {csmsKeys.length > 0
               ? (
-                <div className="border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
-                  <HierarchyGraph hierarchy={hierarchy} extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]} />
+                <div className="flex border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <HierarchyGraph
+                      hierarchy={hierarchy}
+                      extraNodes={[...nodesList, ...topicsList, ...brokersList, ...libsList]}
+                      onSelectInfo={(pathKey, name, nodeType) => {
+                        const info = allNodeLabels.get(pathKey)
+                        const type = nodeType ?? info?.type ?? "Application"
+                        const kind: SelectedKind = type === "Topic" ? "topic" : type === "Application" ? "app" : "node"
+                        const label = info?.label ?? name
+                        const raw = appsList.find(a => String(a.id) === pathKey)
+                          ?? nodesList.find(n => String(n.id) === pathKey)
+                          ?? topicsList.find(t => String(t.id) === pathKey)
+                          ?? brokersList.find(b => String(b.id) === pathKey)
+                          ?? libsList.find(l => String(l.id) === pathKey)
+                        setHierSelectedNode({ kind, key: `${kind}:${pathKey}`, label, path: [label], payload: raw ?? { id: pathKey, name: label } })
+                      }}
+                    />
+                  </div>
+                  <div className="w-72 shrink-0 border-l border-border flex flex-col overflow-hidden">
+                    <GraphTabSidePanel
+                      selectedNode={hierSelectedNode}
+                      links={layerGraphLinks}
+                      nodeLabels={allNodeLabels}
+                      onSelect={(id) => {
+                        const info = allNodeLabels.get(id)
+                        if (!info) return
+                        const kind: SelectedKind = info.type === "Application" ? "app" : info.type === "Topic" ? "topic" : "node"
+                        const label = info.label
+                        const raw = appsList.find(a => String(a.id) === id)
+                          ?? nodesList.find(n => String(n.id) === id)
+                          ?? topicsList.find(t => String(t.id) === id)
+                          ?? brokersList.find(b => String(b.id) === id)
+                          ?? libsList.find(l => String(l.id) === id)
+                        setHierSelectedNode({ kind, key: `${kind}:${id}`, label, path: [label], payload: raw ?? { id, name: label } })
+                      }}
+                    />
+                  </div>
                 </div>
               )
               : <p className="text-center text-muted-foreground py-12 text-sm">No data loaded yet.</p>
