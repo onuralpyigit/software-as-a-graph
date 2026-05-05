@@ -932,7 +932,7 @@ class GraphAnalysisAPI {
     const nodes = components.map((c: any) => ({
       id: c.id,
       label: c.name || c.id,
-      type: c.type || 'Unknown',
+      type: c.broker_type != null ? 'Broker' : (c.type || 'Unknown'),
       properties: c,
       degree: 0,
       criticality_score: c.weight || 0,
@@ -996,7 +996,7 @@ class GraphAnalysisAPI {
     const nodes = components.map((c: any) => ({
       id: c.id,
       label: c.name || c.id,
-      type: c.type || 'Unknown',
+      type: c.broker_type != null ? 'Broker' : (c.type || 'Unknown'),
       properties: c,
       degree: 0,
       criticality_score: c.weight || 0,

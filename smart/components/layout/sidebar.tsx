@@ -10,13 +10,12 @@ import {
   Settings,
   Database,
   BookOpen,
-  Waypoints,
+  Network,
   Zap,
   BarChart3,
   ShieldCheck,
   Brain,
   Cpu,
-  LayoutGrid,
   Wifi,
   BookMarked,
 } from "lucide-react"
@@ -30,7 +29,7 @@ const navigation = [
   {
     name: "Explorer",
     href: "/explorer",
-    icon: LayoutGrid,
+    icon: Network,
   },
   {
     name: "Analysis",

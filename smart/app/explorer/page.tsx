@@ -1006,7 +1006,7 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
     </div>
     </TooltipTrigger>
     <TooltipContent side="top" className="p-2.5 leading-relaxed shadow-xl border-border/60 bg-popover text-popover-foreground z-[9999]">
-      <ItemTooltipContent data={{ type: n.type, name: disp, properties: n.properties ?? {} }} />
+      <ItemTooltipContent data={{ type: n.type, name: disp, properties: { ...n, ...(n.properties ?? {}) } }} />
     </TooltipContent>
     </Tooltip>
   )
@@ -1481,10 +1481,21 @@ const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDar
           if (d?._isGroup) return `<b>${d.name}</b>`
           const n = d?._raw
           if (!n) return ""
-          const typeLabel = n.type ?? "Node"
-          const w = typeof n.weight === "number" ? n.weight.toFixed(3) : (typeof n.properties?.weight === "number" ? n.properties.weight.toFixed(3) : "—")
+          const typeLabel: string = n.type ?? "Node"
           const lbl = n.label ?? n.name ?? n.id ?? ""
-          return `<div style="font-size:12px;line-height:1.7"><b>${lbl}</b><br/><span style="opacity:0.7">${typeLabel}</span><br/>Weight: <b>${w}</b></div>`
+          const get = (key: string) => n.properties?.[key] ?? n[key]
+          let extra = ""
+          if (typeLabel === "Application") {
+            const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
+          } else if (typeLabel === "Topic") {
+            const qr = get("qos_reliability"); if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">QoS Reliability: ${qr}</span>`
+            const qd = get("qos_durability");  if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">QoS Durability: ${qd}</span>`
+          } else if (typeLabel === "Library") {
+            const ver = get("version"); if (ver != null && ver !== "") extra += `<br/><span style="opacity:0.7">Version: ${ver}</span>`
+          } else if (typeLabel === "Broker") {
+            const bt = get("broker_type"); if (bt != null && bt !== "") extra += `<br/><span style="opacity:0.7">Protocol: ${bt}</span>`
+          }
+          return `<div style="font-size:12px;line-height:1.7"><b>${lbl}</b><br/><span style="opacity:0.7">${typeLabel}</span>${extra}</div>`
         },
       },
       series: [{
@@ -2081,8 +2092,35 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
           const d = params.data
           const dispName = (s: string) => s?.split("\x00")[0] ?? s
           if (d?._isConnGroup) return dispName(d.name)
-          if (d?._isConnLeaf) return dispName(d.name)
-          if (d?._app) return dispName(d.name)
+          if (d?._app) {
+            const app = d._app
+            const name = dispName(d.name)
+            const role = app.role ?? app.properties?.role
+            const roleStr = (role != null && role !== "") ? `<br/><span style="opacity:0.7">Role: ${role}</span>` : ""
+            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b><br/><span style="opacity:0.7">Application</span>${roleStr}</div>`
+          }
+          if (d?._isConnLeaf && d._raw) {
+            const n = d._raw
+            const name = dispName(d.name)
+            const type: string = n.type ?? ""
+            let extra = ""
+            if (type === "Topic") {
+              const qr = n.properties?.qos_reliability ?? n.qos_reliability
+              const qd = n.properties?.qos_durability ?? n.qos_durability
+              if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">QoS Reliability: ${qr}</span>`
+              if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">QoS Durability: ${qd}</span>`
+            } else if (type === "Library") {
+              const ver = n.properties?.version ?? n.version
+              if (ver != null && ver !== "") extra += `<br/><span style="opacity:0.7">Version: ${ver}</span>`
+            } else if (type === "Application") {
+              const role = n.properties?.role ?? n.role
+              if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
+            } else if (type === "Broker") {
+              const bt = n.properties?.broker_type ?? n.broker_type
+              if (bt != null && bt !== "") extra += `<br/><span style="opacity:0.7">Protocol: ${bt}</span>`
+            }
+            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b><br/><span style="opacity:0.7">${type}</span>${extra}</div>`
+          }
           return dispName(d?.name ?? "")
         },
       },
@@ -3585,6 +3623,14 @@ function ForceGraphEChart({
                   shadowColor: "rgba(249,115,22,0.7)",
                 }
               : undefined,
+            nodeType: type as string,
+            ...(type === "Application" ? { _role: n.role ?? n.properties?.role ?? "" } : {}),
+            ...(type === "Topic" ? {
+              _qos_reliability: n.qos_reliability ?? n.properties?.qos_reliability ?? "",
+              _qos_durability:  n.qos_durability  ?? n.properties?.qos_durability  ?? "",
+            } : {}),
+            ...(type === "Library" ? { _version: n.version ?? n.properties?.version ?? "" } : {}),
+            ...(type === "Broker" ? { _broker_type: n.broker_type ?? n.properties?.broker_type ?? "" } : {}),
             label: {
               show: true,
               formatter: (p: any) => {
@@ -3646,7 +3692,21 @@ function ForceGraphEChart({
     tooltip: {
       trigger: "item",
       formatter: (p: any) => {
-        if (p.dataType === "node") return `<b>${p.data?.name ?? p.name}</b>`
+        if (p.dataType === "node") {
+          const d = p.data ?? {}
+          const name = d.name ?? p.name ?? ""
+          const type: string = d.nodeType ?? ""
+          let extra = ""
+          if (type === "Application" && d._role) extra += `<br/><span style="opacity:0.7">Role: ${d._role}</span>`
+          if (type === "Topic") {
+            if (d._qos_reliability != null && d._qos_reliability !== "") extra += `<br/><span style="opacity:0.7">QoS Reliability: ${d._qos_reliability}</span>`
+            if (d._qos_durability  != null && d._qos_durability  !== "") extra += `<br/><span style="opacity:0.7">QoS Durability: ${d._qos_durability}</span>`
+          }
+          if (type === "Library" && d._version) extra += `<br/><span style="opacity:0.7">Version: ${d._version}</span>`
+          if (type === "Broker" && d._broker_type) extra += `<br/><span style="opacity:0.7">Protocol: ${d._broker_type}</span>`
+          const typeStr = type ? `<br/><span style="opacity:0.7">${type}</span>` : ""
+          return `<div style="font-size:12px;line-height:1.7"><b>${name}</b>${typeStr}${extra}</div>`
+        }
         return `${p.data?.source} → ${p.data?.target}`
       },
     },
