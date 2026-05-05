@@ -1912,7 +1912,9 @@ function buildMergedTree(
   connDataMap: Map<string, { nodes: any[]; links: any[] }>,
   expandedLeaves: Map<string, { nodes: any[]; links: any[] }>,
   isDark: boolean,
+  focusHierPathKey?: string | null,
 ): object {
+  const fp = focusHierPathKey?.split("/") ?? null
   // Find ancestor paths for ALL apps that have connection data loaded
   const ancMap = new Map<string, { csmsKey: string; cssKey: string; csciKey: string; cscKey: string }>()
   for (const [ck, csms] of Object.entries(hierarchy)) {
@@ -1943,7 +1945,7 @@ function buildMergedTree(
     children: sortKeys(Object.keys(hierarchy)).map(csmsKey => {
       const csms = hierarchy[csmsKey]
       const csmsId = `csms:${csmsKey}`
-      const isCsms = Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey)
+      const isCsms = Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey) || (fp != null && fp[0] === csmsKey)
       return {
         id: csmsId,
         name: csms.name + `\x00${csmsId}`,
@@ -1955,7 +1957,7 @@ function buildMergedTree(
         children: sortKeys(Object.keys(csms.css)).map(cssKey => {
           const css = csms.css[cssKey]
           const cssId = `css:${csmsKey}/${cssKey}`
-          const isCss = isCsms && Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey)
+          const isCss = isCsms && (Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey) || (fp != null && fp[0] === csmsKey && fp[1] === cssKey))
           return {
             id: cssId,
             name: css.name + `\x00${cssId}`,
@@ -1965,7 +1967,7 @@ function buildMergedTree(
             children: sortKeys(Object.keys(css.csci)).map(csciKey => {
               const csci = css.csci[csciKey]
               const csciId = `csci:${csmsKey}/${cssKey}/${csciKey}`
-              const isCsci = isCss && Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey && a.csciKey === csciKey)
+              const isCsci = isCss && (Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey && a.csciKey === csciKey) || (fp != null && fp[0] === csmsKey && fp[1] === cssKey && fp[2] === csciKey))
               return {
                 id: csciId,
                 name: csci.name + `\x00${csciId}`,
@@ -1975,7 +1977,7 @@ function buildMergedTree(
                 children: sortKeys(Object.keys(csci.csc)).map(cscKey => {
                   const csc = csci.csc[cscKey]
                   const cscId = `csc:${csmsKey}/${cssKey}/${csciKey}/${cscKey}`
-                  const isCsc = isCsci && Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey && a.csciKey === csciKey && a.cscKey === cscKey)
+                  const isCsc = isCsci && (Array.from(ancMap.values()).some(a => a.csmsKey === csmsKey && a.cssKey === cssKey && a.csciKey === csciKey && a.cscKey === cscKey) || (fp != null && fp[0] === csmsKey && fp[1] === cssKey && fp[2] === csciKey && fp[3] === cscKey))
                   return {
                     id: cscId,
                     name: csc.name + `\x00${cscId}`,
@@ -2015,7 +2017,7 @@ function buildMergedTree(
 }
 
 const MergedEChartsTree = memo(function MergedEChartsTree({
-  hierarchy, connDataMap, expandedLeaves, selectedApp, dims, isDark, onAppNodeClick, onConnNodeClick,
+  hierarchy, connDataMap, expandedLeaves, selectedApp, dims, isDark, focusHierPathKey, onAppNodeClick, onConnNodeClick,
 }: {
   hierarchy: Record<string, CsmsGroup>
   connDataMap: Map<string, { nodes: any[]; links: any[] }>
@@ -2023,6 +2025,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
   selectedApp: HGNode | null
   dims: { width: number; height: number }
   isDark: boolean
+  focusHierPathKey?: string | null
   onAppNodeClick: (app: AppNode, instanceKey: string) => void
   onConnNodeClick: (nodeId: string, instanceKey: string) => void
 }) {
@@ -2034,8 +2037,8 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
   const [spread, setSpread] = useState(1)
 
   const treeData = useMemo(
-    () => buildMergedTree(hierarchy, selectedApp?.instanceKey ?? null, selectedApp?.pathKey ?? null, connDataMap, expandedLeaves, isDark),
-    [hierarchy, selectedApp?.instanceKey, selectedApp?.pathKey, connDataMap, expandedLeaves, isDark],
+    () => buildMergedTree(hierarchy, selectedApp?.instanceKey ?? null, selectedApp?.pathKey ?? null, connDataMap, expandedLeaves, isDark, focusHierPathKey),
+    [hierarchy, selectedApp?.instanceKey, selectedApp?.pathKey, connDataMap, expandedLeaves, isDark, focusHierPathKey],
   )
 
   const option = useMemo(() => {
@@ -2341,6 +2344,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
 
   const [drillNode, setDrillNode] = useState<HGNode | null>(null)
   const [drillStack, setDrillStack] = useState<HGNode[]>([])
+  const [focusHierPathKey, setFocusHierPathKey] = useState<string | null>(null)
   const [selectedApp, setSelectedApp] = useState<HGNode | null>(null)
   const [expandedLeaves, setExpandedLeaves] = useState<Map<string, { nodes: any[]; links: any[] }>>(new Map())
   const [connDataMap, setConnDataMap] = useState<Map<string, { nodes: any[]; links: any[] }>>(new Map())
@@ -2415,11 +2419,13 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
     isSyncingRef.current = false
     if (node.level === "app") {
       setSelectedApp(node)
+      setFocusHierPathKey(null)
       setConnTab("props")
       setConnData(null)
       onSelectInfo?.(node.pathKey, node.name, node.nodeType)
     } else {
       setSelectedApp(null)
+      setFocusHierPathKey(node.pathKey)
       setConnData(null)
       setConnError(null)
       const parts = node.pathKey.split("/")
@@ -2843,6 +2849,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             selectedApp={selectedApp}
             dims={dims}
             isDark={isDark}
+            focusHierPathKey={focusHierPathKey}
             onAppNodeClick={(app: AppNode, instanceKey: string) => {
               const hgNode: HGNode = { id: `app:${app.id}`, name: app.csu ?? app.name ?? app.id ?? "?", level: "app", appCount: 1, pathKey: app.id, instanceKey, appData: app }
               // If this app is already expanded (has fetched connection data), single-click collapses it.
@@ -4152,13 +4159,13 @@ function BrowserPageContent() {
           <div className="flex items-center justify-between mb-2 shrink-0">
             <TabsList className="bg-background border border-border">
               <TabsTrigger value="browse" className="flex items-center gap-2">
-                <List className="h-4 w-4" />Table
+                <List className="h-4 w-4" />List
               </TabsTrigger>
               <TabsTrigger value="forcegraph" className="flex items-center gap-2">
-                <Share2 className="h-4 w-4" />Force Graph
+                <Share2 className="h-4 w-4" />Graph
               </TabsTrigger>
               <TabsTrigger value="graph" className="flex items-center gap-2">
-                <Network className="h-4 w-4" />Hierarchical Graph
+                <Network className="h-4 w-4" />System
               </TabsTrigger>
             </TabsList>
 
