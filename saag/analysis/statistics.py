@@ -792,9 +792,41 @@ def compute_segment_comm_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
         cc, lambda aid: app_segment.get(aid, "NOT_FOUND") if app_segment.get(aid, "NOT_FOUND") != "NOT_FOUND" else None,
         segment_set)
 
+    # Build per-segment topic lists (for drill-down on cell click)
+    seg_pub_topics: Dict[str, Dict[str, str]] = {seg: {} for seg in segment_set}
+    seg_sub_topics: Dict[str, Dict[str, str]] = {seg: {} for seg in segment_set}
+
+    for rel in cc["publishes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        seg = app_segment.get(aid)
+        if seg and seg in seg_pub_topics and tid:
+            seg_pub_topics[seg][tid] = cc["topic_names"].get(tid, tid)
+
+    for rel in cc["subscribes_to"]:
+        aid, tid = rel.get("from"), rel.get("to")
+        seg = app_segment.get(aid)
+        if seg and seg in seg_sub_topics and tid:
+            seg_sub_topics[seg][tid] = cc["topic_names"].get(tid, tid)
+
+    per_segment = {
+        seg: {
+            "label": seg,
+            "pub_topics": [
+                {"id": tid, "name": name}
+                for tid, name in sorted(seg_pub_topics[seg].items(), key=lambda x: x[1])
+            ],
+            "sub_topics": [
+                {"id": tid, "name": name}
+                for tid, name in sorted(seg_sub_topics[seg].items(), key=lambda x: x[1])
+            ],
+        }
+        for seg in segment_set
+    }
+
     matrix_stats = _compute_matrix_stats(matrix, labels, n)
     return {
         "domain_set": segment_set, "labels": labels, "matrix": matrix,
+        "segment_ids": segment_set, "per_segment": per_segment,
         **matrix_stats,
     }
 
@@ -1076,6 +1108,37 @@ def compute_segment_diversity_stats(cc: Dict[str, Any]) -> Dict[str, Any]:
 _APPROX_THRESHOLD = 512   # nodes above which approx betweenness is used
 _APPROX_K         = 512   # pivot count for approximation
 
+# Raw structural relationship types (case-insensitive)
+_STRUCTURAL_REL_TYPES = frozenset({
+    "publishes_to", "subscribes_to", "routes", "runs_on", "connects_to", "uses"
+})
+
+
+def _build_structural_graph(graph_data: Any) -> nx.DiGraph:
+    """Build a DiGraph from raw structural edges (PUBLISHES_TO, SUBSCRIBES_TO, etc.)."""
+    G = nx.DiGraph()
+    for comp in graph_data.components:
+        props = getattr(comp, "properties", {})
+        name = props.get("name", comp.id)
+        G.add_node(
+            comp.id,
+            component_type=comp.component_type,
+            name=name,
+            weight=getattr(comp, "weight", 1.0),
+        )
+    for edge in graph_data.edges:
+        if edge.relation_type.lower() not in _STRUCTURAL_REL_TYPES:
+            continue
+        if edge.source_id not in G or edge.target_id not in G:
+            continue
+        G.add_edge(
+            edge.source_id,
+            edge.target_id,
+            dependency_type=edge.dependency_type,
+            weight=getattr(edge, "weight", 1.0),
+        )
+    return G
+
 
 def _build_distance_graph(G: nx.DiGraph) -> nx.DiGraph:
     """Return a copy of G with weights inverted for distance-based betweenness."""
@@ -1248,6 +1311,7 @@ def _compute_directed_aps_fast(G: nx.DiGraph) -> Set[str]:
 def analyze_for_bottleneck(
     graph_data: Any,
     layer: AnalysisLayer = AnalysisLayer.SYSTEM,
+    use_structural: bool = False,
 ) -> Dict[str, Dict[str, Any]]:
     """Compute per-component bottleneck metrics from graph topology.
 
@@ -1256,6 +1320,12 @@ def analyze_for_bottleneck(
 
         score = 0.40·betweenness + 0.25·ap_c_directed
               + 0.20·blast_radius_norm + 0.15·bridge_ratio
+
+    When ``use_structural=True`` the graph is built from raw structural edges
+    (PUBLISHES_TO, SUBSCRIBES_TO, ROUTES, RUNS_ON, CONNECTS_TO, USES) rather
+    than derived DEPENDS_ON edges.  This reveals pub/sub topology bottlenecks
+    (topics, brokers) that are invisible in the dependency projection.
+    ``graph_data`` must have been fetched with ``include_raw=True`` in that case.
 
     Performance improvements over running the full StructuralAnalyzer:
     * Approximate betweenness (k-pivot sampling) for graphs > 512 nodes.
@@ -1267,13 +1337,16 @@ def analyze_for_bottleneck(
     Returns a dict ``{component_id: metric_dict}`` ready to pass directly
     to ``compute_bottleneck_stats_from_structural``.
     """
-    defn = get_layer_definition(layer)
-    G = extract_layer_subgraph(graph_data, layer)
+    if use_structural:
+        G = _build_structural_graph(graph_data)
+        analyze_types = frozenset({"Application", "Broker", "Node", "Topic", "Library"})
+    else:
+        defn = get_layer_definition(layer)
+        G = extract_layer_subgraph(graph_data, layer)
+        analyze_types = defn.types_to_analyze
 
     if G.number_of_nodes() == 0:
         return {}
-
-    analyze_types = defn.types_to_analyze
     n_nodes = G.number_of_nodes()
 
     # Betweenness (approximate for large graphs)

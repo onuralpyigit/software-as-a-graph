@@ -129,8 +129,8 @@ async def get_bottleneck_stats(
     """
     try:
         logger.info("Computing structural bottleneck statistics")
-        graph_data = client.repo.get_graph_data()
-        components_dict = analyze_for_bottleneck(graph_data, layer=AnalysisLayer.SYSTEM)
+        graph_data = client.repo.get_graph_data(include_raw=True)
+        components_dict = analyze_for_bottleneck(graph_data, layer=AnalysisLayer.SYSTEM, use_structural=True)
         bottleneck_data = compute_bottleneck_stats_from_structural(components_dict)
         return {
             "success": True,
