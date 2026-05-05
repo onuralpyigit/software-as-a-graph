@@ -325,7 +325,7 @@ export default function DataPage() {
   // Loading State
   if (!initialLoadComplete || status === 'connecting') {
     return (
-      <AppLayout title="Data Management" description="Generate and import graph data">
+      <AppLayout title="Data" description="Generate and import graph data">
         <div className="flex h-full items-center justify-center">
           <LoadingSpinner size="lg" text={status === 'connecting' ? "Connecting to database..." : "Loading data management..."} />
         </div>
@@ -336,14 +336,14 @@ export default function DataPage() {
   // Disconnected State - show only no connection component
   if (!isConnected) {
     return (
-      <AppLayout title="Data Management" description="Generate and import graph data">
+      <AppLayout title="Data" description="Generate and import graph data">
         <NoConnectionInfo description="Connect to your Neo4j database to manage graph data" />
       </AppLayout>
     )
   }
 
   return (
-    <AppLayout title="Data Management" description="Generate and import graph data">
+    <AppLayout title="Data" description="Generate and import graph data">
       <div className="space-y-5">
 
         {/* ── Database Overview KPIs ─────────────────────────────────────── */}
