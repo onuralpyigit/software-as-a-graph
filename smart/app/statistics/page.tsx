@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { TermTooltip } from "@/components/ui/term-tooltip"
 import { ItemTooltip } from "@/components/ui/item-tooltip"
+import { useTheme } from "next-themes"
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -189,6 +190,20 @@ function EBarChart({
   onClickId?: (id: string | undefined) => void
   yDomain?: [number, number]
 }) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme !== "light"
+
+  // Theme-aware color tokens
+  const axisColor       = isDark ? "#94a3b8" : "#64748b"
+  const gridColor       = isDark ? "rgba(148,163,184,0.15)" : "rgba(100,116,139,0.15)"
+  const tooltipBg       = isDark ? "#1e293b" : "#ffffff"
+  const tooltipBorder   = isDark ? "rgba(148,163,184,0.2)" : "rgba(100,116,139,0.25)"
+  const tooltipText     = isDark ? "#e2e8f0" : "#1e293b"
+  const tooltipMuted    = isDark ? "rgba(226,232,240,0.65)" : "rgba(71,85,105,0.8)"
+  const zoomBg          = isDark ? "rgba(128,128,128,0.08)" : "rgba(0,0,0,0.03)"
+  const zoomDataLine    = isDark ? "rgba(128,128,128,0.3)" : "rgba(100,116,139,0.25)"
+  const zoomDataArea    = isDark ? "rgba(128,128,128,0.05)" : "rgba(100,116,139,0.05)"
+
   const showZoom = items.length > 20
   const zoomEnd = showZoom ? Math.round(20 / items.length * 100) : 100
   const labels = items.map(it => truncate(it.name, 18))
@@ -196,6 +211,9 @@ function EBarChart({
     tooltip: {
       trigger: "axis" as const,
       axisPointer: { type: "shadow" as const },
+      backgroundColor: tooltipBg,
+      borderColor: tooltipBorder,
+      textStyle: { color: tooltipText },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       formatter: (params: any) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -212,19 +230,19 @@ function EBarChart({
           const props = nodeEntry.properties
           const get = (k: string) => props[k]
           if (type === "Application") {
-            const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="opacity:0.7">Role: ${role}</span>`
+            const role = get("role"); if (role != null && role !== "") extra += `<br/><span style="color:${tooltipMuted}">Role: ${role}</span>`
           } else if (type === "Topic") {
-            const qr = get("qos_reliability"); if (qr != null && qr !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${qr}</span>`
-            const qd = get("qos_durability");  if (qd != null && qd !== "") extra += `<br/><span style="opacity:0.7">Durability: ${qd}</span>`
-            const qt = get("qos_transport_priority"); if (qt != null && qt !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${qt}</span>`
+            const qr = get("qos_reliability"); if (qr != null && qr !== "") extra += `<br/><span style="color:${tooltipMuted}">Reliability: ${qr}</span>`
+            const qd = get("qos_durability");  if (qd != null && qd !== "") extra += `<br/><span style="color:${tooltipMuted}">Durability: ${qd}</span>`
+            const qt = get("qos_transport_priority"); if (qt != null && qt !== "") extra += `<br/><span style="color:${tooltipMuted}">Transport Priority: ${qt}</span>`
             const szRaw = get("message_size") ?? get("payload_size_bytes") ?? get("size")
-            if (szRaw != null && szRaw !== "") { const szN = typeof szRaw === "number" ? szRaw : Number(szRaw); extra += `<br/><span style="opacity:0.7">Size: ${isFinite(szN) ? fmtBytes(szN) : String(szRaw)}</span>` }
+            if (szRaw != null && szRaw !== "") { const szN = typeof szRaw === "number" ? szRaw : Number(szRaw); extra += `<br/><span style="color:${tooltipMuted}">Size: ${isFinite(szN) ? fmtBytes(szN) : String(szRaw)}</span>` }
           } else if (type === "Library") {
-            const ver = get("version"); if (ver != null && ver !== "") extra += `<br/><span style="opacity:0.7">Version: ${ver}</span>`
+            const ver = get("version"); if (ver != null && ver !== "") extra += `<br/><span style="color:${tooltipMuted}">Version: ${ver}</span>`
           } else if (type === "Broker") {
-            const bt = get("broker_type"); if (bt != null && bt !== "") extra += `<br/><span style="opacity:0.7">Protocol: ${bt}</span>`
+            const bt = get("broker_type"); if (bt != null && bt !== "") extra += `<br/><span style="color:${tooltipMuted}">Protocol: ${bt}</span>`
           } else if (type === "Node") {
-            const ip = get("ip_address"); if (ip != null && ip !== "") extra += `<br/><span style="opacity:0.7">IP: ${ip}</span>`
+            const ip = get("ip_address"); if (ip != null && ip !== "") extra += `<br/><span style="color:${tooltipMuted}">IP: ${ip}</span>`
           }
         }
         const serRows = ps.map(p => {
@@ -234,13 +252,13 @@ function EBarChart({
             `<div style="display:flex;justify-content:space-between;gap:12px;margin:2px 0">` +
             `<div style="display:flex;align-items:center;gap:6px">` +
             `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${p.color}"></span>` +
-            `<span style="opacity:0.7">${p.seriesName}</span></div>` +
-            `<span style="font-family:monospace;font-weight:600">${val}</span></div>`
+            `<span style="color:${tooltipMuted}">${p.seriesName}</span></div>` +
+            `<span style="font-family:monospace;font-weight:600;color:${tooltipText}">${val}</span></div>`
           )
         }).join("")
-        const typeStr = type ? `<br/><span style="opacity:0.7">${type}</span>` : ""
+        const typeStr = type ? `<br/><span style="color:${tooltipMuted}">${type}</span>` : ""
         return (
-          `<div style="font-size:12px;line-height:1.7;min-width:160px;max-width:240px">` +
+          `<div style="font-size:12px;line-height:1.7;min-width:160px;max-width:240px;color:${tooltipText}">` +
           `<b>${fullName}</b>${typeStr}${extra}` +
           (serRows ? `<hr style="margin:4px 0;border-color:rgba(128,128,128,0.3)"/>${serRows}` : "") +
           `</div>`
@@ -251,12 +269,12 @@ function EBarChart({
     xAxis: {
       type: "category" as const,
       data: labels,
-      axisLabel: { rotate: -45, fontSize: 10, interval: 0, color: "#94a3b8" },
+      axisLabel: { rotate: -45, fontSize: 10, interval: 0, color: axisColor },
     },
     yAxis: {
       type: "value" as const,
-      axisLabel: { fontSize: 11, color: "#94a3b8" },
-      splitLine: { lineStyle: { color: "rgba(148,163,184,0.15)" } },
+      axisLabel: { fontSize: 11, color: axisColor },
+      splitLine: { lineStyle: { color: gridColor } },
       ...(yDomain ? { min: yDomain[0], max: yDomain[1] } : {}),
     },
     series: series.map(s => {
@@ -280,13 +298,13 @@ function EBarChart({
           height: 24,
           bottom: 8,
           borderColor: "transparent",
-          backgroundColor: "rgba(128,128,128,0.08)",
+          backgroundColor: zoomBg,
           fillerColor: "rgba(99,102,241,0.18)",
           handleStyle: { color: "#818cf8", borderColor: "#818cf8" },
           moveHandleStyle: { color: "#818cf8" },
           selectedDataBackground: { lineStyle: { color: "#818cf8" }, areaStyle: { color: "#818cf8" } },
-          dataBackground: { lineStyle: { color: "rgba(128,128,128,0.3)" }, areaStyle: { color: "rgba(128,128,128,0.05)" } },
-          textStyle: { color: "rgba(156,163,175,1)", fontSize: 10 },
+          dataBackground: { lineStyle: { color: zoomDataLine }, areaStyle: { color: zoomDataArea } },
+          textStyle: { color: axisColor, fontSize: 10 },
           brushSelect: false,
         },
         { type: "inside", xAxisIndex: 0, start: 0, end: zoomEnd },
@@ -751,6 +769,19 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
   const [showKb, setShowKb] = useState(false)
   const [selectedCell, setSelectedCell] = useState<{ rowId: string; colId: string; rowLabel: string; colLabel: string } | null>(null)
   const [search, setSearch] = useState("")
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme !== "light"
+
+  // Theme-aware color tokens
+  const axisColor     = isDark ? "#94a3b8" : "#64748b"
+  const tooltipBg     = isDark ? "#1e293b" : "#ffffff"
+  const tooltipBorder = isDark ? "rgba(148,163,184,0.2)" : "rgba(100,116,139,0.25)"
+  const tooltipText   = isDark ? "#e2e8f0" : "#1e293b"
+  const tooltipMuted  = isDark ? "rgba(226,232,240,0.65)" : "rgba(71,85,105,0.8)"
+  const splitAreaColors = isDark
+    ? ["rgba(30,41,59,0.3)", "rgba(15,23,42,0.3)"]
+    : ["rgba(241,245,249,0.6)", "rgba(226,232,240,0.4)"]
+  const cellLabelColor = isDark ? "#e2e8f0" : "#1e293b"
 
   if (!data || !data.labels.length) return <p className="text-sm text-muted-foreground">Not enough data for {title}</p>
 
@@ -809,33 +840,38 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
     backgroundColor: "transparent",
     tooltip: {
       position: "top" as const,
+      backgroundColor: tooltipBg,
+      borderColor: tooltipBorder,
+      textStyle: { color: tooltipText },
       formatter: (params: { data: [number, number, number] }) => {
         const [ci, ri, val] = params.data
         const rLabel = labels[ri] ?? ri
         const cLabel = labels[ci] ?? ci
         const fmtVal = fmtCellVal(val) || "0"
-        return `<div style="font-size:12px;line-height:1.7"><b>${rLabel} → ${cLabel}</b><br/><span style="opacity:0.7">${fmtVal}</span></div>`
+        return `<div style="font-size:12px;line-height:1.7;color:${tooltipText}"><b>${rLabel} → ${cLabel}</b><br/><span style="color:${tooltipMuted}">${fmtVal}</span></div>`
       },
     },
     grid: { top: 20, right: 20, bottom: n > 10 ? 80 : 50, left: n > 10 ? 120 : 80 },
     xAxis: {
       type: "category" as const,
       data: labels,
-      axisLabel: { rotate: 45, fontSize: 11, color: "#94a3b8" },
-      axisLine: { lineStyle: { color: "#94a3b8" } },
-      splitArea: { show: true, areaStyle: { color: ["rgba(30,41,59,0.3)", "rgba(15,23,42,0.3)"] } },
+      axisLabel: { rotate: 45, fontSize: 11, color: axisColor },
+      axisLine: { lineStyle: { color: axisColor } },
+      splitArea: { show: true, areaStyle: { color: splitAreaColors } },
     },
     yAxis: {
       type: "category" as const,
       data: labels,
       inverse: true,
-      axisLabel: { fontSize: 11, color: "#94a3b8" },
-      axisLine: { lineStyle: { color: "#94a3b8" } },
-      splitArea: { show: true, areaStyle: { color: ["rgba(30,41,59,0.3)", "rgba(15,23,42,0.3)"] } },
+      axisLabel: { fontSize: 11, color: axisColor },
+      axisLine: { lineStyle: { color: axisColor } },
+      splitArea: { show: true, areaStyle: { color: splitAreaColors } },
     },
     visualMap: {
       min: 0, max: maxVal, show: false,
-      inRange: { color: ["#0f172a", "#2e1065", "#6d28d9", "#7c3aed", "#a78bfa"] },
+      inRange: { color: isDark
+        ? ["#0f172a", "#2e1065", "#6d28d9", "#7c3aed", "#a78bfa"]
+        : ["#f1f5f9", "#ddd6fe", "#a78bfa", "#7c3aed", "#4c1d95"] },
     },
     series: [{
       type: "heatmap" as const,
@@ -844,7 +880,7 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
         show: n <= 20,
         formatter: (params: { data: [number, number, number] }) => fmtCellVal(params.data[2]),
         fontSize: n > 15 ? 9 : n > 10 ? 10 : 11,
-        color: "#e2e8f0",
+        color: cellLabelColor,
       },
       emphasis: { itemStyle: { borderColor: "#818cf8", borderWidth: 2 } },
     }],
