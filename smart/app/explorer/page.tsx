@@ -125,7 +125,7 @@ function sortKeys(keys: string[]): string[] {
 // ── Graph helpers ─────────────────────────────────────────────────────────────
 
 const NODE_COLORS: Record<HGLevel, string> = {
-  csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#8b5cf6",
+  csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#4CBCD0",
 }
 const NODE_SIZES: Record<HGLevel, number> = {
   csms: 14, css: 10, csci: 8, csc: 6, app: 3.5,
@@ -149,40 +149,40 @@ const CONN_LAYER_LABEL: Record<number, string> = {
 // and Force Graph views. Same values for both themes — Force Graph does not
 // theme-switch, and consistency across tabs trumps per-theme contrast tuning.
 const CONN_NODE_TYPE_COLORS_DARK: Record<string, string> = {
-  Application: "#3b82f6",
-  Node:        "#8b5cf6",
-  Broker:      "#f59e0b",
-  Topic:       "#10b981",
-  Library:     "#ec4899",
+  Application: "#4CBCD0",
+  Node:        "#C570CE",
+  Broker:      "#EFC050",
+  Topic:       "#7DAA7A",
+  Library:     "#ECA088",
 }
 const CONN_NODE_TYPE_COLORS_LIGHT: Record<string, string> = {
-  Application: "#3b82f6",
-  Node:        "#8b5cf6",
-  Broker:      "#f59e0b",
-  Topic:       "#10b981",
-  Library:     "#ec4899",
+  Application: "#4CBCD0",
+  Node:        "#C570CE",
+  Broker:      "#EFC050",
+  Topic:       "#7DAA7A",
+  Library:     "#ECA088",
 }
 // Link-type → color. Aligned with the Force Graph tab's EDGE_COLORS so
 // relationship-type colours are consistent across List, Tree, and Force Graph.
 // DEPENDS_ON / CONNECTS_TO are not part of EDGE_COLORS but are kept here for
 // the Tree-tab connection groups; they reuse semantically related hues.
 const CONN_LINK_TYPE_COLORS_DARK: Record<string, string> = {
-  RUNS_ON:       "#6366f1",
+  RUNS_ON:       "#64748b",
   PUBLISHES_TO:  "#22c55e",
   SUBSCRIBES_TO: "#f97316",
-  USES:          "#a855f7",
-  ROUTES:        "#14b8a6",
+  USES:          "#06b6d4",
+  ROUTES:        "#d946ef",
   DEPENDS_ON:    "#ef4444",
-  CONNECTS_TO:   "#22c55e",
+  CONNECTS_TO:   "#84cc16",
 }
 const CONN_LINK_TYPE_COLORS_LIGHT: Record<string, string> = {
-  RUNS_ON:       "#6366f1",
+  RUNS_ON:       "#64748b",
   PUBLISHES_TO:  "#22c55e",
   SUBSCRIBES_TO: "#f97316",
-  USES:          "#a855f7",
-  ROUTES:        "#14b8a6",
+  USES:          "#06b6d4",
+  ROUTES:        "#d946ef",
   DEPENDS_ON:    "#ef4444",
-  CONNECTS_TO:   "#22c55e",
+  CONNECTS_TO:   "#84cc16",
 }
 /** Deterministic fallback color for unknown types */
 function hashTypeColor(type: string): string {
@@ -1430,8 +1430,8 @@ const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDar
         value: `__group__${edgeType}`,
         _raw: null,
         _isGroup: true,
-        symbol: "diamond",
-        symbolSize: 16,
+        symbol: "none",
+        symbolSize: 0,
         itemStyle: {
           color: edgeColor,
           borderWidth: 0,
@@ -1869,8 +1869,8 @@ function buildConnSubtree(
       value: `__cg__${edgeType}__${centerNodeId}`,
       _isConnGroup: true,
       collapsed: false,
-      symbol: "diamond",
-      symbolSize: 14,
+      symbol: "none",
+      symbolSize: 0,
       itemStyle: { color: ec, borderWidth: 0 },
       lineStyle: { color: ec + "88" },
       label: { fontSize: 11, fontWeight: 700, color: ec },
@@ -2942,6 +2942,31 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             }}
             onConnNodeClick={onConnLeafClick}
           />
+
+          {/* Legend — matches Force Graph tab */}
+          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/80 px-3 py-2 text-xs backdrop-blur max-h-[60%] overflow-y-auto pointer-events-none">
+            <span className="font-medium text-muted-foreground mb-0.5">Nodes</span>
+            {(Object.entries(CONN_NODE_TYPE_COLORS_DARK) as [string, string][]).map(([name, color]) => (
+              <div key={name} className="flex items-center gap-2">
+                <svg width="12" height="12" className="shrink-0">
+                  <circle cx="6" cy="6" r="5" fill={color} />
+                </svg>
+                <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{name}</span>
+              </div>
+            ))}
+            <hr className="my-1 border-border" />
+            <span className="font-medium text-muted-foreground mb-0.5">Relationships</span>
+            {(Object.entries(CONN_LINK_TYPE_COLORS_DARK) as [string, string][])
+              .filter(([type]) => type !== "DEPENDS_ON" && type !== "CONNECTS_TO")
+              .map(([type, color]) => (
+              <div key={type} className="flex items-center gap-2">
+                <svg width="22" height="10" className="shrink-0">
+                  <line x1="0" y1="5" x2="22" y2="5" stroke={color} strokeWidth="2" />
+                </svg>
+                <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{type}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Side panel */}
@@ -3146,7 +3171,7 @@ const KIND_LABEL: Record<SelectedKind, string> = {
 // Item-type kinds (app/node/topic) align with the Force Graph palette so
 // the type badge in the List tab matches the Force Graph node colour.
 const KIND_COLOR: Record<SelectedKind, string> = {
-  csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#3b82f6", node: "#8b5cf6", topic: "#10b981",
+  csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#4CBCD0", node: "#C570CE", topic: "#7DAA7A",
 }
 
 function DetailTable({ headers, rows }: {
@@ -3568,19 +3593,19 @@ function CsmsTreeNode({ name, csms, selectedKey, onSelect, openSet, toggle, q }:
 type SwimlaneType = "Node" | "Application" | "Topic" | "Library" | "Broker"
 
 const FORCE_CATEGORIES: { name: SwimlaneType; color: string }[] = [
-  { name: "Application", color: "#3b82f6" },
-  { name: "Node",        color: "#8b5cf6" },
-  { name: "Topic",       color: "#10b981" },
-  { name: "Broker",      color: "#f59e0b" },
-  { name: "Library",     color: "#ec4899" },
+  { name: "Application", color: "#4CBCD0" },
+  { name: "Node",        color: "#C570CE" },
+  { name: "Topic",       color: "#7DAA7A" },
+  { name: "Broker",      color: "#EFC050" },
+  { name: "Library",     color: "#ECA088" },
 ]
 
 const EDGE_COLORS: Record<string, string> = {
-  RUNS_ON:       "#6366f1",
+  RUNS_ON:       "#64748b",
   PUBLISHES_TO:  "#22c55e",
   SUBSCRIBES_TO: "#f97316",
-  USES:          "#a855f7",
-  ROUTES:        "#14b8a6",
+  USES:          "#06b6d4",
+  ROUTES:        "#d946ef",
 }
 const EDGE_COLOR_FALLBACK = "#94a3b8"
 
