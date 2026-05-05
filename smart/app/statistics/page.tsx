@@ -142,6 +142,26 @@ interface ExtrasStats {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
+function getPrimaryLength(data: unknown): number {
+  if (!data || typeof data !== "object") return 0
+  const d = data as Record<string, unknown>
+  if (Array.isArray(d.labels)) return d.labels.length
+  if (Array.isArray(d.sorted_labels)) return d.sorted_labels.length
+  if (Array.isArray(d.crit_labels)) return d.crit_labels.length
+  if (Array.isArray(d.items)) return d.items.length
+  return 0
+}
+
+function EmptyDataState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+      <BarChart3 className="h-7 w-7 text-muted-foreground" />
+      <p className="text-sm font-semibold text-foreground">No data available</p>
+      <p className="text-sm text-muted-foreground">Import a graph to populate this section.</p>
+    </div>
+  )
+}
+
 function fmtNum(v: number | string): string {
   return typeof v === "number"
     ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })
@@ -1670,13 +1690,18 @@ export default function StatisticsPage() {
     )
   }
 
+  if (!isConnected) {
+    return (
+      <AppLayout title="Statistics" description="Structural and communication metrics across topics, applications, nodes, and libraries">
+        <NoConnectionInfo description="Connect to your Neo4j database to view statistics" />
+      </AppLayout>
+    )
+  }
+
   return (
     <AppLayout title="Statistics" description="Structural and communication metrics across topics, applications, nodes, and libraries">
       <div className="space-y-6">
-        {!isConnected && <NoConnectionInfo />}
-
-        {isConnected && (
-          <>
+        <>
             {/* Card grid — hidden once a section is selected */}
             {!selectedSection && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1774,7 +1799,9 @@ export default function StatisticsPage() {
                     </Card>
                   )}
                   {!isLoading && !error && data !== undefined && (
-                    <>
+                    getPrimaryLength(data) === 0
+                      ? <EmptyDataState />
+                      : <>
                       {selectedSection === "topic_bandwidth" && <TopicBandwidthSection data={tabData.topic_bandwidth} />}
                       {selectedSection === "app_balance" && <AppBalanceSection data={tabData.app_balance} />}
                       {selectedSection === "topic_fanout" && <TopicFanoutSection data={tabData.topic_fanout} />}
@@ -1837,8 +1864,7 @@ export default function StatisticsPage() {
                 </div>
               )
             })()}
-          </>
-        )}
+        </>
       </div>
     </AppLayout>
   )
