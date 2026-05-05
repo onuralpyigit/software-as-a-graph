@@ -32,14 +32,14 @@ const navigation = [
     icon: Network,
   },
   {
-    name: "Analysis",
-    href: "/analysis",
-    icon: FileText,
-  },
-  {
     name: "Statistics",
     href: "/statistics",
     icon: BarChart3,
+  },
+  {
+    name: "Analysis",
+    href: "/analysis",
+    icon: FileText,
   },
   {
     name: "Simulation",
