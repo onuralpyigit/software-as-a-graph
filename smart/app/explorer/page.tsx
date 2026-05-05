@@ -3045,6 +3045,12 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
               )}
               {!connLoading && !connError && connTab === "props" && (
                 <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-muted z-10">
+                    <tr className="border-b border-border">
+                      <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-2/5">Property</th>
+                      <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Value</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {appProps.length === 0 && (
                       <tr><td colSpan={2} className="px-3 py-8 text-center text-muted-foreground text-[11px]">No properties available</td></tr>
@@ -3149,10 +3155,10 @@ function DetailTable({ headers, rows }: {
 }) {
   return (
     <table className="w-full text-sm">
-      <thead className="sticky top-0 bg-background z-10">
+      <thead className="sticky top-0 bg-muted z-10">
         <tr className="border-b border-border">
           {headers.map((h) => (
-            <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+            <th key={h} className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
               {h}
             </th>
           ))}
@@ -3236,7 +3242,7 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
       const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
       const desc = PROP_DESCS[k]
       return (
-        <tr className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+        <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
           <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 font-medium text-foreground w-2/5`}>
             <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
           </td>
@@ -3304,7 +3310,7 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-5 border-b border-border shrink-0 flex items-center" style={{ height: 76 }}>
+      <div className="px-5 py-4 border-b border-border shrink-0 flex items-center min-h-[60px]">
         <div className="flex items-start justify-between gap-2 w-full">
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-foreground leading-tight truncate">{node.label}</h2>
@@ -3320,7 +3326,7 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
               : KIND_COLOR[node.kind]
             return (
               <span
-                className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium text-white shrink-0"
+                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white shrink-0"
                 style={{ background: color }}
               >
                 {actualType}
@@ -4278,13 +4284,13 @@ function BrowserPageContent() {
           <div className="flex items-center justify-between mb-2 shrink-0">
             <TabsList>
               <TabsTrigger value="browse" className="flex items-center gap-2">
-                <List className="h-4 w-4" />Components
+                <List className="h-4 w-4" />Table
               </TabsTrigger>
               <TabsTrigger value="forcegraph" className="flex items-center gap-2">
-                <Share2 className="h-4 w-4" />Topology
+                <Share2 className="h-4 w-4" />Force Graph
               </TabsTrigger>
               <TabsTrigger value="graph" className="flex items-center gap-2">
-                <Network className="h-4 w-4" />Hierarchy
+                <Network className="h-4 w-4" />Hierarchical Graph
               </TabsTrigger>
             </TabsList>
 
@@ -4471,12 +4477,11 @@ function SideListPanel({
       <button
         key={key}
         className={cn(
-          "w-full flex items-center gap-3 px-3 text-left text-xs transition-colors border-l-2",
+          "w-full flex items-center gap-3 px-3 text-left text-xs transition-colors border-l-2 h-8",
           isSelected
             ? "bg-muted border-l-primary text-foreground font-medium"
             : "border-l-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
         )}
-        style={{ height: 32 }}
         onClick={() => onSelect({ kind, key, label, path: [label], payload: item })}
       >
         <span className="flex-1 truncate">{label}</span>
@@ -4490,7 +4495,7 @@ function SideListPanel({
     <>
       {/* Tab bar */}
       <div className="shrink-0">
-        <div className="flex text-xs" style={{ height: 36 }}>
+        <div className="flex h-9 border-b border-border text-xs">
           {([
             { id: "nodes",   label: "Nodes",   count: nodesList.length },
             { id: "apps",    label: "Apps",    count: appsList.length },
@@ -4513,11 +4518,11 @@ function SideListPanel({
           ))}
         </div>
         {/* Search */}
-        <div className="px-3 border-b border-border bg-muted/20" style={{ height: 40 }}>
+        <div className="px-3 border-b border-border bg-muted/20 h-10">
           <div className="relative flex items-center h-full">
             <Search className="absolute left-2 h-3 w-3 text-muted-foreground/40 pointer-events-none" />
             <Input
-              className="h-7 pl-6 pr-6 text-xs bg-background rounded-sm border-border shadow-none focus-visible:ring-1 focus-visible:ring-primary/50"
+              className="h-7 pl-6 pr-6 text-xs bg-background rounded-md border-border focus-visible:ring-1 focus-visible:ring-primary/50"
               placeholder="Filter…"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
