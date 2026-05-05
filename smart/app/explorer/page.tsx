@@ -619,6 +619,7 @@ function RiskBadge({ k, v }: { k: string; v: unknown }) {
 // ── Shared ReactFlow prop constants (hoisted to avoid re-renders) ─────────────
 const RF_NODE_ORIGIN: [number, number] = [0.5, 0.5]
 const RF_FIT_VIEW_OPTIONS = { padding: 0.25 }
+const RF_HIER_FIT_VIEW_OPTIONS = { padding: 0.12, minZoom: 0.25 }
 const RF_STYLE_TRANSPARENT = { background: "transparent" }
 const RF_STYLE_CONN = { background: "transparent", position: "relative" as const, zIndex: 1 }
 const RF_PRO_OPTIONS = { hideAttribution: true }
@@ -1229,8 +1230,8 @@ const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, sel
     const presentLevels = LEVEL_ORDER.filter(l => byLevel.has(l))
     if (presentLevels.length === 0) return map
 
-    // Vertical spacing: use fraction of height per tier
-    const yStep = presentLevels.length === 1 ? 0 : H / (presentLevels.length + 0.5)
+    // Vertical spacing: fixed minimum per tier so levels don't stack up on large trees
+    const yStep = presentLevels.length === 1 ? 0 : Math.max(220, H / (presentLevels.length + 0.5))
     const yStart = presentLevels.length === 1 ? H * 0.4 : yStep * 0.75
 
     for (let li = 0; li < presentLevels.length; li++) {
@@ -1243,7 +1244,7 @@ const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, sel
         map.set(arr[0].id, { x: W / 2, y })
       } else {
         // Equal spacing with enough room for node cards (~200px wide)
-        const minGap = 200
+        const minGap = Math.max(500, 400 + arr.length * 10)
         const naturalWidth = (arr.length - 1) * minGap
         const margin = Math.max(W * 0.12, 100)
         const usable = Math.max(W - 2 * margin, naturalWidth)
@@ -1319,7 +1320,8 @@ const HierFlowGraph = memo(function HierFlowGraph({ graphData, dims, isDark, sel
       edgeTypes={cfHierEdgeTypes}
       nodeOrigin={RF_NODE_ORIGIN}
       fitView
-      fitViewOptions={RF_FIT_VIEW_OPTIONS}
+      fitViewOptions={RF_HIER_FIT_VIEW_OPTIONS}
+      minZoom={0.08}
       nodesDraggable
       onNodesChange={onNodesChange}
       onNodeClick={handleNodeClick}
@@ -2151,7 +2153,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         <input
           type="range"
           min={0.5}
-          max={4}
+          max={10}
           step={0.1}
           value={spread}
           onChange={(e) => setSpread(parseFloat(e.target.value))}
