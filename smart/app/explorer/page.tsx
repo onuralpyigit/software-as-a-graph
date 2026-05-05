@@ -2216,12 +2216,12 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       )}
       {/* Spread slider — controls horizontal distance between nodes */}
       <div style={{
-        position: "absolute", top: 40, left: 12, zIndex: 10,
+        position: "absolute", bottom: 12, right: 12, zIndex: 10,
         display: "flex", alignItems: "center", gap: 8,
         padding: "6px 10px",
         borderRadius: 8,
         width: 224,
-        background: isDark ? "rgba(15,15,20,0.78)" : "rgba(255,255,255,0.88)",
+        background: isDark ? "rgba(15,15,20,0.70)" : "rgba(255,255,255,0.80)",
         backdropFilter: "blur(8px)",
         border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
         fontSize: 11,
@@ -2988,7 +2988,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
           </div>
 
           {/* Legend — matches Force Graph tab */}
-          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/80 px-3 py-2 text-xs backdrop-blur max-h-[60%] overflow-y-auto pointer-events-none">
+          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/70 px-3 py-2 text-xs backdrop-blur max-h-[60%] overflow-y-auto pointer-events-none">
             <span className="font-medium text-muted-foreground mb-0.5">Nodes</span>
             {(Object.entries(CONN_NODE_TYPE_COLORS_DARK) as [string, string][]).map(([name, color]) => (
               <div key={name} className="flex items-center gap-2">
