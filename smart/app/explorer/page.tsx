@@ -3114,10 +3114,10 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
               )}
               {!connLoading && !connError && connTab === "props" && (
                 <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-muted z-10">
-                    <tr className="border-b border-border">
-                      <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-2/5">Property</th>
-                      <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Value</th>
+                  <thead className="sticky top-0 bg-background/95 backdrop-blur z-10">
+                    <tr className="border-b border-border/60">
+                      <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest w-2/5">Property</th>
+                      <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">Value</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3144,24 +3144,31 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
                         const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
                         const desc = PROP_DESCS[k]
                         return (
-                          <tr className="border-b border-border/50 hover:bg-muted/20 transition-colors">
-                            <td className={`${indent ? "pl-6" : "px-3"} pr-3 py-2 font-medium text-foreground w-2/5`}>
-                              <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
+                          <tr className="border-b border-border/40 hover:bg-muted/20 transition-colors">
+                            <td className={`${indent ? "pl-6" : "px-3"} pr-3 py-2 w-2/5`}>
+                              <span className="inline-flex items-center gap-0 text-[11px] text-foreground">{k}{desc && <Tip text={desc} />}</span>
                             </td>
-                            <td className="px-3 py-2 font-mono text-muted-foreground break-all text-[10px]">
-                              {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}
+                            <td className="px-3 py-2 font-mono text-foreground break-all text-xs">
+                              {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-50 not-italic">{unit}</span>}
                             </td>
                           </tr>
                         )
                       }
                       const GroupHeader = ({ label }: { label: string }) => (
-                        <tr className="bg-muted/60 border-t border-border">
-                          <td colSpan={2} className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
+                        <tr>
+                          <td colSpan={2} className="px-3 pt-4 pb-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">{label}</span>
+                              <div className="flex-1 h-px bg-border/50" />
+                            </div>
+                          </td>
                         </tr>
                       )
                       const SubHeader = ({ label }: { label: string }) => (
-                        <tr className="bg-muted/30 border-t border-border/50">
-                          <td colSpan={2} className="pl-5 pr-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
+                        <tr>
+                          <td colSpan={2} className="pl-6 pr-3 pt-2 pb-0.5">
+                            <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">{label}</span>
+                          </td>
                         </tr>
                       )
 
@@ -3224,10 +3231,10 @@ function DetailTable({ headers, rows }: {
 }) {
   return (
     <table className="w-full text-sm">
-      <thead className="sticky top-0 bg-muted z-10">
-        <tr className="border-b border-border">
+      <thead className="sticky top-0 bg-background/95 backdrop-blur z-10">
+        <tr className="border-b border-border/60">
           {headers.map((h) => (
-            <th key={h} className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+            <th key={h} className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap">
               {h}
             </th>
           ))}
@@ -3235,9 +3242,9 @@ function DetailTable({ headers, rows }: {
       </thead>
       <tbody>
         {rows.map((row, i) => (
-          <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+          <tr key={i} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
             {row.map((cell, j) => (
-              <td key={j} className="px-4 py-2.5 text-sm first:font-medium first:text-foreground text-muted-foreground">
+              <td key={j} className={cn("px-4 py-2.5 text-xs", j === 0 ? "font-medium text-foreground" : "text-muted-foreground font-mono")}>
                 {cell !== undefined && cell !== null && cell !== ""
                   ? String(cell)
                   : <span className="text-muted-foreground/40">—</span>}
@@ -3247,7 +3254,7 @@ function DetailTable({ headers, rows }: {
         ))}
         {rows.length === 0 && (
           <tr>
-            <td colSpan={headers.length} className="px-4 py-12 text-center text-muted-foreground text-sm">
+            <td colSpan={headers.length} className="px-4 py-12 text-center text-muted-foreground/50 text-xs">
               No items
             </td>
           </tr>
@@ -3311,33 +3318,40 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
       const unit = (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v)))) ? propUnit(k) : ""
       const desc = PROP_DESCS[k]
       return (
-        <tr className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-          <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 font-medium text-foreground w-2/5`}>
-            <span className="inline-flex items-center gap-0">{k}{desc && <Tip text={desc} />}</span>
+        <tr className="border-b border-border/40 hover:bg-muted/20 transition-colors">
+          <td className={`${indent ? "pl-8" : "px-4"} pr-4 py-2.5 w-2/5`}>
+            <span className="inline-flex items-center gap-0 text-[11px] text-foreground">{k}{desc && <Tip text={desc} />}</span>
           </td>
-          <td className="px-4 py-2.5 font-mono text-muted-foreground break-all text-xs">
-            {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-55 not-italic">{unit}</span>}
+          <td className="px-4 py-2.5 font-mono text-foreground break-all text-xs">
+            {propValue(k, v as any)}{unit && <span className="ml-1 text-[9px] opacity-50 not-italic">{unit}</span>}
           </td>
         </tr>
       )
     }
     const GroupHeader = ({ label }: { label: string }) => (
-      <tr className="bg-muted/60 border-t border-border">
-        <td colSpan={2} className="px-4 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
+      <tr>
+        <td colSpan={2} className="px-4 pt-4 pb-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">{label}</span>
+            <div className="flex-1 h-px bg-border/50" />
+          </div>
+        </td>
       </tr>
     )
     const SubHeader = ({ label }: { label: string }) => (
-      <tr className="bg-muted/30 border-t border-border/50">
-        <td colSpan={2} className="pl-7 pr-4 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</td>
+      <tr>
+        <td colSpan={2} className="pl-8 pr-4 pt-2 pb-0.5">
+          <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">{label}</span>
+        </td>
       </tr>
     )
 
     content = (
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-muted z-10">
-          <tr className="border-b border-border">
-            <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-2/5">Property</th>
-            <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Value</th>
+        <thead className="sticky top-0 bg-background/95 backdrop-blur z-10">
+          <tr className="border-b border-border/60">
+            <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest w-2/5">Property</th>
+            <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">Value</th>
           </tr>
         </thead>
         <tbody>
@@ -3379,14 +3393,14 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-5 py-4 border-b border-border shrink-0 flex items-center min-h-[60px]">
-        <div className="flex items-start justify-between gap-2 w-full">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-foreground leading-tight truncate">{node.label}</h2>
-            {node.path.length > 1 && (
-              <p className="text-xs text-muted-foreground mt-0.5 truncate">{node.path.join(" › ")}</p>
-            )}
-          </div>
+      <div className="px-4 pt-4 pb-3 border-b border-border/60 shrink-0">
+        {node.path.length > 1 && (
+          <p className="text-[10px] text-muted-foreground/50 mb-1.5 truncate leading-none">
+            {node.path.join(" › ")}
+          </p>
+        )}
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-foreground truncate">{node.label}</h2>
           {(() => {
             const rawType: string = node.kind === "node" ? ((node.payload as any).type ?? "Node") : KIND_LABEL[node.kind]
             const actualType = rawType.toLowerCase() === "mqtt" ? "Broker" : rawType
@@ -3395,8 +3409,8 @@ function NodeDetailPanel({ node }: { node: SelectedNode }) {
               : KIND_COLOR[node.kind]
             return (
               <span
-                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white shrink-0"
-                style={{ background: color }}
+                className="inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold shrink-0 border"
+                style={{ color, borderColor: `${color}60`, background: `${color}12` }}
               >
                 {actualType}
               </span>
@@ -4193,7 +4207,7 @@ function BrowserPageContent() {
   }
 
   useEffect(() => {
-    if (isConnected) fetchData(nodeId)
+    if (isConnected) { fetchData(nodeId); fetchLayerLinks() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, nodeId])
 
@@ -4301,8 +4315,18 @@ function BrowserPageContent() {
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab as "browse" | "graph" | "forcegraph")
-    if (tab === "forcegraph") fetchLayerLinks()
+    if (tab === "forcegraph" || tab === "browse") fetchLayerLinks()
   }, [fetchLayerLinks])
+
+  const allNodeLabels = useMemo(() => {
+    const m = new Map<string, { label: string; type: string }>()
+    appsList.forEach(a => m.set(String(a.id), { label: a.csu ?? a.name ?? a.id ?? String(a.id), type: "Application" }))
+    nodesList.forEach(n => m.set(String(n.id), { label: n.name ?? String(n.id), type: n.type ?? "Node" }))
+    topicsList.forEach(t => m.set(String(t.id), { label: t.name ?? String(t.id), type: "Topic" }))
+    brokersList.forEach(b => m.set(String(b.id), { label: b.name ?? String(b.id), type: "Broker" }))
+    libsList.forEach(l => m.set(String(l.id), { label: l.name ?? String(l.id), type: "Library" }))
+    return m
+  }, [appsList, nodesList, topicsList, brokersList, libsList])
 
   const handleLayersNodeClick = useCallback((rawNode: any, nodeType: SwimlaneType) => {
     const id = String(rawNode.id ?? "")
@@ -4368,18 +4392,8 @@ function BrowserPageContent() {
           {/* ── Browse tab ── */}
           <TabsContent forceMount value="browse" className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden">
             <div className="flex border border-border rounded-lg overflow-hidden h-full" style={{ minHeight: "520px" }}>
-              {/* Left: Detail / table panel */}
-              <div className="flex-1 overflow-auto border-r border-border min-w-0">
-                {loading && !csmsKeys.length
-                  ? <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
-                  : selectedNode
-                    ? <NodeDetailPanel node={selectedNode} />
-                    : <EmptyDetailState />
-                }
-              </div>
-
-              {/* Right: Tabbed list panel */}
-              <div className="w-72 flex flex-col overflow-hidden shrink-0">
+              {/* Left: Tabbed list panel */}
+              <div className="w-72 flex flex-col overflow-hidden shrink-0 border-r border-border">
                 <SideListPanel
                   nodesList={nodesList}
                   appsList={appsList}
@@ -4396,6 +4410,38 @@ function BrowserPageContent() {
                   onSearchChange={setSideSearch}
                   loading={loading}
                   initialTab={sideInitialTab}
+                />
+              </div>
+
+              {/* Middle: Detail / table panel */}
+              <div className="flex-1 overflow-auto min-w-0 border-r border-border">
+                {loading && !csmsKeys.length
+                  ? <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
+                  : selectedNode
+                    ? <NodeDetailPanel node={selectedNode} />
+                    : <EmptyDetailState />
+                }
+              </div>
+
+              {/* Right: Connections column */}
+              <div className="w-64 shrink-0 flex flex-col overflow-hidden">
+                <ConnectionsColumn
+                  selectedNode={selectedNode}
+                  links={layerGraphLinks}
+                  nodeLabels={allNodeLabels}
+                  onSelect={(id) => {
+                    const info = allNodeLabels.get(id)
+                    if (!info) return
+                    const kind: SelectedKind = info.type === "Application" ? "app" : info.type === "Topic" ? "topic" : "node"
+                    const app = appsList.find(a => String(a.id) === id)
+                    const raw = app
+                      ?? nodesList.find(n => String(n.id) === id)
+                      ?? topicsList.find(t => String(t.id) === id)
+                      ?? brokersList.find(b => String(b.id) === id)
+                      ?? libsList.find(l => String(l.id) === id)
+                    if (!raw) return
+                    setSelectedNode({ kind, key: `${kind}:${id}`, label: info.label, path: [info.label], payload: raw })
+                  }}
                 />
               </div>
             </div>
@@ -4485,6 +4531,177 @@ function SimpleVirtualList({ items, renderItem, itemHeight = 34 }: {
         <div style={{ position: "absolute", top: startIdx * itemHeight, width: "100%" }}>
           {items.slice(startIdx, endIdx).map((item, i) => renderItem(item, startIdx + i))}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Connections Column ────────────────────────────────────────────────────────
+
+const CONN_TYPE_COLORS: Record<string, string> = {
+  app_to_app: "#4CBCD0", app_to_broker: "#f59e0b", app_to_lib: "#a78bfa",
+  node_to_node: "#C570CE", node_to_broker: "#f97316", broker_to_broker: "#10b981",
+}
+function connTypeColor(type: string) { return CONN_TYPE_COLORS[type] ?? "#71717a" }
+
+function ConnectionsColumn({ selectedNode, links, nodeLabels, onSelect }: {
+  selectedNode: SelectedNode | null
+  links: Array<{ source: string; target: string; type: string; weight?: number }>
+  nodeLabels: Map<string, { label: string; type: string }>
+  onSelect: (id: string) => void
+}) {
+  const nodeId = selectedNode ? selectedNode.key.replace(/^[^:]+:/, "") : null
+  const [activeRelTypes, setActiveRelTypes] = useState<Set<string>>(new Set())
+  const [activeNodeTypes, setActiveNodeTypes] = useState<Set<string>>(new Set())
+  const [connSearch, setConnSearch] = useState("")
+
+  const DERIVED_TYPES = new Set(["node_to_node", "node_to_broker", "DEPENDS_ON", "CONNECTS_TO"])
+
+  const allConns = useMemo(() => {
+    if (!nodeId) return []
+    const out = links.filter(l => l.source === nodeId && !DERIVED_TYPES.has(l.type)).map(l => ({ peerId: l.target, type: l.type }))
+    const inn = links.filter(l => l.target === nodeId && !DERIVED_TYPES.has(l.type)).map(l => ({ peerId: l.source, type: l.type }))
+    return [...out, ...inn]
+  }, [nodeId, links])
+
+  const allRelTypes  = useMemo(() => Array.from(new Set(allConns.map(c => c.type))).sort(), [allConns])
+  const allNodeTypes = useMemo(() => Array.from(new Set(allConns.map(c => nodeLabels.get(c.peerId)?.type ?? "Unknown"))).sort(), [allConns, nodeLabels])
+
+  // Reset filters when selected node changes
+  useEffect(() => { setActiveRelTypes(new Set()); setActiveNodeTypes(new Set()); setConnSearch("") }, [nodeId])
+
+  const filtered = useMemo(() => {
+    const q = connSearch.toLowerCase()
+    return allConns.filter(c => {
+      if (activeRelTypes.size > 0 && !activeRelTypes.has(c.type)) return false
+      if (activeNodeTypes.size > 0 && !activeNodeTypes.has(nodeLabels.get(c.peerId)?.type ?? "Unknown")) return false
+      if (q && !(nodeLabels.get(c.peerId)?.label ?? c.peerId).toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [allConns, activeRelTypes, activeNodeTypes, nodeLabels, connSearch])
+
+  // Group by peer node type
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof filtered>()
+    for (const c of filtered) {
+      const peerType = nodeLabels.get(c.peerId)?.type ?? "Unknown"
+      if (!map.has(peerType)) map.set(peerType, [])
+      map.get(peerType)!.push(c)
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
+  }, [filtered, nodeLabels])
+
+  const toggleRelType  = (t: string) => setActiveRelTypes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n })
+  const toggleNodeType = (t: string) => setActiveNodeTypes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n })
+
+  const NODE_TYPE_COLORS: Record<string, string> = {
+    Application: "#4CBCD0", Node: "#C570CE", Topic: "#7DAA7A", Broker: "#f59e0b", Library: "#a78bfa",
+  }
+  const nodeTypeColor = (t: string) => NODE_TYPE_COLORS[t] ?? "#71717a"
+
+  const FilterChips = ({ items, active, toggle, colorFn }: {
+    items: string[]; active: Set<string>; toggle: (t: string) => void; colorFn: (t: string) => string
+  }) => (
+    <div className="flex flex-wrap gap-1">
+      {items.map(t => {
+        const color = colorFn(t)
+        const isActive = active.has(t)
+        return (
+          <button key={t} onClick={() => toggle(t)}
+            className="text-[9px] font-medium px-1.5 py-0.5 rounded transition-all"
+            style={isActive
+              ? { color, background: `${color}28`, border: `1px solid ${color}80` }
+              : { color: "#71717a", background: "transparent", border: "1px solid #3f3f46" }
+            }
+          >{t}</button>
+        )
+      })}
+    </div>
+  )
+
+  const ConnRow = ({ peerId, type }: { peerId: string; type: string }) => {
+    const label = nodeLabels.get(peerId)?.label ?? peerId
+    const color = connTypeColor(type)
+    return (
+      <button
+        onClick={() => onSelect(peerId)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/30 transition-colors border-b border-border/40 group"
+      >
+        <span className="flex-1 text-xs text-foreground truncate group-hover:text-primary transition-colors">{label}</span>
+        <span
+          className="shrink-0 text-[9px] font-medium px-1 py-px rounded whitespace-nowrap"
+          style={{ color, background: `${color}18`, border: `1px solid ${color}40` }}
+        >{type}</span>
+      </button>
+    )
+  }
+
+  if (!selectedNode) return (
+    <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+      <Network className="h-5 w-5 text-muted-foreground/30 mb-2" />
+      <p className="text-xs text-muted-foreground/50">Select a component to see what it connects to</p>
+    </div>
+  )
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="px-3 pt-3 pb-2 border-b border-border/60 shrink-0">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">Connections</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{allConns.length} structural</p>
+      </div>
+
+      {/* Search */}
+      <div className="px-2 py-1.5 border-b border-border/60 shrink-0">
+        <div className="relative flex items-center">
+          <Search className="absolute left-2 h-3 w-3 text-muted-foreground/40 pointer-events-none" />
+          <Input
+            className="h-7 pl-6 pr-6 text-xs bg-background rounded-md border-border focus-visible:ring-1 focus-visible:ring-primary/50"
+            placeholder="Search…"
+            value={connSearch}
+            onChange={e => setConnSearch(e.target.value)}
+          />
+          {connSearch && (
+            <button className="absolute right-2 text-muted-foreground/40 hover:text-muted-foreground transition-colors" onClick={() => setConnSearch("")}>
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Filters */}
+      {(allNodeTypes.length > 1 || allRelTypes.length > 1) && (
+        <div className="px-2 py-2 border-b border-border/60 shrink-0 space-y-1.5">
+          {allNodeTypes.length > 1 && (
+            <div>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 mb-1">Node type</p>
+              <FilterChips items={allNodeTypes} active={activeNodeTypes} toggle={toggleNodeType} colorFn={nodeTypeColor} />
+            </div>
+          )}
+          {allRelTypes.length > 1 && (
+            <div>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 mb-1">Relationship type</p>
+              <FilterChips items={allRelTypes} active={activeRelTypes} toggle={toggleRelType} colorFn={connTypeColor} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Grouped list */}
+      <div className="flex-1 overflow-y-auto">
+        {filtered.length === 0 && (
+          <p className="text-center text-muted-foreground/50 py-10 text-xs">No connections</p>
+        )}
+        {grouped.map(([peerType, conns]) => (
+          <div key={peerType}>
+            <div className="flex items-center gap-2 px-3 pt-3 pb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">{peerType}</span>
+              <div className="flex-1 h-px bg-border/50" />
+              <span className="text-[10px] text-muted-foreground/40">{conns.length}</span>
+            </div>
+            {conns.map((c, i) => <ConnRow key={i} {...c} />)}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -4613,39 +4830,7 @@ function SideListPanel({
         {sideTab === "nodes"   && (filteredNodes.length   > 0 ? <SimpleVirtualList items={filteredNodes}   renderItem={n => makeRow(n, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No nodes.</p>)}
         {sideTab === "brokers" && (filteredBrokers.length > 0 ? <SimpleVirtualList items={filteredBrokers} renderItem={b => makeRow(b, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No brokers.</p>)}
         {sideTab === "libs"    && (filteredLibs.length    > 0 ? <SimpleVirtualList items={filteredLibs}    renderItem={l => makeRow(l, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No libraries.</p>)}
-        {sideTab === "apps"    && (
-          sortKeys(Object.keys(hierarchy)).length > 0
-            ? (
-              <div className="overflow-y-auto h-full px-1 py-1">
-                {sortKeys(Object.keys(hierarchy)).map(k => (
-                  <CsmsTreeNode
-                    key={k}
-                    name={k}
-                    csms={hierarchy[k]}
-                    selectedKey={selectedKey}
-                    onSelect={onSelect}
-                    openSet={openSet}
-                    toggle={toggle}
-                    q={q}
-                  />
-                ))}
-                {q && sortKeys(Object.keys(hierarchy)).every(k => {
-                  const csms = hierarchy[k]
-                  const nameMatch = k.toLowerCase().includes(q)
-                  const hasMatch = nameMatch || Object.keys(csms.css).some(ck =>
-                    ck.toLowerCase().includes(q) ||
-                    Object.keys(csms.css[ck].csci).some(ci => ci.toLowerCase().includes(q)) ||
-                    Object.values(csms.css[ck].csci).flatMap(ci => Object.keys(ci.csc)).some(sc => sc.toLowerCase().includes(q)) ||
-                    Object.values(csms.css[ck].csci).flatMap(ci => Object.values(ci.csc)).some(c => c.apps.some(a => matches(a, q)))
-                  )
-                  return !hasMatch
-                }) && (
-                  <p className="text-center text-muted-foreground/50 py-8 text-xs">No matches.</p>
-                )}
-              </div>
-            )
-            : (filteredApps.length > 0 ? <SimpleVirtualList items={filteredApps} renderItem={a => makeRow(a, "app")} itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No apps.</p>)
-        )}
+        {sideTab === "apps"    && (filteredApps.length > 0 ? <SimpleVirtualList items={filteredApps} renderItem={a => makeRow(a, "app")} itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No apps.</p>)}
         {sideTab === "topics"  && (filteredTopics.length  > 0 ? <SimpleVirtualList items={filteredTopics}  renderItem={t => makeRow(t, "topic")} itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No topics.</p>)}
       </div>
 
