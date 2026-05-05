@@ -2216,17 +2216,19 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       )}
       {/* Spread slider — controls horizontal distance between nodes */}
       <div style={{
-        position: "absolute", top: 10, left: 10, zIndex: 10,
+        position: "absolute", top: 40, left: 12, zIndex: 10,
         display: "flex", alignItems: "center", gap: 8,
         padding: "6px 10px",
         borderRadius: 8,
+        width: 224,
         background: isDark ? "rgba(15,15,20,0.78)" : "rgba(255,255,255,0.88)",
         backdropFilter: "blur(8px)",
         border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
         fontSize: 11,
         color: isDark ? "#e4e4e7" : "#3f3f46",
+        boxSizing: "border-box",
       }}>
-        <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.8 }}>Spread</span>
+        <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.8, flexShrink: 0 }}>Spread</span>
         <input
           type="range"
           min={0.5}
@@ -2234,9 +2236,9 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
           step={0.1}
           value={spread}
           onChange={(e) => setSpread(parseFloat(e.target.value))}
-          style={{ width: 120, accentColor: isDark ? "#a1a1aa" : "#71717a" }}
+          style={{ flex: 1, minWidth: 0, accentColor: isDark ? "#a1a1aa" : "#71717a" }}
         />
-        <span style={{ fontSize: 10, fontVariantNumeric: "tabular-nums", opacity: 0.7, minWidth: 28, textAlign: "right" }}>
+        <span style={{ fontSize: 10, fontVariantNumeric: "tabular-nums", opacity: 0.7, minWidth: 28, textAlign: "right", flexShrink: 0 }}>
           {spread.toFixed(1)}×
         </span>
       </div>
@@ -2942,6 +2944,48 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
             }}
             onConnNodeClick={onConnLeafClick}
           />
+
+          {/* Search overlay */}
+          <div className="absolute top-2 left-3 z-20 w-56">
+            <div className="relative flex items-center">
+              <Search className="absolute left-2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
+              <Input
+                ref={searchRef}
+                className="h-7 pl-6 pr-6 text-xs bg-background/90 rounded-md border-border shadow-sm focus-visible:ring-1 focus-visible:ring-primary/50 backdrop-blur"
+                placeholder="Search hierarchy…"
+                value={appSearch}
+                onChange={e => { setAppSearch(e.target.value); setSearchOpen(true) }}
+                onFocus={() => setSearchOpen(true)}
+                onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+              />
+              {appSearch && (
+                <button
+                  className="absolute right-2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                  onMouseDown={e => { e.preventDefault(); setAppSearch(""); setSearchOpen(false) }}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {searchOpen && filteredNodes.length > 0 && (
+              <div className="mt-1 rounded-md border border-border bg-background shadow-md overflow-hidden max-h-64 overflow-y-auto">
+                {filteredNodes.map(r => (
+                  <button
+                    key={r.id}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors"
+                    onMouseDown={e => { e.preventDefault(); jumpToNode(r) }}
+                  >
+                    <span
+                      className="inline-block w-2 h-2 rounded-full shrink-0"
+                      style={{ background: NODE_COLORS[r.level] }}
+                    />
+                    <span className="truncate">{r.name}</span>
+                    <span className="ml-auto text-muted-foreground/50 shrink-0 pl-1">{LEVEL_LABELS[r.level]}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Legend — matches Force Graph tab */}
           <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/80 px-3 py-2 text-xs backdrop-blur max-h-[60%] overflow-y-auto pointer-events-none">
@@ -4569,7 +4613,39 @@ function SideListPanel({
         {sideTab === "nodes"   && (filteredNodes.length   > 0 ? <SimpleVirtualList items={filteredNodes}   renderItem={n => makeRow(n, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No nodes.</p>)}
         {sideTab === "brokers" && (filteredBrokers.length > 0 ? <SimpleVirtualList items={filteredBrokers} renderItem={b => makeRow(b, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No brokers.</p>)}
         {sideTab === "libs"    && (filteredLibs.length    > 0 ? <SimpleVirtualList items={filteredLibs}    renderItem={l => makeRow(l, "node")}  itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No libraries.</p>)}
-        {sideTab === "apps"    && (filteredApps.length    > 0 ? <SimpleVirtualList items={filteredApps}    renderItem={a => makeRow(a, "app")}   itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No apps.</p>)}
+        {sideTab === "apps"    && (
+          sortKeys(Object.keys(hierarchy)).length > 0
+            ? (
+              <div className="overflow-y-auto h-full px-1 py-1">
+                {sortKeys(Object.keys(hierarchy)).map(k => (
+                  <CsmsTreeNode
+                    key={k}
+                    name={k}
+                    csms={hierarchy[k]}
+                    selectedKey={selectedKey}
+                    onSelect={onSelect}
+                    openSet={openSet}
+                    toggle={toggle}
+                    q={q}
+                  />
+                ))}
+                {q && sortKeys(Object.keys(hierarchy)).every(k => {
+                  const csms = hierarchy[k]
+                  const nameMatch = k.toLowerCase().includes(q)
+                  const hasMatch = nameMatch || Object.keys(csms.css).some(ck =>
+                    ck.toLowerCase().includes(q) ||
+                    Object.keys(csms.css[ck].csci).some(ci => ci.toLowerCase().includes(q)) ||
+                    Object.values(csms.css[ck].csci).flatMap(ci => Object.keys(ci.csc)).some(sc => sc.toLowerCase().includes(q)) ||
+                    Object.values(csms.css[ck].csci).flatMap(ci => Object.values(ci.csc)).some(c => c.apps.some(a => matches(a, q)))
+                  )
+                  return !hasMatch
+                }) && (
+                  <p className="text-center text-muted-foreground/50 py-8 text-xs">No matches.</p>
+                )}
+              </div>
+            )
+            : (filteredApps.length > 0 ? <SimpleVirtualList items={filteredApps} renderItem={a => makeRow(a, "app")} itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No apps.</p>)
+        )}
         {sideTab === "topics"  && (filteredTopics.length  > 0 ? <SimpleVirtualList items={filteredTopics}  renderItem={t => makeRow(t, "topic")} itemHeight={32} /> : <p className="text-center text-muted-foreground/50 py-8 text-xs">No topics.</p>)}
       </div>
 
