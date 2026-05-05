@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   Brain,
   Cpu,
-  Wifi,
+  Activity,
   BookMarked,
 } from "lucide-react"
 
@@ -36,6 +36,11 @@ const navigation = [
     icon: BarChart3,
   },
   {
+    name: "Simulator",
+    href: "/simulator",
+    icon: Activity,
+  },
+  {
     name: "Analysis",
     href: "/analysis",
     icon: FileText,
@@ -44,11 +49,6 @@ const navigation = [
     name: "Simulation",
     href: "/simulation",
     icon: Zap,
-  },
-  {
-    name: "Traffic",
-    href: "/traffic",
-    icon: Wifi,
   },
   {
     name: "Validation",

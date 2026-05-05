@@ -365,6 +365,7 @@ class AppInfoModel(BaseModel):
     id: str
     name: str
     weight: float
+    role: Optional[str] = None
     pub_topic_ids: List[str]
     sub_topic_ids: List[str]
 
