@@ -851,7 +851,7 @@ function ConnSvgGraph({
               shape = <>{isCenter && <circle cx={nx} cy={ny} r={r + 7} fill={color + "33"} />}<circle cx={nx} cy={ny} r={r} fill={color} stroke={strokeColor} strokeWidth={sw} /></>
           }
           const label = String(n.label ?? n.id ?? "?")
-          const disp = label.length > 22 ? label.slice(0, 20) + "…" : label
+          const disp = label.length > 5 ? label.slice(0, 5) + "…" : label
           return (
             <g key={n.id} onClick={e => { e.stopPropagation(); if (!movedRef.current) onNodeClick(n) }} style={{ cursor: "pointer" }}>
               {shape}
@@ -883,7 +883,7 @@ const ConnFlowNode = memo(function ConnFlowNode({ data }: NodeProps) {
   const C  = S / 2                // center coord
   const color = nodeTypeColor(n.type, isDark)
   const label = String(n.label ?? n.id ?? "?")
-  const disp = label.length > 20 ? label.slice(0, 18) + "…" : label
+  const disp = label.length > 5 ? label.slice(0, 5) + "…" : label
 
   // Shared style tokens
   const fill   = color
@@ -1140,7 +1140,7 @@ const HierFlowNode = memo(function HierFlowNode({ data }: NodeProps) {
           fontSize, fontWeight: isParent ? 700 : isSelected ? 600 : 500,
           color: isDark ? "#f1f5f9" : "#1e293b",
           lineHeight: 1.3,
-        }}>{hn.name}</span>
+        }}>{hn.name.length > 5 ? hn.name.slice(0, 5) + "…" : hn.name}</span>
       </div>
       {/* Count badge */}
       {hn.appCount > 0 && hn.level !== "app" && (
@@ -1353,7 +1353,7 @@ const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDar
     const rootId = rootNode.id
     const rootColor = nodeTypeColor(rootNode.type, isDark)
     const rootLabel: string = rootNode.label ?? rootNode.name ?? rootId
-    const trimRoot = rootLabel.length > 28 ? rootLabel.slice(0, 26) + "…" : rootLabel
+    const trimRoot = rootLabel.length > 5 ? rootLabel.slice(0, 5) + "…" : rootLabel
     const nodeById = new Map(nodes.map(n => [n.id, n]))
 
     // Group links by edge type; each entry: { edgeType, peer node, direction }
@@ -1398,7 +1398,7 @@ const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDar
 
       const leafNodes = unique.map(({ node, dir }) => {
         const lbl: string = node.label ?? node.name ?? node.id ?? ""
-        const trimLbl = lbl.length > 30 ? lbl.slice(0, 28) + "…" : lbl
+        const trimLbl = lbl.length > 5 ? lbl.slice(0, 5) + "…" : lbl
         const nc = nodeTypeColor(node.type, isDark)
         return {
           name: trimLbl,
@@ -1513,7 +1513,10 @@ const ConnEChartsGraph = memo(function ConnEChartsGraph({ graphData, dims, isDar
           align: "center",
           fontSize: 9,
           color: isDark ? "#d4d4d8" : "#374151",
-          formatter: (p: any) => p.name ?? "",
+          formatter: (p: any) => {
+            const name = p.name ?? ""
+            return name.length > 5 ? name.slice(0, 5) + "…" : name
+          },
         },
         leaves: {
           label: {
@@ -2069,8 +2072,8 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
           const raw: string = params.name ?? ""
           const name = raw.split("\x00")[0]
           const d = params.data
-          if (d?._isConnLeaf || d?._isConnGroup) return name
-          return name.length > 18 ? name.slice(0, 16) + "…" : name
+          if (d?._isConnLeaf || d?._isConnGroup) return name.length > 5 ? name.slice(0, 5) + "…" : name
+          return name.length > 5 ? name.slice(0, 5) + "…" : name
         },
       },
       leaves: {
@@ -2251,7 +2254,7 @@ const HierEChartsTree = memo(function HierEChartsTree({
         color: isDark ? "#e5e7eb" : "#374151",
         formatter: (params: any) => {
           const name: string = params.name ?? ""
-          return name.length > 28 ? name.slice(0, 26) + "…" : name
+          return name.length > 5 ? name.slice(0, 5) + "…" : name
         },
       },
       leaves: {
@@ -3737,7 +3740,7 @@ function ForceGraphEChart({
               show: !graphComplexity.isLarge || sel, // Hide labels for non-selected nodes in large graphs
               formatter: (p: any) => {
                 const n = p.data?.name ?? p.name ?? ""
-                return n.length > 12 ? n.slice(0, 11) + "…" : n
+                return n.length > 5 ? n.slice(0, 5) + "…" : n
               },
               fontSize: sel ? (graphComplexity.isLarge ? 10 : 12) : 8,
               fontWeight: sel ? 700 : 400,
@@ -3855,7 +3858,15 @@ function ForceGraphEChart({
         })),
         roam:          true,
         focusNodeAdjacency: true,
-        label:         { show: true, position: "inside", fontSize: 9 },
+        label:         {
+          show: true,
+          position: "inside",
+          fontSize: 9,
+          formatter: (p: any) => {
+            const name = p.data?.name ?? p.name ?? ""
+            return name.length > 5 ? name.slice(0, 5) + "…" : name
+          }
+        },
         edgeSymbol:    ["none", "arrow"],
         edgeSymbolSize: graphComplexity.isLarge ? 4 : 8, // Smaller arrows for large graphs
         edgeLabel:     showEdgeLabels
