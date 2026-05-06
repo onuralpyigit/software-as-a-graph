@@ -2037,8 +2037,9 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
   const W = dims.width || 800
   const H = dims.height || 600
 
-  // Horizontal spread multiplier. 1.0 = fits viewport, >1 widens layout
-  // (panning enabled via roam: true). Controlled by the slider overlay below.
+  // Horizontal spread multiplier. 1.0 = fits viewport with a 5% margin per side
+  // (normal layout); >1 widens the tree beyond the viewport so spacing between
+  // nodes grows. Panning enabled via roam: true. Controlled by the slider below.
   const [spread, setSpread] = useState(1)
 
   const treeData = useMemo(
@@ -2060,7 +2061,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         // treeAncestors includes the invisible "System" root — subtract 2 so CSMS = depth 0
         const depth = (params.treeAncestors?.length ?? 2) - 2
         // Monotonically decreasing top → bottom: CSMS, CSS, CSCI, CSC, App
-        return ([24, 19, 15, 12, 10] as number[])[Math.min(Math.max(depth, 0), 4)] ?? 10
+        return ([40, 32, 26, 20, 16] as number[])[Math.min(Math.max(depth, 0), 4)] ?? 16
       },
       label: {
         position: "bottom",
@@ -2130,9 +2131,11 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       series: [{
         ...sharedProps,
         data: [treeData],
-        // Use full width and height; spread multiplier scales the tree layout itself
-        left: "1%",
-        right: "1%",
+        // spread=1 → 5% margin per side (normal viewport fit). Increasing spread
+        // grows the tree's bounding box beyond the viewport (negative margins),
+        // which proportionally increases horizontal spacing between sibling nodes.
+        left: `${50 - 45 * spread}%`,
+        right: `${50 - 45 * spread}%`,
         top: "5%",
         bottom: "5%",
       }],
@@ -2189,7 +2192,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
         <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.8, flexShrink: 0 }}>Spread</span>
         <input
           type="range"
-          min={0.5}
+          min={1}
           max={10}
           step={0.1}
           value={spread}
