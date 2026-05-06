@@ -264,7 +264,9 @@ export default function TrafficSimulatorPage() {
         t.id.toLowerCase().includes(topicSearch.toLowerCase())
       const matchesQos =
         topicQosFilter === "all" ||
-        (t.qos_reliability || "").toLowerCase() === topicQosFilter.toLowerCase()
+        (t.qos_reliability || "").toLowerCase() === topicQosFilter.toLowerCase() ||
+        (t.qos_durability || "").toLowerCase() === topicQosFilter.toLowerCase() ||
+        (t.qos_transport_priority || "").toLowerCase() === topicQosFilter.toLowerCase()
       return matchesSearch && matchesQos
     })
     list = [...list].sort((a, b) => {
@@ -277,8 +279,10 @@ export default function TrafficSimulatorPage() {
   }, [topics, topicSearch, topicQosFilter, topicSort])
 
   const qosOptions = React.useMemo(() => {
-    const vals = Array.from(new Set(topics.map(t => t.qos_reliability).filter(Boolean))) as string[]
-    return vals
+    const reliabilityVals = Array.from(new Set(topics.map(t => t.qos_reliability).filter(Boolean))) as string[]
+    const durabilityVals = Array.from(new Set(topics.map(t => t.qos_durability).filter(Boolean))) as string[]
+    const priorityVals = Array.from(new Set(topics.map(t => t.qos_transport_priority).filter(Boolean))) as string[]
+    return { reliability: reliabilityVals, durability: durabilityVals, priority: priorityVals }
   }, [topics])
 
   function selectAllVisible() {
@@ -497,22 +501,29 @@ export default function TrafficSimulatorPage() {
                         )}
                       </div>
 
-                      {/* QoS filter pills */}
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {["all", ...qosOptions].map(opt => (
-                          <button
-                            key={opt}
-                            onClick={() => setTopicQosFilter(opt)}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                              topicQosFilter === opt
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-background text-muted-foreground border-border hover:border-primary/50"
-                            }`}
-                          >
-                            {opt === "all" ? "All QoS" : opt}
-                          </button>
-                        ))}
-                      </div>
+                      {/* QoS filter dropdown */}
+                      <select
+                        value={topicQosFilter}
+                        onChange={e => setTopicQosFilter(e.target.value)}
+                        className="h-8 text-xs rounded-md border border-input bg-background px-2 pr-6 focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="all">All QoS</option>
+                        <optgroup label="Reliability">
+                          {qosOptions.reliability.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Durability">
+                          {qosOptions.durability.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Transport Priority">
+                          {qosOptions.priority.map(opt => (
+                            <option key={opt} value={opt}>TP {opt}</option>
+                          ))}
+                        </optgroup>
+                      </select>
 
                       {/* Sort selector */}
                       <div className="flex items-center gap-1">
@@ -604,17 +615,26 @@ export default function TrafficSimulatorPage() {
                                   </div>
                                 </button>
 
-                                {/* Badges */}
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  {topic.qos_reliability && (
-                                    <Badge
-                                      variant="outline"
-                                      className={`text-xs ${topic.qos_reliability === "RELIABLE" ? "border-green-500/50 text-green-600 dark:text-green-400" : "border-amber-500/50 text-amber-600 dark:text-amber-400"}`}
-                                    >
-                                      {topic.qos_reliability}
-                                    </Badge>
-                                  )}
-                                </div>
+                                {/* QoS badges */}
+                                {(topic.qos_reliability || topic.qos_durability || topic.qos_transport_priority) && (
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {topic.qos_reliability && (
+                                      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border border-green-500/40 text-green-600 dark:text-green-400 bg-green-500/5">
+                                        {topic.qos_reliability === "RELIABLE" ? "Reliable" : "Best-Effort"}
+                                      </span>
+                                    )}
+                                    {topic.qos_durability && (
+                                      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border border-blue-500/40 text-blue-600 dark:text-blue-400 bg-blue-500/5">
+                                        {topic.qos_durability}
+                                      </span>
+                                    )}
+                                    {topic.qos_transport_priority && (
+                                      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/5">
+                                        TP {topic.qos_transport_priority}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )
                           })}
