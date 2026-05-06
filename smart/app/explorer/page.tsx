@@ -3522,7 +3522,7 @@ const EDGE_COLORS: Record<string, string> = {
 }
 const EDGE_COLOR_FALLBACK = "#94a3b8"
 
-function ForceGraphEChart({
+const ForceGraphEChart = memo(function ForceGraphEChart({
   nodesList,
   appsList,
   topicsList,
@@ -3699,8 +3699,8 @@ function ForceGraphEChart({
       [brokersList,"Broker"],
       [libsList,   "Library"],
     ]
-    // Always use large graph sizing for optimal performance and visual clarity
-    const nodeSizeConfig = { selected: 36, normal: 14 }
+    // Node sizing for force graph
+    const nodeSizeConfig = { selected: 60, normal: 28 }
 
     return rows.flatMap(([list, type]) =>
       list
@@ -3735,12 +3735,12 @@ function ForceGraphEChart({
             ...(type === "Library" ? { _version: n.version ?? n.properties?.version ?? "" } : {}),
             ...(type === "Broker" ? { _broker_type: n.broker_type ?? n.properties?.broker_type ?? "" } : {}),
             label: {
-              show: !graphComplexity.isLarge || sel, // Hide labels for non-selected nodes in large graphs
+              show: true, // Always show labels for all nodes
               formatter: (p: any) => {
                 const n = p.data?.name ?? p.name ?? ""
                 return n.length > 5 ? n.slice(0, 5) + "…" : n
               },
-              fontSize: sel ? (graphComplexity.isLarge ? 10 : 12) : 8,
+              fontSize: sel ? 11 : 9,
               fontWeight: sel ? 700 : 400,
               color: "#fff",
               position: "inside",
@@ -3790,37 +3790,24 @@ function ForceGraphEChart({
   }, [selectedId, graphLinks, nodeMap, hiddenNodeTypes, hiddenEdgeTypes])
 
   const option = useMemo(() => {
-    // Adaptive force simulation parameters based on graph size — optimized for faster settlement
-    const forceParams = graphComplexity.isLarge
-      ? {
-          repulsion: 150,        // Minimal repulsion for fast convergence
-          gravity: 0.25,         // Strong gravity pull toward center
-          edgeLength: [40, 80],  // Short edges converge quickly
-          friction: 0.9,         // Maximum damping to stop oscillations
-          layoutAnimation: true,
-          initLayout: "circular" as const, // Start from circular layout, converges faster
-        }
-      : graphComplexity.isMedium
-      ? {
-          repulsion: 200,        // Reduced repulsion
-          gravity: 0.15,         // Increased gravity
-          edgeLength: [50, 110], // Shorter edges
-          friction: 0.85,        // Stronger damping
-          layoutAnimation: true,
-        }
-      : {
-          repulsion: 300,        // Reduced from 500
-          gravity: 0.12,         // Increased from 0.05
-          edgeLength: [70, 140], // Slightly shorter
-          friction: 0.8,         // Increased from 0.6
-          layoutAnimation: true,
-        }
+    // Uniform force simulation parameters across all graph sizes — optimized for stability
+    // Key: disable layoutAnimation to freeze positions once settled, use high friction to converge quickly
+    const forceParams = {
+      repulsion: 150,        // Consistent node repulsion across all sizes
+      gravity: 0.25,         // Consistent gravity pull toward center
+      edgeLength: [50, 100], // Consistent edge spacing
+      friction: 0.92,        // High damping to stop movement quickly
+      layoutAnimation: false,// Disable continuous animation — freeze positions once calculated
+      initLayout: "circular" as const, // Start from circular layout, converges faster
+      // Note: ECharts will run physics for several frames then stop
+    }
 
     // Disable edge labels for large graphs (very expensive to render)
     const showEdgeLabels = !graphComplexity.isLarge && graphComplexity.nodeCount < 150
 
     return {
       backgroundColor: "transparent",
+      animation: false,        // Disable chart-level animation to prevent persistent movement
       legend: { show: false },
       tooltip: {
         trigger: "item",
@@ -4006,14 +3993,14 @@ function ForceGraphEChart({
         style={{ width: "100%", height: "100%" }}
         theme={isDark ? "dark" : undefined}
         opts={{ renderer: "canvas", useDirtyRect: true }} // Enable incremental rendering
-        notMerge={false}
-        lazyUpdate={graphComplexity.isLarge} // Batch updates for large graphs
+        notMerge={true} // Full re-render to handle selection/expansion properly
+        lazyUpdate={false} // Ensure immediate updates for selection changes
       />
 
       {/* Connections panel removed — available in the Table view's third column */}
     </div>
   )
-}
+})
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
