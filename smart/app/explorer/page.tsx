@@ -2051,7 +2051,7 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       type: "tree",
       orient: "TB",
       expandAndCollapse: true,
-      initialTreeDepth: 1,
+      initialTreeDepth: 2,
       roam: true,
       symbol: "circle",
       itemStyle: { borderWidth: 0 },
@@ -2130,13 +2130,11 @@ const MergedEChartsTree = memo(function MergedEChartsTree({
       series: [{
         ...sharedProps,
         data: [treeData],
-        // Horizontal extents shrink as `spread` grows so the tree's own
-        // bounding box widens (extending past the viewport when spread > 1).
-        // Roam is enabled, so users can pan to reach the edges.
-        left: `${(1 - spread) * 50 + 1}%`,
-        right: `${(1 - spread) * 50 + 1}%`,
+        // Use full width and height; spread multiplier scales the tree layout itself
+        left: "1%",
+        right: "1%",
         top: "5%",
-        bottom: "50%",
+        bottom: "5%",
       }],
     }
   }, [treeData, isDark, spread])
