@@ -3790,29 +3790,29 @@ function ForceGraphEChart({
   }, [selectedId, graphLinks, nodeMap, hiddenNodeTypes, hiddenEdgeTypes])
 
   const option = useMemo(() => {
-    // Adaptive force simulation parameters based on graph size
+    // Adaptive force simulation parameters based on graph size — optimized for faster settlement
     const forceParams = graphComplexity.isLarge
       ? {
-          repulsion: 250,        // Reduced from 500 — less repulsive force = faster convergence
-          gravity: 0.15,         // Increased from 0.05 — pull nodes toward center sooner
-          edgeLength: [50, 100], // Shorter desired edge length = less distance traversal
-          friction: 0.8,         // Increased from 0.6 — stronger damping stops oscillations
+          repulsion: 150,        // Minimal repulsion for fast convergence
+          gravity: 0.25,         // Strong gravity pull toward center
+          edgeLength: [40, 80],  // Short edges converge quickly
+          friction: 0.9,         // Maximum damping to stop oscillations
           layoutAnimation: true,
           initLayout: "circular" as const, // Start from circular layout, converges faster
         }
       : graphComplexity.isMedium
       ? {
-          repulsion: 350,
-          gravity: 0.08,
-          edgeLength: [70, 140],
-          friction: 0.7,
+          repulsion: 200,        // Reduced repulsion
+          gravity: 0.15,         // Increased gravity
+          edgeLength: [50, 110], // Shorter edges
+          friction: 0.85,        // Stronger damping
           layoutAnimation: true,
         }
       : {
-          repulsion: 500,
-          gravity: 0.05,
-          edgeLength: [90, 180],
-          friction: 0.6,
+          repulsion: 300,        // Reduced from 500
+          gravity: 0.12,         // Increased from 0.05
+          edgeLength: [70, 140], // Slightly shorter
+          friction: 0.8,         // Increased from 0.6
           layoutAnimation: true,
         }
 
