@@ -800,9 +800,6 @@ export default function TrafficSimulatorPage() {
                                   <div className={`text-sm font-medium truncate ${isFullySelected ? "text-primary" : isPartiallySelected ? "text-amber-700 dark:text-amber-400" : ""}`}>
                                     {app.name}
                                   </div>
-                                  {!hasTopics && (
-                                    <span className="text-xs text-muted-foreground italic">no topics</span>
-                                  )}
                                 </button>
 
                                 {/* Right: pub/sub counts + partial indicator */}
@@ -824,6 +821,9 @@ export default function TrafficSimulatorPage() {
                                         <span>{app.sub_topic_ids.length} sub</span>
                                       )}
                                     </div>
+                                  )}
+                                  {!hasTopics && (
+                                    <span className="text-xs text-muted-foreground italic">no topics</span>
                                   )}
                                 </div>
                               </div>
