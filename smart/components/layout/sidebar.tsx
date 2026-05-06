@@ -106,7 +106,7 @@ export function Sidebar() {
           alt="Genieus Logo"
           width={32}
           height={32}
-          className="rounded-lg shadow-lg shrink-0"
+          className="rounded-lg shrink-0"
         />
         {!collapsed && (
           <span className="ml-3 text-lg font-bold bg-gradient-to-r from-cyan-500 to-blue-700 dark:from-cyan-400 dark:to-blue-500 bg-clip-text text-transparent whitespace-nowrap overflow-hidden">Genieus</span>
@@ -126,11 +126,11 @@ export function Sidebar() {
               title={collapsed ? item.name : undefined}
               onClick={() => setCollapsed(true)}
               className={cn(
-                "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 collapsed ? "justify-center gap-0" : "gap-3",
                 isActive
-                  ? "bg-gradient-to-r from-cyan-400 to-blue-600 text-white shadow-md shadow-cyan-500/20 dark:shadow-cyan-500/30"
-                  : "text-muted-foreground hover:bg-gradient-to-r hover:from-cyan-50 hover:to-blue-50 dark:hover:from-cyan-950/50 dark:hover:to-blue-950/50 hover:text-foreground hover:shadow-sm"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               )}
             >
               <Icon className="h-5 w-5 shrink-0" />
