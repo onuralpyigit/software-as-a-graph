@@ -3653,6 +3653,40 @@ function ForceGraphEChart({
     return ids
   }, [expandedIds, eLinks])
 
+  // First pass: build basic node list to determine complexity
+  const baseNodeCount = useMemo(() => {
+    const catIdx: Record<SwimlaneType, number> = {
+      Application: 0, Node: 1, Topic: 2, Broker: 3, Library: 4,
+    }
+    const rows: [any[], SwimlaneType][] = [
+      [appsList,   "Application"],
+      [nodesList,  "Node"],
+      [topicsList, "Topic"],
+      [brokersList,"Broker"],
+      [libsList,   "Library"],
+    ]
+    return rows.reduce((count, [list, type]) =>
+      count + list.filter(n => !visibleNodeIds || visibleNodeIds.has(String(n.id)))
+                  .filter(() => !hiddenNodeTypes.has(type as string)).length,
+      0
+    )
+  }, [appsList, nodesList, topicsList, brokersList, libsList, visibleNodeIds, hiddenNodeTypes])
+
+  // Detect graph complexity to adjust simulation parameters dynamically
+  const graphComplexity = useMemo(() => {
+    const nodeCount = baseNodeCount
+    const edgeCount = eLinks.length
+    const avgDegree = nodeCount > 0 ? edgeCount / nodeCount : 0
+    // Classify: small (<50), medium (50-200), large (>200)
+    return {
+      nodeCount,
+      edgeCount,
+      avgDegree,
+      isLarge: nodeCount > 200 || edgeCount > 500,
+      isMedium: nodeCount > 50 || edgeCount > 150,
+    }
+  }, [baseNodeCount, eLinks])
+
   const eNodes = useMemo(() => {
     const catIdx: Record<SwimlaneType, number> = {
       Application: 0, Node: 1, Topic: 2, Broker: 3, Library: 4,
@@ -3664,6 +3698,9 @@ function ForceGraphEChart({
       [brokersList,"Broker"],
       [libsList,   "Library"],
     ]
+    // Always use large graph sizing for optimal performance and visual clarity
+    const nodeSizeConfig = { selected: 36, normal: 14 }
+
     return rows.flatMap(([list, type]) =>
       list
         .filter(n => !visibleNodeIds || visibleNodeIds.has(String(n.id)))
@@ -3676,13 +3713,13 @@ function ForceGraphEChart({
             id,
             name,
             category: catIdx[type],
-            symbolSize: sel ? 72 : 40,
+            symbolSize: sel ? nodeSizeConfig.selected : nodeSizeConfig.normal,
             itemStyle: sel
               ? {
-                  borderWidth: 4,
+                  borderWidth: graphComplexity.isLarge ? 2 : 4, // Thinner border for large graphs
                   borderColor: "#f97316",
                   borderType: "solid",
-                  shadowBlur: 18,
+                  shadowBlur: graphComplexity.isLarge ? 10 : 18, // Reduced shadow for performance
                   shadowColor: "rgba(249,115,22,0.7)",
                 }
               : undefined,
@@ -3697,12 +3734,12 @@ function ForceGraphEChart({
             ...(type === "Library" ? { _version: n.version ?? n.properties?.version ?? "" } : {}),
             ...(type === "Broker" ? { _broker_type: n.broker_type ?? n.properties?.broker_type ?? "" } : {}),
             label: {
-              show: true,
+              show: !graphComplexity.isLarge || sel, // Hide labels for non-selected nodes in large graphs
               formatter: (p: any) => {
                 const n = p.data?.name ?? p.name ?? ""
                 return n.length > 12 ? n.slice(0, 11) + "…" : n
               },
-              fontSize: sel ? 12 : 9,
+              fontSize: sel ? (graphComplexity.isLarge ? 10 : 12) : 8,
               fontWeight: sel ? 700 : 400,
               color: "#fff",
               position: "inside",
@@ -3713,7 +3750,7 @@ function ForceGraphEChart({
           }
         })
     )
-  }, [appsList, nodesList, topicsList, brokersList, libsList, selectedId, visibleNodeIds, hiddenNodeTypes])
+  }, [appsList, nodesList, topicsList, brokersList, libsList, selectedId, visibleNodeIds, hiddenNodeTypes, graphComplexity])
 
   // All edge types present in data (unfiltered) — used for legend so hidden items remain visible
   const edgeTypesInView = useMemo(() => {
@@ -3751,62 +3788,89 @@ function ForceGraphEChart({
     return { outgoing, incoming, getName }
   }, [selectedId, graphLinks, nodeMap, hiddenNodeTypes, hiddenEdgeTypes])
 
-  const option = useMemo(() => ({
-    backgroundColor: "transparent",
-    legend: { show: false },
-    tooltip: {
-      trigger: "item",
-      formatter: (p: any) => {
-        if (p.dataType === "node") {
-          const d = p.data ?? {}
-          const name = d.name ?? p.name ?? ""
-          const type: string = d.nodeType ?? ""
-          let extra = ""
-          if (type === "Application" && d._role) extra += `<br/><span style="opacity:0.7">Role: ${d._role}</span>`
-          if (type === "Topic") {
-            if (d._qos_reliability        != null && d._qos_reliability        !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${d._qos_reliability}</span>`
-            if (d._qos_durability         != null && d._qos_durability         !== "") extra += `<br/><span style="opacity:0.7">Durability: ${d._qos_durability}</span>`
-            if (d._qos_transport_priority != null && d._qos_transport_priority !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${d._qos_transport_priority}</span>`
-            if (d._size != null && d._size !== "") { const szN = Number(d._size); const szFmt = isFinite(szN) ? (szN >= 1048576 ? `${(szN/1048576).toFixed(2)} MB` : szN >= 1024 ? `${(szN/1024).toFixed(1)} KB` : `${szN} B`) : String(d._size); extra += `<br/><span style="opacity:0.7">Size: ${szFmt}</span>` }
-          }
-          if (type === "Library" && d._version) extra += `<br/><span style="opacity:0.7">Version: ${d._version}</span>`
-          if (type === "Broker" && d._broker_type) extra += `<br/><span style="opacity:0.7">Protocol: ${d._broker_type}</span>`
-          const typeStr = type ? `<br/><span style="opacity:0.7">${type}</span>` : ""
-          return `<div style="font-size:12px;line-height:1.7"><b>${name}</b>${typeStr}${extra}</div>`
+  const option = useMemo(() => {
+    // Adaptive force simulation parameters based on graph size
+    const forceParams = graphComplexity.isLarge
+      ? {
+          repulsion: 250,        // Reduced from 500 — less repulsive force = faster convergence
+          gravity: 0.15,         // Increased from 0.05 — pull nodes toward center sooner
+          edgeLength: [50, 100], // Shorter desired edge length = less distance traversal
+          friction: 0.8,         // Increased from 0.6 — stronger damping stops oscillations
+          layoutAnimation: true,
+          initLayout: "circular" as const, // Start from circular layout, converges faster
         }
-        return `${p.data?.source} → ${p.data?.target}`
+      : graphComplexity.isMedium
+      ? {
+          repulsion: 350,
+          gravity: 0.08,
+          edgeLength: [70, 140],
+          friction: 0.7,
+          layoutAnimation: true,
+        }
+      : {
+          repulsion: 500,
+          gravity: 0.05,
+          edgeLength: [90, 180],
+          friction: 0.6,
+          layoutAnimation: true,
+        }
+
+    // Disable edge labels for large graphs (very expensive to render)
+    const showEdgeLabels = !graphComplexity.isLarge && graphComplexity.nodeCount < 150
+
+    return {
+      backgroundColor: "transparent",
+      legend: { show: false },
+      tooltip: {
+        trigger: "item",
+        formatter: (p: any) => {
+          if (p.dataType === "node") {
+            const d = p.data ?? {}
+            const name = d.name ?? p.name ?? ""
+            const type: string = d.nodeType ?? ""
+            let extra = ""
+            if (type === "Application" && d._role) extra += `<br/><span style="opacity:0.7">Role: ${d._role}</span>`
+            if (type === "Topic") {
+              if (d._qos_reliability        != null && d._qos_reliability        !== "") extra += `<br/><span style="opacity:0.7">Reliability: ${d._qos_reliability}</span>`
+              if (d._qos_durability         != null && d._qos_durability         !== "") extra += `<br/><span style="opacity:0.7">Durability: ${d._qos_durability}</span>`
+              if (d._qos_transport_priority != null && d._qos_transport_priority !== "") extra += `<br/><span style="opacity:0.7">Transport Priority: ${d._qos_transport_priority}</span>`
+              if (d._size != null && d._size !== "") { const szN = Number(d._size); const szFmt = isFinite(szN) ? (szN >= 1048576 ? `${(szN/1048576).toFixed(2)} MB` : szN >= 1024 ? `${(szN/1024).toFixed(1)} KB` : `${szN} B`) : String(d._size); extra += `<br/><span style="opacity:0.7">Size: ${szFmt}</span>` }
+            }
+            if (type === "Library" && d._version) extra += `<br/><span style="opacity:0.7">Version: ${d._version}</span>`
+            if (type === "Broker" && d._broker_type) extra += `<br/><span style="opacity:0.7">Protocol: ${d._broker_type}</span>`
+            const typeStr = type ? `<br/><span style="opacity:0.7">${type}</span>` : ""
+            return `<div style="font-size:12px;line-height:1.7"><b>${name}</b>${typeStr}${extra}</div>`
+          }
+          return `${p.data?.source} → ${p.data?.target}`
+        },
       },
-    },
-    series: [{
-      type:          "graph",
-      layout:        "force",
-      data:          eNodes,
-      links:         eLinks,
-      categories:    FORCE_CATEGORIES.map(c => ({
-        name:      c.name,
-        itemStyle: { color: c.color },
-      })),
-      roam:          true,
-      focusNodeAdjacency: true,
-      label:         { show: true, position: "inside", fontSize: 9 },
-      edgeSymbol:    ["none", "arrow"],
-      edgeSymbolSize: 8,
-      edgeLabel:     { show: true, fontSize: 9, position: "middle" },
-      lineStyle:     { opacity: 0.55 },
-      force: {
-        repulsion:       500,
-        gravity:         0.05,
-        edgeLength:      [90, 180],
-        friction:        0.6,
-        layoutAnimation: true,
-      },
-      emphasis: {
-        focus:     "adjacency",
-        lineStyle: { opacity: 0.7 },
-        label:     { show: true },
-      },
-    }],
-  }), [eNodes, eLinks, isDark])
+      series: [{
+        type:          "graph",
+        layout:        "force",
+        data:          eNodes,
+        links:         eLinks,
+        categories:    FORCE_CATEGORIES.map(c => ({
+          name:      c.name,
+          itemStyle: { color: c.color },
+        })),
+        roam:          true,
+        focusNodeAdjacency: true,
+        label:         { show: true, position: "inside", fontSize: 9 },
+        edgeSymbol:    ["none", "arrow"],
+        edgeSymbolSize: graphComplexity.isLarge ? 4 : 8, // Smaller arrows for large graphs
+        edgeLabel:     showEdgeLabels
+          ? { show: true, fontSize: 9, position: "middle" }
+          : { show: false }, // Hide edge labels for performance
+        lineStyle:     { opacity: 0.55 },
+        force:         forceParams,
+        emphasis: {
+          focus:     "adjacency",
+          lineStyle: { opacity: 0.7 },
+          label:     { show: true },
+        },
+      }],
+    }
+  }, [eNodes, eLinks, isDark, graphComplexity])
 
   const onEvents = useMemo(() => ({
     click: (p: any) => {
@@ -3826,6 +3890,11 @@ function ForceGraphEChart({
     <div className="relative w-full h-full">
       {linksLoading && (
         <div className="absolute top-2 right-3 z-10 text-xs text-muted-foreground">Loading edges…</div>
+      )}
+      {graphComplexity.isLarge && (
+        <div className="absolute top-2 right-3 z-10 text-xs text-muted-foreground">
+          Optimized mode: {graphComplexity.nodeCount} nodes, {graphComplexity.edgeCount} edges
+        </div>
       )}
 
       {/* Search bar overlay */}
@@ -3927,9 +3996,9 @@ function ForceGraphEChart({
         onEvents={onEvents}
         style={{ width: "100%", height: "100%" }}
         theme={isDark ? "dark" : undefined}
-        opts={{ renderer: "canvas" }}
+        opts={{ renderer: "canvas", useDirtyRect: true }} // Enable incremental rendering
         notMerge={false}
-        lazyUpdate={false}
+        lazyUpdate={graphComplexity.isLarge} // Batch updates for large graphs
       />
 
       {/* Connections panel removed — available in the Table view's third column */}

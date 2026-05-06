@@ -789,6 +789,7 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
 }) {
   const [showKb, setShowKb] = useState(false)
   const [search, setSearch] = useState("")
+  const [selectedCell, setSelectedCell] = useState<{ rowLabel: string; colLabel: string; topics: string[] } | null>(null)
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme !== "light"
 
@@ -865,25 +866,24 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
       backgroundColor: tooltipBg,
       borderColor: tooltipBorder,
       textStyle: { color: tooltipText },
+      confine: true,            // Keep tooltip within chart bounds
+      hideDelay: 200,           // 200ms delay before hiding (allows scroll time)
       formatter: (params: { data: [number, number, number] }) => {
         const [ci, ri, val] = params.data
         const rLabel = labels[ri] ?? ri
         const cLabel = labels[ci] ?? ci
         const fmtVal = fmtCellVal(val) || "0"
-        let topicsHtml = ""
+        let topicCount = 0
         if (ids && perEntity && val > 0) {
           const rowId = ids[ri]
           const colId = ids[ci]
           const colSubIds = new Set(perEntity[colId]?.sub_topics.map((t) => t.id) ?? [])
           const shared = (perEntity[rowId]?.pub_topics ?? []).filter((t) => colSubIds.has(t.id))
-          if (shared.length > 0) {
-            const topicItems = shared.map((t) =>
-              `<div style="font-family:monospace;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;color:${tooltipMuted}">${t.name}</div>`
-            ).join("")
-            topicsHtml = `<div style="margin-top:5px;border-top:1px solid ${tooltipBorder};padding-top:4px">${topicItems}</div>`
-          }
+          topicCount = shared.length
         }
-        return `<div style="font-size:12px;line-height:1.7;color:${tooltipText}"><b>${rLabel} → ${cLabel}</b><br/><span style="color:${tooltipMuted}">${fmtVal}</span>${topicsHtml}</div>`
+        // Show click hint for all cells with topics
+        const clickHint = topicCount > 0 ? `<br/><span style="color:${tooltipMuted};font-size:9px;font-style:italic">Click to view topics</span>` : ""
+        return `<div style="font-size:12px;line-height:1.7;color:${tooltipText}"><b>${rLabel} → ${cLabel}</b><br/><span style="color:${tooltipMuted}">${fmtVal}</span>${clickHint}</div>`
       },
     },
     grid: { top: 20, right: 20, bottom: n > 10 ? 80 : 50, left: n > 10 ? 120 : 80 },
@@ -921,7 +921,35 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
     }],
   }
 
-  const heatmapEvents = {}
+  const handleHeatmapClick = (params: any) => {
+    // Check if it's a heatmap cell click (seriesType will be "heatmap")
+    if (params.seriesType !== "heatmap" || !params.data) return
+    const [ci, ri, val] = params.data
+    if (val <= 0 || !ids || !perEntity) return
+
+    // ri and ci are indices into the filtered/current view
+    const rowId = ids[ri]
+    const colId = ids[ci]
+
+    if (!rowId || !colId) return
+
+    const colSubIds = new Set(perEntity[colId]?.sub_topics.map((t) => t.id) ?? [])
+    const shared = (perEntity[rowId]?.pub_topics ?? []).filter((t) => colSubIds.has(t.id))
+
+    if (shared.length > 0) {
+      const rLabel = labels[ri] ?? ri
+      const cLabel = labels[ci] ?? ci
+      setSelectedCell({
+        rowLabel: rLabel,
+        colLabel: cLabel,
+        topics: shared.map(t => t.name),
+      })
+    }
+  }
+
+  const heatmapEvents = {
+    click: handleHeatmapClick,
+  }
 
   return (
     <div className="space-y-4">
@@ -970,6 +998,43 @@ function HeatmapSection({ data, title, modeToggle, insights }: {
 
       {data.outlier_pairs.length > 0 && (
         <OutlierTable title="Outlier Pairs" headers={["Source", "Target", "Count", "Deviation"]} rows={data.outlier_pairs} />
+      )}
+
+      {/* Topics detail modal */}
+      {selectedCell && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedCell(null)}>
+          <div className="bg-background border border-border rounded-lg shadow-lg max-w-3xl w-full h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-shrink-0">
+              <h2 className="font-semibold text-sm">
+                {selectedCell.rowLabel} → {selectedCell.colLabel}
+              </h2>
+              <button
+                onClick={() => setSelectedCell(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-lg"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-1">
+              {selectedCell.topics.length === 0 ? (
+                <div className="text-xs text-muted-foreground">No topics found</div>
+              ) : (
+                selectedCell.topics.map((topicName, idx) => (
+                  <div
+                    key={idx}
+                    className="font-mono text-xs p-2 rounded bg-muted/50 hover:bg-muted transition-colors break-all"
+                    title={topicName}
+                  >
+                    {topicName}
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground text-right flex-shrink-0">
+              {selectedCell.topics.length} topic{selectedCell.topics.length !== 1 ? 's' : ''}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
