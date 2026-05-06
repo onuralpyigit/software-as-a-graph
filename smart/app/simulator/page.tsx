@@ -561,7 +561,7 @@ export default function TrafficSimulatorPage() {
                         </optgroup>
                         <optgroup label="Transport Priority">
                           {qosOptions.priority.map(opt => (
-                            <option key={opt} value={opt}>TP {opt}</option>
+                            <option key={opt} value={opt}>{opt}</option>
                           ))}
                         </optgroup>
                       </select>
@@ -661,7 +661,7 @@ export default function TrafficSimulatorPage() {
                                   <div className="flex items-center gap-1 shrink-0">
                                     {topic.qos_reliability && (
                                       <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border border-green-500/40 text-green-600 dark:text-green-400 bg-green-500/5">
-                                        {topic.qos_reliability === "RELIABLE" ? "Reliable" : "Best-Effort"}
+                                        {topic.qos_reliability}
                                       </span>
                                     )}
                                     {topic.qos_durability && (
