@@ -115,7 +115,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className={cn("flex-1 space-y-1 p-2", !collapsed && "p-4")}>
-{navigation.map((item) => {
+        {navigation.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
           const Icon = item.icon
 
@@ -126,10 +126,8 @@ export function Sidebar() {
               title={collapsed ? item.name : undefined}
               onClick={() => setCollapsed(true)}
               className={cn(
-                "flex items-center rounded-lg text-sm font-medium transition-colors",
-                collapsed 
-                  ? "justify-center w-10 h-10 mx-auto p-0 gap-0" 
-                  : "gap-3 px-3 py-2.5",
+                "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                collapsed ? "justify-center gap-0" : "gap-3",
                 isActive
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"

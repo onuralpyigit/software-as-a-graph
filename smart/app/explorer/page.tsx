@@ -124,8 +124,9 @@ function sortKeys(keys: string[]): string[] {
 
 // ── Graph helpers ─────────────────────────────────────────────────────────────
 
+// Hierarchy node colors — distinct from connection node types to avoid confusion
 const NODE_COLORS: Record<HGLevel, string> = {
-  csms: "#10b981", css: "#3b82f6", csci: "#f59e0b", csc: "#f97316", app: "#4CBCD0",
+  csms: "#ec4899", css: "#8b5cf6", csci: "#06b6d4", csc: "#14b8a6", app: "#4CBCD0",
 }
 const NODE_SIZES: Record<HGLevel, number> = {
   csms: 14, css: 10, csci: 8, csc: 6, app: 3.5,
@@ -2212,6 +2213,7 @@ const HierEChartsTree = memo(function HierEChartsTree({
   isDark: boolean
   onNodeClick?: (level: HGLevel, pathKey: string, name: string) => void
 }) {
+  const [legendVisible, setLegendVisible] = useState(true)
   const treeData = useMemo(() => buildEChartsTree(hierarchy), [hierarchy])
 
   const option = useMemo(() => ({
@@ -2297,7 +2299,7 @@ const HierEChartsTree = memo(function HierEChartsTree({
       {/* Legend */}
       <div style={{
         position: "absolute", bottom: 10, left: 10, zIndex: 10,
-        display: "flex", flexWrap: "wrap", gap: "8px 14px",
+        display: "flex", flexDirection: "column", gap: "6px",
         padding: "6px 10px",
         borderRadius: 8,
         background: isDark ? "rgba(15,15,20,0.70)" : "rgba(255,255,255,0.80)",
@@ -2305,14 +2307,40 @@ const HierEChartsTree = memo(function HierEChartsTree({
         border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
         fontSize: 10,
         color: isDark ? "#94a3b8" : "#64748b",
-        pointerEvents: "none",
+        pointerEvents: "auto",
       }}>
-        {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => (
-          <span key={lvl} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: NODE_COLORS[lvl], flexShrink: 0 }} />
-            {LEVEL_LABELS[lvl]}
-          </span>
-        ))}
+        <button
+          onClick={() => setLegendVisible(!legendVisible)}
+          style={{
+            background: "none", border: "none", padding: 0, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 4, color: "inherit", fontSize: "inherit",
+          }}
+        >
+          <svg
+            width="14"
+            height="10"
+            viewBox="0 0 14 10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ transform: legendVisible ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 200ms", flexShrink: 0 }}
+          >
+            <polyline points="5 1 9 5 5 9" />
+          </svg>
+          <span style={{ fontWeight: 600 }}>Legend</span>
+        </button>
+        {legendVisible && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px" }}>
+            {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => (
+              <span key={lvl} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: NODE_COLORS[lvl], flexShrink: 0 }} />
+                {LEVEL_LABELS[lvl]}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       {/* Hint */}
       <div style={{
@@ -2338,7 +2366,7 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
   const { theme, systemTheme } = useTheme()
   const isDark = (theme === "system" ? systemTheme : theme) === "dark"
 
-
+  const [graphLegendVisible, setGraphLegendVisible] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const [dims, setDims] = useState({ width: 800, height: 580 })
@@ -2934,28 +2962,62 @@ function HierarchyGraph({ hierarchy, extraNodes = [], initialNodeId = null, sync
           </div>
 
           {/* Legend — matches Force Graph tab */}
-          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/70 px-3 py-2 text-xs backdrop-blur max-h-[60%] overflow-y-auto pointer-events-none">
-            <span className="font-medium text-muted-foreground mb-0.5">Nodes</span>
-            {(Object.entries(CONN_NODE_TYPE_COLORS_DARK) as [string, string][]).map(([name, color]) => (
-              <div key={name} className="flex items-center gap-2">
-                <svg width="12" height="12" className="shrink-0">
-                  <circle cx="6" cy="6" r="5" fill={color} />
-                </svg>
-                <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{name}</span>
-              </div>
-            ))}
-            <hr className="my-1 border-border" />
-            <span className="font-medium text-muted-foreground mb-0.5">Relationships</span>
-            {(Object.entries(CONN_LINK_TYPE_COLORS_DARK) as [string, string][])
-              .filter(([type]) => type !== "DEPENDS_ON" && type !== "CONNECTS_TO")
-              .map(([type, color]) => (
-              <div key={type} className="flex items-center gap-2">
-                <svg width="22" height="10" className="shrink-0">
-                  <line x1="0" y1="5" x2="22" y2="5" stroke={color} strokeWidth="2" />
-                </svg>
-                <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{type}</span>
-              </div>
-            ))}
+          <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 rounded-md border border-border bg-background/70 px-3 py-2 text-xs backdrop-blur pointer-events-auto">
+            <button
+              onClick={() => setGraphLegendVisible(!graphLegendVisible)}
+              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              <svg
+                width="14"
+                height="10"
+                viewBox="0 0 14 10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ transform: graphLegendVisible ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 200ms", flexShrink: 0 }}
+                className="text-muted-foreground"
+              >
+                <polyline points="5 1 9 5 5 9" />
+              </svg>
+              <span className="font-medium text-muted-foreground">Legend</span>
+            </button>
+            {graphLegendVisible && (
+              <>
+                <span className="font-medium text-muted-foreground mb-0.5 mt-1">Hierarchy Nodes</span>
+                {(["csms", "css", "csci", "csc", "app"] as const).map(lvl => (
+                  <div key={lvl} className="flex items-center gap-2">
+                    <svg width="12" height="12" className="shrink-0">
+                      <circle cx="6" cy="6" r="5" fill={NODE_COLORS[lvl]} />
+                    </svg>
+                    <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{LEVEL_LABELS[lvl]}</span>
+                  </div>
+                ))}
+                <hr className="my-1 border-border" />
+                <span className="font-medium text-muted-foreground mb-0.5">Nodes</span>
+                {(Object.entries(CONN_NODE_TYPE_COLORS_DARK) as [string, string][]).map(([name, color]) => (
+                  <div key={name} className="flex items-center gap-2">
+                    <svg width="12" height="12" className="shrink-0">
+                      <circle cx="6" cy="6" r="5" fill={color} />
+                    </svg>
+                    <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{name}</span>
+                  </div>
+                ))}
+                <hr className="my-1 border-border" />
+                <span className="font-medium text-muted-foreground mb-0.5">Relationships</span>
+                {(Object.entries(CONN_LINK_TYPE_COLORS_DARK) as [string, string][])
+                  .filter(([type]) => type !== "DEPENDS_ON" && type !== "CONNECTS_TO")
+                  .map(([type, color]) => (
+                  <div key={type} className="flex items-center gap-2">
+                    <svg width="22" height="10" className="shrink-0">
+                      <line x1="0" y1="5" x2="22" y2="5" stroke={color} strokeWidth="2" />
+                    </svg>
+                    <span style={{ color: isDark ? "#e4e4e7" : "#3f3f46" }}>{type}</span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </div>
       </div>
